@@ -117,6 +117,22 @@ class SlideCanvas extends StatelessWidget {
   }
 
   Widget _canvas(double unit) {
+    final shapes = [for (final shape in slide.shapes) _positioned(shape, unit)];
+    // B11 m.8 — sürükleme bütçesi: seçili şeklin çerçeve editörü her
+    // sürükleme karesinde yer değiştirir; Stack yeniden boyanır. Altındaki ve
+    // üstündeki şekiller ayrı RepaintBoundary'de: kare başına yalnız seçili
+    // şekil çizilir, ötekiler önbellekten birleşir (z sırası korunur, 2 katman).
+    // ponytail: seçim aç/kapa ağaç şeklini değiştirir (şekil gövdeleri bir kez
+    // yeniden bağlanır — durumsuz, görsel önbellekten); sorun olursa şekil
+    // başına GlobalKey ile taşıma.
+    final f = shapes.indexWhere((w) => w is SlideFrameEditor);
+    final List<Widget> layers = f < 0
+        ? shapes
+        : [
+            if (f > 0) _layer(shapes.sublist(0, f)),
+            shapes[f],
+            if (f < shapes.length - 1) _layer(shapes.sublist(f + 1)),
+          ];
     return FittedBox(
       fit: BoxFit.contain,
       child: SizedBox(
@@ -142,13 +158,17 @@ class SlideCanvas extends StatelessWidget {
                         ),
                 ),
               ),
-              for (final shape in slide.shapes) _positioned(shape, unit),
+              ...layers,
             ],
           ),
         ),
       ),
     );
   }
+
+  static Widget _layer(List<Widget> children) => Positioned.fill(
+        child: RepaintBoundary(child: Stack(children: children)),
+      );
 
   Widget _positioned(ShapeVM s, double unit) {
     // Animasyonlu içerik: adımı gelmemiş şekil/paragraf saydamdır (yer tutar,

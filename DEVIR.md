@@ -6,5 +6,8 @@
   `SlideshowScreen(rehearse: true)` (advTm ilerletmez, slayt başı süre toplanır, çıkışta
   Map<deckIndex,ms>), sunucu panelinde "Bu slayt: mm:ss", menü "Prova (süreleri kaydet)" →
   `PptxMediaOps.setTimings` (advTm). Testler: slideshow_test (prova), slides_pro_test (B11 m.6).
-- Sıradaki: m.8 sürükleme bütçesi (slides_perf_test genişlet), sığarsa m.5 AI tasarımcı.
+- m.8 (commit sonrası): slide_canvas.dart _canvas — seçili çerçevenin altı/üstü iki
+  RepaintBoundary katmanı. Kanıt: slides_perf_test debugOnProfilePaint ile sürüklemede boyanan
+  'Madde' metni = 0; tavan 250→130 (CI 107); slideshow_test geçiş karesi SlideCanvas 0.
+- Sıradaki: CI sonucu; sığarsa m.5 AI tasarımcı.
 - Dokunulmayan: m.2 (B10 m.1 bekliyor), m.3 (fable planı).

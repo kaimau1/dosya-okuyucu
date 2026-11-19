@@ -1,8 +1,11 @@
 import 'package:dosya_okuyucu/screens/editors/slideshow_screen.dart';
 import 'package:dosya_okuyucu/services/pptx_render.dart';
+import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/rebuild_probe.dart';
 
 const _slide = SlideVM(widthPt: 960, heightPt: 540, shapes: []);
 
@@ -54,6 +57,31 @@ void main() {
     expect(find.byKey(const ValueKey('ss-transition')), findsNothing);
     await t.pumpAndSettle();
     expect(find.text('3 / 3'), findsOneWidget);
+  });
+
+  testWidgets('B11 m.8: geçiş karesi bütçesi — slayt içeriği yeniden kurulmaz',
+      (t) async {
+    const pushed = SlideVM(
+        widthPt: 960, heightPt: 540, shapes: [], transition: 'push');
+    await t.pumpWidget(const MaterialApp(
+      home: SlideshowScreen(slides: [_slide, pushed]),
+    ));
+    final w = t.view.physicalSize.width / t.view.devicePixelRatio;
+    await t.tapAt(Offset(w * 0.9, 200));
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 16));
+    expect(find.byKey(const ValueKey('ss-transition')), findsOneWidget);
+    final r = await countRebuilds(t, () async {
+      for (var i = 0; i < 3; i++) {
+        await t.pump(const Duration(milliseconds: 16));
+      }
+    });
+    // ignore: avoid_print
+    print('PERF slideshow_transition_rebuilds=${r.total} top=${r.top()}');
+    // Geçiş yalnız sarmalayıcıyı (dönüşüm/saydamlık) kurar; slayt önbellekte.
+    expect(r.of(SlideCanvas), 0);
+    expect(r.total, lessThan(40));
+    await t.pumpAndSettle();
   });
 
   testWidgets('Faz 38: klavye/kumanda ile ilerler; kalem, lazer, zamanlayıcı', (t) async {
