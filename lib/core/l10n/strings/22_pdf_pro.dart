@@ -311,4 +311,16 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.hide_status': ('Okurken durum çubuğunu da gizle', 'Also hide the status bar while reading', 'إخفاء شريط الحالة أيضًا أثناء القراءة'),
   'pp.hide_status_hint': ('Kaydırınca saat ve pil de çekilir; tek dokunuş geri getirir', 'Clock and battery slide away as you scroll; one tap brings them back', 'تختفي الساعة والبطارية عند التمرير؛ لمسة واحدة تعيدها'),
   'pp.crop_none': ('Kırpılacak boşluk bulunamadı', 'No margins to crop', 'لا توجد هوامش لقصّها'),
+  // B4 PDF Pro tamamlama (2026-11-19).
+  'pp.meta': ('Belge bilgileri', 'Document properties', 'خصائص المستند'),
+  'pp.meta_sub': ('Başlık, yazar, konu, anahtar sözcükler', 'Title, author, subject, keywords', 'العنوان والمؤلف والموضوع والكلمات المفتاحية'),
+  'pp.meta_title': ('Başlık', 'Title', 'العنوان'),
+  'pp.meta_author': ('Yazar', 'Author', 'المؤلف'),
+  'pp.meta_subject': ('Konu', 'Subject', 'الموضوع'),
+  'pp.meta_keywords': ('Anahtar sözcükler', 'Keywords', 'الكلمات المفتاحية'),
+  'pp.meta_failed': ('Belge bilgileri okunamadı', 'Could not read document properties', 'تعذّرت قراءة خصائص المستند'),
+  'pp.xfdf_out': ('Açıklamaları dışa aktar (XFDF)', 'Export annotations (XFDF)', 'تصدير التعليقات (XFDF)'),
+  'pp.xfdf_out_sub': ('Vurgu ve notları başka uygulamaya taşı', 'Move highlights and notes to another app', 'انقل التمييزات والملاحظات إلى تطبيق آخر'),
+  'pp.xfdf_in': ('Açıklamaları içe aktar (XFDF)', 'Import annotations (XFDF)', 'استيراد التعليقات (XFDF)'),
+  'pp.xfdf_in_sub': ('Başka uygulamadaki vurgu ve notları ekle', 'Add highlights and notes from another app', 'أضف التمييزات والملاحظات من تطبيق آخر'),
 };

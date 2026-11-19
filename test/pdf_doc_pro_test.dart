@@ -122,4 +122,39 @@ void main() {
             strokes: const [[Offset(0, 0)]], aspect: 1),
         throwsArgumentError);
   });
+
+  test('B4/P21: belge bilgisi yazılır ve okunur, parola korunur', () async {
+    const meta = (
+      title: 'Kira sözleşmesi',
+      author: 'Şükrü Öztürk',
+      subject: 'Ğ ı İ ç',
+      keywords: 'kira, 2026',
+    );
+    final out = await PdfDocPro.writeMeta(await _doc(1), meta);
+    expect(PdfDocPro.readMeta(out), meta);
+    // Parolalı belgede bilgi değişir, parola kalır.
+    final locked = await PdfDocPro.setPermissions(await _doc(1),
+        ownerPassword: 'sahip', userPassword: 'ac', allow: {PdfAllow.print});
+    final out2 = await PdfDocPro.writeMeta(locked, meta, password: 'ac');
+    expect(() => PdfDocument(inputBytes: out2).dispose(), throwsA(anything));
+    expect(PdfDocPro.readMeta(out2, password: 'ac').title, meta.title);
+  });
+
+  test('B4/P17: XFDF dışa/içe aktarma açıklamayı taşır', () async {
+    final src = PdfDocument(inputBytes: await _doc(2));
+    src.pages[1].annotations
+        .add(PdfRectangleAnnotation(const Rect.fromLTWH(50, 50, 80, 40), 'Not'));
+    final annotated = await src.save();
+    src.dispose();
+    expect(PdfDocPro.exportXfdf(await _doc(1)), isNull);
+    final xfdf = PdfDocPro.exportXfdf(annotated)!;
+    final out = await PdfDocPro.importXfdf(await _doc(2), xfdf);
+    final doc = PdfDocument(inputBytes: out);
+    try {
+      expect(doc.pages[0].annotations.count, 0);
+      expect(doc.pages[1].annotations.count, 1);
+    } finally {
+      doc.dispose();
+    }
+  });
 }
