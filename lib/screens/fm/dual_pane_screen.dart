@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_haptics.dart';
+import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
@@ -276,7 +278,10 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
     if (!drag) return body;
     return DragTarget<int>(
       onWillAcceptWithDetails: (d) => d.data != index,
-      onAcceptWithDetails: (d) => _drop(d.data),
+      onAcceptWithDetails: (d) {
+        AppHaptics.drop();
+        _drop(d.data);
+      },
       builder: (context, cand, _) => cand.isEmpty
           ? body
           : DecoratedBox(
@@ -373,7 +378,10 @@ class _DualPaneScreenState extends State<DualPaneScreen> {
   Widget _dragHandle(int index, PaneState pane, FsEntry e) => Draggable<int>(
         key: ValueKey('dp-drag-${e.path}'),
         data: index,
-        onDragStarted: () => setState(() => _m.active = index),
+        onDragStarted: () {
+          AppHaptics.selection();
+          setState(() => _m.active = index);
+        },
         feedback: Material(
           elevation: 4,
           shape: const StadiumBorder(),

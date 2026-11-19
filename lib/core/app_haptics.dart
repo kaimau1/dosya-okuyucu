@@ -55,6 +55,26 @@ abstract final class AppHaptics {
     };
   }
 
+  // ── Dokunuş haritası (B13 m.3): aynı eylem = aynı titreşim ──────────────
+  // seçim değişimi → [selection] (hafif tık) · uzun bas / sürükleme başı →
+  // [longPress] (orta) · sürükle-bırak oturdu → [drop] (hafif) · yıkıcı onay
+  // → [destructive] · hata → [warning]. Bekçi: `app_haptics_test`.
+
+  /// Uzun basış bir kip açtı (sürükleme, sürükleyerek seçim, kelime seçimi).
+  static void longPress() {
+    if (enabled.value) HapticFeedback.mediumImpact();
+  }
+
+  /// Sürüklenen öğe yerine oturdu (yeniden sıralama, bırakma hedefi).
+  static void drop() {
+    if (enabled.value) HapticFeedback.lightImpact();
+  }
+
+  /// Bir iş hatayla bitti (hata bildirimi).
+  static void warning() {
+    if (enabled.value) HapticFeedback.vibrate();
+  }
+
   /// Yıkıcı bir işlem onaylandı (kalıcı silme).
   static void destructive() {
     if (enabled.value) HapticFeedback.heavyImpact();

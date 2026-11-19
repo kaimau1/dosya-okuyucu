@@ -91,7 +91,7 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
   void _start(String id) {
     _gate.reset();
     _dragged = id;
-    AppHaptics.selection();
+    AppHaptics.longPress();
     widget.dragging.value = true;
   }
 

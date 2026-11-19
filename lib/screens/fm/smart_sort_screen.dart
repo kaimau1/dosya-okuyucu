@@ -929,7 +929,7 @@ class _ArrangeSheetState extends State<_ArrangeSheet> {
                 builder: (context, _) => ReorderableListView.builder(
                   shrinkWrap: true,
                   buildDefaultDragHandles: false,
-                  onReorderStart: (_) => AppHaptics.selection(),
+                  onReorderStart: (_) => AppHaptics.longPress(),
                   itemCount: _order.length,
                   // onReorderItem: [to] çıkarılan öğeye göre düzeltilmiş gelir.
                   onReorderItem: (from, to) {

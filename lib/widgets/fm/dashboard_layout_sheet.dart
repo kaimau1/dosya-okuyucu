@@ -162,8 +162,8 @@ class _LayoutSheetState extends State<_LayoutSheet> {
               ),
             Expanded(
               child: ReorderableListView.builder(
-                onReorderStart: (_) => AppHaptics.selection(),
-                onReorderEnd: (_) => AppHaptics.step(),
+                onReorderStart: (_) => AppHaptics.longPress(),
+                onReorderEnd: (_) => AppHaptics.drop(),
                 scrollController: widget.scroll,
                 buildDefaultDragHandles: false,
                 padding: withNavInset(

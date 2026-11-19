@@ -119,8 +119,8 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
         child: rows.isEmpty
             ? Center(child: Text(context.t('sp.no_shapes')))
             : ReorderableListView.builder(
-              onReorderStart: (_) => AppHaptics.selection(),
-              onReorderEnd: (_) => AppHaptics.step(),
+              onReorderStart: (_) => AppHaptics.longPress(),
+              onReorderEnd: (_) => AppHaptics.drop(),
                 key: const ValueKey('sp-layers'),
                 itemCount: rows.length,
                 onReorderItem: (from, to) {
@@ -242,8 +242,8 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
       body: _anims.isEmpty
           ? Center(child: Text(context.t('sp.no_anims')))
           : ReorderableListView.builder(
-            onReorderStart: (_) => AppHaptics.selection(),
-            onReorderEnd: (_) => AppHaptics.step(),
+            onReorderStart: (_) => AppHaptics.longPress(),
+            onReorderEnd: (_) => AppHaptics.drop(),
               key: const ValueKey('sp-anims'),
               itemCount: _anims.length,
               onReorderItem: (from, to) {

@@ -285,7 +285,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
   void _onLongPressStart(LongPressStartDetails d) {
     final p = hitTest(d.globalPosition);
     if (p == null || c.paras[p.para].opaque) return;
-    AppHaptics.selection();
+    AppHaptics.longPress();
     _focus.requestFocus();
     c.selectWord(p);
     c.attach(autocorrect: widget.spellcheck);

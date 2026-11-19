@@ -29,8 +29,8 @@ class _FavoritesOrder extends StatelessWidget {
       constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.6),
       child: ReorderableListView.builder(
-        onReorderStart: (_) => AppHaptics.selection(),
-        onReorderEnd: (_) => AppHaptics.step(),
+        onReorderStart: (_) => AppHaptics.longPress(),
+        onReorderEnd: (_) => AppHaptics.drop(),
         shrinkWrap: true,
         buildDefaultDragHandles: false,
         itemCount: list.length,
