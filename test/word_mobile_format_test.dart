@@ -249,4 +249,47 @@ void main() {
       expect(t.takeException(), isNull, reason: tab);
     }
   });
+
+  // B13 m.8: klavye açılınca görünüm daralır; alt satırdaki imleç klavyenin
+  // altında kalmasın diye belge kayar. Kapanınca konum geri zıplamaz.
+  testWidgets('klavye açılınca alttaki imleç satırı görünür kalır', (t) async {
+    final c = await open(t);
+    final view = find.byType(DocxEditorView);
+    final r0 = t.getRect(view);
+    // Belgeyi ekrandan uzun yap; imleç sonda → görünüm en alta kayar.
+    final last = c.paras.lastIndexWhere((p) => !p.opaque);
+    final end = DocPos(last, c.paras[last].length);
+    c.select(end, end);
+    c.insertText(List.filled(60, 'satır').join('\n'));
+    c.attach();
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 300));
+    expect(c.attached, isTrue);
+    // Belgenin dikey kaydırıcısı (tablo vb. iç kaydırıcılar değil).
+    final pos = t
+        .stateList<ScrollableState>(
+            find.descendant(of: view, matching: find.byType(Scrollable)))
+        .map((s) => s.position)
+        .where((p) => p.axis == Axis.vertical)
+        .reduce((a, b) => a.maxScrollExtent >= b.maxScrollExtent ? a : b);
+    expect(pos.maxScrollExtent, greaterThan(0), reason: 'belge ekrandan uzun');
+    // Tembel liste: sondaki imleç paragrafı kurulsun diye sona git.
+    // (uzunluk tahmini kuruldukça düzelir — birkaç kez).
+    for (var i = 0; i < 4; i++) {
+      pos.jumpTo(pos.maxScrollExtent);
+      await t.pump();
+    }
+    final before = pos.pixels;
+    await keyboard(t, true);
+    final shrink = r0.height - t.getRect(view).height;
+    expect(shrink, greaterThan(48), reason: 'klavye görünümü daraltır');
+    expect(pos.pixels, greaterThan(before + 24),
+        reason: 'imleç satırı klavyenin üstüne kayar');
+    final up = pos.pixels;
+    await keyboard(t, false);
+    // Belge sonundayız: görünüm büyür, konum en çok sona sınırlanır; başa
+    // zıplamaz.
+    expect(pos.pixels, inInclusiveRange(before - 1, up + 1),
+        reason: 'kapanınca konum korunur');
+  });
 }

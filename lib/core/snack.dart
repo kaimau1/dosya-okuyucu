@@ -36,6 +36,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app_haptics.dart';
 import 'l10n/app_strings.dart';
 import 'motion.dart';
 import 'app_colors.dart';
@@ -160,6 +161,8 @@ ToastHandle showSnack(
               onPressed: () => Clipboard.setData(ClipboardData(text: message)),
             )
           : null);
+  // Kopyalanabilir bildirim = hata metni (B13 m.3 dokunuş haritası).
+  if (copyable && action == null) AppHaptics.warning();
   _ensureLayer(context);
   return _showToast(Text(message), effective, duration);
 }

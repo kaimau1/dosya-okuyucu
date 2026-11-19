@@ -1424,3 +1424,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] 300+ sayfalık Word belgesini düzenleyicide aç: tam belge hazırlanırken belgenin başı başlık/kalın/hiza/tablo/resimle (düz metin değil) görünüyor mu, üstte ince ilerleme çubuğu var mı? Kaydırılabiliyor, dokununca klavye AÇILMIYOR mu?
 - [ ] Tam belge gelince düzenleyiciye geçişte zıplama/boş kare var mı? Kısa belgede önizleme hiç fark edilmeden mi geçiyor?
 - [ ] A/B (C2): büyük belgede "dokunuştan ilk okunur kareye" süresi önceki sürüme göre (ölçülmedi).
+
+## B13 his turu (2026-11-19, dal faz-oto-B13-his) — yazıldı, cihazda doğrulanmadı
+- [ ] Uzun basınca (dosya seçimi, yeniden sıralama, sayfa sekmesi sürükleme) ORTA titreşim; bırakınca HAFİF; seçim değişince tık; kopyalanabilir hata bildiriminde uyarı titreşimi. Ayarlardan titreşim kapalıyken hiçbiri yok.
+- [ ] Önemli > kategori uzun bas > Sil: onay "çöp kutusuna taşınsın mı" der, sonra "Geri al" kartı; Geri al kategoriyi geri getirir. Kategori yeniden adlandır → Geri al.
+- [ ] Word düzenleyici: ekranın altındaki bir satıra dokun → klavye açılınca satır klavyenin üstünde kalır; klavye kapanınca belge geri zıplamaz.
+- [ ] Android 14+: alt levha açıkken geri hareketi levhayı kapatır.

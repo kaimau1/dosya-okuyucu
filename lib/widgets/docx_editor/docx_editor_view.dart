@@ -88,7 +88,8 @@ class _Block {
   const _Block(this.start, this.end, this.table);
 }
 
-class DocxEditorViewState extends State<DocxEditorView> {
+class DocxEditorViewState extends State<DocxEditorView>
+    with WidgetsBindingObserver {
   final _keys = <int, GlobalKey>{};
   final _stackKey = GlobalKey();
   final _scroll = ScrollController();
@@ -132,6 +133,23 @@ class DocxEditorViewState extends State<DocxEditorView> {
   void initState() {
     super.initState();
     c.addListener(_changed);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  // B13 m.8: klavye açılınca görünüm daralır ama kaydırma konumu aynı kalır
+  // → alt satırdaki imleç klavyenin altında kalıyordu (EditableText bunu
+  // `didChangeMetrics`te yapar; özel editörde yoktu). Kare başına en çok bir
+  // kez, animasyonsuz: klavye kayarken imleç onunla birlikte yukarı gelir.
+  bool _revealQueued = false;
+
+  @override
+  void didChangeMetrics() {
+    if (!c.attached || _revealQueued) return;
+    _revealQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _revealQueued = false;
+      if (mounted && c.attached) _revealCaret(duration: Duration.zero);
+    });
   }
 
   @override
@@ -147,6 +165,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
   @override
   void dispose() {
     c.removeListener(_changed);
+    WidgetsBinding.instance.removeObserver(this);
     _spellTimer?.cancel();
     _blinkTimer?.cancel();
     _caretOn.dispose();
@@ -285,7 +304,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
   void _onLongPressStart(LongPressStartDetails d) {
     final p = hitTest(d.globalPosition);
     if (p == null || c.paras[p.para].opaque) return;
-    AppHaptics.selection();
+    AppHaptics.longPress();
     _focus.requestFocus();
     c.selectWord(p);
     c.attach(autocorrect: widget.spellcheck);
@@ -355,7 +374,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
 
   // ── imleci görünür tut ──────────────────────────────────────────────────
 
-  void _revealCaret() {
+  void _revealCaret({Duration duration = Motion.short}) {
     final ro = _render(c.extent.para);
     if (ro == null) return;
     final off = c.extent.offset.clamp(0, c.paras[c.extent.para].length);
@@ -363,7 +382,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     final h = ro.getFullHeightForCaret(TextPosition(offset: off));
     ro.showOnScreen(
       rect: Rect.fromLTWH(caret.dx, caret.dy - 24, 2, h + 48),
-      duration: Motion.short,
+      duration: duration,
     );
   }
 

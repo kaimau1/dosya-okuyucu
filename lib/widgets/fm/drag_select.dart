@@ -116,7 +116,7 @@ class _DragSelectAreaState extends State<DragSelectArea> {
     _mode = !widget.isSelected(idx);
     _pointer = d.globalPosition;
     widget.onSelectRange(idx, idx, _mode);
-    AppHaptics.selection();
+    AppHaptics.longPress();
   }
 
   void _move(LongPressMoveUpdateDetails d) {

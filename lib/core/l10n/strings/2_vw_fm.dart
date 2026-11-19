@@ -1005,6 +1005,11 @@ const Map<String, (String, String, String)> _t2 = {
     'Permanently delete category “{name}” and its {n} files?',
     'هل تريد حذف الفئة «{name}» وملفاتها الـ{n} نهائيًا؟',
   ),
+  'important.delete_category_msg_trash': (
+    '“{name}” kategorisi ve içindeki {n} dosya çöp kutusuna taşınsın mı?',
+    'Move category “{name}” and its {n} files to the trash?',
+    'هل تريد نقل الفئة «{name}» وملفاتها الـ{n} إلى سلة المهملات؟',
+  ),
   'important.new_subfolder': ('Yeni kategori', 'New category', 'فئة جديدة'),
   'important.by_type': ('Türlere göre', 'By type', 'حسب النوع'),
   'important.no_subfolder': (

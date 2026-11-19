@@ -516,7 +516,7 @@ class _ThinEditorState extends State<ThinEditor> {
       onLongPressStart: (d) {
         final p = _hit(d.globalPosition);
         if (p != null) c.selectWord(p);
-        AppHaptics.selection();
+        AppHaptics.longPress();
       },
       onLongPressMoveUpdate: (d) {
         final p = _hit(d.globalPosition);

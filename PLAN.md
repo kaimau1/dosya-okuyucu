@@ -71,7 +71,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B9-word2: bitti m.1 (içerik denetimleri + form doldurma), m.2 (İçindekiler oluştur/güncelle), m.5 (dipnot/sonnot ekle/düzenle/sil, numara belge sırasıyla; PDF'te not listesi belge sonunda — sayfa altı yerleşim kalan), m.6 (sadakat bekçisi `word_roundtrip_test`), m.3 (değişiklikleri izle: yazılan `w:ins`, silinen `w:del`, `settings.xml` bayrağı), m.8 (büyük belge açılışı: ilk sayfa önce — baş izolatta ≤ 60 blok çözümlenir, gerçek biçimle salt okunur önizleme; `word_perf_test` bütçesi), dilim 4 main'e gidiyor; m.4 önce-bak: yorum yaz/yanıtla/çözüldü zaten var, kalan yalnız kenar balonu; kalan m.4 kenar balonu, m.7 yazma hissi (+ satır/hücre düzeyi `w:sdt`, izlenen paragraf işareti/biçim değişikliği) |
 | B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B10-excel2: bitti m.2 (çekirdek + `_xlpm.` yazımı) + m.3 veri doğrulama + m.6 sadakat bekçisi; dilim 2 main'e gidiyor, kalan m.1, m.2 kalanı (Türkçe LAMBDA adları, TOCOL/TOROW/WRAPROWS), m.4–5, m.7–8 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | bekliyor |
-| B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | sürüyor (yerel, 2026-11-19) — dal faz-oto-B13-his |
+| B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | bekliyor — dilim 1 main'de (2026-11-19, A/B C2'de: Word klavye kaydırma + titreşim); kalan m.1 açılış geçişi (Office/PDF), m.4 aşamalı açılış (Excel/Slayt), m.7 hareket eşitliği — dal faz-oto-B13-his DEVIR.md |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
 | C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | sürüyor (yerel, 2026-11-19) — telefon bağlı |
 | C2 | **Cihaz: perf A/B artıkları:** P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü + galeri açılış geçişi (A/B bekliyor, main d7e9765e) | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor |
@@ -304,6 +304,16 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
 
 **Bitti:** testli, `kasma-kontrol`, C3'e "his turu: geçiş, geri, titreşim, klavye" maddeleri.
 
+**Durum (yerel 2026-11-19, dal faz-oto-B13-his, dilim 1):** m.2 H6.6'da yapılmıştı (levhalar rota → geri
+hareketi kapatır). m.3 yapıldı (`AppHaptics.longPress/drop/warning` + bekçi). m.5 yapıldı (envanter: çöpe
+atma/taşıma/adlandırma zaten Geri al'lı; Önemli kategori silme ayardan bağımsız KALICIYDI → çöp + Geri al,
+kategori adlandırma Geri al; bekçi `undo_paths_guard_test`). m.6 Faz 20 ED2'de yapılmıştı (taslak günlüğü,
+"Kaydedilmemiş değişiklikler geri yüklendi", kabukta "Kaydedildi 14:32"; PDF `pdf_edit_recovery`). m.8:
+Excel/Slayt/Word klavye üstü çubuk testleri vardı; Word'de klavye açılınca imleç gizleniyordu → düzeltildi +
+test. m.9 Faz 16 `a11y_guidelines_test` 10 ana ekranda vardı (pano Ahem taşması yüzünden dışarıda).
+**Kalan:** m.1 Office/PDF açılış geçişi (H6.3 kararı: H1.4 cihaz ölçümüne bağlı, PDF kabuğu ölçümü sürüyor),
+m.4 Excel/Slayt iskelet → ilk sayfa (Word B9 m.8'de yapıldı), m.7 Word/Excel/Slayt çimdik + çift dokunuş.
+
 ### 1.8) Cihaz paketleri (C1–C3) — telefon bağlıyken yerelde
 
 - Taban = önceki `[apk]` profil derlemesi, ölçüm kimliği `.r8test`; eşikler §0/8 (gerileme > %10 ya da
@@ -344,7 +354,9 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   (her harf izleme işaretli; silme XML düğümü üretir) ve izlenen eklemeli büyük belgede açılış.
   **B9 Word 2.0 m.8** (bulut 2026-11-19, dal faz-oto-B9-word2; ölçülmedi): 300+ sayfalık belgede dokunuştan ilk okunur
   kareye süre (baş önizlemesi gerçek biçimle; tam ayrıştırma ile aynı anda iki izolat) ve önizleme→editör geçiş karesi.
-- **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
+- **C3:** **B13 his turu** (dal faz-oto-B13-his, cihazda doğrulanmadı): titreşim haritası (uzun bas orta ·
+  bırakma hafif · hata uyarı · seçim tık), Önemli kategori sil → çöp + Geri al, Word'de alt satıra dokunup
+  klavye açılınca satır görünür + kapanınca yerinde, öngörülü geri levhalarda. P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
   Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18); Akıllı düzen Word/Excel/sunum/metin/APK ikinci adları
   (bulut 2026-11-18, dal faz-oto-B1-duzen2); Akıllı düzen kullanıcı kategorileri ("Dene", uygula,
   süzgeç/arama/ikinci ad — CIHAZ_TESTI 2026-11-18); Akıllı düzen hız/kota + ilk slayt görüntüsü

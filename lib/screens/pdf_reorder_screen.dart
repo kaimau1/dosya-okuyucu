@@ -80,8 +80,8 @@ class _PdfReorderScreenState extends State<PdfReorderScreen> {
       body: doc == null
           ? const Center(child: CircularProgressIndicator())
           : ReorderableListView.builder(
-            onReorderStart: (_) => AppHaptics.selection(),
-            onReorderEnd: (_) => AppHaptics.step(),
+            onReorderStart: (_) => AppHaptics.longPress(),
+            onReorderEnd: (_) => AppHaptics.drop(),
               itemCount: _order.length,
               itemExtent: 112,
               onReorderItem: (from, to) => setState(() {

@@ -219,7 +219,13 @@ Future<bool> deleteEntries(
     // seçimi temizliyor ve listeyi tazeliyordu (2026-07-29 denetimi, 4. tur).
     return result.succeeded > 0;
   }
+  return trashWithUndo(context, paths);
+}
 
+/// Çöpe atar ve "Geri al" kartı gösterir — silme yollarının ORTAK ucu
+/// (B13 m.5; bekçi `test/undo_paths_guard_test.dart`). En az biri
+/// atıldıysa `true`.
+Future<bool> trashWithUndo(BuildContext context, List<String> paths) async {
   await FmEnv.ensureInit();
   if (!context.mounted) return false;
   final result = await showFmProgress<FmOpResult>(

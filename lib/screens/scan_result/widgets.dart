@@ -412,13 +412,13 @@ class _GridPageTile extends StatelessWidget {
     return DragTarget<int>(
       onWillAcceptWithDetails: (d) => enabled && d.data != index,
       onAcceptWithDetails: (d) {
-        AppHaptics.step();
+        AppHaptics.drop();
         onMove(d.data);
       },
       builder: (context, candidates, _) => LongPressDraggable<int>(
         data: index,
         hapticFeedbackOnStart: false,
-        onDragStarted: AppHaptics.selection,
+        onDragStarted: AppHaptics.longPress,
         maxSimultaneousDrags: enabled ? 1 : 0,
         feedback: Material(
           color: Colors.transparent,
