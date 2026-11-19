@@ -117,6 +117,9 @@ class WordFormatUi {
   final VoidCallback? onHeaderFooter;
   final void Function(bool accept)? onResolveTracked;
 
+  /// B9 m.3: Değişiklikleri izle aç/kapa (ekran yazar adını sorar).
+  final VoidCallback? onTrackChanges;
+
   /// Faz 24 kalanı: resim, yorum, dipnot, tarih (ekran açar).
   final VoidCallback? onInsertImage,
       onReplaceImage,
@@ -147,6 +150,7 @@ class WordFormatUi {
     this.onFind,
     this.onHeaderFooter,
     this.onResolveTracked,
+    this.onTrackChanges,
     required this.context,
     required this.c,
     required this.onPageLayout,
@@ -291,6 +295,13 @@ class WordFormatUi {
                 onTap: onNewComment),
             RibbonButton(AppIcons.comment, _t('word.comments'),
                 key: const ValueKey('word-rev-comments'), onTap: onComments),
+          ],
+          if (onTrackChanges != null) ...[
+            const RibbonSep(),
+            RibbonButton(AppIcons.editNote, _t('word.track_changes'),
+                key: const ValueKey('word-track-toggle'),
+                active: c.trackChanges,
+                onTap: onTrackChanges),
           ],
           if (onResolveTracked != null && c.trackedChanges > 0) ...[
             const RibbonSep(),

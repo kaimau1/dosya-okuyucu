@@ -378,7 +378,21 @@ extension DocxEditInsert on DocxEditController {
 
   // ── Gözden Geçir ────────────────────────────────────────────────────────
 
-  int get trackedChanges => doc.trackedChangeCount();
+  /// Bekleyen izlenen değişiklik sayısı (bu oturumda izlenerek yazılan,
+  /// henüz kaydedilmemiş olanlar en az 1 sayılır).
+  int get trackedChanges =>
+      doc.trackedChangeCount() + (doc.hasLiveRevisions ? 1 : 0);
+
+  /// Değişiklikleri izle (Gözden Geçir): açıkken yazılan/silinen metin
+  /// [author] adıyla işaretlenir.
+  bool get trackChanges => doc.trackChanges;
+
+  void setTrackChanges(bool on, {String? author}) {
+    if (author != null) doc.revAuthor = author;
+    if (on == doc.trackChanges) return;
+    doc.setTrackChanges(on);
+    _changed(notify: true);
+  }
 
   /// İzlenen değişiklikleri çözer. Geri alınamaz: geçmiş sıfırlanır.
   void resolveTracked({required bool accept}) {
@@ -443,7 +457,8 @@ extension DocxEditInsert on DocxEditController {
         recorded = true;
       }
       for (final h in hits.reversed) {
-        p = p.replace(h, h + q.length, replacement, p.styles[h].detached());
+        p = doc.editText(
+            p, h, h + q.length, replacement, p.styles[h].detached());
         count++;
       }
       doc.paras[i] = p;
