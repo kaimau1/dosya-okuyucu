@@ -1,7 +1,9 @@
 import 'dart:isolate';
 import 'dart:math' as math;
+import 'dart:typed_data' show Uint8List;
 import 'dart:ui' show Offset, Rect, Size;
 
+import 'package:pdfrx/pdfrx.dart' as pdfrx;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// PDF **dosya/sayfa düzeyi** işlemler: birleştir, sayfa seç (böl/çıkar/sil/
@@ -268,7 +270,7 @@ class PdfTools {
     final doc = PdfDocument(inputBytes: bytes, password: currentPassword);
     try {
       doc.security
-        ..algorithm = PdfEncryptionAlgorithm.aesx256Bit
+        ..algorithm = PdfEncryptionAlgorithm.aesx256BitRevision6
         ..userPassword = password
         ..ownerPassword = ownerPassword ?? password;
       // Şifreleme eski gövdeye ek olarak yazılırsa (incremental update) şifresiz
@@ -747,11 +749,53 @@ class PdfTools {
           password: password, currentPassword: currentPassword));
 
   /// [removePassword] — arka plan isolate'inde.
+  ///
+  /// KÖK NEDEN (PDF Pro tezgâhı 2026-11-08, B4 P21): AES-256 **R6** (qpdf,
+  /// Word "parolayla şifrele") belgede Syncfusion kilidi açılmış ama SAYFASIZ
+  /// çıktı üretiyordu. Çıktının sayfa sayısı girdiyle aynı değilse (ya da
+  /// Syncfusion açamazsa) iş PDFium'a düşer: `FPDF_REMOVE_SECURITY` ile kopya.
   static Future<List<int>> removePasswordInBackground(
     List<int> bytes, {
     required String currentPassword,
-  }) =>
-      _bg(() => removePassword(bytes, currentPassword: currentPassword));
+  }) async {
+    final out = await _bg(() => _removePasswordChecked(bytes, currentPassword));
+    if (out.isNotEmpty) return out;
+    return removePasswordPdfium(bytes, currentPassword: currentPassword);
+  }
+
+  /// Syncfusion yolu; sayfa kaybı ya da hata → boş liste (PDFium'a düş).
+  static Future<List<int>> _removePasswordChecked(
+      List<int> bytes, String password) async {
+    try {
+      final want = await pageCount(bytes, password: password);
+      final out = await removePassword(bytes, currentPassword: password);
+      return want > 0 && await pageCount(out) == want ? out : const <int>[];
+    } catch (_) {
+      return const <int>[];
+    }
+  }
+
+  /// Korumayı PDFium ile kaldırır (pdfrx kendi işçisinde çalışır, ana izlek
+  /// donmaz). Yanlış parolada pdfrx hata fırlatır.
+  static Future<List<int>> removePasswordPdfium(
+    List<int> bytes, {
+    required String currentPassword,
+  }) async {
+    var asked = false;
+    final doc = await pdfrx.PdfDocument.openData(
+      Uint8List.fromList(bytes),
+      passwordProvider: () {
+        if (asked) return null; // yanlış parola: ikinci kez sorma
+        asked = true;
+        return currentPassword;
+      },
+    );
+    try {
+      return await doc.encodePdf(removeSecurity: true);
+    } finally {
+      await doc.dispose();
+    }
+  }
 
   /// [replaceText] — arka plan isolate'inde.
   static Future<List<int>> insertBlankPageInBackground(

@@ -408,3 +408,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar:** ürünün öne çıkan yüzü yeni model (Akıllı kategori/ikinci ad/Akıllı düzen). Adlandırma her yerde "Akıllı …" ("AI …"/"Gemini …" değil); menü, ekran, işlev ve his bütünlüğü zorunlu.
 - **Budanan (kullanıcı seçti):** AI ile özetle, AI Sohbet, Slayt AI ile hazırla, "AI ile çalış" menüsü, Benzerlerde Gemini/en iyi kare, eski AI etiketle. **Öneriyle budanan (sabah bakılacak):** AI hızlı/toplu kontrol, kontrol listesi. **Kalan:** PDF AI düzenle, Word AI yaz, görsel kısa özet, tarama kalite, Arapça OCR.
 - **Sonuç:** B14 (sohbet yönlendirici) iptal — sohbet kalkıyor; dal faz-oto-B14-yonlendirici silindi.
+
+## 2026-11-19 — B4 dilim 2: AES-256 R6 kilit açma (dal faz-oto-B4-pdfpro)
+- **Bug kökü:** Syncfusion R6 (qpdf/Word) belgede `removePassword` sayfasız çıktı veriyordu (tezgâh 2026-11-08). Çözüm: `PdfTools.removePasswordInBackground` Syncfusion çıktısının sayfa sayısını girdiyle karşılaştırır; eksik/hata → `removePasswordPdfium` (pdfrx `encodePdf(removeSecurity: true)`, ana izlekte; pdfrx kendi işçisinde). PDFium `Isolate.run` içinde ÇAĞRILMAZ (başlatma belirsiz).
+- **Karar:** parola/izin koruması `aesx256BitRevision6` (R6, PDF 2.0); R5 (`aesx256Bit`) Adobe'ce kullanımdan kalktı. Test `test/pdf_pro/pdf_unlock_r6_test.dart`.

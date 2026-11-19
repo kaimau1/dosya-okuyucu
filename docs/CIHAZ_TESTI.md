@@ -1490,3 +1490,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## B4 PDF Pro dilim 1 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → Pro araçlar → "Belge bilgileri": mevcut başlık/yazar dolu geliyor mu; değiştir → kaydet → yeniden açınca yeni değerler; parolalı belgede parola duruyor mu (Türkçe harfler bozulmadan).
 - [ ] "Açıklamaları dışa aktar (XFDF)": vurgulu PDF'te yanına `-aciklamalar.xfdf` çıkıyor mu; vurgusuz belgede "vurgu ya da not yok" uyarısı. "İçe aktar": aynı dosyayı vurgusuz kopyaya al → vurgular doğru sayfada mı.
+
+## B4 PDF Pro dilim 2 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Word'den "parolayla şifrele" ile kaydedilmiş PDF → PDF araçları → Kilidi aç: sayfalar duruyor mu, açılan kopya parolasız açılıyor mu.
+- [ ] Parola koy → başka bir okuyucuda (ör. Chrome/Drive) parolayla açılıyor mu (yeni koruma AES-256 R6).
