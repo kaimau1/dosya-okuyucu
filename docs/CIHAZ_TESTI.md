@@ -1430,3 +1430,6 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Önemli > kategori uzun bas > Sil: onay "çöp kutusuna taşınsın mı" der, sonra "Geri al" kartı; Geri al kategoriyi geri getirir. Kategori yeniden adlandır → Geri al.
 - [ ] Word düzenleyici: ekranın altındaki bir satıra dokun → klavye açılınca satır klavyenin üstünde kalır; klavye kapanınca belge geri zıplamaz.
 - [ ] Android 14+: alt levha açıkken geri hareketi levhayı kapatır.
+- [ ] (dilim 2) 50+ slaytlık sunum aç: tam düzenleyiciden önce ilk slaytlar gerçek çizimle görünür, sonra düzenleyici aynı yerde açılır (zıplama yok); 3 slaytlık sunumda önizleme yanıp sönmez.
+- [ ] (dilim 2) 1 MB'tan büyük xlsx aç: önce ilk satırlar düz ızgarada (sütun harfi + satır no), sonra tam tablo. "açılıyor" yazısı yalnız 1 sn'den uzun beklemede çıkar.
+- [ ] (dilim 2) Word: iki parmakla yakınlaştır/uzaklaştır — parmak inikken görüntü büyür, kalkınca yazı net yeniden dizilir; Görünüm > Yakınlaştır düğmeleri sonraki kademeye geçer; çimdik sırasında kaydırma kaymaz.
