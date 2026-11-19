@@ -110,19 +110,13 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
             ),
           ),
           // Veri doğrulama listesi olan hücrede Excel'deki açılır ok.
-          if (_validationOptions().isNotEmpty)
-            PopupMenuButton<String>(
+          if (_hasValidationList())
+            IconButton(
+              key: const ValueKey('validation-bar-arrow'),
               tooltip: context.t('excel.pick_from_list'),
               icon: const Icon(AppIcons.arrowDropDownCircle, size: 20),
               padding: EdgeInsets.zero,
-              onSelected: (v) {
-                _cellField.text = v;
-                _applyCell(v);
-              },
-              itemBuilder: (_) => [
-                for (final o in _validationOptions())
-                  PopupMenuItem(value: o, child: Text(o)),
-              ],
+              onPressed: _pickFromValidation,
             ),
           // ✗ / ✓ yalnız onaylanmamış giriş varken. (Kaydetmek için ✓'e basmak
           // ZORUNLU DEĞİL — başka hücreye geçmek de yazar, bkz. `_endEdit`.)
@@ -178,9 +172,21 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
     return formulaErrorKey(_engineFor(sheet).displayValue(_selRow, _selCol));
   }
 
-  /// Seçili hücrenin veri doğrulama listesi (yoksa boş).
-  List<String> _validationOptions() =>
-      _sheet?.validationAt(_selRow, _selCol)?.options ?? const [];
+  /// Seçili hücrenin veri doğrulama listesi (yoksa boş). Aralıktan/başka
+  /// sayfadan gelen liste burada çözülür — yalnız ok açılınca çağrılır.
+  List<String> _validationOptions() {
+    final v = _sheet?.validationAt(_selRow, _selCol);
+    if (v == null || v.type != 'list') return const [];
+    return _validationCheck()?.options(v, _selRow, _selCol) ?? const [];
+  }
+
+  /// Seçili hücrede açılır ok var mı — ucuz denetim (çizimde çağrılır;
+  /// aralıklı liste burada ÇÖZÜLMEZ). Dosyada ok gizliyse yok.
+  bool _hasValidationList() {
+    final v = _sheet?.validationAt(_selRow, _selCol);
+    if (v == null || v.type != 'list' || v.hideDropDown) return false;
+    return v.options?.isNotEmpty ?? v.isRefList;
+  }
 
   /// Formül yazarken **işlev adı önerileri**.
   ///

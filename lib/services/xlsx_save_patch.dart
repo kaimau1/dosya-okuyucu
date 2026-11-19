@@ -199,6 +199,14 @@ class XlsxValidationWrite {
   final String? error;
   final bool allowBlank;
 
+  /// `stop` | `warning` | `information` (dosyada varsayılan `stop` yazılmaz).
+  final String errorStyle;
+  final String? errorTitle, promptTitle, prompt;
+  final bool showErrorMessage, showInputMessage;
+
+  /// Açılır oku gizle (`showDropDown="1"`).
+  final bool hideDropDown;
+
   const XlsxValidationWrite({
     required this.sqref,
     required this.type,
@@ -207,6 +215,13 @@ class XlsxValidationWrite {
     this.formula2,
     this.error,
     this.allowBlank = true,
+    this.errorStyle = 'stop',
+    this.errorTitle,
+    this.promptTitle,
+    this.prompt,
+    this.showErrorMessage = true,
+    this.showInputMessage = false,
+    this.hideDropDown = false,
   });
 
   static String sqrefOf(List<XlsxRange> ranges) =>
@@ -217,12 +232,44 @@ class XlsxValidationWrite {
         type: v.type,
         operator: v.operator,
         formula1: v.type == 'list' && v.options != null
-            ? '"${v.options!.join(',')}"'
+            ? '"${v.options!.map((o) => o.replaceAll('"', '""')).join(',')}"'
             : v.formula1,
         formula2: v.formula2,
         error: v.error,
         allowBlank: v.allowBlank,
+        errorStyle: v.errorStyle,
+        errorTitle: v.errorTitle,
+        promptTitle: v.promptTitle,
+        prompt: v.prompt,
+        showErrorMessage: v.showErrorMessage,
+        showInputMessage: v.showInputMessage,
+        hideDropDown: v.hideDropDown,
       );
+
+  /// `<dataValidation>` öğesi (özniteliklerin sırası Excel'inki).
+  XmlElement toXml() {
+    XmlAttribute a(String n, String v) => XmlAttribute(XmlName.qualified(n), v);
+    final hasOp = type != 'list' && type != 'custom' && type != 'any';
+    return XmlElement(const XmlName.qualified('dataValidation'), [
+      a('type', type),
+      if (errorStyle != 'stop' && errorStyle.isNotEmpty) a('errorStyle', errorStyle),
+      if (hasOp && operator != 'between') a('operator', operator),
+      if (allowBlank) a('allowBlank', '1'),
+      if (hideDropDown) a('showDropDown', '1'),
+      if (showInputMessage) a('showInputMessage', '1'),
+      if (showErrorMessage) a('showErrorMessage', '1'),
+      if (errorTitle != null && errorTitle!.isNotEmpty) a('errorTitle', errorTitle!),
+      if (error != null && error!.isNotEmpty) a('error', error!),
+      if (promptTitle != null && promptTitle!.isNotEmpty) a('promptTitle', promptTitle!),
+      if (prompt != null && prompt!.isNotEmpty) a('prompt', prompt!),
+      a('sqref', sqref),
+    ], [
+      if (formula1 != null)
+        XmlElement(const XmlName.qualified('formula1'), const [], [XmlText(formula1!)]),
+      if (formula2 != null)
+        XmlElement(const XmlName.qualified('formula2'), const [], [XmlText(formula2!)]),
+    ]);
+  }
 }
 
 /// Dosyaya yazılacak tek bir koşullu biçimlendirme kuralı.
@@ -546,6 +593,49 @@ class XlsxSavePatch {
     return changed ? doc.toXmlString() : null;
   }
 
+  /// `extLst` içindeki `x14:dataValidation` kurallarından [clears]'e değenleri
+  /// siler (başka sayfaya başvuran liste oradadır; yerine kurulan kural ana
+  /// `<dataValidations>`a yazılır). Boşalan kap ve uzantı da kalkar.
+  static bool _clearExtValidations(XmlElement root, List<XlsxRange> clears) {
+    final ext = _firstChild(root, 'extLst');
+    if (ext == null) return false;
+    var changed = false;
+    for (final dvs in ext.descendants
+        .whereType<XmlElement>()
+        .where((e) => e.name.local == 'dataValidations')
+        .toList()) {
+      dvs.children.removeWhere((n) {
+        if (n is! XmlElement || n.name.local != 'dataValidation') return false;
+        final sq = n.childElements
+                .where((e) => e.name.local == 'sqref')
+                .map((e) => e.innerText)
+                .firstOrNull ??
+            '';
+        final hit = sq
+            .trim()
+            .split(RegExp(r'\s+'))
+            .map(XlsxRange.parse)
+            .whereType<XlsxRange>()
+            .any((x) => clears.any((c) =>
+                x.r1 <= c.r2 && x.r2 >= c.r1 && x.c1 <= c.c2 && x.c2 >= c.c1));
+        if (hit) changed = true;
+        return hit;
+      });
+      final n = dvs.childElements.length;
+      if (n == 0) {
+        final owner = dvs.parent; // <ext uri=…>
+        owner?.children.remove(dvs);
+        if (owner is XmlElement && owner.childElements.isEmpty) {
+          owner.parent?.children.remove(owner);
+        }
+      } else if (dvs.getAttribute('count') != null) {
+        dvs.setAttribute('count', '$n');
+      }
+    }
+    if (ext.childElements.isEmpty) root.children.remove(ext);
+    return changed;
+  }
+
   /// Veri doğrulama: önce [XlsxSheetPatch.validationClears] aralıklarına
   /// değen kurallar silinir, sonra yeniler eklenir (`<dataValidations>`).
   static bool _applyValidations(XmlElement root, XlsxSheetPatch patch) {
@@ -568,27 +658,14 @@ class XlsxSavePatch {
         return hit;
       });
     }
+    if (clears.isNotEmpty && _clearExtValidations(root, clears)) changed = true;
     if (patch.validations.isNotEmpty) {
       if (dvs == null) {
         dvs = XmlElement(const XmlName.qualified('dataValidations'));
         _insertOrdered(root, dvs);
       }
       for (final v in patch.validations) {
-        dvs.children.add(XmlElement(const XmlName.qualified('dataValidation'), [
-          XmlAttribute(const XmlName.qualified('type'), v.type),
-          if (v.type != 'list' && v.operator != 'between')
-            XmlAttribute(const XmlName.qualified('operator'), v.operator),
-          if (v.allowBlank) XmlAttribute(const XmlName.qualified('allowBlank'), '1'),
-          XmlAttribute(const XmlName.qualified('showErrorMessage'), '1'),
-          if (v.error != null && v.error!.isNotEmpty)
-            XmlAttribute(const XmlName.qualified('error'), v.error!),
-          XmlAttribute(const XmlName.qualified('sqref'), v.sqref),
-        ], [
-          if (v.formula1 != null)
-            XmlElement(const XmlName.qualified('formula1'), const [], [XmlText(v.formula1!)]),
-          if (v.formula2 != null)
-            XmlElement(const XmlName.qualified('formula2'), const [], [XmlText(v.formula2!)]),
-        ]));
+        dvs.children.add(v.toXml());
       }
       changed = true;
     }

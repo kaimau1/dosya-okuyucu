@@ -190,8 +190,23 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
     final cur = sheet.validationAt(_selRow, _selCol);
     var type = cur?.type ?? 'list';
     var op = cur?.operator ?? 'between';
-    final listCtl = _valCtl[0]..text = cur?.options?.join(', ') ?? '';
-    final aCtl = _valCtl[1]..text = cur?.formula1 ?? '';
+    var style = switch (cur?.errorStyle) {
+      'warning' => 'warning',
+      'information' => 'information',
+      _ => 'stop',
+    };
+    // Formül alanları ekranda kullanıcının yazım dilinde (Türkçe Excel).
+    String shown(String f) =>
+        _turkishFormulas ? FormulaEngine.toTurkishFormula(f) : f;
+    final listCtl = _valCtl[0]
+      ..text = cur == null || cur.type != 'list'
+          ? ''
+          : cur.options?.join(', ') ??
+              (cur.formula1 == null ? '' : '=${shown(cur.formula1!)}');
+    final aCtl = _valCtl[1]
+      ..text = cur?.formula1 == null
+          ? ''
+          : (cur!.type == 'custom' ? '=${shown(cur.formula1!)}' : cur.formula1!);
     final bCtl = _valCtl[2]..text = cur?.formula2 ?? '';
     final errCtl = _valCtl[3]..text = cur?.error ?? '';
     final result = await showAppSheet<String>(
@@ -207,7 +222,9 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
               Text(range.ref, style: Theme.of(ctx).textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(spacing: 6, children: [
-                for (final t in const ['list', 'whole', 'decimal', 'date', 'textLength'])
+                for (final t in const [
+                  'list', 'whole', 'decimal', 'date', 'textLength', 'custom',
+                ])
                   ChoiceChip(
                     key: ValueKey('xl-val-type-$t'),
                     label: Text(ctx.t('excel.val_$t')),
@@ -220,8 +237,17 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
                 TextField(
                   key: const ValueKey('xl-val-list'),
                   controller: listCtl,
+                  decoration: InputDecoration(
+                      labelText: ctx.t('excel.val_list_hint'),
+                      helperText: ctx.t('excel.val_list_source')),
+                )
+              else if (type == 'custom')
+                TextField(
+                  key: const ValueKey('xl-val-formula'),
+                  controller: aCtl,
+                  autocorrect: false,
                   decoration:
-                      InputDecoration(labelText: ctx.t('excel.val_list_hint')),
+                      InputDecoration(labelText: ctx.t('excel.val_formula_hint')),
                 )
               else ...[
                 DropdownButton<String>(
@@ -265,6 +291,16 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
                 controller: errCtl,
                 decoration: InputDecoration(labelText: ctx.t('excel.val_error')),
               ),
+              const SizedBox(height: 8),
+              Wrap(spacing: 6, children: [
+                for (final st in const ['stop', 'warning', 'information'])
+                  ChoiceChip(
+                    key: ValueKey('xl-val-style-$st'),
+                    label: Text(ctx.t('excel.val_style_$st')),
+                    selected: style == st,
+                    onSelected: (_) => set(() => style = st),
+                  ),
+              ]),
               const SizedBox(height: 12),
               Row(children: [
                 if (cur != null)
@@ -298,6 +334,15 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
       return t.replaceAll(',', '.');
     }
 
+    // Kullanıcının yazdığı formül → dosya biçimi (başında `=` olmadan).
+    String toFile(String f) {
+      var t = f.trim();
+      if (t.startsWith('=')) t = t.substring(1);
+      return _turkishFormulas
+          ? FormulaEngine.toFileFormula(t, turkish: true)
+          : t;
+    }
+
     final listText = listCtl.text, a = aCtl.text, b = bCtl.text, err = errCtl.text;
     if (result == null || !mounted) return;
     final name = sheet.name;
@@ -311,25 +356,41 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
     if (result == 'clear') {
       apply = () => editor.clearValidations(name, range);
     } else {
+      // Listede `=` ile başlayan giriş aralık/ad başvurusudur (Excel gibi).
+      final listRef = type == 'list' && listText.trim().startsWith('=')
+          ? toFile(listText)
+          : null;
       final opts = listText
           .split(RegExp(r'[,;]'))
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty)
           .toList();
-      if (type == 'list' && opts.isEmpty) {
+      if ((type == 'list' && listRef == null && opts.isEmpty) ||
+          (listRef != null && listRef.isEmpty)) {
         _snack(context.t('excel.val_list_empty'));
         return;
       }
+      final custom = type == 'custom' ? toFile(a) : null;
+      if (custom != null && custom.isEmpty) return;
       final v = XlsxDataValidation(
         type: type,
         ranges: [range],
-        options: type == 'list' ? opts : null,
-        formula1: type == 'list' ? '"${opts.join(',')}"' : toBound(a),
-        formula2: type == 'list' || !(op == 'between' || op == 'notBetween')
+        options: type == 'list' && listRef == null ? opts : null,
+        formula1: type == 'list'
+            ? listRef ?? '"${opts.join(',')}"'
+            : custom ?? toBound(a),
+        formula2: type == 'list' ||
+                type == 'custom' ||
+                !(op == 'between' || op == 'notBetween')
             ? null
             : toBound(b),
-        operator: type == 'list' ? 'between' : op,
+        operator: type == 'list' || type == 'custom' ? 'between' : op,
         error: err.trim().isEmpty ? null : err.trim(),
+        errorStyle: style,
+        // Var olan kuralın giriş iletisi korunur.
+        promptTitle: cur?.promptTitle,
+        prompt: cur?.prompt,
+        showInputMessage: cur?.showInputMessage ?? false,
       );
       apply = () => editor.addValidation(name, range, v);
     }
@@ -340,18 +401,43 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
     _partSetState(() {});
   }
 
-  /// Girişi doğrulama kuralına göre denetler; uymuyorsa Excel'in "Durdur"
-  /// uyarısı (giriş yazılmaz). true = yazılabilir.
-  bool _passesValidation(String value) {
-    final v = _sheet?.validationAt(_selRow, _selCol);
-    if (v == null || v.accepts(value)) return true;
+  /// [r],[c] hücresinin kuralının denetçisi (formüllü liste / özel formül
+  /// motoru ister).
+  XlsxValidationCheck? _validationCheck() {
+    final sheet = _sheet;
+    return sheet == null ? null : XlsxValidationCheck(_engineFor(sheet));
+  }
+
+  /// [raw] (model metni) hücrenin kuralına göre ne uyarı ister.
+  XlsxValidationResult _validationResult(int r, int c, String raw) {
+    final v = _sheet?.validationAt(r, c);
+    if (v == null) return XlsxValidationResult.ok;
+    return _validationCheck()?.check(v, r, c, raw) ?? XlsxValidationResult.ok;
+  }
+
+  /// Excel'in uyarı penceresi (Durdur/Bilgi): kuralın başlığı ve iletisi.
+  void _showValidationAlert(int r, int c) {
+    final v = _sheet?.validationAt(r, c);
     showAppConfirm(
       context,
-      title: context.t('excel.val_invalid_title'),
-      message: v.error ?? context.t('excel.val_invalid'),
+      title: v?.errorTitle ?? context.t('excel.val_invalid_title'),
+      message: v?.error ?? context.t('excel.val_invalid'),
       confirmLabel: context.t('common.ok'),
     );
-    return false;
+  }
+
+  /// "Uyarı" türü: sorulur; onaylanırsa giriş [at] hücresine yazılır.
+  Future<void> _confirmInvalidEntry(CellRef at, SmartInput m) async {
+    final v = _sheet?.validationAt(at.row, at.col);
+    final ok = await showAppConfirm(
+      context,
+      title: v?.errorTitle ?? context.t('excel.val_invalid_title'),
+      message: '${v?.error ?? context.t('excel.val_invalid')}\n\n'
+          '${context.t('excel.val_continue')}',
+    );
+    if (!ok || !mounted) return;
+    _writeEntry(at, m);
+    _syncField();
   }
 
   /// Seçili hücrede not var mı (şerit düğmesinin adı).
@@ -560,10 +646,20 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
         initialRow: row,
         valueAt: (r, c) => sheet.rawAt(r, c),
         numeric: (c) => sheet.isNumericAt(headerRow + 1, c),
-        options: (r, c) => sheet.validationAt(r, c)?.options,
+        options: (r, c) {
+          final rule = sheet.validationAt(r, c);
+          if (rule == null || rule.type != 'list') return null;
+          final o = _validationCheck()?.options(rule, r, c) ?? const <String>[];
+          return o.isEmpty ? null : o;
+        },
         validate: (r, c, v) {
           final rule = sheet.validationAt(r, c);
-          return rule == null || rule.accepts(v) ? null : (rule.error ?? ctx.t('excel.val_invalid'));
+          // Formda yalnız "Durdur" engeller (Uyarı/Bilgi Excel'de de yazılır).
+          return rule == null ||
+                  _validationCheck()?.check(rule, r, c, v) !=
+                      XlsxValidationResult.stop
+              ? null
+              : (rule.error ?? ctx.t('excel.val_invalid'));
         },
         save: (r, values) {
           final edits = <CellRef, String>{
