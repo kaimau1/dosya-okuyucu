@@ -21,6 +21,7 @@ void main() {
     'FileTags.movePath',
     'OpenHistory.movePath',
     'FmColorsStore.moveFolder',
+    'SmartSort.movePath', // B2 dilim 2: taşıma geri çağrısında, açılış yolunda değil
   };
 
   String mainBody() {
@@ -54,6 +55,7 @@ void main() {
     'FileTags.movePath',
     'OpenHistory.movePath',
     'FmColorsStore.moveFolder',
+    'SmartSort.movePath', // B2 dilim 2: taşıma geri çağrısında, açılış yolunda değil
   };
 
   test('runApp öncesi await sayısı tavanı (mandal)', () {
