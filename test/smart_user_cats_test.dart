@@ -272,9 +272,26 @@ void main() {
         throw GeminiException('kota', statusCode: 429);
     final t = await SmartUserCats.trial(
         name: 'Kira', about: 'x', credentials: creds, scope: scope);
-    expect(t.stoppedBy, 'kota');
+    // U4: ham API iletisi değil, kullanıcı dilinde ne oldu + ne yapmalı.
+    expect(t.stoppedBy, AppStrings.current.t('uerr.ai_quota'));
     expect(t.hits, isEmpty);
     expect(t.failed, lessThanOrEqualTo(2), reason: 'iki işçi, ilk hatada durur');
+  });
+
+  test('Dene: anahtar yoksa nedeni söylenir, istek atılmaz (U4)', () async {
+    var asked = 0;
+    SmartUserCats.candidates = (_) async => [entry('/d/f0.pdf')];
+    SmartUserCats.ask = (keys, input, qs) async {
+      asked++;
+      throw GeminiException('x', statusCode: 500);
+    };
+    final t = await SmartUserCats.trial(
+        name: 'Kira',
+        about: 'x',
+        credentials: const AiCredentials(keys: []),
+        scope: scope);
+    expect(t.stoppedBy, AppStrings.current.t('uerr.ai_key'));
+    expect(asked, 0);
   });
 
   test('ekle: deneme yanıtları kayda yazılır; en çok 30 kategori', () async {

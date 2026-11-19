@@ -9,13 +9,20 @@ import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folders.dart';
+import '../../services/fm/smart_sort.dart';
 import '../../widgets/fm/ai_preview_card.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/app_dialog.dart';
 
-/// **Akıllı klasörler listesi** — her biri kayıtlı bir AI araması (bkz.
-/// [SmartFolders]). Satırda klasörün o anki dosya sayısı, yeni gelen sayısı ve
-/// ilk üç dosyanın küçük resmi.
+/// **Akıllı aramalar listesi** — her biri kayıtlı bir arama (bkz.
+/// [SmartFolders]). Satırda o anki dosya sayısı, yeni gelen sayısı ve ilk üç
+/// dosyanın küçük resmi.
+///
+/// U4 (2026-11-20): adı "Akıllı klasörler"di; Akıllı düzen ekranındaki
+/// kategori klasörleriyle (asıl "Akıllı klasörler") aynı adı taşıyordu → iki
+/// ayrı şey tek ad. İçerik artık Akıllı düzen kayıtlarını da arar; hassas
+/// kategorili dosya varsa açılışta PIN ([unlockSensitiveCats]).
 class SmartFoldersScreen extends StatefulWidget {
   const SmartFoldersScreen({super.key});
 
@@ -28,9 +35,19 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   void initState() {
     super.initState();
     SmartFolders.instance.ensureLoaded();
-    AiIndex.ensureLoaded().then((_) {
+    Future.wait([AiIndex.ensureLoaded(), SmartSort.ensureLoaded()]).then((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  Future<void> _open(SmartFolder folder, List<AiRecord> items) async {
+    if (items.any(SmartFolders.isSensitive) &&
+        !await unlockSensitiveCats(context)) {
+      return;
+    }
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SmartFolderScreen(folderId: folder.id)));
   }
 
   Future<void> _create() async {
@@ -50,11 +67,12 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
       appBar: AppBar(title: Text(context.t('smart.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
-        icon: const Icon(AppIcons.newFolder),
+        icon: const Icon(AppIcons.add),
         label: Text(context.t('smart.create')),
       ),
       body: ListenableBuilder(
-        listenable: Listenable.merge([SmartFolders.instance, AiIndex.revision]),
+        listenable: Listenable.merge(
+            [SmartFolders.instance, AiIndex.revision, SmartSort.revision]),
         builder: (context, _) {
           final folders = SmartFolders.instance.folders;
           if (folders.isEmpty) {
@@ -64,7 +82,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(AppIcons.folderSpecial,
+                    Icon(AppIcons.savedSearch,
                         size: 56, color: Theme.of(context).colorScheme.primary),
                     const SizedBox(height: Gap.md),
                     Text(context.t('smart.empty'),
@@ -90,8 +108,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
               return _FolderRow(
                 folder: folder,
                 items: items,
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => SmartFolderScreen(folderId: folder.id))),
+                onTap: () => _open(folder, items),
               );
             },
           );
@@ -129,7 +146,7 @@ class _FolderRow extends StatelessWidget {
                   color: scheme.primaryContainer,
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(AppIcons.folderSpecial,
+                child: Icon(AppIcons.savedSearch,
                     color: scheme.onPrimaryContainer),
               ),
               const SizedBox(width: Gap.md),
@@ -156,8 +173,10 @@ class _FolderRow extends StatelessWidget {
                 ),
               ),
               // İlk üç dosyanın küçük resmi: klasörün ne içerdiği adı
-              // okumadan görülsün.
-              for (final r in items.take(3))
+              // okumadan görülsün. Hassas belge PIN'siz gösterilmez.
+              for (final r in items
+                  .where((r) => !SmartFolders.isSensitive(r))
+                  .take(3))
                 Padding(
                   padding: const EdgeInsetsDirectional.only(start: 4),
                   child: ClipRRect(
@@ -190,7 +209,7 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
   @override
   void initState() {
     super.initState();
-    AiIndex.ensureLoaded().then((_) {
+    Future.wait([AiIndex.ensureLoaded(), SmartSort.ensureLoaded()]).then((_) {
       if (mounted) setState(() {});
     });
     SmartFolders.instance.ensureLoaded().then((_) {
@@ -232,7 +251,8 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
   Widget build(BuildContext context) {
     final scope = context.watchAi().aiScopeRules;
     return ListenableBuilder(
-      listenable: Listenable.merge([SmartFolders.instance, AiIndex.revision]),
+      listenable: Listenable.merge(
+          [SmartFolders.instance, AiIndex.revision, SmartSort.revision]),
       builder: (context, _) {
         final folder = _folder;
         if (folder == null) {

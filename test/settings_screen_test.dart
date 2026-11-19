@@ -76,7 +76,9 @@ void main() {
       'list_layout', 'default_sort', 'show_hidden', 'thumbnails',
       'photo_grid', 'photo_group', 'media_open_with', 'start_folder',
       'api_key', 'ai_backup_keys', 'ai_model_chain',
-      'ai_excluded', 'ai_types', 'ai_privacy', 'ai_budget', 'memory',
+      'ai_excluded', 'ai_types', 'ai_privacy', 'ai_budget',
+      // 'memory' 2026-11-20'de BİLİNÇLİ kalktı (U4, kullanıcı kararı): AI
+      // Kalıcı Hafıza yalnız budanan sohbette kullanılıyordu; notlar silinmedi.
       // 'account' 2026-09-26'da BİLİNÇLİ kalktı: Firebase giriş/senkronu
       // hiçbir derlemede yapılandırılmamıştı (kullanıcı onaylı sadeleştirme).
       'privacy_policy', 'pin', 'locked_folders', 'full_access',
@@ -90,6 +92,21 @@ void main() {
     // ekranının içindeki alt sayfadan ulaşılabiliyordu).
     expect(ids, contains('tts_voice'));
     expect(ids, contains('tts_ai_read'));
+  });
+
+  test('Yapay zekâ sayfası Akıllı klasörlerle başlar (U4, 2026-11-20)', () {
+    final ai = settingsCategories().firstWhere((c) => c.id == 'ai');
+    expect(ai.sections.first.titleKey, 'set.sec_smart');
+    expect(ai.sections.first.rows.map((r) => r.id),
+        ['smart_sort', 'smart_sensitive', 'smart_user_cats']);
+    // Onay ve kişisel veri maskesi AI sayfasında (Gizlilik'te çift yok).
+    final aiIds = [for (final r in ai.rows) r.id];
+    expect(aiIds, containsAll(['ai_send_ask', 'ai_pii_mask', 'api_key']));
+    final all = [
+      for (final c in settingsCategories())
+        for (final r in c.rows) r.id,
+    ];
+    expect(all.where((id) => id == 'ai_send_ask'), hasLength(1));
   });
 
   test('geliştirici menüsü yalnız açılınca görünür (2026-10-21)', () {

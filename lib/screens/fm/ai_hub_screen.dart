@@ -130,7 +130,7 @@ class _AiHubScreenState extends State<AiHubScreen>
             icon: const Icon(AppIcons.more),
             onSelected: _openMenu,
             itemBuilder: (_) => [
-              item('smart', AppIcons.folderSpecial, 'smart.title'),
+              item('smart', AppIcons.savedSearch, 'smart.title'),
               item('bills', AppIcons.receiptLong, 'bills.title'),
               item('settings', AppIcons.tune, 'aih.scope_settings'),
             ],

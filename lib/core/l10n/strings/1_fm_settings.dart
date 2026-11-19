@@ -296,11 +296,6 @@ const Map<String, (String, String, String)> _t1 = {
     'Gemini key and model choice',
     'مفتاح Gemini واختيار النموذج',
   ),
-  'settings.memory_sub': (
-    'Yapay zekânın hatırlamasını istediğiniz notlar',
-    'Notes you want the AI to remember',
-    'ملاحظات تريد أن يتذكرها الذكاء الاصطناعي',
-  ),
   'settings.perf_section': (
     'Pil ve başarım',
     'Battery & performance',
@@ -369,13 +364,6 @@ const Map<String, (String, String, String)> _t1 = {
   'settings.theme_system': ('Sistem', 'System', 'النظام'),
   'settings.theme_light': ('Açık', 'Light', 'فاتح'),
   'settings.theme_dark': ('Koyu', 'Dark', 'داكن'),
-  'settings.memory': ('AI Kalıcı Hafıza', 'AI long-term memory', 'ذاكرة الذكاء الاصطناعي'),
-  'settings.memory_count': ('{n} not', '{n} notes', '{n} ملاحظة'),
-  'settings.memory_empty': (
-    'Henüz kayıtlı not yok.',
-    'No saved notes yet.',
-    'لا توجد ملاحظات محفوظة بعد.',
-  ),
   'settings.about': ('Hakkında', 'About', 'حول'),
   'settings.about_body': (
     'Dosyalarım • sürüm {version}\n'

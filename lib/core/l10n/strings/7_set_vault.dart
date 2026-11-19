@@ -662,9 +662,46 @@ const Map<String, (String, String, String)> _t7 = {
   ),
   'set.cat_ai': ('Yapay zekâ', 'Artificial intelligence', 'الذكاء الاصطناعي'),
   'set.cat_ai_sub': (
-    'Gemini anahtarı ve model',
-    'Gemini key and model',
-    'مفتاح Gemini والنموذج',
+    'Akıllı klasörler, anahtar ve gizlilik',
+    'Smart folders, key and privacy',
+    'المجلدات الذكية والمفتاح والخصوصية',
+  ),
+  // U4 (2026-11-20): Yapay zekâ sayfasının başı — Akıllı klasörler.
+  'set.sec_smart': ('Akıllı klasörler', 'Smart folders', 'المجلدات الذكية'),
+  'set.smart_sort_sub': (
+    'Aç/kapat, kamera, arka planda düzen, yalnız Wi-Fi, günlük sınır, öğrenilenler',
+    'On/off, camera, background organizing, Wi-Fi only, daily limit, learned fixes',
+    'تشغيل/إيقاف، الكاميرا، التنظيم في الخلفية، Wi-Fi فقط، الحد اليومي، التصحيحات المتعلَّمة',
+  ),
+  'set.smart_on': (
+    'Açık · {n} dosya düzenli — akıllı klasörleri aç',
+    'On · {n} files organized — open smart folders',
+    'مفعّل · {n} ملفات منظمة — افتح المجلدات الذكية',
+  ),
+  'set.smart_off': (
+    'Kapalı — aç, dosyalarına ikinci ad ve kategori versin',
+    'Off — turn it on to give your files second names and categories',
+    'متوقف — فعّله ليمنح ملفاتك أسماء ثانية وفئات',
+  ),
+  'set.smart_pin': (
+    'Hassas klasörlerde PIN',
+    'PIN for sensitive folders',
+    'رمز للمجلدات الحساسة',
+  ),
+  'set.smart_pin_none': (
+    'Kimlik, sağlık, banka ve vergi klasörleri şu an PIN sormadan açılır — dokun, PIN kur',
+    'ID, health, bank and tax folders open without a PIN now — tap to set a PIN',
+    'تُفتح مجلدات الهوية والصحة والبنك والضرائب الآن دون رمز — اضغط لتعيين رمز',
+  ),
+  'set.smart_pin_on': (
+    'Kimlik, sağlık, banka ve vergi klasörleri oturumda bir kez PIN ister',
+    'ID, health, bank and tax folders ask for the PIN once per session',
+    'تطلب مجلدات الهوية والصحة والبنك والضرائب الرمز مرة واحدة في كل جلسة',
+  ),
+  'set.smart_pin_app': (
+    'Uygulama kilidi açık: PIN girişte soruluyor, klasörler ayrıca sormaz',
+    'App lock is on: the PIN is asked at launch, folders do not ask again',
+    'قفل التطبيق مفعّل: يُطلب الرمز عند الفتح، ولا تطلبه المجلدات مجددًا',
   ),
   'set.cat_privacy': ('Gizlilik ve izinler', 'Privacy & permissions', 'الخصوصية والأذونات'),
   'set.cat_privacy_sub': (
@@ -907,8 +944,16 @@ const Map<String, (String, String, String)> _t7 = {
     'إشعار أسبوعي عند امتلاء التخزين (حتى عند إغلاق التطبيق)',
   ),
   // ── akıllı klasörler (2026-10-18) ──────────────────────────────────────
-  'smart.title': ('Akıllı klasörler', 'Smart folders', 'المجلدات الذكية'),
-  'smart.create': ('Yeni akıllı klasör', 'New smart folder', 'مجلد ذكي جديد'),
+  // U4 (2026-11-20): "Akıllı klasörler" Akıllı düzenin kategori klasörleri;
+  // kayıtlı aramalar ayrı ad taşır (iki ayrı şey tek ad olmasın).
+  'smart.title': ('Akıllı aramalar', 'Smart searches', 'عمليات البحث الذكية'),
+  'smart.create': ('Yeni akıllı arama', 'New smart search', 'بحث ذكي جديد'),
+  'smart.entry_sub': (
+    'Bir aramayı kaydet; eşleşen yeni dosyalar kendiliğinden toplansın',
+    'Save a search; new matching files gather on their own',
+    'احفظ بحثًا؛ لتتجمع الملفات المطابقة الجديدة تلقائيًا',
+  ),
+  'smart.entry_n': ('{n} kayıtlı arama', '{n} saved searches', '{n} عمليات بحث محفوظة'),
   'smart.query_hint': (
     'Ne aransın? (örn. fatura, kimlik, sözleşme)',
     'What to look for? (e.g. invoice, ID, contract)',
@@ -920,28 +965,28 @@ const Map<String, (String, String, String)> _t7 = {
     'Smart folder "{name}" created — new files will be added automatically',
     'تم إنشاء المجلد الذكي "{name}" — ستُضاف الملفات الجديدة تلقائياً',
   ),
-  'smart.empty': ('Henüz akıllı klasör yok', 'No smart folders yet', 'لا توجد مجلدات ذكية بعد'),
+  'smart.empty': ('Henüz akıllı arama yok', 'No smart searches yet', 'لا توجد عمليات بحث ذكية بعد'),
   'smart.empty_sub': (
-    'Aşağıdan yeni bir akıllı klasör oluştur. Analiz edilen yeni dosyalar kendiliğinden içeri girer.',
-    'Create a new smart folder below. Newly analysed files join automatically.',
-    'أنشئ مجلدًا ذكيًا جديدًا من الأسفل. تنضم الملفات المحلَّلة الجديدة تلقائيًا.',
+    'Bir aramayı kaydet (örn. fatura, kimlik, sözleşme): Akıllı düzenin bulduğu eşleşmeler burada toplanır, yeni gelenler rozetle görünür.',
+    'Save a search (e.g. invoice, ID, contract): matches found by smart organize gather here, new ones get a badge.',
+    'احفظ بحثًا (مثل فاتورة، هوية، عقد): تتجمع هنا التطابقات التي يجدها التنظيم الذكي، وتظهر الجديدة بشارة.',
   ),
   'smart.count_folders': ('{n} klasör', '{n} folders', '{n} مجلد'),
   'smart.count': ('{n} dosya', '{n} files', '{n} ملف'),
   'smart.new_n': ('{n} yeni', '{n} new', '{n} جديد'),
   'smart.new_badge': ('Yeni', 'New', 'جديد'),
   'smart.header': (
-    '"{query}" araması · {n} dosya · {size} — akıllı analizdeki eşleşmeler, kendiliğinden güncellenir.',
-    'Search "{query}" · {n} files · {size} — matches from smart analysis, kept up to date automatically.',
-    'البحث "{query}" · {n} ملف · {size} — تطابقات من التحليل الذكي، تُحدّث تلقائيًا.',
+    '"{query}" araması · {n} dosya · {size} — Akıllı düzen ve dosya analizindeki eşleşmeler, kendiliğinden güncellenir.',
+    'Search "{query}" · {n} files · {size} — matches from smart organize and file analysis, kept up to date automatically.',
+    'البحث "{query}" · {n} ملف · {size} — تطابقات من التنظيم الذكي وتحليل الملفات، تُحدّث تلقائيًا.',
   ),
   'smart.no_items': (
-    'Şu an eşleşen dosya yok. Akıllı analiz yeni dosyaları taradıkça burada görünecek.',
-    'No matching files yet. They will appear as smart analysis covers new files.',
-    'لا ملفات مطابقة بعد. ستظهر هنا كلما غطّى التحليل الذكي ملفات جديدة.',
+    'Şu an eşleşen dosya yok. Akıllı düzen yeni dosyaları düzenledikçe burada görünecek.',
+    'No matching files yet. They will appear as smart organize sorts new files.',
+    'لا ملفات مطابقة بعد. ستظهر هنا كلما نظّم التنظيم الذكي ملفات جديدة.',
   ),
   'smart.rename': ('Yeniden adlandır', 'Rename', 'إعادة التسمية'),
-  'smart.delete': ('Akıllı klasörü sil', 'Delete smart folder', 'حذف المجلد الذكي'),
+  'smart.delete': ('Akıllı aramayı sil', 'Delete smart search', 'حذف البحث الذكي'),
   'smart.delete_body': (
     'Yalnız kayıtlı arama silinir; dosyaların kendisine dokunulmaz.',
     'Only the saved search is removed; your files are untouched.',

@@ -155,7 +155,11 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
   List<FsEntry> get _source =>
       _isSearch ? _results : (_largest[_category] ?? const []);
 
-  /// Ekranda gösterilen liste: arama sonucu ya da en büyük dosyalar.
+  /// Ekranda gösterilen liste: arama sonucu ya da en büyük dosyalar — en çok
+  /// 200 (bilinçli: liste sıralı, aşağısı yer açma kararına katkı vermiyor).
+  ///
+  /// U4 kökü (2026-11-20): sınır yalnız çizimdeydi; "Tümünü seç" ve sayaç
+  /// görünmeyen (1000'e dek) arama sonuçlarını da seçip silmeye götürüyordu.
   List<FsEntry> get _visible {
     final list = [
       for (final e in _source)
@@ -170,7 +174,9 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
               tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
             e,
     ];
-    return FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
+    final sorted =
+        FsScan.sort(list, _sort, descending: _desc, foldersFirst: false);
+    return sorted.length <= 200 ? sorted : sorted.sublist(0, 200);
   }
 
   Future<void> _openFilterSheet() async {
