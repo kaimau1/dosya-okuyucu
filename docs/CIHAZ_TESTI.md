@@ -1444,3 +1444,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Akıllı klasöre basılı tut → "Taşıma kuralı…" → klasör seç → onay penceresi doğru dosya sayısını söylüyor → "Kuralı aç" → dosyalar taşındı, "Geri al" hepsini eski yerine döndürüyor. Menüde artık "Taşıma kuralını kapat (→ klasör)" yazıyor; kapatınca bir şey taşınmıyor. Kural yokken hiçbir dosya yer değiştirmiyor.
 - [ ] Kural açıkken "Şimdi düzenle" → yeni düzenlenen o kategorideki dosyalar da taşınıp "Geri al" çıkıyor. SD kart ↔ dahili arasında ilerleme penceresi görünüyor.
 - [ ] Ayıkla: "Eski ekran görüntüsü" çipi 30 günden eski ekran görüntülerini listeliyor, yenileri listelemiyor.
+
+## U2 Ana ekran tek akıllı şerit (2026-11-19, dal faz-oto-U2-tek-serit) — yazıldı, cihazda doğrulanmadı
+- [ ] Ana ekranda üstte TEK şerit "Son dosyalar", sekme yok; ekran görüntüsü al, uygulamaya dön → SS şeridin başında küçük "Yeni" etiketiyle görünüyor.
+- [ ] SS'i aç, geri dön → aynı dosya bir kez görünüyor, "Yeni" etiketi yerine köşede ince saat işareti var.
+- [ ] Çok sayıda yeni dosya varken (ör. 10+ foto) şeritte yine en az 3 son açılan dosya görünüyor.
+- [ ] Başlıktaki "Yeniler" Yeniler ekranını, "Geçmiş" Geçmiş ekranını açıyor; 2,0× yazı boyutunda ad satırı kesilmiyor; Arapça'da "Yeni" etiketi sağ üstte.
+- [ ] ÖLÇÜM KAPISI (ana ekran): soğuk açılış + ana ekran kaydırma A/B (taban önceki [apk] profil derlemesi, `.r8test`) — kurulum onayına takıldığı için yapılmadı.

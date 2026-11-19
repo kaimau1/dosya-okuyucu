@@ -1,8 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -10,38 +11,87 @@ import '../../services/fm/fresh_cache.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
-import '../section_header.dart';
 import 'fm_entry_icon.dart';
 
-/// **Panoda "Geçmiş" şeridi** (eski adı "Son açılanlar") (Faz 17 / G15, K16 (b) — 2026-10-22).
+/// Şerit öğesinin işareti: henüz açılmamış yeni dosya ya da son açılan.
+enum StripMark { fresh, opened }
+
+typedef StripItem = ({FsEntry entry, StripMark mark});
+
+/// **Tek akıllı şerit sırası** (U2, 2026-11-19, kullanıcı: *"ikisi akıllı
+/// bir şekilde birleşsin … iki satıra çıkmasın"*).
 ///
-/// "Az önce açtığım dosya" eskiden iki dokunuştu (Geçmiş kutusu →
-/// Açılanlar). Yatay, küçük resimli en çok [limit] öğe + "Tümü →".
-/// Varlık denetimi `FsScan.statPaths` ile arka planda (ana izlekte
-/// `existsSync` yok); hiç kayıt yoksa şerit hiç çizilmez.
+/// * Son 24 saatte gelen ve o sürümü hiç açılmamış yeniler öne (en yeni önce);
+/// * gerisi (son açılanlar = açılma zamanı, eski yeniler = değişme zamanı)
+///   zamana göre karışık;
+/// * aynı yol bir kez; açıldıktan sonra değişmemiş "yeni" dosya son açılan
+///   sayılır;
+/// * yeniler şeridi doldursa da en az [reserve] son açılan görünür (ikisi
+///   aynı anda).
+List<StripItem> mergeStripItems({
+  required List<FsEntry> opened,
+  required List<FsEntry> fresh,
+  required int? Function(String path) openedAt,
+  required int nowMs,
+  int limit = 10,
+  int reserve = 3,
+}) {
+  const day = Duration.millisecondsPerDay;
+  final seen = <String>{};
+  final front = <FsEntry>[];
+  final rest = <(int, int, StripItem)>[];
+  void later(int at, StripItem item) => rest.add((at, rest.length, item));
+  for (final e in fresh) {
+    if (!seen.add(e.path)) continue;
+    final at = openedAt(e.path);
+    if (at != null && at >= e.modifiedMs) {
+      later(at, (entry: e, mark: StripMark.opened));
+    } else if (nowMs - e.modifiedMs <= day) {
+      front.add(e);
+    } else {
+      later(e.modifiedMs, (entry: e, mark: StripMark.fresh));
+    }
+  }
+  for (final e in opened) {
+    if (!seen.add(e.path)) continue;
+    later(openedAt(e.path) ?? e.modifiedMs, (entry: e, mark: StripMark.opened));
+  }
+  front.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+  // Eşit zamanda ilk geliş sırası korunur (Dart sort kararlı değil).
+  rest.sort((a, b) {
+    final c = b.$1.compareTo(a.$1);
+    return c != 0 ? c : a.$2.compareTo(b.$2);
+  });
+  final keep = math.min(reserve, rest.length);
+  return [
+    for (final e in front.take(math.max(0, limit - keep)))
+      (entry: e, mark: StripMark.fresh),
+    for (final r in rest) r.$3,
+  ].take(limit).toList();
+}
+
+/// **Panoda tek şerit: yeni gelenler + Geçmiş** (Faz 17 / G15 şeridi;
+/// 2026-11-18'de iki sekmeliydi, U2 2026-11-19'da tek akıllı şeride döndü).
 ///
-/// **"Yeniler" sekmesi** (eski adı "Yeni gelenler"; 2026-11-18, kullanıcı: *"aynı son açılan /
-/// yeni gelen sekme işini ana ekranda da yapalım, aktar ekranındaki güzel
-/// olmuş"*): [onAllNew] verilince başlık iki sekmeli olur. Yeni gelenler =
-/// sıcak klasörlerdeki en yeni dosyalar ([FsScan.freshFiles], izolatta).
-/// **Ana ekran hız kapısı:** tarama yalnız o sekme seçiliyken ve ilk kareden
-/// SONRA yapılır (Son açılanlar sekmesinde hiç disk yürüyüşü yok); dönüşte
-/// ([FsEvents.returned]) ve uygulama içi dosya işleminde tazelenir, liste
-/// aynıysa çizilmez. Seçilen sekme hatırlanır. Şeridin boyu iki sekmede aynı.
+/// Yatay, küçük resimli en çok [limit] öğe; sırası [mergeStripItems].
+/// Yeni dosyada küçük "Yeni" etiketi, son açılanda ince saat işareti.
+/// Başlıkta "Yeniler" ve "Geçmiş" düğmeleri tam listelere gider.
 ///
-/// **Hız (2026-11-18, kullanıcı: "yeni gelenler çok geç yükleniyor"):** tarama
-/// [FreshCache] üzerinden — sekme açılınca önce son taramanın sonucu ya da
-/// diskteki son yolların `stat`ı ANINDA görünür, tam tarama bitince gerçek
-/// liste yerine geçer (doğruluk tam taramada).
+/// **Ana ekran hız kapısı:** ilk karede disk işi yok — yeniler bellekteki son
+/// taramadan ([FreshCache.last]) gelir, yoksa ilk kareden SONRA önce diskteki
+/// son yolların `stat`ı ([FreshCache.warm]), ardından izolattaki tam tarama
+/// ([FreshCache.scan], tüm şeritlerle ortak). Geçmiş varlık denetimi
+/// [FsScan.statPaths] ile arka planda. Dönüşte ([FsEvents.returned]) ve
+/// uygulama içi dosya işleminde tazelenir; liste aynıysa çizilmez. Boy sabit.
 class RecentStrip extends StatefulWidget {
   final void Function(FsEntry entry) onOpen;
   final VoidCallback onAll;
 
-  /// Doluysa "Yeni gelenler" sekmesi açılır; "Tümü" o sekmede buraya gider.
+  /// Doluysa yeni gelenler şeride katılır; başlıktaki "Yeniler" buraya gider.
   final VoidCallback? onAllNew;
   final int limit;
 
-  /// Testler için: geçmiş yerine verilen girdiler.
+  /// Testler için: geçmiş yerine verilen girdiler (yeniler taranmaz).
   final List<FsEntry>? entriesForTest;
 
   const RecentStrip({
@@ -58,81 +108,73 @@ class RecentStrip extends StatefulWidget {
 }
 
 class _RecentStripState extends State<RecentStrip> {
-  static const _tabKey = 'home_recent_tab';
-  List<FsEntry> _items = const [];
+  static const _thumb = 72.0;
+  static const _cell = _thumb + Gap.md;
+
+  List<FsEntry> _opened = const [];
   int _seenRevision = -1;
 
-  /// Yeni gelenler (null = henüz taranmadı).
+  /// Yeni gelenler (null = henüz yok).
   List<FsEntry>? _fresh;
-  bool _showNew = false;
+  List<StripItem> _items = const [];
   bool _scanning = false;
   bool _again = false;
 
-  bool get _tabs => widget.onAllNew != null && widget.entriesForTest == null;
+  bool get _live => widget.onAllNew != null && widget.entriesForTest == null;
 
   @override
   void initState() {
     super.initState();
     OpenHistory.changes.addListener(_onHistory);
     _load();
-    if (_tabs) {
+    if (_live) {
       FsEvents.returned.addListener(_onFs);
       FsEvents.version.addListener(_onFs);
-      unawaited(_restoreTab());
-    }
-  }
-
-  Future<void> _restoreTab() async {
-    try {
-      final v = (await SharedPreferences.getInstance()).getBool(_tabKey);
-      if (v == true && mounted) _selectNew(true, remember: false);
-    } catch (_) {
-      // Bilinçli: hatırlanamazsa Geçmiş sekmesi açılır.
+      final mem = FreshCache.last;
+      if (mem != null) _fresh = _pick(mem);
+      // Disk işi ilk kareden sonra: açılışın çizimine yük bindirmesin.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (_fresh == null) unawaited(_warm());
+        unawaited(_loadFresh());
+      });
     }
   }
 
   List<FsEntry> _pick(List<FsEntry> all) => [
         for (final e in all)
           if (!e.isDir && !e.path.contains('/.')) e
-      ].take(widget.limit).toList();
+      ].take(widget.limit * 2).toList();
 
-  void _selectNew(bool on, {bool remember = true}) {
-    final needScan = on && _fresh == null;
-    final mem = needScan ? FreshCache.last : null;
-    setState(() {
-      _showNew = on;
-      if (mem != null) _fresh = _pick(mem);
-    });
-    if (needScan && mem == null) unawaited(_warm());
-    if (needScan) {
-      // Tam tarama ilk kareden sonra: açılışın çizimine yük bindirmesin.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_loadFresh());
-      });
-    }
-    if (remember) {
-      unawaited(SharedPreferences.getInstance()
-          .then((p) => p.setBool(_tabKey, on))
-          .catchError((Object _) => false));
-    }
+  void _remerge() {
+    final next = mergeStripItems(
+      opened: _opened,
+      fresh: _fresh ?? const [],
+      openedAt: OpenHistory.forPath,
+      nowMs: DateTime.now().millisecondsSinceEpoch,
+      limit: widget.limit,
+    );
+    final old = _items;
+    final same = old.length == next.length &&
+        [
+          for (var i = 0; i < old.length; i++)
+            old[i].mark == next[i].mark &&
+                old[i].entry.path == next[i].entry.path &&
+                old[i].entry.modifiedMs == next[i].entry.modifiedMs
+        ].every((b) => b);
+    if (!same) setState(() => _items = next);
   }
 
   /// Önbellekten ilk görüntü (yalnız `stat`, ağaç gezilmez).
   Future<void> _warm() async {
     final w = await FreshCache.warm();
     if (!mounted || _fresh != null || w == null) return;
-    setState(() => _fresh = _pick(w));
+    _fresh = _pick(w);
+    _remerge();
   }
 
-  /// Dosya sistemi değişti / uygulamaya dönüldü: yalnız sekme açıksa tara,
-  /// değilse bir sonraki açılışta taransın.
   void _onFs() {
-    if (!mounted) return;
-    if (_showNew) {
-      unawaited(_loadFresh());
-    } else {
-      _fresh = null;
-    }
+    if (mounted) unawaited(_loadFresh());
   }
 
   Future<void> _loadFresh() async {
@@ -146,10 +188,12 @@ class _RecentStripState extends State<RecentStrip> {
       if (!mounted) return;
       final old = _fresh;
       if (old == null || !FsScan.sameListing(old, next)) {
-        setState(() => _fresh = next);
+        _fresh = next;
+        _remerge();
       }
     } catch (_) {
-      if (mounted && _fresh == null) setState(() => _fresh = const []);
+      // Bilinçli: yeniler yalnız kolaylık; tarama düşerse şeritte Geçmiş kalır.
+      if (mounted && _fresh == null) _fresh = const [];
     } finally {
       _scanning = false;
     }
@@ -159,7 +203,8 @@ class _RecentStripState extends State<RecentStrip> {
     }
   }
 
-  /// Bir dosya açılınca (her tür) şerit kendiliğinden tazelenir.
+  /// Bir dosya açılınca (her tür) şerit kendiliğinden tazelenir; açılan
+  /// yeni dosyanın işareti "son açılan"a döner.
   void _onHistory() {
     if (mounted && OpenHistory.revision != _seenRevision) _load();
   }
@@ -181,7 +226,8 @@ class _RecentStripState extends State<RecentStrip> {
 
   Future<void> _load() async {
     if (widget.entriesForTest != null) {
-      setState(() => _items = widget.entriesForTest!.take(widget.limit).toList());
+      _opened = widget.entriesForTest!;
+      _remerge();
       return;
     }
     await OpenHistory.ensureLoaded();
@@ -192,112 +238,157 @@ class _RecentStripState extends State<RecentStrip> {
     final stats = await FsScan.statPaths(paths);
     // Yükleme sürerken yeni kayıt geldiyse onun yüklemesi sonucu yazar.
     if (!mounted || loadedAt != _seenRevision) return;
-    setState(() => _items = [
-          for (final e in stats)
-            if (!e.isDir) e,
-        ].take(widget.limit).toList());
+    _opened = [
+      for (final e in stats)
+        if (!e.isDir) e,
+    ];
+    _remerge();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Sekmeli şerit: dosya hiç açılmamış olsa da Yeniler için durur.
-    if (_items.isEmpty && !_tabs) return const SizedBox.shrink();
-    final items = _showNew ? (_fresh ?? const <FsEntry>[]) : _items;
-    final theme = Theme.of(context);
+    // Canlı şerit boş olsa da yerini korur (yeniler gelince zıplamasın).
+    if (_items.isEmpty && !_live) return const SizedBox.shrink();
+    final items = _items;
     // Yazı ölçeğiyle büyüyen yükseklik: 2,0× yazıda ad satırı kesilmesin.
     final scale = MediaQuery.textScalerOf(context).scale(1);
-    const thumb = 72.0;
+    final compact = TextButton.styleFrom(
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Başlık satırı sıkı (kullanıcı 2026-11-15: bellek kartı ile Son
-        // açılanlar arasında gereksiz büyük boşluk): "Tümü" düğmesi 48 dp
-        // dokunma payı + üst boşlukla satırı uzatıyordu.
+        // Başlık satırı sıkı (kullanıcı 2026-11-15: gereksiz büyük boşluk).
         Padding(
           padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xs),
           child: Row(
             children: [
               Expanded(
-                child: _tabs
-                    ? Wrap(spacing: Gap.xs, children: [
-                        _tab(context, context.t('dash.sec_recent'), !_showNew,
-                            () => _selectNew(false),
-                            const ValueKey('recent-tab-opened')),
-                        _tab(context, context.t('fresh.new'), _showNew,
-                            () => _selectNew(true),
-                            const ValueKey('recent-tab-new')),
-                      ])
-                    : SectionHeader(context.t('dash.sec_recent'),
-                        padding: EdgeInsets.zero),
+                child: Text(context.t('dash.strip_title'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium),
               ),
+              if (widget.onAllNew != null)
+                TextButton(
+                  key: const ValueKey('recent-strip-all-new'),
+                  style: compact,
+                  onPressed: widget.onAllNew,
+                  child: Text(context.t('fresh.new')),
+                ),
               TextButton(
                 key: const ValueKey('recent-strip-all'),
-                style: TextButton.styleFrom(
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: _showNew ? widget.onAllNew : widget.onAll,
-                child: Text(context.t('dash.recent_all')),
+                style: compact,
+                onPressed: widget.onAll,
+                child: Text(context.t('dash.sec_recent')),
               ),
             ],
           ),
         ),
         SizedBox(
-          height: thumb + Gap.sm + 20 * scale + Gap.sm,
-          child: ListView.separated(
-            key: PageStorageKey(_showNew ? 'recent-new' : 'recent-opened'),
+          height: _thumb + Gap.sm + 20 * scale + Gap.sm,
+          child: ListView.builder(
+            key: const PageStorageKey('recent-strip'),
             scrollDirection: Axis.horizontal,
+            itemExtent: _cell + Gap.sm,
             itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
-            itemBuilder: (context, i) {
-              final e = items[i];
-              return Semantics(
-                button: true,
-                label: e.name,
-                excludeSemantics: true,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(Radii.card),
-                  onTap: () => widget.onOpen(e),
-                  child: SizedBox(
-                    width: thumb + Gap.md,
-                    child: Column(
-                      children: [
-                        FmEntryIcon(entry: e, size: thumb),
-                        const SizedBox(height: Gap.xs),
-                        Text(
-                          e.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.labelSmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (context, i) => RepaintBoundary(
+              child: _StripTile(
+                key: ValueKey(items[i].entry.path),
+                item: items[i],
+                onOpen: widget.onOpen,
+              ),
+            ),
           ),
         ),
       ],
     );
   }
+}
 
-  /// Sekme başlığı: seçili olan bölüm başlığı ağırlığında, öteki soluk.
-  Widget _tab(BuildContext context, String label, bool on, VoidCallback tap,
-      Key key) {
+class _StripTile extends StatelessWidget {
+  final StripItem item;
+  final void Function(FsEntry entry) onOpen;
+
+  const _StripTile({super.key, required this.item, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.titleMedium?.copyWith(
-      color: on ? null : theme.colorScheme.onSurfaceVariant,
-      fontWeight: on ? FontWeight.w700 : FontWeight.w500,
-    );
-    return InkWell(
-      key: key,
-      borderRadius: BorderRadius.circular(Radii.control),
-      onTap: on ? null : tap,
+    final scheme = theme.colorScheme;
+    final e = item.entry;
+    final isNew = item.mark == StripMark.fresh;
+    final newLabel = context.t('dash.strip_new');
+    return Semantics(
+      button: true,
+      label: isNew ? '${e.name}, $newLabel' : e.name,
+      excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-        child: Text(label, style: style),
+        padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.card),
+          onTap: () => onOpen(e),
+          child: Column(
+            children: [
+              SizedBox.square(
+                dimension: _RecentStripState._thumb,
+                child: Stack(
+                  children: [
+                    FmEntryIcon(entry: e, size: _RecentStripState._thumb),
+                    if (isNew)
+                      PositionedDirectional(
+                        top: 2,
+                        start: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(Radii.control),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: Gap.xs, vertical: 1),
+                            child: Text(
+                              newLabel,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: scheme.onPrimary,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      PositionedDirectional(
+                        bottom: 2,
+                        end: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2),
+                            child: Icon(AppIcons.history,
+                                size: 12, color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                e.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
