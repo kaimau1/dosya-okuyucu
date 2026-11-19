@@ -292,4 +292,29 @@ void main() {
     expect(pos.pixels, inInclusiveRange(before - 1, up + 1),
         reason: 'kapanınca konum korunur');
   });
+
+  // B13 m.7 — hareket eşitliği: Word'de de Excel/Slayt gibi iki parmakla
+  // yakınlaştırılır; ölçek parmak kalkınca işlenir, yazı yeniden dizilir.
+  testWidgets('iki parmakla çimdik Word yazısını büyütür', (t) async {
+    await open(t);
+    DocxEditorView view() => t.widget<DocxEditorView>(find.byType(DocxEditorView));
+    expect(view().scale, closeTo(1.35, 0.001));
+    final mid = t.getCenter(find.byType(DocxEditorView));
+    final a = await t.startGesture(mid - const Offset(0, 40));
+    final b = await t.startGesture(mid + const Offset(0, 40));
+    await t.pump();
+    for (var i = 0; i < 5; i++) {
+      await a.moveBy(const Offset(0, -20));
+      await b.moveBy(const Offset(0, 20));
+      await t.pump();
+    }
+    expect(view().scale, closeTo(1.35, 0.001), reason: 'parmak inikken ölçek işlenmez');
+    await a.up();
+    await b.up();
+    await t.pump();
+    await t.pump();
+    expect(view().scale, greaterThan(1.6));
+    expect(view().scale, lessThanOrEqualTo(2.2 + 0.001), reason: 'tavan');
+    await t.pump(const Duration(seconds: 3)); // yakınlaştırma rozeti
+  });
 }

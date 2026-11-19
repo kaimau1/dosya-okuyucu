@@ -24,6 +24,7 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/safe_write.dart';
 import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/editor_top_bar.dart';
+import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/docx_editor/docx_edit_controller.dart';
@@ -340,14 +341,58 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     QuickTranslateSheet.show(context, text, title: widget.name);
   }
 
-  /// Mobil görünümün punto → dp çarpanı (Görünüm > Yakınlaştır).
-  double _scale = 1.35;
+  /// Mobil görünümün punto → dp çarpanı (Görünüm > Yakınlaştır ya da iki
+  /// parmakla çimdik — B13 m.7, Excel/Slayt'la aynı `PinchZoomArea`).
+  double _scale = _baseScale;
+  static const _baseScale = 1.35;
   static const _scales = [1.0, 1.15, 1.35, 1.6, 1.9, 2.2];
+  final _pinch = PinchZoomController();
 
+  /// Düğme: çimdikle ara bir ölçekteyken de bir sonraki kademeye.
   void _zoom(int dir) {
-    final i = _scales.indexOf(_scale) + dir;
-    if (i < 0 || i >= _scales.length) return;
-    setState(() => _scale = _scales[i]);
+    final next = dir > 0
+        ? _scales.where((s) => s > _scale + 0.001).firstOrNull
+        : _scales.where((s) => s < _scale - 0.001).lastOrNull;
+    if (next != null) _pinch.setZoom(next / _baseScale);
+  }
+
+  /// Belge görünümü kurucusu. Çimdik sürerken `PinchZoomArea` her parmak
+  /// hareketinde kurucuyu çağırır ama ölçek ancak parmak kalkınca değişir →
+  /// aynı widget örneği döner, belge her karede yeniden kurulmaz. Ekran
+  /// yeniden kurulunca kapanış (ve önbelleği) de yenilenir.
+  Widget Function(BuildContext, double, ScrollPhysics?) _memoView(
+      DocxEditController c) {
+    Widget? memo;
+    double? memoZoom;
+    ScrollPhysics? memoPhysics;
+    return (context, zoom, physics) {
+      if (memo == null || zoom != memoZoom || physics != memoPhysics) {
+        memoZoom = zoom;
+        memoPhysics = physics;
+        memo = DocxEditorView(
+          key: _viewKey,
+          controller: c,
+          scale: _baseScale * zoom,
+          physics: physics,
+          spellcheck: EditPrefs.wordSpellcheck,
+          actions: DocxEditorActions(
+              translate: _translate,
+              aiFix: _aiFix,
+              openNote: _openFootnote,
+              openComment: (id) => _comments(focus: id),
+              openLink: _editLink,
+              openControl: _fillControl),
+        );
+      }
+      return memo!;
+    };
+  }
+
+  /// Çimdik ya da düğme ölçeği işledi: araç çubuğu düğmeleri güncellensin,
+  /// odak altındaki içerik yerinde kalsın.
+  void _zoomCommitted(double f, Offset focal) {
+    setState(() => _scale = (_scale * f).clamp(_scales.first, _scales.last));
+    _viewKey.currentState?.zoomCommitted(f, focal);
   }
 
   final _viewKey = GlobalKey<DocxEditorViewState>();
@@ -730,18 +775,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
               onClose: () => setState(() => _findOpen = false),
             ),
           Expanded(
-            child: DocxEditorView(
-              key: _viewKey,
-              controller: c,
-              scale: _scale,
-              spellcheck: EditPrefs.wordSpellcheck,
-              actions: DocxEditorActions(
-                  translate: _translate,
-                  aiFix: _aiFix,
-                  openNote: _openFootnote,
-                  openComment: (id) => _comments(focus: id),
-                  openLink: _editLink,
-                  openControl: _fillControl),
+            child: PinchZoomArea(
+              minZoom: _scales.first / _baseScale,
+              maxZoom: _scales.last / _baseScale,
+              controller: _pinch,
+              onCommitted: _zoomCommitted,
+              builder: _memoView(c),
             ),
           ),
         ],
