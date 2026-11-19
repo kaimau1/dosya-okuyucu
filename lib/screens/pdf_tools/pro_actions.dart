@@ -25,6 +25,9 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'compare' => _compare(),
       'permissions' => _permissions(),
       'outline' => _editOutline(),
+      'meta' => _editMeta(),
+      'xfdf_out' => _exportXfdf(),
+      'xfdf_in' => _importXfdf(),
       'stamp' => _stamp(),
       'numbering' => _numbering(),
       'compress_hard' => _compressHard(),
@@ -413,6 +416,56 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     // Sahip parolası belgeyi her zaman açar: sonraki işlemler onunla.
     _partSetState(() => _password = opts.owner);
     _snack(_str.t('pp.permissions_done'));
+  }
+
+  // ── B4/P21 meta veri · P17 XFDF ─────────────────────────────────────────
+
+  Future<void> _editMeta() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final PdfMeta current;
+    try {
+      current = await PdfDocPro.readMetaInBackground(bytes, password: pw);
+    } catch (_) {
+      _snack(_str.t('pp.meta_failed'));
+      return;
+    }
+    if (!mounted) return;
+    final edited = await showAppSheet<PdfMeta>(
+      context,
+      title: context.t('pp.meta'),
+      builder: (_) => _MetaSheet(initial: current),
+    );
+    if (edited == null || edited == current || !mounted) return;
+    await _apply(_str.t('pp.meta'),
+        (b) => PdfDocPro.writeMetaInBackground(b, edited, password: pw));
+  }
+
+  Future<void> _exportXfdf() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    await _produce(_str.t('pp.xfdf_out'), () async {
+      final data = await PdfDocPro.exportXfdfInBackground(bytes, password: pw);
+      if (data == null) {
+        _snack(_str.t('pp.notes_empty'));
+        return;
+      }
+      await _saveSibling(data, '-aciklamalar', 'xfdf');
+    });
+  }
+
+  Future<void> _importXfdf() async {
+    final res = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xfdf'],
+    );
+    final path = res?.files.single.path;
+    if (path == null || !mounted) return;
+    final xfdf = await File(path).readAsBytes();
+    if (!mounted) return;
+    final pw = _password;
+    await _apply(_str.t('pp.xfdf_in'),
+        (b) => PdfDocPro.importXfdfInBackground(b, xfdf, password: pw));
   }
 
   Future<void> _editOutline() async {
