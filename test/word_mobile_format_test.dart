@@ -265,10 +265,20 @@ void main() {
     await t.pump();
     await t.pump(const Duration(milliseconds: 300));
     expect(c.attached, isTrue);
+    // Belgenin dikey kaydırıcısı (tablo vb. iç kaydırıcılar değil).
     final pos = t
-        .state<ScrollableState>(
-            find.descendant(of: view, matching: find.byType(Scrollable)).first)
-        .position;
+        .stateList<ScrollableState>(
+            find.descendant(of: view, matching: find.byType(Scrollable)))
+        .map((s) => s.position)
+        .where((p) => p.axis == Axis.vertical)
+        .reduce((a, b) => a.maxScrollExtent >= b.maxScrollExtent ? a : b);
+    expect(pos.maxScrollExtent, greaterThan(0), reason: 'belge ekrandan uzun');
+    // Tembel liste: sondaki imleç paragrafı kurulsun diye sona git.
+    // (uzunluk tahmini kuruldukça düzelir — birkaç kez).
+    for (var i = 0; i < 4; i++) {
+      pos.jumpTo(pos.maxScrollExtent);
+      await t.pump();
+    }
     final before = pos.pixels;
     await keyboard(t, true);
     final shrink = r0.height - t.getRect(view).height;
