@@ -109,6 +109,7 @@ class XlsxReader {
         if (target != null) _readComments(layout, target, doc);
         sheets.add(layout);
       }
+      _bindValidationNames(sheets, wb);
       // Yazdırma alanı: yerel ad `_xlnm.Print_Area` (localSheetId = sıra).
       for (final dn in wb.findAllElements('definedName')) {
         if (dn.getAttribute('name') != '_xlnm.Print_Area') continue;
@@ -718,6 +719,7 @@ class XlsxReader {
           }
         case 'extLst':
           _readSparklines(el, layout, styles.theme);
+          _readExtValidations(el, layout);
       }
     }
     return layout;
@@ -1420,32 +1422,46 @@ class XlsxReader {
     }
   }
 
-  static XlsxDataValidation? _readValidation(XmlElement dv) {
+  /// `dataValidation` (ana ya da `x14:` uzantısı) okur. Uzantıda aralık
+  /// `<xm:sqref>`, formül `<x14:formula1><xm:f>` içindedir.
+  static XlsxDataValidation? _readValidation(XmlElement dv, {bool ext = false}) {
     final type = dv.getAttribute('type');
     if (type == null) return null;
-    final sqref = dv.getAttribute('sqref') ?? '';
+    final sqref = ext
+        ? dv.childElements
+                .where((e) => e.name.local == 'sqref')
+                .map((e) => e.innerText)
+                .firstOrNull ??
+            ''
+        : dv.getAttribute('sqref') ?? '';
     final ranges = <XlsxRange>[];
-    for (final part in sqref.split(RegExp(r'\s+'))) {
+    for (final part in sqref.trim().split(RegExp(r'\s+'))) {
       final r = XlsxRange.parse(part);
       if (r != null) ranges.add(r);
     }
     if (ranges.isEmpty) return null;
-    final f1 = dv.childElements
-        .where((e) => e.name.local == 'formula1')
-        .map((e) => e.innerText)
+    String? formula(String local) => dv.childElements
+        .where((e) => e.name.local == local)
+        .map((e) => e.innerText.trim())
         .firstOrNull;
+    final f1 = formula('formula1');
     List<String>? options;
     if (type == 'list' && f1 != null) {
-      final trimmed = f1.trim();
-      if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-        options = trimmed
-            .substring(1, trimmed.length - 1)
+      if (f1.length >= 2 && f1.startsWith('"') && f1.endsWith('"')) {
+        options = f1
+            .substring(1, f1.length - 1)
+            .replaceAll('""', '"')
             .split(',')
             .map((s) => s.trim())
             .where((s) => s.isNotEmpty)
             .toList();
       }
     }
+    bool flag(String name) {
+      final v = dv.getAttribute(name);
+      return v == '1' || v == 'true';
+    }
+
     return XlsxDataValidation(
       type: type,
       ranges: ranges,
@@ -1454,14 +1470,61 @@ class XlsxReader {
       promptTitle: dv.getAttribute('promptTitle'),
       prompt: dv.getAttribute('prompt'),
       operator: dv.getAttribute('operator') ?? 'between',
-      formula2: dv.childElements
-          .where((e) => e.name.local == 'formula2')
-          .map((e) => e.innerText)
-          .firstOrNull,
+      formula2: formula('formula2'),
       error: dv.getAttribute('error'),
-      allowBlank: dv.getAttribute('allowBlank') == '1' ||
-          dv.getAttribute('allowBlank') == 'true',
+      allowBlank: flag('allowBlank'),
+      errorStyle: dv.getAttribute('errorStyle') ?? 'stop',
+      errorTitle: dv.getAttribute('errorTitle'),
+      showErrorMessage: flag('showErrorMessage'),
+      showInputMessage: flag('showInputMessage'),
+      hideDropDown: flag('showDropDown'),
+      fromExt: ext,
     );
+  }
+
+  /// `x14:dataValidations` (uzantı) kuralları — başka sayfaya başvuran
+  /// listeleri Excel 2010+ buraya yazar; okunmazsa hücrede ok çıkmıyordu.
+  static void _readExtValidations(XmlElement extLst, XlsxSheetLayout layout) {
+    for (final dv in extLst.descendants.whereType<XmlElement>()) {
+      if (dv.name.local != 'dataValidation') continue;
+      final v = _readValidation(dv, ext: true);
+      if (v != null) layout.validations.add(v);
+    }
+  }
+
+  static final _definedNameRe = RegExp(r'^[A-Za-z_\\\u00C0-\uFFFF][\w.\u00C0-\uFFFF]*$');
+
+  /// Liste kaynağı tanımlı ad olan kurallara adın aralığını bağlar
+  /// ([XlsxDataValidation.listRef]). Sayfa yerel ad genelden önce gelir.
+  static void _bindValidationNames(
+      List<XlsxSheetLayout> sheets, XmlDocument wb) {
+    final global = <String, String>{};
+    final local = <(int, String), String>{};
+    for (final dn in wb.findAllElements('definedName')) {
+      final name = dn.getAttribute('name');
+      if (name == null || name.startsWith('_xlnm.')) continue;
+      final at = int.tryParse(dn.getAttribute('localSheetId') ?? '');
+      final ref = dn.innerText.trim();
+      if (at == null) {
+        global[name.toUpperCase()] = ref;
+      } else {
+        local[(at, name.toUpperCase())] = ref;
+      }
+    }
+    if (global.isEmpty && local.isEmpty) return;
+    for (var i = 0; i < sheets.length; i++) {
+      final list = sheets[i].validations;
+      for (var j = 0; j < list.length; j++) {
+        final v = list[j];
+        if (!v.isRefList) continue;
+        var f = v.formula1!.trim();
+        if (f.startsWith('=')) f = f.substring(1);
+        if (!_definedNameRe.hasMatch(f) || XlsxRange.parse(f) != null) continue;
+        final key = f.toUpperCase();
+        final ref = local[(i, key)] ?? global[key];
+        if (ref != null) list[j] = v.copyWith(listRef: ref);
+      }
+    }
   }
 
   /// Excel'in klasik 56 renkli indeksli paleti (indexed="n").
@@ -1896,6 +1959,32 @@ class XlsxDataValidation {
   final String? error;
   final bool allowBlank;
 
+  /// Uyarı türü (`errorStyle`): `stop` (giriş yazılmaz), `warning` (sorulur),
+  /// `information` (yazılır, bilgi verilir).
+  final String errorStyle;
+
+  /// Uyarı penceresinin başlığı (`errorTitle`).
+  final String? errorTitle;
+
+  /// Excel geçersiz girişte uyarır mı (`showErrorMessage`). Dosyada yoksa
+  /// Excel uyarmaz; uygulamanın kurduğu kuralda hep açık.
+  final bool showErrorMessage;
+
+  /// Giriş iletisi ([prompt]) seçimde gösterilsin mi (`showInputMessage`).
+  final bool showInputMessage;
+
+  /// Hücredeki açılır ok GİZLİ mi — dosyadaki `showDropDown="1"` (adı ters:
+  /// Excel'de 1 = oku gösterme).
+  final bool hideDropDown;
+
+  /// Kural `x14:dataValidation` uzantısından okundu (başka sayfaya başvuran
+  /// liste; Excel 2010+ böyle yazar).
+  final bool fromExt;
+
+  /// Liste kaynağı tanımlı ad ise adın çözüldüğü aralık (`Liste!$A$1:$A$5`).
+  /// Kayıtta [formula1] (ad) yazılır; bu yalnız seçenekleri okumak için.
+  final String? listRef;
+
   const XlsxDataValidation({
     required this.type,
     required this.ranges,
@@ -1907,7 +1996,43 @@ class XlsxDataValidation {
     this.formula2,
     this.error,
     this.allowBlank = true,
+    this.errorStyle = 'stop',
+    this.errorTitle,
+    this.showErrorMessage = true,
+    this.showInputMessage = false,
+    this.hideDropDown = false,
+    this.fromExt = false,
+    this.listRef,
   });
+
+  /// Satır içi değil, aralığa/ada/formüle bağlı liste (`=$A$1:$A$5`).
+  bool get isRefList => type == 'list' && options == null && formula1 != null;
+
+  XlsxDataValidation copyWith({
+    List<XlsxRange>? ranges,
+    String? formula1,
+    String? formula2,
+    String? listRef,
+  }) =>
+      XlsxDataValidation(
+        type: type,
+        ranges: ranges ?? this.ranges,
+        formula1: formula1 ?? this.formula1,
+        options: options,
+        promptTitle: promptTitle,
+        prompt: prompt,
+        operator: operator,
+        formula2: formula2 ?? this.formula2,
+        error: error,
+        allowBlank: allowBlank,
+        errorStyle: errorStyle,
+        errorTitle: errorTitle,
+        showErrorMessage: showErrorMessage,
+        showInputMessage: showInputMessage,
+        hideDropDown: hideDropDown,
+        fromExt: fromExt,
+        listRef: listRef ?? this.listRef,
+      );
 
   bool covers(int r, int c) => ranges.any((x) => x.contains(r, c));
 

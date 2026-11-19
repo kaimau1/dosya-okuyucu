@@ -390,6 +390,13 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
       kalın/renk/kenarlığı bozulmuyor; hepsi geri alınıyor.
 - [ ] **Veri:** A→Z / Z→A (satırlar bütün), değer süzgeci, özel sıralama, veri doğrulama + Durdur,
       form görünümü, notlar (deneysel K24).
+- [ ] **Veri doğrulama 2 (B10 m.3, bulut 2026-11-19 — yazıldı, cihazda doğrulanmadı):** masaüstü
+      Excel'de başka sayfadan / tanımlı addan liste kurulmuş dosya → hücrede ok çıkıyor, levha
+      kaynaktaki değerleri (tekrarsız) gösteriyor, seçili değer işaretli; uzun listede levha
+      kayıyor. Uyarı türü "Uyarı" → sorup yazıyor, "Bilgi" → yazıp bildiriyor, "Durdur" → yazmıyor.
+      Uygulamada "Özel formül" (`=UZUNLUK(A1)<=3`) ve `=Liste!A1:A9` kaynaklı liste kur → kaydet →
+      masaüstü Excel'de aynı kural, uyarı türü, giriş iletisi korunuyor; kuralı kaldırınca Excel'de
+      eski x14 kural kalmıyor. Uygulamada yazılan `LET`/`LAMBDA` formülü masaüstü Excel'de `#AD?` yok.
 - [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
       kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
 - [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;
