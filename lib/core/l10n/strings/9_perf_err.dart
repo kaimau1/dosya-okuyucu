@@ -63,14 +63,14 @@ const Map<String, (String, String, String)> _t9 = {
     'ملف PDF محمي بكلمة مرور — أدخل كلمة المرور أولًا.',
   ),
   'uerr.ai_key': (
-    'AI anahtarı geçersiz ya da yetkisiz — Ayarlar > AI\'dan denetleyin.',
-    'The AI key is invalid or not authorized — check Settings > AI.',
-    'مفتاح الذكاء الاصطناعي غير صالح أو غير مخوّل — تحقق من الإعدادات > الذكاء الاصطناعي.',
+    'Yapay zekâ anahtarı geçersiz ya da yetkisiz — Ayarlar > Yapay zekâ bölümünden denetleyin.',
+    'The AI key is invalid or not authorized — check Settings > Artificial intelligence.',
+    'مفتاح الذكاء الاصطناعي غير صالح أو غير مصرّح — تحقّق من الإعدادات > الذكاء الاصطناعي.',
   ),
   'uerr.ai_quota': (
-    'AI kotası doldu — biraz sonra yeniden deneyin.',
-    'AI quota reached — try again a little later.',
-    'نفدت حصة الذكاء الاصطناعي — حاول مجددًا بعد قليل.',
+    'Günlük kota doldu — biraz sonra yeniden deneyin.',
+    'Daily quota reached — try again a little later.',
+    'بلغت الحصة اليومية حدّها — أعد المحاولة بعد قليل.',
   ),
   'uerr.cancelled': ('İşlem iptal edildi.', 'The operation was cancelled.', 'أُلغيت العملية.'),
   'uerr.unknown': (
@@ -145,11 +145,15 @@ const Map<String, (String, String, String)> _t9 = {
     'يُشغَّل الفيديو داخل التطبيق فقط.',
   ),
   // ── Anahtarsız AI (Faz 5) ─────────────────────────────────────────────────
-  'aikey.title': ('AI\'yı etkinleştir', 'Turn on AI', 'تفعيل الذكاء الاصطناعي'),
+  'aikey.title': (
+    'Akıllı özellikleri aç',
+    'Turn on smart features',
+    'تشغيل الميزات الذكية',
+  ),
   'aikey.body': (
-    'Özet, sohbet, çeviri ve akıllı düzenleme Google Gemini ile çalışır. Ücretsiz bir anahtar alıp Ayarlar > AI\'ya yapıştırmanız yeterli; gerisi kendiliğinden.',
-    'Summaries, chat, translation and smart editing run on Google Gemini. Get a free key and paste it in Settings > AI; that\'s all.',
-    'تعمل الملخصات والدردشة والترجمة والتحرير الذكي عبر Google Gemini. احصل على مفتاح مجاني والصقه في الإعدادات > الذكاء الاصطناعي؛ هذا كل شيء.',
+    'Akıllı düzen, akıllı ikinci ad, çeviri ve akıllı düzenleme Google Gemini ile çalışır. Ücretsiz bir anahtar alıp Ayarlar > Yapay zekâ bölümüne yapıştırmanız yeterli; gerisi kendiliğinden.',
+    'Smart organize, smart second names, translation and smart editing run on Google Gemini. Get a free key and paste it in Settings > Artificial intelligence; that\'s all.',
+    'يعمل التنظيم الذكي والأسماء الثانية الذكية والترجمة والتحرير الذكي عبر Google Gemini. احصل على مفتاح مجاني والصقه في الإعدادات > الذكاء الاصطناعي؛ هذا كل شيء.',
   ),
   'aikey.privacy': (
     'Yalnız sizin seçtiğiniz metin/dosya, yalnız siz istediğinizde gönderilir.',
@@ -157,7 +161,11 @@ const Map<String, (String, String, String)> _t9 = {
     'يُرسَل فقط النص أو الملف الذي تختاره، وفقط عندما تطلب ذلك.',
   ),
   'aikey.add': ('Anahtar ekle', 'Add key', 'إضافة مفتاح'),
-  'aikey.button_off': ('AI (kapalı)', 'AI (off)', 'الذكاء الاصطناعي (متوقف)'),
+  'aikey.button_off': (
+    'Akıllı (kapalı)',
+    'Smart (off)',
+    'ذكي (متوقف)',
+  ),
   // ── Yardım / SSS (Faz 5 iskeleti) ─────────────────────────────────────────
   // ── İlk açılış rehberi (Faz 11a) ─────────────────────────────────────────
   'onb.skip': ('Atla', 'Skip', 'تخطٍّ'),

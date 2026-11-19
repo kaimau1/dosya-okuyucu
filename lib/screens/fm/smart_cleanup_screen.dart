@@ -177,7 +177,8 @@ class _SmartCleanupScreenState extends State<SmartCleanupScreen> {
           messenger,
           lastError == null
               ? str.t('sa.ai_none')
-              : 'Gemini: ${userErrorText(lastError)}');
+              : str.t('common.smart_failed',
+                  {'error': userErrorText(lastError)}));
       return;
     }
     final kept = SmartAnalysis.dropRejected(bucket.files, yes);

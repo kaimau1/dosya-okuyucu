@@ -532,7 +532,7 @@ abstract final class AiPool {
 /// Havuz üzerinden konuşan [GeminiService].
 ///
 /// **Neden alt sınıf:** uygulamada on iki yerde `GeminiService` kuruluyor ve
-/// bazıları onu başka nesnelere geçiriyor (`AiSlides.generate(gemini: …)`,
+/// bazıları onu başka nesnelere geçiriyor (`PdfAiRewrite`,
 /// `ReadAloudAi.tidyOrOriginal(…)`). Havuzu ayrı bir tür yapsaydık her çağrıyı
 /// ve o nesnelerin imzalarını değiştirmek gerekirdi; alt sınıf sayesinde
 /// çağıran taraf hiçbir şey bilmeden kesintisiz AI kazanıyor.
@@ -594,16 +594,6 @@ class PooledGemini extends GeminiService {
           fileContext: fileContext,
           systemInstruction: systemInstruction,
         ),
-      );
-
-  @override
-  Future<String> compareImages(
-    List<({String name, Uint8List bytes})> previews, {
-    String? question,
-  }) =>
-      AiPool.run(
-        _forTask(AiTask.vision, shortInput: false),
-        (gemini) => gemini.compareImages(previews, question: question),
       );
 
   @override

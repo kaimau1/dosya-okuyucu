@@ -205,7 +205,11 @@ const Map<String, (String, String, String)> _t14 = {
   'sl.undo_notes': ('Not düzenleme', 'Notes edit', 'تحرير الملاحظات'),
   // ── Faz 22: Word Mobil görünüm editörü ───────────────────────────────────
   'word.page_break': ('Sayfa sonu', 'Page break', 'فاصل صفحات'),
-  'word.ai_fix': ('AI ile düzelt', 'Fix with AI', 'إصلاح بالذكاء الاصطناعي'),
+  'word.ai_fix': (
+    'Akıllı düzelt',
+    'Smart fix',
+    'تصحيح ذكي',
+  ),
   'word.mobile_view': ('Mobil görünüm', 'Mobile view', 'عرض الجوال'),
   'word.paste': ('Yapıştır', 'Paste', 'لصق'),
   'word.edit_page': (

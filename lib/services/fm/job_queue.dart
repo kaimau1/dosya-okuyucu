@@ -85,7 +85,8 @@ enum FmJobTargetKind {
   aiHub,
 
   /// Bir dosyanın (ya da metin akışının) AI özeti ([FmJobTarget.paths] =
-  /// özetin anahtarı, bkz. `AiSummaryStore`). Dokununca kaydedilmiş özet açılır.
+  /// özetin anahtarı, bkz. `AiSummaryStore`). 2026-11-19'dan beri yalnız eski
+  /// kayıtlar için: dokununca dosya açılır (özet arayüzü budandı).
   aiSummary,
 
   /// Sesli kitap üretimi ([FmJobTarget.paths] = kaynak belge). Dokununca

@@ -157,15 +157,27 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.r_blurry': ('Bulanık', 'Blurry', 'ضبابية'),
   'sm.r_old_shot': ('Eski ekran görüntüsü', 'Old screenshot', 'لقطة شاشة قديمة'),
   // Ekran.
-  'sm.title': ('Akıllı düzen', 'Smart organize', 'التنظيم الذكي'),
-  'sm.tile': ('Akıllı Düzen', 'Smart Organize', 'التنظيم الذكي'),
+  'sm.title': (
+    'Akıllı düzen',
+    'Smart organize',
+    'التنظيم الذكي',
+  ),
+  'sm.tile': (
+    'Akıllı düzen',
+    'Smart organize',
+    'التنظيم الذكي',
+  ),
   'sm.tile_on': ('{n} dosya düzenli', '{n} files organized', '{n} ملفات منظمة'),
-  'sm.tile_off': ('AI düzenlesin', 'Let AI organize', 'دع الذكاء الاصطناعي ينظم'),
+  'sm.tile_off': (
+    'Akıllı düzeni aç',
+    'Turn on smart organize',
+    'تشغيل التنظيم الذكي',
+  ),
   'sm.intro_title': ('Telefonun kendi kendini düzenlesin', 'Let your phone organize itself', 'دع هاتفك ينظم نفسه'),
   'sm.intro_body': (
-    'Yeni gelen belgelere (PDF, Word, Excel, sunum, metin), görsellere, ses kayıtlarına ve videolara AI bakar; her birine anlaşılır bir ikinci ad ve kategori verir.',
-    'AI looks at new documents (PDF, Word, Excel, slides, text), images, audio recordings and videos and gives each a clear second name and category.',
-    'ينظر الذكاء الاصطناعي إلى المستندات الجديدة (PDF وWord وExcel والعروض والنصوص) والصور والتسجيلات الصوتية ومقاطع الفيديو ويمنح كلًا منها اسمًا ثانيًا وفئة واضحين.',
+    'Yeni gelen belgelere (PDF, Word, Excel, sunum, metin), görsellere, ses kayıtlarına ve videolara Akıllı düzen bakar; her birine anlaşılır bir ikinci ad ve kategori verir.',
+    'Smart organize looks at new documents (PDF, Word, Excel, slides, text), images, audio recordings and videos and gives each a clear second name and category.',
+    'ينظر التنظيم الذكي إلى المستندات الجديدة (PDF وWord وExcel والعروض والنصوص) والصور والتسجيلات الصوتية والفيديو، ويمنح كلًّا منها اسمًا ثانيًا واضحًا وفئة.',
   ),
   'sm.point_place': (
     'Dosyaların yeri ve adı değişmez — hiçbir şey taşınmaz.',
@@ -173,9 +185,9 @@ const Map<String, (String, String, String)> _t40 = {
     'تبقى الملفات في مكانها وباسمها — لا يُنقل شيء.',
   ),
   'sm.point_name': (
-    '"Elektrik faturası · Ekim 2026" gibi ikinci ad; listelerde AI kategorisiyle süz, her dilde ara.',
-    'Second names like "Electricity bill · October 2026"; filter lists by AI category, search in any language.',
-    'أسماء ثانية مثل "فاتورة كهرباء · أكتوبر 2026"؛ رشّح القوائم حسب الفئة وابحث بأي لغة.',
+    '"Elektrik faturası · Ekim 2026" gibi ikinci ad; listelerde akıllı kategoriyle süz, her dilde ara.',
+    'Second names like "Electricity bill · October 2026"; filter lists by smart category, search in any language.',
+    'أسماء ثانية مثل "فاتورة الكهرباء · أكتوبر 2026"؛ رشّح القوائم حسب الفئة الذكية وابحث بأي لغة.',
   ),
   'sm.point_clean': (
     'Kutlama mesajları, caps, bulanık ve yanlışlıkla çekilmiş kareler tek dokunuşla gizlenir ya da silinir.',
@@ -213,9 +225,9 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.nothing_new': ('Düzenlenecek yeni dosya yok', 'No new files to organize', 'لا ملفات جديدة للتنظيم'),
   'sm.failed': ('{n} dosya yapılamadı', '{n} files failed', 'تعذّر {n} ملفات'),
   'sm.stopped': (
-    '{n} dosya düzenlendi; AI kotası doldu, kalanlar sonra düzenlenecek',
-    '{n} files organized; AI quota reached, the rest will follow later',
-    'تم تنظيم {n} ملفات؛ نفدت حصة الذكاء الاصطناعي وسيُنظم الباقي لاحقًا',
+    '{n} dosya düzenlendi; günlük kota doldu, kalanlar sonra düzenlenecek',
+    '{n} files organized; daily quota reached, the rest will follow later',
+    'نُظّم {n} ملف؛ بلغت الحصة اليومية حدّها، وسيُنظّم الباقي لاحقًا',
   ),
   // Hız/kota (B1 m.5).
   'sm.hold_wifi': (
@@ -285,8 +297,16 @@ const Map<String, (String, String, String)> _t40 = {
     'لا فئات بعد — اضغط "نظّم الآن".',
   ),
   'sm.settings': ('Ayarlar', 'Settings', 'الإعدادات'),
-  'sm.filter_title': ('AI kategorisi', 'AI category', 'فئة الذكاء الاصطناعي'),
-  'sm.filter_pill': ('AI kategori', 'AI category', 'فئة ذكية'),
+  'sm.filter_title': (
+    'Akıllı kategori',
+    'Smart category',
+    'الفئة الذكية',
+  ),
+  'sm.filter_pill': (
+    'Akıllı kategori',
+    'Smart category',
+    'الفئة الذكية',
+  ),
   'sm.clutter': ('Ayıkla', 'Declutter', 'تنقية'),
   'sm.clutter_title': ('Ayıkla · {n} gereksiz', 'Declutter · {n} unneeded', 'تنقية · {n} غير ضروري'),
   'sm.clutter_sub': (

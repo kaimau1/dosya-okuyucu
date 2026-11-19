@@ -998,7 +998,11 @@ const Map<String, (String, String, String)> _t6 = {
     'مثال: «اكتبه بلغة ألطف»',
   ),
   'aw.working': ('Çalışıyor…', 'Working…', 'جارٍ العمل…'),
-  'aw.title': ('AI ile düzelt', 'Fix with AI', 'تصحيح بالذكاء الاصطناعي'),
+  'aw.title': (
+    'Akıllı düzelt',
+    'Smart fix',
+    'تصحيح ذكي',
+  ),
 
   // ── Klasör kilidi PIN ─────────────────────────────────────────────────────
   'pin.too_short': (

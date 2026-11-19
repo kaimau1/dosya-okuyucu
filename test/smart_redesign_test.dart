@@ -7,7 +7,6 @@ import 'package:dosya_okuyucu/models/fm_type.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/models/media_bucket.dart';
 import 'package:dosya_okuyucu/services/fm/ai_meaning_search.dart';
-import 'package:dosya_okuyucu/services/fm/ai_tagger.dart';
 import 'package:dosya_okuyucu/services/fm/chat_junk.dart';
 import 'package:dosya_okuyucu/services/fm/collection_insights.dart';
 import 'package:dosya_okuyucu/services/fm/fs_events.dart';
@@ -102,26 +101,6 @@ void main() {
       expect(next.scannedFiles, 8);
       expect(next.scannedBytes, 850);
       expect(identical(report.keepOnly((_) => true), report), isTrue);
-    });
-  });
-
-  group('AI etiketleme', () {
-    test('yanıt etikete çevrilir, katlanarak tekilleşir, i → İ', () {
-      final items = [e('/s/x.pdf'), e('/s/y.pdf'), e('/s/z.pdf')];
-      final map = AiTagger.parse(
-          '{"items":[{"i":0,"tags":["fatura","izin"]},'
-          '{"i":1,"tags":["FATURA"]},{"i":9,"tags":["yok"]},'
-          '{"i":2,"tags":[" "]}]}',
-          items);
-      expect(map.keys.toSet(), {'Fatura', 'İzin'});
-      expect(map['Fatura'], {'/s/x.pdf', '/s/y.pdf'});
-      expect(AiTagger.parse('bozuk', items), isEmpty);
-    });
-
-    test('istemde tam yol değil yalnız klasör ADI var', () {
-      final prompt = AiTagger.promptFor([e('/storage/emulated/0/Gizli/Is/a.pdf')]);
-      expect(prompt, contains('0|a.pdf|Is|'));
-      expect(prompt, isNot(contains('/storage/emulated')));
     });
   });
 

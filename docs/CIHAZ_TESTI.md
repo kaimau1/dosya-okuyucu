@@ -1490,3 +1490,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## B4 PDF Pro dilim 1 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → Pro araçlar → "Belge bilgileri": mevcut başlık/yazar dolu geliyor mu; değiştir → kaydet → yeniden açınca yeni değerler; parolalı belgede parola duruyor mu (Türkçe harfler bozulmadan).
 - [ ] "Açıklamaları dışa aktar (XFDF)": vurgulu PDF'te yanına `-aciklamalar.xfdf` çıkıyor mu; vurgusuz belgede "vurgu ya da not yok" uyarısı. "İçe aktar": aynı dosyayı vurgusuz kopyaya al → vurgular doğru sayfada mı.
+
+## B15 Akıllı bütünlük dilim 1 (2026-11-19, dal faz-oto-B15-akilli) — yazıldı, cihazda doğrulanmadı
+- [ ] Alt gezinmede sekme "Akıllı"; Akıllı dosya asistanında 4 sekme (Analiz · Türler · Öneriler · Rapor), ⋮ menüsünde "Sohbet" yok; Analiz'deki sayı kartları doğru sekmeyi açıyor.
+- [ ] Dosya ⋮: en üstte "Akıllı ikinci ad" (AI simgesi), "AI ile özetle / hızlı kontrol / kontrol listesi" yok; görselde "Görselde ne var?" AI simgesiyle. Çoklu seçim "Daha fazla": "Akıllı ikinci ad" + "Kategori ekle" aynı sırada; toplu kontrol/kontrol listesi yok.
+- [ ] Kategori ekranı ⋮ "Analiz ve düzenle": "Akıllı ikinci ad" toplu iş başlatıyor (bildirim + şerit); Akıllı analiz raporundaki düğme de aynı işi açıyor.
+- [ ] PDF/Word/Excel/Slayt alt çubuğunda "AI ile çalış" yok; çubuk kaymıyor. Slayt ⋮'da özet yok. PDF ⋮ › Dönüştür › "Slayta dönüştür" doğrudan biçim soruyor (AI/hızlı seçimi yok), .pptx/PDF çıkıyor.
+- [ ] Benzer görseller: grup başlığında yıldız/"Gemini'ye sor" yok; boyut yazısı düz.
+- [ ] PDF Düzenle levhasında "Akıllı düzenle" AI simgesiyle; Word seçim menüsü "Seçimi akıllı düzelt"; arama "Akıllı arama"; Akıllı düzen kartı/başlığı tek yazım.
+- [ ] Ölçüm (C2): PDF görüntüleyici alt çubuk + ana ekran sekme geçişi, `.r8test` taban önceki [apk].

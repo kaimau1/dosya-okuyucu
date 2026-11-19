@@ -325,7 +325,11 @@ const Map<String, (String, String, String)> _t8 = {
   ),
 
   // ── AI analiz kuyruğu (arka planda, bağlamsız — AppStrings.current) ───────
-  'aiq.job_title': ('AI dosya analizi', 'AI file analysis', 'تحليل الملفات بالذكاء الاصطناعي'),
+  'aiq.job_title': (
+    'Akıllı dosya analizi',
+    'Smart file analysis',
+    'تحليل ذكي للملفات',
+  ),
   'aiq.collecting': ('Dosyalar toplanıyor…', 'Collecting files…', 'جارٍ جمع الملفات…'),
   'aiq.all_fresh': (
     'Kapsamdaki her dosya zaten analiz edilmiş.',
@@ -357,34 +361,16 @@ const Map<String, (String, String, String)> _t8 = {
 
   // ── AI Merkezi (toplu dosya analizi) ──────────────────────────────────────
   // 2026-11-14 kullanıcı: "iyi bir isim ver, adı da ne iş yaptığını söylesin".
-  'aih.title': ('AI Dosya Asistanı', 'AI File Assistant', 'مساعد الملفات الذكي'),
+  'aih.title': (
+    'Akıllı dosya asistanı',
+    'Smart file assistant',
+    'مساعد الملفات الذكي',
+  ),
   'aih.tab_analysis': ('Analiz', 'Analysis', 'التحليل'),
-  'aih.tab_chat': ('Sohbet', 'Chat', 'محادثة'),
   'aih.analysis_what': (
     'Dosya analizi ne yapar?',
     'What does file analysis do?',
     'ماذا يفعل تحليل الملفات؟',
-  ),
-  'aih.analysis_body': (
-    'Telefondaki belge, fotoğraf ve indirmeleri okuyup her birine tür '
-        've önem verir. Sonra "geçen ay indirdiğim faturalar nerede" diye '
-        'sorabilir, resmî evrakı tek listede görebilir, anlamsız adları ve '
-        'yanlış klasörleri toplu düzeltebilirsin.',
-    'It reads the documents, photos and downloads on your phone and gives '
-        'each one a type and an importance. After that you can ask "where '
-        'are the invoices I downloaded last month", see all official '
-        'paperwork in one list, and fix meaningless names and wrong folders '
-        'in bulk.',
-    'يقرأ المستندات والصور والتنزيلات على هاتفك ويمنح كلاً منها نوعاً '
-        'وأهمية. بعدها يمكنك السؤال عن ملفاتك، ورؤية الأوراق الرسمية في '
-        'قائمة واحدة، وإصلاح الأسماء والمجلدات الخاطئة دفعة واحدة.',
-  ),
-  'aih.analysis_manual': (
-    'Analiz kendiliğinden başlamaz — sen başlatana kadar hiçbir dosya '
-        'okunmaz, hiç token harcanmaz.',
-    'Analysis never starts on its own: no file is read and no token is '
-        'spent until you start it.',
-    'لا يبدأ التحليل تلقائياً: لا يُقرأ أي ملف ولا يُستهلك أي رمز حتى تبدأه.',
   ),
   'aih.analysis_scope': ('Kapsamı ayarla', 'Set the scope', 'اضبط النطاق'),
   'aih.analysis_running': (
@@ -397,7 +383,6 @@ const Map<String, (String, String, String)> _t8 = {
   'aih.tab_report': ('Rapor', 'Report', 'تقرير'),
   'aih.scope_settings': ('Kapsam ayarları', 'Scope settings', 'إعدادات النطاق'),
   'aih.start': ('Analizi başlat', 'Start analysis', 'ابدأ التحليل'),
-  'aih.continue': ('Devam et', 'Continue', 'متابعة'),
   'aih.reanalyze': ('Hepsini yeniden analiz et', 'Re-analyze everything', 'أعد تحليل كل شيء'),
   'aih.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
   'aih.resume': ('Sürdür', 'Resume', 'استئناف'),
@@ -411,36 +396,6 @@ const Map<String, (String, String, String)> _t8 = {
     '{n} klasör kapsam dışı · kapsamı ayarlardan değiştir',
     '{n} folders excluded · change the scope in settings',
     '{n} مجلد خارج النطاق · غيّر النطاق من الإعدادات',
-  ),
-  'aih.no_key_note': (
-    'API anahtarı yok — yerel kip: tür ve önem tahmini yapılır, özet üretilmez.',
-    'No API key — local mode: type and importance are guessed, no summaries.',
-    'لا يوجد مفتاح API — الوضع المحلي: يُخمَّن النوع والأهمية دون ملخصات.',
-  ),
-  'aih.need_key': (
-    'Sohbet için Ayarlar > Gemini API anahtarı gerekir.',
-    'Chat needs a Gemini API key (Settings).',
-    'تحتاج المحادثة إلى مفتاح Gemini API من الإعدادات.',
-  ),
-  'aih.chat_empty': (
-    'Dosyalarına soru sor',
-    'Ask your files',
-    'اسأل ملفاتك',
-  ),
-  'aih.chat_empty_sub': (
-    'Örnek: "geçen ay indirdiğim faturalar", "kira sözleşmem nerede", '
-        '"bu yıl taradığım kimlik belgeleri".',
-    'For example: "invoices I downloaded last month", "where is my lease", '
-        '"ID documents I scanned this year".',
-    'مثال: «الفواتير التي نزّلتها الشهر الماضي»، «أين عقد الإيجار»، '
-        '«وثائق الهوية التي مسحتها هذا العام».',
-  ),
-  'aih.chat_hint': ('Bir soru yaz…', 'Type a question…', 'اكتب سؤالًا…'),
-  'aih.sources': ('Kaynak dosyalar', 'Source files', 'الملفات المصدر'),
-  'aih.no_match': (
-    'Analiz edilen dosyalarda eşleşme yok.',
-    'No match among the analyzed files.',
-    'لا تطابق ضمن الملفات المُحلَّلة.',
   ),
   'aih.tags_empty': (
     'Henüz analiz yok',
@@ -465,15 +420,9 @@ const Map<String, (String, String, String)> _t8 = {
     'يقترح التحليل إصلاحات للملفات ذات الأسماء غير المفيدة أو في مجلد خاطئ.',
   ),
   'aih.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
-  'aih.apply_selected': ('Uygula ({n})', 'Apply ({n})', 'تطبيق ({n})'),
   'aih.apply_one': ('Yalnız bunu uygula', 'Apply only this', 'طبّق هذا فقط'),
   'aih.ignore_one': ('Öneriyi yok say', 'Dismiss suggestion', 'تجاهل الاقتراح'),
   'fm.actions': ('Dosya işlemleri', 'File actions', 'إجراءات الملف'),
-  'aih.applied': (
-    '{ok} dosya düzenlendi, {fail} atlandı',
-    '{ok} files updated, {fail} skipped',
-    'تم تحديث {ok} ملف وتخطّي {fail}',
-  ),
   'aih.report_empty': ('Rapor için önce analiz gerekir', 'Analyze first to see a report', 'حلّل أولًا لعرض التقرير'),
   'aih.report_empty_sub': (
     'Analiz bittiğinde burada tür dağılımı, önemli evrak ve çöp adayları çıkar.',
@@ -485,17 +434,6 @@ const Map<String, (String, String, String)> _t8 = {
   'aih.report_junk': ('Silinebilir aday', 'Deletion candidates', 'مرشّحة للحذف'),
   'aih.report_suggestions': ('Bekleyen öneri', 'Pending suggestions', 'اقتراحات معلّقة'),
   'aih.report_types': ('Türlere göre', 'By type', 'حسب النوع'),
-  'aih.card_title': ('AI Asistan', 'AI assistant', 'مساعد الذكاء الاصطناعي'),
-  'aih.card_idle': (
-    'Dosyalarını analiz et, sonra onlara soru sor',
-    'Analyze your files, then ask them questions',
-    'حلّل ملفاتك ثم اسألها',
-  ),
-  'aih.card_ready': (
-    '{n} dosya analiz edildi · {s} öneri bekliyor',
-    '{n} files analyzed · {s} suggestions pending',
-    'تم تحليل {n} ملف · {s} اقتراح معلّق',
-  ),
 
   // ── AI kovaları, toplu işlem ve öneri uygulama ────────────────────────────
   'aif.empty': (
@@ -512,27 +450,6 @@ const Map<String, (String, String, String)> _t8 = {
     'Low value (review)',
     'أهمية منخفضة (راجعها)',
   ),
-  'aih.apply_all': ('Tümünü uygula ({n})', 'Apply all ({n})', 'طبّق الكل ({n})'),
-  'aih.sug_hint': (
-    'Taşınanlar “Önemli Dosyalar” altındaki klasöre gider. İşlem arka planda '
-        'sürer; bildirimden izleyebilir, durdurabilirsiniz.',
-    'Moved files go under “Important Files”. The job runs in the background; '
-        'watch or stop it from the notification.',
-    'تنتقل الملفات إلى «الملفات المهمة». تجري العملية في الخلفية؛ يمكنك '
-        'متابعتها أو إيقافها من الإشعار.',
-  ),
-  'aih.card_sug_title': (
-    '{n} dosya için ad/klasör önerisi hazır',
-    'Name/folder suggestions ready for {n} files',
-    'اقتراحات الاسم/المجلد جاهزة لـ {n} ملف',
-  ),
-  'aih.card_sug_body': (
-    'Anlamsız adlandırılmış ya da yanlış klasördeki dosyalar. Seçtiklerin '
-        'düzenlenir, gerisi olduğu gibi kalır.',
-    'Badly named or misplaced files. Only what you pick is changed.',
-    'ملفات بأسماء غير مفيدة أو في مجلد خاطئ. لا يتغيّر إلا ما تختاره.',
-  ),
-  'aih.card_sug_action': ('Önerileri aç', 'Open suggestions', 'افتح الاقتراحات'),
   'aih.card_junk_title': (
     '{n} harcanabilir dosya · {size}',
     '{n} disposable files · {size}',
@@ -546,8 +463,16 @@ const Map<String, (String, String, String)> _t8 = {
     'لقطات الشاشة والملفات المؤقتة والذاكرة المؤقتة. لا تُدرج الصور والفيديو.',
   ),
   'aih.card_junk_action': ('Listeyi aç', 'Open list', 'افتح القائمة'),
-  'aiap.job_title': ('AI önerileri uygulanıyor', 'Applying AI suggestions', 'تطبيق اقتراحات الذكاء الاصطناعي'),
-  'aiap.job_name': ('AI önerilerinin uygulanması', 'Applying AI suggestions', 'تطبيق اقتراحات الذكاء الاصطناعي'),
+  'aiap.job_title': (
+    'Akıllı öneriler uygulanıyor',
+    'Applying smart suggestions',
+    'جارٍ تطبيق الاقتراحات الذكية',
+  ),
+  'aiap.job_name': (
+    'Akıllı önerilerin uygulanması',
+    'Applying smart suggestions',
+    'تطبيق الاقتراحات الذكية',
+  ),
   'aiap.started': (
     '{n} dosya arka planda düzenleniyor',
     'Updating {n} files in the background',
@@ -676,49 +601,24 @@ const Map<String, (String, String, String)> _t8 = {
   'apps.uninstalled': ('{name} kaldırıldı', '{name} uninstalled', 'تمت إزالة {name}'),
   'apps.package_copied': ('Paket adı kopyalandı', 'Package name copied', 'تم نسخ اسم الحزمة'),
   'aih.mode_cloud': (
-    'Gemini ile: tür, önem ve kısa özet çıkarılır.',
-    'With Gemini: type, importance and a short summary.',
-    'مع Gemini: النوع والأهمية وملخص قصير.',
+    'Akıllı analiz: tür, önem ve kısa özet çıkarılır.',
+    'Smart analysis: type, importance and a short summary.',
+    'التحليل الذكي: النوع والأهمية وملخص قصير.',
   ),
   'aih.mode_local': (
     'Yerel kip (anahtar yok): yalnız tür ve önem tahmini, özet yok.',
     'Local mode (no key): type and importance only, no summaries.',
     'الوضع المحلي (بلا مفتاح): النوع والأهمية فقط، دون ملخصات.',
   ),
-  'aih.chat_clear': ('Konuşmayı temizle', 'Clear conversation', 'مسح المحادثة'),
-  'aih.chat_need_analysis': (
-    'Sohbet analiz edilmiş dosyalarda arar. Önce analizi başlat.',
-    'Chat searches analysed files. Start the analysis first.',
-    'تبحث المحادثة في الملفات المحلَّلة. ابدأ التحليل أولًا.',
-  ),
-  'aih.chat_try': (
-    'Şunlardan birini dene ya da kendi sorunu yaz:',
-    'Try one of these or type your own question:',
-    'جرّب أحد هذه الأسئلة أو اكتب سؤالك:',
-  ),
-  'aih.ex1': (
-    'Geçen ay indirdiğim faturalar',
-    'Invoices I downloaded last month',
-    'الفواتير التي نزّلتها الشهر الماضي',
-  ),
-  'aih.ex2': ('Kimlik belgelerim nerede?', 'Where are my ID documents?', 'أين وثائق هويتي؟'),
-  'aih.ex3': (
-    'Silebileceğim gereksiz dosyalar',
-    'Unneeded files I can delete',
-    'ملفات غير ضرورية يمكنني حذفها',
-  ),
-  'aih.ex4': ('Sözleşmelerim', 'My contracts', 'عقودي'),
-  'aih.thinking': ('Dosyalarına bakıyorum…', 'Looking through your files…', 'أبحث في ملفاتك…'),
-  'aih.ask_files': ('Dosyalara sor', 'Ask your files', 'اسأل ملفاتك'),
   'vw.saving_wait': (
     'Kaydediliyor, bir saniye…',
     'Saving, one moment…',
     'جارٍ الحفظ، لحظة…',
   ),
   'vw.ask_ai_selection': (
-    'AI\'ya sor',
-    'Ask AI',
-    'اسأل الذكاء الاصطناعي',
+    'Akıllı sor',
+    'Smart ask',
+    'سؤال ذكي',
   ),
   'vw.find_selection': (
     'Belgede ara',
@@ -1056,31 +956,6 @@ const Map<String, (String, String, String)> _t8 = {
     'Customize home',
     'تخصيص الشاشة الرئيسية',
   ),
-  'chat.page_label': (
-    'Sayfa {n}',
-    'Page {n}',
-    'الصفحة {n}',
-  ),
-  'chat.quick_page_summary': (
-    'Bu sayfayı özetle',
-    'Summarize this page',
-    'لخّص هذه الصفحة',
-  ),
-  'chat.quick_page_summary_prompt': (
-    'Şu an okuduğum sayfayı ({page}) kısa maddelerle özetle.',
-    'Summarize the page I\'m reading now ({page}) in short bullet points.',
-    'لخّص الصفحة التي أقرؤها الآن ({page}) في نقاط قصيرة.',
-  ),
-  'chat.quick_page_explain': (
-    'Bu sayfayı açıkla',
-    'Explain this page',
-    'اشرح هذه الصفحة',
-  ),
-  'chat.quick_page_explain_prompt': (
-    'Şu an okuduğum sayfayı ({page}) sade bir dille açıkla; zor kavramları ve eski/yabancı kelimeleri anlamlarıyla ver.',
-    'Explain the page I\'m reading now ({page}) in plain language; give the meaning of difficult concepts and archaic/foreign words.',
-    'اشرح الصفحة التي أقرؤها الآن ({page}) بلغة بسيطة، مع معاني المفاهيم الصعبة والكلمات القديمة أو الأجنبية.',
-  ),
   // ── AI Merkezi yeniden yazımı (2026-11-07) ──
   'aih2.auto_running': ('Yeni dosyalar analiz ediliyor', 'Analyzing new files', 'جارٍ تحليل الملفات الجديدة'),
   'aih2.auto_running_sub': (
@@ -1131,9 +1006,9 @@ const Map<String, (String, String, String)> _t8 = {
   ),
   'aih2.all': ('Tümü', 'All', 'الكل'),
   'aih2.types_intro': (
-    'AI\'nın dosyalara verdiği türler. Bu yalnız bir görünüm — dosyalar yerinde durur.',
-    'The types AI gave your files. This is only a view — files stay where they are.',
-    'الأنواع التي منحها الذكاء الاصطناعي لملفاتك. هذا عرض فقط — تبقى الملفات في مكانها.',
+    'Akıllı analizin dosyalara verdiği türler. Bu yalnız bir görünüm — dosyalar yerinde durur.',
+    'The types smart analysis gave your files. This is only a view — files stay where they are.',
+    'الأنواع التي منحها التحليل الذكي لملفاتك. هذا عرض فقط — تبقى الملفات في مكانها.',
   ),
   'aih2.sug_intro': (
     'Yalnız öneri: sen onaylamadan hiçbir dosya değişmez. Satırdaki ⋮ ile tek tek uygula ya da yok say.',

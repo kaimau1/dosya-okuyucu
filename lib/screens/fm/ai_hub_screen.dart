@@ -17,9 +17,10 @@
 ///   Analiz sekmesinde durur; başlıktaki dört anlamsız simge tek, yazılı bir
 ///   menüye indi.
 ///
-/// Sekmeler: **Analiz** (durum + başlat) · **Sohbet** (dosyalara soru) ·
+/// Sekmeler: **Analiz** (durum + başlat) ·
 /// **Türler** (AI'nın verdiği tür/önem görünümü — dosyalar yerinde durur) ·
 /// **Öneriler** (ad/klasör, yalnız onayla) · **Rapor** (özet + temizlik).
+/// 2026-11-19 (B15, kullanıcı kararı): Sohbet sekmesi budandı.
 library;
 
 import 'dart:async';
@@ -39,30 +40,23 @@ import '../../core/theme.dart';
 import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_apply.dart';
 import '../../services/fm/ai_apply_log.dart';
-import '../../services/fm/ai_ask.dart';
 import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folders.dart';
-import '../../services/gemini_service.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/ai_file_list.dart';
-import '../../widgets/fm/ai_preview_card.dart';
 import '../settings_screen.dart';
 import '../settings/tiles_ai_scope.dart' show AiAutoNewTile;
-import '../chat_screen.dart';
 import 'ai_files_screen.dart';
 import 'bills_screen.dart';
 import 'smart_folders_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
-import '../../core/user_error.dart';
-import '../../widgets/ai_key_gate.dart';
 
 part 'ai_hub/analysis.dart';
-part 'ai_hub/chat.dart';
 part 'ai_hub/tabs.dart';
 
 class AiHubScreen extends StatefulWidget {
@@ -74,7 +68,7 @@ class AiHubScreen extends StatefulWidget {
 
 class _AiHubScreenState extends State<AiHubScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 5, vsync: this);
+  late final TabController _tabs = TabController(length: 4, vsync: this);
   Timer? _pruneDebounce;
 
   @override
@@ -109,8 +103,6 @@ class _AiHubScreenState extends State<AiHubScreen>
         nav.push(MaterialPageRoute(builder: (_) => const SmartFoldersScreen()));
       case 'bills':
         nav.push(MaterialPageRoute(builder: (_) => const BillsScreen()));
-      case 'chat':
-        nav.push(MaterialPageRoute(builder: (_) => const ChatScreen()));
       case 'settings':
         openSettingsCategory(context, 'ai');
     }
@@ -141,7 +133,6 @@ class _AiHubScreenState extends State<AiHubScreen>
             itemBuilder: (_) => [
               item('smart', AppIcons.folderSpecial, 'smart.title'),
               item('bills', AppIcons.receiptLong, 'bills.title'),
-              item('chat', AppIcons.chatBubbleOutline, 'chat.title'),
               item('settings', AppIcons.tune, 'aih.scope_settings'),
             ],
           ),
@@ -152,7 +143,6 @@ class _AiHubScreenState extends State<AiHubScreen>
           tabAlignment: TabAlignment.start,
           tabs: [
             Tab(text: context.t('aih.tab_analysis')),
-            Tab(text: context.t('aih.tab_chat')),
             Tab(text: context.t('aih.tab_tags')),
             Tab(text: context.t('aih.tab_suggestions')),
             Tab(text: context.t('aih.tab_report')),
@@ -179,7 +169,6 @@ class _AiHubScreenState extends State<AiHubScreen>
               controller: _tabs,
               children: [
                 _AnalysisTab(onOpenTab: (i) => _tabs.animateTo(i)),
-                _ChatTab(onOpenAnalysis: () => _tabs.animateTo(0)),
                 const _TypesTab(),
                 const _SuggestionsTab(),
                 const _ReportTab(),
