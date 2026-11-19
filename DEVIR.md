@@ -1,13 +1,16 @@
 # DEVIR — B13 Deneyim hissi (dal faz-oto-B13-his)
 
-## Yapılanlar
-- m.3 dokunuş haritası (713177dd): AppHaptics.longPress/drop/warning; yeniden sıralama, sürükleme, sürükleyerek seçim, kelime seçimi, bırakma hedefleri; kopyalanabilir hata bildirimi = uyarı. Bekçi app_haptics_test.
-- m.5 geri al: trashWithUndo ortak uç; Önemli kategori silme çöp açıksa çöpe + Geri al (eskiden ayardan bağımsız kalıcı); kategori yeniden adlandırma Geri al. Bekçi test/undo_paths_guard_test.dart.
-- m.2 öngörülü geri: H6.6'da yapılmış (page_transitions _PredictiveBackPreview; levhalar rota → geri hareketi kapatır). Yeni iş yok.
-- m.9 erişilebilirlik: Faz 16 test/a11y_guidelines_test.dart 10 ana ekranda (tap target, etiket, kontrast, 2× taşma) zaten. Pano (DashboardScreen) Ahem yazı tipiyle 360 dp'de taşıdığı için dışarıda (tablet_h9_test notu).
+## Yapılanlar (dilim 1)
+- m.3 dokunuş haritası (713177dd): AppHaptics.longPress/drop/warning; bekçi app_haptics_test.
+- m.5 geri al (b6f18163): trashWithUndo ortak uç; Önemli kategori silme çöp + Geri al (eskiden kalıcı); kategori adlandırma Geri al. Bekçi test/undo_paths_guard_test.dart.
+- m.8 klavye (e35534cc): DocxEditorView didChangeMetrics → imleç görünür; test word_mobile_format_test "klavye açılınca alttaki imleç satırı görünür kalır".
+- Analiz düzeltmesi (46ec0b51).
+- m.2 (H6.6), m.6 (Faz 20 ED2), m.9 (Faz 16 a11y_guidelines_test) önceden yapılmış — iş yok.
 
-## Sıradaki
-- m.6 otomatik kayıt kapsamı (viewer/pending_save.dart), m.8 klavye viewInsets testi, m.4 aşamalı açılış (Excel/Slayt), m.7 hareket eşitliği, m.1 Office/PDF açılış geçişi (H1.4 cihaz ölçümüne bağlı).
+## Kalan (dilim 2)
+- m.1 Office/PDF açılış geçişi (H1.4 cihaz ölçümüne bağlı; PDF kabuğu başka dalda ölçülüyor).
+- m.4 Excel/Slayt aşamalı açılış (Word B9 m.8'de yapıldı).
+- m.7 Word/Excel/Slayt çimdik + çift dokunuş eşitliği.
 
 ## Doğrulama
-CI verify (yerel test yok).
+CI verify (yerel test yok). Cihaz maddeleri docs/CIHAZ_TESTI.md "B13 his turu" + PLAN C3.

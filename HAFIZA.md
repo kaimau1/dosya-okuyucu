@@ -339,3 +339,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Çözüm:** `DocxDocument.parseHead` — `docxHeadXml` dizge taramasıyla `document.xml`i ilk 60 üst düzey bloktan (ya da toplam 120 paragraf; tablo/`w:sdt` asla ortadan bölünmez) sonra keser, gövde `w:sectPr`'si korunur (paragraf içindeki bölüm sonu alınmaz), aynı `_readBody` yolu. Ekran baş ve tam ayrıştırmayı aynı anda iki izolatta başlatır; baş `DocxEditorView(readOnly: true)` ile çizilir (kaydırma var, dokunuş/klavye yok); baş çözümlenemezse eski düz metin önizlemesi.
 - **Güvenlik:** baş modeli `headOnly` — `buildArchive` StateError atar (kaydedilseydi belgenin geri kalanı silinirdi). Kısa belgede kesme yok (`headOnly` yanlış, tam model).
 - **Bekçi:** `word_perf_test` "5000 paragrafta ilk kare ≤ 60 paragraf, ≤ 400 ms" (mandal, yalnız düşer); `test/docx_head_test.dart` kesme kuralları.
+
+## 2026-11-19 — B13 Deneyim hissi dilim 1 (yerel, dal faz-oto-B13-his; yazıldı, cihazda doğrulanmadı)
+- **Önce-bak:** m.2 (öngörülü geri, H6.6), m.6 (taslak + kurtarma + "Kaydedildi", Faz 20 ED2), m.9 (a11y_guidelines_test, Faz 16) zaten vardı — yeniden yazılmadı.
+- **m.3 dokunuş haritası:** seçim = `selection`, uzun bas/sürükleme başı = `longPress` (orta), bırakma = `drop` (hafif), yıkıcı onay = `destructive`, hata = `warning` (yalnız kopyalanabilir hata bildirimi — `showSnack(copyable:)` hata işareti sayıldı). Bekçi: yeniden sıralama başı/sonu doğru anlamda.
+- **m.5 kök (bug):** Önemli ekranında kategori silme çöp ayarından bağımsız `FileOps.deleteAll` ile KALICI siliyordu. Artık çöp açıksa `trashWithUndo` (deleteEntries ile ortak uç). Bekçi `undo_paths_guard_test`: ham silme/çöpe atma tavanı + `FileOps.rename` eden ekran `showUndoToast` içerir.
+- **m.8 kök (bug):** özel Word editörü (`DocxEditorView`) imleci yalnız denetleyici değişince görünür kılıyordu; klavye açılınca görünüm daralıp kaydırma aynı kaldığından alttaki imleç klavye altında kalıyordu. `didChangeMetrics` → kare başına bir kez animasyonsuz `_revealCaret`.
+- **Kalan:** m.1 Office/PDF açılış geçişi (cihaz ölçümüne bağlı), m.4 Excel/Slayt aşamalı açılış, m.7 hareket eşitliği.
