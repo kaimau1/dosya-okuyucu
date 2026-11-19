@@ -1444,3 +1444,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Akıllı klasöre basılı tut → "Taşıma kuralı…" → klasör seç → onay penceresi doğru dosya sayısını söylüyor → "Kuralı aç" → dosyalar taşındı, "Geri al" hepsini eski yerine döndürüyor. Menüde artık "Taşıma kuralını kapat (→ klasör)" yazıyor; kapatınca bir şey taşınmıyor. Kural yokken hiçbir dosya yer değiştirmiyor.
 - [ ] Kural açıkken "Şimdi düzenle" → yeni düzenlenen o kategorideki dosyalar da taşınıp "Geri al" çıkıyor. SD kart ↔ dahili arasında ilerleme penceresi görünüyor.
 - [ ] Ayıkla: "Eski ekran görüntüsü" çipi 30 günden eski ekran görüntülerini listeliyor, yenileri listelemiyor.
+
+## U1 Geçmiş görsel açılışı (2026-11-19, dal faz-oto-U1-gecmis-gorsel) — yazıldı, cihazda doğrulanmadı
+- [ ] Geçmiş > Açılanlar: birkaç fotoğraflı listede bir fotoğrafa dokun → küçük resimden takılmadan büyüyor, net hâli gecikmeden geliyor (eskiden donup geç açılıyordu).
+- [ ] Galeriyi kapat (geri ya da aşağı kaydır) → fotoğraf dokunduğun satıra dönüyor; ardından o fotoğraf listenin en üstüne geçiyor (son açılan).
+- [ ] Ana ekran "Son açılanlar"dan fotoğraf açınca da aynı: açılışta takılma yok, kapanınca şerit tazeleniyor.

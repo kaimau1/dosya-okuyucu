@@ -50,7 +50,7 @@ Kaynak kısaltması: `arsiv/` = `docs/arsiv/planlar/`.
 
 **SIRA (2026-11-18, kullanıcı: "özellikleri geliştirmeye devam — Word, PDF, Excel, slayt; performans,
 hızlandırma, akıcılık, kullanıcı deneyimi hissi"):**
-- **Kod (bulut ya da yerel):** **U1 → U2** (kullanıcı, en önde) → B1 → B9 → B13 → B10 → B4 → B11 → B2 → B5 → B6 → B7.
+- **Kod (bulut ya da yerel):** **U2** (kullanıcı, en önde) → B1 → B9 → B13 → B10 → B4 → B11 → B2 → B5 → B6 → B7.
 - **Telefonla (yerel, paralel; boşaldıkça):** C1 → C2 → B3 → C3. **En son:** B8.
 
 Ferrari kuralı (§0): B3'teki hız işleri (P06, P12b, P29) bitmeden büyük yeni özellik **varsayılan
@@ -62,7 +62,6 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| U1 | **Kullanıcı hatası (2026-11-19):** Geçmiş'te görsele dokununca donup kasıyor, geç açılıyor. Kök neden aranacak (galeri açılış geçişi düzeltmesi `acil-galeri` Geçmiş yolunu kapsıyor mu? tam çözünürlük kod çözümü ana izolatta mı?) → düzelt + bekçi test | opus | kullanıcı sözü; HAFIZA "acil-galeri" | A/B | evet | sürüyor (yerel, 2026-11-19) — dal faz-oto-U1-gecmis-gorsel |
 | U2 | **Kullanıcı isteği (2026-11-19):** ana ekrandaki üst şeritler (Geçmiş/son açılanlar + yeni dosyalar) TEK akıllı şeritte birleşsin — iki satır değil; bakınca hem yeni gelen hem son açılan aynı anda görünsün (akıllı sıralama/işaretle ayırt). Önce geçmiş istekleri ara (HAFIZA, `docs/design/ana_ekran/`) | opus | kullanıcı sözü | A/B | evet | sürüyor (yerel, 2026-11-19) — dal faz-oto-U2-tek-serit |
 | B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — dilim 1+2 main'de (2026-11-19; DEVIR dal faz-oto-B2-duzen-kullanim): (m.1 Ayıkla en net kare + "Benzer kareler", m.3 düzeltme→tezgâh örneği, m.5 hassas kategori PIN kilidi; A/B C2'de); dilim 2 (taşınan dosya kategorisini korur, taşıma kuralları varsayılan kapalı + onay + geri al, Ayıkla eski ekran görüntüsü); kalan kontrol listeleri, Decisions kalanları, Ayıkla AI puanı/WhatsApp kopyaları; DEVIR.md'den sür |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
@@ -355,6 +354,8 @@ Kenarda yaylanma/ivme PDF'le eşitlenmedi (kaydırma fiziği ölçümsüz deği�
   **B12 m.6** (bulut 2026-11-18, ölçülmedi): CSV/tablo görünümünde 2.000 satır yukarı kaydırma kare p99;
   dosya listesi dışı ölçüm kapılı adaylar: **dosya seçici** ve **çöp kutusu** (`FmEntryRow` + başlık/ayraç
   karışık), klasör seçici (izinsiz satırda alt yazı) — sabit boy ancak ölçümle.
+  **U1 Geçmiş görsel açılışı** (yerel 2026-11-19, dal faz-oto-U1-gecmis-gorsel; ölçülmedi — tablet kurulum onayı):
+  Geçmiş > Açılanlar listesinden fotoğrafa dokun, açılış geçişi + ilk 1 sn kare p99 (taban ↔ aday); kapanınca liste sırası.
   **B9 Word 2.0 m.1** (bulut 2026-11-19, dal faz-oto-B9-word2; ölçülmedi): içerik denetimli / form alanlı Word
   belgesinde açılış ve yazma kare süresi (blok denetim artık satır satır paragraf; form alanı dokunulabilir öğe).
   **B9 Word 2.0 m.2/m.5** (bulut 2026-11-19, dal faz-oto-B9-word2; ölçülmedi): çok dipnotlu belgede kaydırma/yazma
