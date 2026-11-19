@@ -16,31 +16,8 @@ const Map<String, (String, String, String)> _t7 = {
     'First enter your key under Settings > Gemini API key.',
     'أدخل مفتاحك أولًا من الإعدادات > مفتاح Gemini API.',
   ),
-    'Summarise this document in English. Format:\n'
-        '1) A one-sentence "what kind of document is this"\n'
-        '2) At most 5 bullet points with the important facts (always include '
-        'dates, amounts, parties and any deadline)\n'
-        'Do not invent anything; if it is not in the document, leave it out.',
-    'لخّص هذا المستند بالعربية. الصيغة:\n'
-        '1) جملة واحدة تصف «ما نوع هذا المستند»\n'
-        '2) خمس نقاط كحد أقصى بالمعلومات المهمة (اذكر دائمًا التواريخ والمبالغ '
-        'والأطراف وأي موعد نهائي)\n'
-        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
-  ),
 
-    'Summarise this document in English, in DETAIL. Format:\n'
-        '1) A one-sentence "what kind of document is this"\n'
-        '2) A section-by-section (slide/heading order) bullet summary — keep '
-        'slide numbers if the text has them\n'
-        '3) A separate heading collecting key figures, dates, names and decisions\n'
-        'Do not invent anything; if it is not in the document, leave it out.',
-    'لخّص هذا المستند بالعربية بالتفصيل. الصيغة:\n'
-        '1) جملة واحدة تصف «ما نوع هذا المستند»\n'
-        '2) ملخّص بالنقاط قسمًا بقسم (بترتيب الشرائح/العناوين) — واحتفظ بأرقام '
-        'الشرائح إن وُجدت في النص\n'
-        '3) عنوان منفصل يجمع الأرقام والتواريخ والأسماء والقرارات المهمة\n'
-        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
-  ),
+  // AI özet akışı (AiSummaryFlow) — kısa / detaylı.
   'aia.reading_image': (
     'Görseldeki metin okunuyor…',
     'Reading the text in the image…',

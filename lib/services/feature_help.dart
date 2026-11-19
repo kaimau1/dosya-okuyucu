@@ -361,8 +361,8 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_ai',
       group: 'PDF ve belgeler',
-      name: 'PDF'i akıllı düzenle',
-      where: 'PDF'i aç → alttaki "Düzenle" → "Akıllı düzenle"',
+      name: "PDF'i akıllı düzenle",
+      where: "PDF'i aç → alttaki \"Düzenle\" → \"Akıllı düzenle\"",
       how: ['Ne istediğini yaz; metin yeniden yazılıp yeni PDF olarak kaydedilir.'],
       keywords: ['akilli', 'yapay zeka', 'yeniden yaz', 'gemini'],
     ),
