@@ -249,4 +249,32 @@ void main() {
       expect(t.takeException(), isNull, reason: tab);
     }
   });
+
+  // B13 m.8: klavye açılınca görünüm daralır; alt satırdaki imleç klavyenin
+  // altında kalmasın diye belge kayar. Kapanınca konum geri zıplamaz.
+  testWidgets('klavye açılınca alttaki imleç satırı görünür kalır', (t) async {
+    await File(path).writeAsBytes(File(
+            'test/fixtures/office/word_kaydedilmis_cok_sayfa.docx')
+        .readAsBytesSync());
+    final c = await open(t);
+    final view = find.byType(DocxEditorView);
+    final r0 = t.getRect(view);
+    await t.tapAt(Offset(r0.center.dx, r0.bottom - 24));
+    await settle(t);
+    await t.pump(const Duration(milliseconds: 300));
+    expect(c.attached, isTrue);
+    final pos = t
+        .state<ScrollableState>(
+            find.descendant(of: view, matching: find.byType(Scrollable)).first)
+        .position;
+    final before = pos.pixels;
+    await keyboard(t, true);
+    final shrink = r0.height - t.getRect(view).height;
+    expect(shrink, greaterThan(48), reason: 'klavye görünümü daraltır');
+    expect(pos.pixels, greaterThan(before + 24),
+        reason: 'imleç satırı klavyenin üstüne kayar');
+    final up = pos.pixels;
+    await keyboard(t, false);
+    expect(pos.pixels, closeTo(up, 1), reason: 'kapanınca konum korunur');
+  });
 }
