@@ -174,8 +174,7 @@ extension DocxInsert on DocxDocument {
   int insertTable(int afterPara, int rows, int cols) {
     if (rows < 1 || cols < 1 || rows > 50 || cols > 20) return -1;
     final i = afterPara.clamp(0, paras.length - 1);
-    // Hücre içine tablo eklenmez (iç içe tablo desteklenmiyor).
-    final at = paras[i];
+    // Hücre içine tablo eklenmez (iç içe tablo desteklenmiyor): kabın ardına.
     final top = _lastOfBlock(i);
     const w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
     final colW = (8800 / cols).floor();
