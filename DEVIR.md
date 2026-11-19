@@ -4,3 +4,5 @@
 - ff0d1367 H3.5: `PdfPagedTurn.gap` + body.dart `_pagedPdfLayout` (kipteyken sayfa aralığı) + test
 - Şu an: belgeler + push + CI. Sıradaki: yürütücü cihaz A/B (docs/CIHAZ_TESTI.md "P28").
 - Doğrulama: CI verify (yerel test yok).
+- C1 (2026-11-19): main birleştirildi (cd1dea27), CI yeşil. Eski yarım tablo `docs/perf/2026-11-14-ab-c07320a-c387058.md` (YETERSİZ).
+- A/B YAPILAMADI — cihaz bekliyor: USB'deki cihaz Huawei DBY-W09 (tablet), kurulum "bilinmeyen kaynak" güvenlik uyarısında takıldı (P08 koşusunda görüldü). Sür: Mi Note bağlıyken bu dalda `timeout 14400 bash tool/ab_olcum.sh "" HEAD`; gözle bakılacaklar CIHAZ_TESTI "P28".
