@@ -63,6 +63,32 @@ extension DocxEditInsert on DocxEditController {
     _afterInsert();
   }
 
+  /// [i]. paragrafın [k]. karakteri bir form denetimiyse okunmuş hâli.
+  DocxControl? controlAt(int i, int k) {
+    if (i < 0 || i >= paras.length) return null;
+    final p = paras[i];
+    if (p.opaque || k < 0 || k >= p.length) return null;
+    return doc.controlOf(p.atoms[k]);
+  }
+
+  /// Form denetimini doldurur (metin / seçim, onay kutusu, tarih). Tek geri
+  /// al adımı; değer aynıysa hiçbir şey değişmez.
+  void fillControlAt(int i, int k,
+      {String? text, bool? checked, DateTime? date}) {
+    final c = controlAt(i, k);
+    if (c == null) return;
+    if (text != null && text == c.value && checked == null && date == null) {
+      return;
+    }
+    final p = paras[i];
+    final next =
+        doc.fillControl(p, k, text: text, checked: checked, date: date);
+    if (identical(next, p)) return;
+    _record(typing: false);
+    doc.paras[i] = next;
+    _afterInsert();
+  }
+
   /// İmlecin paragrafından sonra [rows]×[cols] tablo ekler; imleç ilk
   /// hücreye gider. Hücre içindeyken tablonun ardına eklenir.
   bool insertTable(int rows, int cols) {

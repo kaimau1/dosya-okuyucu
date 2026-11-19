@@ -1393,3 +1393,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Görselli (10 MB+ fotoğraf/PDF) turda ekran takılmadan kaydırılabiliyor mu? (Ölçüm C2.)
 - [ ] 2 dakikadan uzun bir video (WhatsApp Video) → ikinci adı/kategorisi geliyor mu; 50 MB üstü uzun video da düzenleniyor mu? Kesit kullanıcı klasörüne `_kesit` dosyası BIRAKMIYOR mu? Video düzenleyicide kesim sürerken tur bozmuyor mu?
 - [ ] PowerPoint ile kaydedilmiş bir sunum (.pptx) → ikinci adı ilk slayt görselinden de yararlanıyor mu (ör. başlık resmi olan sunum)? Blok biçimi API'de denenmedi: "yapılamadı" çıkarsa sunumlarda ek görsele bak.
+
+## 2026-11-19 — Word 2.0: içerik denetimleri ve form alanları (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Word'de kapak sayfası (Ekle → Kapak Sayfası) ya da İçindekiler olan bir belge aç: kapaktaki satırlar ayrı ayrı, biçimiyle (kalın, büyük başlık) görünüyor mu? Bir satırı düzenle → kaydet → Word'de aç: kapak bozulmadan, düzenleme yerinde mi?
+- [ ] Form belgesi (Geliştirici → Denetimler: düz metin, onay kutusu, açılır liste, tarih seçici): alanlar noktalı altı çizili görünüyor mu? Onay kutusuna dokun → işaretleniyor mu; tarih → takvim açılıyor, seçilen tarih belgenin biçiminde mi (ör. 19.11.2026); liste → seçenekler geliyor mu; metin → yazı alanı. Geri al tek adımda geri alıyor mu?
+- [ ] Doldurulan belgeyi kaydet → Word'de (masaüstü/telefon) aç: alanlar hâlâ denetim mi (Word'de tıklayınca çerçeve), değerler doğru mu, "Metin girmek için tıklayın" yer tutucusu gitmiş mi?
+- [ ] Kilitli ya da belge özelliğine bağlı alan (ör. kapaktaki "Belge başlığı"): değiştirilemiyor mu (dokunulunca levha açılmıyor)?

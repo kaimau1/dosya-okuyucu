@@ -109,4 +109,7 @@ const Map<String, (String, String, String)> _t16 = {
   'excel.nothing_hidden': ('Seçimin yanında gizli bir şey yok', 'Nothing hidden next to the selection', 'لا شيء مخفي بجوار التحديد'),
   'excel.undo_hide': ('Gizle', 'Hide', 'إخفاء'),
   'excel.undo_unhide': ('Göster', 'Unhide', 'إظهار'),
+  'word.control_fill': ('Alanı doldur', 'Fill in field', 'املأ الحقل'),
+  'word.control_value': ('Değer', 'Value', 'القيمة'),
+  'word.control_no_items': ('Bu listede seçenek yok', 'This list has no options', 'لا توجد خيارات في هذه القائمة'),
 };

@@ -42,12 +42,16 @@ class DocxEditorActions {
   /// Bağlantıya dokunuş: [para]. paragrafın [offset]. karakteri (düzenle /
   /// aç / kaldır levhası ekranda).
   final void Function(int para, int offset)? openLink;
+
+  /// Form denetimine (içerik denetimi) dokunuş: doldurma levhası ekranda.
+  final void Function(int para, int offset)? openControl;
   const DocxEditorActions(
       {this.translate,
       this.aiFix,
       this.openNote,
       this.openComment,
-      this.openLink});
+      this.openLink,
+      this.openControl});
 }
 
 class DocxEditorView extends StatefulWidget {
@@ -562,6 +566,29 @@ class DocxEditorViewState extends State<DocxEditorView> {
                   style: st.copyWith(
                       color: AppHues.blue,
                       decoration: TextDecoration.underline)),
+            ),
+          ),
+        );
+      case DocxAtomKind.control:
+        final open = widget.actions.openControl;
+        return WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Semantics(
+            button: open != null,
+            child: GestureDetector(
+              key: ValueKey('docx-control-$i-$k'),
+              onTap: open == null ? null : () => open(i, k),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxW),
+                child: Text(a.display.isEmpty ? '·' : a.display,
+                    style: open == null
+                        ? st
+                        : st.copyWith(
+                            decoration: TextDecoration.underline,
+                            decorationStyle: TextDecorationStyle.dotted,
+                            decorationColor: AppHues.blue)),
+              ),
             ),
           ),
         );
