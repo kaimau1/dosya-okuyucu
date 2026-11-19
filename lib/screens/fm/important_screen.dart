@@ -412,6 +412,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
       confirmLabel: context.t('common.ok'),
     );
     if (name == null || name.trim().isEmpty || name == f.name) return;
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final strings = AppStrings.of(context);
     try {
