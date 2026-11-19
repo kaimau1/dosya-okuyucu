@@ -165,6 +165,61 @@ void main() {
     });
   });
 
+  group('TOCOL / TOROW / WRAPROWS / WRAPCOLS (B10 dilim 3)', () {
+    const m = '{1,2,3;4,5,6}';
+    test('TOCOL satır satır, sütuna göre tara', () {
+      expect(_run('=TOCOL($m)', h: 6, w: 1), [
+        ['1'], ['2'], ['3'], ['4'], ['5'], ['6'],
+      ]);
+      expect(_run('=TOCOL($m,0,TRUE)', h: 6, w: 1), [
+        ['1'], ['4'], ['2'], ['5'], ['3'], ['6'],
+      ]);
+    });
+    test('TOROW boşları ve hataları yoksayar', () {
+      final data = [
+        ['a', '', '=1/0'],
+        ['b', 'c', ''],
+      ];
+      expect(_run('=TOROW(A1:C2,1)', data: data, h: 1, w: 4), [
+        ['a', '#SAYI/0!', 'b', 'c'],
+      ]);
+      expect(_run('=TOROW(A1:C2,3)', data: data, h: 1, w: 4), [
+        ['a', 'b', 'c', ''],
+      ]);
+      expect(_one('=TOROW(A1:C2,4)', data: data), '#DEĞER!');
+    });
+    test('WRAPROWS doldurma değeriyle, eksik yer #YOK', () {
+      expect(_run('=WRAPROWS({1,2,3,4,5},2)', h: 3, w: 2), [
+        ['1', '2'],
+        ['3', '4'],
+        ['5', '#YOK'],
+      ]);
+      expect(_run('=WRAPROWS({1,2,3,4,5},2,"x")', h: 3, w: 2), [
+        ['1', '2'],
+        ['3', '4'],
+        ['5', 'x'],
+      ]);
+      expect(_one('=WRAPROWS($m,2)'), '#DEĞER!');
+      expect(_one('=WRAPROWS({1,2},0)'), '#SAYI!');
+    });
+    test('WRAPCOLS sütun sütun', () {
+      expect(_run('=WRAPCOLS({1,2,3,4,5},2,0)', h: 2, w: 3), [
+        ['1', '3', '5'],
+        ['2', '4', '0'],
+      ]);
+    });
+    test('Türkçe ad ve dosya yazımı', () {
+      expect(_run('=SATIRSAR({1;2;3;4};2)', h: 2, w: 2), [
+        ['1', '2'],
+        ['3', '4'],
+      ]);
+      expect(FormulaEngine.toFileFormula('SÜTUNA(A1:B2)'),
+          '_xlfn.TOCOL(A1:B2)');
+      expect(FormulaEngine.toTurkishFormula('_xlfn.WRAPCOLS(A1:A9,3)'),
+          'SÜTUNSAR(A1:A9;3)');
+    });
+  });
+
   group('XMATCH', () {
     test('belge örnekleri', () {
       expect(_one('=XMATCH(4,{5,4,3,2,1})'), '2');
@@ -375,6 +430,7 @@ void main() {
       'BYROW', 'BYCOL', 'MAKEARRAY', 'NETWORKDAYS.INTL', 'WORKDAY.INTL',
       'XMATCH', 'XLOOKUP', 'IFS', 'SWITCH', 'MAXIFS', 'MINIFS', 'TEXTJOIN',
       'CONCAT', 'FILTER', 'SORT', 'UNIQUE', 'SEQUENCE', 'LET',
+      'TOCOL', 'TOROW', 'WRAPROWS', 'WRAPCOLS',
     ];
     for (final name in covered) {
       test(name, () {

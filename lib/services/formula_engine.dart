@@ -494,6 +494,7 @@ class _Parser {
     // B10 m.2
     'VSTACK', 'HSTACK', 'TAKE', 'DROP', 'CHOOSECOLS', 'CHOOSEROWS',
     'MAP', 'REDUCE', 'SCAN', 'BYROW', 'BYCOL',
+    'TOCOL', 'TOROW', 'WRAPROWS', 'WRAPCOLS',
   };
 
   static String _canonical(String word) {
@@ -933,6 +934,11 @@ class _Parser {
     'BIRAK': 'DROP',
     'SÜTUNSEÇ': 'CHOOSECOLS',
     'SATIRSEÇ': 'CHOOSEROWS',
+    // B10 dilim 3 — Türkçe adlar hipotez (Türkçe Excel'de doğrulanmadı).
+    'SÜTUNA': 'TOCOL',
+    'SATIRA': 'TOROW',
+    'SATIRSAR': 'WRAPROWS',
+    'SÜTUNSAR': 'WRAPCOLS',
     'ÇAPRAZEŞLEŞTİR': 'XMATCH',
     'İLKEŞLEŞEN': 'SWITCH',
     'ÇOKEĞERMAK': 'MAXIFS',

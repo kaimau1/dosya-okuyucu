@@ -16,7 +16,7 @@ class _Lambda {
 }
 
 /// B10 m.2 (2026-11-19): dizi/metin işlevleri — TEXTSPLIT, VSTACK/HSTACK,
-/// TAKE/DROP, CHOOSECOLS/CHOOSEROWS, XMATCH, LAMBDA/MAP/REDUCE/SCAN/BYROW/
+/// TAKE/DROP, CHOOSECOLS/CHOOSEROWS, TOCOL/TOROW, WRAPROWS/WRAPCOLS, XMATCH, LAMBDA/MAP/REDUCE/SCAN/BYROW/
 /// BYCOL/MAKEARRAY, NETWORKDAYS.INTL/WORKDAY.INTL.
 extension _ParserArraysPart on _Parser {
   static const _na = FormulaError('#YOK');
@@ -34,6 +34,12 @@ extension _ParserArraysPart on _Parser {
       case 'CHOOSECOLS':
       case 'CHOOSEROWS':
         return _chooseLines(args, cols: name == 'CHOOSECOLS');
+      case 'TOCOL':
+      case 'TOROW':
+        return _toLine(args, col: name == 'TOCOL');
+      case 'WRAPROWS':
+      case 'WRAPCOLS':
+        return _wrap(args, rows: name == 'WRAPROWS');
       case 'TEXTSPLIT':
         return _textSplit(args);
       case 'XMATCH':
@@ -150,6 +156,68 @@ extension _ParserArraysPart on _Parser {
       ]);
     }
     return _result([for (final r in picks) m[r]]);
+  }
+
+  // ── TOCOL / TOROW ─────────────────────────────────────────────────────
+
+  /// `TOCOL(dizi; [yoksay]; [sütuna_göre])`: yoksay 0 = hepsi, 1 = boşlar,
+  /// 2 = hatalar, 3 = ikisi; sütuna_göre DOĞRU ise sütun sütun okunur.
+  Object _toLine(List<Object> args, {required bool col}) {
+    if (args.isEmpty) return _value;
+    final m = _matArg(args, 0);
+    if (m.isEmpty) return _value;
+    final ignore = _given(args, 1) ? _numArg(args, 1).truncate() : 0;
+    if (ignore < 0 || ignore > 3) return _value;
+    final byCol = _given(args, 2) && FormulaEngine.toBool(_arg(args, 2));
+    final h = m.length, w = m.first.length;
+    final out = <Object>[];
+    void add(Object v) {
+      if ((ignore & 1) != 0 && v is String && v.isEmpty) return;
+      if ((ignore & 2) != 0 && v is FormulaError) return;
+      out.add(v);
+    }
+
+    if (byCol) {
+      for (var c = 0; c < w; c++) {
+        for (var r = 0; r < h; r++) {
+          add(c < m[r].length ? m[r][c] : _na);
+        }
+      }
+    } else {
+      for (final row in m) {
+        row.forEach(add);
+      }
+    }
+    if (out.isEmpty) return _calc;
+    return _result(col ? [for (final v in out) [v]] : [out]);
+  }
+
+  // ── WRAPROWS / WRAPCOLS ───────────────────────────────────────────────
+
+  /// `WRAPROWS(vektör; sayı; [doldurma])`: tek satır ya da sütunu [sayı]
+  /// genişlikte satırlara (WRAPCOLS: yükseklikte sütunlara) böler; artan
+  /// yer [doldurma] (yoksa `#YOK`). 2B dizi `#DEĞER!`, sayı < 1 `#SAYI!`.
+  Object _wrap(List<Object> args, {required bool rows}) {
+    if (args.length < 2) return _value;
+    final m = _matArg(args, 0);
+    if (m.isEmpty) return _value;
+    if (m.length > 1 && m.first.length > 1) return _value;
+    final items = [for (final row in m) ...row];
+    final n = _numArg(args, 1).truncate();
+    if (n < 1) return const FormulaError('#SAYI!');
+    final Object pad = _given(args, 2) ? _arg(args, 2) : _na;
+    final lines = (items.length + n - 1) ~/ n;
+    Object at(int i) => i < items.length ? items[i] : pad;
+    if (rows) {
+      return _result([
+        for (var r = 0; r < lines; r++)
+          [for (var c = 0; c < n; c++) at(r * n + c)],
+      ]);
+    }
+    return _result([
+      for (var r = 0; r < n; r++)
+        [for (var c = 0; c < lines; c++) at(c * n + r)],
+    ]);
   }
 
   // ── TEXTSPLIT ─────────────────────────────────────────────────────────
