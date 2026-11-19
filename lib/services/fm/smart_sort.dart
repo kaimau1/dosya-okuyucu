@@ -934,7 +934,8 @@ abstract final class SmartSort {
   }
 
   /// Genel arama: bütün terimler ikinci adda ya da üç dildeki adlarda geçen
-  /// kayıtlar (katlanmış karşılaştırma).
+  /// kayıtlar (katlanmış karşılaştırma). Ayıkla'da gizlenenler girmez (U4:
+  /// tek yerde — arama ve akıllı aramalar aynı kapıdan geçer).
   static List<SmartRecord> matches(String query, {int limit = 200}) {
     final terms = asciiFold(query)
         .split(RegExp(r'\s+'))
@@ -943,6 +944,7 @@ abstract final class SmartSort {
     if (terms.isEmpty || limit <= 0) return const [];
     final out = <SmartRecord>[];
     for (final r in _records.values) {
+      if (r.hidden) continue;
       final key = asciiFold('${aliasOf(r.path)} ${keywordsOf(r.path)}');
       if (key.trim().isEmpty || !terms.every(key.contains)) continue;
       out.add(r);

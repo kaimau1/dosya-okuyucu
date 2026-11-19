@@ -16,6 +16,7 @@ import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folder_prefs.dart';
+import '../../services/fm/smart_folders.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_quota.dart';
 import '../../services/fm/smart_sort.dart';
@@ -32,6 +33,7 @@ import 'category_screen.dart';
 import 'entry_actions.dart' show showUndoToast;
 import 'folder_picker_screen.dart';
 import 'smart_clutter_screen.dart';
+import 'smart_folders_screen.dart';
 import 'smart_user_cat_screen.dart';
 
 /// **Akıllı düzen** ana ekranı (2026-11-18): aç/kapat ve gizlilik metni,
@@ -99,7 +101,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(Future.wait([SmartSort.ensureLoaded(), SmartQuota.read()])
+    unawaited(Future.wait([
+      SmartSort.ensureLoaded(),
+      SmartQuota.read(),
+      SmartFolders.instance.ensureLoaded(),
+    ])
         .then((_) {
       if (mounted) setState(() => _ready = true);
       // Silinmiş dosyaların kaydı düşsün: klasör sayıları gerçek olsun (U4).
@@ -433,6 +439,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 SmartLearn.revision,
                 SmartUserCats.revision,
                 SmartQuota.revision,
+                SmartFolders.instance,
               ]),
               builder: (context, _) => SmartSort.enabled
                   ? Listener(
@@ -698,6 +705,24 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             ),
           ),
         ],
+        // Kayıtlı akıllı aramalar (U4): eskiden yalnız Akıllı dosya
+        // asistanının menüsündeydi; asıl yeri akıllı klasörlerin yanı.
+        const SizedBox(height: Gap.sm),
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            key: const ValueKey('ss-searches'),
+            leading: const Icon(AppIcons.savedSearch),
+            title: Text(context.t('smart.title')),
+            subtitle: Text(SmartFolders.instance.folders.isEmpty
+                ? context.t('smart.entry_sub')
+                : context.t('smart.entry_n',
+                    {'n': SmartFolders.instance.folders.length})),
+            trailing: const Icon(AppIcons.chevron),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SmartFoldersScreen())),
+          ),
+        ),
         ..._userCats(context),
         SectionHeader(context.t('sm.settings'),
             padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
