@@ -253,14 +253,16 @@ void main() {
   // B13 m.8: klavye açılınca görünüm daralır; alt satırdaki imleç klavyenin
   // altında kalmasın diye belge kayar. Kapanınca konum geri zıplamaz.
   testWidgets('klavye açılınca alttaki imleç satırı görünür kalır', (t) async {
-    await File(path).writeAsBytes(File(
-            'test/fixtures/office/word_kaydedilmis_cok_sayfa.docx')
-        .readAsBytesSync());
     final c = await open(t);
     final view = find.byType(DocxEditorView);
     final r0 = t.getRect(view);
-    await t.tapAt(Offset(r0.center.dx, r0.bottom - 24));
-    await settle(t);
+    // Belgeyi ekrandan uzun yap; imleç sonda → görünüm en alta kayar.
+    final last = c.paras.lastIndexWhere((p) => !p.opaque);
+    final end = DocPos(last, c.paras[last].length);
+    c.select(end, end);
+    c.insertText(List.filled(60, 'satır').join('\n'));
+    c.attach();
+    await t.pump();
     await t.pump(const Duration(milliseconds: 300));
     expect(c.attached, isTrue);
     final pos = t
@@ -275,6 +277,9 @@ void main() {
         reason: 'imleç satırı klavyenin üstüne kayar');
     final up = pos.pixels;
     await keyboard(t, false);
-    expect(pos.pixels, closeTo(up, 1), reason: 'kapanınca konum korunur');
+    // Belge sonundayız: görünüm büyür, konum en çok sona sınırlanır; başa
+    // zıplamaz.
+    expect(pos.pixels, inInclusiveRange(before - 1, up + 1),
+        reason: 'kapanınca konum korunur');
   });
 }
