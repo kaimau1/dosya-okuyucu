@@ -390,3 +390,74 @@ class _NoteMarkPainter extends CustomPainter {
   @override
   bool shouldRepaint(_NoteMarkPainter oldDelegate) => false;
 }
+
+/// [SpreadsheetEditorScreen] aşamalı açılışı: okunacak hücre tavanı (ilk
+/// ekranı doldurur) ve paylaşılan dize tavanı (karakter).
+const kXlsxHeadCells = 800;
+const kXlsxHeadSharedChars = 1 << 20;
+
+/// B13 m.4 — tam kitap hazırlanırken ilk sayfanın başı, salt okunur düz
+/// ızgara (sütun harfleri + satır numaraları, ham değerler). En çok
+/// [maxCols] sütun: önizleme hücre sayısı sınırlı kalsın.
+class SheetHeadPreview extends StatelessWidget {
+  final XlsxStreamSheet sheet;
+  const SheetHeadPreview({super.key, required this.sheet});
+
+  static const maxCols = 26;
+  static const _cellW = 96.0, _cellH = 28.0, _headW = 44.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final line = BorderSide(color: scheme.outlineVariant, width: 0.5);
+    final cols = math.min(sheet.maxCol + 1, maxCols);
+    final style = context.type.small;
+    final headStyle = style.copyWith(color: scheme.onSurfaceVariant);
+    Widget cell(String text, double w, {TextStyle? s, bool head = false}) =>
+        Container(
+          width: w,
+          height: _cellH,
+          alignment: head ? Alignment.center : AlignmentDirectional.centerStart,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+          decoration: BoxDecoration(
+            color: head ? scheme.surfaceContainerHighest : null,
+            border: Border(right: line, bottom: line),
+          ),
+          child: Text(text,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: s ?? style),
+        );
+    Widget row(int r) {
+      final values = sheet.cells[r];
+      return Row(children: [
+        cell('${r + 1}', _headW, s: headStyle, head: true),
+        for (var c = 0; c < cols; c++) cell(values?[c] ?? '', _cellW),
+      ]);
+    }
+
+    return OfficeLoadingPreview(
+      key: const ValueKey('excel-loading-preview'),
+      label: context.t('excel.opening_preview'),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: _headW + cols * _cellW,
+          child: Column(children: [
+            Row(children: [
+              cell('', _headW, head: true),
+              for (var c = 0; c < cols; c++)
+                cell(String.fromCharCode(0x41 + c), _cellW,
+                    s: headStyle, head: true),
+            ]),
+            Expanded(
+              child: ListView.builder(
+                itemExtent: _cellH,
+                itemCount: sheet.maxRow + 1,
+                itemBuilder: (_, r) => row(r),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}

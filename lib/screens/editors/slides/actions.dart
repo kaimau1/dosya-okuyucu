@@ -16,6 +16,15 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
+      // B13 m.4: ilk slaytlar tam ayrıştırmayla AYNI ANDA ayrı izolatta
+      // çizilir; önce biterse salt okunur önizleme olarak görünür.
+      if (SlidesEditorScreen.parseInIsolate) {
+        unawaited(compute(PptxEditor.headViews, bytes).then((head) {
+          if (!mounted || _editor != null || _error != null) return;
+          if (head == null || head.isEmpty) return;
+          _partSetState(() => _head = head);
+        }, onError: (_) {}));
+      }
       // Faz 28 / SL7: ayrıştırma + bütün slaytların çizim modeli ayrı
       // izolatta (50 slaytlık destede UI izleği donmasın). İzolat
       // kurulamazsa ana izlekte — tek kapı [_SlidesProPart._parseDeck].
@@ -23,6 +32,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     } catch (e) {
       _error = userErrorText(e);
     }
+    _head = null;
     if (mounted) _partSetState(() {});
     if (_editor != null) _resumeSlide();
     // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.

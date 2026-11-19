@@ -184,6 +184,14 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   XlsxEditor? _editor;
   int _sheetIndex = 0;
 
+  /// B13 m.4 — tam kitap hazırlanırken ilk sayfanın ilk hücreleri (akış
+  /// okuyucusundan, salt okunur önizleme); tam model gelince düşer.
+  XlsxStreamSheet? _head;
+
+  /// Aşamalı açılışın devreye girdiği boy: küçük kitap zaten hızlı açılır,
+  /// önizleme yalnız yanıp sönerdi.
+  static const _headMinBytes = 1 << 20;
+
   /// Faz 36 özet tabloları: özet sayfa adı → kaynak bağı (oturum içi).
   final Map<String, _PivotLink> _pivots = {};
 
@@ -609,7 +617,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                   message: context.t('ux.error_body'),
                   details: context.t('common.open_failed', {'error': _error}))
           : editor == null
-              ? const AppSkeleton(kind: SkeletonKind.grid)
+              ? (_head != null
+                  ? SheetHeadPreview(sheet: _head!)
+                  : const AppSkeleton(kind: SkeletonKind.grid))
               : Column(
                   children: [
                     if (editor.truncated) _truncatedBanner(),

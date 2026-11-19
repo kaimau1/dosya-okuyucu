@@ -835,35 +835,23 @@ class DocxLoadingPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(
+    return OfficeLoadingPreview(
       key: const ValueKey('word-loading-preview'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const LinearProgressIndicator(minHeight: 2),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: Text(context.t('word.opening_preview'),
-              style: context.type.small.copyWith(color: scheme.onSurfaceVariant)),
-        ),
-        Expanded(
-          child: head != null
-              ? DocxEditorView(
-                  controller: head!, spellcheck: false, readOnly: true)
-              : ColoredBox(
-                  color: Paper.docSurface(context),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                    itemCount: paragraphs.length,
-                    itemBuilder: (_, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Text(paragraphs[i],
-                          style: context.type.large.copyWith(height: 1.4)),
-                    ),
-                  ),
+      label: context.t('word.opening_preview'),
+      child: head != null
+          ? DocxEditorView(controller: head!, spellcheck: false, readOnly: true)
+          : ColoredBox(
+              color: Paper.docSurface(context),
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                itemCount: paragraphs.length,
+                itemBuilder: (_, i) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(paragraphs[i],
+                      style: context.type.large.copyWith(height: 1.4)),
                 ),
-        ),
-      ],
+              ),
+            ),
     );
   }
 }
