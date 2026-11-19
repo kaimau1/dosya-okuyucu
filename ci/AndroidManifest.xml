@@ -515,6 +515,13 @@
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
 
+        <!-- Akıllı düzen arka plan turu (2026-11-19): şarjda + Wi-Fi'de,
+             ayrı Flutter motorunda (Extras.kt › SmartBgJob). -->
+        <service
+            android:name=".SmartBgJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+
         <!-- ── İş kuyruğunun ÖN PLAN SERVİSİ ───────────────────────────────
              Kullanıcı hatası 2026-07-30: "arka plana alınca uygulamayı
              duraklıyor işlem". Android, ön planda olmayan süreci (özellikle

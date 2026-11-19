@@ -898,6 +898,57 @@ class AppState extends ChangeNotifier {
     return plain;
   }
 
+  /// **Arka plan motoru** için (Akıllı düzen `SmartBgJob`, 2026-11-19): AI
+  /// anahtarları + kapsam (kilitli klasörlerle) — tam [init] koşmadan. Rıza
+  /// kalıcı verilmemişse, çevrimdışı kipte ya da kapsam hiç kurulmamışsa
+  /// null (sessiz tur yapılmaz).
+  static Future<({AiCredentials credentials, AiScope scope})?>
+      loadAiForBackground() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kOffline) ?? false) return null;
+    if (!(prefs.getBool(_kAiTerms) ?? false) ||
+        !(prefs.getBool(_kAiSendOk) ?? false)) {
+      return null;
+    }
+    final raw = prefs.getString(_kAiScope);
+    if (raw == null || raw.isEmpty) return null;
+    AiScopeSettings? settings;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, Object?>) {
+        settings = AiScopeSettings.fromJson(decoded);
+      }
+    } catch (_) {
+      // Bilinçli: bozuk kapsam — sessiz tur yapılmaz.
+    }
+    if (settings == null) return null;
+    var keys = const <String>[];
+    final sealed = prefs.getString(_kApiKeysSealed);
+    if (sealed != null) {
+      final json = await KeyVault.open(sealed);
+      if (json != null) {
+        try {
+          keys = [for (final k in jsonDecode(json) as List) '$k'];
+        } catch (_) {
+          // Bilinçli: bozuk kayıt — anahtarsız sayılır, tur yapılmaz.
+        }
+      }
+    } else {
+      keys = prefs.getStringList(_kApiKeys) ?? const [];
+    }
+    final model = prefs.getString(_kModel) ?? defaultAiModel;
+    final credentials = AiCredentials(
+            keys: keys, models: prefs.getStringList(_kModels) ?? [model])
+        .normalized;
+    if (credentials.keys.isEmpty) return null;
+    return (
+      credentials: credentials,
+      scope: AiScope(
+          settings: settings,
+          lockedFolders: prefs.getStringList(_kLockedFolders) ?? const []),
+    );
+  }
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     _model = _prefs.getString(_kModel) ?? defaultAiModel;

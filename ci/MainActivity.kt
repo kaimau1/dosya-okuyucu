@@ -445,6 +445,11 @@ class MainActivity : FlutterActivity() {
                     (ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE)
                         as android.net.ConnectivityManager).isActiveNetworkMetered
                 )
+                // 2026-11-19: Akıllı düzen "şarjda + Wi-Fi'de / arka planda".
+                "isCharging" -> result.success(Extras.isCharging(ctx))
+                "smartBg" -> result.success(
+                    Extras.scheduleSmartBg(ctx, call.arguments as? Boolean ?: false)
+                )
                 "exitReasons" -> result.success(
                     Extras.exitReasons(ctx, (call.arguments as? Number)?.toLong() ?: 0L)
                 )

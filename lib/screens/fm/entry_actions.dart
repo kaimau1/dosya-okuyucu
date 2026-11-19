@@ -68,6 +68,7 @@ import '../../services/fm/custom_cards.dart';
 import '../../services/fm/quick_folders.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../widgets/fm/smart_cat_style.dart';
+import 'category_add_sheet.dart';
 import 'smart_fix_sheet.dart';
 
 part 'entry_actions/sheet.dart';

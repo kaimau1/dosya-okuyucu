@@ -1481,3 +1481,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 
 ## B2 dilim 5 — galeride hassas kategori PIN'i (2026-11-19, yazıldı, cihazda doğrulanmadı)
 - [ ] PIN kurulu, uygulama kilidi kapalı: Fotoğraflar → AI kategori hapı → Kimlik/Sağlık/Banka/Vergi seçince PIN sorulur; yanlış/iptal → seçilmez; doğru → süzülür, oturumda bir daha sorulmaz (Akıllı düzen listelerinde de sorulmaz). Seçimi kaldırmak PIN istemez. PIN yoksa hiç sorulmaz.
+
+## İkinci ad / kategori menüsü + arka plan Akıllı düzen (2026-11-19) — yazıldı, cihazda doğrulanmadı
+- Çoklu seçim → Daha fazla: en üstte "AI ile ikinci ad ver" + "Kategori ekle"; "AI ile etiketle" yok. Toplu ad: bildirimde ilerleme, Durdur çalışıyor mu, adlar listede görünüyor mu.
+- ⋮: en üst bölüm "İkinci ad ve kategori". Kategori ekle → Yeni kategori (yalnız ad) → Akıllı düzen › Kategorilerim'de ve süzgeçte görünüyor mu.
+- Akıllı düzen ayarı "Yalnız şarjda ve Wi-Fi'de": şarjsız/mobil veride uygulama içi otomatik tur koşmamalı; şarj + Wi-Fi'de uygulama kapalıyken (birkaç saat) yeni dosyalar düzenlenmiş mi (MIUI pil kısıtı: uygulamaya "kısıtlama yok" gerekebilir).

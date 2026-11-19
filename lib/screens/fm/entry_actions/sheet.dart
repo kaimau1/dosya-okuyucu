@@ -43,6 +43,7 @@ enum _EntryAction {
   aiAlias,
   alias,
   smartFix,
+  category,
 }
 
 /// İşlemin bağlı olduğu sürüm özelliği; null = her sürümde (aç, paylaş …).
@@ -268,6 +269,28 @@ Future<bool> showEntryActions(
             // Görüntüleyicide ekranın kendi işleri seçili açılır.
             preferSpecial: inViewer,
             sections: [
+              // **İkinci ad ve kategori EN ÜSTTE** (2026-11-19, kullanıcı:
+              // *"ikinci ad ver işlemlerini menüde üste taşıyalım; AI ile
+              // ikinci ad ve ikinci ad, bir de kategori ekle olsun"*).
+              if (!entry.isDir)
+                MenuKitSection(title: ctx.t('ea.sec_name'), actions: [
+                  act(AppIcons.ai, ctx.t('alias.action'), _EntryAction.aiAlias,
+                      hint: ctx.t('alias.action_hint')),
+                  act(AppIcons.rename, ctx.t('alias.manual'),
+                      _EntryAction.alias),
+                  act(AppIcons.labelOutline, ctx.t('cat.add'),
+                      _EntryAction.category,
+                      hint: SmartSort.of(entry.path) == null
+                          ? ctx.t('cat.add_hint')
+                          : ctx.t('smf.action_hint', {
+                              'cat': SmartCatStyle.label(
+                                  ctx, SmartSort.of(entry.path)!.cat),
+                            })),
+                  // Akıllı düzen öğrenir (2026-11-18): "bu yanlış → ne olmalıydı?"
+                  if (SmartSort.of(entry.path) != null)
+                    act(AppIcons.rule, ctx.t('smf.action'),
+                        _EntryAction.smartFix),
+                ]),
               // **Türe özel gruplar** ortak işlerin hemen ardından, AYRI
               // RENKTE (2026-11-15): ekranın kendi işleri (PDF, oynatıcı …).
               for (final g in allGroups)
@@ -387,11 +410,8 @@ Future<bool> showEntryActions(
                 if (!entry.isDir)
                   act(AppIcons.tag, ctx.t('ea.tag'), _EntryAction.tag,
                       hint: ctx.t('ea.tag_hint')),
-                // 2026-11-04: seçimdeki "AI ile etiketle" burada da var —
-                // iki menü tek kaynaktan.
-                if (!entry.isDir)
-                  act(AppIcons.ai, ctx.t('tagai.action'), _EntryAction.aiTag,
-                      hint: ctx.t('tagai.action_hint')),
+                // 2026-11-19: "AI ile etiketle" kalktı — AI ile ikinci ad
+                // (yeni model) kategoriyi de etiket yapıyor (en üst bölüm).
                 // **Böl / birleştir**: FAT32 USB/SD 4 GB'tan büyük tek dosya
                 // kabul etmiyor.
                 if (canSplit)
@@ -408,18 +428,7 @@ Future<bool> showEntryActions(
               ]),
               // AI/tanıma: belgede özet, takma ad.
               MenuKitSection(title: ctx.t('ea.sec_ai'), actions: [
-                if (!entry.isDir)
-                  act(AppIcons.rename, ctx.t('alias.manual'),
-                      _EntryAction.alias),
-                if (!entry.isDir)
-                  act(AppIcons.ai, ctx.t('alias.action'), _EntryAction.aiAlias),
-                // Akıllı düzen öğrenir (2026-11-18): "bu yanlış → ne olmalıydı?"
-                if (!entry.isDir && SmartSort.of(entry.path) != null)
-                  act(AppIcons.rule, ctx.t('smf.action'), _EntryAction.smartFix,
-                      hint: ctx.t('smf.action_hint', {
-                        'cat': SmartCatStyle.label(
-                            ctx, SmartSort.of(entry.path)!.cat),
-                      })),
+                // İkinci ad / kategori en üst bölüme taşındı (2026-11-19).
                 if (!entry.isDir &&
                     entry.category != FmCategory.image &&
                     entry.category != FmCategory.video &&
@@ -553,6 +562,11 @@ Future<bool> showEntryActions(
 
     case _EntryAction.alias:
       await editAlias(context, entry);
+      return false;
+
+    case _EntryAction.category:
+      // Liste ikinci adı ve akıllı klasörü kendisi dinliyor (revision).
+      await showAddCategory(context, [entry.path]);
       return false;
 
     case _EntryAction.smartFix:

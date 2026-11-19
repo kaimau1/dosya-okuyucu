@@ -7,12 +7,13 @@ import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/ai_batch_check.dart';
+import '../../screens/fm/ai_actions.dart' show giveAiAliasBatch;
 import '../../screens/fm/ai_checklist.dart';
+import '../../screens/fm/category_add_sheet.dart';
 import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
 import '../../screens/fm/swipe_pager.dart';
 import '../app_action_sheet.dart';
-import 'ai_tag_flow.dart';
 import 'batch_rename_sheet.dart';
 import 'tag_picker_sheet.dart';
 import '../../core/snack.dart';
@@ -61,6 +62,7 @@ class FmSelectionBar extends StatelessWidget {
   List<String> get _paths => selected.map((e) => e.path).toList();
 
   bool get _anyDir => selected.any((e) => e.isDir);
+  bool get _anyFile => selected.any((e) => !e.isDir);
 
   /// Boyut düşürme yalnız fotoğraf/videoda anlamlı.
   bool get _anyMedia => selected.any(
@@ -202,17 +204,28 @@ class FmSelectionBar extends StatelessWidget {
             title: context.t('sel.sheet_title', {'n': n}),
             subtitle: n == 1 ? selected.first.name : null,
             groups: [
+              // **İkinci ad ve kategori en üstte** (2026-11-19, kullanıcı:
+              // seçip toplu AI ile ikinci ad; eski "AI ile etiketle" kalktı —
+              // yeni model hem ad hem kategori/etiket veriyor).
+              if (_anyFile)
+                AppActionGroup(title: context.t('ea.sec_name'), actions: [
+                  AppAction(
+                      value: 'ai_alias',
+                      icon: AppIcons.ai,
+                      accent: true,
+                      label: context.t('alias.action'),
+                      hint: context.t('alias.batch_hint')),
+                  AppAction(
+                      value: 'category',
+                      icon: AppIcons.labelOutline,
+                      label: context.t('cat.add'),
+                      hint: context.t('cat.add_hint')),
+                ]),
               AppActionGroup(title: context.t('sel.group_organize'), actions: [
                 AppAction(
                     value: 'tag',
                     icon: AppIcons.tag,
                     label: context.t('fm.tag')),
-                AppAction(
-                    value: 'ai_tag',
-                    icon: AppIcons.ai,
-                    accent: true,
-                    label: context.t('tagai.action'),
-                    hint: context.t('tagai.action_hint')),
                 // Decisions API (2026-11-18): hepsine aynı soru, süz, işle.
                 AppAction(
                     value: 'ai_check',
@@ -327,8 +340,18 @@ class FmSelectionBar extends StatelessWidget {
         await startResizeJob(context, selected);
       case 'tag':
         if (await showTagPicker(context, _paths)) await onChanged();
-      case 'ai_tag':
-        if (await showAiTagFlow(context, selected)) await onChanged();
+      case 'ai_alias':
+        // İş kuyruğa gider; satırlar ikinci adı kendileri dinliyor.
+        await giveAiAliasBatch(context, selected);
+        await onChanged();
+      case 'category':
+        final files = [
+          for (final e in selected)
+            if (!e.isDir) e.path
+        ];
+        if (files.isNotEmpty && await showAddCategory(context, files)) {
+          await onChanged();
+        }
       case 'ai_check':
         if (await showAiBatchCheck(context, selected)) await onChanged();
       case 'ai_checklist':
