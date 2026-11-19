@@ -280,7 +280,7 @@ const Map<String, (String, String, String)> _t40 = {
     '{d}: {n} files · {l} quota warnings',
     '{d}: {n} ملفات · {l} تنبيهات حصة',
   ),
-  'sm.batch': ('{n} yeni dosya düzenlendi: {parts}', '{n} new files organized: {parts}', 'تم تنظيم {n} ملفات جديدة: {parts}'),
+  'sm.batch_title': ('{n} yeni dosya düzenlendi', '{n} new files organized', 'تم تنظيم {n} ملفات جديدة'),
   // Rozet ve tutar süzgeci (şema 2.0).
   'sm.attention': ('Dikkat', 'Needs attention', 'يحتاج إلى انتباه'),
   'sm.overdue': ('Ödemesi geçmiş fatura', 'Overdue bill', 'فاتورة فات موعد سدادها'),

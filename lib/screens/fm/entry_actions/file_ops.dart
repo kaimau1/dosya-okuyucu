@@ -209,11 +209,18 @@ Future<bool> deleteEntries(
       cancellable: false,
       task: (report, _) => FileOps.deleteAll(paths, onProgress: report),
     );
+    // U3 m.11 (2026-11-20, kullanıcı: "silince sessizce bir şey olmasın"):
+    // kalıcı silmenin başarısı da söylenir; hata metni çeviri tablosundan.
     if (context.mounted && result.hasError) {
       _snack(
           context,
-          '${result.succeeded} öğe silindi, ${result.errors.length} öğe '
-          'silinemedi: ${result.errors.first}');
+          '${context.t('fm.deleted_partial', {
+                'ok': result.succeeded,
+                'fail': result.errors.length,
+              })} ${result.errors.first}');
+    } else if (context.mounted && result.succeeded > 0) {
+      _snack(context,
+          context.t('fm.deleted_n', {'n': result.succeeded}));
     }
     // Hiçbiri silinemediyse `false`: çağıranlar bu dönüşle "oldu" varsayıp
     // seçimi temizliyor ve listeyi tazeliyordu (2026-07-29 denetimi, 4. tur).
@@ -419,7 +426,7 @@ Future<bool> moveOrCopyEntries(
             label: strings.t('fm.undo_action'),
             onPressed: () async {
               final back = await FileOps.undoMove(result.transfers);
-              messenger.showSnackBar(SnackBar(
+              showSnackBarReplacing(messenger, SnackBar(
                 content: Text(back.hasError
                     ? strings.t('fm.undo_failed', {'error': back.errors.first})
                     : strings.t('fm.undo')),

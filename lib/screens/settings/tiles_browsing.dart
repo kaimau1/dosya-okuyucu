@@ -107,7 +107,10 @@ class DefaultSortTile extends StatelessWidget {
         },
         itemBuilder: (ctx) => [
           for (final s in FmSort.values)
-            PopupMenuItem(value: s.name, child: Text(ctx.t(s.labelKey))),
+            CheckedPopupMenuItem(
+                value: s.name,
+                checked: s == appState.fmSort,
+                child: Text(ctx.t(s.labelKey))),
           const PopupMenuDivider(),
           PopupMenuItem(value: 'dir', child: Text(ctx.t('fmset.reverse_dir'))),
         ],
@@ -278,7 +281,10 @@ class MediaOpenWithTile extends StatelessWidget {
         onSelected: appState.setFmMediaOpenWith,
         itemBuilder: (ctx) => [
           for (final v in MediaOpenWith.values)
-            PopupMenuItem(value: v, child: Text(ctx.t(v.labelKey))),
+            CheckedPopupMenuItem(
+                value: v,
+                checked: v == appState.fmMediaOpenWith,
+                child: Text(ctx.t(v.labelKey))),
         ],
       ),
     );

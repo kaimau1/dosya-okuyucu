@@ -56,8 +56,6 @@ import '../../widgets/fm/recent_strip.dart';
 import 'open_history_screen.dart';
 import 'analysis_screen.dart';
 import 'activity_screen.dart';
-import 'download_manager_screen.dart';
-import 'duplicates_screen.dart';
 import 'remote/ftp_server_screen.dart';
 import 'browser_screen.dart';
 import 'apk_archive_screen.dart';
@@ -76,7 +74,7 @@ import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';
 import 'smart_sort_screen.dart';
 import '../../services/fm/smart_sort.dart';
-import '../../widgets/fm/smart_batch_strip.dart';
+import '../../widgets/fm/smart_cat_style.dart';
 import 'swipe_pager.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
@@ -143,6 +141,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   static StorageIndex? _cachedIndex;
   static int _cachedAtMs = 0;
+
+  /// Bildirim kartının kaynakları — her build'de yeni birleşik dinleyici
+  /// kurulmasın (kasma-kontrol m.2).
+  static final Listenable _inboxSources =
+      Listenable.merge([FtpService.instance, SmartSort.lastBatch]);
 
   /// Yan menü kaynağı TEK nesne: uzantı yöntemi koparmaları her seferinde yeni
   /// kapanış üretir, `unregister` eşleşsin diye bir kez tutulur.
@@ -542,7 +545,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             // sonuçlar TEK kartta, en üstte. Boşken hiç çizilmez. Eski ağ
             // paylaşımı şeridi de buraya katıldı (tek tip).
             AnimatedBuilder(
-              animation: FtpService.instance,
+              animation: _inboxSources,
               builder: (context, _) =>
                   SmartInbox(events: _inboxEvents(volumes)),
             ),
@@ -557,22 +560,47 @@ class _DashboardScreenState extends State<DashboardScreen>
             // hızlı klasörler — her biri gizlenebilir.
             ..._sectionsLaidOut(volumes, appState),
             const SizedBox(height: Gap.lg),
-            Wrap(
-              alignment: WrapAlignment.center,
-              children: [
-                TextButton.icon(
-                  onPressed: _editLayout,
-                  icon: const Icon(AppIcons.dashboardCustomize, size: 18),
-                  label: Text(context.t('dash.title')),
+            // **Tek "Düzenle" düğmesi** (U3 m.5, 2026-11-20, kullanıcı: "iki
+            // düğme → tek düğme, görsel bütünlük"): ana ekran ve alt panel
+            // düzenleyicileri aynı menüde. Alt panele basılı tutmak da açar.
+            Center(
+              child: PopupMenuButton<bool>(
+                key: const ValueKey('dash-edit'),
+                tooltip: context.t('common.edit'),
+                onSelected: (dock) =>
+                    dock ? showDockEditor(context) : _editLayout(),
+                itemBuilder: (ctx) => [
+                  PopupMenuItem(
+                    value: false,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(AppIcons.dashboardCustomize),
+                      title: Text(ctx.t('dash.title')),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    key: const ValueKey('dash-edit-dock'),
+                    value: true,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(AppIcons.tune),
+                      title: Text(ctx.t('dock.edit_title')),
+                    ),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.sm),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(AppIcons.edit,
+                        size: 18, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: Gap.sm),
+                    Text(context.t('common.edit'),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.primary)),
+                  ]),
                 ),
-                // Alt panelin iki ek düğmesi (panele basılı tutmak da açar).
-                TextButton.icon(
-                  key: const ValueKey('dash-edit-dock'),
-                  onPressed: () => showDockEditor(context),
-                  icon: const Icon(AppIcons.tune, size: 18),
-                  label: Text(context.t('dock.edit_title')),
-                ),
-              ],
+              ),
             ),
             if (_cachedAtMs > 0) ...[
               const SizedBox(height: Gap.lg),

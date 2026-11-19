@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/app_haptics.dart';
@@ -7,6 +9,7 @@ import '../../services/fm/dashboard_layout.dart';
 import '../../core/safe_insets.dart';
 import '../../core/app_colors.dart';
 import '../../core/theme.dart';
+import 'recent_strip.dart';
 
 /// Düzen sayfasındaki bir satırın görünümü.
 typedef LayoutRowInfo = ({String label, IconData icon, Color color});
@@ -70,6 +73,12 @@ class _LayoutSheetState extends State<_LayoutSheet> {
   bool _tilesTab = true;
 
   @override
+  void initState() {
+    super.initState();
+    unawaited(StripPrefs.ensureLoaded());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final layout = DashboardLayout.instance;
     final homeStyle = AppSkinData.of(context).metrics.homeStyle;
@@ -126,6 +135,44 @@ class _LayoutSheetState extends State<_LayoutSheet> {
                   style:
                       text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
             ),
+            // "Son dosyalar" şeridinin ilk sekmesi (U3 m.3, kullanıcı:
+            // "Ana ekranı düzenle'den varsayılan kip: Otomatik / Geçmiş / Yeni").
+            if (!_tilesTab)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: ValueListenableBuilder<StripMode>(
+                  valueListenable: StripPrefs.mode,
+                  builder: (context, mode, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(context.t('dash.strip_default'),
+                          style: text.labelLarge),
+                      const SizedBox(height: Gap.xs),
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<StripMode>(
+                          key: const ValueKey('dash-strip-default'),
+                          showSelectedIcon: false,
+                          segments: [
+                            ButtonSegment(
+                                value: StripMode.auto,
+                                label: Text(context.t('dash.strip_auto'))),
+                            ButtonSegment(
+                                value: StripMode.opened,
+                                label: Text(context.t('dash.strip_opened'))),
+                            ButtonSegment(
+                                value: StripMode.fresh,
+                                label: Text(context.t('dash.strip_fresh'))),
+                          ],
+                          selected: {mode},
+                          onSelectionChanged: (v) =>
+                              unawaited(StripPrefs.set(v.first)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (_tilesTab && widget.onNewCard != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
