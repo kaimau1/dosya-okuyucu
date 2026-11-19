@@ -1451,3 +1451,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Çok sayıda yeni dosya varken (ör. 10+ foto) şeritte yine en az 3 son açılan dosya görünüyor.
 - [ ] Başlıktaki "Yeniler" Yeniler ekranını, "Geçmiş" Geçmiş ekranını açıyor; 2,0× yazı boyutunda ad satırı kesilmiyor; Arapça'da "Yeni" etiketi sağ üstte.
 - [ ] ÖLÇÜM KAPISI (ana ekran): soğuk açılış + ana ekran kaydırma A/B (taban önceki [apk] profil derlemesi, `.r8test`) — kurulum onayına takıldığı için yapılmadı.
+## U1 Geçmiş görsel açılışı (2026-11-19, dal faz-oto-U1-gecmis-gorsel) — yazıldı, cihazda doğrulanmadı
+- [ ] Geçmiş > Açılanlar: birkaç fotoğraflı listede bir fotoğrafa dokun → küçük resimden takılmadan büyüyor, net hâli gecikmeden geliyor (eskiden donup geç açılıyordu).
+- [ ] Galeriyi kapat (geri ya da aşağı kaydır) → fotoğraf dokunduğun satıra dönüyor; ardından o fotoğraf listenin en üstüne geçiyor (son açılan).
+- [ ] Ana ekran "Son açılanlar"dan fotoğraf açınca da aynı: açılışta takılma yok, kapanınca şerit tazeleniyor.
