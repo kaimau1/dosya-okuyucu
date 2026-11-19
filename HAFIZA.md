@@ -412,3 +412,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-19 — B4 dilim 2: AES-256 R6 kilit açma (dal faz-oto-B4-pdfpro)
 - **Bug kökü:** Syncfusion R6 (qpdf/Word) belgede `removePassword` sayfasız çıktı veriyordu (tezgâh 2026-11-08). Çözüm: `PdfTools.removePasswordInBackground` Syncfusion çıktısının sayfa sayısını girdiyle karşılaştırır; eksik/hata → `removePasswordPdfium` (pdfrx `encodePdf(removeSecurity: true)`, ana izlekte; pdfrx kendi işçisinde). PDFium `Isolate.run` içinde ÇAĞRILMAZ (başlatma belirsiz).
 - **Karar:** parola/izin koruması `aesx256BitRevision6` (R6, PDF 2.0); R5 (`aesx256Bit`) Adobe'ce kullanımdan kalktı. Test `test/pdf_pro/pdf_unlock_r6_test.dart`.
+
+## 2026-11-19 — B4 dilim 3: P20 sayfa stüdyosu (dal faz-oto-B4-pdfpro)
+- **Karar:** `PdfReorderScreen` (liste) silindi → `lib/screens/pdf_tools/page_studio.dart` ızgara (Pro araçlar "reorder" kimliği aynı). Plan = (özgün indeks, çeyrek tur) listesi → `PdfTools.applyPageStudio`.
+- **Tuzak/karar:** sıra kesin artansa (yalnız sil/döndür) belge YERİNDE değişir → açıklamalar korunur; sıralama/çoğaltma `selectPages` kopyası → açıklama kaybı uyarısı yalnız o zaman (`studioKeepsAnnotations`).
+- Sürükle-bırak `LongPressDraggable`+`DragTarget` (Flutter'da yeniden sıralanır ızgara yok, paket eklenmedi); kenarda kendiliğinden kaydırma yok. Cihazda ölçülmedi (C2).

@@ -596,15 +596,22 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
 
   // ── 8. Sayfa ızgarası işlemleri ──────────────────────────────────────────
 
+  /// Sayfa stüdyosu (B4/P20): yalnız sil/döndür yerinde çalışır, açıklamalar
+  /// kalır; sıralama/çoğaltma kopyalar → önce kayıp uyarısı.
   Future<void> _reorderPages() async {
     final bytes = _bytes!;
-    final order =
-        await PdfReorderScreen.open(context, bytes: bytes, password: _password);
-    if (order == null || !mounted) return;
-    if (!await _confirmAnnotationLoss(_str.t('pp.reorder')) || !mounted) return;
+    final plan = await PdfPageStudioScreen.open(context,
+        bytes: bytes, password: _password);
+    if (plan == null || !mounted) return;
+    final keeps =
+        PdfTools.studioKeepsAnnotations([for (final (i, _) in plan) i]);
+    if (!keeps && (!await _confirmAnnotationLoss(_str.t('pp.studio')) ||
+        !mounted)) {
+      return;
+    }
     final pw = _password;
-    await _apply(_str.t('pp.reorder'),
-        (b) => PdfTools.selectPagesInBackground(b, order, password: pw));
+    await _apply(_str.t('pp.studio'),
+        (b) => PdfTools.applyPageStudioInBackground(b, plan, password: pw));
   }
 
   /// Boş sayfaları bulur (küçük gri çizim), seçer ve silmeyi önerir.

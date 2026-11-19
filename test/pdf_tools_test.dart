@@ -415,6 +415,46 @@ void main() {
       );
     });
   });
+
+  group('applyPageStudio — sayfa stüdyosu planı (B4/P20)', () {
+    Future<List<int>> rotations(List<int> bytes) async {
+      final doc = PdfDocument(inputBytes: bytes);
+      try {
+        return [
+          for (var i = 0; i < doc.pages.count; i++) doc.pages[i].rotation.index,
+        ];
+      } finally {
+        doc.dispose();
+      }
+    }
+
+    test('sıra korunuyorsa (sil + döndür) yerinde: vurgu kalır', () async {
+      final src = await _withHighlightOnSecondPage(await _makePdf([100, 200, 300]));
+      final out = await PdfTools.applyPageStudio(src, [(1, 1), (2, 0)]);
+      expect(await _widths(out), [200, 300]);
+      expect(await rotations(out), [1, 0]);
+      expect(await PdfTools.annotationCount(out), 1);
+    });
+
+    test('sıralama + çoğaltma + döndürme birlikte uygulanır', () async {
+      final src = await _makePdf([100, 200, 300]);
+      final out = await PdfTools.applyPageStudioInBackground(
+          src, [(2, 0), (0, 3), (0, 0)]);
+      expect(await _widths(out), [300, 100, 100]);
+      expect(await rotations(out), [0, 3, 0]);
+    });
+
+    test('yerinde yol karar kuralı ve boş plan', () async {
+      expect(PdfTools.studioKeepsAnnotations([0, 2, 5]), isTrue);
+      expect(PdfTools.studioKeepsAnnotations([0, 0]), isFalse);
+      expect(PdfTools.studioKeepsAnnotations([1, 0]), isFalse);
+      final src = await _makePdf([100]);
+      await expectLater(
+          PdfTools.applyPageStudio(src, const []), throwsArgumentError);
+      await expectLater(
+          PdfTools.applyPageStudio(src, [(0, 0), (4, 0)]), throwsRangeError);
+    });
+  });
 }
 
 /// PDF grafik dönüşümü: önce döndür, sonra taşı (Syncfusion'daki çağrı sırası).

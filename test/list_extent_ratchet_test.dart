@@ -25,7 +25,6 @@ const _required = {
   'lib/screens/fm/audio_player_screen.dart': 1,
   'lib/screens/fm/photos_screen.dart': 1,
   'lib/screens/fm/dual_pane_screen.dart': 1,
-  'lib/screens/pdf_reorder_screen.dart': 1,
   'lib/widgets/fm/fm_file_list_view.dart': 2,
 };
 

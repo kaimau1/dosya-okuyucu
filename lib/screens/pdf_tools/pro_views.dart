@@ -16,7 +16,7 @@ const _proTools = <List<_ProTool>>[
     _ProTool('signatures', AppIcons.pdfInitials, 'pp.signatures', 'pp.signatures_sub'),
   ],
   [
-    _ProTool('reorder', AppIcons.dragHandle, 'pp.reorder', 'pp.reorder_sub'),
+    _ProTool('reorder', AppIcons.gridOn, 'pp.studio', 'pp.studio_sub'),
     _ProTool('blank', AppIcons.pdfBlankPage, 'pp.blank', 'pp.blank_sub'),
     _ProTool('crop', AppIcons.crop, 'pp.crop', 'pp.crop_sub'),
     _ProTool('fit_a4', AppIcons.pdfFitPage, 'pp.fit_a4', 'pp.fit_a4_sub'),
