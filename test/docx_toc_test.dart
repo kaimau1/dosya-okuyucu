@@ -117,7 +117,7 @@ void main() {
     expect(_all(x, 'w:hyperlink').map((l) => l.findAllElements('w:t').first.innerText),
         ['Giriş', 'Alt bölüm', 'Ayrıntı', 'Sonuç']);
     final giris = _all(x, 'w:p').firstWhere(
-        (p) => p.parent?.name.local == 'body' && p.innerText == 'Giriş');
+        (p) => p.parentElement?.name.local == 'body' && p.innerText == 'Giriş');
     expect(giris.findElements('w:bookmarkStart').length, 1);
     // Denetim yerinde kaldı (gövdenin başında).
     expect(x.findAllElements('w:body').first.childElements.first.name.local, 'sdt');
