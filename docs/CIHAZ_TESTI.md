@@ -1470,3 +1470,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Bir metin kutusuna dokun (seç), sonra metnin ortasına tekrar dokun: imleç dokunduğun yerde mi (sonda değil)?
 - Uzun kutuda alt satırlara yazarken klavye açıkken yazılan satır görünür kalıyor mu (slayt kayıyor mu)?
 - Slayt düzenleme/sunum A/B (C2): kutu açma ve yazma hissi önceki [apk] ile aynı mı.
+
+## B2 dilim 4 — Decisions kalan kullanımlar (2026-11-19, yazıldı, cihazda doğrulanmadı)
+- Tarama sonucu ⋮ → "AI ile kalite kontrolü": parlamalı/kesik/okunaksız sayfada şerit "Yeniden çek" öneriyor mu; iyi sayfada "okunaklı görünüyor" mu?
+- Akıllı temizlik → selamlaşma/bulanık kovası satırındaki AI düğmesi: yanlış eşleşen görseller listeden çıkıyor mu, sayı bildirimi doğru mu?

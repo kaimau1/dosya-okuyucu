@@ -382,3 +382,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **WhatsApp iletilen kopyaları:** WhatsApp klasöründe aynı BAYT boyutlu görseller = kopya sezgisi, en eskisi kalır (`SmartSort.waCopiesOf`, `reasonOf` → `wa_copy`). Kayıt alanı değil, `revision`'a bağlı önbellek. Yanlış eşleşme görülürse grupta içerik özeti karşılaştır.
 - **AI en iyi kare:** Benzer karelerde grup başına ⭐ → önizlemelere Decisions `score` (netlik/gözler açık/kadraj), `SimilarFinder.orderByAi` (puanlı başa, eşitte yerel netlik sırası). Sonuç iş kuyruğundaki grubu yeniden sıralar (silme yok).
 - **Decisions boş imza alanı:** belge hazır sorularına `sign_empty` — toplu kontrol "Yalnız Evet" ile imzasızlar.
+## 2026-11-19 — B2 dilim 4 (yerel, dal faz-oto-B2-duzen-kullanim; yazıldı, cihazda doğrulanmadı; haftalık limit %91 → yarıda)
+- **Tarama AI kalite:** `ScanAiQuality` (3 noul: okunaklı/parlama/kesik, eşik 0.6, öncelik parlama>kesik>okunaksız) — yerel ölçüm parlama/kesik kenarı göremiyordu. Yalnız kullanıcı ⋮'dan başlatır (gizlilik+kota).
+- **Akıllı temizlik AI doğrulaması:** yalnız greeting/blurry kovası; en çok 20 görsel, AI P<0.3 → kovadan düşer (silme yok).
+- **Galeri kategori süzgeci ZATEN VARDI:** Fotoğraflar `FmQuickFilters` AI kategori hapı (2026-11-18). Eksik: hassas kategori (kimlik/sağlık/banka/vergi) seçiminde PIN — yapılmadı.
+- **Sohbet yönlendirici (yapılmadı):** sohbet zinciri zaten flash-lite önce (`ai_tasks.dart`); kazanç = basit soruda Gemma'yı (günde 14.400) öne almak; Decisions çağrısı yalnız katalogda Gemma varsa + zaman aşımı ~1,5 sn.
