@@ -782,7 +782,7 @@ class PptxRender {
       ];
       return [
         for (final n in names)
-          if (_first(style, 'a:$n') case final e?) e,
+          ?_first(style, 'a:$n'),
       ];
     }
 
