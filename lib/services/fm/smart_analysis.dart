@@ -7,6 +7,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
+import '../gemini_decisions.dart';
 import 'chat_junk.dart' show isChatMediaPath;
 
 /// Akıllı analizin bulduğu yığın türleri (içeriğe BAKAN — `chat_junk`
@@ -179,6 +180,39 @@ abstract final class SmartAnalysis {
     if (t.sharpness < blurThreshold) return SmartKind.blurry;
     return null;
   }
+
+  /// **AI doğrulaması** (B2 dilim 4, PLAN §1.2): yerel sezgi (OCR'da
+  /// "günaydın" geçiyor / Laplace varyansı düşük) yanlış eşleşebilir — ör.
+  /// içinde "iyi bayramlar" yazan bir fatura, bilerek bulanık çekilmiş
+  /// arka plan. Kovadaki en çok [aiVerifyLimit] görsel Decisions'a sorulur;
+  /// AI'ın açıkça "hayır" dediği ([aiRejectBelow] altı) dosya kovadan çıkar.
+  /// Silme yok; yalnız öneri listesi daralır.
+  static const aiVerifyLimit = 20;
+  static const aiRejectBelow = 0.3;
+
+  /// Kova türü için doğrulama sorusu; doğrulanmayan türde null.
+  static DecisionQuestion? verifyQuestion(SmartKind kind) => switch (kind) {
+        SmartKind.greeting => const DecisionQuestion.yesNo(
+            'greeting',
+            'Greeting?',
+            'Is this a forwarded greeting or celebration image (good morning, '
+                'happy Friday, holiday wishes, blessings) with no personal or '
+                'document value?'),
+        SmartKind.blurry => const DecisionQuestion.yesNo(
+            'blurry',
+            'Blurry?',
+            'Is this photo accidentally blurry or out of focus so that it is '
+                'not worth keeping?'),
+        _ => null,
+      };
+
+  /// AI'ın reddettiği dosyalar düşer; sorulmayan/yanıtsız dosya kalır.
+  static List<FsEntry> dropRejected(
+          List<FsEntry> files, Map<String, double> yes) =>
+      [
+        for (final f in files)
+          if ((yes[f.path] ?? 1) >= aiRejectBelow) f,
+      ];
 
   /// Görseli 64 px'e indirip parlaklık + Laplace varyansı (netlik) ölçer.
   /// Çözülemezse null. (İzolatta çağrılır.)
