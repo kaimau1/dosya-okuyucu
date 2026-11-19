@@ -398,4 +398,20 @@ void main() {
     expect(SmartSort.categoryOf('/e/a.pdf'), 'invoice');
     SmartSort.debugReset();
   });
+
+  test('taşıma kuralı: varsayılan boş, hedefte duran ve gizli atlanır', () {
+    SmartSort.debugReset(const [
+      SmartRecord(path: '/d/a.pdf', size: 1, modifiedMs: 1, cat: 'invoice'),
+      SmartRecord(path: '/F/b.pdf', size: 1, modifiedMs: 1, cat: 'invoice'),
+      SmartRecord(
+          path: '/d/c.pdf', size: 1, modifiedMs: 1, cat: 'invoice',
+          hidden: true),
+      SmartRecord(path: '/d/e.pdf', size: 1, modifiedMs: 1, cat: 'id'),
+    ]);
+    expect(SmartSort.pendingRuleMoves(const {}), isEmpty);
+    expect(SmartSort.pendingRuleMoves(const {'invoice': '/F'}), {
+      '/F': ['/d/a.pdf'],
+    });
+    SmartSort.debugReset();
+  });
 }

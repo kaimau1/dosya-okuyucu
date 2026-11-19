@@ -133,4 +133,21 @@ const Map<String, (String, String, String)> _t41 = {
     'A file in the wrong place? ⋮ menu → "Wrong category?" — Smart sort learns.',
     'ملف في غير مكانه؟ القائمة ⋮ ← "تصنيف خاطئ؟" — يتعلّم الترتيب الذكي.',
   ),
+  'smo.rule': ('Taşıma kuralı…', 'Move rule…', 'قاعدة النقل…'),
+  'smo.rule_on': ('Taşıma kuralı: {folder}', 'Move rule: {folder}', 'قاعدة النقل: {folder}'),
+  'smo.rule_off': ('Taşıma kuralını kapat', 'Turn off move rule', 'إيقاف قاعدة النقل'),
+  'smo.rule_pick': ('Kuralı buraya kur', 'Set rule here', 'اضبط القاعدة هنا'),
+  'smo.rule_title': ('Taşıma kuralı', 'Move rule', 'قاعدة النقل'),
+  'smo.rule_body': (
+    '"{cat}" klasörüne düşen dosyalar "{folder}" içine taşınacak — şimdi {n} dosya, sonra yeni gelenler. Her taşıma "Geri al" ile geri alınır; kural bu menüden kapatılır.',
+    'Files sorted into "{cat}" will be moved into "{folder}" — {n} now, new ones later. Every move can be undone; turn the rule off from this menu.',
+    'ستُنقل الملفات المصنّفة في "{cat}" إلى "{folder}" — {n} الآن، والجديدة لاحقًا. يمكن التراجع عن كل نقل؛ أوقف القاعدة من هذه القائمة.',
+  ),
+  'smo.rule_ok': ('Kuralı aç', 'Turn on', 'تشغيل'),
+  'smo.rule_moved': ('Kurala göre {n} dosya taşındı', '{n} files moved by rule', 'نُقل {n} ملف حسب القاعدة'),
+  'smo.rule_failed': (
+    '{n} dosya taşındı, {fail} taşınamadı: {error}',
+    '{n} files moved, {fail} failed: {error}',
+    'نُقل {n} ملف، وتعذّر نقل {fail}: {error}',
+  ),
 };

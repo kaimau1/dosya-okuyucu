@@ -579,6 +579,22 @@ abstract final class SmartSort {
             if (!r.hidden && r.cat == cat) r.path
         ];
 
+  /// Taşıma kurallarının ([SmartFolderPrefs.ruleOf]) bekleyen işi: hedef
+  /// klasör → oraya gidecek yollar. Zaten hedefte duran ve ikinci kurala
+  /// takılan dosya atlanır. Kural yoksa boş (varsayılan KAPALI).
+  static Map<String, List<String>> pendingRuleMoves(
+      [Map<String, String>? rules]) {
+    final out = <String, List<String>>{};
+    final seen = <String>{};
+    for (final e in (rules ?? SmartFolderPrefs.rules).entries) {
+      for (final path in pathsOf(e.key)) {
+        if (p.equals(p.dirname(path), e.value) || !seen.add(path)) continue;
+        (out[e.value] ??= []).add(path);
+      }
+    }
+    return out;
+  }
+
   /// Kullanıcı kategorisi → dosya sayısı (gizliler hariç; silinmiş kategori
   /// yok).
   static Map<String, int> userCounts() {
