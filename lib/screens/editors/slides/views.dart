@@ -245,7 +245,7 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                       onTap: _selShape == null ? null : _clearSelection,
                       child: SlideCanvas(
                         slide: view,
-                        onEditShape: (shape) => _beginEdit(slide, shape),
+                        onEditShape: (shape, at) => _beginEdit(slide, shape, at),
                         onSelectShape: (shape) => _selectShape(slide, shape),
                         selectedShape:
                             identical(_selSlide, slide) ? _selShape : null,

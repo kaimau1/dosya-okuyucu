@@ -1021,7 +1021,7 @@ void main() {
           height: 225,
           child: SlideCanvas(
             slide: view,
-            onEditShape: (s) => tapped = ShapeVMTapped(s.paragraphs.first.plainText),
+            onEditShape: (s, _) => tapped = ShapeVMTapped(s.paragraphs.first.plainText),
           ),
         ),
       ),

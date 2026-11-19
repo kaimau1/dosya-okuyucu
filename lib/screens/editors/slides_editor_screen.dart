@@ -194,6 +194,8 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   PptxSlide? _editSlide;
   ShapeVM? _editShapeVM;
   SlideTextController? _textCtrl;
+  /// Düzenlemeyi açan dokunuşun kutu içindeki yeri (imleç oraya, B11 m.4).
+  Offset? _editTapAt;
   final FocusNode _textFocus = FocusNode();
   final FormatPanelController _panel = FormatPanelController();
   late final AnimationController _zoomAnim;

@@ -21,11 +21,16 @@ class SlideBoxEditor extends StatefulWidget {
   final SlideTextController controller;
   final FocusNode focusNode;
 
+  /// Düzenlemeyi açan dokunuşun kutu içindeki yeri (punto): ilk yerleşimden
+  /// sonra imleç oraya konur (B11 m.4 — "imleç doğrudan metinde").
+  final Offset? tapAt;
+
   const SlideBoxEditor({
     super.key,
     required this.shape,
     required this.controller,
     required this.focusNode,
+    this.tapAt,
   });
 
   @override
@@ -55,6 +60,7 @@ class _SlideBoxEditorState extends State<SlideBoxEditor> {
   void initState() {
     super.initState();
     widget.controller.addListener(_changed);
+    _caretToTapLater();
   }
 
   @override
@@ -63,7 +69,47 @@ class _SlideBoxEditorState extends State<SlideBoxEditor> {
     if (!identical(old.controller, widget.controller)) {
       old.controller.removeListener(_changed);
       widget.controller.addListener(_changed);
+      _caretToTapLater();
     }
+  }
+
+  void _caretToTapLater() {
+    if (widget.tapAt == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _caretToTap());
+  }
+
+  /// Dokunulan noktayı metin konumuna çevirir. Kutu = editörü saran
+  /// [OverflowBox] (slide_canvas `_editorBody`), dokunuş onun yerel noktası.
+  // ponytail: döndürülmüş kutuda dokunuş döndürülmeden eşlenir (imleç yaklaşık).
+  void _caretToTap() {
+    if (!mounted) return;
+    final at = widget.tapAt;
+    final ed = _editable();
+    final box =
+        context.findAncestorRenderObjectOfType<RenderConstrainedOverflowBox>();
+    if (at == null || ed == null || box == null || !box.attached) {
+      return;
+    }
+    final pos = ed.getPositionForPoint(box.localToGlobal(at));
+    widget.controller.selection = TextSelection.collapsed(offset: pos.offset);
+  }
+
+  RenderEditable? _editable() {
+    final root = _fieldKey.currentContext?.findRenderObject();
+    if (root == null) return null;
+    RenderEditable? found;
+    void find(RenderObject o) {
+      if (found != null) return;
+      if (o is RenderEditable) {
+        found = o;
+        return;
+      }
+      o.visitChildren(find);
+    }
+
+    find(root);
+    final ed = found;
+    return ed != null && ed.attached && ed.hasSize ? ed : null;
   }
 
   @override
@@ -114,24 +160,10 @@ class _SlideBoxEditorState extends State<SlideBoxEditor> {
 
   /// Madde işaretlerinin yerini imleç kutularından ölçer (yerleşimden sonra).
   void _measureBullets() {
-    final ctx = _fieldKey.currentContext;
-    if (ctx == null || !mounted) return;
-    RenderEditable? editable;
-    void find(RenderObject o) {
-      if (editable != null) return;
-      if (o is RenderEditable) {
-        editable = o;
-        return;
-      }
-      o.visitChildren(find);
-    }
-
-    final root = ctx.findRenderObject();
-    if (root == null) return;
-    find(root);
-    final ed = editable;
+    if (!mounted) return;
+    final ed = _editable();
     final host = context.findRenderObject();
-    if (ed == null || host is! RenderBox || !ed.attached || !ed.hasSize) return;
+    if (ed == null || host is! RenderBox) return;
     final c = widget.controller;
     final model = c.model;
     final ranges = model.paragraphRanges();

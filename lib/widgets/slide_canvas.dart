@@ -60,7 +60,8 @@ class SlideCanvas extends StatelessWidget {
   final SlideVM slide;
 
   /// Metin kutusuna dokunulduğunda çağrılır (düzenleme için). null ise salt okunur.
-  final void Function(ShapeVM shape)? onEditShape;
+  /// [at]: dokunuşun kutu içindeki yeri (punto) — imleç oraya konur (B11 m.4).
+  final void Function(ShapeVM shape, Offset? at)? onEditShape;
 
   /// Faz 28 — seç / düzenle ayrımı (PowerPoint mobil): verilirse şekle İLK
   /// dokunuş onu seçer, seçili şekle ikinci dokunuş (ya da çift dokunuş)
@@ -210,6 +211,7 @@ class SlideCanvas extends StatelessWidget {
       // dokunuşu seçer, ikincisi seçili şekli düzenler.
       final canSelect = select != null && s.element != null;
       final spoken = s.paragraphs.map((p) => p.plainText).join(' ').trim();
+      Offset? tapAt;
       child = Semantics(
         // TalkBack (Faz 33): şeklin yazısı (ya da yer tutucunun daveti).
         container: true,
@@ -220,13 +222,14 @@ class SlideCanvas extends StatelessWidget {
             : prompt,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
+          onTapUp: (d) => tapAt = d.localPosition,
           onTap: () {
             // Seçili tablo çerçevesi: yazı yok, yalnız taşınır.
             if (s.tableFrame && selected) return;
             if (!canSelect ||
                 selected ||
                 (prompt != null && s.element == null)) {
-              onEditShape!(s);
+              onEditShape!(s, tapAt);
             } else {
               select(s);
             }

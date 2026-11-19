@@ -141,6 +141,19 @@ void main() {
     expect(size * k, greaterThanOrEqualTo(16));
   });
 
+  testWidgets('B11 m.4: imleç dokunulan yerde açılır (sonda değil)',
+      (tester) async {
+    await pump(tester);
+    await openEditor(tester, 'Birinci madde');
+    await tester.pump();
+    final c = tester
+        .widget<EditableText>(find.byType(EditableText).last)
+        .controller;
+    expect(c.text, contains('İkinci madde'));
+    // Dokunuş "Birinci madde"nin ortasındaydı: imleç ilk paragrafta.
+    expect(c.selection.baseOffset, inInclusiveRange(1, 'Birinci madde'.length));
+  });
+
   testWidgets('yaz → Bitti → slayt güncellenir; geri al eski metni getirir',
       (tester) async {
     await pump(tester);
