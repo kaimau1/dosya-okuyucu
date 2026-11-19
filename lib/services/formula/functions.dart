@@ -841,7 +841,9 @@ extension _ParserFunctionsPart on _Parser {
         return (_numArg(args, 0) - _numArg(args, 1)) / life;
 
       default:
-        return const FormulaError('#AD?'); // bilinmeyen fonksiyon
+        // B10 m.2: dizi/metin/LAMBDA işlevleri (formula/arrays.dart).
+        return _callArrayFunc(name, args) ??
+            const FormulaError('#AD?'); // bilinmeyen fonksiyon
     }
   }
 

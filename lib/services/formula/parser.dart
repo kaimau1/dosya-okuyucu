@@ -269,20 +269,30 @@ extension _ParserParserPart on _Parser {
     throw const FormulaError('#DEĞER!'); // kapanmayan dize
   }
 
-  /// `{1;2;3}` dizi sabiti — ilk değeri kullanılır (dizi formülü desteklenmez).
+  /// `{1,2;3,4}` dizi sabiti (B10 m.2): `,` ya da `\\` sütun, `;` satır
+  /// ayırır (dosya biçimi). Tek değer bekleyen yerde `_single` ilk öğeyi
+  /// alır — eski davranış; dizi işlevleri (TOPLA, SÜTUNSEÇ …) tümünü görür.
   Object _parseArrayLiteral() {
     _i++;
-    final values = <Object>[];
+    final rows = <List<Object>>[<Object>[]];
     while (_i < s.length && s[_i] != '}') {
-      values.add(parseExpr());
+      rows.last.add(_single(parseExpr()));
       _skip();
-      if (_i < s.length && (s[_i] == ',' || s[_i] == ';' || s[_i] == '\\')) {
+      if (_i < s.length && (s[_i] == ',' || s[_i] == '\\')) {
         _i++;
+      } else if (_i < s.length && s[_i] == ';') {
+        _i++;
+        rows.add(<Object>[]);
       }
       _skip();
     }
     if (_i < s.length) _i++; // kapanış }
-    return values.isEmpty ? '' : _single(values.first);
+    if (rows.last.isEmpty) rows.removeLast();
+    if (rows.isEmpty) return '';
+    final w = rows.first.length;
+    // Satırlar eşit uzunlukta olmalı (Excel de kabul etmez).
+    if (rows.any((r) => r.length != w)) throw const FormulaError('#DEĞER!');
+    return rows.length == 1 && w == 1 ? rows.first.first : FormulaArray(rows);
   }
 
   /// `'Sayfa Adı'!A1` biçimindeki referans.
@@ -353,6 +363,15 @@ extension _ParserParserPart on _Parser {
       _i++;
       final canon = _Parser._canonical(word);
       if (canon == 'LET') return _parseLet();
+      if (canon == 'LAMBDA') return _parseLambda();
+      // LET ile ada bağlanmış LAMBDA çağrısı: `LET(f; LAMBDA(x; x*2); f(3))`.
+      final bound = _locals?[canon];
+      if (bound is _Lambda) {
+        final callArgs = _parseArgs();
+        if (!_match(')')) throw const FormulaError('#DEĞER!');
+        return _invoke(
+            bound, _Parser._isEmptyArgs(callArgs) ? const [] : callArgs);
+      }
       final arrayFn = _Parser._arrayFunctions.contains(canon);
       if (arrayFn) _arrayDepth++;
       final List<Object> args;

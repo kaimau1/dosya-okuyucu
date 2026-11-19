@@ -118,7 +118,8 @@ extension _FormulaLocalePart on _Parser {
 
   static String _stripPrefix(String word) {
     final up = word.toUpperCase();
-    for (final p in const ['_XLFN._XLWS.', '_XLFN.', '_XLWS.']) {
+    // `_xlpm.` = dosyadaki LAMBDA/LET parametre adı öneki (`_xlpm.x`).
+    for (final p in const ['_XLFN._XLWS.', '_XLFN.', '_XLWS.', '_XLPM.']) {
       if (up.startsWith(p)) return word.substring(p.length);
     }
     return word;
@@ -174,6 +175,10 @@ extension _FormulaLocalePart on _Parser {
     'TEXTBEFORE', 'TEXTAFTER', 'NUMBERVALUE', 'UNICHAR', 'UNICODE',
     'ISOWEEKNUM', 'ISFORMULA', 'FORMULATEXT', 'SHEET', 'SHEETS',
     'FILTER', 'SORT', 'UNIQUE', 'SEQUENCE', 'LET',
+    // B10 m.2
+    'TEXTSPLIT', 'VSTACK', 'HSTACK', 'TAKE', 'DROP', 'CHOOSECOLS',
+    'CHOOSEROWS', 'LAMBDA', 'MAP', 'REDUCE', 'SCAN', 'BYROW', 'BYCOL',
+    'MAKEARRAY', 'NETWORKDAYS.INTL', 'WORKDAY.INTL',
   };
 }
 
