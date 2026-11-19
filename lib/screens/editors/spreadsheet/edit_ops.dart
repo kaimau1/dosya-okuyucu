@@ -140,7 +140,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final ext = p.extension(widget.path).toLowerCase();
     if (ext != '.xlsx' && ext != '.xlsm') return;
     try {
-      if (File(widget.path).lengthSync() <
+      if (await File(widget.path).length() <
           _SpreadsheetEditorScreenState._headMinBytes) {
         return;
       }
