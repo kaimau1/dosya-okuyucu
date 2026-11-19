@@ -292,6 +292,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
       },
       builder: (context, candidates, _) => LongPressDraggable<int>(
         data: index,
+        hapticFeedbackOnStart: false, // AppHaptics ayarı dinler
         onDragStarted: AppHaptics.longPress,
         feedback: SizedBox(
           width: 96,

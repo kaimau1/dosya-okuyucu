@@ -1,6 +1,6 @@
 # DEVIR — B4 PDF Pro (dal faz-oto-B4-pdfpro)
 Dilim 1 (P21 meta veri + P17 XFDF) ve dilim 2 (P21 R6 kilit açma) main'de (ccf161cd).
-Dilim 3 (dalda): P20 sayfa stüdyosu çekirdeği — commit da313e6e.
+Dilim 3 (dalda): P20 sayfa stüdyosu çekirdeği — commit da313e6e (+ CI düzeltmesi: hapticFeedbackOnStart).
 - lib/screens/pdf_tools/page_studio.dart (ızgara, seç/döndür/sil/çoğalt, LongPressDraggable taşı, 50 adım geri al); PdfReorderScreen silindi.
 - lib/services/pdf_tools.dart applyPageStudio(+InBackground) / studioKeepsAnnotations; test test/pdf_tools_test.dart "applyPageStudio" grubu.
 - Kasma: hücre RepaintBoundary + delege sabit boy, Opacity yok; seçim kök setState (araç ekranı) — C2'de ölçülecek.
