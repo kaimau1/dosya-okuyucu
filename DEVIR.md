@@ -1,6 +1,7 @@
 # DEVIR — B2 Akıllı düzen 2.0 kullanım (dal faz-oto-B2-duzen-kullanim)
 
-## Dilim 1 (yerel, 2026-11-19) — bitti, CI bekliyor
+## Dilim 1 (yerel, 2026-11-19) — bitti, CI yeşil (koşu 44480874761, a18abae6)
+- Tuzak: `SmartTaxonomy.sensitive` zaten vardı (kullanılmıyordu) — ikinci tanım analyze'ı kırdı, kaldırıldı.
 - m.1 Ayıkla 2 en net kare (f806672e): `image_hash.dart` laplacianVariance + sharpnessTier,
   `MediaFingerprint.sharpness` (128x128, oturum önbelleği, yalnız gruptakiler),
   `SimilarFinder.orderBest`; Ayıkla AppBar "Benzer kareler" (scope `smart_photos`).
