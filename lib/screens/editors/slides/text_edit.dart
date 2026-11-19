@@ -117,8 +117,8 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
       (shape.element?.name.qualified == 'p:sp' && shape.image == null);
 
   /// Kutuyu düzenlemeye açar: kanvas kutuya yakınlaşır, editör kutunun
-  /// yerinde açılır, imleç sonda.
-  void _beginEdit(PptxSlide slide, ShapeVM shape) {
+  /// yerinde açılır; imleç dokunulan yerde ([at], kutu içi punto), yoksa sonda.
+  void _beginEdit(PptxSlide slide, ShapeVM shape, [Offset? at]) {
     if (identical(_editShapeVM, shape)) return;
     // Düzenleme başlarken bakılan yer; hücreler arası geçişte üzerine yazılmaz.
     if (_textCtrl == null && _vCtrl.hasClients) _editOffset = _vCtrl.offset;
@@ -146,6 +146,7 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
       _editSlide = slide;
       _editShapeVM = shape;
       _textCtrl = ctrl;
+      _editTapAt = at;
     });
     _zoomAnim.forward(from: Motion.reduced(context) ? 1 : 0);
   }
@@ -296,7 +297,7 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                       slide: view,
                       editingShape: shape,
                       // Başka kutuya dokunmak onu düzenlemeye açar.
-                      onEditShape: (other) => _beginEdit(slide, other),
+                      onEditShape: (other, at) => _beginEdit(slide, other, at),
                       promptFor: _promptFor,
                       editorBuilder: (s) => CallbackShortcuts(
                         // Tablo hücresinde ⇥ / ⇧⇥ hücreden hücreye geçer.
@@ -312,6 +313,7 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                           shape: s,
                           controller: ctrl,
                           focusNode: _textFocus,
+                          tapAt: _editTapAt,
                         ),
                       ),
                     ),

@@ -86,7 +86,7 @@ void main() {
               slide: view,
               // Düzenleyicideki gibi: çerçeve editörü yalnız dokunulabilir
               // (düzenle/seç verilmiş) seçili şekle kurulur.
-              onEditShape: (_) {},
+              onEditShape: (_, _) {},
               onSelectShape: (_) {},
               selectedShape: shape,
               onFrameChanged: (_, _, _) {},

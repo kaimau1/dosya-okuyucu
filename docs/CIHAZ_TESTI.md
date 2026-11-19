@@ -1455,3 +1455,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Geçmiş > Açılanlar: birkaç fotoğraflı listede bir fotoğrafa dokun → küçük resimden takılmadan büyüyor, net hâli gecikmeden geliyor (eskiden donup geç açılıyordu).
 - [ ] Galeriyi kapat (geri ya da aşağı kaydır) → fotoğraf dokunduğun satıra dönüyor; ardından o fotoğraf listenin en üstüne geçiyor (son açılan).
 - [ ] Ana ekran "Son açılanlar"dan fotoğraf açınca da aynı: açılışta takılma yok, kapanınca şerit tazeleniyor.
+
+## B11 Slayt 2.0 dilim 1 (2026-11-19, dal faz-oto-B11-slayt2)
+- PowerPoint'te stil verilmiş tablo (başlık satırı renkli, bantlı satırlar) içeren bir sunum aç: başlık ve satır renkleri PowerPoint'teki gibi mi? Yazı başlıkta beyaz-kalın mı?
+- Bir metin kutusuna dokun (seç), sonra metnin ortasına tekrar dokun: imleç dokunduğun yerde mi (sonda değil)?
+- Uzun kutuda alt satırlara yazarken klavye açıkken yazılan satır görünür kalıyor mu (slayt kayıyor mu)?
+- Slayt düzenleme/sunum A/B (C2): kutu açma ve yazma hissi önceki [apk] ile aynı mı.
