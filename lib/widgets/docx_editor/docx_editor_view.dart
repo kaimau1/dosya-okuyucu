@@ -22,6 +22,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_haptics.dart';
 import '../../core/image_budget.dart';
+import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart' show Radii;
@@ -68,6 +69,10 @@ class DocxEditorView extends StatefulWidget {
   /// imleç ya da seçim kurmaz, klavye açılmaz.
   final bool readOnly;
 
+  /// B9 m.7: yazarken otomatik biçim (cümle başı büyük harf, `--` → `—`,
+  /// çift boşluk, `- ` / `1. ` ile liste).
+  final bool autoFormat;
+
   const DocxEditorView({
     super.key,
     required this.controller,
@@ -75,6 +80,7 @@ class DocxEditorView extends StatefulWidget {
     this.actions = const DocxEditorActions(),
     this.spellcheck = true,
     this.readOnly = false,
+    this.autoFormat = false,
   });
 
   @override
@@ -278,9 +284,14 @@ class DocxEditorViewState extends State<DocxEditorView> {
         c.selectWord(p);
       }
     }
-    c.attach(autocorrect: widget.spellcheck);
+    _attachIme();
     _restartBlink(); // bağlantı select'ten sonra kuruldu
   }
+
+  void _attachIme() => c.attach(
+      autocorrect: widget.spellcheck,
+      autoFormat: widget.autoFormat,
+      turkish: context.language == AppLanguage.tr);
 
   void _onLongPressStart(LongPressStartDetails d) {
     final p = hitTest(d.globalPosition);
@@ -288,7 +299,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     AppHaptics.selection();
     _focus.requestFocus();
     c.selectWord(p);
-    c.attach(autocorrect: widget.spellcheck);
+    _attachIme();
   }
 
   void _onLongPressMove(LongPressMoveUpdateDetails d) {

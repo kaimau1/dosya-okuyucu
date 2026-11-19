@@ -735,6 +735,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
               controller: c,
               scale: _scale,
               spellcheck: EditPrefs.wordSpellcheck,
+              autoFormat: EditPrefs.wordAutoFormat,
               actions: DocxEditorActions(
                   translate: _translate,
                   aiFix: _aiFix,

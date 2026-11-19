@@ -244,6 +244,23 @@ class WordSpellcheckTile extends StatelessWidget {
   }
 }
 
+/// Word yazarken otomatik biçim (B9 m.7).
+class WordAutoFormatTile extends StatelessWidget {
+  const WordAutoFormatTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watchBrowse();
+    return SettingSwitch(
+      icon: AppIcons.autoFixNormal,
+      title: context.t('word.autoformat'),
+      subtitle: context.t('word.autoformat_sub'),
+      value: appState.wordAutoFormat,
+      onChanged: appState.setWordAutoFormat,
+    );
+  }
+}
+
 /// Excel: formülleri İngilizce göster (Faz 25 / K22).
 class FormulaEnglishTile extends StatelessWidget {
   const FormulaEnglishTile({super.key});

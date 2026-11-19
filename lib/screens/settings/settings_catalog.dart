@@ -325,6 +325,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 subtitleKey: 'word.spellcheck_sub',
                 builder: _wordSpellTile),
             SettingRow(
+                id: 'word_autoformat',
+                titleKey: 'word.autoformat',
+                subtitleKey: 'word.autoformat_sub',
+                builder: _wordAutoFormatTile),
+            SettingRow(
                 id: 'excel_formula_english',
                 titleKey: 'excel.formula_english',
                 subtitleKey: 'excel.formula_english_sub',
@@ -919,6 +924,7 @@ Widget _smartBenchTile(BuildContext context) => SettingTile(
     );
 Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
 Widget _wordSpellTile(BuildContext _) => const WordSpellcheckTile();
+Widget _wordAutoFormatTile(BuildContext _) => const WordAutoFormatTile();
 Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
