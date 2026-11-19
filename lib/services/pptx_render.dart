@@ -391,6 +391,26 @@ class PptxRender {
   final Map<String, Map<String, Color>> _themeCache = {};
   final Map<String, (String, String)> _fontCache = {};
   final Map<String, List<double>> _lnWidthCache = {};
+  final Map<String, XmlElement?> _tblStyleCache = {};
+
+  /// PowerPoint'in varsayılan tablo stili (Orta Stil 2 – Vurgu 1). Dosyalar
+  /// çoğu zaman bunun tanımını `tableStyles.xml`e YAZMAZ; yerleşik yaklaşığı.
+  static const _defaultTableStyleId = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}';
+  static final _builtInMedium2 = XmlDocument.parse(
+    '<a:tblStyle xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    '<a:wholeTbl><a:tcTxStyle><a:schemeClr val="dk1"/></a:tcTxStyle><a:tcStyle><a:fill>'
+    '<a:solidFill><a:schemeClr val="accent1"><a:tint val="20000"/></a:schemeClr>'
+    '</a:solidFill></a:fill></a:tcStyle></a:wholeTbl>'
+    '<a:band1H><a:tcStyle><a:fill><a:solidFill><a:schemeClr val="accent1">'
+    '<a:tint val="40000"/></a:schemeClr></a:solidFill></a:fill></a:tcStyle></a:band1H>'
+    '<a:band1V><a:tcStyle><a:fill><a:solidFill><a:schemeClr val="accent1">'
+    '<a:tint val="40000"/></a:schemeClr></a:solidFill></a:fill></a:tcStyle></a:band1V>'
+    '${['lastCol', 'firstCol', 'lastRow', 'firstRow'].map((r) => '<a:$r>'
+        '<a:tcTxStyle b="on"><a:schemeClr val="lt1"/></a:tcTxStyle><a:tcStyle><a:fill>'
+        '<a:solidFill><a:schemeClr val="accent1"/></a:solidFill></a:fill></a:tcStyle>'
+        '</a:$r>').join()}'
+    '</a:tblStyle>',
+  );
 
   /// Temanın çizgi stili kalınlıkları (`a:fmtScheme > a:lnStyleLst`, punto).
   /// `p:style > a:lnRef@idx` 1 tabanlı olarak bu listeyi işaret eder.
@@ -739,8 +759,35 @@ class PptxRender {
       ));
     }
 
+    // B11 m.1 — tablo stili (`a:tableStyleId` + `tblPr` bayrakları): açık hücre
+    // biçimi yoksa başlık/bant/kenar sütun dolgusu ve yazı rengi stilden gelir.
+    // ponytail: stilin kenarlıkları (`a:tcBdr`) ve `fillRef` okunmaz; gerekirse ekle.
+    final tblPr = _first(tbl, 'a:tblPr');
+    final style = _tableStyle(_first(tblPr, 'a:tableStyleId')?.innerText.trim());
+    bool flag(String a) => const {'1', 'true'}.contains(tblPr?.getAttribute(a));
+    final rows = tbl.findElements('a:tr').toList();
+    final hdr = flag('firstRow') ? 1 : 0, fc = flag('firstCol') ? 1 : 0;
+    List<XmlElement> regions(int r, int c) {
+      if (style == null) return const [];
+      final lastRow = flag('lastRow') && r == rows.length - 1;
+      final names = [
+        'wholeTbl',
+        if (flag('bandRow') && r >= hdr && !lastRow)
+          (r - hdr).isEven ? 'band1H' : 'band2H',
+        if (flag('bandCol') && c >= fc) (c - fc).isEven ? 'band1V' : 'band2V',
+        if (flag('lastCol') && c == widths.length - 1) 'lastCol',
+        if (fc == 1 && c == 0) 'firstCol',
+        if (lastRow) 'lastRow',
+        if (hdr == 1 && r == 0) 'firstRow',
+      ];
+      return [
+        for (final n in names)
+          if (_first(style, 'a:$n') case final e?) e,
+      ];
+    }
+
     var y = y0;
-    for (final row in tbl.findElements('a:tr')) {
+    for (final (r, row) in rows.indexed) {
       final rowH = (_pt(row.getAttribute('h')) ?? 0) * xf.sy;
       var x = x0;
       var col = 0;
@@ -767,13 +814,46 @@ class PptxRender {
             return BorderSide(color: c, width: bw <= 0 ? 1 : bw);
           }
 
+          Color? sFill, sText;
+          bool? sBold;
+          for (final reg in regions(r, col)) {
+            final fillEl = _first(_first(reg, 'a:tcStyle'), 'a:fill');
+            if (fillEl != null) {
+              sFill = _first(fillEl, 'a:noFill') != null
+                  ? null
+                  : _solidFill(fillEl, theme, clrMap) ?? sFill;
+            }
+            final tx = _first(reg, 'a:tcTxStyle');
+            if (tx != null) {
+              final b = tx.getAttribute('b');
+              if (b != null) sBold = b == 'on';
+              final fontRef = _first(tx, 'a:fontRef');
+              sText = _colorOf(tx, theme, clrMap) ??
+                  (fontRef == null ? null : _colorOf(fontRef, theme, clrMap)) ??
+                  sText;
+            }
+          }
+          var cellDefaults = defaults;
+          if (sText != null || sBold != null) {
+            final base = defaults['body']!;
+            cellDefaults = {
+              ...defaults,
+              'body': _TextDefaults(
+                  base.size, sText ?? base.color, sBold ?? base.bold),
+            };
+          }
           out.add(ShapeVM(
             id: frameId,
             x: x,
             y: y,
             w: w,
             h: rowH,
-            fill: tcPr == null ? null : _solidFill(tcPr, theme, clrMap),
+            // Açık hücre biçimi (dolgu ya da noFill) stile üstün gelir.
+            fill: tcPr != null &&
+                    (_first(tcPr, 'a:noFill') != null ||
+                        _first(tcPr, 'a:solidFill') != null)
+                ? _solidFill(tcPr, theme, clrMap)
+                : sFill,
             cellBorder: Border(
               left: side('a:lnL'),
               right: side('a:lnR'),
@@ -783,7 +863,7 @@ class PptxRender {
             vAnchor: tcPr?.getAttribute('anchor') ?? 'ctr',
             paragraphs: body == null
                 ? const []
-                : _paragraphs(body, theme, clrMap, defaults, null, editable),
+                : _paragraphs(body, theme, clrMap, cellDefaults, null, editable),
           ));
         }
         x += w;
@@ -1691,6 +1771,19 @@ class PptxRender {
       if (f.name == name) return f.content as List<int>;
     }
     return null;
+  }
+
+  /// `ppt/tableStyles.xml` içindeki `a:tblStyle` tanımı (yoksa varsayılan
+  /// stil için yerleşik yaklaşık; bilinmeyen kimlik → null, stil uygulanmaz).
+  XmlElement? _tableStyle(String? id) {
+    if (id == null || id.isEmpty) return null;
+    return _tblStyleCache.putIfAbsent(id, () {
+      final lst = _xml('ppt/tableStyles.xml')?.rootElement;
+      for (final s in lst?.findElements('a:tblStyle') ?? const <XmlElement>[]) {
+        if (s.getAttribute('styleId') == id) return s;
+      }
+      return id == _defaultTableStyleId ? _builtInMedium2.rootElement : null;
+    });
   }
 
   XmlDocument? _xml(String name) {

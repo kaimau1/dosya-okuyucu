@@ -582,6 +582,56 @@ Uint8List _tablePptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
+/// B11 m.1 — PowerPoint'te stil verilmiş tablo: hücrelerde açık dolgu YOK,
+/// görünüm `tableStyles.xml`deki stilden gelir (başlık + bantlı satırlar).
+/// Son satırın hücresi açık `noFill` taşır (stile üstün gelmeli).
+Uint8List _styledTablePptx() {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  add('ppt/tableStyles.xml', '''
+<a:tblStyleLst xmlns:a="draw" def="{X}">
+ <a:tblStyle styleId="{X}" styleName="Deneme">
+  <a:wholeTbl><a:tcTxStyle><a:srgbClr val="111111"/></a:tcTxStyle>
+   <a:tcStyle><a:fill><a:solidFill><a:srgbClr val="EEEEEE"/></a:solidFill></a:fill></a:tcStyle></a:wholeTbl>
+  <a:band1H><a:tcStyle><a:fill><a:solidFill><a:srgbClr val="CCCCCC"/></a:solidFill></a:fill></a:tcStyle></a:band1H>
+  <a:firstRow><a:tcTxStyle b="on"><a:fontRef idx="minor"><a:srgbClr val="FFFFFF"/></a:fontRef></a:tcTxStyle>
+   <a:tcStyle><a:fill><a:solidFill><a:srgbClr val="1F5AA6"/></a:solidFill></a:fill></a:tcStyle></a:firstRow>
+ </a:tblStyle>
+</a:tblStyleLst>
+''');
+  String row(String t, String tcPr) =>
+      '<a:tr h="635000"><a:tc><a:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1800"/>'
+      '<a:t>$t</a:t></a:r></a:p></a:txBody>$tcPr</a:tc></a:tr>';
+  add('ppt/slides/slide1.xml', '''
+<p:sld xmlns:p="ppt" xmlns:a="draw">
+ <p:cSld><p:spTree>
+  <p:graphicFrame>
+   <p:nvGraphicFramePr><p:cNvPr id="7" name="Tablo"/></p:nvGraphicFramePr>
+   <p:xfrm><a:off x="500000" y="500000"/><a:ext cx="2540000" cy="2540000"/></p:xfrm>
+   <a:graphic><a:graphicData uri="tbl">
+    <a:tbl>
+     <a:tblPr firstRow="1" bandRow="1"><a:tableStyleId>{X}</a:tableStyleId></a:tblPr>
+     <a:tblGrid><a:gridCol w="2540000"/></a:tblGrid>
+     ${row('Baslik', '<a:tcPr/>')}${row('Bir', '<a:tcPr/>')}${row('Iki', '<a:tcPr/>')}${row('Uc', '<a:tcPr><a:noFill/></a:tcPr>')}
+    </a:tbl>
+   </a:graphicData></a:graphic>
+  </p:graphicFrame>
+ </p:spTree></p:cSld>
+</p:sld>
+''');
+
+  return Uint8List.fromList(ZipEncoder().encode(archive));
+}
+
 void main() {
   _notesTests();
 
@@ -869,6 +919,26 @@ void main() {
     final paras = view.shapes.single.paragraphs;
     expect(paras[0].bullet, '\u25AA');
     expect(paras[1].bullet, '\u2022');
+  });
+
+  test('B11 m.1: tablo stili — başlık, bantlı satır, yazı rengi; açık biçim üstün', () {
+    final view = PptxEditor.parse(_styledTablePptx()).slides.single.view!;
+    final cells = view.shapes.where((s) => s.cellBorder != null).toList();
+    expect(cells.length, 4);
+    // Başlık: stil dolgusu + beyaz kalın yazı (fontRef içindeki renk).
+    expect(cells[0].fill, const Color(0xFF1F5AA6));
+    final head = cells[0].paragraphs.single.runs.single;
+    expect(head.bold, isTrue);
+    expect(head.color, const Color(0xFFFFFFFF));
+    // Bantlar: başlıktan sonraki ilk satır band1H, ikincisi band2H (tanımsız →
+    // tüm tablo dolgusu).
+    expect(cells[1].fill, const Color(0xFFCCCCCC));
+    expect(cells[2].fill, const Color(0xFFEEEEEE));
+    final body = cells[1].paragraphs.single.runs.single;
+    expect(body.bold, isFalse);
+    expect(body.color, const Color(0xFF111111));
+    // Açık noFill stile üstün gelir.
+    expect(cells[3].fill, isNull);
   });
 
   test('tablo hücresi kenar-başına kenarlık taşır (yalnız tanımlı kenarlar)', () {
