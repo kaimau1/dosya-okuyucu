@@ -1386,3 +1386,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## 2026-11-18 — B12 Hız 2.0 m.6: sabit satır yüksekliği (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
 - [ ] Büyük bir CSV aç (tablo görünümü) → hızlıca aşağı/yukarı kaydır: satırlar kaymadan, boşluksuz mu? Hücre metinleri eskisi gibi mi?
 - [ ] Ayarlardan yazı boyutunu en büyüğe al → müzik çalarda çalma listesi (birden çok şarkı): satırlar kesilmeden, üst üste binmeden görünüyor mu?
+
+## 2026-11-19 — Akıllı düzen 2.0 hız/kota + ilk slayt görüntüsü (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] Akıllı düzen → Ayarlar: "Yalnız Wi-Fi'de" varsayılan AÇIK mı? Mobil veride "Şimdi düzenle" → "Yalnız Wi-Fi'de düzenleniyor" diyor, dosya göndermiyor mu? Wi-Fi'de düzenliyor mu? (Bağlantı türü okunamazsa da durur — hep duruyorsa kanal adı `isMetered`e bak.)
+- [ ] "Günde en çok 200 dosya" satırı: bugünkü sayı tur boyunca artıyor mu? Dokun → 50/100/200/500/1000 seçimi ve son günlerin "N dosya · M kota uyarısı" dökümü görünüyor mu? 50 seç, sınır dolunca "bugünkü sınır doldu, kalanlar yarın" çıkıyor mu?
+- [ ] Görselli (10 MB+ fotoğraf/PDF) turda ekran takılmadan kaydırılabiliyor mu? (Ölçüm C2.)
+- [ ] 2 dakikadan uzun bir video (WhatsApp Video) → ikinci adı/kategorisi geliyor mu; 50 MB üstü uzun video da düzenleniyor mu? Kesit kullanıcı klasörüne `_kesit` dosyası BIRAKMIYOR mu? Video düzenleyicide kesim sürerken tur bozmuyor mu?
+- [ ] PowerPoint ile kaydedilmiş bir sunum (.pptx) → ikinci adı ilk slayt görselinden de yararlanıyor mu (ör. başlık resmi olan sunum)? Blok biçimi API'de denenmedi: "yapılamadı" çıkarsa sunumlarda ek görsele bak.

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -62,8 +63,12 @@ void main() {
           isFalse);
       expect(SmartSort.supports(entry('/s/Download/a.apk', 900 << 20)), isTrue);
       expect(SmartSort.supports(entry('/s/Download/s.mp3', 1000)), isTrue);
-      expect(SmartSort.supports(entry('/s/Download/v.mp4', 60 << 20)), isFalse,
-          reason: 'video yükleme sınırı');
+      // m.5c: büyük videonun yalnız ilk dakikası gider; kaynak sınırı 1 GB.
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 60 << 20)), isTrue,
+          reason: 'büyük video kesitle sorulur');
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 1025 << 20)),
+          isFalse,
+          reason: 'video kaynak sınırı 1 GB');
       expect(SmartSort.supports(entry('/s/.gizli/r.docx', 1000)), isFalse);
       expect(SmartSort.supports(entry('/s/Download/bos.txt', 0)), isFalse);
     });
@@ -256,6 +261,66 @@ void main() {
     test('olmayan dosya boş döner', () async {
       expect(await SmartSortInput.extract('${tmp.path}/yok.docx', tempDir: tmp.path),
           '');
+    });
+  });
+
+  group('ilk slayt görüntüsü (m.2 kalanı)', () {
+    const ns = 'xmlns:office="o" xmlns:text="t" xmlns:draw="d"';
+    const content = '<office:document-content $ns><office:body>'
+        '<office:presentation><draw:page><text:p>Bütçe sunumu</text:p>'
+        '</draw:page></office:presentation></office:body>'
+        '</office:document-content>';
+    final png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3];
+    final jpg = [0xFF, 0xD8, 0xFF, 0xE0, 9, 9];
+
+    File write(String name, Map<String, List<int>> files) {
+      final a = Archive();
+      files.forEach((k, v) => a.add(ArchiveFile(k, v.length, v)));
+      return File('${tmp.path}/$name')
+        ..writeAsBytesSync(ZipEncoder().encode(a));
+    }
+
+    test('sunum: yazı + gömülü ilk slayt resmi aynı istekte', () async {
+      final f = write('s.odp', {
+        'content.xml': utf8.encode(content),
+        'Thumbnails/thumbnail.png': png,
+      });
+      final prep = await SmartSortInput.prepare(
+          entry(f.path, f.lengthSync()), const ['k']);
+      expect(prep.block['type'], 'text');
+      expect(prep.block['text'] as String, contains('Bütçe sunumu'));
+      expect(prep.input, hasLength(2));
+      expect(prep.input.last, {
+        'type': 'image',
+        'mime_type': 'image/png',
+        'data': base64Encode(png),
+      });
+    });
+
+    test('JPEG tanınır; resimsiz, tanınmaz ya da büyük resimde ek yok', () {
+      final j = write('j.pptx', {'docProps/thumbnail.jpeg': jpg});
+      expect(SmartSortInput.slideImage(j.path)?['mime_type'], 'image/jpeg');
+      final none = write('n.pptx', {'ppt/presentation.xml': '<p/>'.codeUnits});
+      expect(SmartSortInput.slideImage(none.path), isNull);
+      final odd = write('o.pptx', {'docProps/thumbnail.jpeg': [1, 2, 3, 4, 5]});
+      expect(SmartSortInput.slideImage(odd.path), isNull);
+      final big = write('b.pptx', {
+        'docProps/thumbnail.jpeg': [
+          ...jpg,
+          ...List.filled(SmartSortInput.maxSlideImageBytes, 0),
+        ],
+      });
+      expect(SmartSortInput.slideImage(big.path), isNull);
+      // Eski .ppt zip değil: sessizce yok.
+      final ppt = File('${tmp.path}/e.ppt')..writeAsBytesSync([1, 2, 3]);
+      expect(SmartSortInput.slideImage(ppt.path), isNull);
+    });
+
+    test('sunum dışı belgede ek yok (Word önizlemesi gönderilmez)', () async {
+      final f = File('${tmp.path}/d.txt')..writeAsStringSync('not');
+      final prep =
+          await SmartSortInput.prepare(entry(f.path, 3), const ['k']);
+      expect(prep.input, hasLength(1));
     });
   });
 }

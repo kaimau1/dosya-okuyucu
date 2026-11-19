@@ -14,6 +14,7 @@ import '../../core/theme.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folder_prefs.dart';
 import '../../services/fm/smart_learn.dart';
+import '../../services/fm/smart_quota.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/smart_user_cats.dart';
@@ -90,7 +91,8 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(SmartSort.ensureLoaded().then((_) {
+    unawaited(Future.wait([SmartSort.ensureLoaded(), SmartQuota.read()])
+        .then((_) {
       if (mounted) setState(() => _ready = true);
     }));
   }
@@ -107,11 +109,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final r = await SmartSort.run(
         credentials: state.aiCredentials, scope: state.aiScopeRules);
-    var msg = r.stoppedBy != null
-        ? s.t('sm.stopped', {'n': r.processed})
-        : (r.processed == 0 && r.failed == 0
-            ? s.t('sm.nothing_new')
-            : s.t('sm.done', {'n': r.processed}));
+    var msg = switch (r.hold) {
+      SmartHold.wifi => s.t('sm.hold_wifi'),
+      SmartHold.cap =>
+        s.t('sm.hold_cap', {'n': r.processed, 'cap': SmartQuota.dailyCap}),
+      null => r.stoppedBy != null
+          ? s.t('sm.stopped', {'n': r.processed})
+          : (r.processed == 0 && r.failed == 0
+              ? s.t('sm.nothing_new')
+              : s.t('sm.done', {'n': r.processed})),
+    };
     // Yapılamayanlar da söylenir (eskiden sessizdi: "300'den 27 çıktı").
     if (r.failed > 0 && r.stoppedBy == null) {
       msg += ' · ${s.t('sm.failed', {'n': r.failed})}'
@@ -313,6 +320,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 SmartFolderPrefs.revision,
                 SmartLearn.revision,
                 SmartUserCats.revision,
+                SmartQuota.revision,
               ]),
               builder: (context, _) => SmartSort.enabled
                   ? Listener(
@@ -400,8 +408,64 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             value: SmartSort.autoNew,
             onChanged: (v) => unawaited(SmartSort.setSettings(auto: v)),
           ),
+          SwitchListTile(
+            key: const ValueKey('ss-wifi'),
+            secondary: const Icon(AppIcons.wifi),
+            title: Text(context.t('sm.wifi')),
+            subtitle: Text(context.t('sm.wifi_sub')),
+            value: SmartQuota.wifiOnly,
+            onChanged: (v) => unawaited(SmartQuota.setSettings(wifiOnly: v)),
+          ),
+          ListTile(
+            key: const ValueKey('ss-cap'),
+            leading: const Icon(AppIcons.dataUsage),
+            title: Text(context.t('sm.cap', {'cap': SmartQuota.dailyCap})),
+            subtitle: Text(context.t('sm.cap_sub', {
+              'n': SmartQuota.usedToday,
+              'cap': SmartQuota.dailyCap,
+              'l': SmartQuota.limitedToday,
+            })),
+            onTap: () => unawaited(_pickCap()),
+          ),
         ]),
       );
+
+  /// Günlük istek sınırı seçimi (son günlerin sayımıyla: sınırın doğru
+  /// olup olmadığı görülsün).
+  Future<void> _pickCap() async {
+    final days = SmartQuota.days;
+    final cap = await showAppSheet<int>(
+      context,
+      title: context.t('sm.cap_title'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final c in SmartQuota.capChoices)
+            ListTile(
+              key: ValueKey('ss-cap-$c'),
+              title: Text(ctx.t('sm.cap_n', {'n': c})),
+              trailing: c == SmartQuota.dailyCap
+                  ? const Icon(AppIcons.check)
+                  : null,
+              onTap: () => Navigator.pop(ctx, c),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md),
+            child: Text(
+              [
+                for (final d in days)
+                  ctx.t('sm.cap_day',
+                      {'d': d.day, 'n': d.requests, 'l': d.limited}),
+              ].join('\n'),
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (cap != null) await SmartQuota.setSettings(cap: cap);
+  }
 
   Widget _main(BuildContext context) {
     final theme = Theme.of(context);

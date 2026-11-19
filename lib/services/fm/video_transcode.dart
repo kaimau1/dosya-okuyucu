@@ -321,6 +321,55 @@ abstract final class VideoTranscoder {
     final base = p.basenameWithoutExtension(path);
     final target = FileOps.uniquePath(p.join(p.dirname(path),
         '${base}_${AppStrings.current.t('vtr.suffix')}${audioOnly ? '.m4a' : '.mp4'}'));
+    await _trimInto(path, target, range,
+        removeAudio: removeAudio, handle: handle, audioOnly: audioOnly);
+    // Eksiksiz mi? Anahtar kare payı geniş tutulur (%80): hızlı kesimde
+    // başlangıç geriye kayabilir, kısalmaz; çok kısaysa yarım kalmıştır.
+    final out = await probe(target);
+    if (out == null) {
+      _cleanup(target);
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unreadable_output'));
+    }
+    if (out.durationMs > 0 && out.durationMs < (range.lengthMs * 0.8).round()) {
+      _cleanup(target);
+      throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
+        'out': (out.durationMs / 1000).round(),
+        'src': (range.lengthMs / 1000).round(),
+      }));
+    }
+    return target;
+  }
+
+  /// Kanal üstünde süren bir iş var mı (tek iş kuralı)?
+  static bool get busy => _running != null;
+
+  /// **Akıllı düzen kesiti** (B1 m.5, 2026-11-19): [range]'i verilen
+  /// [target]a (geçici klasör) yazar — kullanıcı klasörüne dokunmaz, özgün
+  /// korunur. Hızlı yol (yeniden kodlamasız) [trim] ile aynı. Boş/eksik
+  /// çıktıda hata; çağıran [target]ı işi bitince siler.
+  static Future<String> clipTo(
+      String path, String target, TrimRange range) async {
+    await _trimInto(path, target, range);
+    final out = File(target);
+    if (!out.existsSync() || out.lengthSync() == 0) {
+      _cleanup(target);
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unreadable_output'));
+    }
+    return target;
+  }
+
+  /// `trim` kanal çağrısı + bitişi bekleme (iptal, ilerleme); hata olursa
+  /// yarım [target] silinir.
+  static Future<void> _trimInto(
+    String path,
+    String target,
+    TrimRange range, {
+    bool removeAudio = false,
+    JobHandle? handle,
+    bool audioOnly = false,
+  }) async {
     _wire();
     final done = _running = Completer<void>();
     final cancelWatch = Timer.periodic(_cancelPoll, (_) {
@@ -352,22 +401,6 @@ abstract final class VideoTranscoder {
       _onProgress = null;
       _running = null;
     }
-    // Eksiksiz mi? Anahtar kare payı geniş tutulur (%80): hızlı kesimde
-    // başlangıç geriye kayabilir, kısalmaz; çok kısaysa yarım kalmıştır.
-    final out = await probe(target);
-    if (out == null) {
-      _cleanup(target);
-      throw VideoTranscodeException(
-          AppStrings.current.t('vt.unreadable_output'));
-    }
-    if (out.durationMs > 0 && out.durationMs < (range.lengthMs * 0.8).round()) {
-      _cleanup(target);
-      throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
-        'out': (out.durationMs / 1000).round(),
-        'src': (range.lengthMs / 1000).round(),
-      }));
-    }
-    return target;
   }
 
   /// **Videoyu düzenle** (2026-11-14): aradan silinen bölümler, sessiz
