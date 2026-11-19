@@ -83,6 +83,11 @@ extension _SpreadsheetKeyboardPart on _SpreadsheetEditorScreenState {
       _clearSelection();
       return KeyEventResult.handled;
     }
+    // Ctrl+E: Hızlı doldurma (Excel kısayolu, B10 m.4).
+    if (ctrl && k == LogicalKeyboardKey.keyE) {
+      _flashFill();
+      return KeyEventResult.handled;
+    }
     // Yazmaya başla: hücrenin içeriği basılan harfle DEĞİŞİR (Excel'in
     // "Giriş" kipi).
     final ch = e.character;
