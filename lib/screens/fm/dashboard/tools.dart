@@ -6,6 +6,30 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   /// eşik basamağını taşır: kapatılan uyarı durum kötüleşince yeniden gelir.
   List<InboxEvent> _inboxEvents(List<StorageVolume> volumes) {
     final out = <InboxEvent>[];
+    // **Akıllı düzen sonucu da bu kartta** (U3 m.4, 2026-11-20, kullanıcı:
+    // "üstteki iş bildirimi ile altındaki Akıllı düzen şeridi görsel olarak
+    // farklı → tek dil"): eski ayrı `SmartBatchStrip` kalktı.
+    final batch = SmartSort.lastBatch.value;
+    if (batch != null) {
+      void open() {
+        SmartSort.lastBatch.value = null;
+        unawaited(SmartSortScreen.open(context));
+      }
+
+      out.add(InboxEvent(
+        id: 'smart_batch_${batch.at.millisecondsSinceEpoch}',
+        icon: AppIcons.ai,
+        title: context.t('sm.batch_title', {'n': batch.paths.length}),
+        subtitle: (batch.byCategory.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .take(3)
+            .map((e) => '${e.value} ${SmartCatStyle.label(context, e.key)}')
+            .join(', '),
+        actionLabel: context.t('jp.show'),
+        onTap: open,
+        onDismiss: () => SmartSort.lastBatch.value = null,
+      ));
+    }
     if (_proCard) {
       out.add(InboxEvent(
         id: 'pro_card',

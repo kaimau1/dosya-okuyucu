@@ -74,7 +74,7 @@ import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';
 import 'smart_sort_screen.dart';
 import '../../services/fm/smart_sort.dart';
-import '../../widgets/fm/smart_batch_strip.dart';
+import '../../widgets/fm/smart_cat_style.dart';
 import 'swipe_pager.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
@@ -540,7 +540,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             // sonuçlar TEK kartta, en üstte. Boşken hiç çizilmez. Eski ağ
             // paylaşımı şeridi de buraya katıldı (tek tip).
             AnimatedBuilder(
-              animation: FtpService.instance,
+              animation: Listenable.merge(
+                  [FtpService.instance, SmartSort.lastBatch]),
               builder: (context, _) =>
                   SmartInbox(events: _inboxEvents(volumes)),
             ),

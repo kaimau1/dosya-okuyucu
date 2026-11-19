@@ -34,9 +34,13 @@ class InboxEvent {
   /// Eylem düğmesi [onTap]'tan farklı bir iş yapıyorsa (ör. "Kapat").
   final VoidCallback? onAction;
 
+  /// ✕ ile kapatılınca kaynağa da haber (ör. Akıllı düzen sonucu silinsin).
+  final VoidCallback? onDismiss;
+
   const InboxEvent({
     this.dismissible = true,
     this.onAction,
+    this.onDismiss,
     required this.id,
     required this.icon,
     required this.title,
@@ -139,8 +143,10 @@ class _SmartInboxState extends State<SmartInbox> {
       for (final e in events)
         _EventRow(
           event: e,
-          onDismiss: () =>
-              setState(() => SmartInbox._dismissedEvents.add(e.id)),
+          onDismiss: () {
+            e.onDismiss?.call();
+            setState(() => SmartInbox._dismissedEvents.add(e.id));
+          },
         ),
       for (final j in finished) _JobRow(job: j),
     ];

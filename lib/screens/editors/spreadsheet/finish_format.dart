@@ -17,7 +17,7 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
     if (_editor?.csv == null) return true;
     if (_csvWarned) return true;
     _csvWarned = true;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    showSnackBarReplacing(ScaffoldMessenger.of(context), SnackBar(
       key: const ValueKey('xl-csv-warning'),
       content: Text(context.t('excel.csv_format_lost')),
       action: SnackBarAction(

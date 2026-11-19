@@ -256,8 +256,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ];
       case 'recent':
         return [
-          // "3 yeni dosya düzenlendi" (Akıllı düzen); yokken yer kaplamaz.
-          const SmartBatchStrip(),
+          // (Akıllı düzen sonucu 2026-11-20'de üstteki bildirim kartına
+          // katıldı — `_inboxEvents`.)
           RecentStrip(
             onOpen: (e) => EntryOpener.open(context, e.path),
             onAll: () => _push(const OpenHistoryScreen()),

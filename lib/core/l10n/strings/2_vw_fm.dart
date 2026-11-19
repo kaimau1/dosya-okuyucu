@@ -110,6 +110,11 @@ const Map<String, (String, String, String)> _t2 = {
   'fm.undo_action': ('Geri al', 'Undo', 'تراجع'),
   'fm.deleting': ('Siliniyor', 'Deleting', 'جارٍ الحذف'),
   'fm.undo_failed': ('Geri alınamadı: {error}', 'Could not undo: {error}', 'تعذّر التراجع: {error}'),
+  'fm.deleted_n': (
+    '{n} öğe kalıcı olarak silindi',
+    '{n} item(s) permanently deleted',
+    'حُذف {n} عنصر نهائيًا',
+  ),
   'fm.deleted_partial': (
     '{ok} öğe silindi, {fail} öğe silinemedi.',
     '{ok} items deleted, {fail} could not be deleted.',
