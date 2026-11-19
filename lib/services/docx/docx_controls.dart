@@ -237,11 +237,11 @@ extension DocxControls on DocxDocument {
       case DocxControlType.dropdown || DocxControlType.combo:
         if (text == null) return p;
         shown = text;
-        final spec = DocxDocument._child(
+        final lst = DocxDocument._child(
             pr, c.type == DocxControlType.dropdown ? 'dropDownList' : 'comboBox')!;
-        if (DocxDocument._attr(spec, 'lastValue') != null) {
+        if (DocxDocument._attr(lst, 'lastValue') != null) {
           final v = c.items.firstWhere((x) => x.$1 == text, orElse: () => (text, text)).$2;
-          _setAttr(spec, 'lastValue', v, 'w:lastValue');
+          _setAttr(lst, 'lastValue', v, 'w:lastValue');
         }
         _setContent(content, shown);
       case DocxControlType.text:

@@ -277,7 +277,7 @@ void main() {
   test('Word tarih biçimi', () {
     final d = DateTime(2026, 3, 5);
     expect(docxFormatDate(d, 'd.M.yy'), '5.3.26');
-    expect(docxFormatDate(d, "d MMMM yyyy dddd"), '5 Mart 2026 Perşembe');
+    expect(docxFormatDate(d, 'd MMMM yyyy dddd'), '5 Mart 2026 Perşembe');
     expect(docxFormatDate(d, 'MMMM d, yyyy', lang: 'en-US'), 'March 5, 2026');
     expect(docxFormatDate(d, "dd'.'MM"), '05.03');
   });
