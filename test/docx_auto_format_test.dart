@@ -112,6 +112,22 @@ void main() {
       expect(n.listKind, isNull);
     });
 
+    test('ilk paragraftaki otomatik madde geri silmeyle kalkar', () {
+      final c = _open('');
+      _type(c, '- ');
+      expect(c.listKind, 'bullet');
+      c.updateEditingValueWithDeltas([
+        const TextEditingDeltaDeletion(
+          oldText: '\u200b',
+          deletedRange: TextRange(start: 0, end: 1),
+          selection: TextSelection.collapsed(offset: 0),
+          composing: TextRange.empty,
+        ),
+      ]);
+      expect(c.listKind, isNull);
+      expect(c.paras, hasLength(greaterThanOrEqualTo(1)));
+    });
+
     test('Ayarlar kapalıyken dokunulmaz', () {
       final c = _open('', on: false);
       _type(c, '- işte  a--');

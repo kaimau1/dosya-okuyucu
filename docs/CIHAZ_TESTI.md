@@ -1424,3 +1424,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] 300+ sayfalık Word belgesini düzenleyicide aç: tam belge hazırlanırken belgenin başı başlık/kalın/hiza/tablo/resimle (düz metin değil) görünüyor mu, üstte ince ilerleme çubuğu var mı? Kaydırılabiliyor, dokununca klavye AÇILMIYOR mu?
 - [ ] Tam belge gelince düzenleyiciye geçişte zıplama/boş kare var mı? Kısa belgede önizleme hiç fark edilmeden mi geçiyor?
 - [ ] A/B (C2): büyük belgede "dokunuştan ilk okunur kareye" süresi önceki sürüme göre (ölçülmedi).
+
+## 2026-11-19 — Word 2.0 m.7 Yazma hissi (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Klavye açıkken üstteki çubuk: imleç yalnızken madde/numara/girinti/hizalama + K T A; bir sözcük seçince K T A S, renk, vurgu (sarı), biçimi temizle görünüyor mu? Seçim kalkınca çubuk zıplamadan geri dönüyor mu?
+- [ ] Gboard (Türkçe): "işte geldi. ılık" yaz → "İşte geldi. Ilık"; "3. sınıf", "vb. gibi", "www.ornek.com" küçük kalıyor mu? İngilizce arayüzde "i" → "I" mi?
+- [ ] "a--b" → "a—b"; sözcükten sonra iki boşluk tek kalıyor mu? Gboard "çift boşlukta nokta" açıkken nokta hâlâ geliyor mu (bozulmamalı)?
+- [ ] Boş paragrafta "- " → madde, "1. " → numaralı liste; hemen geri al "- " metnini geri getiriyor mu; belgenin İLK paragrafında madde başında geri silme listeyi kaldırıyor mu?
+- [ ] Ayarlar > Belgeler > "Word: yazarken otomatik biçim" kapalıyken hiçbiri olmuyor mu? İmleç büyüteci ve seçim tutamakları eskisi gibi (değişmedi).
+- [ ] A/B (C2): yazma kare süresi önceki `[apk]`'ya göre (ölçülmedi).

@@ -389,19 +389,23 @@ class DocxEditController extends ChangeNotifier
   /// Paragraf başında geri silme: öncekine katılır (aynı kapsayıcıdaysa).
   void mergeWithPrevious(int i, {bool notify = true}) {
     composing = TextRange.empty;
+    // Liste öğesinin başında geri silme önce listeden çıkarır (Word) — belgenin
+    // İLK paragrafında da (B9 m.7: "- " ile kurulan ilk madde geri alınamıyordu).
+    if (i >= 0 && i < paras.length) {
+      final cur = paras[i];
+      if (cur.look.numId != null && !cur.opaque) {
+        _record(typing: false);
+        doc.paras[i] = doc.withoutList(cur);
+        base = extent = DocPos(i, 0);
+        _changed(notify: notify);
+        return;
+      }
+    }
     if (i <= 0 || i >= paras.length) {
       base = extent = DocPos(i.clamp(0, paras.length - 1), 0);
       return;
     }
     final prev = paras[i - 1], cur = paras[i];
-    // Liste öğesinin başında geri silme önce listeden çıkarır (Word).
-    if (cur.look.numId != null && !cur.opaque) {
-      _record(typing: false);
-      doc.paras[i] = doc.withoutList(cur);
-      base = extent = DocPos(i, 0);
-      _changed(notify: notify);
-      return;
-    }
     if (prev.opaque || cur.opaque || !identical(prev.container, cur.container)) {
       base = extent = DocPos(i, 0);
       return;
