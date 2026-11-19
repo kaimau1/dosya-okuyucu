@@ -380,4 +380,22 @@ void main() {
       expect(u.questionsPerFile, 25);
     });
   });
+
+  test('taşınan dosya/klasör kategorisini korur, çöpe giden eski yolda kalır',
+      () async {
+    SmartSort.debugReset(const [
+      SmartRecord(path: '/d/a.pdf', size: 1, modifiedMs: 1, cat: 'invoice'),
+      SmartRecord(path: '/d/k/b.pdf', size: 1, modifiedMs: 1, cat: 'id'),
+      SmartRecord(path: '/d/k2/c.pdf', size: 1, modifiedMs: 1, cat: 'id'),
+    ]);
+    await SmartSort.movePath('/d/a.pdf', '/e/a.pdf');
+    expect(SmartSort.categoryOf('/e/a.pdf'), 'invoice');
+    expect(SmartSort.of('/d/a.pdf'), isNull);
+    await SmartSort.movePath('/d/k', '/e/k');
+    expect(SmartSort.categoryOf('/e/k/b.pdf'), 'id');
+    expect(SmartSort.categoryOf('/d/k2/c.pdf'), 'id', reason: 'sınır');
+    await SmartSort.movePath('/e/a.pdf', '/x/.dosya-okuyucu-cop/1_a.pdf');
+    expect(SmartSort.categoryOf('/e/a.pdf'), 'invoice');
+    SmartSort.debugReset();
+  });
 }

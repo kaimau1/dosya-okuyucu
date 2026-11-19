@@ -20,12 +20,14 @@ import 'ai_scope.dart';
 import 'fm_env.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
+import 'path_side_index.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
 import 'smart_quota.dart';
 import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
 import 'smart_user_cats.dart';
+import 'trash_service.dart';
 
 /// Tek dosyanın akıllı düzen sonucu. Metin DEĞİL kimlik tutar (dil değişince
 /// ikinci ad o dilde yeniden kurulur).
@@ -862,6 +864,30 @@ abstract final class SmartSort {
       out[b] = (out[b] ?? 0) + 1;
     }
     return out;
+  }
+
+  /// Uygulama içinden taşınan dosya/klasörün kaydı yeni yola geçer
+  /// ([PathSideIndex] kancası, `main`). Kök (B2 dilim 2): kanca yoktu —
+  /// taşınan dosya kategorisini kaybedip AI'ya yeniden gidiyordu (kota).
+  /// Çöpe giden kayıt eski yolda kalır: çöp klasörü kategoride görünmesin,
+  /// geri yüklenince kaydı yerinde bulsun.
+  static Future<void> movePath(String from, String to) async {
+    if (to.contains(TrashService.dirName)) return;
+    await ensureLoaded();
+    final moved = <SmartRecord>[];
+    _records.removeWhere((path, r) {
+      final np = movedPathFor(path: path, from: from, to: to);
+      if (np == null) return false;
+      final j = r.toJson()..['p'] = np;
+      final nr = SmartRecord.fromJson(j);
+      if (nr != null) moved.add(nr);
+      return true;
+    });
+    if (moved.isEmpty) return;
+    for (final r in moved) {
+      _records[r.path] = r;
+    }
+    _changed();
   }
 
   /// Silinen dosyaların kaydı düşer.
