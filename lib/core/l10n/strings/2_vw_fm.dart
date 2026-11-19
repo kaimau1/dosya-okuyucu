@@ -18,7 +18,6 @@ const Map<String, (String, String, String)> _t2 = {
   'pp.as_fast': ('Hızlı', 'Fast', 'سريع'),
   'vw.fullscreen_hint': ('Durum ve gezinme çubukları gizlenir', 'Hides the status and navigation bars', 'يخفي شريطي الحالة والتنقل'),
   'ea.sec_this': ('Bu dosya', 'This file', 'هذا الملف'),
-  'ea.sec_ai': ('AI ve dönüştür', 'AI & convert', 'الذكاء الاصطناعي والتحويل'),
   'ea.pick_folder': ('klasör seç', 'pick folder', 'اختر مجلدًا'),
   'ea.compress': ('Sıkıştır', 'Compress', 'ضغط'),
   'ea.compress_hint': (
@@ -39,7 +38,11 @@ const Map<String, (String, String, String)> _t2 = {
     'What is in this image?',
     'ما الموجود في الصورة؟',
   ),
-  'ea.image_insight_hint': ('AI özeti · yazı', 'AI summary · text', 'ملخص · نص'),
+  'ea.image_insight_hint': (
+    'Akıllı özet · yazı',
+    'Smart summary · text',
+    'ملخص ذكي · نص',
+  ),
   'ea.clip_hint': ('yapıştırmak için', 'to paste later', 'للصق لاحقًا'),
   'ea.shared_hint': (
     'ağdan paylaşılır',
@@ -63,7 +66,6 @@ const Map<String, (String, String, String)> _t2 = {
     'ضغط (ZIP / 7z، بكلمة مرور)',
   ),
   'fm.reveal': ('Konumunu aç', 'Show location', 'إظهار الموقع'),
-  'fm.ai_summary': ('AI ile özetle', 'Summarize with AI', 'تلخيص بالذكاء الاصطناعي'),
   'fm.image_insight': (
     'Bu görselde ne var? (metin tanı)',
     'What is in this image? (recognize text)',
@@ -245,7 +247,6 @@ const Map<String, (String, String, String)> _t2 = {
   'fm.duplicates_title': ('Yinelenen dosyalar', 'Duplicate files', 'ملفات مكررة'),
   'fm.enter_password': ('Parola gir', 'Enter password', 'أدخل كلمة المرور'),
   'fm.clear_finished': ('Bitenleri temizle', 'Clear finished', 'مسح المنتهية'),
-  'fm.ask_gemini': ('Gemini’ye sor', 'Ask Gemini', 'اسأل Gemini'),
   'fm.new_word_doc': (
     'Word belgesi (.docx)',
     'Word document (.docx)',
@@ -292,23 +293,15 @@ const Map<String, (String, String, String)> _t2 = {
     'هذا المستند نموذج قابل للتعبئة.',
   ),
   'vw.print': ('Yazdır', 'Print', 'طباعة'),
-  'vw.ai_edit': ('AI ile düzenle', 'Edit with AI', 'تحرير بالذكاء الاصطناعي'),
+  'vw.ai_edit': (
+    'Akıllı düzenle',
+    'Smart edit',
+    'تحرير ذكي',
+  ),
   'vw.translate_doc': ('Belgeyi çevir', 'Translate document', 'ترجمة المستند'),
   'vw.to_pdf': ('PDF’e dönüştür', 'Convert to PDF', 'تحويل إلى PDF'),
   'vw.to_slides': ('Slayta dönüştür', 'Convert to slides', 'تحويل إلى شرائح'),
   'vw.slides_share': ('Sunum (.pptx)', 'Presentation (.pptx)', 'عرض تقديمي (.pptx)'),
-  'ais.with_ai': ('AI ile hazırla', 'Build with AI', 'إنشاء بالذكاء الاصطناعي'),
-  'ais.with_ai_hint': (
-    'Belgeyi okuyup özetler; başlık, madde ve konuşmacı notu yazar',
-    'Reads and summarises the document; writes titles, bullets and notes',
-    'يقرأ المستند ويلخّصه؛ يكتب العناوين والنقاط وملاحظات المتحدث',
-  ),
-  'ais.quick': ('Hızlı (AI\'sız)', 'Quick (no AI)', 'سريع (بدون ذكاء اصطناعي)'),
-  'ais.quick_hint': (
-    'Metni olduğu gibi böler — ücretsiz ve çevrimdışı',
-    'Splits the text as it is — free and offline',
-    'يقسّم النص كما هو — مجاني وبدون إنترنت',
-  ),
   'ais.as_pptx': ('Sunum (.pptx)', 'Presentation (.pptx)', 'عرض تقديمي (.pptx)'),
   'ais.as_pptx_hint': (
     'Düzenlenebilir — PowerPoint\'te de açılır',
@@ -321,13 +314,6 @@ const Map<String, (String, String, String)> _t2 = {
     'Opens anywhere, layout stays put',
     'يُفتح في كل مكان ولا يتغيّر تخطيطه',
   ),
-  'ais.working': (
-    'Sunum hazırlanıyor…',
-    'Building the presentation…',
-    'يجري إعداد العرض التقديمي…',
-  ),
-  'ais.job_done': ('{n} slayt hazır', '{n} slides ready', '{n} شريحة جاهزة'),
-  'ais.job_name': ('AI sunumu', 'AI presentation', 'العرض التقديمي بالذكاء الاصطناعي'),
   'ais.failed': (
     'Sunum hazırlanamadı: {error}',
     'Could not build the presentation: {error}',
@@ -429,12 +415,9 @@ const Map<String, (String, String, String)> _t2 = {
   'vw.image_failed': ('Görsel görüntülenemedi.', 'The image could not be displayed.', 'تعذّر عرض الصورة.'),
   'vw.table_empty': ('Tablo boş veya okunamadı.', 'The table is empty or unreadable.', 'الجدول فارغ أو غير قابل للقراءة.'),
   'vw.no_viewer': (
-    'Bu dosya türü için yerleşik görüntüleyici yok.\nBaşka bir uygulamayla '
-        'açabilir veya AI’a sorabilirsiniz.',
-    'There is no built-in viewer for this file type.\nYou can open it with '
-        'another app or ask the AI.',
-    'لا يوجد عارض مدمج لهذا النوع من الملفات.\nيمكنك فتحه بتطبيق آخر أو سؤال '
-        'الذكاء الاصطناعي.',
+    'Bu dosya türü için yerleşik görüntüleyici yok.\nBaşka bir uygulamayla açabilirsiniz.',
+    'There is no built-in viewer for this file type.\nYou can open it with another app.',
+    'لا يوجد عارض مدمج لهذا النوع من الملفات.\nيمكنك فتحه بتطبيق آخر.',
   ),
   'vw.link_title': ('Bağlantıyı aç', 'Open link', 'فتح الرابط'),
   'vw.link_body': (

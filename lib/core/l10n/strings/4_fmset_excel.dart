@@ -825,28 +825,36 @@ const Map<String, (String, String, String)> _t4 = {
     'هكذا يقرأ هذا الصوت. هل أعجبك؟',
   ),
   'tts.voice_settings': ('Ses ayarları', 'Voice settings', 'إعدادات الصوت'),
-  'tts.ai_read': ('AI ile oku', 'Read with AI', 'اقرأ بالذكاء'),
+  'tts.ai_read': (
+    'Akıllı oku',
+    'Smart read',
+    'قراءة ذكية',
+  ),
   'tts.ai_read_on': (
-    'AI ile oku açık: sayfa okunmadan önce metin toparlanır.',
-    'Read with AI is on: the text is tidied before each page is read.',
-    'القراءة بالذكاء مفعّلة: يُنظَّف النص قبل قراءة كل صفحة.',
+    'Akıllı oku açık: sayfa okunmadan önce metin toparlanır.',
+    'Smart read is on: the text is tidied before each page is read.',
+    'القراءة الذكية مفعّلة: يُرتّب النص قبل قراءة كل صفحة.',
   ),
   'tts.ai_read_off': (
-    'AI ile oku kapalı.',
-    'Read with AI is off.',
-    'القراءة بالذكاء متوقفة.',
+    'Akıllı oku kapalı.',
+    'Smart read is off.',
+    'القراءة الذكية متوقفة.',
   ),
   'tts.ai_needs_key': (
-    'AI ile oku için Ayarlar > Gemini API anahtarı gerekiyor.',
-    'Read with AI needs a Gemini API key (Settings).',
-    'تتطلب القراءة بالذكاء مفتاح Gemini من الإعدادات.',
+    'Akıllı oku için Ayarlar > Gemini API anahtarı gerekiyor.',
+    'Smart read needs a Gemini API key (Settings).',
+    'تحتاج القراءة الذكية إلى مفتاح Gemini API (الإعدادات).',
   ),
   // "Düzelt" adı kullanıcıyı yanıltıyordu (2026-08-06): sayfanın EĞİKLİĞİNİ
   // düzelteceğini sanıp bu düğmeleri aradı. İkisi de METNİ onarır (OCR'ın
   // Türkçe hataları); eğiklik/kavis düzeltme tarama önizlemesinde
   // ("Düzleştir", `sr.straighten`). Ad artık ne yaptığını söylüyor.
   'pe.fix_page': ('Metni düzelt', 'Fix text', 'إصلاح النص'),
-  'pe.fix_page_ai': ('Metni AI ile düzelt', 'Fix text with AI', 'إصلاح النص بالذكاء'),
+  'pe.fix_page_ai': (
+    'Metni akıllı düzelt',
+    'Smart-fix text',
+    'تصحيح ذكي للنص',
+  ),
   'pe.fix_done': (
     '{n} satır düzeltildi.',
     '{n} lines corrected.',
@@ -858,9 +866,9 @@ const Map<String, (String, String, String)> _t4 = {
     'لا شيء لتصحيحه — تبدو الصفحة نظيفة بالفعل.',
   ),
   'pe.fix_needs_key': (
-    'AI ile düzeltme için Ayarlar > Gemini API anahtarı gerekiyor. '
+    'Akıllı düzeltme için Ayarlar > Gemini API anahtarı gerekiyor. '
         'Anahtarsız "Düzelt" düğmesi cihaz içinde çalışmaya devam eder.',
-    'Fixing with AI needs a Gemini API key (Settings). The plain “Fix” '
+    'Smart fix needs a Gemini API key (Settings). The plain “Fix” '
         'button keeps working on-device without a key.',
     'يتطلب الإصلاح بالذكاء مفتاح Gemini من الإعدادات. يظل زر «إصلاح» '
         'يعمل على الجهاز بدون مفتاح.',

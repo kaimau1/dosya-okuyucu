@@ -255,7 +255,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       });
       if (hint == null) _snack(str.t('sq.ai_ok'));
     } catch (e) {
-      if (mounted) _snack('Gemini: ${userErrorText(e)}');
+      if (mounted) _snack(str.t('common.smart_failed', {'error': userErrorText(e)}));
     }
   }
 

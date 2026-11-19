@@ -1,116 +1,20 @@
-/// **Dosyalarına soru sor** — "geçen ay indirdiğim faturalar nerede",
-/// "kira sözleşmemde depozito ne kadardı" gibi soruların cevabı.
+/// **Dizinde yerel arama** — "geçen ay indirdiğim faturalar" gibi bir
+/// ifadeye en uygun AI dizini kayıtlarını CİHAZDA seçer (ağ yok, ücretsiz).
+/// Akıllı klasörler kullanır. 2026-11-19 (B15): modele soru soran sohbet
+/// yolu AI Sohbet ile birlikte budandı; yalnız yerel eleme kaldı.
 ///
-/// ## Neden tüm dosyalar buluta gitmiyor
-/// Naif çözüm her soruda tüm indeksi modele yollamak olurdu: 5.000 dosyalık
-/// bir telefonda soru başına yüz binlerce token — ücretsiz kotayı tek soruda
-/// bitirir. Bunun yerine iki aşama:
-///
-/// 1. **Yerel eleme (ücretsiz):** soru sözcükleri indekste aranır (ad, başlık,
-///    etiket, tür, özet). Türkçe-duyarlı katlama (`turkishFold`) sayesinde
-///    "fatura" ile "FATURA", "sözleşme" ile "sozlesme" eşleşir. Tarih ipucu
-///    ("bugün", "geçen ay", "2025") varsa zaman süzgeci uygulanır.
-/// 2. **Modele yalnız en iyi [_maxContext] kayıt** gider — o da tek satırlık
-///    özetleriyle. Soru başına maliyet **sabit** kalır: telefonda 500 dosya da
-///    olsa 50.000 dosya da.
-///
-/// Cevapla birlikte **hangi dosyalara dayandığı** döner: kullanıcı dosyayı
-/// listeden açıp kendi gözüyle doğrulayabilsin. Kaynak göstermeyen bir "AI
-/// cevabı" dosya yöneticisinde işe yaramaz — yanlışsa fark edilmez.
+/// Türkçe-duyarlı katlama (`turkishFold`) sayesinde "fatura" ile "FATURA",
+/// "sözleşme" ile "sozlesme" eşleşir. Tarih ipucu ("bugün", "geçen ay",
+/// "2025") varsa zaman süzgeci uygulanır.
 library;
 
-import 'dart:convert';
-
 import '../../core/text_search.dart';
-import '../gemini_service.dart';
 import 'ai_index.dart';
 import 'ai_scope.dart';
 
-/// Sorunun cevabı + dayandığı dosyalar.
-class AiAnswer {
-  final String text;
-  final List<AiRecord> sources;
-
-  /// Yerel elemede hiç aday çıkmadıysa (indeks boş ya da alakasız soru).
-  final bool empty;
-
-  const AiAnswer({this.text = '', this.sources = const [], this.empty = false});
-}
-
 abstract final class AiAsk {
-  /// Modele gönderilen en fazla kayıt.
+  /// Varsayılan en fazla kayıt.
   static const _maxContext = 30;
-
-  /// Soruyu yanıtlar. [scope] son bir kez uygulanır: kullanıcı bir klasörü
-  /// analizden SONRA dışlamışsa, eski kayıtlar cevaba karışmamalı.
-  /// [gemini] havuzlu istemcidir (`AppState.gemini`): bir modelin kotası
-  /// dolduysa soru sessizce sıradaki modele/anahtara gider.
-  static Future<AiAnswer> ask({
-    required String question,
-    required GeminiService gemini,
-    required AiScope scope,
-    List<ChatTurn> history = const [],
-  }) async {
-    await AiIndex.ensureLoaded();
-    final candidates = rank(question, scope: scope);
-    if (candidates.isEmpty) {
-      return const AiAnswer(empty: true);
-    }
-
-    final context = StringBuffer();
-    for (var i = 0; i < candidates.length; i++) {
-      final r = candidates[i];
-      context.writeln('[$i] ${r.name}'
-          '${r.docType.isEmpty ? '' : ' · tür: ${r.docType}'}'
-          '${r.title.isEmpty ? '' : ' · ${r.title}'}'
-          ' · ${_date(r.modifiedMs)}'
-          '${r.summary.isEmpty ? '' : '\n     özet: ${r.summary}'}');
-    }
-
-    final raw = await gemini.generateJson(
-      systemInstruction:
-          'Kullanıcının telefonundaki dosyaların listesi aşağıdadır. Yalnız bu '
-          'listeye dayanarak TÜRKÇE, kısa ve net cevap ver. Listede olmayan bir '
-          'şeyi UYDURMA — bilgi yoksa "bu bilgi analiz edilen dosyalarda yok" '
-          'de. Cevabında kullandığın dosyaların köşeli parantezli numaralarını '
-          '"kaynaklar" alanına yaz.\n\nDosyalar:\n$context',
-      prompt: question,
-      schema: const {
-        'type': 'object',
-        'properties': {
-          'cevap': {'type': 'string'},
-          'kaynaklar': {
-            'type': 'array',
-            'items': {'type': 'integer'}
-          },
-        },
-        'required': ['cevap'],
-      },
-    );
-
-    return _parseAnswer(raw, candidates);
-  }
-
-  static AiAnswer _parseAnswer(String raw, List<AiRecord> candidates) {
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map) {
-        final text = (decoded['cevap'] as String? ?? '').trim();
-        final sources = <AiRecord>[];
-        for (final idx in (decoded['kaynaklar'] as List? ?? const [])) {
-          final i = (idx as num?)?.toInt();
-          if (i != null && i >= 0 && i < candidates.length) {
-            sources.add(candidates[i]);
-          }
-        }
-        return AiAnswer(text: text, sources: sources);
-      }
-    } catch (_) {
-      // Bilinçli: şema dışı/bozuk JSON → aşağıda ham metin gösterilir.
-    }
-    // Şema dışı yanıt: ham metni göstermek boş ekran göstermekten iyi.
-    return AiAnswer(text: raw.trim());
-  }
 
   /// Soruya en uygun kayıtları **cihazda** seçer (ağ yok, ücretsiz).
   ///
@@ -214,12 +118,5 @@ abstract final class AiAsk {
   static String _dirOf(String path) {
     final i = path.lastIndexOf('/');
     return i <= 0 ? path : path.substring(0, i);
-  }
-
-  static String _date(int ms) {
-    if (ms <= 0) return 'tarihsiz';
-    final d = DateTime.fromMillisecondsSinceEpoch(ms);
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${d.year}-${two(d.month)}-${two(d.day)}';
   }
 }

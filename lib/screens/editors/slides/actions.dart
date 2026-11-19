@@ -474,18 +474,4 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     _partSetState(() => _hitIndex = next < 0 ? _hits.length - 1 : next);
     _goToSlide(_hits[_hitIndex].section + 1);
   }
-
-  /// AI özeti — slayt numaralı düz metinle (bkz. [_slideTexts]).
-  Future<void> _summarize() async {
-    final texts = _slideTexts();
-    final buffer = StringBuffer();
-    for (var i = 0; i < texts.length; i++) {
-      if (texts[i].trim().isEmpty) continue;
-      buffer.writeln(
-          context.t('sl.slide_of', {'n': i + 1, 'total': texts.length}));
-      buffer.writeln(texts[i].trim());
-      buffer.writeln();
-    }
-    await AiSummaryFlow.run(context, buffer.toString(), title: widget.name);
-  }
 }

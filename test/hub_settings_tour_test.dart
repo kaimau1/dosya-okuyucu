@@ -16,7 +16,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - Ayarlar'da tema tek dokunuşla değişir (hızlı seçici).
 /// - AI Merkezi'nin Analiz sekmesinde "Başlat" düğmesi TEK (durum çubuğu o
 ///   sekmede gizli — eskiden iki düğme alt alta duruyordu).
-/// - Sohbet sekme değişiminde silinmez (keep-alive).
 const _delegates = <LocalizationsDelegate<Object?>>[
   AppStrings.delegate,
   GlobalMaterialLocalizations.delegate,
@@ -63,29 +62,9 @@ void main() {
         findsOneWidget);
 
     // Analiz koşmuyorken diğer sekmelerde ilerleme şeridi/başlat düğmesi yok.
-    await tester.tap(find.text('Sohbet'));
+    await tester.tap(find.widgetWithText(Tab, 'Rapor'));
     await tester.pumpAndSettle();
     expect(find.text('Analizi başlat'), findsNothing);
-  });
-
-  testWidgets('sohbet sekme değişince silinmez', (tester) async {
-    await tester.pumpWidget(_wrap(AppState(), const AiHubScreen()));
-    await tester.pump();
-    await tester.tap(find.text('Sohbet'));
-    await tester.pumpAndSettle();
-    // Anahtarsız gönderim bir uyarı verir ama yazılan metin kutuda kalır:
-    // keep-alive'ı kutudaki metinle ölçüyoruz.
-    await tester.enterText(find.byType(TextField), 'faturalarım');
-    // Odak BIRAKILIR: odaktaki `EditableText` kendini zaten canlı tutuyor —
-    // odak açık kalsaydı test keep-alive olmadan da geçerdi. Gerçek kullanımda
-    // da mesaj gönderildikten sonra klavye kapanıyor.
-    FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump();
-    await tester.tap(find.text('Rapor'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sohbet'));
-    await tester.pumpAndSettle();
-    expect(find.text('faturalarım'), findsOneWidget);
   });
 
   /// "N uygulama" sayacı Türkçe SABİTTİ (`'${n} uygulama'`); İngilizce ve

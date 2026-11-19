@@ -21,9 +21,6 @@ enum _EntryAction {
   important,
   sharedFolder,
   externalDrive,
-  aiSummary,
-  aiCheck,
-  aiChecklist,
   imageInsight,
   resize,
   trimVideo,
@@ -39,7 +36,6 @@ enum _EntryAction {
   hide,
   audiobook,
   quickShare,
-  aiTag,
   aiAlias,
   alias,
   smartFix,
@@ -55,11 +51,7 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
       _EntryAction.library =>
         null,
       _EntryAction.driveUpload => Feature.googleDrive,
-      _EntryAction.aiSummary ||
-      _EntryAction.aiCheck ||
-      _EntryAction.aiChecklist ||
       _EntryAction.imageInsight ||
-      _EntryAction.aiTag ||
       _EntryAction.aiAlias ||
       _EntryAction.smartFix =>
         Feature.ai,
@@ -340,7 +332,7 @@ Future<bool> showEntryActions(
                   own(AppIcons.rotate, ctx.t('ea.rotate'), _EntryAction.rotate,
                       hint: ctx.t('ea.rotate_hint')),
                 if (entry.category == FmCategory.image)
-                  own(AppIcons.ocr, ctx.t('ea.image_insight'),
+                  own(AppIcons.ai, ctx.t('ea.image_insight'),
                       _EntryAction.imageInsight,
                       hint: ctx.t('ea.image_insight_hint')),
               ]),
@@ -426,24 +418,6 @@ Future<bool> showEntryActions(
                 act(AppIcons.info, ctx.t('fm.properties'),
                     _EntryAction.properties),
               ]),
-              // AI/tanıma: belgede özet, takma ad.
-              MenuKitSection(title: ctx.t('ea.sec_ai'), actions: [
-                // İkinci ad / kategori en üst bölüme taşındı (2026-11-19).
-                if (!entry.isDir &&
-                    entry.category != FmCategory.image &&
-                    entry.category != FmCategory.video &&
-                    entry.category != FmCategory.audio)
-                  act(AppIcons.ai, ctx.t('fm.ai_summary'),
-                      _EntryAction.aiSummary),
-                // Decisions API (2026-11-18): dosyanın kendisine evet/hayır.
-                if (!entry.isDir)
-                  act(AppIcons.ai, ctx.t('qc.action'), _EntryAction.aiCheck,
-                      hint: ctx.t('qc.action_hint')),
-                // B2 dilim 3: evrak listesi → ✓/✗ + eksik evrak.
-                act(AppIcons.listAlt, ctx.t('ckl.action'),
-                    _EntryAction.aiChecklist,
-                    hint: ctx.t('ckl.action_hint')),
-              ]),
             ],
           ),
         ),
@@ -487,9 +461,6 @@ Future<bool> showEntryActions(
     case _EntryAction.quickShare:
       await quickShareEntries(context, [entry.path]);
       return false;
-
-    case _EntryAction.aiTag:
-      return showAiTagFlow(context, [entry]);
 
     case _EntryAction.driveUpload:
       await uploadToDrive(context, entry.path);
@@ -543,18 +514,6 @@ Future<bool> showEntryActions(
 
     case _EntryAction.sharedFolder:
       return copyToShared(context, [entry.path]);
-
-    case _EntryAction.aiSummary:
-      await showAiSummary(context, entry);
-      return false;
-
-    case _EntryAction.aiCheck:
-      await showAiQuickCheck(context, entry);
-      return false;
-
-    case _EntryAction.aiChecklist:
-      await showAiChecklist(context, [entry]);
-      return false;
 
     case _EntryAction.aiAlias:
       await giveAiAlias(context, entry);

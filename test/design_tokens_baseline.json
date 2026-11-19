@@ -298,7 +298,7 @@
  "lib/widgets/ai_rewrite_sheet.dart": {
   "sheets": 1
  },
- "lib/widgets/ai_slides_flow.dart": {
+ "lib/widgets/slides_flow.dart": {
   "sheets": 2
  },
  "lib/widgets/ai_summary_flow.dart": {

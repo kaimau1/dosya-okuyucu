@@ -1500,3 +1500,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Basılı tut + sürükle → başka sayfanın üstüne bırak: sayfa oraya taşınıyor mu (uzun belgede kenarda kendiliğinden kaydırma YOK — sorun mu?).
 - [ ] Vurgulu belgede yalnız sil/döndür → vurgular kalıyor, uyarı çıkmıyor; sıralama/çoğaltma → "açıklamalar gider" uyarısı çıkıyor.
 - [ ] 300 sayfalık belgede ızgara kaydırma akıcı mı (C2 ölçümü, p99 ≤ 16 ms hedefi).
+## B15 Akıllı bütünlük dilim 1 (2026-11-19, dal faz-oto-B15-akilli) — yazıldı, cihazda doğrulanmadı
+- [ ] Alt gezinmede sekme "Akıllı"; Akıllı dosya asistanında 4 sekme (Analiz · Türler · Öneriler · Rapor), ⋮ menüsünde "Sohbet" yok; Analiz'deki sayı kartları doğru sekmeyi açıyor.
+- [ ] Dosya ⋮: en üstte "Akıllı ikinci ad" (AI simgesi), "AI ile özetle / hızlı kontrol / kontrol listesi" yok; görselde "Görselde ne var?" AI simgesiyle. Çoklu seçim "Daha fazla": "Akıllı ikinci ad" + "Kategori ekle" aynı sırada; toplu kontrol/kontrol listesi yok.
+- [ ] Kategori ekranı ⋮ "Analiz ve düzenle": "Akıllı ikinci ad" toplu iş başlatıyor (bildirim + şerit); Akıllı analiz raporundaki düğme de aynı işi açıyor.
+- [ ] PDF/Word/Excel/Slayt alt çubuğunda "AI ile çalış" yok; çubuk kaymıyor. Slayt ⋮'da özet yok. PDF ⋮ › Dönüştür › "Slayta dönüştür" doğrudan biçim soruyor (AI/hızlı seçimi yok), .pptx/PDF çıkıyor.
+- [ ] Benzer görseller: grup başlığında yıldız/"Gemini'ye sor" yok; boyut yazısı düz.
+- [ ] PDF Düzenle levhasında "Akıllı düzenle" AI simgesiyle; Word seçim menüsü "Seçimi akıllı düzelt"; arama "Akıllı arama"; Akıllı düzen kartı/başlığı tek yazım.
+- [ ] Ölçüm (C2): PDF görüntüleyici alt çubuk + ana ekran sekme geçişi, `.r8test` taban önceki [apk].

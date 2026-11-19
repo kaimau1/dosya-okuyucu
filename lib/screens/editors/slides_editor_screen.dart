@@ -50,7 +50,6 @@ import '../../services/pptx_rich_text.dart';
 import '../../services/slides_pdf.dart';
 import 'package:xml/xml.dart' show XmlElement, XmlFindExtension;
 
-import '../../widgets/ai_summary_flow.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile;
@@ -70,7 +69,6 @@ import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
 import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
-import '../chat_screen.dart';
 import 'slideshow_screen.dart';
 import 'slides_pro/arrange_page.dart';
 import 'slides_pro/chart_page.dart';
@@ -258,16 +256,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
 
   // ── Konum, "slayta git" ve arama ──────────────────────────────────────────
 
-  /// AI sohbeti bu sunumla (alt çubuktaki AI).
-  void _openAi() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChatScreen(
-        fileContext: widget.plainText,
-        fileName: widget.name,
-      ),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
@@ -363,12 +351,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                 label: context.t('sp.tools'),
                 onTap: editor == null || _proBusy ? null : _openProTools,
               ),
-            EditorMenuItem(
-              id: 'summary',
-              icon: AppIcons.summarize,
-              label: context.t('ai.summarize'),
-              onTap: editor == null ? null : _summarize,
-            ),
             EditorMenuItem(
               id: 'translate',
               icon: AppIcons.translate,
@@ -479,9 +461,6 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                         editor == null ? null : _openDesign),
                     DocAction(AppIcons.play, context.t('sl.play'),
                         editor == null ? null : () => _play(0)),
-                    // AI yüzen düğme değil: küçük resim şeridinin üstüne
-                    // biniyordu.
-                    DocAction(AppIcons.ai, context.t('common.ai'), _openAi),
                     DocAction(AppIcons.share, context.t('common.share'),
                         editor == null ? null : _export),
                   ]),

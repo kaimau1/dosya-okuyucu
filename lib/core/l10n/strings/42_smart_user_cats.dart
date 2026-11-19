@@ -5,9 +5,9 @@ part of '../app_strings.dart';
 const Map<String, (String, String, String)> _t42 = {
   'suc.section': ('Kategorilerim', 'My categories', 'فئاتي'),
   'suc.sub': (
-    'Kendi kategorini tarif et; AI her dosyaya ayrıca sorar. Bir dosya birden çok kategoride olabilir.',
-    'Describe your own category; AI asks about each file separately. A file can be in several categories.',
-    'صِف فئتك الخاصة؛ يسأل الذكاء الاصطناعي عن كل ملف على حدة. قد يكون الملف في عدة فئات.',
+    'Kendi kategorini tarif et; Akıllı düzen her dosyaya ayrıca sorar. Bir dosya birden çok kategoride olabilir.',
+    'Describe your own category; Smart organize asks about each file separately. A file can be in several categories.',
+    'صف فئتك الخاصة؛ يسأل التنظيم الذكي عن كل ملف على حدة. يمكن أن يكون الملف في عدة فئات.',
   ),
   'suc.empty': (
     'Henüz kategorin yok. Örnek: "Kira" — kira sözleşmesi, kira dekontları ve aidat makbuzları.',

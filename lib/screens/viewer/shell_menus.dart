@@ -144,7 +144,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
   /// taşı/kopyala/SİL onun içindeki "Dosya işlemleri"nin İÇİNDEYDİ (üç kat).
   /// Artık bütün türlerde aynı levha: üstte ortak dosya işleri (Sil dahil),
   /// altında bu türün işleri ayrı renkte. Görünüm ayarları (satır numarası,
-  /// kaydırma, gece) "Aa"da; Paylaş, Çevir, AI ve Düzenle alt çubukta.
+  /// kaydırma, gece) "Aa"da; Paylaş, Çevir ve Düzenle alt çubukta.
   void _showMore(LoadedDoc doc) {
     // Metin gibi davranan belgeler: satır kavramı olanlar.
     final isTextLike = doc.kind == DocKind.text ||
@@ -462,9 +462,6 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             _textFocus.requestFocus),
         DocAction(AppIcons.save, context.t('common.save'), _save),
       ],
-      // AI (2026-11-14): yüzen düğmeden çubuğa — sayfa rozetinin üstüne
-      // binmiyor, her belgede aynı yerde.
-      DocAction(AppIcons.ai, context.t('common.ai'), _openChat),
       // İndir varken Çevir "Daha fazla › Dosya"ya iner (en çok 5 eylem).
       if (!showDownloadAction(widget.doc.path))
         DocAction(AppIcons.translate, context.t('common.translate'),
@@ -475,7 +472,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       if (showDownloadAction(widget.doc.path))
         DocAction(
             AppIcons.download, context.t('common.download'), _download),
-      // Yazdır "Daha fazla › Dosya"da (2026-11-14: çubukta AI yer aldı).
+      // Yazdır "Daha fazla › Dosya"da. 2026-11-19 (B15): AI sohbeti budandı.
     ]);
   }
 

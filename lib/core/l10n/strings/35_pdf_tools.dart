@@ -20,9 +20,9 @@ const Map<String, (String, String, String)> _t35 = {
     'النص الحالي',
   ),
   'pse.ai_failed': (
-    'AI yanıt veremedi: {error}',
-    'AI could not respond: {error}',
-    'تعذّر رد الذكاء الاصطناعي: {error}',
+    'Akıllı işlem yapılamadı: {error}',
+    'The smart action failed: {error}',
+    'تعذّر تنفيذ الإجراء الذكي: {error}',
   ),
   'pse.ai_formal': (
     'Resmileştir',
@@ -35,9 +35,9 @@ const Map<String, (String, String, String)> _t35 = {
     'تصحيح الإملاء والقواعد',
   ),
   'pse.ai_pick_block': (
-    'Yerinde yeniden yazmak için önce bir paragraf seçin. İsterseniz belgenin tamamını AI ile düzenleyebilirsiniz.',
-    'Select a paragraph first to rewrite it in place. You can also edit the whole document with AI.',
-    'حدّد فقرة أولاً لإعادة كتابتها في مكانها. يمكنك أيضاً تحرير المستند كله بالذكاء الاصطناعي.',
+    'Yerinde yeniden yazmak için önce bir paragraf seçin. İsterseniz belgenin tamamını "Akıllı düzenle" ile düzenleyebilirsiniz.',
+    'Select a paragraph first to rewrite it in place. You can also edit the whole document with "Smart edit".',
+    'حدّد فقرة أولًا لإعادة كتابتها في مكانها. ويمكنك أيضًا تحرير المستند كله عبر "تحرير ذكي".',
   ),
   'pse.ai_rewrite': (
     'Yeniden yaz',
@@ -45,9 +45,9 @@ const Map<String, (String, String, String)> _t35 = {
     'إعادة الصياغة',
   ),
   'pse.ai_same': (
-    'AI değiştirecek bir şey bulmadı.',
-    'AI found nothing to change.',
-    'لم يجد الذكاء الاصطناعي ما يغيّره.',
+    'Değiştirilecek bir şey bulunamadı.',
+    'Nothing to change was found.',
+    'لم يُعثر على شيء لتغييره.',
   ),
   'pse.ai_shorten': (
     'Kısalt',
@@ -55,9 +55,9 @@ const Map<String, (String, String, String)> _t35 = {
     'اختصار',
   ),
   'pse.ai_suggestion': (
-    'AI önerisi',
-    'AI suggestion',
-    'اقتراح الذكاء الاصطناعي',
+    'Akıllı öneri',
+    'Smart suggestion',
+    'اقتراح ذكي',
   ),
   'pse.ai_translate': (
     'Çevir',
@@ -70,9 +70,9 @@ const Map<String, (String, String, String)> _t35 = {
     'المستند كله',
   ),
   'pse.ai_working': (
-    'AI çalışıyor…',
-    'AI is working…',
-    'الذكاء الاصطناعي يعمل…',
+    'Akıllı işlem sürüyor…',
+    'Smart action in progress…',
+    'الإجراء الذكي قيد التنفيذ…',
   ),
   'pse.al_center': (
     'Ortala',
@@ -515,9 +515,9 @@ const Map<String, (String, String, String)> _t35 = {
     'تحديد الكل',
   ),
   'pse.step_ai': (
-    'AI ile yeniden yazıldı',
-    'Rewritten with AI',
-    'أُعيدت الصياغة بالذكاء الاصطناعي',
+    'Akıllı düzenlemeyle yeniden yazıldı',
+    'Rewritten with smart edit',
+    'أُعيدت الكتابة بالتحرير الذكي',
   ),
   'pse.step_crop': (
     'Görsel kırpıldı',
@@ -635,9 +635,9 @@ const Map<String, (String, String, String)> _t35 = {
     'مربع نص',
   ),
   'pse.tool_ai': (
-    'AI ile düzenle',
-    'Edit with AI',
-    'تحرير بالذكاء الاصطناعي',
+    'Akıllı düzenle',
+    'Smart edit',
+    'تحرير ذكي',
   ),
   'pse.tool_all': (
     'Tüm PDF araçları',

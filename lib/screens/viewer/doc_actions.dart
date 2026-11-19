@@ -131,8 +131,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
   /// Metin `_documentText`ten geliyor: eski hâli `_textController?.text ??
   /// doc.plainText` idi ve PDF'te ikisi de BOŞTU (PDF metin türü değil, metni
   /// `_pdfText`te duruyor) — yani asıl hedef olan PDF'te boş deste üretiyordu.
-  /// Belgeyi sunuma çevirir: **AI ile** (okuyup özetleyerek) ya da hızlı
-  /// sezgiyle; çıktı .pptx (düzenlenebilir) ya da PDF deste.
+  /// Belgeyi sunuma çevirir (biçime bakan sezgi); çıktı .pptx
+  /// (düzenlenebilir) ya da PDF deste.
   ///
   /// Metin `_documentText`ten geliyor: eski hâli `_textController?.text ??
   /// doc.plainText` idi ve PDF'te ikisi de BOŞTU (PDF metin türü değil, metni
@@ -140,7 +140,7 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
   Future<void> _exportSlides() async {
     await _ensurePdfText();
     if (!mounted) return;
-    await AiSlidesFlow.run(context, _documentText, fileName: widget.doc.name);
+    await SlidesFlow.run(context, _documentText, fileName: widget.doc.name);
   }
 
   /// Paylaş / yazdır: PDF'te GÖRÜLEN hâli gönderilir — bekleyen düzenlemeler
@@ -216,33 +216,6 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
       return _ocrImageText;
     }
     return _textController?.text ?? widget.doc.plainText;
-  }
-
-  /// AI sohbeti — PDF'te okunan sayfa odak bağlamı olarak gider (uzun
-  /// kitapta bağlam belgenin başından kesiliyordu; soru çoğu zaman bu sayfa).
-  Future<void> _openChat() async {
-    String? focus;
-    // Etiket await'ten ÖNCE (asenkron boşluktan sonra `context` kullanılmaz).
-    final label = context.t('chat.page_label', {'n': _pdfPage});
-    final doc = _pdfDoc;
-    if (_isPdf && doc != null && _pdfPage >= 1 && _pdfPage <= doc.pages.length) {
-      try {
-        final text = await doc.pages[_pdfPage - 1].loadText();
-        focus = text?.fullText;
-      } catch (_) {
-        // Bilinçli: sayfa metni yalnız ek odak bağlamı; okunamazsa sohbet belgenin tamamıyla açılır.
-      }
-    }
-    await _ensurePdfText();
-    if (!mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChatScreen(
-        fileContext: _documentText,
-        fileName: widget.doc.name,
-        focusText: focus,
-        focusLabel: label,
-      ),
-    ));
   }
 
   /// **Tek düğme çeviri** (istek 2026-07-31): metin nereden gelirse gelsin

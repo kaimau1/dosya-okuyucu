@@ -22,7 +22,7 @@ void main() {
     await tester.pumpWidget(host((_) {}));
     await tester.tap(find.text('Düzenle'));
     await tester.pumpAndSettle();
-    for (final label in ['Metin', 'Kalem', 'İmza', 'Form', 'Sayfaları düzenle', 'AI ile']) {
+    for (final label in ['Metin', 'Kalem', 'İmza', 'Form', 'Sayfaları düzenle', 'Akıllı düzenle']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
     expect(tester.takeException(), isNull);

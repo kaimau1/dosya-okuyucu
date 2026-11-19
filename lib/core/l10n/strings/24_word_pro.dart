@@ -95,7 +95,11 @@ const Map<String, (String, String, String)> _t24 = {
   'vn.prompt': ('Konuşun — not Notlar\'a gidecek', 'Speak — the note goes to Notes', 'تحدث — ستُرسل الملاحظة إلى الملاحظات'),
   'wp.dictate_prompt': ('Konuşun — imleç yerine yazılacak', 'Speak — text goes at the cursor', 'تحدث — يُكتب النص عند المؤشر'),
   'wp.dictate_unavailable': ('Cihazda konuşma tanıma yok (Google uygulaması gerekli)', 'No speech recognizer on this device', 'لا يوجد تعرف على الكلام في هذا الجهاز'),
-  'wp.ai_inline': ('AI ile yaz', 'Write with AI', 'الكتابة بالذكاء الاصطناعي'),
+  'wp.ai_inline': (
+    'Akıllı yaz',
+    'Smart write',
+    'كتابة ذكية',
+  ),
   'wp.ai_empty': ('Önce bir metin seçin', 'Select some text first', 'حدد نصًا أولًا'),
   'wp.ai_rewrite': ('Yeniden yaz', 'Rewrite', 'إعادة صياغة'),
   'wp.ai_summarize': ('Özetle', 'Summarize', 'تلخيص'),
@@ -141,7 +145,11 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.outline': ('Gezinti bölmesi', 'Navigation pane', 'جزء التنقل'),
   'wp.thumbnails': ('Sayfa küçük resimleri', 'Page thumbnails', 'مصغرات الصفحات'),
   'wp.stats': ('Sayaç ve okuma süresi', 'Counts and reading time', 'العدّ ووقت القراءة'),
-  'wp.ai_proof': ('AI yazım denetimi', 'AI proofreading', 'تدقيق بالذكاء الاصطناعي'),
+  'wp.ai_proof': (
+    'Akıllı yazım denetimi',
+    'Smart proofreading',
+    'تدقيق إملائي ذكي',
+  ),
 
   // Madde 7
   'wp.export_pdf': ('PDF (yazı tipleri gömülü)', 'PDF (fonts embedded)', 'PDF (مع تضمين الخطوط)'),

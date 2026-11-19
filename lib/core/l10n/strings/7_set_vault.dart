@@ -16,98 +16,8 @@ const Map<String, (String, String, String)> _t7 = {
     'First enter your key under Settings > Gemini API key.',
     'أدخل مفتاحك أولًا من الإعدادات > مفتاح Gemini API.',
   ),
-  'aia.read_failed': (
-    'Belge okunamadı: {error}',
-    'Could not read the document: {error}',
-    'تعذّرت قراءة المستند: {error}',
-  ),
-  'aia.no_text': (
-    'Bu dosyadan özetlenecek metin çıkarılamadı.',
-    'No text could be extracted from this file to summarise.',
-    'تعذّر استخراج نص من هذا الملف لتلخيصه.',
-  ),
-  'aia.summary_prompt': (
-    'Bu belgeyi Türkçe özetle. Biçim:\n'
-        '1) Tek cümlelik "bu ne belgesi" tanımı\n'
-        '2) En fazla 5 madde hâlinde önemli bilgiler (tarih, tutar, taraflar, '
-        'son tarih varsa mutlaka yaz)\n'
-        'Uydurma bilgi ekleme; belgede yoksa yazma.',
-    'Summarise this document in English. Format:\n'
-        '1) A one-sentence "what kind of document is this"\n'
-        '2) At most 5 bullet points with the important facts (always include '
-        'dates, amounts, parties and any deadline)\n'
-        'Do not invent anything; if it is not in the document, leave it out.',
-    'لخّص هذا المستند بالعربية. الصيغة:\n'
-        '1) جملة واحدة تصف «ما نوع هذا المستند»\n'
-        '2) خمس نقاط كحد أقصى بالمعلومات المهمة (اذكر دائمًا التواريخ والمبالغ '
-        'والأطراف وأي موعد نهائي)\n'
-        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
-  ),
-  'aia.summary_failed': (
-    'AI özeti alınamadı: {error}',
-    'Could not get the AI summary: {error}',
-    'تعذّر الحصول على ملخّص الذكاء الاصطناعي: {error}',
-  ),
-  'aia.summary_title': ('AI özeti', 'AI summary', 'ملخّص الذكاء الاصطناعي'),
-  'aia.regenerate': ('Yeniden oluştur', 'Regenerate', 'إعادة الإنشاء'),
 
   // AI özet akışı (AiSummaryFlow) — kısa / detaylı.
-  'ai.summarize': ('AI özet', 'AI summary', 'ملخّص ذكي'),
-  'ai.sum_working': ('Özet hazırlanıyor…', 'Preparing the summary…', 'جارٍ إعداد الملخّص…'),
-  'ai.sum_no_text': (
-    'Özetlenecek metin bulunamadı.',
-    'No text found to summarise.',
-    'لم يُعثر على نص لتلخيصه.',
-  ),
-  'ai.sum_short': ('Kısa özet', 'Short summary', 'ملخّص قصير'),
-  'ai.sum_short_hint': (
-    'Birkaç cümle — "bu ne anlatıyor"',
-    'A few sentences — the gist',
-    'بضع جمل — الفكرة العامة',
-  ),
-  'ai.sum_detailed': ('Detaylı özet', 'Detailed summary', 'ملخّص مفصّل'),
-  'ai.sum_detailed_hint': (
-    'Bölüm bölüm, önemli sayı ve isimlerle',
-    'Section by section, with key figures and names',
-    'قسمًا بقسم، مع الأرقام والأسماء المهمة',
-  ),
-  'ai.sum_truncated': (
-    'Belge uzun olduğu için yalnız ilk {n} karakter özetlendi.',
-    'The document is long; only the first {n} characters were summarised.',
-    'المستند طويل؛ لم يُلخَّص سوى أول {n} حرف.',
-  ),
-  'ai.sum_prompt_short': (
-    'Bu belgeyi Türkçe, KISA özetle: en fazla 4-5 cümle. '
-        'Ne anlattığını ve en önemli 2-3 bilgiyi ver. '
-        'Uydurma bilgi ekleme; belgede yoksa yazma.',
-    'Summarise this document in English, SHORT: at most 4-5 sentences. '
-        'Say what it is about and give the 2-3 most important facts. '
-        'Do not invent anything; if it is not in the document, leave it out.',
-    'لخّص هذا المستند بالعربية بإيجاز: 4-5 جمل كحد أقصى. '
-        'اذكر موضوعه وأهم 2-3 معلومات. '
-        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
-  ),
-  'ai.sum_prompt_detailed': (
-    'Bu belgeyi Türkçe, DETAYLI özetle. Biçim:\n'
-        '1) Tek cümlelik "bu ne belgesi" tanımı\n'
-        '2) Bölüm bölüm (slayt/başlık sırasıyla) madde madde özet — metinde '
-        'slayt numarası varsa koru\n'
-        '3) Önemli sayı, tarih, isim ve kararları ayrı bir başlıkta topla\n'
-        'Uydurma bilgi ekleme; belgede yoksa yazma.',
-    'Summarise this document in English, in DETAIL. Format:\n'
-        '1) A one-sentence "what kind of document is this"\n'
-        '2) A section-by-section (slide/heading order) bullet summary — keep '
-        'slide numbers if the text has them\n'
-        '3) A separate heading collecting key figures, dates, names and decisions\n'
-        'Do not invent anything; if it is not in the document, leave it out.',
-    'لخّص هذا المستند بالعربية بالتفصيل. الصيغة:\n'
-        '1) جملة واحدة تصف «ما نوع هذا المستند»\n'
-        '2) ملخّص بالنقاط قسمًا بقسم (بترتيب الشرائح/العناوين) — واحتفظ بأرقام '
-        'الشرائح إن وُجدت في النص\n'
-        '3) عنوان منفصل يجمع الأرقام والتواريخ والأسماء والقرارات المهمة\n'
-        'لا تختلق أي معلومة؛ وما ليس في المستند لا تكتبه.',
-  ),
-  'aia.reading_doc': ('Belge okunuyor…', 'Reading the document…', 'جارٍ قراءة المستند…'),
   'aia.reading_image': (
     'Görseldeki metin okunuyor…',
     'Reading the text in the image…',
@@ -118,12 +28,6 @@ const Map<String, (String, String, String)> _t7 = {
     'Text recognition failed: {error}',
     'فشل التعرّف على النص: {error}',
   ),
-  'aia.looks_like': (
-    'Bu bir {type} gibi görünüyor',
-    'This looks like a {type}',
-    'يبدو أن هذا {type}',
-  ),
-  'aia.image_text': ('Görseldeki metin', 'Text in the image', 'النص في الصورة'),
   'aia.image_no_text': (
     'Bu görselde okunabilir metin bulunamadı.',
     'No readable text was found in this image.',
@@ -135,7 +39,6 @@ const Map<String, (String, String, String)> _t7 = {
     '“{name}” → Önemli Dosyalar/{folder}',
     '«{name}» ← Önemli Dosyalar/{folder}',
   ),
-  'aia.hints': ('İpuçları: {list}', 'Hints: {list}', 'مؤشرات: {list}'),
   'aia.target_folder': (
     'Önemli Dosyalar/{folder}',
     'Önemli Dosyalar/{folder}',
@@ -408,7 +311,6 @@ const Map<String, (String, String, String)> _t7 = {
   'rc.empty': ('Karşılaştırılacak dosya yok', 'Nothing to compare', 'لا يوجد ما يمكن مقارنته'),
   'jp.cancelling': ('Durduruluyor…', 'Stopping…', 'جارٍ الإيقاف…'),
   'jp.show': ('Göster', 'Show', 'عرض'),
-
 
   // ── İndirme bildirimi ─────────────────────────────────────────────────────
   'dsv.downloading': ('İndiriliyor…', 'Downloading…', 'جارٍ التنزيل…'),
@@ -684,24 +586,6 @@ const Map<String, (String, String, String)> _t7 = {
   'recent.group_older': ('Daha önce', 'Earlier', 'قبل ذلك'),
   'recent.show_path': ('Yolu göster', 'Show path', 'إظهار المسار'),
   'recent.remove': ('Listeden kaldır', 'Remove from list', 'إزالة من القائمة'),
-  'chat.context_badge': ('Bağlam: {f}', 'Context: {f}', 'السياق: {f}'),
-  'chat.pick_context': (
-    'Bağlam dosyası seç',
-    'Choose a context file',
-    'اختر ملف السياق',
-  ),
-  'chat.quick_slides': (
-    'Slayt planı çıkar',
-    'Draft a slide plan',
-    'أعدّ خطة شرائح',
-  ),
-  'chat.quick_slides_prompt': (
-    'Bu içerikten bir sunum planı çıkar: her slayt için kısa bir başlık ve '
-        'en fazla üç madde yaz.',
-    'Draft a slide plan from this content: a short title and at most three '
-        'bullets per slide.',
-    'أعدّ خطة عرض تقديمي من هذا المحتوى: عنوان قصير وثلاث نقاط كحد أقصى لكل شريحة.',
-  ),
   'cat.summary': (
     '{n} / {total} dosya · {sort}',
     '{n} / {total} files · {sort}',
@@ -778,9 +662,9 @@ const Map<String, (String, String, String)> _t7 = {
   ),
   'set.cat_ai': ('Yapay zekâ', 'Artificial intelligence', 'الذكاء الاصطناعي'),
   'set.cat_ai_sub': (
-    'Gemini anahtarı, model ve kalıcı hafıza',
-    'Gemini key, model and long-term memory',
-    'مفتاح Gemini والنموذج والذاكرة الدائمة',
+    'Gemini anahtarı ve model',
+    'Gemini key and model',
+    'مفتاح Gemini والنموذج',
   ),
   'set.cat_privacy': ('Gizlilik ve izinler', 'Privacy & permissions', 'الخصوصية والأذونات'),
   'set.cat_privacy_sub': (
@@ -803,9 +687,9 @@ const Map<String, (String, String, String)> _t7 = {
   // ── Ayarların 2026-08-29 yeniden tasarımı ───────────────────────────────
   'set.cat_reading': ('Okuma ve sesli okuma', 'Reading & speech', 'القراءة والنطق'),
   'set.cat_reading_sub': (
-    'Sesli okuma sesi, hızı ve AI yanıtlarının okunması',
-    'Speech voice, speed and reading AI answers aloud',
-    'صوت النطق وسرعته وقراءة إجابات الذكاء الاصطناعي',
+    'Sesli okuma sesi, hızı ve akıllı okuma',
+    'Speech voice, speed and smart read',
+    'صوت النطق وسرعته والقراءة الذكية',
   ),
   'set.cat_storage': ('Depolama ve başarım', 'Storage & performance', 'التخزين والأداء'),
   'set.cat_storage_sub': (
@@ -823,9 +707,9 @@ const Map<String, (String, String, String)> _t7 = {
   'set.tts_default_voice': ('Cihaz varsayılanı', 'Device default', 'افتراضي الجهاز'),
   'set.tts_summary': ('Sesli okuma {x}x', 'Speech {x}x', 'النطق {x}x'),
   'set.tts_ai_read': (
-    'AI yanıtlarını sesli oku',
-    'Read AI answers aloud',
-    'اقرأ إجابات الذكاء الاصطناعي بصوت',
+    'Akıllı oku',
+    'Smart read',
+    'قراءة ذكية',
   ),
   'set.tts_ai_read_sub': (
     'Yanıt gelir gelmez okunmaya başlar',
@@ -995,9 +879,9 @@ const Map<String, (String, String, String)> _t7 = {
   ),
   'bills.upcoming': ('Son ödemesi yaklaşanlar', 'Due soon', 'مستحقة قريباً'),
   'bills.empty': (
-    'Henüz fatura bulunamadı. AI analizi faturaları ve makbuzları tanıdıkça burada aylık özetleri görünecek.',
-    'No bills found yet. As AI analysis recognises bills and receipts, monthly summaries appear here.',
-    'لم يُعثر على فواتير بعد. ستظهر الملخصات الشهرية مع تحليل الفواتير.',
+    'Henüz fatura bulunamadı. Akıllı analiz faturaları ve makbuzları tanıdıkça burada aylık özetleri görünecek.',
+    'No bills found yet. As smart analysis recognises bills and receipts, monthly summaries appear here.',
+    'لم يُعثر على فواتير بعد. كلما تعرّف التحليل الذكي على الفواتير والإيصالات ستظهر الملخصات الشهرية هنا.',
   ),
   'bills.due': ('son ödeme {date}', 'due {date}', 'الاستحقاق {date}'),
   'bills.overdue': ('son ödeme GEÇTİ ({date})', 'OVERDUE ({date})', 'متأخرة ({date})'),
@@ -1038,23 +922,23 @@ const Map<String, (String, String, String)> _t7 = {
   ),
   'smart.empty': ('Henüz akıllı klasör yok', 'No smart folders yet', 'لا توجد مجلدات ذكية بعد'),
   'smart.empty_sub': (
-    'AI sohbetinde bir şey sor ve cevabın altındaki "Akıllı klasör olarak kaydet"e bas — ya da aşağıdan yeni bir tane oluştur. Analiz edilen yeni dosyalar kendiliğinden içeri girer.',
-    'Ask something in AI chat and tap "Save as smart folder" under the answer, or create one below. Newly analysed files join automatically.',
-    'اسأل شيئاً في محادثة الذكاء الاصطناعي واضغط "احفظ كمجلد ذكي"، أو أنشئ واحداً أدناه. تنضم الملفات الجديدة تلقائياً.',
+    'Aşağıdan yeni bir akıllı klasör oluştur. Analiz edilen yeni dosyalar kendiliğinden içeri girer.',
+    'Create a new smart folder below. Newly analysed files join automatically.',
+    'أنشئ مجلدًا ذكيًا جديدًا من الأسفل. تنضم الملفات المحلَّلة الجديدة تلقائيًا.',
   ),
   'smart.count_folders': ('{n} klasör', '{n} folders', '{n} مجلد'),
   'smart.count': ('{n} dosya', '{n} files', '{n} ملف'),
   'smart.new_n': ('{n} yeni', '{n} new', '{n} جديد'),
   'smart.new_badge': ('Yeni', 'New', 'جديد'),
   'smart.header': (
-    '"{query}" araması · {n} dosya · {size} — AI analizindeki eşleşmeler, kendiliğinden güncellenir.',
-    'Search "{query}" · {n} files · {size} — matches from AI analysis, kept up to date automatically.',
-    'بحث "{query}" · {n} ملف · {size} — تتحدث تلقائياً.',
+    '"{query}" araması · {n} dosya · {size} — akıllı analizdeki eşleşmeler, kendiliğinden güncellenir.',
+    'Search "{query}" · {n} files · {size} — matches from smart analysis, kept up to date automatically.',
+    'البحث "{query}" · {n} ملف · {size} — تطابقات من التحليل الذكي، تُحدّث تلقائيًا.',
   ),
   'smart.no_items': (
-    'Şu an eşleşen dosya yok. AI analizi yeni dosyaları taradıkça burada görünecek.',
-    'No matching files yet. They will appear as AI analysis covers new files.',
-    'لا توجد ملفات مطابقة بعد. ستظهر مع تحليل ملفات جديدة.',
+    'Şu an eşleşen dosya yok. Akıllı analiz yeni dosyaları taradıkça burada görünecek.',
+    'No matching files yet. They will appear as smart analysis covers new files.',
+    'لا ملفات مطابقة بعد. ستظهر هنا كلما غطّى التحليل الذكي ملفات جديدة.',
   ),
   'smart.rename': ('Yeniden adlandır', 'Rename', 'إعادة التسمية'),
   'smart.delete': ('Akıllı klasörü sil', 'Delete smart folder', 'حذف المجلد الذكي'),
@@ -1088,7 +972,11 @@ const Map<String, (String, String, String)> _t7 = {
   'nav.remove': ('Çubuktan çıkar', 'Remove from bar', 'أزل من الشريط'),
   'nav.reset': ('Varsayılana dön', 'Reset to default', 'استعادة الافتراضي'),
   'nav.important': ('Önemli', 'Important', 'مهم'),
-  'nav.ai': ('AI', 'AI', 'الذكاء'),
+  'nav.ai': (
+    'Akıllı',
+    'Smart',
+    'ذكي',
+  ),
   'nav.bills': ('Faturalar', 'Bills', 'الفواتير'),
   'nav.vault': ('Kasa', 'Vault', 'الخزنة'),
   'nav.settings_sub': (

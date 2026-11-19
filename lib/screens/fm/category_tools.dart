@@ -19,17 +19,18 @@ import '../../services/fm/open_history.dart';
 import '../../widgets/ai_key_gate.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
-import '../../widgets/fm/ai_tag_flow.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/tag_picker_sheet.dart';
 import '../../widgets/tracked_busy.dart';
+import 'ai_actions.dart' show giveAiAliasBatch;
 import 'category_screen.dart';
 
 /// **"Analiz ve düzenle"** — kategori / hızlı klasör ekranlarının ayar menüsü
 /// (2026-10-23, kullanıcı: *"bu tür hızlı klasörlerde bir ayar menüsü ile
 /// özet analiz, genel analiz, AI analiz vb. işlevler yapılabilmeli;
 /// kategorilendirme, toplu etiketleme, AI ile etiketleme, manuel etiketleme
-/// yapılabilmesi gerekli"*).
+/// yapılabilmesi gerekli"*). AI ile etiketleme 2026-11-19'dan beri Akıllı
+/// ikinci ad ([giveAiAliasBatch]).
 ///
 /// [visible] = ekranda o an görünen (süzülmüş) liste; analiz ve etiketleme
 /// ona uygulanır — kullanıcı önce "yalnız PDF" der, sonra "bunları
@@ -65,12 +66,14 @@ Future<void> showCategoryTools(
             hint: context.t('ct.ai_analysis_hint')),
       ]),
       AppActionGroup(title: context.t('ct.group_tags'), actions: [
+        // 2026-11-19 (B15): eski "AI ile etiketle" yerine Akıllı ikinci ad —
+        // yeni model hem ad hem kategori/etiket veriyor (seçim çubuğuyla aynı).
         AppAction(
             value: 'ai_tag',
-            icon: AppIcons.autoFixNormal,
+            icon: AppIcons.ai,
             accent: true,
-            label: context.t('ct.ai_categorize'),
-            hint: context.t('ct.ai_categorize_hint', {'n': n})),
+            label: context.t('alias.action'),
+            hint: context.t('alias.batch_hint')),
         AppAction(
             value: 'bulk_tag',
             icon: AppIcons.tag,
@@ -94,7 +97,9 @@ Future<void> showCategoryTools(
     case 'ai_analysis':
       await _aiAnalysis(context, title, files, onChanged);
     case 'ai_tag':
-      if (await showAiTagFlow(context, files)) await onChanged();
+      if (files.isEmpty) return;
+      await giveAiAliasBatch(context, files);
+      await onChanged();
     case 'bulk_tag':
       if (files.isEmpty) return;
       if (await showTagPicker(context, [for (final e in files) e.path])) {
@@ -462,7 +467,8 @@ Future<void> _aiAnalysis(BuildContext context, String title,
     ),
   );
   if (categorize == true && context.mounted) {
-    if (await showAiTagFlow(context, files)) await onChanged();
+    await giveAiAliasBatch(context, files);
+    await onChanged();
   }
 }
 
@@ -557,8 +563,8 @@ class _AiReportView extends StatelessWidget {
         FilledButton.icon(
           key: const ValueKey('ct-ai-categorize'),
           onPressed: () => Navigator.pop(context, true),
-          icon: const Icon(AppIcons.autoFixNormal, size: 18),
-          label: Text(context.t('ct.ai_categorize')),
+          icon: const Icon(AppIcons.ai, size: 18),
+          label: Text(context.t('alias.action')),
         ),
         const SizedBox(height: Gap.xs),
         Text(context.t('ct.ai_privacy'),
