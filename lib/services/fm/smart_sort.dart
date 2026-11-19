@@ -1039,7 +1039,7 @@ abstract final class SmartSort {
     try {
       result = await GeminiDecisions.ask(
         keys: prep?.keys ?? keys,
-        input: prep == null ? input : [prep.block],
+        input: prep == null ? input : prep.input,
         questions: questionsFor(entry.path,
             today: now, learned: SmartLearn.hint(image: image)),
       );
@@ -1075,7 +1075,7 @@ abstract final class SmartSort {
     try {
       result = await GeminiDecisions.ask(
         keys: prep.keys,
-        input: [prep.block],
+        input: prep.input,
         questions: SmartTaxonomy.questions(
             image: image,
             meta: kind == SmartInputKind.meta,
@@ -1229,7 +1229,7 @@ abstract final class SmartSort {
                 today: today, learned: image ? imageHint : docHint);
             // Büyük ses/video Files API ile yüklenir (yalnız yükleyen anahtar).
             final prep = await SmartSortInput.prepare(e, keys);
-            final input = [prep.block];
+            final input = prep.input;
             // Hak istekten hemen önce alınır (paralel işçi sınırı aşmasın).
             if (!SmartQuota.take()) {
               prep.release();

@@ -5,10 +5,12 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:xml/xml_events.dart';
 
 import '../../models/fs_entry.dart';
+import '../../models/video_trim.dart';
 import '../csv_codec.dart';
 import '../gemini_decisions.dart';
 import '../gemini_service.dart';
@@ -19,6 +21,8 @@ import '../text_decode.dart';
 import '../xls_legacy.dart';
 import '../xlsx/xlsx_stream.dart';
 import 'fm_env.dart';
+import 'office_thumbnail.dart';
+import 'video_transcode.dart';
 
 /// Akıllı düzende dosyanın modele nasıl gideceği.
 enum SmartInputKind {
@@ -55,7 +59,14 @@ class SmartPrepared {
   /// Files API dosya adı (`files/…`); satır içiyse null.
   final String? remote;
 
-  const SmartPrepared(this.block, this.keys, {this.remote});
+  /// Ek bloklar (sunumda ilk slaytın görüntüsü — yazıya ek).
+  final List<Map<String, Object?>> extra;
+
+  const SmartPrepared(this.block, this.keys,
+      {this.remote, this.extra = const []});
+
+  /// İsteğin girdi listesi: ana blok + ekler.
+  List<Map<String, Object?>> get input => [block, ...extra];
 
   /// Yüklenen dosyayı sunucudan siler (en iyi çaba, beklenmez).
   void release() {
@@ -131,6 +142,11 @@ abstract final class SmartSortInput {
   /// bakar ama dosya bütün yüklenir (veri/kota); kırpma PLAN §1.1 m.5.
   static const maxVideoUploadBytes = 50 * 1024 * 1024;
 
+  /// Kaynak video sınırı (m.5): daha büyüğü yalnız ilk [videoSeconds]
+  /// saniyelik kesitiyle gider; kesit yapılamazsa ve dosya
+  /// [maxVideoUploadBytes] üstündeyse gönderilmez.
+  static const maxVideoSourceBytes = 1024 * 1024 * 1024;
+
   /// Videoda bakılan bölüm (sn).
   static const videoSeconds = 60;
 
@@ -141,7 +157,7 @@ abstract final class SmartSortInput {
       SmartInputKind.media => bytes <= GeminiDecisions.maxInlineBytes,
       SmartInputKind.meta => true,
       SmartInputKind.audio => bytes <= maxAudioUploadBytes,
-      SmartInputKind.video => bytes <= maxVideoUploadBytes,
+      SmartInputKind.video => bytes <= maxVideoSourceBytes,
       _ => bytes <= maxExtractBytes,
     };
   }
@@ -196,19 +212,54 @@ abstract final class SmartSortInput {
     final kind = kindOf(e.path);
     final av = kind == SmartInputKind.audio || kind == SmartInputKind.video;
     if (!av || e.sizeBytes <= GeminiDecisions.maxInlineBytes) {
-      return SmartPrepared(await blockFor(e), keys);
+      final block = await blockFor(e);
+      // Sunum (m.2 kalanı): dosyanın içindeki hazır ilk slayt resmi
+      // (PowerPoint/LibreOffice kaydederken yazar) yazıya ek görsel blok.
+      final slide =
+          kind == SmartInputKind.slides ? await slideImageBlock(e.path) : null;
+      return SmartPrepared(block, keys, extra: [?slide]);
+    }
+    final video = kind == SmartInputKind.video;
+    if (video) {
+      // m.5: büyük videonun yalnız ilk dakikası (geçici kesit) gider —
+      // çoğu zaman satır içine sığar, yükleme hiç olmaz.
+      final clip = await _clip(e.path);
+      if (clip != null) {
+        try {
+          final size = File(clip).lengthSync();
+          if (size <= GeminiDecisions.maxInlineBytes) {
+            final data = await _b64File(clip);
+            return SmartPrepared(
+                avBlock('video/mp4', video: true, data: data), keys);
+          }
+          if (size > maxVideoUploadBytes) {
+            throw GeminiException('video kesiti çok büyük', statusCode: -1);
+          }
+          return await _upload(clip, 'video/mp4', video: true, keys: keys);
+        } finally {
+          _deleteQuietly(clip);
+        }
+      }
+      if (e.sizeBytes > maxVideoUploadBytes) {
+        throw GeminiException('video çok büyük', statusCode: -1);
+      }
     }
     final mime = GeminiDecisions.mediaFor(e.path)!.mime;
+    return _upload(e.path, mime, video: video, keys: keys);
+  }
+
+  /// Files API yüklemesi: anahtarlar sırayla; kota/yetki hatasında
+  /// sıradaki, blok yalnız yükleyen anahtarla.
+  static Future<SmartPrepared> _upload(String path, String mime,
+      {required bool video, required List<String> keys}) async {
     GeminiException? last;
     for (final raw in keys) {
       final key = raw.trim();
       if (key.isEmpty) continue;
       try {
-        final f = await GeminiService.uploadFile(key, e.path, mime);
+        final f = await GeminiService.uploadFile(key, path, mime);
         return SmartPrepared(
-            avBlock(mime,
-                video: kind == SmartInputKind.video, fileUri: f.uri),
-            [key],
+            avBlock(mime, video: video, fileUri: f.uri), [key],
             remote: f.name);
       } on GeminiException catch (err) {
         last = err;
@@ -216,6 +267,75 @@ abstract final class SmartSortInput {
       }
     }
     throw last ?? GeminiException('API anahtarı yok', statusCode: 401);
+  }
+
+  static Future<String> _b64File(String path) =>
+      Isolate.run(() => base64Encode(File(path).readAsBytesSync()));
+
+  static void _deleteQuietly(String path) {
+    try {
+      File(path).deleteSync();
+    } catch (_) {
+      // Bilinçli: geçici kesit zaten yoksa sonuç değişmez.
+    }
+  }
+
+  /// Kesitler sırayla (kanal tek iş yürütür; paralel işçi beklesin).
+  static Future<void> _clipQueue = Future<void>.value();
+
+  static Future<String?> _clip(String path) {
+    final next = _clipQueue.then((_) async {
+      try {
+        return await clipVideo(path);
+      } catch (_) {
+        return null;
+      }
+    });
+    _clipQueue = next.then((_) {});
+    return next;
+  }
+
+  /// Videonun ilk [videoSeconds] saniyesini geçici klasöre keser; kesit
+  /// gereksizse (kısa video), kanal meşgulse ya da yapılamazsa null
+  /// (testte sahte).
+  @visibleForTesting
+  static Future<String?> Function(String path) clipVideo = _defaultClip;
+
+  static Future<String?> _defaultClip(String path) async {
+    if (VideoTranscoder.busy) return null;
+    final probe = await VideoTranscoder.probe(path);
+    if (probe == null || probe.durationMs <= (videoSeconds + 5) * 1000) {
+      return null;
+    }
+    final target = p.join(Directory.systemTemp.path,
+        'smart_clip_${DateTime.now().microsecondsSinceEpoch}.mp4');
+    return VideoTranscoder.clipTo(
+        path, target, const TrimRange(0, videoSeconds * 1000));
+  }
+
+  /// İlk slayt görüntüsünün en büyük boyutu (gömülü önizleme çoğu zaman
+  /// 20–200 KB; üstü belirteç yemesin diye gönderilmez).
+  static const maxSlideImageBytes = 1024 * 1024;
+
+  /// Sunumun gömülü ilk slayt resmi → görsel blok (izolatta: zip okuma +
+  /// base64). Yoksa, desteklenmiyorsa ya da büyükse null.
+  static Future<Map<String, Object?>?> slideImageBlock(String path) =>
+      Isolate.run(() => slideImage(path));
+
+  /// [slideImageBlock]'un eşzamanlı çekirdeği (izolat içinde çalışır).
+  static Map<String, Object?>? slideImage(String path) {
+    if (!OfficeThumbnail.supports(_ext(path))) return null;
+    final bytes = OfficeThumbnail.readEmbedded(path);
+    if (bytes == null ||
+        bytes.length < 4 ||
+        bytes.length > maxSlideImageBytes) {
+      return null;
+    }
+    final mime = bytes[0] == 0x89 && bytes[1] == 0x50
+        ? 'image/png'
+        : (bytes[0] == 0xFF && bytes[1] == 0xD8 ? 'image/jpeg' : null);
+    if (mime == null) return null;
+    return {'type': 'image', 'mime_type': mime, 'data': base64Encode(bytes)};
   }
 
   /// Saf: ses/video bloğu. Satır içi [data] (base64) ya da Files API

@@ -421,7 +421,7 @@ abstract final class SmartUserCats {
       FsEntry e, List<String> keys, DecisionQuestion q) async {
     final prep = await prepare(e, keys);
     try {
-      final r = await ask(prep.keys, [prep.block], [q]);
+      final r = await ask(prep.keys, prep.input, [q]);
       for (final a in r.answers) {
         if (a.question.id == q.id) return a.yes;
       }

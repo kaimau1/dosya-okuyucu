@@ -28,6 +28,7 @@ void main() {
     tmp = Directory.systemTemp.createTempSync('ssav_');
     SharedPreferences.setMockInitialValues({});
     GeminiService.filePollInterval = Duration.zero;
+    SmartSortInput.clipVideo = (_) async => null;
   });
   tearDown(() {
     GeminiService.debugClient = null;
@@ -222,14 +223,82 @@ void main() {
       expect(methods.last, 'DELETE');
     });
 
-    test('yükleme sınırı: ses 100 MB, video 50 MB; küçük video satır içi', () {
+    test('yükleme sınırı: ses 100 MB, video kaynağı 1 GB (kesitle)', () {
       expect(SmartSort.supports(entry('/s/Recordings/a.mp3', 90 << 20)), isTrue);
       expect(SmartSort.supports(entry('/s/Recordings/a.mp3', 101 << 20)),
           isFalse);
       expect(SmartSort.supports(entry('/s/Download/v.mp4', 40 << 20)), isTrue);
-      expect(SmartSort.supports(entry('/s/Download/v.mp4', 51 << 20)), isFalse);
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 51 << 20)), isTrue);
+      expect(SmartSort.supports(entry('/s/Download/v.mp4', 1025 << 20)),
+          isFalse);
       expect(GeminiService.fileInfoOf('{"name":"files/x","uri":"u"}').state,
           'ACTIVE');
+    });
+  });
+
+  group('büyük video: yalnız ilk dakika (m.5)', () {
+    test('kesit küçükse satır içi gider, yükleme yok, kesit silinir',
+        () async {
+      final f = File('${tmp.path}/uzun.mp4')..writeAsBytesSync([7]);
+      final clip = File('${tmp.path}/kesit.mp4')..writeAsBytesSync([1, 2, 3]);
+      String? asked;
+      SmartSortInput.clipVideo = (path) async {
+        asked = path;
+        return clip.path;
+      };
+      var calls = 0;
+      GeminiService.debugClient = MockClient((req) async {
+        calls++;
+        return http.Response('{}', 500);
+      });
+      final prep = await SmartSortInput.prepare(
+          entry(f.path, 300 << 20), ['k1', 'k2']);
+      expect(asked, f.path);
+      expect(calls, 0);
+      expect(prep.keys, ['k1', 'k2']);
+      expect(prep.block['type'], 'video');
+      expect(prep.block['mime_type'], 'video/mp4');
+      expect(prep.block['data'], base64Encode([1, 2, 3]));
+      expect(prep.block['video_metadata'],
+          {'start_offset': '0s', 'end_offset': '60s'});
+      expect(clip.existsSync(), isFalse);
+    });
+
+    test('kesit yapılamazsa: 50 MB altı bütün dosya yüklenir, üstü gitmez',
+        () async {
+      final f = File('${tmp.path}/v.mkv')..writeAsBytesSync([9]);
+      final uploads = <String>[];
+      GeminiService.debugClient = MockClient((req) async {
+        final u = req.url.toString();
+        if (u.endsWith('/upload/v1beta/files')) {
+          uploads.add(u);
+          return http.Response('{}', 200,
+              headers: {'x-goog-upload-url': 'https://up.test/s9'});
+        }
+        return http.Response(
+            jsonEncode({
+              'file': {'name': 'files/v', 'uri': 'https://g.test/files/v'},
+            }),
+            200);
+      });
+      final prep = await SmartSortInput.prepare(
+          entry(f.path, GeminiDecisions.maxInlineBytes + 1), ['k1']);
+      expect(uploads, hasLength(1));
+      expect(prep.block['mime_type'], 'video/x-matroska');
+      await expectLater(
+          SmartSortInput.prepare(entry(f.path, 51 << 20), ['k1']),
+          throwsA(isA<GeminiException>()
+              .having((e) => e.statusCode, 'durum', -1)));
+      expect(uploads, hasLength(1));
+    });
+
+    test('kesit hata verirse sessizce eski yola döner', () async {
+      final f = File('${tmp.path}/h.mp4')..writeAsBytesSync([9]);
+      SmartSortInput.clipVideo = (_) async => throw StateError('kodlayıcı');
+      await expectLater(
+          SmartSortInput.prepare(entry(f.path, 60 << 20), ['k1']),
+          throwsA(isA<GeminiException>()
+              .having((e) => e.statusCode, 'durum', -1)));
     });
   });
 

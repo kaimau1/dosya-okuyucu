@@ -108,16 +108,16 @@ abstract final class SmartQuota {
       if (cap != null && capChoices.contains(cap)) _cap = cap;
       _wifiOnly = prefs.getBool(prefWifi) ?? true;
       final log = prefs.getStringList(prefLog) ?? const [];
-      final days = [
+      final parsed = [
         for (final raw in log) ?SmartQuotaDay.decode(raw),
       ];
-      if (days.isNotEmpty) {
-        _day = days.first.day;
-        _requests = days.first.requests;
-        _limited = days.first.limited;
+      if (parsed.isNotEmpty) {
+        _day = parsed.first.day;
+        _requests = parsed.first.requests;
+        _limited = parsed.first.limited;
         _history
           ..clear()
-          ..addAll(days.skip(1).take(historyDays - 1));
+          ..addAll(parsed.skip(1).take(historyDays - 1));
       }
     } catch (_) {
       // Bilinçli: okunamazsa varsayılanlar (200/gün, yalnız Wi-Fi).

@@ -62,7 +62,6 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 
 | No | Paket | Model | Kaynak | Cihaz | APK | Durum |
 |---|---|---|---|---|---|---|
-| B1 | **AI Akıllı düzen 2.0 — çekirdek:** ayrıntılı sınıflandırma (§1.1), kullanıcı kategorileri (doğruluk kapısıyla), HER dosya türü (Office/metin/ses/video/arşiv), doğruluk ölçüm tezgâhı, Files API (büyük dosya) | opus (şema evresi fable) | §1.1; HAFIZA 2026-11-18 | A/B | evet | bulutta: sürüyor — dal faz-oto-B1-duzen2: bitti metin türleri + ayrıntılı şema (m.1) + ses/video + Files API (m.2) + kullanıcı kategorileri (m.3) main'de; doğruluk tezgâhı (m.4, yazıldı — ölçüm C2) dilimi main'e gidiyor, kalan: hız/kota (m.5, büyük video kırpma dahil), PowerPoint ilk slayt görüntüsü |
 | B2 | **AI Akıllı düzen 2.0 — kullanım:** Ayıkla 2 (en iyi kare, benzer kare grupları), kontrol listeleri, düzeltmeden öğrenme, isteğe bağlı taşıma kuralları, hassas kategori kilidi, Decisions'ın kalan kullanımları (eski P33/P34) | opus | §1.2 | A/B | evet | bekliyor — B1'den sonra |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | bekliyor |
 | B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — 2–3 oturum, tek dal |
@@ -92,9 +91,10 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
    Excel/CSV/ODS ilk sayfa ≤ 200 satır CSV, PowerPoint/ODP slayt yazıları, APK/arşiv yalnız ad·boyut·klasör;
    izolatta, mevcut tura girer)_ _(ses + video yazıldı — bulut 2026-11-18, dal faz-oto-B1-duzen2: sabit
    `audio`/`video` kategorisi + alt tür, seste dil/kalite, video ilk 60 sn düşük çözünürlük, yanlışlıkla → Ayıkla;
-   14 MB üstü Files API; blok alan adları API'de doğrulanmadı — `docs/CIHAZ_TESTI.md`)_ **Kalan:**
-   - PowerPoint/ODP → ilk slayt görüntüsü (yazıya ek).
-   - Kapsam (§ Kamera kapalı varsayılanı) aynen; AI kapsamı dışı hiç gönderilmez.
+   14 MB üstü Files API; blok alan adları API'de doğrulanmadı — `docs/CIHAZ_TESTI.md`)_ _(ilk slayt
+   görüntüsü yazıldı — bulut 2026-11-19: PowerPoint/ODP içindeki hazır önizleme resmi (≤ 1 MB, PNG/JPEG)
+   yazıya ek görsel blok, izolatta; resmi olmayan sunum yalnız yazıyla)_ Kapsam (§ Kamera kapalı
+   varsayılanı) aynen; AI kapsamı dışı hiç gönderilmez.
 3. **Kullanıcı kategorileri ("doğru çalışır mı?" tasarımı):** _(yazıldı — bulut 2026-11-18, dal
    faz-oto-B1-duzen2: `lib/services/fm/smart_user_cats.dart` + `smart_user_cat_screen.dart`; normal turda
    soru bütçesi (40) yettiği kadar aynı istekte, sığmayanı "Eski dosyalara uygula" sorar; "Dene" sonuçları
@@ -116,8 +116,11 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
    sorusu (`SmartSort.probe`, düzen kaydına yazmaz) ya da elle düzeltilmemiş güncel kayıt; uzantıdan kesin
    kategoriler kategori oranına girmez; eşik önerisi = kapıyı geçen en düşük eşik (≥ 5 dosya). Gerçek
    ölçüm cihazda → C2; rapor "Raporu kopyala" → `docs/ai/`)_
-5. **Hız/kota:** tur izolatta hazırlık, ana iş parçacığında yalnız sonuç; ücretsiz kota (429) ölçülür,
-   günlük üst sınır + "Wi-Fi'de" seçeneği; büyük videoda yalnız ilk dakikanın yüklenmesi (şimdi bütün dosya, ≤ 50 MB); liste satırında ikinci ad maliyeti A/B (ÖLÇÜM KAPISI).
+5. **Hız/kota:** _(yazıldı — bulut 2026-11-19: görsel base64, istek gövdesi JSON'u ve kişisel veri maskesi
+   büyük gövdede izolatta (`smart_offload_test`); `SmartQuota` günlük istek + 429 sayımı (7 gün), günlük
+   sınır 50–1000 (varsayılan 200), "yalnız Wi-Fi'de" varsayılan AÇIK (sabah bakılacak); büyük video yalnız
+   ilk 60 sn geçici kesitiyle (Media3 hızlı kesim; ≤ 14 MB satır içi, ≤ 50 MB yükleme; kaynak ≤ 1 GB).
+   Liste satırında ikinci ad maliyeti A/B ve kota sayılarının gerçek değeri → C2)_
 
 **Bitti:** dört tür ailesi (görsel/PDF, Office/metin, ses, video) düzenleniyor · kullanıcı kategorisi
 "Dene"li · tezgâh raporu kapıyı geçti · CI + A/B yeşil.
@@ -335,6 +338,10 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   "Doğruluk ölçümü"nde ~100 kendi dosyanı etiketle → "Eksiklere sor" → kapı kategori ≥ %90, alt tür ≥ %80;
   "Raporu kopyala" çıktısı (dosya adsız) `docs/ai/<tarih>-dogruluk.md`; kapı geçmezse şema/talimat düzeltmesi
   B1'e satır.
+  **Akıllı düzen 2.0 hız/kota** (bulut 2026-11-19, dal faz-oto-B1-duzen2; ölçülmedi): 14 MB görselli turda
+  ana izlek kare süresi (base64/JSON/maske izolatta), liste satırında ikinci ad maliyeti (ÖLÇÜM KAPISI);
+  bir haftalık günlük istek/429 sayısı (Akıllı düzen → "Günde en çok" satırı) → varsayılan 200 doğru mu;
+  2 dk+ videoda ilk dakika kesiti süresi/boyutu. Tezgâh ya da A/B kırmızıysa B1'e yeni satır.
   **B12 hız A/B** (bulut 2026-11-18, dal faz-oto-B12-hiz2; ölçülmedi): eski .xls/.doc açılışı, Word/Excel/Slayt
   taslaktan geri yükleme, sesli kitap hazırlığı (ana izlek kare süresi); Word editöründe resimli belge kaydırma
   + bellek, galeride bozuk/kurtarılan görsel, aktarım teklifi küçük resimleri. **B12 m.1/m.5** (ölçülmedi):
@@ -350,7 +357,8 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
 - **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
   Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18); Akıllı düzen Word/Excel/sunum/metin/APK ikinci adları
   (bulut 2026-11-18, dal faz-oto-B1-duzen2); Akıllı düzen kullanıcı kategorileri ("Dene", uygula,
-  süzgeç/arama/ikinci ad — CIHAZ_TESTI 2026-11-18).
+  süzgeç/arama/ikinci ad — CIHAZ_TESTI 2026-11-18); Akıllı düzen hız/kota + ilk slayt görüntüsü
+  (yalnız Wi-Fi, günlük sınır, büyük video kesiti — CIHAZ_TESTI 2026-11-19).
 
 ---
 
