@@ -20,6 +20,7 @@ import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/smart_user_cats.dart';
 import '../../widgets/ai_key_gate.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/fm/smart_cat_style.dart';
 import '../../widgets/section_header.dart';
 import 'category_screen.dart';
@@ -136,7 +137,9 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   Future<void> _openList(
       String title, String memoryId, List<String> Function() paths) async {
     final nav = Navigator.of(context);
-    final files = await FsScan.statPaths(paths());
+    final list = paths();
+    if (list.any(_isSensitive) && !await _unlockSensitive()) return;
+    final files = await FsScan.statPaths(list);
     if (!mounted) return;
     await nav.push(MaterialPageRoute(
       builder: (_) => CategoryScreen(
@@ -149,6 +152,23 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         header: const _FixHint(),
       ),
     ));
+  }
+
+  /// Hassas kategori kilidi oturum boyu bir kez açılır.
+  static bool _sensitiveOpen = false;
+
+  static bool _isSensitive(String path) =>
+      SmartTaxonomy.sensitive.contains(SmartSort.of(path)?.cat);
+
+  /// Kimlik/sağlık/banka/vergi içeren listeye girişte PIN (bkz.
+  /// [SmartTaxonomy.sensitive]). PIN yoksa ya da uygulama kilidi açıksa
+  /// (girişte zaten soruldu) sorulmaz.
+  Future<bool> _unlockSensitive() async {
+    final state = context.read<AppState>();
+    if (_sensitiveOpen || !state.fmHasLockPin || state.appLock) return true;
+    final ok = await askPin(context, title: context.t('sm.sensitive_pin'));
+    if (ok) _sensitiveOpen = true;
+    return ok;
   }
 
   static List<String> _paths(List<SmartRecord> list) =>
