@@ -176,17 +176,27 @@ class _FilmStripState extends State<_FilmStrip> {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return SizedBox(
       height: _item + 12,
-      child: ListView.separated(
+      // **Sabit öğe boyu** (G1, 2026-11-20, kullanıcı: "eski görüntülere
+      // hızlıca inip açınca donma"). Eskiden `ListView.separated`: boyu
+      // bilinmeyen öğeler + ayraçlar. Açılışta şerit seçili fotoğrafa
+      // atlarken liste o ofsete kadar BÜTÜN öğeleri sırayla kurup ölçüyordu —
+      // 5 bin fotoğraflık galeride en eski fotoğrafta ~10 bin öğe, tek karede
+      // ~700 ms (tablette ölçüldü). `itemExtent` ile atlama O(1): yalnız
+      // görünen öğeler kurulur. Boşluk öğenin içinde (görünüm aynı).
+      child: ListView.builder(
         controller: _scroll,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 8 - _gap / 2, vertical: 6),
+        itemExtent: _item + _gap,
         itemCount: widget.paths.length,
-        separatorBuilder: (_, _) => const SizedBox(width: _gap),
         itemBuilder: (context, i) {
           final active = i == widget.index;
           final sel = widget.selected;
           final picked = sel != null && sel.contains(widget.paths[i]);
-          return PressScale(child: GestureDetector(
+          return Padding(
+           padding: const EdgeInsets.symmetric(horizontal: _gap / 2),
+           child: PressScale(child: GestureDetector(
             onTap: () => widget.onPick(i),
             child: AnimatedContainer(
               duration: Motion.of(context, Motion.short),
@@ -236,7 +246,7 @@ class _FilmStripState extends State<_FilmStrip> {
                 ),
               ),
             ),
-          ));
+          )));
         },
       ),
     );
