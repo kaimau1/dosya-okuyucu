@@ -331,6 +331,40 @@ void main() {
     });
   });
 
+  /// PLAN §1.10 m.2 kalanı: dosyada LAMBDA/LET parametresi `_xlpm.` önekli
+  /// (Excel'in kendi yazımı; öneksiz ad Excel'de `#AD?`).
+  group('_xlpm. öneki (dosyaya yazma)', () {
+    test('LAMBDA ve LET parametreleri, bildirim + kullanım', () {
+      expect(FormulaEngine.toFileFormula('LAMBDA(x,x+1)(2)'),
+          '_xlfn.LAMBDA(_xlpm.x,_xlpm.x+1)(2)');
+      expect(FormulaEngine.toFileFormula('LET(x,A1*2,y,x+1,x*y)'),
+          '_xlfn.LET(_xlpm.x,A1*2,_xlpm.y,_xlpm.x+1,_xlpm.x*_xlpm.y)');
+      // LET'e bağlı LAMBDA çağrısı da önek alır.
+      expect(FormulaEngine.toFileFormula('LET(f,LAMBDA(a,b,a*b),f(3,4))'),
+          '_xlfn.LET(_xlpm.f,_xlfn.LAMBDA(_xlpm.a,_xlpm.b,_xlpm.a*_xlpm.b),_xlpm.f(3,4))');
+      expect(FormulaEngine.toFileFormula('MAP(A1:B2,LAMBDA(v,v*2))'),
+          '_xlfn.MAP(A1:B2,_xlfn.LAMBDA(_xlpm.v,_xlpm.v*2))');
+    });
+    test('Türkçe yazım: ; ayırıcı, , ondalık', () {
+      expect(FormulaEngine.toFileFormula('LET(x;1,5;y;2;x+y)', turkish: true),
+          '_xlfn.LET(_xlpm.x,1.5,_xlpm.y,2,_xlpm.x+_xlpm.y)');
+    });
+    test('dokunulmayanlar: metin, hücre, sayfa, işlev adı', () {
+      expect(FormulaEngine.toFileFormula('LET(x,"x",x&A1)'),
+          '_xlfn.LET(_xlpm.x,"x",_xlpm.x&A1)');
+      // Parametreyle aynı adlı işlev çağrısı işlev kalır.
+      expect(FormulaEngine.toFileFormula('LET(sum,1,SUM(sum,2))'),
+          '_xlfn.LET(_xlpm.sum,1,SUM(_xlpm.sum,2))');
+      expect(FormulaEngine.toFileFormula('SUM(A1:B2)'), 'SUM(A1:B2)');
+    });
+    test('gidiş-dönüş: önekli dosya yazımı aynı kalır, gösterimde öneksiz', () {
+      const file = '_xlfn.LAMBDA(_xlpm.n,_xlpm.n*2)(5)';
+      expect(FormulaEngine.toFileFormula(file), file);
+      expect(FormulaEngine.toTurkishFormula(file), 'LAMBDA(n;n*2)(5)');
+      expect(_one('=${FormulaEngine.toFileFormula('LET(x,4,x*x)')}'), '16');
+    });
+  });
+
   /// Kapsam bekçisi (PLAN §1.10 m.2): listedeki her işlev motorda TANINIR
   /// (`#AD?` vermez), tamamlamada görünür ve yardım balonunda imzası var.
   /// Yeni işlev eklendikçe buraya da yazılır; liste yalnız büyür.
