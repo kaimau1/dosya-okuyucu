@@ -542,12 +542,13 @@ class DocxEditorViewState extends State<DocxEditorView> {
         );
       case DocxAtomKind.note:
         final open = widget.actions.openNote;
+        final key = c.doc.noteKey(a);
         return WidgetSpan(
           alignment: PlaceholderAlignment.top,
           child: GestureDetector(
-            key: ValueKey('docx-note-${a.display}'),
-            onTap: open == null ? null : () => open(a.display),
-            child: Text(a.display,
+            key: ValueKey('docx-note-$key'),
+            onTap: open == null ? null : () => open(key),
+            child: Text(c.noteLabels[a] ?? a.display,
                 style: st.apply(fontSizeFactor: 0.65).copyWith(
                     color: open == null ? null : AppHues.blue)),
           ),

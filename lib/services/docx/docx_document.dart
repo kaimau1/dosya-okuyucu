@@ -1602,11 +1602,14 @@ class DocxDocument {
   Archive buildArchive() {
     commit();
     _pruneNotes();
+    final notes = _prunedFootnotes();
     final replaced = <String, List<int>>{
       ..._binParts,
       if (_xmlDirty) 'word/document.xml': utf8.encode(doc.toXmlString()),
       for (final name in _dirtyParts)
         name: utf8.encode(_parts[name]!.toXmlString()),
+      for (final MapEntry(:key, :value) in notes.entries)
+        key: utf8.encode(value.toXmlString()),
     };
     final out = Archive();
     for (final f in _archive.files) {

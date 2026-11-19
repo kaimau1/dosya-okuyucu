@@ -596,29 +596,40 @@ Future<String?> showWordDateSheet(BuildContext context) {
   );
 }
 
-/// Kısa metin levhası (dipnot / yorum / alternatif metin): vazgeçilirse null.
+/// [showWordTextSheet] "Sil" düğmesine basılınca dönen değer.
+const kWordSheetDelete = '\u0000sil';
+
+/// Kısa metin levhası (dipnot / yorum / alternatif metin): vazgeçilirse null;
+/// [deleteLabel] verilirse ikinci düğme [kWordSheetDelete] döndürür.
 Future<String?> showWordTextSheet(BuildContext context,
         {required String title,
         required String label,
         required String action,
         String initial = '',
+        String? deleteLabel,
         Key? fieldKey}) =>
     showAppSheet<String>(
       context,
       title: title,
       builder: (ctx) => _WordTextSheet(
-          label: label, action: action, initial: initial, fieldKey: fieldKey),
+          label: label,
+          action: action,
+          initial: initial,
+          deleteLabel: deleteLabel,
+          fieldKey: fieldKey),
     );
 
 /// Denetleyicisi levhanın ömrüne bağlı (kapanış animasyonu sürerken
 /// atılmasın).
 class _WordTextSheet extends StatefulWidget {
   final String label, action, initial;
+  final String? deleteLabel;
   final Key? fieldKey;
   const _WordTextSheet(
       {required this.label,
       required this.action,
       required this.initial,
+      this.deleteLabel,
       this.fieldKey});
 
   @override
@@ -656,6 +667,12 @@ class _WordTextSheetState extends State<_WordTextSheet> {
               onPressed: () => Navigator.pop(context, _ctl.text),
               child: Text(widget.action),
             ),
+            if (widget.deleteLabel case final del?)
+              TextButton(
+                key: const ValueKey('word-text-delete'),
+                onPressed: () => Navigator.pop(context, kWordSheetDelete),
+                child: Text(del),
+              ),
           ],
         ),
       );
