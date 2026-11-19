@@ -74,8 +74,7 @@ abstract final class Checklists {
       final list = jsonDecode(raw);
       if (list is! List) return [];
       return [
-        for (final m in list)
-          if (Checklist.fromJson(m) case final c?) c
+        for (final m in list) ?Checklist.fromJson(m),
       ];
     } catch (_) {
       return []; // Bilinçli: bozuk kayıt → yalnız hazır listeler.
