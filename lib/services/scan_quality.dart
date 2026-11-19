@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
 
+import 'gemini_decisions.dart';
 import 'scan_dewarp.dart' show ScanDewarp;
 import 'scan_page_ops.dart';
 
@@ -108,5 +109,38 @@ abstract final class ScanQualityCheck {
       }
     }
     return n < 2 ? 0 : m2 / (n - 1);
+  }
+}
+
+/// **AI ile kalite kontrolü** (B2 dilim 4, PLAN §1.2 Decisions kullanımları):
+/// yerel ölçüm (keskinlik/ışık/eğim) parlamayı, kadraj dışı kalan kenarı ve
+/// okunaksız yazıyı göremez. Görünen sayfanın küçük önizlemesi Decisions'a
+/// üç evet/hayır sorusuyla gider; sorun varsa "Yeniden çek" önerilir.
+abstract final class ScanAiQuality {
+  /// Bu olasılığın üstü "sorun var" sayılır (yanlış uyarı az olsun).
+  static const threshold = 0.6;
+
+  static const questions = [
+    DecisionQuestion.yesNo('legible', 'Legible?',
+        'Is the text on this scanned document page clearly legible?'),
+    DecisionQuestion.yesNo(
+        'glare',
+        'Glare?',
+        'Does glare, a reflection or a strong shadow hide part of the text '
+            'on this document page?'),
+    DecisionQuestion.yesNo('cut', 'Cut off?',
+        'Is part of the document page cut off at the edges of the photo?'),
+  ];
+
+  /// Yanıtlardan TEK öneri (öncelik: parlama > kesik > okunaksız); sorun
+  /// yoksa null. Gelmeyen soru "sorun yok" sayılır.
+  static String? hintFrom(List<DecisionAnswer> answers) {
+    double? p(String id) =>
+        answers.where((a) => a.question.id == id).firstOrNull?.yes;
+    if ((p('glare') ?? 0) >= threshold) return 'ai_glare';
+    if ((p('cut') ?? 0) >= threshold) return 'ai_cut';
+    final legible = p('legible');
+    if (legible != null && legible < 1 - threshold) return 'ai_illegible';
+    return null;
   }
 }
