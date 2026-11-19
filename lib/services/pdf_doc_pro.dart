@@ -152,7 +152,7 @@ abstract final class PdfDocPro {
     final doc = PdfDocument(inputBytes: bytes, password: currentPassword);
     try {
       final security = doc.security
-        ..algorithm = PdfEncryptionAlgorithm.aesx256Bit
+        ..algorithm = PdfEncryptionAlgorithm.aesx256BitRevision6
         ..ownerPassword = ownerPassword
         ..userPassword = userPassword;
       security.permissions.clear();
