@@ -706,6 +706,8 @@ class DocxDocument {
       }
       if (field != null) {
         field.add(e);
+        // Paragraflara yayılan alanın sonucu (İçindekiler girdisi köprüsü).
+        if (afterSeparate) fieldResult.write(_textOf(e));
         continue;
       }
       final t = _textOf(e);

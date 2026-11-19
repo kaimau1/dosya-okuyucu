@@ -126,6 +126,13 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.textbox': ('Metin kutusu', 'Text box', 'مربع نص'),
   'wp.shape': ('Şekil', 'Shape', 'شكل'),
   'wp.cover': ('Kapak sayfası', 'Cover page', 'صفحة الغلاف'),
+  'wp.toc': ('İçindekiler', 'Table of contents', 'جدول المحتويات'),
+  'wp.toc_title': ('İçindekiler', 'Contents', 'المحتويات'),
+  'wp.toc_none': (
+      'Başlık yok — İçindekiler için Başlık 1–3 stillerini kullanın',
+      'No headings — use Heading 1–3 styles for a table of contents',
+      'لا توجد عناوين — استخدم أنماط العنوان 1–3 لجدول المحتويات'),
+  'wp.toc_done': ('İçindekiler güncellendi', 'Table of contents updated', 'تم تحديث جدول المحتويات'),
   'wp.section_break': ('Bölüm sonu', 'Section break', 'فاصل مقطع'),
   'wp.field': ('Alan', 'Field', 'حقل'),
   'wp.cross_ref': ('Çapraz başvuru', 'Cross-reference', 'إسناد ترافقي'),

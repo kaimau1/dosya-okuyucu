@@ -74,6 +74,7 @@ const kWordProTools = <List<(String, IconData)>>[
     ('textbox', AppIcons.textFields),
     ('shape', AppIcons.rectTool),
     ('cover', AppIcons.title),
+    ('toc', AppIcons.accountTree),
     ('section_break', AppIcons.wrapText),
     ('field', AppIcons.dataObject),
     ('cross_ref', AppIcons.link),
