@@ -23,6 +23,7 @@ enum _EntryAction {
   externalDrive,
   aiSummary,
   aiCheck,
+  aiChecklist,
   imageInsight,
   resize,
   trimVideo,
@@ -55,6 +56,7 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
       _EntryAction.driveUpload => Feature.googleDrive,
       _EntryAction.aiSummary ||
       _EntryAction.aiCheck ||
+      _EntryAction.aiChecklist ||
       _EntryAction.imageInsight ||
       _EntryAction.aiTag ||
       _EntryAction.aiAlias ||
@@ -428,6 +430,10 @@ Future<bool> showEntryActions(
                 if (!entry.isDir)
                   act(AppIcons.ai, ctx.t('qc.action'), _EntryAction.aiCheck,
                       hint: ctx.t('qc.action_hint')),
+                // B2 dilim 3: evrak listesi → ✓/✗ + eksik evrak.
+                act(AppIcons.listAlt, ctx.t('ckl.action'),
+                    _EntryAction.aiChecklist,
+                    hint: ctx.t('ckl.action_hint')),
               ]),
             ],
           ),
@@ -535,6 +541,10 @@ Future<bool> showEntryActions(
 
     case _EntryAction.aiCheck:
       await showAiQuickCheck(context, entry);
+      return false;
+
+    case _EntryAction.aiChecklist:
+      await showAiChecklist(context, [entry]);
       return false;
 
     case _EntryAction.aiAlias:
