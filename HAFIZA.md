@@ -391,3 +391,6 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Akıllı temizlik AI doğrulaması:** yalnız greeting/blurry kovası; en çok 20 görsel, AI P<0.3 → kovadan düşer (silme yok).
 - **Galeri kategori süzgeci ZATEN VARDI:** Fotoğraflar `FmQuickFilters` AI kategori hapı (2026-11-18). Eksik: hassas kategori (kimlik/sağlık/banka/vergi) seçiminde PIN — yapılmadı.
 - **Sohbet yönlendirici (yapılmadı):** sohbet zinciri zaten flash-lite önce (`ai_tasks.dart`); kazanç = basit soruda Gemma'yı (günde 14.400) öne almak; Decisions çağrısı yalnız katalogda Gemma varsa + zaman aşımı ~1,5 sn.
+## 2026-11-19 — B2 dilim 5 (son; dal faz-oto-B2-duzen-kullanim; yazıldı, cihazda doğrulanmadı)
+- **Hassas kategori PIN'i tek yerde:** `unlockSensitiveCats` (`widgets/fm/pin_dialog.dart`, oturum bayrağı) — Akıllı düzen listeleri + Fotoğraflar AI kategori levhası (`showSmartCatSheet`, yalnız SEÇERKEN) paylaşır; PIN yoksa / uygulama kilidi açıksa sorulmaz.
+- **Sohbet yönlendirici ertelendi → PLAN B14:** her mesaja ek Decisions isteği + ≤1,5 sn gecikme; yanıt kalitesi A/B'siz değiştirilmez. B2 satırı silindi, A/B C2'de.
