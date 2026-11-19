@@ -195,10 +195,24 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.player) {
-      _remember(path);
-      await Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => MediaPlayerScreen(path: path, playlist: group),
-      ));
+      // Solarak gelen rota: video kapağı hücresinden büyüyerek açılır, geri
+      // dönüşte hücresine küçülür (Hero; kullanıcı 2026-11-15). Opak rota —
+      // geçiş bitince alttaki ızgara çizilmez (oynatma sırasında yük yok).
+      final player = PageRouteBuilder<void>(
+        transitionDuration: Motion.long,
+        reverseTransitionDuration: Motion.medium,
+        pageBuilder: (_, _, _) =>
+            MediaPlayerScreen(path: path, playlist: group),
+        transitionsBuilder: (_, animation, _, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
+      );
+      final closed = Navigator.of(context).push(player);
+      // Geçmiş kaydı + başlatıcı kısayolu (yerel çağrı, platform iş
+      // parçacığında) geçiş BİTİNCE: açılış karelerine karışmasın.
+      _afterTransition(player, () => _remember(path));
+      await closed;
       return;
     }
     if (route == OpenRoute.audio) {
@@ -209,14 +223,19 @@ abstract final class EntryOpener {
       return;
     }
     if (route == OpenRoute.gallery && group.length > 1) {
-      _remember(path);
       // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
       // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
       // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).
-      await Navigator.of(context).push(imageGalleryRoute(
+      final gallery = imageGalleryRoute(
         paths: group,
         initialIndex: group.indexOf(path),
-      ));
+      );
+      final closed = Navigator.of(context).push(gallery);
+      // Geçmiş kaydı (bütün geçmişin JSON'u + başlatıcı kısayolu) geçiş
+      // BİTİNCE — oynatıcıdaki gibi (2026-11-18, kullanıcı: "fotoğraf takıla
+      // takıla açılıyor"): büyüme karelerinin arasına girmesin.
+      _afterTransition(gallery, () => _remember(path));
+      await closed;
       return;
     }
 
@@ -255,21 +274,43 @@ abstract final class EntryOpener {
     closeBusy();
     if (!context.mounted) return;
 
-    _remember(path);
-    if (!PrivateZone.isPrivatePath(path)) {
-      await appState.addRecent(RecentFile(
+    // G7.4 (2026-11-12): makrolu Office biçimi — kullanıcıya makronun
+    // çalıştırılmadığı söylenir (uygulamada VBA yorumlayıcısı yok).
+    if (isMacroFormat(path)) _snack(context, context.t('open.macro_info'));
+    final page = SmoothOpenRoute<void>(
+        builder: (_) => screenFor(doc, startInk: startInk));
+    final closed = navigator.push(page);
+    // Geçmiş + "Son belgeler" kaydı (tercih yazımı, yerel çağrı, ana ekranın
+    // yeniden kurulması) geçiş BİTİNCE: eskiden itmeden hemen önce yapılıyor,
+    // açılışın ilk karelerine karışıp geçişi takıltıyordu (2026-11-15).
+    _afterTransition(page, () {
+      _remember(path);
+      if (PrivateZone.isPrivatePath(path)) return;
+      unawaited(appState.addRecent(RecentFile(
         path: path,
         name: doc.name,
         sizeBytes: _fileService.sizeOf(path),
         openedAtMs: DateTime.now().millisecondsSinceEpoch,
-      ));
+      )));
+    });
+    await closed;
+  }
+
+  /// [fn]'i [route]'un açılış geçişi bitince (ya da geri dönünce) bir kez
+  /// çağırır; geçiş yoksa hemen.
+  static void _afterTransition(TransitionRoute<void> route, VoidCallback fn) {
+    final animation = route.animation;
+    if (animation == null || animation.isCompleted) {
+      fn();
+      return;
     }
-    if (!context.mounted) return;
-    // G7.4 (2026-11-12): makrolu Office biçimi — kullanıcıya makronun
-    // çalıştırılmadığı söylenir (uygulamada VBA yorumlayıcısı yok).
-    if (isMacroFormat(path)) _snack(context, context.t('open.macro_info'));
-    await navigator.push(MaterialPageRoute(
-        builder: (_) => screenFor(doc, startInk: startInk)));
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.forward) return;
+      animation.removeStatusListener(listener);
+      fn();
+    };
+    animation.addStatusListener(listener);
   }
 
   /// Makro taşıyabilen Office uzantıları (G7.4).
@@ -541,4 +582,26 @@ class _MediaChoiceDialogState extends State<_MediaChoiceDialog> {
           ),
         ],
       );
+}
+
+/// Belge ekranlarının rotası: geçiş, ekranın **ilk karesi çizildikten sonra**
+/// baştan başlar (2026-11-15, kullanıcı: "belge kasarak, donarak açılıyor").
+///
+/// Kök: geçiş saati itme anında işlemeye başlar; görüntüleyici/editör ilk
+/// karede kurulurken (yüz ms'ye varabilir) saat ilerler, ikinci karede geçiş
+/// yarısını atlamış olur — kayma yerine "donup sıçrama" görünür. İlk kare
+/// bitince saat sıfırlanınca geçişin tamamı akıcı oynar.
+class SmoothOpenRoute<T> extends MaterialPageRoute<T> {
+  SmoothOpenRoute({required super.builder, super.settings});
+
+  @override
+  TickerFuture didPush() {
+    final pushed = super.didPush();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final c = controller;
+      if (!isActive || c == null) return;
+      if (c.status == AnimationStatus.forward) c.forward(from: 0);
+    });
+    return pushed;
+  }
 }

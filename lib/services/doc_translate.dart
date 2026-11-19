@@ -72,6 +72,7 @@ abstract final class DocTranslate {
         document,
         maxPages: needsOcr.length,
         onlyPages: needsOcr,
+        allowCloud: true,
         onProgress: onOcr,
         cancelled: cancelled,
       );

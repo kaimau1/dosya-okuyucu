@@ -221,7 +221,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // pdfrx bunu ilk sayfanın bitmap'i önbelleğe
                           // girince çağırır (H0.3).
                           if (ok) PdfProPerf.openMark('ilk_sayfa');
-                          if (!ok && mounted && !_pdfOpened) {
+                          // İlk sayfa net çizildi (ya da belge açılamadı):
+                          // köprü payı beklemeden kalkar.
+                          if (mounted && !_pdfOpened) {
+                            _pdfBridgeTimer?.cancel();
                             _partSetState(() => _pdfOpened = true);
                           }
                         },
@@ -442,7 +445,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
         });
 
       case DocKind.image:
-        return Container(
+        final imageOverlay = _ocrOverlay && _ocrImageLines.isNotEmpty;
+        final imageView = Container(
           color: AppColors.pageInk,
           child: GestureDetector(
             onDoubleTapDown: (d) => _doubleTapDetails = d,
@@ -454,23 +458,59 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
               child: Center(
                 child: RotatedBox(
                   quarterTurns: _imgQuarterTurns,
-                  child: Image(
-                    // Bellek/pil: tam çözünürlük yerine ekranın gerektirdiği
-                    // kadar piksel (bkz. core/image_budget.dart). 12 MP'lik
-                    // bir fotoğraf tam açıldığında 48 MB bitmap ediyordu.
-                    // G7.7: FmFileImage ayrıca piksel tavanı uygular (uzun/dar
-                    // 100 MP+ görsel yalnız genişlikle sınırlanamıyordu).
-                    image: FmFileImage(doc.path, cacheWidth: _imgDecodeWidth),
-                    gaplessPlayback: true,
-                    errorBuilder: (_, _, _) => Text(
-                      context.t('vw.image_failed'),
-                      style: const TextStyle(color: AppColors.onMedia),
-                    ),
+                  child: Stack(
+                    children: [
+                      Image(
+                        // Bellek/pil: tam çözünürlük yerine ekranın
+                        // gerektirdiği kadar piksel (bkz. core/image_budget.dart).
+                        // G7.7: FmFileImage ayrıca piksel tavanı uygular.
+                        image:
+                            FmFileImage(doc.path, cacheWidth: _imgDecodeWidth),
+                        gaplessPlayback: true,
+                        errorBuilder: (_, _, _) => Text(
+                          context.t('vw.image_failed'),
+                          style: const TextStyle(color: AppColors.onMedia),
+                        ),
+                      ),
+                      // OCR sonrası: metin doğrudan resmin üstünden seçilir.
+                      // Ağaç şekli sabit (kasma-kontrol §3): kapalıyken boş.
+                      imageOverlay
+                          ? Positioned.fill(
+                              child: OcrTextOverlay(
+                                path: doc.path,
+                                lines: _ocrImageLines,
+                                onSelection: (t) => _ocrSelection.value = t,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ],
                   ),
                 ),
               ),
             ),
           ),
+        );
+        return Stack(
+          children: [
+            Positioned.fill(child: imageView),
+            if (_ocrImageLines.isEmpty)
+              const SizedBox.shrink()
+            else
+              ReadingFloat(
+              start: 12,
+              end: 12,
+              child: Center(
+                child: imageOverlay
+                    ? _ocrOverlayBar()
+                    : ActionChip(
+                        avatar: const Icon(AppIcons.textSnippet, size: 18),
+                        label: Text(context.t('vw.ocr_overlay_open')),
+                        onPressed: () =>
+                            _partSetState(() => _ocrOverlay = true),
+                      ),
+              ),
+            ),
+          ],
         );
 
       case DocKind.spreadsheet:

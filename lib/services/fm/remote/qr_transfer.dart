@@ -756,6 +756,17 @@ abstract final class QrNative {
     }
   }
 
+  /// Görsel dosyadaki QR kodlarının ham değerleri (2026-11-18). Kanal yoksa,
+  /// model inmemişse ya da QR yoksa boş liste — hata atmaz.
+  static Future<List<String>> decodeImage(String path) async {
+    try {
+      final r = await _ch.invokeListMethod<String>('decodeImage', {'path': path});
+      return r ?? const [];
+    } catch (_) {
+      return const []; // Bilinçli: yalnız kolaylık; düğme görünmez.
+    }
+  }
+
   /// `{ssid, pass, sec}`. İzin eksikse bir kez ister ve yeniden dener;
   /// olmazsa hata kodu (`perm`, `location_off`, `unsupported`, `failed`)
   /// ile PlatformException.

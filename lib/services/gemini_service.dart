@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -35,6 +38,21 @@ class GeminiException implements Exception {
   String toString() => message;
 }
 
+/// Dosyayı gövde olarak **akışla** gönderen istek (Files API yüklemesi):
+/// baytlar istemci okudukça diskten gelir, belleğe alınmaz; okuma hatası
+/// `send` üzerinden çağırana döner.
+class _FileUpload extends http.BaseRequest {
+  final File file;
+
+  _FileUpload(Uri url, this.file) : super('POST', url);
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(file.openRead());
+  }
+}
+
 /// Gemini REST API istemcisi (google_generative_ai paketine bağımlı değil).
 class GeminiService {
   final String apiKey;
@@ -59,8 +77,12 @@ class GeminiService {
   static Future<http.Response> _post(Uri url,
       {Map<String, String>? headers, Object? body}) async {
     // G10.2: gönderimden hemen önce, TEK yerde — her AI çağrısı buradan geçer.
+    // B1 m.5: görselli gövde (base64, ~19 MB'a dek) çözüp yeniden kodlamak
+    // ana izlekte onlarca ms — büyük gövde izolatta, küçüğü yerinde.
     if (body is String && await PiiMaskSetting.enabled()) {
-      body = maskBody(body);
+      body = body.length > isolateMaskChars
+          ? await _maskOffMain(body)
+          : maskBody(body);
     }
     return debugClient != null
         ? debugClient!.post(url, headers: headers, body: body)
@@ -69,6 +91,12 @@ class GeminiService {
 
   /// G8.6: asılı kalan istek yok (uzun yanıtlar dahil üst sınır).
   static const _timeout = Duration(seconds: 180);
+
+  /// Bu uzunluğun üstündeki gövde maskesi izolatta yapılır.
+  static const isolateMaskChars = 256 * 1024;
+
+  static Future<String> _maskOffMain(String raw) =>
+      Isolate.run(() => maskBody(raw));
 
   /// JSON gövdedeki `text` alanlarını [Pii.mask]'ten geçirir.
   @visibleForTesting
@@ -93,6 +121,138 @@ class GeminiService {
       };
 
   Uri _endpoint() => Uri.parse('$_base/models/$model:generateContent');
+
+  /// **Decisions API** (`POST /v1beta/decisions`, 2026-11-18): kapalı uçlu
+  /// soruları (evet/hayır, seçim, ölçek) dosyanın kendisi üzerinde tek
+  /// geçişte puanlar. Gövdeyi [GeminiDecisions] kurar; burada yalnız ortak
+  /// kapılar (çevrimdışı, kişisel veri maskesi, zaman aşımı, başlıkta anahtar).
+  static Future<http.Response> postDecision(String key, String body) {
+    _offlineGuard();
+    return _post(Uri.parse('$_base/decisions'),
+        headers: _headers(key), body: body);
+  }
+
+  /// Hata gövdesini okunur metne çevirir (Decisions istemcisi için).
+  static String readError(http.Response resp) => _readErrorStatic(resp);
+
+  // ── Files API (Akıllı düzen ses/video, 2026-11-18) ─────────────────────
+  /// Satır içi sınırı aşan ses/video bu yoldan gider: dosya **akışla**
+  /// yüklenir (belleğe alınmaz), modele yalnız `file_uri` gider. Yüklenen
+  /// dosyanın görünen adı sabit ([uploadDisplayName]) — kişisel dosya adı
+  /// sunucuya yazılmaz. İşi biten dosya [deleteFile] ile hemen silinir
+  /// (sunucu zaten 48 saatte siler).
+  static const uploadDisplayName = 'dosya-okuyucu-smart-sort';
+
+  /// Yükleme sonrası işlenme (PROCESSING → ACTIVE) bekleme aralığı ve üst
+  /// sınırı. Testler sıfırlar.
+  @visibleForTesting
+  static Duration filePollInterval = const Duration(seconds: 2);
+  static const _filePollMax = 45;
+
+  static const _uploadBase =
+      'https://generativelanguage.googleapis.com/upload/v1beta/files';
+
+  /// [path] dosyasını yükler, işlenip kullanılabilir olunca `(name, uri)`
+  /// döner. Hata: [GeminiException] (durum kodu sunucununki; 401/403/429'da
+  /// çağıran sıradaki anahtarı dener).
+  static Future<({String name, String uri})> uploadFile(
+      String key, String path, String mime) async {
+    _offlineGuard();
+    final file = File(path);
+    final size = await file.length();
+    // 1) Sürdürülebilir yükleme oturumu.
+    final start = await _post(Uri.parse(_uploadBase),
+        headers: {
+          ..._headers(key),
+          'X-Goog-Upload-Protocol': 'resumable',
+          'X-Goog-Upload-Command': 'start',
+          'X-Goog-Upload-Header-Content-Length': '$size',
+          'X-Goog-Upload-Header-Content-Type': mime,
+        },
+        body: jsonEncode({
+          'file': {'display_name': uploadDisplayName},
+        }));
+    if (start.statusCode != 200) {
+      throw GeminiException(_readErrorStatic(start),
+          statusCode: start.statusCode);
+    }
+    final url = start.headers['x-goog-upload-url'];
+    if (url == null || url.isEmpty) {
+      throw GeminiException('Yükleme adresi gelmedi.', statusCode: -1);
+    }
+    // 2) Baytlar akışla, tek parça + bitir.
+    final req = _FileUpload(Uri.parse(url), file)
+      ..headers.addAll({
+        'x-goog-api-key': key.trim(),
+        'X-Goog-Upload-Offset': '0',
+        'X-Goog-Upload-Command': 'upload, finalize',
+      })
+      ..contentLength = size;
+    final client = debugClient ?? http.Client();
+    final http.Response up;
+    try {
+      up = await http.Response.fromStream(
+          await client.send(req).timeout(const Duration(minutes: 10)));
+    } finally {
+      if (debugClient == null) client.close();
+    }
+    if (up.statusCode != 200) {
+      throw GeminiException(_readErrorStatic(up), statusCode: up.statusCode);
+    }
+    var info = _fileInfo(up.body);
+    // 3) Video (ve bazen ses) önce işlenir; ACTIVE olmadan kullanılamaz.
+    for (var i = 0; info.state == 'PROCESSING' && i < _filePollMax; i++) {
+      await Future<void>.delayed(filePollInterval);
+      final r = await _get(Uri.parse('$_base/${info.name}'),
+          headers: _headers(key, json: false));
+      if (r.statusCode != 200) {
+        throw GeminiException(_readErrorStatic(r), statusCode: r.statusCode);
+      }
+      info = _fileInfo(r.body);
+    }
+    if (info.state == 'PROCESSING' || info.state == 'FAILED') {
+      unawaited(deleteFile(key, info.name));
+      throw GeminiException('Dosya işlenemedi (${info.state}).',
+          statusCode: -1);
+    }
+    return (name: info.name, uri: info.uri);
+  }
+
+  /// Yükleme/durum yanıtından ad, adres, durum (`{file: {...}}` ya da düz).
+  @visibleForTesting
+  static ({String name, String uri, String state}) fileInfoOf(String body) =>
+      _fileInfo(body);
+
+  static ({String name, String uri, String state}) _fileInfo(String body) {
+    Object? j;
+    try {
+      j = jsonDecode(body);
+    } on FormatException {
+      j = null;
+    }
+    final f = j is Map ? (j['file'] is Map ? j['file'] as Map : j) : null;
+    final name = f?['name'];
+    final uri = f?['uri'];
+    if (name is! String || uri is! String || name.isEmpty || uri.isEmpty) {
+      throw GeminiException('Yükleme yanıtı okunamadı.', statusCode: -1);
+    }
+    final state = f?['state'];
+    return (name: name, uri: uri, state: state is String ? state : 'ACTIVE');
+  }
+
+  /// Yüklenen dosyayı siler; hata yutulur (sunucu 48 saatte siler).
+  static Future<void> deleteFile(String key, String name) async {
+    if (OfflineMode.enabled || name.isEmpty) return;
+    try {
+      final url = Uri.parse('$_base/$name');
+      final headers = _headers(key, json: false);
+      await (debugClient != null
+          ? debugClient!.delete(url, headers: headers)
+          : http.delete(url, headers: headers).timeout(_timeout));
+    } catch (_) {
+      // Bilinçli: silme en iyi çaba; kalan dosya sunucuda kendiliğinden düşer.
+    }
+  }
 
   /// Sohbet geçmişi + opsiyonel dosya bağlamı + kalıcı hafıza ile yanıt üretir.
   Future<String> chat({
@@ -259,6 +419,64 @@ class GeminiService {
     if (text.trim().isEmpty) {
       throw GeminiException('Model boş yanıt döndürdü.');
     }
+    return text;
+  }
+
+  /// Görsel + istem → şemalı JSON (bulut OCR, 2026-11-18: ML Kit'te Arapça
+  /// yok). [image] satır içi gider (çağıran boyutu sınırlar).
+  Future<String> generateJsonFromImage({
+    required String prompt,
+    required Map<String, Object?> schema,
+    required Uint8List image,
+    required String mimeType,
+  }) async {
+    if (apiKey.trim().isEmpty) {
+      throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
+          'Gemini API anahtarınızı girin.');
+    }
+    _offlineGuard();
+    late http.Response resp;
+    try {
+      resp = await _post(
+        _endpoint(),
+        headers: _headers(apiKey),
+        body: jsonEncode({
+          'contents': [
+            {
+              'role': 'user',
+              'parts': [
+                {'text': prompt},
+                {
+                  'inlineData': {
+                    'mimeType': mimeType,
+                    'data': base64Encode(image),
+                  },
+                },
+              ],
+            }
+          ],
+          'generationConfig': {
+            'temperature': 0,
+            'responseMimeType': 'application/json',
+            'responseSchema': schema,
+          },
+        }),
+      );
+    } catch (e) {
+      throw GeminiException('Ağ hatası: $e');
+    }
+    if (resp.statusCode != 200) {
+      throw GeminiException(_readError(resp), statusCode: resp.statusCode);
+    }
+    final map = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final candidates = map['candidates'] as List?;
+    if (candidates == null || candidates.isEmpty) {
+      throw GeminiException('Model boş yanıt döndürdü.');
+    }
+    final text = ((candidates.first['content']?['parts'] as List?) ?? const [])
+        .map((p) => p is Map && p['text'] != null ? p['text'] as String : '')
+        .join();
+    if (text.trim().isEmpty) throw GeminiException('Model boş yanıt döndürdü.');
     return text;
   }
 

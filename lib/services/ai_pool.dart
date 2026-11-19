@@ -39,6 +39,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/private_zone.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/edition.dart';
+import 'ai_tasks.dart';
 import 'gemini_service.dart';
 import 'offline_mode.dart';
 
@@ -361,6 +363,11 @@ abstract final class AiPool {
     AiCredentials credentials,
     Future<T> Function(GeminiService gemini) action,
   ) async {
+    // AI yalnız Pro (ve Kişisel) sürümde (kullanıcı kararı 2026-11-15).
+    if (!Edition.current.has(Feature.ai)) {
+      throw GeminiException(AppStrings.current.t('aiterms.pro_only'),
+          statusCode: -2);
+    }
     // Çevrimdışı kip: anahtar/onay sormadan, kalıcı hata (-1).
     if (OfflineMode.enabled) {
       throw GeminiException(const OfflineException().message, statusCode: -1);
@@ -546,6 +553,14 @@ class PooledGemini extends GeminiService {
               : credentials.normalized.models.first,
         );
 
+  /// Görevin model sırasıyla kimlik kümesi (bkz. `ai_tasks.dart`).
+  AiCredentials _forTask(AiTask task, {bool shortInput = true}) =>
+      AiCredentials(
+        keys: credentials.keys,
+        models: AiTaskModels.resolve(task, credentials.models,
+            shortInput: shortInput),
+      );
+
   @override
   Future<String> chat({
     required List<ChatTurn> history,
@@ -553,7 +568,10 @@ class PooledGemini extends GeminiService {
     List<String> memory = const [],
   }) =>
       AiPool.run(
-        credentials,
+        _forTask(AiTask.chat,
+            shortInput: (fileContext?.length ?? 0) +
+                    history.fold<int>(0, (n, t) => n + t.text.length) <
+                aiShortInputChars),
         (gemini) => gemini.chat(
           history: history,
           fileContext: fileContext,
@@ -569,7 +587,7 @@ class PooledGemini extends GeminiService {
     String? systemInstruction,
   }) =>
       AiPool.run(
-        credentials,
+        _forTask(AiTask.structured, shortInput: false),
         (gemini) => gemini.generateJson(
           prompt: prompt,
           schema: schema,
@@ -584,7 +602,20 @@ class PooledGemini extends GeminiService {
     String? question,
   }) =>
       AiPool.run(
-        credentials,
+        _forTask(AiTask.vision, shortInput: false),
         (gemini) => gemini.compareImages(previews, question: question),
+      );
+
+  @override
+  Future<String> generateJsonFromImage({
+    required String prompt,
+    required Map<String, Object?> schema,
+    required Uint8List image,
+    required String mimeType,
+  }) =>
+      AiPool.run(
+        _forTask(AiTask.vision, shortInput: false),
+        (gemini) => gemini.generateJsonFromImage(
+            prompt: prompt, schema: schema, image: image, mimeType: mimeType),
       );
 }

@@ -97,7 +97,23 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
           // isteği 2026-08-05: "orası 2 buton olsun"). Takılabilir
           // birimlerde analiz kutusu tekrarlanmaz — tek bir analiz ekranı
           // var, iki kez göstermek yer kaybı olurdu.
-          if (v.isPrimary)
+          if (v.isPrimary && _homeStyle != HomeStyle.classic)
+            // Tasarım aileleri (2026-11-15): A/B/C bellek kartı.
+            _StyledHero(
+              style: _homeStyle,
+              volume: v,
+              onBrowse: () => _push(BrowserScreen(
+                  path: v.path, title: v.displayLabel(context.t))),
+              onAnalysis: () => _push(
+                  AnalysisScreen(index: _index, volumes: FmEnv.volumes)),
+              onFreeSpace: () {
+                unawaited(ToolUsage.record('free_space'));
+                OperationsScreen.open(context,
+                    tab: OpsTab.cleanup, index: _index);
+              },
+              onLongPress: () => unawaited(_volumeMenu(v)),
+            )
+          else if (v.isPrimary)
             // **Bellek panosu** (2026-10-18): ana bellek kartı ile yanındaki
             // "Bellek Analizi" kutusu TEK kartta birleşti — bkz. [_StorageHero].
             _StorageHero(
@@ -176,7 +192,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             // olduğu için kullanıcının açtığı araç kendiliğinden öne gelir.
             // 2026-11-04 (kullanıcı): araçlar TEK satır — Aktar alt panelde,
             // Yer aç / Sohbet medyası / Düzenle İşlemler'in sekmelerinde.
-            final shown = DashboardTools.row(tools);
+            // 2026-11-18 (kullanıcı: "araçlar 2 satır olsun"): iki satır.
+            final shown = DashboardTools.rows(tools);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -206,7 +223,9 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                     // alt panelin üstünde tek seferde görünsün.
                     padding: const EdgeInsets.only(
                         top: Gap.sm, bottom: Gap.xs)),
-                _toolFrame(FmToolGrid(tools: shown)),
+                _homeStyle == HomeStyle.band
+                    ? HomeBandList(tiles: shown)
+                    : _toolFrame(FmToolGrid(tools: shown)),
               ],
             );
           },
@@ -237,9 +256,12 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         ];
       case 'recent':
         return [
+          // "3 yeni dosya düzenlendi" (Akıllı düzen); yokken yer kaplamaz.
+          const SmartBatchStrip(),
           RecentStrip(
             onOpen: (e) => EntryOpener.open(context, e.path),
             onAll: () => _push(const OpenHistoryScreen()),
+            onAllNew: () => _push(const NewFilesScreen()),
           ),
         ];
       case 'quick':
@@ -252,10 +274,17 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
     return const [];
   }
 
-  Widget _categoryGrid() => _arrangedGrid(_categoryTilesRaw());
+  /// Ana ekran kutuları: tema ailesinin düzeninde, basılı tut → sürükle-
+  /// sırala / alttaki çöpe at (2026-11-15, bkz. [HomeTileBoard]).
+  Widget _categoryGrid() => HomeTileBoard(
+        tiles: DashboardLayout.instance
+            .arrangeTiles(_categoryTilesRaw(), (t) => t.id),
+        style: _homeStyle,
+        dragging: _tileDragging,
+        onReorder: (ids) =>
+            unawaited(DashboardLayout.instance.reorderVisible(ids)),
+      );
 
-  Widget _arrangedGrid(List<FmTileData> tiles) => FmCategoryGrid(
-      tiles: DashboardLayout.instance.arrangeTiles(tiles, (t) => t.id));
 
   List<FmTileData> _categoryTilesRaw() {
     final importantPath = ImportantScreen.pathIn(FmEnv.primaryRoot);
@@ -297,8 +326,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             ? context.t('fm.create')
             : (importantStat.count == 0
                 ? context.t('common.open')
-                : '${FsPaths.humanSize(importantStat.bytes)} '
-                    '(${importantStat.count})'),
+                : _sizeCount(importantStat.bytes, importantStat.count)),
         onTap: () async {
           await _openSwipe('important');
           if (mounted) _partSetState(() {});
@@ -358,22 +386,25 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         subtitle: context.t('fm.new_files_note'),
         onTap: () => _openSwipe('new'),
       ),
-      // **Son açılanlar — büyük kutu.** Araçlar satırındaki 12 küçük simgenin
-      // arasındaydı ve kaydırmadan görünmüyordu; oysa "dün baktığım dosya"
-      // insanların panoya dönme sebeplerinden biri (istek 2026-08-09:
-      // *"... kolay erişilebilir olmalı"*). Çöp kutusu ve Drive ile aynı
-      // terfi hikâyesi.
-      // 2026-10-21: kutu artık **Geçmiş**in kapısı (Açılanlar · Üretilenler
-      // · İşlemler · Yeni gelenler). Kimlik 'recent' KALDI — kullanıcının
-      // kaydettiği pano sırası bu kimlikle duruyor.
+      // **Akıllı Düzen** (2026-11-18): AI ikinci ad + kategori + Ayıkla.
       FmTileData(
-        id: 'recent',
-        icon: AppIcons.history,
-        color: AppHues.indigo,
-        label: context.t('hist.title'),
-        subtitle: context.t('hist.tile_sub'),
-        onTap: () => HistoryScreen.open(context),
+        id: 'smart',
+        feature: Feature.ai,
+        icon: AppIcons.ai,
+        color: AppHues.violet,
+        label: context.t('sm.tile'),
+        subtitle: SmartSort.enabled
+            ? context.t('sm.tile_on', {'n': SmartSort.records.length})
+            : context.t('sm.tile_off'),
+        onTap: () async {
+          await SmartSortScreen.open(context);
+          if (mounted) _partSetState(() {});
+        },
       ),
+      // (Geçmiş kutusu 2026-11-18'de KALKTI — kullanıcı: "Geçmiş kartını
+      // kaldıralım, üretilenleri aşağıdaki araçlara koyalım". Açılan dosyalar
+      // üstteki Geçmiş şeridinde [Tümü → OpenHistoryScreen], Üretilenler ve
+      // İşlemler Araçlar'da, Yeniler şeridin ikinci sekmesinde.)
       // **Google Drive — büyük kutulardan biri** (kullanıcı isteği 2026-08-05:
       // *"Drive daha kolay erişilebilmeli, şu an zor bulunuyor"*). Çöp
       // kutusuyla aynı terfi hikâyesi: araçlar ızgarasındaki 12 küçük simge
@@ -411,37 +442,34 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         onTap: () => _push(const InstalledAppsScreen()),
       ),
       // **Kullanıcının kendi kartları** (2026-11-13): "Ana ekranda göster"
-      // açık kartlar + "Yeni kart" kutusu (Ana ekranı düzenle'den gizlenebilir).
+      // açık kartlar. "Yeni kart" kutusu 2026-11-14'te kaldırıldı (kullanıcı
+      // isteği) → Ana ekranı düzenle sayfasında düğme (`_newCard`).
       for (final c in CustomCards.instance.homeCards)
         FmTileData(
           id: c.tileId,
           icon: cardIconOf(c),
           color: Color(c.color),
           label: c.name,
-          subtitle: context.t(c.view == CardView.gallery
-              ? 'card.view_gallery'
-              : 'card.view_folder'),
+          subtitle: c.shortcut && shortcutFileCategory(c.path) != null
+              ? p.extension(c.path).replaceFirst('.', '').toUpperCase()
+              : context.t(c.view == CardView.gallery
+                  ? 'card.view_gallery'
+                  : 'card.view_folder'),
           onTap: () async {
             await openCustomCard(context, c);
             if (mounted) _partSetState(() {});
           },
         ),
-      FmTileData(
-        id: 'new_card',
-        icon: AppIcons.add,
-        color: AppHues.steel,
-        label: context.t('card.new'),
-        subtitle: context.t('card.new_tile_sub'),
-        onTap: () async {
-          final card = await showCustomCardEditor(context,
-              inImportant: false, onHome: true);
-          if (card == null || !mounted) return;
-          await openCustomCard(context, card);
-          if (mounted) _partSetState(() {});
-        },
-      ),
     ];
     return tiles;
+  }
+
+  Future<void> _newCard() async {
+    final card =
+        await showCustomCardEditor(context, inImportant: false, onHome: true);
+    if (card == null || !mounted) return;
+    await openCustomCard(context, card);
+    if (mounted) _partSetState(() {});
   }
 
   /// "Ana ekranı düzenle" sayfası.
@@ -449,6 +477,8 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
     final tiles = _categoryTilesRaw();
     await showDashboardLayoutSheet(
       context,
+      onNewCard: _newCard,
+      onBackup: () => unawaited(SettingsBackupTile.showChooser(context)),
       tiles: {
         for (final t in tiles)
           t.id: (label: t.label, icon: t.icon, color: t.color),

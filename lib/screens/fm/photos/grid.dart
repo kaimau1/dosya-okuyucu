@@ -148,9 +148,12 @@ extension _PhotosScreenGridPart on _PhotosScreenState {
         radius: _PhotosScreenState._tileRadius,
         selected: _selected.contains(e.path),
         selecting: _selecting,
-        // Yalnız GÖRSELLER galeride büyüyerek açılır (videonun oynatıcısı
-        // ayrı bir ekran, orada eşleşen kahraman yok).
-        heroTag: e.category == FmCategory.image ? fmMediaHeroTag(e.path) : null,
+        // Görsel galeride, video oynatıcıda büyüyerek açılır (2026-11-15:
+        // oynatıcı kapağı aynı etiketi taşır).
+        heroTag: e.category == FmCategory.image ||
+                e.category == FmCategory.video
+            ? fmMediaHeroTag(e.path)
+            : null,
         // **Tek dokunuş ANINDA** açar (2026-09-26). Eskiden hücrede çift
         // dokunuş dinleyicisi (eylem sayfası) vardı; Flutter tek dokunuşu çift
         // dokunuş süresi (~300 ms) dolana kadar BEKLETİYOR — her fotoğraf

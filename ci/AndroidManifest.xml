@@ -578,7 +578,7 @@
              bildirirse birleştirme hata vermesin, bizimki geçerli olsun. -->
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr,face"
+            android:value="ocr,face,barcode"
             tools:replace="android:value" />
 
         <!-- Flutter v2 gömme (embedding) işareti. -->

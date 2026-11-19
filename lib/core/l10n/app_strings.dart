@@ -40,6 +40,12 @@ part 'strings/34_edition.dart';
 part 'strings/35_pdf_tools.dart';
 part 'strings/36_aktar_g5.dart';
 part 'strings/37_cards.dart';
+part 'strings/38_yardim.dart';
+part 'strings/39_decisions.dart';
+part 'strings/40_smart_sort.dart';
+part 'strings/41_home_learn.dart';
+part 'strings/42_smart_user_cats.dart';
+part 'strings/43_smart_bench.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -179,4 +185,10 @@ const Map<String, (String, String, String)> _table = {
   ..._t35,
   ..._t36,
   ..._t37,
+  ..._t38,
+  ..._t39,
+  ..._t40,
+  ..._t41,
+  ..._t42,
+  ..._t43,
 };

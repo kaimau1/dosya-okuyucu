@@ -9,6 +9,7 @@ import '../../core/app_state.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../services/ai_tasks.dart';
 import '../../services/gemini_service.dart';
 import '../../core/user_error.dart';
 
@@ -88,6 +89,7 @@ class _AiAccessTileState extends State<AiAccessTile> {
     try {
       final models = await GeminiService.listModels(key);
       if (!mounted) return;
+      unawaited(context.read<AppState>().setAiCatalog(models));
       setState(() {
         _fetchedModels = models.isEmpty ? null : models;
         _fetchedForKey = key;
@@ -231,6 +233,83 @@ class _AiAccessTileState extends State<AiAccessTile> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// **Görev başına model** (2026-11-15): her iş için Otomatik (görevine göre
+/// seçilmiş sıra) ya da elle bir model. Otomatik satırı o an ilk denenecek
+/// modeli ve kota notunu gösterir.
+class AiTaskModelsTile extends StatelessWidget {
+  const AiTaskModelsTile({super.key});
+
+  static const _titles = {
+    AiTask.chat: 'aitask.chat',
+    AiTask.structured: 'aitask.structured',
+    AiTask.vision: 'aitask.vision',
+  };
+  static const _subs = {
+    AiTask.chat: 'aitask.chat_sub',
+    AiTask.structured: 'aitask.structured_sub',
+    AiTask.vision: 'aitask.vision_sub',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watchAi();
+    final catalog = [
+      for (final m in state.aiCatalog)
+        if (isTextModel(m)) m
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (catalog.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.sm),
+              child: Text(context.t('aitask.no_catalog'),
+                  style:
+                      context.type.small.copyWith(color: Paper.faint(context))),
+            ),
+          for (final task in AiTask.values) ...[
+            _row(context, state, task, catalog),
+            const SizedBox(height: Gap.md),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, AppState state, AiTask task,
+      List<String> catalog) {
+    final auto = AiTaskModels.autoChain(task);
+    final autoLabel = auto.isEmpty
+        ? context.t('aitask.auto')
+        : '${context.t('aitask.auto')} · ${auto.first.id}';
+    final chosen = state.aiTaskModel(task);
+    final value = chosen.isEmpty || !catalog.contains(chosen) ? '' : chosen;
+    final note = value.isEmpty
+        ? (auto.isEmpty ? context.t(_subs[task]!) : auto.first.note)
+        : context.t(_subs[task]!);
+    return DropdownButtonFormField<String>(
+      key: ValueKey('aitask-${task.name}-$value-${catalog.length}'),
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: context.t(_titles[task]!),
+        helperText: note,
+      ),
+      items: [
+        DropdownMenuItem(
+            value: '',
+            child: Text(autoLabel, overflow: TextOverflow.ellipsis)),
+        for (final m in catalog)
+          DropdownMenuItem(
+              value: m, child: Text(m, overflow: TextOverflow.ellipsis)),
+      ],
+      onChanged: (v) => state.setAiTaskModel(task, v ?? ''),
     );
   }
 }

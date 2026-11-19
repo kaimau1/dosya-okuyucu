@@ -98,7 +98,7 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
     // Seçim tutamaklarının yeri: aralığın sol-üst ve sağ-alt hücreleri.
     final tl = r == range.top && c == range.left;
     final br = r == range.bottom && c == range.right;
-    final listArrow = isCursor && !_editing && _validationOptions().isNotEmpty;
+    final listArrow = isCursor && !_editing && _hasValidationList();
     if (!showHandle && note == null && !tl && !br && !listArrow) return cell;
     return SizedBox(
       key: tl && !isCursor ? _tlKey : (br && !isCursor && !tl ? _brKey : null),

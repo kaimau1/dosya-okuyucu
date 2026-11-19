@@ -8,6 +8,7 @@ part 'formula/date_finance.dart';
 part 'formula/parser.dart';
 part 'formula/locale.dart';
 part 'formula/calc_state.dart';
+part 'formula/arrays.dart';
 
 /// Cihaz-içi Excel formül motoru (saf Dart).
 ///
@@ -428,7 +429,14 @@ class _Parser {
 
   /// Formül Türkçe yazımla mı (`;` ayırıcı) — öyleyse rakam arasındaki `,`
   /// ondalık ayırıcıdır (`0,5`), argüman ayırıcı değil.
-  late final bool _decimalComma = _FormulaLocalePart._hasTopSemicolon(s);
+  ///
+  /// LAMBDA gövdesi ayrı bir ayrıştırıcıyla değerlendirilir; gövdede `;`
+  /// olmayabilir, bu yüzden tanımlandığı formülün kipi taşınır.
+  late final bool _decimalComma =
+      decimalComma ?? _FormulaLocalePart._hasTopSemicolon(s);
+
+  /// Verilirse [_decimalComma]'yı belirler (LAMBDA gövdesi).
+  final bool? decimalComma;
 
   /// Formülün BULUNDUĞU sayfa: sayfasız başvurular (`C1`) bu sayfaya
   /// gider. Eskiden etkin sayfaya gidiyordu — Sayfa1'deki `=Sayfa2!B1`,
@@ -436,11 +444,14 @@ class _Parser {
   final String sheet;
 
   _Parser(this.s, this.eng, this.visiting,
-      {this.selfR = 0, this.selfC = 0, this.sheet = ''});
+      {this.selfR = 0, this.selfC = 0, this.sheet = '', this.decimalComma});
 
   /// Aralık/referans değerini tek değere indirir (dosya dışına açılan API).
   /// Dinamik dizi (Faz 36) olduğu gibi döner — çapa onu taşırır.
-  Object resolve(Object v) => v is FormulaArray ? v : _single(v);
+  Object resolve(Object v) {
+    if (v is _Lambda) return const FormulaError('#HESAP!');
+    return v is FormulaArray ? v : _single(v);
+  }
 
   void expectEnd() {
     _skip();
@@ -480,6 +491,9 @@ class _Parser {
   /// Argümanlarında öğe öğe işlem yapılan (dizi bağlamı) işlevler.
   static const _arrayFunctions = {
     'FILTER', 'SORT', 'UNIQUE', 'SUMPRODUCT', 'SEQUENCE',
+    // B10 m.2
+    'VSTACK', 'HSTACK', 'TAKE', 'DROP', 'CHOOSECOLS', 'CHOOSEROWS',
+    'MAP', 'REDUCE', 'SCAN', 'BYROW', 'BYCOL',
   };
 
   static String _canonical(String word) {
@@ -910,6 +924,30 @@ class _Parser {
     'SIRALA': 'SORT',
     'BENZERSİZ': 'UNIQUE',
     'SIRALI': 'SEQUENCE',
+    // B10 m.2 (2026-11-19) — Türkçe Excel adları; LAMBDA ailesinin Türkçe
+    // adı doğrulanmadı (sabah bakılacak): İngilizce adla tamamlamaya girer.
+    'METİNBÖL': 'TEXTSPLIT',
+    'DÜŞEYYIĞ': 'VSTACK',
+    'YATAYYIĞ': 'HSTACK',
+    'AL': 'TAKE',
+    'BIRAK': 'DROP',
+    'SÜTUNSEÇ': 'CHOOSECOLS',
+    'SATIRSEÇ': 'CHOOSEROWS',
+    'ÇAPRAZEŞLEŞTİR': 'XMATCH',
+    'İLKEŞLEŞEN': 'SWITCH',
+    'ÇOKEĞERMAK': 'MAXIFS',
+    'ÇOKEĞERMİN': 'MINIFS',
+    'ARALIKBİRLEŞTİR': 'CONCAT',
+    'TAMİŞGÜNÜ.ULUSL': 'NETWORKDAYS.INTL',
+    'İŞGÜNÜ.ULUSL': 'WORKDAY.INTL',
+    'LET': 'LET',
+    'LAMBDA': 'LAMBDA',
+    'MAP': 'MAP',
+    'REDUCE': 'REDUCE',
+    'SCAN': 'SCAN',
+    'BYROW': 'BYROW',
+    'BYCOL': 'BYCOL',
+    'MAKEARRAY': 'MAKEARRAY',
     'FORMÜLMETNİ': 'FORMULATEXT',
     'EFORMÜLSE': 'ISFORMULA',
     'EREFSE': 'ISREF',

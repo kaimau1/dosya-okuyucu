@@ -44,10 +44,25 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   bool _loading = true;
   String _query = '';
 
+  /// Arşivin diskteki boyu (sıkıştırma oranı için) — B12 m.1: `build`
+  /// içinde her karede eşzamanlı `lengthSync` yerine açılışta bir kez,
+  /// eşzamansız ölçülür; gelene dek oran satırı yazılmaz.
+  int? _archiveBytes;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _measureArchive();
+  }
+
+  Future<void> _measureArchive() async {
+    try {
+      final n = await File(widget.path).length();
+      if (mounted) setState(() => _archiveBytes = n);
+    } catch (_) {
+      // Bilinçli: boyut yalnız oran satırı için; okunamazsa oran gösterilmez.
+    }
   }
 
   Future<void> _load({String? password}) async {
@@ -294,9 +309,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 
   Widget _header(ArchiveListing listing) {
     final theme = Theme.of(context);
-    final ratio = listing.totalBytes == 0
+    final bytes = _archiveBytes;
+    final ratio = bytes == null || listing.totalBytes == 0
         ? null
-        : (File(widget.path).lengthSync() / listing.totalBytes);
+        : (bytes / listing.totalBytes);
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
       child: Row(

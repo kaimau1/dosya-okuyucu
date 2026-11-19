@@ -93,16 +93,16 @@ extension XlsxStructureEdit on XlsxEditor {
         for (final r in v.ranges) shiftRange(r, op),
       ].whereType<XlsxRange>().toList();
       if (ranges.isEmpty) continue;
-      dvs.add(XlsxDataValidation(
-        type: v.type,
+      // Bütün öznitelikler korunur (eskiden işleç, ikinci sınır, uyarı
+      // metni satır eklemede kayboluyordu).
+      String? shifted(String? f) => f == null
+          ? null
+          : shiftAnchoredFormula(
+              f, v.ranges.first.r1, v.ranges.first.c1, op, name);
+      dvs.add(v.copyWith(
         ranges: ranges,
-        formula1: v.formula1 == null
-            ? null
-            : shiftAnchoredFormula(
-                v.formula1!, v.ranges.first.r1, v.ranges.first.c1, op, name),
-        options: v.options,
-        promptTitle: v.promptTitle,
-        prompt: v.prompt,
+        formula1: shifted(v.formula1),
+        formula2: shifted(v.formula2),
       ));
     }
     l.validations

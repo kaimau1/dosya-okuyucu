@@ -20,17 +20,11 @@ Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya y�
 paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
 > Sabit kararlar, tuzaklar, reddedilen yollar ve güncel durum → **HAFIZA.md**
-> **Kalan işlerin tamamı (2026-11-01) → `KALANLAR.md`** — iki faz: **Faz A ☁️ bulutta
-> yapılabilenler** ve **Faz B 📱💻👤 diğerleri** (telefon, yerel Windows, hesap/karar); her
-> bölümün bitti ölçütü ve açılış istemi orada. Yeni oturum işe Faz A'nın ilk açık bölümünden
-> başlar; telefonda bakılacaklar `docs/CIHAZ_TESTI.md`.
-> **Yükseltme fazları (2026-11-07) → `docs/YUKSELTME_PLANI.md`** (Faz 43–50, yerel + telefon; bu fazlarda yerel test serbest).
-> **PDF Pro fazları (2026-11-08) → `docs/PDF_PRO_PLANI.md`** (Faz 51–68: profesyonel PDF düzenleyici; kök nedenler, PK1–PK8 kararları, bütçeler; 💻📱 fazlarda yerel test serbest).
-> **Sürümler (2026-11-10) → `docs/SURUM_PLANI.md`** (Lite ücretsiz / Pro ücretli ayrı uygulama / Kişisel deneysel; özellik dağılımı + S1–S9; yeni özellik önce Kişisel'e).
-> **Güvenlik fazları (2026-11-10) → `docs/GUVENLIK_PLANI.md`** (Faz G0–G12: tehdit modeli, bulgular B1–B18, madde madde yapılış; `faz-GN` dalı + PR).
-> **Görünüm ve his fazları (2026-11-14) → `docs/FERRARI_PLANI.md`** (Faz H0–H12: PDF açılış/kaydırma hissi, dosya listesi, sadeleştirme, video kesme; ölçüm seti "10 işlem"; `faz-HN` dalı + PR; plan sürerken yeni özellik yok).
-> Bulgu/karar kaynağı (tarihsel): `docs/FAZ_PLANI.md` (Faz 0–19, K1–K17) ve
-> `docs/DUZENLEME_PLANI.md` (Faz 20–33, K18–K25).
+> **Açık işlerin TEK listesi (2026-11-15) → `PLAN.md`**: §0 hız anayasası · §1 Kuyruk + SIRA
+> (kod ve telefon işleri) · §2 kapsam dışı · §3 kullanıcının işleri (👤). Telefonda adım adım
+> bakılacaklar `docs/CIHAZ_TESTI.md`. Eski planlar (KALANLAR, KONTROL_LISTEM, FAZ, DUZENLEME,
+> GELISTIRME, YUKSELTME, PDF_PRO, GUVENLIK, FERRARI, SURUM) → `docs/arsiv/planlar/` — yalnız
+> ayrıntı/karar kaynağı; yeni plan dosyası AÇILMAZ, yeni iş `PLAN.md`'ye satır olur.
 
 ## 2) Mimari / Dosya Haritası
 `graphify-out/GRAPH_REPORT.md` — 23.268 düğüm, 35.421 kenar, 721 topluluk (2026-11-02) (App State Management,
@@ -47,6 +41,11 @@ Kod değiştikten sonra `graphify update .` (API maliyeti yok).
 Eski sürümler budanır (nightly hariç son 10). Push'ta yalnız arm64; 32-bit + AAB etikette/elle.
 Yalnız `test/**`/`tool/**` değişen push APK derlemez; `**.md`, `docs/**`, `graphify-out/**` hiç koşturmaz.
 Art arda push → önceki koşu iptal.
+**ACTIONS KOTASI (2026-11-17, depo ÖZEL oldu; "not" ile aynı kural):** ücretsiz plan ayda ~2000 dk, 1 Aralık'ta sıfırlanır.
+Ara push yok — iş sonunda TEK push. main'e doğrudan push tam takım koşturur (≈ 3×10 dk); onun yerine dala push →
+CI yeşil → `git push origin HEAD:main` (hızlı ileri, başlıkta `[apk]`): `tool/ci_test_secimi.sh` aynı commit dalda yeşilse
+testleri atlar, main'de yalnız APK + yayın koşar. `[tam]`, elle tetik, okuyucu derlemesi yalnız kullanıcı isteyince.
+Artifact deposu 0,5 GB: APK yayına ÖNBELLEKLE gider (artifact değil); runner 2 çekirdek/7 GB (Gradle `-Xmx4g`) — HAFIZA 2026-11-17.
 
 ## 4) Çalışma Kuralları
 - **Dal:** **TEK DAL — `main`** (faz işleri hariç, aşağıya bak). (2026-07-27: eski 13 `claude/**` dalı silindi; hepsi
@@ -55,13 +54,13 @@ Art arda push → önceki koşu iptal.
   Bulut oturumu (`claude/*`, `ccr-*`) dal açtıysa iş main'e girince o uzak dal silinir.
   APK yalnız **main**'e push'ta, commit BAŞLIĞINDA `[apk]` varsa (ya da `faz-NN` PR birleşmesinde) derlenir;
   uygulamayı değiştiren main commit'ine `[apk]` yaz (feature dalında sadece `flutter test`).
-- **İSTİSNA — Geliştirme fazları (2026-11-04, kullanıcı kararı):** `docs/GELISTIRME_PLANI.md`
+- **İSTİSNA — Geliştirme fazları (2026-11-04, kullanıcı kararı):** `docs/arsiv/planlar/GELISTIRME_PLANI.md`
   Faz 34–42 işleri **`faz-NN` dalında** yapılır ve iş sonunda **MUTLAKA PR açılıp main'e
   BİRLEŞTİRİLİR** (CI yeşilken; faz ancak birleşmeyle biter). Birleşince sıradaki faz görevi
-  `fire_trigger` ile tetiklenir (bkz. `docs/ZAMANLANMIS_GOREV_ISTEMI.md`). Bu istisna yalnız
+  `fire_trigger` ile tetiklenir (bkz. `docs/arsiv/planlar/ZAMANLANMIS_GOREV_ISTEMI.md`). Bu istisna yalnız
   faz işleri içindir; öteki işler yine doğrudan main'e.
 - **İSTİSNA — Gözetimsiz zincir (2026-11-14, kullanıcı isteği; faz istisnasıyla aynı mantık):**
-  `OTOMASYON.md` Kuyruk paketleri **`faz-oto-<no>-<kısa-ad>`** dalında yapılır (CI yalnız
+  `PLAN.md` Kuyruk paketleri **`faz-oto-<no>-<kısa-ad>`** dalında yapılır (CI yalnız
   `main`/`claude/**`/`ccr-*`/`faz-*` dallarında koşar); CI yeşilse yürütücü yerelde
   `git merge --no-ff` ile main'e birleştirir (başlık `Birleştir: …`, APK noktasında ` [apk]`),
   birleşince dal silinir. `gh pr merge` kullanılmaz (faz PR başlığı her seferinde APK derletir).
@@ -93,9 +92,12 @@ Art arda push → önceki koşu iptal.
 
 ## 4b) Gece / zamanlanmış görev kuralı (2026-11-14, "not" projesinden aynen)
 - Gözetimsiz zincir: yürütücü **`oto-tur` skill'ini**, alt ajan **`isci` skill'ini** uygular;
-  Kuyruk ve SIRA `OTOMASYON.md`'de; zamanlanmış görev `okuyucu-devam` (istem `OTOMASYON_BASLAT.md`).
+  Kuyruk ve SIRA `PLAN.md` §1'de (yürütme düzeni `OTOMASYON.md`); zamanlanmış görev `okuyucu-devam` (istem `OTOMASYON_BASLAT.md`).
+- **Bulut zinciri (2026-11-18):** claude.ai zamanlanmış görev `okuyucu-bulut` → **`oto-bulut` skill'i**
+  (telefonsuz, yalnız B paketleri; uzak kilit `oto-kilit` dalı; satır öneki `bulutta:`; ara push `[skip ci]`);
+  işçi `isci` "Bulut kipi". Kurulum + istem `OTOMASYON_BASLAT.md` (g).
 - Plan KARAR maddeleri verilmiştir: SORMADAN uygula; yeni karar → en güvenli seçenek + "sabah
-  bakılacak". 👤 madde yapılmaz → `KONTROL_LISTEM.md`.
+  bakılacak". 👤 madde yapılmaz → `PLAN.md` §3.
 - Dalda çalış (yukarıdaki zincir istisnası) → CI yeşilse main'e birleştir; **CI kırmızıyken
   main'e ASLA birleştirme**; main kırmızıysa düzelt ya da `git revert -m 1`.
 - Telefon gerektiren ölçüm/doğrulama yapılamazsa "yazıldı, cihazda doğrulanmadı" +
@@ -109,7 +111,9 @@ Art arda push → önceki koşu iptal.
 - **ÖLÇÜM KAPISI:** PDF görüntüleyici, dosya listesi, ana ekran, üst/alt çubuk, klavye ya da
   geçişe dokunan iş `[apk]`'dan önce cihazda A/B ölçülür (taban = önceki `[apk]` profil
   derlemesi, ölçüm kimliği `.r8test`). Ayrıntı ve telefon kuralları: **`ab-olcum` skill'i**.
-- **HIZ SÖZLEŞMESİ** (PERFORMANS KORUMA ANAYASASI, `docs/GELISTIRME_PLANI.md`): gerileme > %10 ya
+  **Bulut istisnası (kullanıcı 2026-11-18, "her sabah APK"):** bulut zinciri ölçümsüz `[apk]` yapar;
+  ölçüm sonra `PLAN.md` C2'de, gerileme çıkarsa revert/düzeltme SIRA'nın önüne.
+- **HIZ SÖZLEŞMESİ** (hız anayasası, `PLAN.md` §0): gerileme > %10 ya
   da kare p99 > 24 ms = birleştirme yok; hız işlerinde kötüleşme SIFIR; mandallar
   (`design_tokens_baseline.json`, `PerfBudget`, APK bütçesi) yalnız düşer. **Ölçmeden
   "akıcı/hızlı" denmez.**

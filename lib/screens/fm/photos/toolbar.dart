@@ -28,6 +28,21 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         title: Text(context.t('ph.selected_of',
             {'n': selectedEntries.length, 'total': visible.length})),
         actions: [
+          // Albüme ekle / albümden çıkar (2026-11-15). Albüm alanı gizliyse yok.
+          if (_inUserAlbum)
+            IconButton(
+              key: const ValueKey('pa-remove-from'),
+              tooltip: context.t('pa.remove_from'),
+              icon: const Icon(AppIcons.removeCircleOutline),
+              onPressed: () => _removeSelectedFromAlbum(selectedEntries),
+            )
+          else if (_highlightsOn)
+            IconButton(
+              key: const ValueKey('pa-add-to'),
+              tooltip: context.t('pa.add_to'),
+              icon: const Icon(AppIcons.addPhoto),
+              onPressed: () => _addSelectedToAlbum(selectedEntries),
+            ),
           // Tek dosya seçiliyken çıkar: "üstündekileri/altındakileri de seç"
           // (istek 2026-07-29). Birden çok seçiliyken hangi dosya "anchor"
           // olacağı belirsizleşir, o yüzden yalnız tek seçimde gösterilir.
@@ -98,6 +113,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       floating: true,
       snap: true,
       toolbarHeight: _PhotosScreenState._toolbarHeight,
+      // Sol üstte her zaman ☰ yan menü (2026-11-15, kullanıcı isteği).
+      leading: const SideMenuButton(),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -127,6 +144,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             icon: const Icon(AppIcons.close),
             onPressed: _clearScope,
           )
+        // Albüm düğmesi alan gizliyken de kalır (2026-11-15, kullanıcı: "albüm
+        // alanı gizlenince simgesi de gizleniyor, geri açamıyorum").
         else
           IconButton(
             key: const ValueKey('ph-albums'),

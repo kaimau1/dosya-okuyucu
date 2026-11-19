@@ -390,6 +390,13 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
       kalın/renk/kenarlığı bozulmuyor; hepsi geri alınıyor.
 - [ ] **Veri:** A→Z / Z→A (satırlar bütün), değer süzgeci, özel sıralama, veri doğrulama + Durdur,
       form görünümü, notlar (deneysel K24).
+- [ ] **Veri doğrulama 2 (B10 m.3, bulut 2026-11-19 — yazıldı, cihazda doğrulanmadı):** masaüstü
+      Excel'de başka sayfadan / tanımlı addan liste kurulmuş dosya → hücrede ok çıkıyor, levha
+      kaynaktaki değerleri (tekrarsız) gösteriyor, seçili değer işaretli; uzun listede levha
+      kayıyor. Uyarı türü "Uyarı" → sorup yazıyor, "Bilgi" → yazıp bildiriyor, "Durdur" → yazmıyor.
+      Uygulamada "Özel formül" (`=UZUNLUK(A1)<=3`) ve `=Liste!A1:A9` kaynaklı liste kur → kaydet →
+      masaüstü Excel'de aynı kural, uyarı türü, giriş iletisi korunuyor; kuralı kaldırınca Excel'de
+      eski x14 kural kalmıyor. Uygulamada yazılan `LET`/`LAMBDA` formülü masaüstü Excel'de `#AD?` yok.
 - [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
       kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
 - [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;
@@ -1139,6 +1146,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    kapanıyor, tercih uygulama kapanınca da kalıyor mu? Aç/kapa sonrası aynı sayfada mı kalıyor? Açıkken kaydırınca
    şerit güncel sayfayı izliyor mu (güncel küçük resim görünür alanda kalıyor mu)?
 
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H1: 1 ve 3 denenmedi (kapağı olan büyük PDF / tablet yok); 2 (form notu) denenmedi (form PDF'i yok). Açılış tek kare gri ekran olmadan 51 KB PDF açıldı (ölçüm değil).
+
 ## Ferrari H3 — PDF okuma konforu (2026-11-14, main)
 1. **Çift dokunma:** genişliğe sığmış PDF'te bir yere çift dokun → oraya yumuşakça yakınlaşıyor mu (nokta parmağın altında)?
    Yeniden çift dokun → genişliğe sığıyor, okunan satır yerinde mi? Uzun basış hâlâ kelime seçiyor mu (çift dokunuş artık SEÇMEZ)?
@@ -1159,6 +1168,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    Tam ekran açıkken seçenek pasif mi? Görüntüleyiciden çıkınca durum çubuğu geri mi?
 7. **Sayfa rozeti:** kaydırınca "N / toplam" beliriyor, durunca ~1,5 sn sonra soluyor mu? Açılışta bir an görünüyor mu?
 
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H3: 1 ✔ çift dokun yakınlaştırdı, ikinci çift dokunuş genişliğe sığdırdı (yumuşaklık göz kararı, ölçülmedi) · 2,3,4 denenmedi (akıllı yakınlık / görsel kipi / kırpma — kırpma anahtarı Aa'da var, test edilmedi) · 5 ◐ "Sayfa sayfa çevir" açıkken kenara dokunmak ve sola kaydırmak sonraki sayfaya geçti, çubuklar kenar dokunuşunda gelmedi; ama sayfa ekrana tam oturmadı (alttan sonraki sayfa görünüyor) ✘ · 6 ✘ Aa sayfasında "Okurken durum çubuğunu da gizle" seçeneği YOK (yalnız "Tam ekran"); nightly'de bu özellik görünmüyor · 7 ◐ rozet "N / 50" kaydırınca çıkıyor ama sağ altta yapay zekâ düğmesinin altında kalıp "3 / 50"nin bir kısmı örtülüyor ✘ (ayrıca sağ üstte hızlı kaydırma tutamacı "1" gösteriyor).
+
 ## Ferrari H8 — Videoyu kes (2026-11-14, main)
 1. Video uzun bas → "Videoyu kes"; oynatıcıda ⋮ → "Videoyu kes" (oynatıcı duraklıyor mu?).
 2. Kare şeridi doluyor mu (10 kare)? İki tutamaç sürüklenince önizleme o kareye gidiyor, her saniyede hafif titreşim var mı?
@@ -1168,6 +1179,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
    süre (hızlı kesimde birkaç saniye; uzun sürüyorsa yeniden kodluyor demektir — not al), başlangıç kaç kare kayıyor?
 5. "Sesi kaldır" açık → çıktı sessiz mi? Yalnız ses kaldırıp aralığa dokunmadan Kaydet çalışıyor mu?
 6. MKV/WebM kaynak: kesiliyor mu, yoksa anlaşılır hata mı?
+
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H8: menü adı artık "Videoyu düzenle" ("Videoyu kes" yok; Daha fazla levhasında Bu dosya altında) · 1,3 ✔ düzenleme açıldı; Kaydet → `c_kesit.mp4` özgünün yanında (2,4 MB özgün duruyor, çıktı 0,8 MB) · 2 ◐ kare şeridi doldu, tutamaç sürüklendi; titreşim/oynatma denenmedi · 4 ◐ dikey video: çıktı 2340x1080 + rotation −90 → dikey kalıyor ✔ (4K/30 dk+ denenmedi) · 5,6 denenmedi.
 
 ## Video düzenle — ara kesim + ses bölgeleri (2026-11-14)
 - [ ] Video uzun bas → "Videoyu düzenle": altta dört araç (Bölüm sil · Sesi kapat · Ses ekle · Ses açık/yok) görünüyor, dar telefonda yazılar sığıyor mu?
@@ -1212,10 +1225,14 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Dosya listesinde (liste ve ızgara) fotoğrafa dokun: küçük resimden büyüyerek açılıyor; kapatınca (geri / aşağı çek) satırına küçülüyor. "Animasyonları kaldır" açıkken düz açılıyor.
 - [ ] **Öngörülü geri (Android 14+):** bir klasöre/ekrana girip kenardan yavaşça geri çek → sayfa parmakla kayıp küçülüyor, alttaki sayfa görünüyor; parmağı geri götürüp bırakınca sayfa yerine dönüyor; sonuna kadar çekince kapanıyor. Ana ekranda geri hareketi uygulamadan çıkışı (sistem önizlemesi) gösteriyor. Kaydedilmemiş düzenleme olan ekranda (onay soran) önizleme yok, onay penceresi çıkıyor.
 
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · Video düzenle: ✔ altta beş araç (Bölüm sil · Sesi kapat · Ses ekle · Ses açık · Döndür), etiketler dar ekranda sığıyor · ✔ Bölüm sil → tutamaç + "Bölümü sil"; sonra şeritte koyu bölge + makas, listede "Silindi 00:00–00:02", sağ üstte "Sonuç 00:05" (çıktı 5,06 sn) · ✔ Kaydet çalıştı, hata yok · 3 ayrı bölüm, oynatma atlaması, Sesi kapat, Ses ekle (Drive/dosya seçici), Geri al/✕ denenmedi. Not: önizleme karesi 00:02'de farklı sahne gösterdi (kaynak video çok sahneli, hata değil).
+
 ## Ferrari H5 — Ana ekran (2026-11-14)
 - [ ] Yeni kurulum / hiç düzenlenmemiş pano: üstte arama, sonra son dosyalar şeridi, kategoriler, bellek kartı; araçlar/favoriler aşağıda.
 - [ ] Düzenini daha önce değiştirmiş kullanıcı: sıra ve gizlenenler aynen kalmış mı?
 - [ ] Güncelleme varsa şerit tek satır ("Yeni sürüm var · v…" + Güncelle); indirirken "İndiriliyor · %…" tek satırda.
+
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H5: ✔ sıra: arama, son açılanlar şeridi, kategoriler, bellek kartı (Göz at/Analiz/Yer aç), araçlar, hızlı klasörler · düzenlenmiş pano ve güncelleme şeridi denenmedi (yeni sürüm yoktu) · ayrıca ana ekranda "Uygulama beklenmedik şekilde hata verdi (1 kayıt)" kırmızı şeridi görünüyor (kök neden bakılmadı; eski sürümden kalan kayıt olabilir) ◐.
 
 ## Ferrari H4 — Dosya listesi (2026-11-14, main)
 - [ ] Belgeler kategorisi: satır simgesi ~52 dp, ad iri, alt satırda kaynak · tarih solda, boyut SAĞA hizalı; satır sıkışık değil (Samsung ile yan yana görüntü).
@@ -1224,6 +1241,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Tarihe göre sıralı: "Bugün · Bu hafta …" başlığı kaydırırken üstte yapışık; grup bitince bir sonraki iter. Izgarada da aynı. Hızlı kaydırıcı ve basılı tutup sürükleyerek seçim hâlâ doğru satırı seçiyor.
 - [ ] Uzun basış: satır hafifçe içe çöker + titreşim; ⋮ soluk ama dokununca açılıyor.
 - [ ] Arapça (RTL): boyut solda hizalı, başlıklar sağdan.
+
+- 2026-11-14 · Mi Note 10 Lite · nightly (dosya-okuyucu.apk, uygulama sürümü 1.3.15; P09 turu) · H4: ✔ Belgeler satırı: simge büyük, ad iri, kaynak·tarih solda boyut sağa hizalı · ✔ "Bu hafta · 5022" başlığı kaydırırken üstte yapışık · ✔ Belgeler/5041 öğe·18 MB başlığı var ama ✘ kaydırınca katlanıp küçülmedi (başlık hep aynı boyda; liste uzun ve başlık zaten kompakt — bak) · klasör satırı, ızgara, uzun basış çöküşü, hızlı kaydırıcı, RTL denenmedi. Drive/hesap maddeleri denenmedi.
 
 ## Güvenlik P15 — kod artıkları (2026-11-14, dal `faz-oto-P15-guvenlik`; yazıldı, cihazda doğrulanmadı)
 - [ ] G6.5 yapay zekâ sesi: Antalia ve EMA ile birer paragraf okut — ses geliyor mu (sunucu artık rastgele önek altında; EMA çalışanına önek sunarken ekleniyor). Önceden kurulu ses de çalışmalı (yeniden indirme yok).
@@ -1247,3 +1266,161 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kalem ekranı (PDF › Kalemle düzenle) kalemle: kalem çiziyor; çizerken avuç ekrana değince çizgi bozulmuyor; parmakla tek dokunuş kaydırıyor/sayfa çeviriyor, çizmiyor. Kalemsiz telefonda parmak çizmeye devam ediyor.
 - [ ] Büyük metin dosyası (çok MB'lık .txt/.log) tablette ortalı, okunur genişlikte.
 - [ ] Çift bölme (tablet): dosyayı basılı tutup seç → sağda tutamaç; tutamacı öbür bölmeye sürükle → öbür bölme çerçevelenir, bırakınca kopyalanır (kaynak yerinde).
+
+## 2026-11-14 — kullanıcı 13 madde turu (yazıldı, cihazda doğrulanmadı)
+- Videolar ızgarası: hızlı kaydırmada yükleniyor dönenceleri kasma yapıyor mu (A/B `galeri_2000_kaydirma`)? Sütun sayısı değişince "MP4" görünmemeli.
+- Video düzenle: ilk sürüklemede (açılıştan ~1 sn sonra) kare görünmeli; dönence kareler gelince kaybolmalı.
+- Ses → ⋮ → Sesi kes: .opus ve .mp3 ile kes, çıktı `_kesit.m4a` çalmalı; sürüklerken kısa parça çalmalı.
+- Aktar → Dosya ekle → Fotoğraflar: ekran görüntüsü aldıktan hemen sonra en üstte görünmeli.
+- PDF: alt çubukta AI; sağ altta sayfa rozeti başka şeyle çakışmamalı; Yazdır "Daha fazla"da.
+
+## 2026-11-15 — video açılışı (3. tur) + video düzenle canlı kare (yazıldı, cihazda doğrulanmadı)
+- [ ] Kalabalık klasördeki (Kamera, 1000+ dosya) videoyu ızgaradan aç: kapak hücreden büyüyerek geliyor, donma yok. Aynı videoyu listeden ve Son dosyalardan da dene.
+- [ ] Videoyu düzenle açılışı: sayfa geçişi takılmadan geliyor, önizleme geçişten hemen sonra hazır.
+- [ ] Şeritte yavaş sürükle: parmak durunca ~0,2–0,5 sn içinde TAM o anın karesi geliyor mu (4K / uzun videoda gecikme kaç sn)? Bırakınca eski kareye sıçrama yok.
+- [ ] Adım düğmeleri (±0,1 sn) + "Başlangıç burası / Bitiş burası": kenar oynatma yerine geliyor; Geri al / Yinele kırpmayı da geri alıyor.
+- [ ] Bölüm sil seçerken ▶: yalnız seçili bölge çalıp başa sarıyor.
+- [ ] Değişiklik yapıp geri: "Kaydet · Kaydetme · İptal" soruluyor; bölge seçerken geri yalnız seçimi kapatıyor.
+- [ ] Eklenen sesi listeden kaldır (çalarken): ses hemen susuyor.
+- [ ] Dar telefonda üst çubuk (Geri al · Yinele · Kaydet) ve oynatma satırı taşmıyor.
+
+## 2026-11-15 — belge açılışı: bulanık kare + geçiş (yazıldı, cihazda doğrulanmadı)
+- [ ] Hiç açılmamış bir PDF'i listeden aç: bulanık kapak görünmüyor; kâğıt → doğrudan net sayfa.
+- [ ] Aynı PDF'i ortasında kapatıp yeniden aç: kaldığın sayfa NET görünüyor (bulanık değil), sıçrama yok.
+- [ ] PDF, Word, Excel, slayt, metin: açılış geçişi baştan sona kayarak oynuyor (donup sıçramıyor). Kapanışta takılma kaldı mı — kaldıysa hangi türde?
+- [ ] Açtıktan sonra ana ekrana dön: dosya "Son belgeler"de ve açılma geçmişinde.
+
+## 2026-11-15 — menü görünümü: sekmeli / Bento (yazıldı, cihazda doğrulanmadı)
+- [ ] Dosyaya uzun bas (⋮): üstte "Aç" büyük düğme, yanında Paylaş ve kırmızı Sil; altta sekme çipleri; "Sık kullanılan" seçili.
+- [ ] Sekmeler arasında geç: levha yukarı-aşağı zıplamıyor; türe özel sekme seçiliyken çip mor/ayrı renkte.
+- [ ] PDF/Word/Excel/slayt/galeri/oynatıcı ⋮: türe özel grup seçili açılıyor; Sil "Sık kullanılan" sekmesinde, kırmızı.
+- [ ] Ayarlar › Görünüm › Menü görünümü → Bento: menü yeniden açılınca karolar; "Aç" iki sütun, Sil kırmızı karo, türe özel işler tam genişlik.
+- [ ] Seçim çubuğu "Daha fazla", klasör ⋮'ı, Excel "Daha fazla", PDF araç levhaları: aynı görünümü izliyor.
+- [ ] Yazı boyutu "Çok büyük": iki görünümde de taşma/kesik yok; TalkBack sekmeyi "seçili" okuyor, uzun basınca ipucu çıkıyor.
+- [ ] Hız: levha açılışı ve sekme değişimi takılmıyor (ölçülmedi).
+
+## 2026-11-15 — HDR video · ⋮ Paylaş · taranmış tablo seçimi (yazıldı, cihazda doğrulanmadı)
+1. `VID_..._HDR10PLUS.mp4` aç → görüntü akıyor mu, ses senkron mu, uygulama donmuyor mu? Geri/mini çubuk/PiP çalışıyor mu?
+2. Sıradan (HDR olmayan) video eskisi gibi açılıyor mu?
+3. PDF aç → ⋮ → "Aç ve paylaş" başında Paylaş ve Hızlı paylaş var mı, çalışıyor mu?
+4. `Asm Listesi.pdf` → 34. satırdan 35. satıra sürükle → seçim aynı satırlarda kalıyor mu (sayı sütununa atlamıyor)? Kopyala → sekmeli tablo metni.
+
+## 2026-11-17 — başka uygulamanın indirdiği dosya (yazıldı, cihazda doğrulanmadı)
+1. Dosya Okuyucu'da İndirilenler sekmesini aç → Claude'a geç, bir eseri PDF indir → geri dön: PDF listede en üstte mi (aşağı çekmeden)?
+2. Aynısını Yeni dosyalar sekmesi açıkken yap (20 sn beklemeden dön) → görünüyor mu?
+3. Gezginde `Download` klasörü açıkken Notlar → ek → "Farklı kaydet" → İndirilenler → dön: dosya klasörde mi?
+4. Ana ekran İndirilenler kutusu sayısı arttı mı?
+5. İzin/paylaşım penceresi açıp kapatınca liste yanıp sönmüyor, kaydırma yeri kayboluyor mu? (kaybolmamalı)
+
+## 2026-11-18 — AI hızlı kontrol · Aktar şeridi · uygulamalarla paylaş (yazıldı, cihazda doğrulanmadı)
+- [ ] Bir PDF'e uzun bas → AI → "AI ile hızlı kontrol" → Kontrol et: yanıtlar % ile geliyor mu (Decisions API anahtarla çalışıyor mu)?
+- [ ] Bir fotoğraf ve bir ses kaydında aynı akış; kendi sorunu yaz ("Bu bir fatura mı?").
+- [ ] Ekran görüntüsü al → uygulamaya dön → Aktar: üst şeritte "Yeni gelenler"de hemen görünüyor mu? Dokununca seçime ekleniyor mu?
+- [ ] Aktar → Dosya ekle: seçicinin tepesinde aynı şerit.
+- [ ] Aktar sağ üst Paylaş simgesi → sistem paylaş levhası (WhatsApp vb.) açılıyor mu?
+- [ ] Arapça bir sayfanın fotoğrafı → Metni tanı: Otomatik ayarda Arapça metin geliyor mu? Ayarlar → Belgeler → "Metin tanıma dili" → Arapça (AI ile) ile de dene.
+- [ ] İçinde QR olan bir görseli galeride aç → ~1 sn sonra sağ üstte alan adı düğmesi; dokununca tarayıcıda açılıyor mu? Galeride hızlı kaydırırken kasma var mı?
+- [ ] Birkaç PDF/fotoğraf seç → ⋮ → "AI ile toplu kontrol" → "İmzalı mı?" → "Evet olanlar" süzgeci → Taşı ile klasöre al.
+- [ ] Ayarlar → AI → "Paylaşmadan önce kişisel veri denetimi" aç → kimlik kartı fotoğrafını paylaş: uyarı çıkıyor mu? Sıradan bir fotoğrafta uyarısız mı geçiyor?
+- [ ] Ana ekran → "Akıllı Düzen" → Aç ve düzenle: faturalar/dekontlar "Elektrik faturası · Ekim 2026" gibi ikinci ad alıyor mu? Belgeler listesinde "AI kategori" hapı ile süz; aramada "invoice" ve "fatura" ikisi de buluyor mu?
+- [ ] Ayıkla: günaydın/bayram görselleri ve bulanık kareler listede mi? Hepsini gizle → galeriden kalkıyor mu, Gizlenenler'den geri geliyor mu? Seçerek sil → çöp kutusuna gidiyor mu?
+- [ ] Kamera kapalıyken kamera fotoğrafı hiç gönderilmiyor mu (Akıllı düzende sayılmıyor)? Ana ekran ve listelerde kaydırma kasması var mı?
+
+## 2026-11-18 — Geçmiş/Yeniler · araçlar 2 satır · Bento · Görselde ne var · akıllı klasör (yazıldı, cihazda doğrulanmadı)
+- [ ] Ana ekran: Geçmiş kutusu yok; şerit başlığı "Geçmiş | Yeniler"; Araçlar iki satır (Üretilenler araçlarda); kaydırmada takılma yok.
+- [ ] Bento: Fotoğraflar · Videolar · İndirilenler · Belgeler dört uzun kart; büyük yazıda taşma yok.
+- [ ] Yeniler: uygulamayı kapatıp aç → sekme ANINDA dolu görünür; az önce alınan SS birkaç saniyede listeye girer.
+- [ ] Kitaplık → üstte "Sesli kitaplarım" (simge + kart) açılıyor.
+- [ ] Ekran görüntüsü → ⋮ → Görselde ne var: AI kısa özeti + tür çipi; yazı katlanır bölümde; anahtarsız cihazda "AI ile özetle" düğmesi.
+- [ ] Akıllı düzen: menüden 2/3/4 sütun; iki parmakla sıkıştır/aç sütun değiştirir, tek parmak kaydırma bozulmaz; basılı tut → yeniden adlandır / en başa al; "Sırala ve adlandır" sürükle.
+- [ ] Dosya ⋮ → Kategori yanlış mı? → doğrusunu seç → benzerler soruluyor; aynı uygulamanın yeni SS'i bir sonraki düzenlemede doğru kategoriye düşüyor.
+
+## 2026-11-18 — Akıllı düzen: Word/Excel/sunum/metin/APK (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] İndirilenler'e bir Word, bir Excel/CSV, bir sunum, bir .txt ve bir APK koy → Akıllı düzen → "Şimdi düzenle": hepsi ikinci ad + kategori alıyor mu (ör. Word kira sözleşmesi → "Sözleşme"); APK/arşivde içerik gönderilmeden yalnız adla bir kategori (çoğu "Diğer") çıkıyor mu?
+- [ ] Büyük (20–40 MB) Word/Excel düzenlenirken ana ekran ve listede kasma yok mu; okunamayan dosya "N dosya yapılamadı: yazısı okunamadı" iletisinde mi?
+- [ ] AI kapsamı dışındaki klasördeki Word/Excel hiç sayılmıyor mu?
+
+- [ ] (2026-11-18) Galeri: eski bir fotoğrafa dokun → hücreden büyüme takılmadan akıyor mu; açıldıktan hemen sonra netleşiyor mu; sağa/sola geçiş hâlâ anında mı. Video: dokununca kapaktan büyüme akıcı mı.
+
+## 2026-11-18 — Akıllı düzen şema 2.0 (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] "Şimdi düzenle" sonrası fatura ikinci adı "Elektrik faturası · Enerjisa · Ekim 2026" gibi kurumla mı geliyor; elektrik faturasına GSM şirketi yazılmıyor mu?
+- [ ] Son ödeme tarihi geçmiş bir fatura / süresi dolmuş bir kimlik ya da poliçe → Akıllı düzen ekranında "Dikkat" bölümünde "Ödemesi geçmiş fatura" / "Süresi dolmuş belge" çıkıyor, dokununca liste açılıyor mu?
+- [ ] "Tutara göre" çipleri (100 altı · 100–500 · 500–2000 · 2000 üstü) doğru fiş/faturaları listeliyor mu?
+- [ ] APK ve zip: "Kurulum / arşiv" klasörüne, "Kurulum dosyası" / "Yedek" / "İndirilen arşiv" ikinci adıyla giriyor mu?
+- [ ] Durum kartında "Son tur: … dosya başına ~N birim · M soru" satırı görünüyor mu (görünmüyorsa API `usage` alanı farklı adla geliyor — sabah bakılacak)?
+- [ ] Önceki sürümde düzenlenmiş dosyaların ikinci adları güncellemeden sonra yerinde mi (eski kayıt bozulmadı mı)?
+
+## 2026-11-18 — Akıllı düzen: ses ve video (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] WhatsApp sesli mesajı, bir sesli not / ses kaydı (Kayıtlar klasörü) ve İndirilenler'de bir mp3 → Akıllı düzen → "Şimdi düzenle": "Sesli mesaj" / "Sesli not" / "Toplantı kaydı" / "Müzik" gibi ikinci ad ve "Ses kaydı" kategorisi geliyor mu? Aramada "ingilizce" yazınca İngilizce konuşulan kayıt çıkıyor mu?
+- [ ] 14 MB'tan büyük bir ses (uzun toplantı kaydı) → yükleniyor ve ad alıyor mu (ilk sınama: API'nin Files API bloğunu kabul ettiği burada görülür; "yapılamadı" çıkarsa iletideki nedeni not et).
+- [ ] WhatsApp videosu ve bir ekran kaydı → "Ekran kaydı" / "İletilen video / mizah" adları; cebinde çekilmiş, kapkaranlık ya da 1–2 saniyelik bir video → Ayıkla'da "Yanlışlıkla" olarak, ilk karesiyle (kırık simge değil) görünüyor mu? Aile videosuna ad yazılmıyor mu?
+- [ ] Kamera kapalıyken DCIM/Camera videoları hiç gönderilmiyor mu? 50 MB üstü video hiç denenmiyor mu?
+- [ ] Dosya menüsü → "AI ile ikinci ad" bir ses ve bir video dosyasında çalışıyor mu?
+
+## 2026-11-18 — Akıllı düzen: kullanıcı kategorileri (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] Akıllı düzen → "Kategorilerim" → + → ad "Kira", cümle "Kira sözleşmesi, kira dekontları ve aidat makbuzları" → "Dene": son 20 dosya ilerlemeli deneniyor, eşleşenler üstte ✓ ile listeleniyor mu? Eşleşme yokken ya da "Sonuçlar doğru" işaretlenmeden Kaydet kapalı mı?
+- [ ] Denedikten sonra cümleyi değiştir → "Ad ya da cümle değişti — yeniden dene" çıkıp Kaydet yeniden kapanıyor mu?
+- [ ] Kaydedince "Eski dosyalara uygula" kendiliğinden başlıyor, ilerleme çubuğu + Durdur çalışıyor mu; bitince "N dosyaya bakıldı, M eşleşti" iletisi geliyor mu?
+- [ ] Kategoriye dokununca eşleşen dosyalar açılıyor mu; bir dosya iki kategoriye birden girebiliyor mu? Dosya listesinde AI kategori süzgecinde kendi kategorin görünüyor ve süzüyor mu? Aramada kategori adını yazınca dosyalar çıkıyor mu?
+- [ ] Kullanıcı kategorisi baskın olan dosyada (ör. kedi fotoğrafı + "Kedim") listede ikinci ad kategorinin adı mı?
+- [ ] ⋮ → Düzenle: yalnız simge/renk değişince deneme istemeden kaydediliyor mu; ⋮ → Sil: kategori ve süzgeç çipi kalkıyor, dosyalar yerinde mi? 30 kategoriden sonra "En çok 30 kategori" uyarısı mı?
+- [ ] Yeni gelen dosyalar (otomatik düzenleme) kullanıcı kategorisine de giriyor mu (ek istek olmadan)?
+## 2026-11-18 — Akıllı düzen: doğruluk ölçümü (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] Ayarlar → Geliştirici (Hakkında'da sürüme 7 dokun) → "Doğruluk ölçümü" açılıyor mu? Geliştirici kapalıyken ayarlarda görünmüyor mu?
+- [ ] "Dosya etiketle" → kapsamdaki en yeni dosyalar listeleniyor; birini seç → kategori, alt tür (Puanlama / Hiçbiri / tür), belgede tarih anahtarı + ay/yıl → Kaydet; ses/video/APK'da kategori sabit mi?
+- [ ] Önceden düzenlenmiş dosyada satır hemen ✓/✗ ile AI yanıtını gösteriyor mu; düzenlenmemişte "Eksiklere sor (N)" ilerlemeli soruyor, Durdur çalışıyor, sonra düzen ekranındaki ikinci adlar DEĞİŞMİYOR mu?
+- [ ] Özet kartı: kategori / alt tür oranı + "kapı %90 / %80" ✓/✗, tarih oranı, önerilen güven eşiği doğru görünüyor mu?
+- [ ] "Raporu kopyala" → bir nota yapıştır: dosya adı ya da klasör yolu YOK, yalnız sayılar ve kategori kimlikleri mi? (Gerçek ölçüm: ~100 dosya, rapor `docs/ai/`ye — PLAN C2.)
+- [ ] Etikete dokun → düzelt / "Etiketi sil"; "Bütün etiketleri sil" onay sorup siliyor mu? Uygulamayı kapat-aç: etiketler duruyor mu?
+## 2026-11-18 — B12 Hız 2.0: açılış/taslak izolatta + görsel çözme (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Büyük bir eski .xls ve .doc aç → "açılıyor" göstergesi dönmeye devam ediyor mu, içerik eskisi gibi mi?
+- [ ] Word / Excel / Slayt'ta düzenle, uygulamayı kapat, yeniden aç → "Geri yükle": taslak geliyor, ekran donmuyor, "Kaydedilmedi" görünüyor mu?
+- [ ] Sesli kitap: büyük Word ve sunumdan bölümler eskisi gibi çıkıyor mu?
+- [ ] Word (Mobil) editöründe büyük fotoğraflı belge: resimler net mi, boyutlandırma sürüklemesi akıcı mı?
+- [ ] Galeri: bozuk (yarım) bir JPEG kurtarılıp gösteriliyor mu; yakınlaştırınca netleşiyor mu? Yakındaki cihazdan aktarım teklifinde küçük resimler eskisi gibi mi?
+
+## 2026-11-18 — B12 Hız 2.0 m.3: editör yeniden kurulum (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Uzun (yüzlerce sayfa) Word belgesinde (Mobil editör) yaz: harfler gecikmesiz düşüyor mu; imleç, seçim, yazım hatası çizgisi, yorum vurgusu eskisi gibi mi?
+- [ ] Word'de numaralı liste / tablo içinde yaz, paragraf böl/birleştir, geri al → görünüm doğru tazeleniyor mu?
+- [ ] Word (sayfa görünümü) resim ekle ve sil → ekran donmadan yenileniyor mu, düzenleme kaldığı yerden sürüyor mu?
+
+## 2026-11-18 — B12 Hız 2.0 m.1 + m.5: senkron disk erişimi + başlangıç (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Bir arşivi (zip/rar) aç → başlıkta sıkıştırma oranı (bir an sonra) görünüyor mu?
+- [ ] Taşı/kopyala → klasör seç: favori ve son hedef kısayolları geliyor mu; silinmiş klasörün kısayolu görünmüyor mu?
+- [ ] SD kart birleştirme ayarı: klasör çiplerinde telefonda olan klasörler (Podcasts vb.) görünüyor mu?
+- [ ] Ayarlardan titreşimi kapat, uygulamayı kapatıp aç → ilk dokunuşta titreşim yok mu?
+
+## 2026-11-18 — B12 Hız 2.0 m.6: sabit satır yüksekliği (bulut, dal faz-oto-B12-hiz2; yazıldı, cihazda doğrulanmadı)
+- [ ] Büyük bir CSV aç (tablo görünümü) → hızlıca aşağı/yukarı kaydır: satırlar kaymadan, boşluksuz mu? Hücre metinleri eskisi gibi mi?
+- [ ] Ayarlardan yazı boyutunu en büyüğe al → müzik çalarda çalma listesi (birden çok şarkı): satırlar kesilmeden, üst üste binmeden görünüyor mu?
+
+## 2026-11-19 — Akıllı düzen 2.0 hız/kota + ilk slayt görüntüsü (bulut, dal faz-oto-B1-duzen2; yazıldı, cihazda doğrulanmadı)
+- [ ] Akıllı düzen → Ayarlar: "Yalnız Wi-Fi'de" varsayılan AÇIK mı? Mobil veride "Şimdi düzenle" → "Yalnız Wi-Fi'de düzenleniyor" diyor, dosya göndermiyor mu? Wi-Fi'de düzenliyor mu? (Bağlantı türü okunamazsa da durur — hep duruyorsa kanal adı `isMetered`e bak.)
+- [ ] "Günde en çok 200 dosya" satırı: bugünkü sayı tur boyunca artıyor mu? Dokun → 50/100/200/500/1000 seçimi ve son günlerin "N dosya · M kota uyarısı" dökümü görünüyor mu? 50 seç, sınır dolunca "bugünkü sınır doldu, kalanlar yarın" çıkıyor mu?
+- [ ] Görselli (10 MB+ fotoğraf/PDF) turda ekran takılmadan kaydırılabiliyor mu? (Ölçüm C2.)
+- [ ] 2 dakikadan uzun bir video (WhatsApp Video) → ikinci adı/kategorisi geliyor mu; 50 MB üstü uzun video da düzenleniyor mu? Kesit kullanıcı klasörüne `_kesit` dosyası BIRAKMIYOR mu? Video düzenleyicide kesim sürerken tur bozmuyor mu?
+- [ ] PowerPoint ile kaydedilmiş bir sunum (.pptx) → ikinci adı ilk slayt görselinden de yararlanıyor mu (ör. başlık resmi olan sunum)? Blok biçimi API'de denenmedi: "yapılamadı" çıkarsa sunumlarda ek görsele bak.
+
+## 2026-11-19 — Word 2.0: içerik denetimleri ve form alanları (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Word'de kapak sayfası (Ekle → Kapak Sayfası) ya da İçindekiler olan bir belge aç: kapaktaki satırlar ayrı ayrı, biçimiyle (kalın, büyük başlık) görünüyor mu? Bir satırı düzenle → kaydet → Word'de aç: kapak bozulmadan, düzenleme yerinde mi?
+- [ ] Form belgesi (Geliştirici → Denetimler: düz metin, onay kutusu, açılır liste, tarih seçici): alanlar noktalı altı çizili görünüyor mu? Onay kutusuna dokun → işaretleniyor mu; tarih → takvim açılıyor, seçilen tarih belgenin biçiminde mi (ör. 19.11.2026); liste → seçenekler geliyor mu; metin → yazı alanı. Geri al tek adımda geri alıyor mu?
+- [ ] Doldurulan belgeyi kaydet → Word'de (masaüstü/telefon) aç: alanlar hâlâ denetim mi (Word'de tıklayınca çerçeve), değerler doğru mu, "Metin girmek için tıklayın" yer tutucusu gitmiş mi?
+- [ ] Kilitli ya da belge özelliğine bağlı alan (ör. kapaktaki "Belge başlığı"): değiştirilemiyor mu (dokunulunca levha açılmıyor)?
+
+## 2026-11-19 — Word 2.0 m.2 İçindekiler + m.5 dipnot/sonnot (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Başlık 1–3 stilli bir belgede Araçlar → İçindekiler: başlıklar girintili, noktalı sekmeyle sayfa numarasıyla geliyor mu? Başlık yoksa "Başlık yok" uyarısı mı?
+- [ ] Yeni başlık ekle → İçindekiler'i yeniden çalıştır: yerinde güncelleniyor mu (ikinci İçindekiler oluşmuyor)? Kaydet → Word'de aç: girdiye tıklayınca başlığa gidiyor mu, Word "Alanı güncelleştir" doğru sayfaları veriyor mu?
+- [ ] Ekle → Dipnot ve Ekle → Sonnot: araya eklenen not ötekileri yeniden numaralıyor mu (dipnot 1, 2, 3 · sonnot i, ii)? Nota dokun → düzenle / Sil; silip geri al not metnini geri getiriyor mu?
+- [ ] Notlu belgeyi kaydet → Word'de aç: dipnotlar sayfa altında, sonnotlar sonda, silinen not yok mu? PDF'e aktar: notlar belge sonunda numaralı liste (sayfa altı değil — bilinen eksik).
+
+## 2026-11-19 — Word 2.0 m.3 Değişiklikleri izle (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Gözden Geçir → "Değişiklikleri izle": ilk açışta ad soruluyor mu (yorum adıyla aynı), düğme açık görünüyor mu? Yazılan metin kırmızı altı çizili mi?
+- [ ] İzle açıkken kelime sil / geri sil (Gboard otomatik düzeltme dahil): silinen metin ekrandan kalkıyor, klavye imleci kaymıyor mu? Kendi yazdığını silince iz kalmıyor mu?
+- [ ] Kaydet → Word'de aç: eklemeler ve silmeler senin adınla, tarihle görünüyor mu; Word'de "Değişiklikleri İzle" açık mı? Kabul et / Reddet doğru sonucu veriyor mu?
+- [ ] Uygulamada "Tüm değişiklikleri kabul et / reddet" kaydetmeden önce yapılan izlenen yazmalarda da çalışıyor mu? Word'de izle açık kaydedilmiş belge uygulamada açılınca izle düğmesi açık mı?
+- [ ] Bilinen sınır: izle açıkken Enter / paragraf başında geri silme ve biçim değişikliği izlenmez; birden çok paragraf seçip silince paragraflar birleşmez (boş kalır).
+
+## 2026-11-19 — Word 2.0 m.8 Büyük belge açılışı, ilk sayfa önce (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] 300+ sayfalık Word belgesini düzenleyicide aç: tam belge hazırlanırken belgenin başı başlık/kalın/hiza/tablo/resimle (düz metin değil) görünüyor mu, üstte ince ilerleme çubuğu var mı? Kaydırılabiliyor, dokununca klavye AÇILMIYOR mu?
+- [ ] Tam belge gelince düzenleyiciye geçişte zıplama/boş kare var mı? Kısa belgede önizleme hiç fark edilmeden mi geçiyor?
+- [ ] A/B (C2): büyük belgede "dokunuştan ilk okunur kareye" süresi önceki sürüme göre (ölçülmedi).

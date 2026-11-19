@@ -33,8 +33,8 @@ tabloda koşu başı °C sütunu ve taraf ortalaması var; ortalamalar > 1 °C a
 - **ÖLÇÜM KAPISI:** PDF görüntüleyici (açılış, kaydırma, yakınlaştırma), dosya listesi/ızgara,
   ana ekran, görüntüleyici kabuğu (üst/alt çubuk, klavye), geçiş/levha animasyonuna dokunan iş
   `[apk]`'ya girmeden önce cihazda A/B ölçülür.
-- **HIZ SÖZLEŞMESİ (bu projede PERFORMANS KORUMA ANAYASASI, `docs/GELISTIRME_PLANI.md`, +
-  `docs/FERRARI_PLANI.md` §0.4, §2):**
+- **HIZ SÖZLEŞMESİ (bu projede hız anayasası, `PLAN.md` §0, +
+  `docs/arsiv/planlar/FERRARI_PLANI.md` §0.4, §2):**
   1. Dokunulan yüzeyin cihazsız bütçe/perf testi olmalı (`test/perf/*_perf_test.dart`,
      `startup_budget_test`, `image_budget_test`, `perf_offload_test`, `root_rebuild_test`) —
      yoksa işin parçası olarak YAZILIR.

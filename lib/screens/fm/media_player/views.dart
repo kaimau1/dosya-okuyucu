@@ -31,40 +31,51 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   }
 
   /// Altyazı menüsü: kapat · bulunan dosyalar · gecikme · dosyadan seç.
-  Widget _subtitleMenu() => PopupMenuButton<String>(
-        tooltip: context.t('mp.subtitles'),
-        icon: Icon(_subtitlePath == null
-            ? AppIcons.closedCaptionOff
-            : AppIcons.closedCaption),
-        onSelected: (value) async {
-          switch (value) {
-            case '_off':
-              await _selectSubtitle(null);
-            case '_pick':
-              await _pickSubtitle();
-            case '_online':
-              await _searchOnline();
-            case '_mpv':
-              await _p.reopenWithMpv(!_p.usingMpv);
-            case final v when v.startsWith('_audio:'):
-              await _p.selectAudioTrack(v.substring(7));
-            case '_bigger':
-              _partSetState(() => _MediaPlayerScreenState._subtitleScale =
-                  (_MediaPlayerScreenState._subtitleScale + 0.15).clamp(0.6, 2.2));
-            case '_smaller':
-              _partSetState(() => _MediaPlayerScreenState._subtitleScale =
-                  (_MediaPlayerScreenState._subtitleScale - 0.15).clamp(0.6, 2.2));
-            case '_later':
-              _partSetState(() => _subtitleOffsetMs -= 500);
-              SubtitleDelays.set(_current, _subtitleOffsetMs);
-            case '_sooner':
-              _partSetState(() => _subtitleOffsetMs += 500);
-              SubtitleDelays.set(_current, _subtitleOffsetMs);
-            default:
-              await _selectSubtitle(value);
-          }
-        },
-        itemBuilder: (_) => [
+  ///
+  /// 2026-11-16 (kullanıcı: "altyazı tuşunu menüye al, yerine paylaş koy"):
+  /// üst çubukta düğme yok; ⋮ levhasındaki "Altyazı" bu menüyü sağ üstte açar.
+  Future<void> _openSubtitleMenu() async {
+    final size = MediaQuery.sizeOf(context);
+    final top = MediaQuery.paddingOf(context).top + 56;
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(size.width - 8, top, 8, 0),
+      items: _subtitleItems(),
+    );
+    if (value == null || !mounted) return;
+    await _onSubtitleChoice(value);
+  }
+
+  Future<void> _onSubtitleChoice(String value) async {
+      switch (value) {
+        case '_off':
+          await _selectSubtitle(null);
+        case '_pick':
+          await _pickSubtitle();
+        case '_online':
+          await _searchOnline();
+        case '_mpv':
+          await _p.reopenWithMpv(!_p.usingMpv);
+        case final v when v.startsWith('_audio:'):
+          await _p.selectAudioTrack(v.substring(7));
+        case '_bigger':
+          _partSetState(() => _MediaPlayerScreenState._subtitleScale =
+              (_MediaPlayerScreenState._subtitleScale + 0.15).clamp(0.6, 2.2));
+        case '_smaller':
+          _partSetState(() => _MediaPlayerScreenState._subtitleScale =
+              (_MediaPlayerScreenState._subtitleScale - 0.15).clamp(0.6, 2.2));
+        case '_later':
+          _partSetState(() => _subtitleOffsetMs -= 500);
+          SubtitleDelays.set(_current, _subtitleOffsetMs);
+        case '_sooner':
+          _partSetState(() => _subtitleOffsetMs += 500);
+          SubtitleDelays.set(_current, _subtitleOffsetMs);
+        default:
+          await _selectSubtitle(value);
+      }
+  }
+
+  List<PopupMenuEntry<String>> _subtitleItems() => [
           PopupMenuItem(
             value: '_off',
             child: Text('${context.t('mp.sub_off')}'
@@ -123,8 +134,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             value: '_pick',
             child: Text(context.t('mp.sub_pick')),
           ),
-        ],
-      );
+        ];
 
   /// "Türkçe · ac3 · 6 kanal" — ExoPlayer'ın verdiği kadarı.
   String _trackLabel(int i, VideoAudioTrack t) => [
@@ -145,10 +155,12 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   /// - Ad artık iki satıra kadar sarabiliyor ve altında süre/sıra bilgisi var;
   ///   "AHBS_Egitim_Videosu_1080.mp4" tek satıra sığmıyordu, üstelik dört
   ///   eylem simgesi başlığa kalan yeri iyice daraltıyordu.
+  ///
+  /// 2026-11-15 (kullanıcı: *"tarihi varsa adının altına yazsın, diğer detay
+  /// bilgiler gereksiz"*): alt satır yalnız TARİH ("4 Ekim 2025 · 15:34");
+  /// sıra ("105/291") ve uzantı ("MP4") kalktı.
   Widget _topBar() {
-    final position = _playlist.length > 1
-        ? '${_index + 1}/${_playlist.length} · ${p.extension(_current).replaceFirst('.', '').toUpperCase()}'
-        : p.extension(_current).replaceFirst('.', '').toUpperCase();
+    final position = _momentOf(_current) ?? '';
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -192,7 +204,15 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           // 7 simge yan yana adı "VI 3…" diye eziyordu. Görünürde en sık
           // ikisi (altyazı, hız) + ⋮; seyrek olanlar menüde, metinli.
           actions: [
-            if (!_isAudio) _subtitleMenu(),
+            IconButton(
+              key: const ValueKey('mp-share'),
+              tooltip: context.t('common.share'),
+              icon: const Icon(AppIcons.share),
+              onPressed: () {
+                _scheduleHide();
+                unawaited(shareEntriesFrom(context, [_current]));
+              },
+            ),
             PopupMenuButton<double>(
               tooltip: context.t('mp.play_speed'),
               icon: const Icon(AppIcons.speed),
@@ -228,9 +248,21 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           unawaited(showEntryActions(
             context,
             FsEntry.fromEntity(File(_current)),
+            // Dosya zaten açık: "Aç" ve pano gizli (2026-11-15 ortak düzen).
+            inViewer: true,
             extrasTitle: context.t('mp.sec_player'),
             extras: [
               if (!_isAudio) ...[
+                EntryExtraAction(
+                  icon: _subtitlePath == null
+                      ? AppIcons.closedCaptionOff
+                      : AppIcons.closedCaption,
+                  label: context.t('mp.subtitles'),
+                  color: _subtitlePath == null ? null : AppHues.amberBright,
+                  onTap: () {
+                    if (mounted) unawaited(_openSubtitleMenu());
+                  },
+                ),
                 // **A-B tekrar** — aynı yeri defalarca izlemek (dil, gitar,
                 // spor) elle geri sarmakla yapılıyordu.
                 EntryExtraAction(
@@ -274,8 +306,29 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
       );
 
   Widget _surface(VideoPlayerController? c, VideoPlayerValue? value) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+    if (_loading ||
+        (_error == null && !_isAudio &&
+            (c == null || value == null || !value.isInitialized))) {
+      // Galeriden açılışta küçük resim hücreden büyüyerek gelir (Hero) ve
+      // video hazırlanırken ekranda o durur — açılıştaki kısa bekleme
+      // animasyonun içinde kalır (kullanıcı 2026-11-15).
+      final poster = _posterView();
+      if (poster != null) return poster;
+      if (!_loading) return const SizedBox.shrink();
+      // Kapak bellekte yoksa da büyüme geçişi kurulur: uçan resim ızgara
+      // hücresinin kendisidir (2026-11-15).
+      return Stack(fit: StackFit.expand, children: [
+        if (!_isAudio && _current.isNotEmpty)
+          Hero(
+            tag: fmMediaHeroTag(_current),
+            flightShuttleBuilder: (_, _, direction, from, to) {
+              final grid = direction == HeroFlightDirection.push ? from : to;
+              return (grid.widget as Hero).child;
+            },
+            child: const SizedBox.expand(),
+          ),
+        const Center(child: CircularProgressIndicator()),
+      ]);
     }
     if (_error != null) {
       return Center(
@@ -339,7 +392,7 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
     // yayıyor (kenarlardan kırparak). Seçim kullanıcıda: iki kip arasında
     // üst çubuktaki düğme geçiş yaptırıyor.
     if (_zoomFill) {
-      return SizedBox.expand(
+      return _heroWrap(SizedBox.expand(
         child: FittedBox(
           fit: BoxFit.cover,
           clipBehavior: Clip.hardEdge,
@@ -352,16 +405,47 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
           ),
         ),
-      );
+      ));
     }
+    final poster = _posterImage;
     return Center(
-      child: RotatedBox(
+      child: _heroWrap(RotatedBox(
         quarterTurns: _quarterTurns,
         child: AspectRatio(
           aspectRatio: value.aspectRatio,
-          child: VideoPlayer(c),
+          // Kapak, oynatma ilerleyene (ilk kare gelene) dek üstte: doku
+          // ilk karesini çizene kadar siyah yanıp sönmesin.
+          child: poster == null
+              ? VideoPlayer(c)
+              : Stack(fit: StackFit.expand, children: [
+                  VideoPlayer(c),
+                  _PosterVeil(controller: c, image: poster),
+                ]),
         ),
-      ),
+      )),
+    );
+  }
+
+  /// Galerideki hücreyle eşleşen kahraman (açılış/kapanış geçişi).
+  Widget _heroWrap(Widget child) => _isAudio || _current.isEmpty
+      ? child
+      : Hero(tag: fmMediaHeroTag(_current), child: child);
+
+  /// Video hazırlanırken: kapak resmi, en-boy oranında ortalı.
+  Widget? _posterView() {
+    final poster = _posterImage;
+    final aspect = _posterAspect;
+    if (poster == null || aspect == null || _isAudio) return null;
+    return Center(
+      child: _heroWrap(AspectRatio(
+        aspectRatio: aspect,
+        child: Image(
+          image: poster,
+          fit: BoxFit.cover,
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
+      )),
     );
   }
 
@@ -392,6 +476,33 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
           ],
         ],
       );
+
+  /// **Otomatik geçiş** aç/kapa (2026-11-16, kullanıcı: "videolarda oto
+  /// geçişi bir butona bağla, sağ alttaki boşluğa koy, aktif pasif olsun").
+  /// Açıkken video bitince sıradakine geçer; kapalıyken sonda durur. Ayar
+  /// kalıcı ([VideoPlayback.autoNext]).
+  Widget _autoNextButton() {
+    final on = VideoPlayback.autoNext;
+    return Material(
+      color: on
+          ? AppHues.amberBright.withValues(alpha: 0.85)
+          : AppColors.mediaSurface.withValues(alpha: 0.5),
+      shape: const CircleBorder(),
+      child: IconButton(
+        key: const ValueKey('mp-auto-next'),
+        tooltip: context.t('mp.auto_next'),
+        isSelected: on,
+        icon: Icon(AppIcons.playlistPlay,
+            color: on ? AppColors.mediaSurface : AppColors.onMedia),
+        onPressed: () {
+          final v = !VideoPlayback.autoNext;
+          _partSetState(() => VideoPlayback.setAutoNext(v));
+          _toast(context.t(v ? 'mp.auto_next_on' : 'mp.auto_next_off'));
+          _scheduleHide();
+        },
+      ),
+    );
+  }
 
   Widget _controls(VideoPlayerController c, VideoPlayerValue value) {
     return Container(
@@ -503,4 +614,63 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
       ),
     );
   }
+}
+
+/// Videonun ilk karesi gelene dek üstte duran kapak. Konum bir kez
+/// ilerleyince (ya da oynatma hiç başlamadan 2 sn geçince) kalkar ve
+/// dinlemeyi bırakır — kalan oynatma boyunca katman yok.
+class _PosterVeil extends StatefulWidget {
+  final VideoPlayerController controller;
+  final ImageProvider<Object> image;
+  const _PosterVeil({required this.controller, required this.image});
+
+  @override
+  State<_PosterVeil> createState() => _PosterVeilState();
+}
+
+class _PosterVeilState extends State<_PosterVeil> {
+  bool _gone = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller.value.position > Duration.zero) {
+      _gone = true;
+      return;
+    }
+    widget.controller.addListener(_check);
+    // Zaman aşımı (animasyon süresi değil): oynatma hiç başlamazsa da kalkar.
+    _timer = Timer(const Duration(seconds: 2), _drop);
+  }
+
+  void _check() {
+    if (widget.controller.value.position > Duration.zero) _drop();
+  }
+
+  void _drop() {
+    if (_gone) return;
+    widget.controller.removeListener(_check);
+    _timer?.cancel();
+    if (mounted) setState(() => _gone = true);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_check);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _gone
+      ? const SizedBox.shrink()
+      : IgnorePointer(
+          child: Image(
+            image: widget.image,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        );
 }

@@ -53,7 +53,11 @@ class _GalleryAction extends StatelessWidget {
 class _RepairedImage extends StatefulWidget {
   final String path;
   final BoxFit fit;
-  const _RepairedImage(this.path, {required this.fit});
+
+  /// Çözme genişliği (piksel) — asıl görselinkiyle aynı bütçe (B12 m.4):
+  /// kurtarılan bayt tam çözünürlükte açılırsa 12 MP ≈ 48 MB bitmap.
+  final int? cacheWidth;
+  const _RepairedImage(this.path, {required this.fit, this.cacheWidth});
 
   @override
   State<_RepairedImage> createState() => _RepairedImageState();
@@ -82,7 +86,9 @@ class _RepairedImageState extends State<_RepairedImage> {
           fit: StackFit.expand,
           children: [
             Image.memory(data,
-                fit: widget.fit, errorBuilder: (_, _, _) => failed()),
+                fit: widget.fit,
+                cacheWidth: widget.cacheWidth,
+                errorBuilder: (_, _, _) => failed()),
             Positioned(
               left: Gap.md,
               right: Gap.md,
@@ -285,6 +291,36 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   ImageStream? _aspectStream;
   ImageStreamListener? _aspectListener;
 
+  /// Açılış geçişi sürerken (küçük resim varsa) yalnız küçük resim çizilir;
+  /// tam boy çözüm geçiş bitince başlar (2026-11-18, kullanıcı: "fotoğraf
+  /// takıla takıla açılıyor"). Büyük JPEG'in çözümü ve doku yüklemesi büyüme
+  /// animasyonunun ortasına düşüp kare kaçırtıyordu.
+  bool _full = true;
+  Animation<double>? _routeAnim;
+  AnimationStatusListener? _routeListener;
+
+  void _watchRoute() {
+    if (_routeAnim != null || _thumb == null || _aspect == null) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.isCompleted) return;
+    _full = false;
+    _routeAnim = animation;
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.forward) return;
+      _stopRoute();
+      if (mounted && !_full) setState(() => _full = true);
+    };
+    _routeListener = listener;
+    animation.addStatusListener(listener);
+  }
+
+  void _stopRoute() {
+    final listener = _routeListener;
+    if (listener != null) _routeAnim?.removeStatusListener(listener);
+    _routeListener = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -293,6 +329,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 
   @override
   void dispose() {
+    _stopRoute();
     _stopAspect();
     _tx.removeListener(_onTransform);
     _tx.dispose();
@@ -326,6 +363,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _syncDecodeWidth(_tx.value.getMaxScaleOnAxis());
+    _watchRoute();
     _watchAspect();
   }
 
@@ -376,7 +414,9 @@ class _ZoomableImageState extends State<_ZoomableImage> {
     // kesintisiz açılır. Bilinmiyorsa kutu ekranı kaplar, görsel sığdırılır.
     final fit = aspect == null ? BoxFit.contain : BoxFit.cover;
     final thumb = _thumb;
-    Widget image = Image(
+    Widget image = !_full && thumb != null
+        ? Image(image: thumb, fit: fit, gaplessPlayback: true)
+        : Image(
       // `Image.file` DEĞİL: dosyayı Dart yığınına kopyalıyordu (bkz.
       // `FmFileImage`, 2026-08-17 donma kök nedeni).
       image: FmFileImage(widget.path, cacheWidth: _decodeWidth),
@@ -390,7 +430,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
               ? Image(image: thumb, fit: fit, gaplessPlayback: true)
               : child,
       // Çözücü reddetti → kurtarmayı dene (başında çöp, yarım JPEG …).
-      errorBuilder: (_, _, _) => _RepairedImage(widget.path, fit: fit),
+      errorBuilder: (_, _, _) =>
+          _RepairedImage(widget.path, fit: fit, cacheWidth: _decodeWidth),
     );
     final tag = widget.heroTag;
     if (tag != null) image = Hero(tag: tag, child: image);

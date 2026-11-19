@@ -356,7 +356,8 @@ const Map<String, (String, String, String)> _t8 = {
   ),
 
   // ── AI Merkezi (toplu dosya analizi) ──────────────────────────────────────
-  'aih.title': ('AI Merkezi', 'AI Hub', 'مركز الذكاء الاصطناعي'),
+  // 2026-11-14 kullanıcı: "iyi bir isim ver, adı da ne iş yaptığını söylesin".
+  'aih.title': ('AI Dosya Asistanı', 'AI File Assistant', 'مساعد الملفات الذكي'),
   'aih.tab_analysis': ('Analiz', 'Analysis', 'التحليل'),
   'aih.tab_chat': ('Sohbet', 'Chat', 'محادثة'),
   'aih.analysis_what': (
@@ -905,7 +906,7 @@ const Map<String, (String, String, String)> _t8 = {
     'لا توجد علامات بعد. أثناء القراءة اضغط مطولًا على شارة الصفحة أو استخدم الزر هنا.',
   ),
   // 2026-11-04: dosya menüsünün ikinci hızlı sırası — doğrudan Yakındakiler.
-  'ea.quick_share': ('Hızlı paylaş', 'Quick share', 'مشاركة سريعة'),
+  'ea.quick_share': ('Yakındakilere gönder', 'Send nearby', 'إرسال إلى القريبين'),
   'ea.shortcut': (
     'Ana ekrana ekle',
     'Add to home screen',
@@ -1021,9 +1022,9 @@ const Map<String, (String, String, String)> _t8 = {
     'بطاقات التخزين',
   ),
   'dash.sec_recent': (
-    'Son açılanlar',
-    'Recently opened',
-    'المفتوحة مؤخرًا',
+    'Geçmiş',
+    'History',
+    'السجل',
   ),
   'dash.recent_all': (
     'Tümü →',

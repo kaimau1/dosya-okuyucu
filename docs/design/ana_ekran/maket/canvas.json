@@ -1,0 +1,22 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "B-Bento.dc.html": {"h": 1276, "title": "B · Bento", "w": 412, "x": 492, "y": 0},
+    "C-Liste.dc.html": {"h": 1262, "title": "C · Koyu başlık", "w": 412, "x": 984, "y": 0},
+    "Main.dc.html": {"h": 1260, "title": "A · Sakin", "w": 412, "x": 0, "y": 0},
+    "D-Simgeler.dc.html": {"h": 900, "title": "Simge takımı", "w": 900, "x": 0, "y": 1700},
+    "E-Yazi.dc.html": {"h": 840, "title": "Yazı ölçeği", "w": 900, "x": 980, "y": 1700},
+    "F-Metinler.dc.html": {"h": 820, "title": "Metinler", "w": 900, "x": 1960, "y": 1700}
+  },
+  "createdOnFiles": {"at": "2026-11-15T06:46:06Z", "v": 1},
+  "designSystems": [],
+  "launch": {"view": "canvas"},
+  "notes": {
+    "baslik": {"kind": "title1", "maxW": 1396, "text": "Ana ekran · 3 tasarım yönü", "w": 240, "x": 0, "y": -300},
+    "calisma": {"kind": "title1", "maxW": 2860, "text": "Çalışmalar · simge, yazı, metin", "x": 0, "y": 1400}
+  },
+  "order": ["Main.dc.html", "B-Bento.dc.html", "C-Liste.dc.html", "D-Simgeler.dc.html", "E-Yazi.dc.html", "F-Metinler.dc.html"],
+  "pages": [],
+  "title": "Ana Ekran Tasarım Önerileri"
+}

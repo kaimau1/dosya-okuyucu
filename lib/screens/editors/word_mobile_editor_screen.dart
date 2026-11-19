@@ -151,6 +151,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   void dispose() {
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
+    _head?.dispose();
     _panel.dispose();
     _session.dispose();
     super.dispose();
@@ -165,6 +166,15 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 
   static List<String> _previewParas(Uint8List bytes) =>
       docxPreviewParagraphs(bytes, limit: 50);
+
+  /// B9 m.8 — "ilk sayfa önce": belgenin yalnız başı (≈ ilk 60 blok) gerçek
+  /// biçimiyle (başlık, kalın, hiza, tablo, resim) salt okunur gösterilir;
+  /// tam model gelince yerini editör alır. Baş çözümlenemezse düz metin
+  /// önizlemesine ([_preview]) düşülür.
+  DocxEditController? _head;
+
+  static DocxDocument _parseHead(Uint8List bytes) =>
+      DocxDocument.parseHead(bytes);
 
   Future<void> _load() async {
     try {
@@ -181,11 +191,18 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       final isolate = WordMobileEditorScreen.parseInIsolate;
       // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
       if (isolate) {
-        unawaited(compute(_previewParas, bytes).then((list) {
-          if (mounted && _doc == null && list.isNotEmpty) {
-            setState(() => _preview = list);
-          }
-        }, onError: (_) {}));
+        void plain() {
+          unawaited(compute(_previewParas, bytes).then((list) {
+            if (mounted && _doc == null && list.isNotEmpty) {
+              setState(() => _preview = list);
+            }
+          }, onError: (_) {}));
+        }
+
+        unawaited(compute(_parseHead, bytes).then((head) {
+          if (!mounted || _doc != null) return;
+          setState(() => _head = DocxEditController(head));
+        }, onError: (_) => plain()));
       }
       final doc = isolate ? await compute(_parse, bytes) : _parse(bytes);
       _attach(doc);
@@ -215,9 +232,38 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   void _attach(DocxDocument doc) {
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
+    _head?.dispose();
+    _head = null;
     _doc = doc;
     _ctrl = DocxEditController(doc)..addListener(_onEdit);
     _seenRevision = 0;
+    if (doc.trackChanges) unawaited(_loadRevAuthor(doc));
+  }
+
+  /// İzle açık açılan belgede yazar adı (sormadan; yoksa "Yazar").
+  Future<void> _loadRevAuthor(DocxDocument doc) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString(kWordAuthorPref);
+      if (name != null && name.trim().isNotEmpty) doc.revAuthor = name.trim();
+    } catch (_) {
+      // Tercih deposu yoksa varsayılan yazar adı kalır.
+    }
+  }
+
+  /// B9 m.3: Değişiklikleri izle aç/kapa. Açarken yazar adı bir kez sorulur.
+  Future<void> _toggleTrack() async {
+    final c = _ctrl;
+    if (c == null) return;
+    if (c.trackChanges) {
+      c.setTrackChanges(false);
+      showSnack(context, context.t('word.track_off'));
+      return;
+    }
+    final author = await wordCommentAuthor(context);
+    if (author == null || !mounted) return;
+    c.setTrackChanges(true, author: author);
+    showSnack(context, context.t('word.track_on'));
   }
 
   /// İçerik değiştiyse oturuma bildir (taslak + otomatik kaydetme).
@@ -245,7 +291,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   }
 
   Future<void> _restoreDraft(Uint8List bytes) async {
-    setState(() => _attach(DocxDocument.parse(bytes)));
+    // Açılıştaki gibi arka izlekte (B12 m.2): büyük taslakta ana izlek donmasın.
+    final doc = WordMobileEditorScreen.parseInIsolate
+        ? await compute(_parse, bytes)
+        : _parse(bytes);
+    if (!mounted) return;
+    setState(() => _attach(doc));
     _session.changed();
   }
 
@@ -316,12 +367,14 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onFind: () => setState(() => _findOpen = !_findOpen),
         onHeaderFooter: _headerFooter,
         onResolveTracked: _resolveTracked,
+        onTrackChanges: _toggleTrack,
         onInsertImage: () => _pickImage(replace: false),
         onReplaceImage: () => _pickImage(replace: true),
         onImageAlt: _imageAlt,
         onComments: () => _comments(),
         onNewComment: _newComment,
         onFootnote: _insertFootnote,
+        onEndnote: () => _insertFootnote(endnote: true),
         onDate: _insertDate,
         onPro: _proOn ? _onPro : null,
       );
@@ -400,15 +453,17 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (text != null && mounted) c.addComment(text, author);
   }
 
-  Future<void> _insertFootnote() async {
+  Future<void> _insertFootnote({bool endnote = false}) async {
     final c = _ctrl;
     if (c == null) return;
     final t = await showWordTextSheet(context,
-        title: context.t('word.insert_footnote'),
+        title: context.t(endnote ? 'word.insert_endnote' : 'word.insert_footnote'),
         label: context.t('word.footnote_text'),
         action: context.t('common.insert'),
         fieldKey: const ValueKey('word-footnote-field'));
-    if (t != null && t.trim().isNotEmpty && mounted) c.insertFootnote(t.trim());
+    if (t != null && t.trim().isNotEmpty && mounted) {
+      c.insertFootnote(t.trim(), endnote: endnote);
+    }
   }
 
   Future<void> _openFootnote(String id) async {
@@ -416,13 +471,21 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (c == null) return;
     final cur = c.footnoteText(id);
     if (cur == null) return;
+    final end = id.startsWith(kDocxEndnoteKey);
     final t = await showWordTextSheet(context,
-        title: context.t('word.footnote_edit', {'n': id}),
+        title: context.t(end ? 'word.endnote_edit' : 'word.footnote_edit',
+            {'n': c.noteNumberOf(id)}),
         label: context.t('word.footnote_text'),
         action: context.t('common.apply'),
         initial: cur,
+        deleteLabel: context.t('common.delete'),
         fieldKey: const ValueKey('word-footnote-field'));
-    if (t == null || !mounted || t.trim() == cur) return;
+    if (t == null || !mounted) return;
+    if (t == kWordSheetDelete) {
+      c.deleteNote(id);
+      return;
+    }
+    if (t.trim() == cur) return;
     if (!c.setFootnoteText(id, t.trim())) {
       showSnack(context, context.t('word.footnote_rich'));
     }
@@ -466,6 +529,34 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (r == null || !mounted) return;
     if (r == link) return;
     c.editLinkAt(para, offset, r.$1, r.$2);
+  }
+
+  /// Form denetimine dokunuş: onay kutusu işaretlenir, tarih takvimden,
+  /// metin / liste levhadan.
+  Future<void> _fillControl(int para, int offset) async {
+    final c = _ctrl;
+    final ctl = c?.controlAt(para, offset);
+    if (c == null || ctl == null) return;
+    switch (ctl.type) {
+      case DocxControlType.checkbox:
+        c.fillControlAt(para, offset, checked: !ctl.checked);
+      case DocxControlType.date:
+        final now = DateTime.now();
+        final d = await showDatePicker(
+          context: context,
+          initialDate: ctl.date ?? now,
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2200),
+        );
+        if (d == null || !mounted) return;
+        c.fillControlAt(para, offset, date: d);
+      case DocxControlType.text ||
+            DocxControlType.dropdown ||
+            DocxControlType.combo:
+        final v = await showWordControlSheet(context, ctl);
+        if (v == null || !mounted) return;
+        c.fillControlAt(para, offset, text: v);
+    }
   }
 
   Future<void> _headerFooter() async {
@@ -649,7 +740,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                   aiFix: _aiFix,
                   openNote: _openFootnote,
                   openComment: (id) => _comments(focus: id),
-                  openLink: _editLink),
+                  openLink: _editLink,
+                  openControl: _fillControl),
             ),
           ),
         ],
@@ -699,6 +791,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 onPressed: c == null ? null : _pageLayout,
               ),
             ],
+            // ⋮ = ortak dosya levhası (2026-11-15 ortak düzen).
+            filePath: widget.path,
+            menuTitle: context.t('dm.word'),
             menu: [
               EditorMenuItem(
                 id: 'export',
@@ -715,9 +810,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                         message: context.t('ux.error_body'),
                         details: context.t('common.open_failed', {'error': _error}))
                 : c == null
-                    ? (_preview == null
-                        ? const AppSkeleton()
-                        : DocxLoadingPreview(paragraphs: _preview!))
+                    ? (_head != null
+                        ? DocxLoadingPreview(head: _head)
+                        : _preview == null
+                            ? const AppSkeleton()
+                            : DocxLoadingPreview(paragraphs: _preview!))
                     : _chrome(c),
           ),
         ),
@@ -730,7 +827,11 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
 /// ince ilerleme çubuğu ve "açılıyor" notu.
 class DocxLoadingPreview extends StatelessWidget {
   final List<String> paragraphs;
-  const DocxLoadingPreview({super.key, required this.paragraphs});
+
+  /// Doluysa belgenin başı gerçek biçimiyle (salt okunur editör görünümü);
+  /// [paragraphs] düz metin yedeğidir.
+  final DocxEditController? head;
+  const DocxLoadingPreview({super.key, this.paragraphs = const [], this.head});
 
   @override
   Widget build(BuildContext context) {
@@ -746,18 +847,21 @@ class DocxLoadingPreview extends StatelessWidget {
               style: context.type.small.copyWith(color: scheme.onSurfaceVariant)),
         ),
         Expanded(
-          child: ColoredBox(
-            color: Paper.docSurface(context),
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-              itemCount: paragraphs.length,
-              itemBuilder: (_, i) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(paragraphs[i],
-                    style: context.type.large.copyWith(height: 1.4)),
-              ),
-            ),
-          ),
+          child: head != null
+              ? DocxEditorView(
+                  controller: head!, spellcheck: false, readOnly: true)
+              : ColoredBox(
+                  color: Paper.docSurface(context),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                    itemCount: paragraphs.length,
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(paragraphs[i],
+                          style: context.type.large.copyWith(height: 1.4)),
+                    ),
+                  ),
+                ),
         ),
       ],
     );

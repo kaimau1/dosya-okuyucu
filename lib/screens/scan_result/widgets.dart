@@ -138,25 +138,6 @@ class _Thumb extends StatelessWidget {
   }
 }
 
-class _SheetIcon extends StatelessWidget {
-  final IconData icon;
-  const _SheetIcon(this.icon);
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(icon, color: scheme.onPrimaryContainer, size: 22),
-    );
-  }
-}
-
 /// Filtre levhasının sonucu.
 class _FilterChoice {
   final ScanFilter filter;

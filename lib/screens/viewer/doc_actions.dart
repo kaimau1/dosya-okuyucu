@@ -97,7 +97,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     String? error;
     try {
       final lines = withOcr
-          ? await OcrService.recognizeImageLines(widget.doc.path)
+          ? await OcrService.recognizeImageLines(widget.doc.path,
+              allowCloud: true)
           : const <OcrLine>[];
       busy.status(pdfPreparing);
       final bytes =
@@ -244,18 +245,6 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     ));
   }
 
-  /// Tüm belgeyi cihaz-içi çevirir. Metin katmanı olmayan taranmış PDF'te
-  /// önce OCR gerekir (kullanıcı menüden "Metni tanı" ile çalıştırır).
-  /// Belge açıkken dosya işlemleri (taşı / kopyala / paylaş / yeniden
-  /// adlandır / sil) — dosya yöneticisiyle AYNI sayfa kullanılır, iki yerde
-  /// ayrı menü tutmak tutarsızlığa yol açardı.
-  Future<void> _fileActions() async {
-    await showEntryActions(
-      context,
-      FsEntry.fromEntity(File(widget.doc.path)),
-    );
-  }
-
   /// **Tek düğme çeviri** (istek 2026-07-31): metin nereden gelirse gelsin
   /// kullanıcı ayrıca OCR çalıştırmaz.
   ///
@@ -319,7 +308,8 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
             return [OcrPage(1, _ocrImageText.trim())];
           }
           progress.status(context.t('vw.ocr_running'));
-          final text = await OcrService.recognizeImageFile(doc.path);
+          final text =
+              await OcrService.recognizeImageFile(doc.path, allowCloud: true);
           if (text.trim().isEmpty) return const <OcrPage>[];
           // Tanınan metin ekranda da kalsın: AI sohbeti ve "Metni tanı"
           // sayfası aynı sonucu yeniden taramasın.

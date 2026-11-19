@@ -4,13 +4,20 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/fm_env.dart';
+import '../../services/fm/fresh_cache.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
-import '../../services/fm/storage_stats.dart';
 import 'category_screen.dart';
+import '../../widgets/side_menu_view.dart';
 import '../../widgets/motion.dart';
 
-/// **Yeni Dosyalar** — telefona en son düşen dosyalar.
+/// **Yeniler** (eski adı "Yeni Dosyalar" / "Yeni gelenler") — telefona en son
+/// düşen dosyalar.
+///
+/// **Hız (2026-11-18):** ekran önce [FreshCache]'teki son sonucu (ya da
+/// diskteki son yolların `stat`ını) ANINDA gösterir; tam tarama bitince gerçek
+/// liste yerine geçer. Tarama ana ekran şeridiyle ORTAK (aynı anda iki yürüyüş
+/// yok).
 ///
 /// Kullanıcı 2026-08-17: *"yeni dosyaların tüm dosyaları taramasına gerek yok,
 /// son 100 dosyayı taraması yeterli; hâlâ çok geç güncelleniyor. Yeni
@@ -48,14 +55,13 @@ class NewFilesScreen extends StatefulWidget {
   /// ekranın sorusu "az önce ne geldi?" olsa da kullanıcının ölçüsü "bugün ne
   /// geldi?". Tarama maliyeti değişmiyor (ağaç yine sonuna kadar geziliyor,
   /// bellekte yalnız en yeni N tutuluyor); artan tek şey listenin uzunluğu.
-  static const int limit = 300;
+  static const int limit = FreshCache.limit;
 
   @override
   State<NewFilesScreen> createState() => _NewFilesScreenState();
 }
 
-class _NewFilesScreenState extends State<NewFilesScreen>
-    with WidgetsBindingObserver {
+class _NewFilesScreenState extends State<NewFilesScreen> {
   List<FsEntry>? _files;
 
   /// Liste **gerçekten değiştiğinde** artan sayaç; `CategoryScreen`in
@@ -72,13 +78,22 @@ class _NewFilesScreenState extends State<NewFilesScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    FsEvents.returned.addListener(_onReturned);
+    _files = FreshCache.last;
+    if (_files == null) unawaited(_warm());
     _load();
+  }
+
+  /// Önbellekten ilk görüntü: tarama bitmeden boş iskelet beklenmesin.
+  Future<void> _warm() async {
+    final w = await FreshCache.warm();
+    if (!mounted || _files != null || w == null) return;
+    setState(() => _files = w);
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    FsEvents.returned.removeListener(_onReturned);
     super.dispose();
   }
 
@@ -89,51 +104,50 @@ class _NewFilesScreenState extends State<NewFilesScreen>
     if (widget.active && !old.active) _load();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // WhatsApp'tan belge indirip uygulamaya dönen kullanıcı onu burada
-    // görmeli — "kaçmamalı hiçbir şey".
-    //
-    // **Kısıtlanmış:** `resumed` sanılandan çok daha sık geliyor (izin
-    // penceresi, paylaşım sayfası, ekranın kapanıp açılması). Her birinde
-    // sıcak klasörleri baştan yürümek gereksiz pil ve G/Ç demek. Aşağı
-    // çekerek yenileme bu kısıtlamadan etkilenmez (`CategoryScreen` doğrudan
-    // `_scan`ı çağırır) — o kullanıcının açık isteği.
-    if (state != AppLifecycleState.resumed || !widget.active) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    if (now - _lastLoadMs < _reloadEvery.inMilliseconds) return;
-    unawaited(_load());
+  /// Uygulamaya arkadan dönüldü: WhatsApp'tan / Claude'dan / tarayıcıdan
+  /// indirilen dosya burada görünmeli — "kaçmamalı hiçbir şey".
+  ///
+  /// **20 sn kısıtı kalktı (2026-11-17):** eskiden `resumed`ın her türüne
+  /// (izin penceresi, paylaşım sayfası…) karşı 20 sn'de bir tazeleniyordu;
+  /// listeyi açıp 20 sn içinde başka uygulamada dosya indirip dönen kullanıcı
+  /// onu göremiyordu. [FsEvents.returned] yalnız GERÇEK dönüşte artar, kısıt
+  /// gereksiz. Sekme gizliyse tazeleme sekmeye dönüşte yapılır (didUpdateWidget).
+  void _onReturned() {
+    if (widget.active) unawaited(_load());
   }
 
-  static const _reloadEvery = Duration(seconds: 20);
-  int _lastLoadMs = 0;
+  /// Tarama sürerken yeni istek geldi → bitince bir tur daha (yürüyüş
+  /// İndirilenler'i çoktan geçmiş olabilir).
+  bool _again = false;
 
-  Future<List<FsEntry>> _scan() async {
-    await FmEnv.ensureInit();
-    // Bütün birimler (SD kart / USB dahil) — bkz. `hotFoldersForAll`.
-    final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
-    if (roots.isEmpty) return const [];
-    return FsScan.freshFiles(roots, limit: NewFilesScreen.limit);
-  }
+  // Bütün birimler (SD kart / USB dahil) — bkz. `hotFoldersForAll`.
+  Future<List<FsEntry>> _scan() => FreshCache.scan();
 
   Future<void> _load() async {
-    if (_scanning) return;
+    if (_scanning) {
+      _again = true;
+      return;
+    }
     _scanning = true;
-    _lastLoadMs = DateTime.now().millisecondsSinceEpoch;
     try {
       final files = await _scan();
       if (!mounted) return;
       final old = _files;
-      // İçerik aynıysa ekranı yeniden kurma (bkz. [_revision]).
-      final same = old != null &&
-          old.length == files.length &&
-          (files.isEmpty || old.first.path == files.first.path);
+      // İçerik aynıysa ekranı yeniden kurma (bkz. [_revision]). Eskiden
+      // yalnız uzunluk + ilk yol karşılaştırılıyordu: liste 300'de doluyken
+      // en yeni OLMAYAN (eski tarihli) bir dosya gelince "aynı" sanılıp
+      // ekrana hiç girmiyordu.
+      final same = old != null && FsScan.sameListing(old, files);
       setState(() {
         _files = files;
         if (!same) _revision++;
       });
     } finally {
       _scanning = false;
+    }
+    if (_again && mounted) {
+      _again = false;
+      unawaited(_load());
     }
   }
 
@@ -144,7 +158,9 @@ class _NewFilesScreenState extends State<NewFilesScreen>
     // listeyle açıp doldurmak "hiç dosya yok" yanılgısı veriyordu.
     if (files == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(context.t('fm.new_files'))),
+        appBar: AppBar(
+            leading: const SideMenuButton(),
+            title: Text(context.t('fm.new_files'))),
         body: const FmListSkeleton(),
       );
     }

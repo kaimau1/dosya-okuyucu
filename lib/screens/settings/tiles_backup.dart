@@ -36,9 +36,14 @@ class SettingsBackupTile extends StatelessWidget {
       title: context.t('backup.title'),
       subtitle: context.t('backup.sub'),
       wrapSubtitle: true,
-      onTap: () => _choose(context),
+      onTap: () => showChooser(context),
     );
   }
+
+  /// Yedekle / geri yükle seçimi — "Ana ekranı düzenle" sayfası da açar
+  /// (2026-11-15: düzen yeni cihaza bu dosyayla taşınır).
+  static Future<void> showChooser(BuildContext context) =>
+      const SettingsBackupTile()._choose(context);
 
   Future<void> _choose(BuildContext context) async {
     final action = await showModalBottomSheet<String>(

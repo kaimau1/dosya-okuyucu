@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
@@ -24,6 +25,8 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_file_image.dart';
+import '../../widgets/pro_gate.dart';
+import '../audiobook/audiobook_library_screen.dart';
 import 'browser_screen.dart';
 import 'dashboard_screen.dart';
 import 'entry_actions.dart';
@@ -300,6 +303,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ],
               ),
         actions: [
+          // **Sesli kitaplarım** (2026-11-18, kullanıcı: "sesli kitaplarım
+          // özelliği araçlardan çıkıp kitaplık içerisine girsin").
+          if (!_searching && ProGate.visible(Feature.audiobook))
+            IconButton(
+              key: const ValueKey('lib-audiobooks'),
+              tooltip: context.t('ab.library'),
+              icon: const Icon(AppIcons.audiobook),
+              onPressed: _openAudiobooks,
+            ),
           IconButton(
             tooltip: context.t('common.search'),
             icon: Icon(_searching ? AppIcons.close : AppIcons.search),
@@ -415,11 +427,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
               icon: const Icon(AppIcons.search),
               label: Text(context.t('lib.find')),
             ),
+            if (ProGate.visible(Feature.audiobook)) ...[
+              const SizedBox(height: Gap.sm),
+              TextButton.icon(
+                onPressed: _openAudiobooks,
+                icon: const Icon(AppIcons.audiobook),
+                label: Text(context.t('ab.library')),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+
+  void _openAudiobooks() => ProGate.wrap(context, Feature.audiobook, () {
+        unawaited(Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const AudiobookLibraryScreen())));
+      })();
 
   String _statsLine() {
     var r = 0, d = 0, u = 0;
@@ -595,6 +620,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
       return ListView(
         padding: withNavInset(context, const EdgeInsets.only(bottom: 96)),
         children: [
+          if (_query.text.isEmpty && ProGate.visible(Feature.audiobook))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+              child: Card(
+                margin: EdgeInsets.zero,
+                child: ListTile(
+                  key: const ValueKey('lib-audiobooks-row'),
+                  leading: const Icon(AppIcons.audiobook),
+                  title: Text(context.t('ab.library')),
+                  subtitle: Text(context.t('lib.audiobooks_sub')),
+                  trailing: const Icon(AppIcons.chevron),
+                  onTap: _openAudiobooks,
+                ),
+              ),
+            ),
           if (reading.isNotEmpty) ...[
             SectionHeader(context.t('lib.continue')),
             SizedBox(

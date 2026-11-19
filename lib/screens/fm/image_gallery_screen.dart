@@ -18,7 +18,6 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
-import '../../services/fm/fs_scan.dart';
 import '../../services/fm/image_rotate.dart';
 import '../../services/fm/important_files.dart';
 import '../../widgets/motion.dart' show PressScale;
@@ -29,14 +28,15 @@ import '../../services/fm/enhance_jobs.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/image_repair.dart';
 import '../../services/fm/native_extras.dart';
+import '../../services/side_menu.dart';
 import '../../core/snack.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_file_image.dart';
+import '../../widgets/fm/image_qr_chip.dart';
 import '../image_edit_screen.dart';
 import '../viewer_screen.dart';
 import 'entry_actions.dart';
-import 'resize_actions.dart';
 import 'resize_compare_screen.dart';
 
 part 'image_gallery/widgets.dart';
@@ -49,7 +49,7 @@ part 'image_gallery/widgets.dart';
 /// incelir ve altta ızgara görünür — Google Foto'daki his. Eskiden standart
 /// sayfa geçişiyle sağdan kayıyordu: fotoğraf ile açılan sayfa arasında
 /// görsel bir bağ yoktu.
-Route<void> imageGalleryRoute({
+PageRouteBuilder<void> imageGalleryRoute({
   required List<String> paths,
   required int initialIndex,
 }) =>
@@ -161,16 +161,37 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         final t = Curves.easeOutCubic.transform(_snap.value);
         setState(() => _dragDy = _snapFrom * (1 - t));
       });
+    // Komşuların çözümü açılış geçişi BİTİNCE (2026-11-18): iki tam boy
+    // çözüm büyüme animasyonuyla aynı çekirdekleri paylaşıp kare
+    // kaçırtıyordu.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _precacheAround(_index);
+      if (!mounted) return;
+      final animation = ModalRoute.of(context)?.animation;
+      if (animation == null || animation.isCompleted) {
+        _precacheAround(_index);
+        return;
+      }
+      late final AnimationStatusListener listener;
+      listener = (status) {
+        if (status == AnimationStatus.forward) return;
+        animation.removeStatusListener(listener);
+        if (mounted && status == AnimationStatus.completed) {
+          _precacheAround(_index);
+        }
+      };
+      animation.addStatusListener(listener);
     });
     _enhanceSub = EnhanceJobs.results.listen(_onEnhanced);
+    _unhideMenuHandle = SideMenu.instance.hideHandle();
   }
+
+  VoidCallback? _unhideMenuHandle;
 
   StreamSubscription<EnhanceResult>? _enhanceSub;
 
   @override
   void dispose() {
+    _unhideMenuHandle?.call();
     _enhanceSub?.cancel();
     _slideTimer?.cancel();
     _snap.dispose();
@@ -556,12 +577,65 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         },
       );
 
+  /// **⋮ = ortak dosya levhası** (2026-11-15, kullanıcı: *"hepsi ortak bir
+  /// dile ve düzene kavuşmalı"*). Eskiden ayrı küçük açılır menüydü ve dosya
+  /// işleri "Diğer işlemler"in arkasındaydı (üç kat). Artık üstte taşı /
+  /// kopyala / yeniden adlandır / önemli / sil, altında galeriye özel işler
+  /// ayrı renkte. Paylaş alt çubukta olduğu için levhada yok.
   Future<void> _otherActions() async {
-    await showEntryActions(context, _currentEntry);
+    final path = _current;
+    final changed = await showEntryActions(
+      context,
+      _currentEntry,
+      inViewer: true,
+      showShare: false,
+      groups: [
+        EntryExtraGroup(context.t('dm.image'), [
+          if (_turnsOf(path) != 0 && ImageRotate.canRotate(path))
+            EntryExtraAction(
+              icon: AppIcons.save,
+              label: context.t('gal.save_rotation'),
+              onTap: () => unawaited(_saveRotation()),
+            ),
+          if (_paths.length > 1)
+            EntryExtraAction(
+              icon: AppIcons.slideshow,
+              label: context.t('gal.slideshow'),
+              onTap: () => unawaited(_pickSlideshow()),
+            ),
+          EntryExtraAction(
+            icon: AppIcons.checkCircleOutline,
+            label: context.t('gal.multi_select'),
+            onTap: _startSelect,
+          ),
+          if (Platform.isAndroid)
+            EntryExtraAction(
+              icon: AppIcons.openWith,
+              label: context.t('gal.use_as'),
+              onTap: () => unawaited(_attachAs()),
+            ),
+        ]),
+      ],
+    );
     // Yeniden adlandırma/taşıma dosyayı değiştirmiş olabilir: ölçüm önbelleği
     // bayat kalmasın.
-    _statCache.remove(_current);
-    if (mounted) setState(() {});
+    _statCache.remove(path);
+    if (!mounted) return;
+    // Silindi / taşındı / adı değişti: artık bu yolda yok → şeritten çıkar.
+    if (changed && !await File(path).exists() && mounted) {
+      setState(() {
+        final at = _paths.indexOf(path);
+        if (at >= 0) _paths.removeAt(at);
+        if (_paths.isEmpty) {
+          popOwnPage(context);
+          return;
+        }
+        _index = _index.clamp(0, _paths.length - 1);
+        _pages.jumpToPage(_index);
+      });
+      return;
+    }
+    setState(() {});
   }
 
   Future<void> _pickSlideshow() async {
@@ -661,11 +735,12 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
           ),
         );
 
-    // Başlık ZAMAN (Google Foto): "Bugün · 18:44". "e8e4fcfccc…jpg" gibi
-    // karma dosya adları bir şey anlatmıyordu; ad alt satırda duruyor.
-    final title = entry.modifiedMs > 0
-        ? photoMomentTitle(entry.modifiedMs)
-        : entry.name;
+    // Başlık dosya ADI, altında yalnız TARİH (kullanıcı 2026-11-15: *"tarihi
+    // varsa adının altına yazsın, diğer detay bilgiler gereksiz"*). Sıra/boyut
+    // alt satırdan kalktı; boyut Bilgi'de duruyor.
+    final title = entry.name;
+    final moment =
+        entry.modifiedMs > 0 ? photoMomentTitle(entry.modifiedMs) : null;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -737,6 +812,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
               right: 0,
               child: chrome(child: Center(child: _enhanceChip())),
             ),
+            // ── Görseldeki QR (2026-11-18): durunca tanınır, dokununca bağlantı.
+            // Ağaç şekli sabit (kasma-kontrol 3): Positioned hep var.
+            PositionedDirectional(
+              top: padding.top + 64,
+              end: 12,
+              child: chrome(
+                  child: _selecting
+                      ? const SizedBox.shrink()
+                      : ImageQrChip(path: _current)),
+            ),
             // ── Üst perde: geri, zaman, sıra/boyut/ad, daha fazla ──────────
             Positioned(
               top: 0,
@@ -774,14 +859,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: OverlayBar.title(context)),
-                              Text(
-                                '${_index + 1}/${_paths.length} · '
-                                '${FsPaths.humanSize(entry.sizeBytes)} · '
-                                '${entry.name}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: OverlayBar.subtitle(context),
-                              ),
+                              if (moment != null)
+                                Text(
+                                  moment,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: OverlayBar.subtitle(context),
+                                ),
                             ],
                           ),
                         ),
@@ -799,50 +883,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               color: AppColors.onMedia),
                           onPressed: () => _rotateBy(1),
                         ),
-                        PopupMenuButton<String>(
+                        IconButton(
+                          key: const ValueKey<String>('gal-more'),
+                          tooltip: context.t('common.more'),
                           icon: const Icon(AppIcons.more, color: AppColors.onMedia),
-                          onSelected: (v) async {
-                            switch (v) {
-                              case 'viewer':
-                                _openInViewer();
-                              case 'actions':
-                                await _otherActions();
-                              case 'slideshow':
-                                await _pickSlideshow();
-                              case 'important':
-                                if (mounted) {
-                                  await copyToImportant(context, [_current]);
-                                }
-                              case 'attach':
-                                await _attachAs();
-                              case 'save_rotation':
-                                await _saveRotation();
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            if (_turnsOf(_current) != 0 &&
-                                ImageRotate.canRotate(_current))
-                              PopupMenuItem(
-                                  value: 'save_rotation',
-                                  child: Text(context.t('gal.save_rotation'))),
-                            PopupMenuItem(
-                                value: 'viewer',
-                                child: Text(context.t('gal.open_in_viewer'))),
-                            if (_paths.length > 1)
-                              PopupMenuItem(
-                                  value: 'slideshow',
-                                  child: Text(context.t('gal.slideshow'))),
-                            PopupMenuItem(
-                                value: 'important',
-                                child: Text(context.t('fm.copy_to_important'))),
-                            if (Platform.isAndroid)
-                              PopupMenuItem(
-                                  value: 'attach',
-                                  child: Text(context.t('gal.use_as'))),
-                            PopupMenuItem(
-                                value: 'actions',
-                                child: Text(context.t('gal.other_actions'))),
-                          ],
+                          onPressed: () => unawaited(_otherActions()),
                         ),
                       ],
                     ),
@@ -902,6 +947,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             ],
                           )
                         else
+                        // Ortak düzen (2026-11-15): en çok 5 düğme — Paylaş ·
+                        // Düzenle · İyileştir · Metin ve PDF · Sil. Boyut ve
+                        // Bilgi ⋮'da (Boyut düşür, Özellikler), Seç de ⋮'da.
+                        // Sil bilerek altta da var: fotoğraf ayıklamak
+                        // galerinin en sık işi.
                         Row(
                           children: [
                             _GalleryAction(
@@ -919,30 +969,11 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               label: context.t('gal.enhance'),
                               onTap: _enhance,
                             ),
-                            // Faz 14 (G4i): boyutlandırma eskiden yalnız ⋮ →
-                            // eylem sayfasındaydı; "fotoğrafı küçült" galerinin
-                            // en sık işlerinden biri.
-                            _GalleryAction(
-                              icon: AppIcons.resize,
-                              label: context.t('gal.resize'),
-                              onTap: () =>
-                                  startResizeJob(context, [_currentEntry]),
-                            ),
+                            // Metni tanı, çevir, PDF'e dönüştür: görüntüleyicide.
                             _GalleryAction(
                               icon: AppIcons.ocr,
                               label: context.t('gal.tools'),
                               onTap: _openInViewer,
-                            ),
-                            _GalleryAction(
-                              icon: AppIcons.info,
-                              label: context.t('gal.info'),
-                              onTap: () =>
-                                  showProperties(context, _currentEntry),
-                            ),
-                            _GalleryAction(
-                              icon: AppIcons.checkCircleOutline,
-                              label: context.t('ied.select'),
-                              onTap: _startSelect,
                             ),
                             _GalleryAction(
                               icon: AppIcons.delete,

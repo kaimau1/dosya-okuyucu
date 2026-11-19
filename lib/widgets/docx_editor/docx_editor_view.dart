@@ -21,6 +21,7 @@ import 'package:flutter/services.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_haptics.dart';
+import '../../core/image_budget.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart' show Radii;
@@ -41,12 +42,16 @@ class DocxEditorActions {
   /// Bağlantıya dokunuş: [para]. paragrafın [offset]. karakteri (düzenle /
   /// aç / kaldır levhası ekranda).
   final void Function(int para, int offset)? openLink;
+
+  /// Form denetimine (içerik denetimi) dokunuş: doldurma levhası ekranda.
+  final void Function(int para, int offset)? openControl;
   const DocxEditorActions(
       {this.translate,
       this.aiFix,
       this.openNote,
       this.openComment,
-      this.openLink});
+      this.openLink,
+      this.openControl});
 }
 
 class DocxEditorView extends StatefulWidget {
@@ -59,12 +64,17 @@ class DocxEditorView extends StatefulWidget {
   /// Yazım denetimi (Android yazım servisi; ayardan kapatılabilir).
   final bool spellcheck;
 
+  /// Salt okunur (B9 m.8 açılış önizlemesi): kaydırılır, dokunuş/uzun basış
+  /// imleç ya da seçim kurmaz, klavye açılmaz.
+  final bool readOnly;
+
   const DocxEditorView({
     super.key,
     required this.controller,
     this.scale = 1.35,
     this.actions = const DocxEditorActions(),
     this.spellcheck = true,
+    this.readOnly = false,
   });
 
   @override
@@ -86,6 +96,16 @@ class DocxEditorViewState extends State<DocxEditorView> {
 
   List<_Block> _blocks = const [];
   int _blocksAt = -1;
+
+  // B12 m.3: paragraf metni (RichText) önbelleği — bir harf yalnız değişen
+  // paragrafın metnini yeniden kurar; eskiden her tuşta görünür paragrafların
+  // hepsinin TextSpan'i baştan kurulup RenderParagraph'ta derin
+  // karşılaştırılıyordu. Paragraflar değişmez nesne (değişen yeni örnek).
+  // Çizici (imleç/seçim) her kurulumda yenilenir — çizim davranışı aynı.
+  // Satır içi öğeli paragraf (resim, bağlantı …) seçime/eylemlere bağlı →
+  // önbelleğe girmez.
+  final _textMemo = <int, (DocxPara, double, TextAlign, TextDirection, Widget)>{};
+  int _textMemoAt = -1;
 
   // Çoklu dokunuş sayacı.
   DateTime _lastTap = DateTime.fromMillisecondsSinceEpoch(0);
@@ -120,6 +140,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     if (!identical(oldWidget.controller, c)) {
       oldWidget.controller.removeListener(_changed);
       c.addListener(_changed);
+      _textMemo.clear();
     }
   }
 
@@ -480,6 +501,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
             maxW: maxW,
             selected: selected,
             onTap: () {
+              if (widget.readOnly) return;
               _focus.requestFocus();
               c.detach();
               c.selectAtom(i, k);
@@ -526,12 +548,13 @@ class DocxEditorViewState extends State<DocxEditorView> {
         );
       case DocxAtomKind.note:
         final open = widget.actions.openNote;
+        final key = c.doc.noteKey(a);
         return WidgetSpan(
           alignment: PlaceholderAlignment.top,
           child: GestureDetector(
-            key: ValueKey('docx-note-${a.display}'),
-            onTap: open == null ? null : () => open(a.display),
-            child: Text(a.display,
+            key: ValueKey('docx-note-$key'),
+            onTap: open == null ? null : () => open(key),
+            child: Text(c.noteLabels[a] ?? a.display,
                 style: st.apply(fontSizeFactor: 0.65).copyWith(
                     color: open == null ? null : AppHues.blue)),
           ),
@@ -550,6 +573,29 @@ class DocxEditorViewState extends State<DocxEditorView> {
                   style: st.copyWith(
                       color: AppHues.blue,
                       decoration: TextDecoration.underline)),
+            ),
+          ),
+        );
+      case DocxAtomKind.control:
+        final open = widget.actions.openControl;
+        return WidgetSpan(
+          alignment: PlaceholderAlignment.baseline,
+          baseline: TextBaseline.alphabetic,
+          child: Semantics(
+            button: open != null,
+            child: GestureDetector(
+              key: ValueKey('docx-control-$i-$k'),
+              onTap: open == null ? null : () => open(i, k),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxW),
+                child: Text(a.display.isEmpty ? '·' : a.display,
+                    style: open == null
+                        ? st
+                        : st.copyWith(
+                            decoration: TextDecoration.underline,
+                            decorationStyle: TextDecorationStyle.dotted,
+                            decorationColor: AppHues.blue)),
+              ),
             ),
           ),
         );
@@ -606,6 +652,14 @@ class DocxEditorViewState extends State<DocxEditorView> {
         j++;
       }
       var style = _style(st.effective);
+      if (st.rev != null) {
+        // İzlenen ekleme (Word gibi renkli alt çizgi).
+        style = style.copyWith(
+            decoration: TextDecoration.combine(
+                [style.decoration ?? TextDecoration.none, TextDecoration.underline]),
+            decorationColor: AppHues.red,
+            color: AppHues.red);
+      }
       if (mark && style.backgroundColor == null) {
         style = style.copyWith(
             backgroundColor: AppHues.amber.withValues(alpha: 0.18));
@@ -634,12 +688,7 @@ class DocxEditorViewState extends State<DocxEditorView> {
     Widget body = CustomPaint(
       foregroundPainter: _ParaPainter(c, i, _key(i), _spell[p],
           i == c.extent.para ? _caretOn : null),
-      child: RichText(
-        key: _key(i),
-        text: _span(p, textW, i),
-        textAlign: align,
-        textDirection: dir,
-      ),
+      child: _text(i, p, textW, align, dir),
     );
     if (p.opaque) {
       body = Opacity(opacity: 0.7, child: body);
@@ -677,6 +726,33 @@ class DocxEditorViewState extends State<DocxEditorView> {
       ),
       child: body,
     );
+  }
+
+  Widget _text(int i, DocxPara p, double textW, TextAlign align,
+      TextDirection dir) {
+    if (_textMemoAt != c.structure) {
+      _textMemo.clear();
+      _textMemoAt = c.structure;
+    }
+    final m = _textMemo[i];
+    if (m != null &&
+        identical(m.$1, p) &&
+        m.$2 == widget.scale &&
+        m.$3 == align &&
+        m.$4 == dir) {
+      return m.$5;
+    }
+    final w = RichText(
+      key: _key(i),
+      text: _span(p, textW, i),
+      textAlign: align,
+      textDirection: dir,
+    );
+    if (!p.atoms.any((a) => a != null)) {
+      if (_textMemo.length > 512) _textMemo.clear();
+      _textMemo[i] = (p, widget.scale, align, dir, w);
+    }
+    return w;
   }
 
   Widget _table(_Block b, double maxW) {
@@ -834,10 +910,11 @@ class DocxEditorViewState extends State<DocxEditorView> {
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
-                  onTapUp: _onTapUp,
-                  onLongPressStart: _onLongPressStart,
-                  onLongPressMoveUpdate: _onLongPressMove,
-                  onLongPressEnd: _onLongPressEnd,
+                  onTapUp: widget.readOnly ? null : _onTapUp,
+                  onLongPressStart: widget.readOnly ? null : _onLongPressStart,
+                  onLongPressMoveUpdate:
+                      widget.readOnly ? null : _onLongPressMove,
+                  onLongPressEnd: widget.readOnly ? null : _onLongPressEnd,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (_) {
                       WidgetsBinding.instance

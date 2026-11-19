@@ -27,6 +27,7 @@ void main() {
   });
 
   test('alt panel sağ ek düğmesi varsayılan AI (Yer aç yerine)', () {
-    expect(DockExtras.value.value.$2, 'ai');
+    expect(DockExtras.value.value.$2, ['ai']);
+    expect(DockExtras.value.value.$1, ['drive']);
   });
 }

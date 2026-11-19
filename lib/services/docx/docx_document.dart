@@ -34,6 +34,8 @@ part 'docx_insert.dart';
 part 'docx_table.dart';
 part 'docx_review.dart';
 part 'docx_media.dart';
+part 'docx_controls.dart';
+part 'docx_track.dart';
 
 /// Atom karakteri (Flutter `WidgetSpan` yer tutucusuyla aynı).
 const String kDocxAtom = '￼';
@@ -41,7 +43,19 @@ const String kDocxAtom = '￼';
 /// Satır içi satır sonu (`w:br`).
 const String kDocxLineBreak = ' ';
 
-enum DocxAtomKind { image, link, field, note, comment, pageBreak, inline }
+enum DocxAtomKind {
+  image,
+  link,
+  field,
+  note,
+  comment,
+  pageBreak,
+  inline,
+
+  /// Satır içi form denetimi (`w:sdt`: düz metin, onay kutusu, açılır liste,
+  /// tarih) — dokununca doldurma levhası; kayıtta kabı korunur.
+  control,
+}
 
 /// Satır içi dokunulmaz öğe.
 class DocxAtom {
@@ -151,6 +165,21 @@ class DocxRunPatch {
       highlight, sizePt, font, vertAlign);
 }
 
+/// İzlenen ekleme (`w:ins`) işareti (B9 m.3): aynı nesneyi taşıyan ardışık
+/// harfler kayıtta tek `w:ins` içine yazılır.
+class DocxRev {
+  final String author;
+
+  /// ISO 8601 (`2026-11-19T10:00:00Z`); boş = tarihsiz.
+  final String date;
+
+  /// Dosyadan okunan özgün `w:ins` (öznitelikleri yeniden yazılır); bu
+  /// oturumda yazılanlarda null.
+  final XmlElement? source;
+
+  const DocxRev(this.author, this.date, {this.source});
+}
+
 /// Bir harfin biçimi: özgün run (+ özgün metni) ve kullanıcı örtmeleri.
 class DocxCharStyle {
   /// Özgün `w:r` (yeni yazıda ve paragraf işaretinde null).
@@ -166,8 +195,11 @@ class DocxCharStyle {
   final DocxRunLook look;
   final DocxRunPatch patch;
 
+  /// İzlenen ekleme işareti (yoksa null).
+  final DocxRev? rev;
+
   const DocxCharStyle(this.run, this.runText, this.rPr, this.look,
-      {this.patch = DocxRunPatch.none});
+      {this.patch = DocxRunPatch.none, this.rev});
 
   bool? get bold => patch.bold;
   bool? get italic => patch.italic;
@@ -190,19 +222,34 @@ class DocxCharStyle {
           bool? underline,
           DocxRunPatch patch = DocxRunPatch.none}) =>
       DocxCharStyle(run, runText, rPr, look,
+          rev: rev,
           patch: this.patch.merge(patch).merge(
               DocxRunPatch(bold: bold, italic: italic, underline: underline)));
 
   /// Aynı run, başka görünüş (paragraf stili değişti).
   DocxCharStyle withLook(DocxRunLook l) =>
-      DocxCharStyle(run, runText, rPr, l, patch: patch);
+      DocxCharStyle(run, runText, rPr, l, patch: patch, rev: rev);
+
+  /// Aynı biçim, başka izleme işareti. Aynı (biçim, işaret) için son nesne
+  /// saklanır: art arda yazılan harfler aynı nesneyi paylaşsın (tek run/span).
+  DocxCharStyle withRev(DocxRev? r) {
+    if (identical(r, rev)) return this;
+    final memo = _withRev[this];
+    if (memo != null && identical(memo.$1, r)) return memo.$2;
+    final out =
+        DocxCharStyle(run, runText, rPr, look, patch: patch, rev: r);
+    _withRev[this] = (r, out);
+    return out;
+  }
+
+  static final _withRev = Expando<(DocxRev?, DocxCharStyle)>('docxWithRev');
 
   /// Run'dan kopmuş hâli (yazılan yeni metin özgün run'ı "aynen" sayılmasın).
   /// Aynı biçim için hep AYNI nesne: ardışık yazılan harfler tek run olur.
   DocxCharStyle detached() => run == null
       ? this
       : (_detached[this] ??=
-          DocxCharStyle(null, null, rPr, look, patch: patch));
+          DocxCharStyle(null, null, rPr, look, patch: patch, rev: rev));
 
   static final _detached = Expando<DocxCharStyle>('docxDetached');
 }
@@ -413,6 +460,19 @@ class DocxDocument {
   /// Geri alınabilir özellik düğümleri (`tblPr`, `tcPr`): anlık görüntüye girer.
   final List<XmlElement> _tracked = [];
 
+  // ── değişiklikleri izle (B9 m.3; docx_track.dart) ──
+  bool? _trackOn;
+
+  /// İzlenen değişikliklerin yazarı (Ayarlar'daki ad; boşsa "Yazar").
+  String revAuthor = '';
+  int _revId = -1;
+  DocxRev? _sessionRev;
+  bool _liveTracked = false;
+
+  /// Özgün kimliğiyle bir kez yazılmış (dosyadan okunan) eklemeler — ikinci
+  /// yazımda (bölünme, yeniden kurma) yeni kimlik: kimlikler tekil kalır.
+  final Set<DocxRev> _revEmitted = {};
+
   DocxDocument._(this._archive, this.doc, this.body, this.styles,
       this.numbering, this._rels, this.paras);
 
@@ -421,14 +481,38 @@ class DocxDocument {
 
   XmlDocument? Function(String name)? _partReader;
 
-  static DocxDocument parse(Uint8List bytes) {
+  static DocxDocument parse(Uint8List bytes) => _parseWith(bytes, null);
+
+  /// B9 m.8 — büyük belge açılışı, "ilk sayfa önce": yalnız gövdenin ilk
+  /// [maxBlocks] üst düzey bloğu (paragraf / tablo / içerik denetimi; toplam
+  /// [maxParas] paragrafa ulaşınca erken durur) çözümlenir; son `w:sectPr`
+  /// korunur. Tam ayrıştırma sürerken salt okunur önizleme içindir — bu
+  /// model KAYDEDİLMEZ ([headOnly]). Belge zaten kısaysa tam model döner
+  /// ([headOnly] yanlış).
+  static DocxDocument parseHead(Uint8List bytes,
+          {int maxBlocks = kDocxHeadBlocks, int maxParas = kDocxHeadParas}) =>
+      _parseWith(bytes, (xml) => docxHeadXml(xml, maxBlocks, maxParas));
+
+  /// [parseHead] ile kesilmiş (yalnız baş) model mi.
+  bool headOnly = false;
+
+  static DocxDocument _parseWith(
+      Uint8List bytes, String? Function(String xml)? head) {
     final archive = OfficeZipGuard.decode(bytes);
+    var cut = false;
     XmlDocument? part(String name) {
       for (final f in archive.files) {
         if (f.name == name) {
           try {
-            return XmlDocument.parse(
-                utf8.decode(f.content as List<int>, allowMalformed: true));
+            var xml = utf8.decode(f.content as List<int>, allowMalformed: true);
+            if (head != null && name == 'word/document.xml') {
+              final h = head(xml);
+              if (h != null) {
+                xml = h;
+                cut = true;
+              }
+            }
+            return XmlDocument.parse(xml);
           } catch (_) {
             return null;
           }
@@ -465,6 +549,7 @@ class DocxDocument {
       if (x != null) d._parts[name] = x;
     }
     d._partReader = part;
+    d.headOnly = cut;
     d.paras = d._readBody();
     return d;
   }
@@ -481,6 +566,8 @@ class DocxDocument {
           _readTable(e, out);
         case 'sectPr':
           break;
+        case 'sdt':
+          _readSdt(e, null, out);
         default:
           final t = _textOf(e);
           if (t.trim().isNotEmpty) out.add(_opaque(e, body, null, t));
@@ -508,6 +595,10 @@ class DocxDocument {
           if (e.name.local == 'p') {
             out.add(_track(_readPara(e, tc, ref)));
             any = true;
+          } else if (e.name.local == 'sdt') {
+            final n = out.length;
+            _readSdt(e, ref, out);
+            if (out.length > n) any = true;
           } else if (e.name.local != 'tcPr') {
             final t = _textOf(e);
             if (t.trim().isNotEmpty) {
@@ -521,6 +612,74 @@ class DocxDocument {
       }
       r++;
     }
+  }
+
+  /// Blok içerik denetimi (`w:sdt` — Word'ün İçindekiler'i, kapak sayfası,
+  /// form bölümü): içindeki paragraf ve tablolar KENDİ kabında
+  /// (`w:sdtContent`) okunur, kayıtta yerinde yazılır (kap korunur). Kilitli
+  /// ya da veri bağlı (`w:dataBinding` — Word açılışta içeriği bağlı
+  /// parçadan yeniden yazar) denetim biçimiyle okunur ama düzenlenmez.
+  void _readSdt(XmlElement sdt, DocxCellRef? cell, List<DocxPara> out,
+      {bool locked = false}) {
+    final content = _child(sdt, 'sdtContent');
+    if (content == null) {
+      final t = _textOf(sdt);
+      final up = sdt.parent;
+      if (t.trim().isNotEmpty && up is XmlElement) {
+        out.add(_opaque(sdt, up, cell, t));
+      }
+      return;
+    }
+    final ro = locked || _sdtLocked(_child(sdt, 'sdtPr'));
+    for (final e in content.childElements) {
+      switch (e.name.local) {
+        case 'p':
+          final p = _readPara(e, content, cell);
+          out.add(ro ? _frozen(p) : _track(p));
+        case 'tbl' when cell == null && !ro:
+          _readTable(e, out);
+        case 'sdt':
+          _readSdt(e, cell, out, locked: ro);
+        default:
+          final t = _textOf(e);
+          if (t.trim().isNotEmpty) out.add(_opaque(e, content, cell, t));
+      }
+    }
+  }
+
+  /// Denetimin içeriği değiştirilemez mi (kilit ya da veri bağı).
+  static bool _sdtLocked(XmlElement? sdtPr) {
+    if (sdtPr == null) return false;
+    if (_child(sdtPr, 'dataBinding') != null) return true;
+    final lock = _attr(_child(sdtPr, 'lock'), 'val');
+    return lock == 'contentLocked' || lock == 'sdtContentLocked';
+  }
+
+  /// Biçimiyle okunmuş ama düzenlenmeyen paragraf (kayıtta aynen kalır).
+  static DocxPara _frozen(DocxPara p) => DocxPara(
+        source: p.source,
+        container: p.container,
+        pPr: p.pPr,
+        text: p.text,
+        styles: p.styles,
+        atoms: p.atoms,
+        anchors: p.anchors,
+        look: p.look,
+        mark: p.mark,
+        opaque: true,
+        cell: p.cell,
+      );
+
+  /// [e]'nin [container]'ın doğrudan çocuğu olan atası (kendisi dahil);
+  /// [container]'a bağlı değilse null.
+  static XmlElement? _childOf(XmlElement? e, XmlElement container) {
+    XmlNode? x = e;
+    while (x is XmlElement) {
+      final up = x.parent;
+      if (identical(up, container)) return x;
+      x = up;
+    }
+    return null;
   }
 
   DocxPara _track(DocxPara p) {
@@ -619,6 +778,8 @@ class DocxDocument {
       }
       if (field != null) {
         field.add(e);
+        // Paragraflara yayılan alanın sonucu (İçindekiler girdisi köprüsü).
+        if (afterSeparate) fieldResult.write(_textOf(e));
         continue;
       }
       final t = _textOf(e);
@@ -627,6 +788,16 @@ class DocxDocument {
           atom(DocxAtom(DocxAtomKind.link, [e], t), mark);
         case 'fldSimple':
           atom(DocxAtom(DocxAtomKind.field, [e], t), mark);
+        case 'sdt' when !_hasVisual(e) && _controlOf(e) != null:
+          atom(DocxAtom(DocxAtomKind.control, [e], t), mark);
+        case 'ins' when _plainIns(e):
+          // Düz metinli izlenen ekleme düzenlenebilir metin olur (B9 m.3).
+          final rev = DocxRev(_attr(e, 'author') ?? '', _attr(e, 'date') ?? '',
+              source: e);
+          for (final r in e.childElements) {
+            _readRun(r, pPr, (s, st) => text(s, st.withRev(rev)), atom,
+                (x) => an.add((sb.length, x)));
+          }
         default:
           if (t.isEmpty && !_hasVisual(e)) {
             an.add((sb.length, e));
@@ -1003,7 +1174,7 @@ class DocxDocument {
   /// karakter stili kalkar, paragraf stilinin biçimi kalır.
   DocxPara clearFormatting(DocxPara p, int from, int to) {
     final plain = DocxCharStyle(null, null, null, styles.runLook(p.pPr, null));
-    return p.mapStyles(from, to, (_) => plain);
+    return p.mapStyles(from, to, (s) => plain.withRev(s.rev));
   }
 
   /// Biçim boyacısı: [src]'nin harf biçimi (rPr şablonu + örtmeler) hedef
@@ -1011,7 +1182,7 @@ class DocxDocument {
   DocxPara paintFormat(DocxPara p, int from, int to, DocxCharStyle src) {
     final st = DocxCharStyle(null, null, src.rPr, styles.runLook(p.pPr, src.rPr),
         patch: src.patch);
-    return p.mapStyles(from, to, (_) => st);
+    return p.mapStyles(from, to, (s) => st.withRev(s.rev));
   }
 
   // ── listeler ─────────────────────────────────────────────────────────────
@@ -1252,10 +1423,13 @@ class DocxDocument {
       _writtenAs[el] = paras[i];
     }
     // Birleşip ya da silinip modelden çıkan paragraflar XML'den de çıkar.
+    final emptied = <XmlElement>{};
     for (final el in _writtenAs.keys.toList()) {
       if (used.contains(el)) continue;
-      if (el.parent != null) {
-        el.parent!.children.remove(el);
+      final up = el.parent;
+      if (up != null) {
+        up.children.remove(el);
+        if (up is XmlElement && up.name.local == 'sdtContent') emptied.add(up);
         changed = true;
       }
       _writtenAs.remove(el);
@@ -1268,6 +1442,12 @@ class DocxDocument {
       changed = true;
     }
     if (_syncNewTables()) changed = true;
+    // Blok içerik denetimi boş kalmasın (Word boş `w:sdtContent`i bozuk sayar).
+    for (final c in emptied) {
+      final hasBlock = c.childElements
+          .any((e) => const {'p', 'tbl', 'sdt'}.contains(e.name.local));
+      if (!hasBlock) c.children.add(XmlElement(const XmlName.qualified('w:p')));
+    }
     if (changed) _xmlDirty = true;
   }
 
@@ -1275,7 +1455,16 @@ class DocxDocument {
     final container = paras[i].container;
     for (var j = i - 1; j >= 0; j--) {
       final prev = targets[j];
-      if (!identical(paras[j].container, container)) break;
+      if (!identical(paras[j].container, container)) {
+        // Önceki paragraf iç içe bir kapta (içerik denetimi, tablo): kabın
+        // ardına.
+        final box = _childOf(prev, container);
+        if (box != null) {
+          container.children.insert(container.children.indexOf(box) + 1, el);
+          return;
+        }
+        break;
+      }
       if (prev != null && identical(prev.parent, container)) {
         container.children.insert(container.children.indexOf(prev) + 1, el);
         return;
@@ -1283,7 +1472,14 @@ class DocxDocument {
     }
     for (var j = i + 1; j < paras.length; j++) {
       final next = targets[j];
-      if (!identical(paras[j].container, container)) break;
+      if (!identical(paras[j].container, container)) {
+        final box = _childOf(next, container);
+        if (box != null) {
+          container.children.insert(container.children.indexOf(box), el);
+          return;
+        }
+        break;
+      }
       if (next != null && identical(next.parent, container)) {
         container.children.insert(container.children.indexOf(next), el);
         return;
@@ -1308,9 +1504,29 @@ class DocxDocument {
       pPr = pPr.copy();
     }
     el.children.clear();
+    // Açık `w:ins` kabı (aynı işaretli ardışık run'lar içine girer).
+    XmlElement? insBox;
+    DocxRev? insRev;
     void add(XmlElement n) {
+      insBox = null;
       n.parent?.children.remove(n);
       el.children.add(n);
+    }
+
+    void addRun(XmlElement r, DocxRev? rev) {
+      if (rev == null) {
+        add(r);
+        return;
+      }
+      var box = insBox;
+      if (box == null || !identical(insRev, rev)) {
+        box = _insElement(rev);
+        el.children.add(box);
+        insBox = box;
+        insRev = rev;
+      }
+      r.parent?.children.remove(r);
+      box.children.add(r);
     }
 
     if (pPr != null) add(pPr);
@@ -1353,17 +1569,46 @@ class DocxDocument {
           style.runText == text &&
           !usedRuns.contains(run)) {
         usedRuns.add(run);
-        add(run);
+        addRun(run, style.rev);
       } else {
-        add(_newRun(style, text));
+        addRun(_newRun(style, text), style.rev);
       }
       k = j;
     }
   }
 
+  /// [rev] için `w:ins` kabı. Dosyadan okunan ekleme ilk kez özgün
+  /// öznitelikleriyle (kimliği dahil), bölünmüşse sonrakiler yeni kimlikle.
+  XmlElement _insElement(DocxRev rev) {
+    final src = rev.source;
+    if (src != null && _revEmitted.add(rev)) {
+      return XmlElement(const XmlName.qualified('w:ins'),
+          src.attributes.map((a) => a.copy()));
+    }
+    return XmlElement(const XmlName.qualified('w:ins'), [
+      XmlAttribute(const XmlName.qualified('w:id'), '${_nextRevId()}'),
+      XmlAttribute(const XmlName.qualified('w:author'), rev.author),
+      if (rev.date.isNotEmpty)
+        XmlAttribute(const XmlName.qualified('w:date'), rev.date),
+    ]);
+  }
+
+  /// Belgede kullanılmamış izleme kimliği (artarak).
+  int _nextRevId() {
+    if (_revId < 0) {
+      var m = 0;
+      for (final e in doc.rootElement.descendantElements) {
+        if (!_trackedNames.contains(e.name.local)) continue;
+        m = math.max(m, int.tryParse(_attr(e, 'id') ?? '') ?? 0);
+      }
+      _revId = m;
+    }
+    return ++_revId;
+  }
+
   static bool _sameWrite(DocxCharStyle a, DocxCharStyle b) =>
       identical(a, b) ||
-      (identical(a.rPr, b.rPr) && a.patch == b.patch);
+      (identical(a.rPr, b.rPr) && a.patch == b.patch && identical(a.rev, b.rev));
 
   static XmlElement _newRun(DocxCharStyle style, String text) {
     final rPr = style.rPr?.copy() ?? XmlElement(const XmlName.qualified('w:rPr'));
@@ -1486,13 +1731,19 @@ class DocxDocument {
 
   /// Paket: `document.xml` yalnız değiştiyse yeniden yazılır.
   Archive buildArchive() {
+    // Yalnız baş çözümlenmiş önizleme modeli kaydedilirse belgenin geri
+    // kalanı silinirdi.
+    if (headOnly) throw StateError('docx: önizleme modeli kaydedilemez');
     commit();
     _pruneNotes();
+    final notes = _prunedFootnotes();
     final replaced = <String, List<int>>{
       ..._binParts,
       if (_xmlDirty) 'word/document.xml': utf8.encode(doc.toXmlString()),
       for (final name in _dirtyParts)
         name: utf8.encode(_parts[name]!.toXmlString()),
+      for (final MapEntry(:key, :value) in notes.entries)
+        key: utf8.encode(value.toXmlString()),
     };
     final out = Archive();
     for (final f in _archive.files) {
@@ -1571,6 +1822,69 @@ const Map<String, DocxListPattern> kDocxListPatterns = {
   'num-roman': DocxListPattern('number', 'upperRoman', '%1.', 'I.'),
   'num-roman-lower': DocxListPattern('number', 'lowerRoman', '%1.', 'i.'),
 };
+
+/// [DocxDocument.parseHead] varsayılanları: ilk ekranı (bir-iki telefon
+/// sayfası) rahat doldurur; 5000 paragraflık belgede çözümlenen pay ≈ %1.
+const kDocxHeadBlocks = 60;
+const kDocxHeadParas = 120;
+
+final _headTag = RegExp(r'<(/?)w:(p|tbl|sdt)[\s/>]');
+
+/// `document.xml` metnini ilk [maxBlocks] üst düzey gövde bloğundan sonra
+/// keser (toplam [maxParas] paragrafa ulaşınca da durur; blok ortasında
+/// asla); gövdenin son `w:sectPr`'si ve kapanışlar eklenir. Kesmeye gerek
+/// yoksa (kısa belge) ya da yapı tanınmazsa `null` — çağıran tam metni
+/// kullanır. Yalnız dizge taraması: XML ağacı kurulmaz.
+String? docxHeadXml(String xml, int maxBlocks, int maxParas) {
+  final open = RegExp(r'<w:body[\s>]').firstMatch(xml);
+  final bodyEnd = xml.lastIndexOf('</w:body>');
+  if (open == null || bodyEnd < 0) return null;
+  var depth = 0, blocks = 0, paras = 0;
+  var cut = -1;
+  for (final m in _headTag.allMatches(xml, open.end)) {
+    if (m.start >= bodyEnd) break;
+    final gt = xml.indexOf('>', m.start);
+    if (gt < 0 || gt > bodyEnd) return null;
+    final closing = m[1] == '/';
+    final isPara = m[2] == 'p';
+    if (closing) {
+      depth--;
+      if (isPara) paras++;
+    } else if (xml.codeUnitAt(gt - 1) == 0x2F) {
+      // Kendinden kapanan `<w:p/>`.
+      if (isPara) paras++;
+    } else {
+      depth++;
+      continue;
+    }
+    if (depth < 0) return null;
+    if (depth == 0) {
+      blocks++;
+      if (blocks >= maxBlocks || paras >= maxParas) {
+        cut = gt + 1;
+        break;
+      }
+    }
+  }
+  if (cut < 0) return null;
+  // Gövde düzeyi `w:sectPr` (sayfa boyu/kenarları) gövdenin son öğesidir;
+  // paragrafın `w:pPr` içindeki bölüm sonu değil.
+  var sect = xml.lastIndexOf('<w:sectPr', bodyEnd);
+  if (sect >= 0) {
+    final sEnd = xml.indexOf('</w:sectPr>', sect);
+    if (sect < cut ||
+        sEnd < 0 ||
+        sEnd > bodyEnd ||
+        xml.substring(sEnd + 11, bodyEnd).trim().isNotEmpty) {
+      sect = -1;
+    }
+  }
+  final limit = sect >= 0 ? sect : bodyEnd;
+  // Kesimden sonra gövdede başka blok yoksa kesmeye gerek yok.
+  final rest = _headTag.allMatches(xml, cut).iterator;
+  if (!rest.moveNext() || rest.current.start >= limit) return null;
+  return xml.substring(0, cut) + xml.substring(limit);
+}
 
 /// `word/document.xml`'in ilk [limit] dolu paragrafının düz metni — tam
 /// model kurulmadan (düzenli ifadeyle, izolatta). Editör açılırken önizleme.

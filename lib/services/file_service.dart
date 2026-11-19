@@ -217,6 +217,17 @@ class FileService {
       return null;
     }
 
+    // Çözümleme (OLE2/BIFF okuma + .xlsx'e çevirme) arka izlekte (B12 m.2):
+    // eskiden ana izlekte koşuyordu; büyük dosyada açılış göstergesi takılır.
+    _LegacyDecoded? decoded;
+    try {
+      decoded = await compute(_decodeLegacy, (bytes, ext));
+    } catch (_) {
+      // İzolat açılamazsa (kısıtlı ortam) ana izlekte — işlev aynı.
+      decoded = _decodeLegacy((bytes, ext));
+    }
+    if (decoded == null) return null;
+
     // .xls / .xlt → gerçek Excel ızgarası.
     //
     // Dosya BIFF'ten okunup **.xlsx'e çevrilir** ve düzenleyiciye o çalışma
@@ -224,18 +235,15 @@ class FileService {
     // gösteriliyordu: zoom yok, şerit yok, düzenleme yok — kullanıcının
     // gördüğü "xls uyumu yok" buydu. Çevrim başarısızsa eski salt-okunur yol
     // yedek olarak duruyor (hiç açılmamasındansa liste iyidir).
-    if (ext == 'xls' || ext == 'xlt') {
-      final xlsDoc = XlsLegacy.tryParse(bytes);
-      if (xlsDoc == null) return null;
-      final first = xlsDoc.sheets.isEmpty ? null : xlsDoc.sheets.first;
-      final work = await _writeXlsWorkCopy(xlsDoc, path, name);
+    if (decoded.spreadsheet) {
+      final work = await _writeXlsWorkCopy(decoded.xlsx, path, name);
       if (work != null) {
         return LoadedDoc(
           path: work,
           name: name,
           kind: DocKind.spreadsheet,
-          plainText: xlsDoc.plainText,
-          table: first?.rows,
+          plainText: decoded.text,
+          table: decoded.firstRows,
           // Kaydetme özgün dosyanın YANINA .xlsx bırakır: .xls (BIFF) yazmak
           // ayrı ve çok daha büyük bir iş, modern biçim zaten daha iyi.
           savePath: '${path.replaceAll(RegExp(r'\.[^.]*$'), '')}.xlsx',
@@ -246,20 +254,11 @@ class FileService {
         path: path,
         name: name,
         kind: DocKind.spreadsheet,
-        plainText: xlsDoc.plainText,
-        table: first?.rows,
+        plainText: decoded.text,
+        table: decoded.firstRows,
         readOnly: true,
       );
     }
-
-    // .doc / .dot → metin; .ppt / .pot / .pps → metin (en iyi çaba).
-    String? text;
-    if (ext == 'doc' || ext == 'dot') {
-      text = LegacyText.fromDoc(bytes);
-    } else if (ext == 'ppt' || ext == 'pot' || ext == 'pps') {
-      text = LegacyText.fromPpt(bytes);
-    }
-    if (text == null || text.trim().isEmpty) return null;
 
     // "Eski biçim, salt okunur" bilgisi artık metnin içine gömülü Türkçe bir
     // başlık değil: görüntüleyici rozet + "dönüştür ve düzenle" gösteriyor
@@ -268,9 +267,47 @@ class FileService {
       path: path,
       name: name,
       kind: DocKind.text,
-      plainText: text,
+      plainText: decoded.text,
       readOnly: true,
       legacyExt: ext,
+    );
+  }
+
+  /// Eski ikili Office baytlarını çözer — `compute` ile arka izlekte koşsun
+  /// diye durumsuz statik yardımcı. .xls → (.xlsx baytı, düz metin, ilk
+  /// sayfa); .doc/.ppt → düz metin. Okunamazsa null.
+  static _LegacyDecoded? _decodeLegacy((Uint8List, String) job) {
+    final (bytes, ext) = job;
+    if (ext == 'xls' || ext == 'xlt') {
+      final xlsDoc = XlsLegacy.tryParse(bytes);
+      if (xlsDoc == null) return null;
+      final first = xlsDoc.sheets.isEmpty ? null : xlsDoc.sheets.first;
+      var xlsx = Uint8List(0);
+      try {
+        xlsx = xlsDoc.toXlsxBytes();
+      } catch (_) {
+        // Çevrim yok → boş bayt; çağıran salt-okunur liste yedeğine düşer.
+      }
+      return (
+        spreadsheet: true,
+        xlsx: xlsx,
+        text: xlsDoc.plainText,
+        firstRows: first?.rows,
+      );
+    }
+    // .doc / .dot → metin; .ppt / .pot / .pps → metin (en iyi çaba).
+    String? text;
+    if (ext == 'doc' || ext == 'dot') {
+      text = LegacyText.fromDoc(bytes);
+    } else if (ext == 'ppt' || ext == 'pot' || ext == 'pps') {
+      text = LegacyText.fromPpt(bytes);
+    }
+    if (text == null || text.trim().isEmpty) return null;
+    return (
+      spreadsheet: false,
+      xlsx: Uint8List(0),
+      text: text,
+      firstRows: null,
     );
   }
 
@@ -280,9 +317,8 @@ class FileService {
   /// Ad özgün dosyanın yoluna göre türetilir: aynı adlı iki `.xls` farklı
   /// klasörlerden açıldığında birbirinin kopyasını EZMESİN.
   Future<String?> _writeXlsWorkCopy(
-      XlsLegacy doc, String path, String name) async {
+      Uint8List bytes, String path, String name) async {
     try {
-      final bytes = doc.toXlsxBytes();
       if (bytes.isEmpty) return null;
       final dir = Directory('${Directory.systemTemp.path}/xls_donusum');
       if (!dir.existsSync()) dir.createSync(recursive: true);
@@ -486,3 +522,11 @@ class FileService {
     }
   }
 }
+
+/// [FileService._decodeLegacy] sonucu (izolattan gönderilebilir düz veri).
+typedef _LegacyDecoded = ({
+  bool spreadsheet,
+  Uint8List xlsx,
+  String text,
+  List<List<String>>? firstRows,
+});

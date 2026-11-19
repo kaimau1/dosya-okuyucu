@@ -451,21 +451,25 @@ const Map<String, (String, String, String)> _t9 = {
   // ── Açık kaynak lisansları penceresi (Faz 5, I3) ──────────────────────────
   'oss.body': (
     'Video küçültme ve oynatma Android Media3 (Apache 2.0) ile yapılır; '
-        'H.264 için cihazın donanım kodlayıcısı kullanılır.\n\n'
+        'H.264 için cihazın donanım kodlayıcısı kullanılır. Ek kodekler için '
+        'yedek oynatıcı libmpv/FFmpeg (media_kit, LGPL v2.1+, dinamik .so) '
+        'kullanır.\n\n'
         'Syncfusion Flutter PDF — Syncfusion Community License (açık kaynak '
         'DEĞİL; ücretsiz kullanım şartlara bağlıdır).\n\n'
         'Diğer bileşenler (Flutter, PDFium/pdfrx, Google ML Kit, archive, image, '
         'video_player, flutter_local_notifications …) BSD/MIT/Apache 2.0 '
         'lisanslıdır. Tam liste: "Tüm lisanslar".',
     'Video downsizing and playback use Android Media3 (Apache 2.0); H.264 '
-        'uses the device\'s hardware encoder.\n\n'
+        'uses the device\'s hardware encoder. Fallback codec playback uses '
+        'libmpv/FFmpeg (media_kit, LGPL v2.1+, dynamic .so).\n\n'
         'Syncfusion Flutter PDF — Syncfusion Community License (NOT open '
         'source; free use is subject to conditions).\n\n'
         'Other components (Flutter, PDFium/pdfrx, Google ML Kit, archive, '
         'image, video_player, flutter_local_notifications …) are BSD/MIT/'
         'Apache 2.0 licensed. Full list: "All licenses".',
     'يتم تصغير الفيديو وتشغيله باستخدام Android Media3 (Apache 2.0)؛ ويُستخدم '
-        'مرمّز العتاد في الجهاز لـ H.264.\n\n'
+        'مرمّز العتاد في الجهاز لـ H.264. يعتمد المشغّل الاحتياطي للترميزات الإضافية '
+        'على libmpv/FFmpeg (media_kit، رخصة LGPL v2.1+، مكتبة ديناميكية .so).\n\n'
         'Syncfusion Flutter PDF — رخصة Syncfusion المجتمعية (ليست مفتوحة '
         'المصدر؛ الاستخدام المجاني مشروط).\n\n'
         'المكونات الأخرى (Flutter وPDFium/pdfrx وGoogle ML Kit وarchive وimage '

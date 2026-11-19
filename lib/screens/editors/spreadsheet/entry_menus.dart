@@ -437,18 +437,33 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
 
   // ── veri doğrulama listesi (madde 13) ───────────────────────────────────
 
+  /// Seçim levhası: aralıktan gelen uzun listede de kaydırılır (öğeler
+  /// tembel kurulur); seçili değer işaretli.
   Future<void> _pickFromValidation() async {
     final options = _validationOptions();
-    if (options.isEmpty) return;
+    if (options.isEmpty) {
+      _snack(context.t('excel.val_list_none'));
+      return;
+    }
+    final current = _sheet?.rawAt(_selRow, _selCol).trim().toLowerCase() ?? '';
     final v = await showAppSheet<String>(
       context,
       title: context.t('excel.pick_from_list'),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final o in options)
-            ListTile(title: Text(o), onTap: () => Navigator.pop(ctx, o)),
-        ],
+      scrollable: false,
+      builder: (ctx) => ListView.builder(
+        shrinkWrap: true,
+        itemCount: options.length,
+        itemBuilder: (_, i) {
+          final o = options[i];
+          return ListTile(
+            key: ValueKey('validation-option-$i'),
+            title: Text(o),
+            trailing: o.toLowerCase() == current
+                ? const Icon(AppIcons.check, size: 20)
+                : null,
+            onTap: () => Navigator.pop(ctx, o),
+          );
+        },
       ),
     );
     if (v == null || !mounted) return;

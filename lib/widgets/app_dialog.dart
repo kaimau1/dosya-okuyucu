@@ -103,6 +103,57 @@ Future<({bool remember})?> showAppConfirmRemember(
   );
 }
 
+/// Onay penceresi: metin + işaretlenmesi ZORUNLU kutular; hepsi
+/// işaretlenmeden onay düğmesi kapalı. Dışarı dokunmak kapatmaz.
+Future<bool> showAppChecklistConfirm(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required List<String> checks,
+  required String confirmLabel,
+}) async {
+  final checked = List<bool>.filled(checks.length, false);
+  final ok = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message),
+              const SizedBox(height: 8),
+              for (var i = 0; i < checks.length; i++)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: checked[i],
+                  onChanged: (v) => setState(() => checked[i] = v ?? false),
+                  title: Text(checks[i]),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(ctx.t('common.cancel')),
+          ),
+          FilledButton(
+            onPressed:
+                checked.every((c) => c) ? () => Navigator.pop(ctx, true) : null,
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    ),
+  );
+  return ok == true;
+}
+
 /// Alt levha: tutamaç (tema), isteğe bağlı başlık, kaydırılabilir gövde,
 /// alt sistem çubuğu ve klavye payı.
 Future<T?> showAppSheet<T>(

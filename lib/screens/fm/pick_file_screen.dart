@@ -63,11 +63,13 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/picker_bridge.dart';
 import '../../services/fm/search_index.dart';
+import '../../services/fm/media_library.dart';
 import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
+import '../../widgets/fm/fresh_files_strip.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
@@ -361,26 +363,22 @@ class _PickFileScreenState extends State<PickFileScreen> {
   /// Bir türün bütün dosyaları: dizin hazırsa ondan, değilse (yeni kurulum,
   /// dizin daha yok) diski gezerek. Eskiden kategori ve arama yalnız dizine
   /// bakıyordu → ilk açılışta "boş" görünüyordu.
+  ///
+  /// **Bug kökü (2026-11-14, kullanıcı: *"SS aldım, Aktar → Dosya ekle →
+  /// Fotoğraflar'da görünmüyor, panodaki Fotoğraflar'da görünüyor"*):**
+  /// seçici arama dizinini doğrudan sorguluyordu. Dizin başka uygulamanın
+  /// (ekran görüntüsü, kamera) eklediği dosyayı bilmez; pano ise
+  /// [MediaLibrary.categoryFiles] ile dizinden SONRA gelenleri sıcak
+  /// klasörlerden ekliyor ([MediaLibrary.freshTail]). Ayrıca 1000 sınırı
+  /// tarihe göre sıralamadan ÖNCE uygulanıyordu → 3000+ fotoğrafta en
+  /// yeniler listeye hiç girmeyebiliyordu. Artık panoyla aynı kaynak.
   Future<List<FsEntry>> _allOf(FmCategory? category, {required int limit}) async {
     try {
-      await SearchIndex.ensureLoaded();
-      final hits = SearchIndex.isReady
-          ? await SearchIndex.query(
-              '',
-              category: category,
-              includeDirs: false,
-              matchAll: true,
-              limit: limit,
-            )
-          : await FsScan.collect(
-              FmEnv.volumeRoots,
-              category: category,
-              limit: limit,
-            );
+      final hits = await MediaLibrary.categoryFiles(category, limit: limit);
       // Uygulamaların gizli klasörleri (`.…recycle`) seçim listesine girmesin.
       return [
         for (final entry in hits)
-          if (!entry.path.contains('/.')) entry
+          if (!entry.isDir && !entry.path.contains('/.')) entry
       ];
     } catch (_) {
       return const [];
@@ -453,7 +451,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
       _loading = true;
       _error = '';
     });
-    final hits = await _allOf(category, limit: 1000);
+    final hits = await _allOf(category, limit: MediaLibrary.maxItems);
     if (!mounted) return;
     setState(() {
       _entries = [

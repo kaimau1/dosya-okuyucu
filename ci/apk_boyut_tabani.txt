@@ -3,4 +3,6 @@
 # HAFIZA'da gerekçe) commit başlığına [boyut] yaz: kapı uyarıya iner ve özet yeni
 # değeri gösterir; sonra bu sayıyı o değerle güncelle.
 # Kaynak: Faz 48 main birleşmesi (2026-11-08) — pdfrx 2.12 libpdfium (chromium/8125) + pdfium gate, +3,2 MB.
-86429449
+# 2026-11-14 kullanıcı kararı: taban 100 MB (104857600 bayt). Önceki 86429449;
+# o gün APK 88284993 (+%2,15) — birikmiş özellik büyümesi.
+104857600

@@ -245,6 +245,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             onPressed: () => showEntryActions(
               context,
               FsEntry.fromEntity(File(_current)),
+              inViewer: true,
             ),
           ),
         ],
@@ -504,29 +505,37 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     }
   }
 
+  // Sabit satır (B12 m.6): her satır aynı yapıda — 20 dp simge, TEK satır
+  // ad, TEK satır boyut → yükseklik yalnız yazı ölçeğine bağlı, satıra değil.
+  // Prototip gerçek satır olduğundan 2× yazıda da birebir doğru; liste
+  // uzun çalma listesinde satırları ölçmeden konumlar.
   Widget _playlistView() => SizedBox(
         height: 132,
         child: ListView.builder(
           itemCount: _playlist.length,
-          itemBuilder: (context, i) {
-            final path = _playlist[i];
-            final active = i == _index;
-            return ListTile(
-              dense: true,
-              selected: active,
-              leading:
-                  Icon(active ? AppIcons.equalizer : AppIcons.audio, size: 20),
-              title: Text(p.basenameWithoutExtension(path),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: Text(
-                _sizeOf(path) == null ? '' : FsPaths.humanSize(_sizeOf(path)!),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              onTap: () => _skipTo(i),
-            );
-          },
+          prototypeItem: _playlist.isEmpty ? null : _playlistRow(0),
+          itemBuilder: (context, i) => _playlistRow(i),
         ),
       );
+
+  Widget _playlistRow(int i) {
+    final path = _playlist[i];
+    final active = i == _index;
+    final size = _sizeOf(path);
+    return ListTile(
+      dense: true,
+      selected: active,
+      leading: Icon(active ? AppIcons.equalizer : AppIcons.audio, size: 20),
+      title: Text(p.basenameWithoutExtension(path),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+      trailing: Text(
+        size == null ? '' : FsPaths.humanSize(size),
+        maxLines: 1,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      onTap: () => _skipTo(i),
+    );
+  }
 
   /// Liste satırlarının boyutu: ilk istekte arka planda okunur, sonra
   /// önbellekten gelir (`build` içinde disk beklenmez).

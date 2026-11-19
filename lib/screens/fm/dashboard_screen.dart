@@ -54,9 +54,10 @@ import '../../services/file_service.dart' show FileService;
 import '../../widgets/permission_gate.dart' show showStorageDeniedHint;
 import '../../widgets/fm/recent_strip.dart';
 import 'open_history_screen.dart';
-import '../audiobook/audiobook_library_screen.dart';
 import 'analysis_screen.dart';
-import 'history_screen.dart';
+import 'activity_screen.dart';
+import 'download_manager_screen.dart';
+import 'duplicates_screen.dart';
 import 'remote/ftp_server_screen.dart';
 import 'browser_screen.dart';
 import 'apk_archive_screen.dart';
@@ -65,12 +66,17 @@ import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'drive_screen.dart';
 import '../settings_screen.dart';
+import '../settings/tiles_backup.dart' show SettingsBackupTile;
 import 'important_gallery_screen.dart';
 import 'important_screen.dart';
+import 'entry_actions.dart' show shortcutFileCategory;
 import 'custom_card_screen.dart';
 import '../../services/fm/custom_cards.dart';
 import 'installed_apps_screen.dart';
 import 'new_files_screen.dart';
+import 'smart_sort_screen.dart';
+import '../../services/fm/smart_sort.dart';
+import '../../widgets/fm/smart_batch_strip.dart';
 import 'swipe_pager.dart';
 import '../../services/fm/dashboard_layout.dart';
 import '../../widgets/fm/dashboard_layout_sheet.dart';
@@ -81,9 +87,17 @@ import 'tools_screen.dart';
 import 'trash_screen.dart';
 import 'vault_screen.dart';
 import '../../core/snack.dart';
+import '../../services/fm/quick_folders.dart';
+import '../../core/skin.dart';
+import '../../widgets/fm/drag_trash_target.dart';
+import '../../widgets/fm/home_tile_board.dart';
+import '../../widgets/app_action_sheet.dart';
+import 'folder_picker_screen.dart';
 import '../../core/safe_insets.dart';
 import 'library_screen.dart';
 import '../../services/fm/library_store.dart';
+import '../../services/side_menu.dart';
+import '../../widgets/side_menu_view.dart';
 
 part 'dashboard/volume_watch.dart';
 part 'dashboard/scan.dart';
@@ -129,6 +143,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   static StorageIndex? _cachedIndex;
   static int _cachedAtMs = 0;
+
+  /// Yan menü kaynağı TEK nesne: uzantı yöntemi koparmaları her seferinde yeni
+  /// kapanış üretir, `unregister` eşleşsin diye bir kez tutulur.
+  late final List<FmTileData> Function() _sideMenuSource = _sideMenuTiles;
 
   StorageIndex _index = _cachedIndex ?? StorageIndex.empty;
 
@@ -189,6 +207,10 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Lite'ta "Pro'da neler var?" kartı (S3; kapatılınca 30 gün yok).
   bool _proCard = false;
 
+  /// Bir ana ekran kutusu sürükleniyor mu? (Çöp hedefi yalnız bunu dinler —
+  /// pano kökü yeniden kurulmaz.)
+  final ValueNotifier<bool> _tileDragging = ValueNotifier(false);
+
   /// Arama kapsülündeki AI anahtarı (anlamla ara) — kalıcı.
   bool _meaning = false;
   static const _meaningKey = 'dash_meaning_search_v1';
@@ -248,12 +270,18 @@ class _DashboardScreenState extends State<DashboardScreen>
     ToolUsage.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     });
+    // Yan menü kartları panodan okur (her açılışta taze liste).
+    SideMenu.instance.register(_sideMenuSource);
+    unawaited(SideMenu.instance.ensureLoaded());
     // Kullanıcının pano düzeni (sıra + göster/gizle).
     DashboardLayout.instance.addListener(_onLayoutChanged);
     unawaited(DashboardLayout.instance.ensureLoaded());
     // Kullanıcının kendi kartları (2026-11-13) — ana ekranda göster açıksa.
     CustomCards.instance.addListener(_onLayoutChanged);
     unawaited(CustomCards.instance.ensureLoaded());
+    // Hızlı klasörler (2026-11-15): kullanıcı ekleyip çıkarabilir.
+    QuickFolders.instance.addListener(_onLayoutChanged);
+    unawaited(QuickFolders.instance.ensureLoaded());
     unawaited(SmartFolders.instance.ensureLoaded());
     _boot();
     unawaited(_loadAppsSize());
@@ -262,8 +290,11 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   @override
   void dispose() {
+    SideMenu.instance.unregister(_sideMenuSource);
     DashboardLayout.instance.removeListener(_onLayoutChanged);
     CustomCards.instance.removeListener(_onLayoutChanged);
+    QuickFolders.instance.removeListener(_onLayoutChanged);
+    _tileDragging.dispose();
     WidgetsBinding.instance.removeObserver(this);
     FsEvents.version.removeListener(_onFsChanged);
     AppStorageService.setUsbAttachedHandler(null);
@@ -283,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      unawaited(_catchUp());
+      unawaited(_catchUp(force: _wentBackground));
       // Uygulama arka plandayken takılan bellek de görülsün; izleme arka
       // planda durduruluyor (boşuna pil harcamasın).
       _volumes.start();
@@ -416,10 +447,75 @@ class _DashboardScreenState extends State<DashboardScreen>
         // ipucu "Anlamla ara…" der ve dokunuş anlamla aramayı açar.
         titleSpacing: Gap.md - 4,
         toolbarHeight: 64,
+        // C · Koyu başlık: arama çubuğu vurgu renginde başlık alanında.
+        backgroundColor: AppSkinData.of(context).metrics.homeStyle ==
+                HomeStyle.band
+            ? scheme.primary
+            : null,
+        surfaceTintColor: AppSkinData.of(context).metrics.homeStyle ==
+                HomeStyle.band
+            ? scheme.primary
+            : null,
         automaticallyImplyLeading: false,
         title: _searchCapsule(scheme),
       ),
-      body: RefreshIndicator(
+      body: Stack(
+        children: [
+          Positioned.fill(child: _dashBody(appState, volumes)),
+          // **Sürüklerken çöp** (2026-11-15, "not" uygulamasıyla aynı):
+          // hedef HEP ağaçta, görünme yalnız boyamada.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.paddingOf(context).bottom + Gap.sm,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _tileDragging,
+              builder: (context, active, _) =>
+                  DragTrashTarget(active: active, onTrash: _trashTile),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Çöpe bırakılan kutu ana ekrandan KALKAR — dosyalar yerinde; Geri al ya
+  /// da "Ana ekranı düzenle" ile döner. Kullanıcı kartı yalnız ana ekrandan
+  /// iner (kart ve klasörü durur).
+  Future<void> _trashTile(String id) async {
+    final layout = DashboardLayout.instance;
+    final cards = CustomCards.instance;
+    final card = id.startsWith(CustomCards.tilePrefix)
+        ? cards.byId(id.substring(CustomCards.tilePrefix.length))
+        : null;
+    final label = card?.name ??
+        [for (final t in _categoryTilesRaw()) if (t.id == id) t.label]
+            .firstOrNull ??
+        id;
+    if (card != null) {
+      await cards.upsert(card.copyWith(onHome: false));
+    } else {
+      await layout.setTileVisible(id, false);
+    }
+    if (!mounted) return;
+    showSnack(
+      context,
+      context.t('home.tile_removed', {'name': label}),
+      action: SnackBarAction(
+        label: context.t('home.undo'),
+        onPressed: () {
+          if (card != null) {
+            unawaited(cards.upsert(card.copyWith(onHome: true)));
+          } else {
+            unawaited(layout.setTileVisible(id, true));
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _dashBody(AppState appState, List<StorageVolume> volumes) {
+    return RefreshIndicator(
         onRefresh: _scan,
         child: ListView(
           // Alt boşluk FAB yığınını (küçük düğme sırası + "Belge Tara") aşar:
@@ -497,8 +593,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             ],
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _searchCapsule(ColorScheme scheme) {
@@ -542,34 +637,54 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ],
       ),
+      // Arama YALNIZ sol bölgeden (büyüteç + ipucu) açılır (2026-11-15,
+      // kullanıcı: sağdaki AI/yenile/ayarlar düğmelerinin çevresine dokununca
+      // da arama açılıyordu). İpucu sola yaslı — AnimatedSwitcher'ın
+      // varsayılan Stack'i metni ortalıyordu.
       child: Material(
         type: MaterialType.transparency,
-        child: InkWell(
-          key: const ValueKey('dash-search'),
-          borderRadius: BorderRadius.circular(26),
-          onTap: openSearch,
-          child: SizedBox(
-            height: 50,
-            child: Row(
-              children: [
-                const SizedBox(width: Gap.md - 2),
-                Icon(AppIcons.search, size: 20, color: scheme.onSurfaceVariant),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: Motion.short,
-                    child: Text(
-                      context.t(_meaning ? 'srch.hint_ai' : 'fm.search_all'),
-                      key: ValueKey(_meaning),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _meaning
-                              ? scheme.primary
-                              : Paper.faint(context)),
-                    ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 50),
+          child: Row(
+            children: [
+              // Yan menü düğmesi (2026-11-15) — aramadan ayrı dokunma alanı.
+              const SizedBox(width: Gap.xs),
+              SideMenuButton(color: scheme.onSurfaceVariant),
+              Expanded(
+                child: InkWell(
+                  key: const ValueKey('dash-search'),
+                  borderRadius: BorderRadius.circular(Gap.md),
+                  onTap: openSearch,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: Gap.xs),
+                      Icon(AppIcons.search,
+                          size: 20, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: Motion.short,
+                          layoutBuilder: (current, previous) => Stack(
+                            alignment: AlignmentDirectional.centerStart,
+                            children: [...previous, ?current],
+                          ),
+                          child: Text(
+                      context.t(_meaning ? 'srch.hint_ai' : 'fm.search_help'),
+                            key: ValueKey(_meaning),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.start,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: _meaning
+                                    ? scheme.primary
+                                    : Paper.faint(context)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
                 // **AI anahtarı** (anlamla ara): açıkken renkli kapsül,
                 // kapalıyken sade çizgi simge. Durum ipucu metninde yazar.
                 Semantics(
@@ -645,7 +760,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               ],
             ),
           ),
-        ),
       ),
     );
   }

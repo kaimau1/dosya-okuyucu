@@ -38,6 +38,8 @@ extension DocxReview on DocxDocument {
   /// Modeli yeniden okur — GERİ ALINAMAZ (çağıran geçmişi sıfırlar).
   /// Kabul edilen silinmiş paragraf işareti paragrafları birleştirmez.
   void resolveTrackedChanges({required bool accept}) {
+    // Henüz XML'e işlenmemiş düzenlemeler (izlenerek yazılanlar dahil) önce.
+    commit();
     for (var pass = 0; pass < 8; pass++) {
       final nodes = _trackedNodes().toList();
       if (nodes.isEmpty) break;
@@ -50,6 +52,7 @@ extension DocxReview on DocxDocument {
     _newTables.clear();
     _tracked.clear();
     paras = _readBody();
+    _liveTracked = false;
     _xmlDirty = true;
   }
 
@@ -62,8 +65,13 @@ extension DocxReview on DocxDocument {
       for (final k in kids) {
         if (k is! XmlElement) continue;
         for (final d in k.descendantElements.toList()) {
-          if (d.name.local != 'delText') continue;
-          final t = XmlElement(const XmlName.qualified('w:t'),
+          final to = switch (d.name.local) {
+            'delText' => 'w:t',
+            'delInstrText' => 'w:instrText',
+            _ => null,
+          };
+          if (to == null) continue;
+          final t = XmlElement(XmlName.qualified(to),
               d.attributes.map((a) => a.copy()), d.children.map((c) => c.copy()));
           d.parent!.children[d.parent!.children.indexOf(d)] = t;
         }

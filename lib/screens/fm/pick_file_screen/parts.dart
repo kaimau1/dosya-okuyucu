@@ -270,6 +270,18 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
       padding: withNavInset(
           context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
       children: [
+        // 2026-11-18 kullanıcı (Aktar → Dosya ekle): "yeni dosyalar da
+        // gözüksün, SS alınca hemen üstte kayan şeritte" — eskiden yalnız
+        // en altta son açılanlar vardı.
+        Padding(
+          padding: const EdgeInsets.only(bottom: Gap.md),
+          child: FreshFilesStrip(
+            key: const ValueKey('pick-fresh'),
+            selected: _selected.keys.toSet(),
+            accepts: _request.acceptsEntry,
+            onTap: _onTapEntry,
+          ),
+        ),
         if (tiles.isNotEmpty)
           FmCategoryGrid(
             tiles: DashboardLayout.instance.arrangeTiles(tiles, (t) => t.id),

@@ -74,6 +74,7 @@ const kWordProTools = <List<(String, IconData)>>[
     ('textbox', AppIcons.textFields),
     ('shape', AppIcons.rectTool),
     ('cover', AppIcons.title),
+    ('toc', AppIcons.accountTree),
     ('section_break', AppIcons.wrapText),
     ('field', AppIcons.dataObject),
     ('cross_ref', AppIcons.link),
@@ -116,6 +117,9 @@ class WordFormatUi {
   final VoidCallback? onHeaderFooter;
   final void Function(bool accept)? onResolveTracked;
 
+  /// B9 m.3: Değişiklikleri izle aç/kapa (ekran yazar adını sorar).
+  final VoidCallback? onTrackChanges;
+
   /// Faz 24 kalanı: resim, yorum, dipnot, tarih (ekran açar).
   final VoidCallback? onInsertImage,
       onReplaceImage,
@@ -123,6 +127,7 @@ class WordFormatUi {
       onComments,
       onNewComment,
       onFootnote,
+      onEndnote,
       onDate;
 
   /// Faz 37: Araçlar sekmesi ([kWordProTools] kimliğiyle ekran açar; null →
@@ -137,6 +142,7 @@ class WordFormatUi {
     this.onComments,
     this.onNewComment,
     this.onFootnote,
+    this.onEndnote,
     this.onDate,
     this.onInsertTable,
     this.onInsertLink,
@@ -144,6 +150,7 @@ class WordFormatUi {
     this.onFind,
     this.onHeaderFooter,
     this.onResolveTracked,
+    this.onTrackChanges,
     required this.context,
     required this.c,
     required this.onPageLayout,
@@ -247,6 +254,9 @@ class WordFormatUi {
                   onTap: onNewComment),
               RibbonButton(AppIcons.footnote, _t('word.insert_footnote'),
                   key: const ValueKey('word-ins-footnote'), onTap: onFootnote),
+              if (onEndnote != null)
+                RibbonButton(AppIcons.footnote, _t('word.insert_endnote'),
+                    key: const ValueKey('word-ins-endnote'), onTap: onEndnote),
               RibbonButton(AppIcons.horizontalRule, _t('word.insert_rule'),
                   key: const ValueKey('word-ins-rule'),
                   onTap: c.insertHorizontalRule),
@@ -285,6 +295,13 @@ class WordFormatUi {
                 onTap: onNewComment),
             RibbonButton(AppIcons.comment, _t('word.comments'),
                 key: const ValueKey('word-rev-comments'), onTap: onComments),
+          ],
+          if (onTrackChanges != null) ...[
+            const RibbonSep(),
+            RibbonButton(AppIcons.editNote, _t('word.track_changes'),
+                key: const ValueKey('word-track-toggle'),
+                active: c.trackChanges,
+                onTap: onTrackChanges),
           ],
           if (onResolveTracked != null && c.trackedChanges > 0) ...[
             const RibbonSep(),

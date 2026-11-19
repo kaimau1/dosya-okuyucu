@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_language.dart';
 import 'device_profile.dart';
+import 'menu_look.dart';
 import 'skin.dart';
 import 'state/appearance_state.dart';
 import 'state/focused_states.dart';
@@ -21,6 +22,7 @@ import '../services/fm/audio_playback.dart';
 import '../services/fm/playback_positions.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/ai_pool.dart';
+import '../services/ai_tasks.dart';
 import '../services/gemini_service.dart';
 import '../services/key_vault.dart';
 import '../services/remote_secrets.dart';
@@ -56,6 +58,7 @@ class AppState extends ChangeNotifier {
   static const _kAppSkin = 'app_skin';
   static const _kBackground = 'app_background';
   static const _kAccent = 'app_accent';
+  static const _kMenuLook = 'menu_look';
   static const _kLanguage = 'app_language';
   static const _kRecents = 'recent_files';
   static const _kMemory = 'ai_memory';
@@ -81,8 +84,12 @@ class AppState extends ChangeNotifier {
   static const _kAppLock = 'app_lock_on';
   static const _kOffline = 'offline_mode';
   static const _kAiSendOk = 'ai_send_consent';
+  static const _kAiTerms = 'ai_terms_v1';
+  static const _kAiCatalog = 'ai_catalog';
+  static const _kAiTaskModel = 'ai_task_model_';
   static const _kPeerRecent = 'peer_recent_devices';
   static const _kResumePosition = 'resume_position';
+  static const _kAudioBackground = 'audio_background';
   static const _kAutoSave = 'doc_auto_save';
   static const _kWordSpell = 'word_spellcheck';
   static const _kLabWord = 'lab_word_editor';
@@ -155,6 +162,7 @@ class AppState extends ChangeNotifier {
         uiFont: _uiFont,
         uiTextScale: _uiTextScale,
         accent: _accent,
+        menuLook: _menuLook,
       );
 
   /// Görünüm ayarı değişimi: hem görünüm parçası hem (ayar ekranları için)
@@ -176,7 +184,8 @@ class AppState extends ChangeNotifier {
 
   /// Tema ailesi (kağıt / açık / modern / iş programı / gece). `ThemeMode`
   /// ile diktir: aile kimliği, mod parlaklığı seçer — bkz. [AppSkin].
-  AppSkin _appSkin = AppSkin.sage;
+  // Varsayılan aile Bento (2026-11-15, kullanıcı kararı).
+  AppSkin _appSkin = AppSkin.bento;
 
   /// Seçili hazır arka plan rengi (`AppBackground.id`); 'default' = ailenin
   /// kendi zemini.
@@ -184,6 +193,9 @@ class AppState extends ChangeNotifier {
 
   /// Vurgu rengi (`AppAccent.id`, Faz 40 / 8); 'default' = ailenin kendi.
   String _accent = 'default';
+
+  /// Menü görünümü (2026-11-15): varsayılan sekmeli.
+  MenuLook _menuLook = MenuLook.tabbed;
   AppLanguage _language = AppLanguage.system;
 
   /// Arayüz yazı tipi. Varsayılan `AppTheme.uiFontDefault` = tasarımın kendi
@@ -309,6 +321,9 @@ class AppState extends ChangeNotifier {
   String get background => _background;
   String get accent => _accent;
 
+  /// Menü görünümü (sekmeli / Bento).
+  MenuLook get menuLook => _menuLook;
+
   /// Arayüz dili. `system` = cihazın dili (desteklenmiyorsa Türkçe).
   AppLanguage get language => _language;
 
@@ -378,6 +393,42 @@ class AppState extends ChangeNotifier {
   }
 
   bool get aiSendConsent => _aiSendOk;
+
+  /// AI kullanım koşulları / sorumluluk reddi kabul edildi mi (bir kez).
+  bool _aiTerms = false;
+  bool get aiTermsAccepted => _aiTerms;
+
+  Future<void> setAiTermsAccepted(bool value) async {
+    _aiTerms = value;
+    await _prefs.setBool(_kAiTerms, value);
+    _notifyAi();
+  }
+
+  /// Anahtarın son çekilen model listesi (görev zincirleri buna göre).
+  List<String> get aiCatalog => AiTaskModels.catalog;
+
+  Future<void> setAiCatalog(List<String> models) async {
+    if (models.isEmpty) return;
+    AiTaskModels.catalog = List.unmodifiable(models);
+    await _prefs.setStringList(_kAiCatalog, models);
+    _notifyAi();
+  }
+
+  /// Görevin elle seçilen modeli; boş = Otomatik.
+  String aiTaskModel(AiTask task) => AiTaskModels.choices[task] ?? '';
+
+  Future<void> setAiTaskModel(AiTask task, String id) async {
+    final next = Map<AiTask, String>.of(AiTaskModels.choices);
+    if (id.isEmpty) {
+      next.remove(task);
+      await _prefs.remove('$_kAiTaskModel${task.name}');
+    } else {
+      next[task] = id;
+      await _prefs.setString('$_kAiTaskModel${task.name}', id);
+    }
+    AiTaskModels.choices = Map.unmodifiable(next);
+    _notifyAi();
+  }
 
   Future<void> setAiSendConsent(bool value) async {
     _aiSendOk = value;
@@ -465,6 +516,7 @@ class AppState extends ChangeNotifier {
   bool _fmShowHidden = false;
   bool _fmThumbnails = true;
   bool _resumePosition = true;
+  bool _audioBackground = false;
   bool _autoSave = true;
   bool _wordSpell = true;
   bool _labWord = false;
@@ -557,6 +609,7 @@ class AppState extends ChangeNotifier {
   /// "hatırlama" isteyen kullanıcı bunu kapatınca dosyaların baştan
   /// açılacağını bekler.
   bool get resumePosition => _resumePosition;
+  bool get audioBackground => _audioBackground;
 
   /// Dosya listesinde klasörlerin boyutu gösterilsin mi? (Varsayılan KAPALI:
   /// büyük bir klasör ağacını ölçmek diski gezmek demektir; isteyen açar.)
@@ -612,6 +665,15 @@ class AppState extends ChangeNotifier {
     PlaybackPositions.enabled = value;
     ReadingPositions.enabled = value;
     await _prefs.setBool(_kResumePosition, value);
+    notifyListeners();
+  }
+
+  /// Ses arka planda / ekran kilitliyken çalmayı sürdürsün mü (varsayılan
+  /// kapalı — 2026-11-15).
+  Future<void> setAudioBackground(bool value) async {
+    _audioBackground = value;
+    AudioPlayback.backgroundPlay = value;
+    await _prefs.setBool(_kAudioBackground, value);
     notifyListeners();
   }
 
@@ -847,9 +909,14 @@ class AppState extends ChangeNotifier {
     _apiKey = _apiKeys.isEmpty ? '' : _apiKeys.first;
     _model = _models.first;
     _themeMode = _themeModeFromString(_prefs.getString(_kThemeMode));
-    _appSkin = AppSkin.byName(_prefs.getString(_kAppSkin));
+    // Seçim hiç yapılmadıysa Bento; tanınmayan / kaldırılmış ad yine
+    // `byName` eşlemesiyle.
+    final skinName = _prefs.getString(_kAppSkin);
+    _appSkin =
+        skinName == null ? AppSkin.bento : AppSkin.byName(skinName);
     _background = AppBackground.byId(_prefs.getString(_kBackground)).id;
     _accent = AppAccent.byId(_prefs.getString(_kAccent)).id;
+    _menuLook = MenuLook.byName(_prefs.getString(_kMenuLook));
     _language = AppLanguageInfo.byCode(_prefs.getString(_kLanguage));
     _uiFont = AppTheme.migrateUiFont(_prefs.getString(_kUiFont));
     _uiTextScale = (_prefs.getDouble(_kUiTextScale) ?? 1.0).clamp(0.85, 2.0);
@@ -875,7 +942,10 @@ class AppState extends ChangeNotifier {
         // Eski sürümün iki durumlu tercihi korunur: ızgara açıksa 3 sütun.
         fallback: (_prefs.getBool('fm_grid') ?? false)
             ? FmLayout.grid3
-            : FmLayout.list).fileListNearest;
+            : FmLayout.list);
+    // 2026-11-16 KÖK (kullanıcı: "ana bellekte görünüm her kapat-açta
+    // sıfırlanıyor"): iki parmakla seçilen 2/4/5 sütun kaydediliyor ama
+    // açılışta `fileListNearest` onu 3 sütuna çeviriyordu. Kayıtlı değer aynen.
     _fmPhotoLayout = FmLayoutInfo.byName(_prefs.getString(_kFmPhotoLayout),
         fallback: FmLayout.grid3);
     _fmPhotoGroup = PhotoGroupLabel.byName(_prefs.getString(_kFmPhotoGroup));
@@ -900,6 +970,8 @@ class AppState extends ChangeNotifier {
     // Servisler `AppState`i tanımıyor; anahtar oraya buradan geçiyor.
     PlaybackPositions.enabled = _resumePosition;
     ReadingPositions.enabled = _resumePosition;
+    _audioBackground = _prefs.getBool(_kAudioBackground) ?? false;
+    AudioPlayback.backgroundPlay = _audioBackground;
     _fmFolderSizes = _prefs.getBool(_kFmFolderSizes) ?? false;
     _mediaShuffle = _prefs.getBool(_kMediaShuffle) ?? false;
     _mediaRepeat = _prefs.getInt(_kMediaRepeat) ?? 0;
@@ -917,6 +989,14 @@ class AppState extends ChangeNotifier {
     _appLock = _prefs.getBool(_kAppLock) ?? false;
     _offline = OfflineMode.enabled = _prefs.getBool(_kOffline) ?? false;
     _aiSendOk = _prefs.getBool(_kAiSendOk) ?? false;
+    _aiTerms = _prefs.getBool(_kAiTerms) ?? false;
+    AiTaskModels.catalog =
+        List.unmodifiable(_prefs.getStringList(_kAiCatalog) ?? const []);
+    AiTaskModels.choices = Map.unmodifiable({
+      for (final t in AiTask.values)
+        if ((_prefs.getString('$_kAiTaskModel${t.name}') ?? '').isNotEmpty)
+          t: _prefs.getString('$_kAiTaskModel${t.name}')!,
+    });
     _peerRecent = _prefs.getStringList(_kPeerRecent) ?? [];
     _remotes = await RemoteSecrets.load(_prefs);
     _ttsPrefs = TtsPrefs.decode(_prefs.getString(_kTtsPrefs));
@@ -1025,6 +1105,12 @@ class AppState extends ChangeNotifier {
     _notifyAppearance();
   }
 
+  Future<void> setMenuLook(MenuLook look) async {
+    _menuLook = look;
+    await _prefs.setString(_kMenuLook, look.name);
+    _notifyAppearance();
+  }
+
   Future<void> setAccent(String id) async {
     _accent = AppAccent.byId(id).id;
     await _prefs.setString(_kAccent, _accent);
@@ -1034,6 +1120,13 @@ class AppState extends ChangeNotifier {
   Future<void> setBackground(String id) async {
     _background = AppBackground.byId(id).id;
     await _prefs.setString(_kBackground, _background);
+    // Ana ekran düzenli yeni ailelerde (Sakin/Bento/Koyu başlık) renk seçimi
+    // temayı BÜTÜN olarak değiştirir: zemine yakışan vurgu da gelir
+    // (2026-11-15, kullanıcı isteği). Vurgu sonra ayrıca değiştirilebilir.
+    if (SkinMetrics.of(_appSkin).homeStyle != HomeStyle.classic) {
+      _accent = AppAccent.pairFor(_background);
+      await _prefs.setString(_kAccent, _accent);
+    }
     _notifyAppearance();
   }
 

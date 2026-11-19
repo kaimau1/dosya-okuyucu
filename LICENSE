@@ -1,0 +1,45 @@
+Copyright (c) 2025-2026 kaimau1. Tüm hakları saklıdır. / All rights reserved.
+
+TESCİLLİ YAZILIM — AÇIK KAYNAK DEĞİLDİR
+
+Bu depodaki kaynak kodu, tasarımlar, belgeler, görseller ve diğer tüm içerik
+("Yazılım") 5846 sayılı Fikir ve Sanat Eserleri Kanunu ile uluslararası telif
+hakkı mevzuatı kapsamında korunmaktadır ve hak sahibinin münhasır mülkiyetindedir.
+
+Deponun herkese açık olarak görüntülenebilmesi hiçbir lisans ya da kullanım izni
+VERMEZ. Hak sahibinin önceden verilmiş yazılı izni olmadan Yazılımın tamamı veya
+herhangi bir parçası:
+  - kopyalanamaz, çoğaltılamaz, çatallanamaz (fork) ya da yeniden yayımlanamaz;
+  - değiştirilemez, uyarlanamaz, türev çalışmaya dönüştürülemez;
+  - derlenip dağıtılamaz, satılamaz, kiralanamaz, alt lisanslanamaz;
+  - uygulama mağazalarında ya da başka bir ürün içinde kullanılamaz;
+  - yapay zekâ / makine öğrenmesi modellerinin eğitiminde kullanılamaz.
+
+İzinsiz kullanım hukuki ve cezai sorumluluk doğurur; hak sahibi tüm yasal
+haklarını (ihtarname, tazminat, DMCA kaldırma bildirimi dahil) saklı tutar.
+
+Üçüncü taraf bileşenler kendi lisanslarına tabidir; bkz. LICENSES.md ve
+third_party/ altındaki ilgili lisans dosyaları. Bu bildirim yalnız hak sahibine
+ait özgün içeriği kapsar.
+
+-------------------------------------------------------------------------------
+
+PROPRIETARY SOFTWARE — NOT OPEN SOURCE
+
+This repository and all of its contents (source code, designs, documentation,
+images and other material, the "Software") are protected by copyright law and
+are the exclusive property of the copyright holder.
+
+Public visibility of this repository does NOT grant any license or permission.
+Without prior written permission from the copyright holder you may not copy,
+reproduce, fork, republish, modify, create derivative works of, compile,
+distribute, sell, sublicense, publish to any app store, incorporate into any
+other product, or use for training AI / machine-learning models, any part of
+the Software.
+
+Unauthorized use may result in civil and criminal liability. The copyright
+holder reserves all rights, including the right to issue DMCA takedown notices.
+
+Third-party components remain under their own licenses (see LICENSES.md and the
+license files under third_party/); this notice covers only the copyright
+holder's original work.

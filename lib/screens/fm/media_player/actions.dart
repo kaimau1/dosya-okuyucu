@@ -18,7 +18,8 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
       return;
     }
     final path = _current;
-    final found = Subtitles.findFor(path);
+    // Eşzamansız: kalabalık klasörde tarama açılış karesini bekletmesin.
+    final found = await Subtitles.findForAsync(path);
     if (!mounted || path != _current) return;
     _partSetState(() {
       _subtitles = found;

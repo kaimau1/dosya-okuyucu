@@ -14,6 +14,8 @@ import 'package:dosya_okuyucu/widgets/docx_editor/docx_editor_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/rebuild_probe.dart';
+
 /// Faz 22 — Word Mobil görünüm: §7 bütçeleri (debug/JIT, ×3 gevşek).
 /// * 1000 paragrafta bir tuşun model + yeniden çizim maliyeti;
 /// * ~300 sayfalık (3000 paragraf) belgede ayrıştırma + ilk ekran;
@@ -95,6 +97,38 @@ void main() {
     c.dispose();
   });
 
+  // B12 m.3 — yeniden kurulum bütçesi (mandal, YALNIZ DÜŞER): bir harf
+  // yalnız yazılan paragrafın metnini (RichText) yeniden kurar; eskiden
+  // görünür paragrafların hepsi (≈ ekrandaki paragraf sayısı) kuruluyordu.
+  testWidgets('B12 m.3: bir harf yalnız o paragrafın metnini yeniden kurar',
+      (t) async {
+    t.view.physicalSize = const Size(1080, 2340);
+    t.view.devicePixelRatio = 2.75;
+    addTearDown(t.view.reset);
+    final c = DocxEditController(DocxDocument.parse(_docx(1000)));
+    await t.pumpWidget(MaterialApp(
+        home: Scaffold(body: DocxEditorView(controller: c, spellcheck: false))));
+    c.select(const DocPos(3, 10), const DocPos(3, 10));
+    await t.pump();
+    c.insertText('a'); // ısınma
+    await t.pump();
+    final texts = t.widgetList(find.byType(RichText)).length;
+    final r = await countRebuilds(t, () async {
+      c.insertText('b');
+      await t.pump();
+    });
+    // ignore: avoid_print
+    print('PERF word_key_rebuilds=${r.total} rich_text=${r.of(RichText)} '
+        'visible_texts=$texts top=${r.top()}');
+    expect(c.paras[3].text, contains('ab'));
+    expect(texts, greaterThan(3), reason: 'senaryo birden çok paragraf görmeli');
+    expect(r.of(RichText), lessThanOrEqualTo(1));
+    // Toplam tavan (liste sarmalayıcıları + kabuk): ilk CI ölçümü 106
+    // (2026-11-18) + ~%30 pay; yalnız düşer.
+    expect(r.total, lessThanOrEqualTo(140));
+    c.dispose();
+  });
+
   // ── Faz 37 perf kapısı: 500 sayfa eşiği ──────────────────────────────────
   test('Faz 37: ~500 sayfa (5000 paragraf) sayfa tahmini ≤ 600 ms, '
       'tek değişiklikte artımlı ≤ 60 ms', () {
@@ -117,6 +151,26 @@ void main() {
     expect(pg.measured, 1);
     expect(full, lessThan(600));
     expect(inc, lessThan(60));
+  });
+
+  // B9 m.8 — büyük belge açılışı, "ilk sayfa önce" (mandal, YALNIZ DÜŞER):
+  // ilk kare için çözümlenen paragraf sayısı belgenin boyundan bağımsız.
+  test('B9 m.8: 5000 paragrafta ilk kare ≤ 60 paragraf çözümler, ≤ 400 ms',
+      () {
+    final bytes = _docx(5000);
+    final sw = Stopwatch()..start();
+    final head = DocxDocument.parseHead(bytes);
+    sw.stop();
+    // ignore: avoid_print
+    print('PERF word_head_5000_ms=${sw.elapsedMilliseconds} '
+        'paras=${head.paras.length}');
+    expect(head.headOnly, isTrue);
+    expect(head.paras.length, lessThanOrEqualTo(60));
+    expect(head.paras.length, greaterThanOrEqualTo(30),
+        reason: 'ilk ekran dolmalı');
+    expect(head.paras.first.text, startsWith('Paragraf 1:'));
+    expect(sw.elapsedMilliseconds, lessThan(400));
+    expect(head.save, throwsStateError, reason: 'baş modeli kaydedilmez');
   });
 
   test('Faz 37: 5000 paragraf Markdown + ODT dışa aktarım ≤ 3 sn', () {

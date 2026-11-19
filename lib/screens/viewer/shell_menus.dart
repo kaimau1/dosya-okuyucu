@@ -128,14 +128,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // düzenleme çubuğunun sağ ucunun üstüne biniyordu ve "Uygula"ya basan
       // parmak aslında AI sohbetini açıyordu (kullanıcı 2026-09-24:
       // "uygulaya basmak işlevsiz"). Çubukta zaten "AI ile düzelt" var.
-      fab: _pdfBarShown || _pro != null || _editingText
-          ? null
-          : DocAiButton(
-              kind: doc.kind,
-              onPressed: _openChat,
-              tooltip:
-                  hasApiKey ? context.t('common.ai') : context.t('aikey.button_off'),
-            ),
+      // AI artık YÜZEN düğme değil, alt çubukta bir eylem (2026-11-14,
+      // kullanıcı: *"AI düğmesi ile sayfa sayısı üst üste biniyor, AI
+      // düğmesini alt panele al"*). Bkz. [_actionBar].
     );
   }
 
@@ -143,10 +138,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
   bool get _pdfBarShown =>
       widget.doc.kind == DocKind.pdf && _pdfSelection.trim().isNotEmpty;
 
-  /// **"Daha fazla" sayfası** — eskiden 15 satırlık düz bir açılır menüydü
-  /// (simgesiz, grupsuz; "Gece modu" ile "Gece modunu kapat" gibi aynı
-  /// ayarın iki ayrı metni). Artık konusuna göre gruplu, simgeli ızgara;
-  /// açık/kapalı ayarlar onay işaretiyle durumunu gösterir.
+  /// **⋮ — ortak dosya levhası** (2026-11-15, kullanıcı: *"sağ üstteki 3
+  /// noktaya tıkladım, belgeyi silmek istiyordum, bulamadım… bu kadar iç içe
+  /// menü çok fazla"*). Eskiden ⋮ ayrı bir "Daha fazla" ızgarası açıyordu;
+  /// taşı/kopyala/SİL onun içindeki "Dosya işlemleri"nin İÇİNDEYDİ (üç kat).
+  /// Artık bütün türlerde aynı levha: üstte ortak dosya işleri (Sil dahil),
+  /// altında bu türün işleri ayrı renkte. Görünüm ayarları (satır numarası,
+  /// kaydırma, gece) "Aa"da; Paylaş, Çevir, AI ve Düzenle alt çubukta.
   void _showMore(LoadedDoc doc) {
     // Metin gibi davranan belgeler: satır kavramı olanlar.
     final isTextLike = doc.kind == DocKind.text ||
@@ -154,129 +152,75 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         doc.kind == DocKind.slides;
     final isPdf = doc.kind == DocKind.pdf;
     final isImage = doc.kind == DocKind.image;
-    DocMoreSheet.show(
-      context,
-      header: DocTitle(
-        kind: doc.kind,
-        title: doc.name,
-        subtitle: isPdf && _pageCount > 0
-            ? context.t('shell.pages', {'n': _pageCount})
-            : null,
-      ),
-      [
-        if (isPdf)
-          DocMoreGroup(context.t('dm.view'), [
-            // "Sayfaya git" üç yerde birden: burada (etiketli, bulunabilir),
-            // arama çubuğunda ve alttaki sayfa rozetine dokununca (2026-07-26:
-            // "nerede olduğu anlaşılmıyor, kişiler bulamaz").
-            DocMoreItem(AppIcons.numbers, context.t('vw.goto_page'), _askGoToPage),
-            if (_pdfIsForm || _hasUnsaved)
-              DocMoreItem(AppIcons.toc, context.t('vw.toc'),
-                  () => unawaited(_showOutline())),
-            // Bu sayfayı yıldızla (2026-09-27) — rozete basılı tutmakla aynı.
-            DocMoreItem(
-              AppIcons.important,
-              context.t('pn.star'),
-              () => _toggleBookmark(_pdfPage),
-              selected: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
-                  size: _docSize),
-            ),
-            // Okuma görünümü, gece modu ve sütun düzeni Faz 8'de tek "Aa"
-            // levhasında (bkz. [_showPdfReadingSettings]).
-          ]),
-        if (isPdf)
-          DocMoreGroup(context.t('dm.page'), [
-            DocMoreItem(AppIcons.rotateLeft, context.t('vw.rotate_left'),
-                _pdfBusy ? null : () => _rotateCurrentPage(-1)),
-            DocMoreItem(AppIcons.rotateRight, context.t('vw.rotate_right'),
-                _pdfBusy ? null : () => _rotateCurrentPage(1)),
-          ]),
-        // "Düzenle ve imzala" grubu Faz 8'de kalktı: AI düzenleme, imza ve
-        // form artık alt çubuktaki TEK "Düzenle" kapısında (bkz.
-        // [showPdfEditModes]). Metin tanıma (OCR) düzenleme değil, dönüşüm.
-        if (isImage)
-          DocMoreGroup(context.t('dm.view'), [
-            DocMoreItem(
-                AppIcons.zoomIn, context.t('vw.zoom_in'), () => _zoomImg(1.4)),
-            DocMoreItem(AppIcons.zoomOut, context.t('vw.zoom_out'),
-                () => _zoomImg(1 / 1.4)),
-            DocMoreItem(
-                AppIcons.rotateRight,
-                context.t('vw.rotate'),
-                () => _partSetState(
-                    () => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4)),
-          ]),
-        if (isTextLike)
-          DocMoreGroup(context.t('dm.text'), [
-            // **Satıra git / satır numaraları** (2026-09-06 denetim turu):
-            // uzun bir kayıt ya da kod dosyasında "347. satır" demenin bir
-            // yolu yoktu; tek çare parmakla kaydırmaktı.
-            DocMoreItem(AppIcons.lowPriority, context.t('vw.goto_line'),
-                () => unawaited(_askGoToLine())),
-            DocMoreItem(
-                AppIcons.formatListNumbered,
-                context.t('vw.line_numbers'),
+    EntryExtraAction act(IconData icon, String key, VoidCallback? onTap,
+            {bool? checked}) =>
+        EntryExtraAction(
+            icon: icon, label: context.t(key), onTap: onTap, checked: checked);
+    unawaited(showViewerMenu(context, doc.path, groups: [
+      if (isPdf)
+        EntryExtraGroup(context.t('dm.page'), [
+          // "Sayfaya git" ayrıca arama çubuğunda ve sayfa rozetinde.
+          act(AppIcons.numbers, 'vw.goto_page', _askGoToPage),
+          if (_pdfIsForm || _hasUnsaved)
+            act(AppIcons.toc, 'vw.toc', () => unawaited(_showOutline())),
+          act(AppIcons.important, 'pn.star', () => _toggleBookmark(_pdfPage),
+              checked: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
+                  size: _docSize)),
+          act(AppIcons.rotateLeft, 'vw.rotate_left',
+              _pdfBusy ? null : () => _rotateCurrentPage(-1)),
+          act(AppIcons.rotateRight, 'vw.rotate_right',
+              _pdfBusy ? null : () => _rotateCurrentPage(1)),
+        ]),
+      if (isImage)
+        EntryExtraGroup(context.t('dm.image'), [
+          act(AppIcons.zoomIn, 'vw.zoom_in', () => _zoomImg(1.4)),
+          act(AppIcons.zoomOut, 'vw.zoom_out', () => _zoomImg(1 / 1.4)),
+        ]),
+      if (isTextLike)
+        EntryExtraGroup(context.t('dm.text'), [
+          // **Satıra git** (2026-09-06): uzun kayıt/kod dosyasında "347.
+          // satır" demenin tek yolu.
+          act(AppIcons.lowPriority, 'vw.goto_line',
+              () => unawaited(_askGoToLine())),
+          // Satır numarası / kaydırma "Aa"da; Aa'sı olmayan türde burada.
+          if (_textController == null) ...[
+            act(AppIcons.formatListNumbered, 'vw.line_numbers',
                 () => _partSetState(() => _lineNumbers = !_lineNumbers),
-                selected: _lineNumbers),
-            DocMoreItem(AppIcons.wrapText, context.t('vw.wrap_on'),
+                checked: _lineNumbers),
+            act(AppIcons.wrapText, 'vw.wrap_on',
                 () => _partSetState(() => _wrapLines = !_wrapLines),
-                selected: _wrapLines),
-            // **JSON/XML biçimlendirme**: bu dosyalar gerçek hayatta tek
-            // satır geliyor (API cevabı, yedek dökümü).
-            if (PrettyFormat.supports(p.extension(doc.path)))
-              DocMoreItem(
-                  AppIcons.dataObject, context.t('vw.prettify'), _prettify),
-            if (_hasText)
-              DocMoreItem(AppIcons.analytics, context.t('vw.word_count'),
-                  _showStats),
-          ]),
-        DocMoreGroup(context.t('dm.convert'), [
-          if (VoiceNote.enabled)
-            DocMoreItem(AppIcons.micNone, context.t('vn.title'),
-                () => unawaited(_voiceNote(doc))),
-          if (_ttsTotal == 0)
-            DocMoreItem(AppIcons.voice, context.t('vw.speak'),
-                _toggleSpeech),
-          // Sesli kitap (2026-10-22): başlıklı bölüm dosyaları, kaydedilir.
-          if (canMakeAudiobook(doc.path))
-            DocMoreItem(AppIcons.audiobook, context.t('ab.make'), () {
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => AudiobookScreen(path: doc.path)));
-            }),
-          // "Çevir" burada YOK: alt eylem çubuğunda etiketli duruyor
-          // (2026-07-31 — "tek butonla" isteği).
-          if (!isImage)
-            DocMoreItem(AppIcons.pdf, context.t('vw.to_pdf'),
-                _exportPdf),
-          if (isPdf)
-            DocMoreItem(
-                AppIcons.ocr, context.t('vw.ocr'), _runOcr),
-          DocMoreItem(AppIcons.slideshow, context.t('vw.to_slides'),
-              _exportSlides),
-          if (_hasText && !isTextLike)
-            DocMoreItem(AppIcons.analytics, context.t('vw.word_count'),
-                _showStats),
+                checked: _wrapLines),
+          ],
+          // **JSON/XML biçimlendirme**: API cevabı, yedek dökümü tek satır.
+          if (PrettyFormat.supports(p.extension(doc.path)))
+            act(AppIcons.dataObject, 'vw.prettify', _prettify),
+          if (_hasText) act(AppIcons.analytics, 'vw.word_count', _showStats),
         ]),
-        // Belgeyi okurken "bunu Önemli Dosyalar'a taşıyayım" demek için
-        // görüntüleyiciyi kapatıp dosyayı listede aramak gerekmesin
-        // (2026-07-29: "her türlü dosyada bu olmalı").
-        DocMoreGroup(context.t('dm.file'), [
-          DocMoreItem(AppIcons.move, context.t('vw.file_ops'),
-              _fileActions),
-          // Alt çubukta İndir varken Yazdır buraya iner (H11.2, en çok 5).
-          if (!isImage && showDownloadAction(doc.path))
-            DocMoreItem(AppIcons.print, context.t('vw.print'), _print),
-          // Telefonun ana ekranına kısayol (2026-09-27).
-          if (Platform.isAndroid)
-            DocMoreItem(
-              AppIcons.homeShortcut,
-              context.t('ea.shortcut'),
-              () => addHomeShortcut(
-                  context, FsEntry.fromEntity(File(widget.doc.path))),
-            ),
-        ]),
-      ],
-    );
+      EntryExtraGroup(context.t('dm.listen'), [
+        if (_ttsTotal == 0) act(AppIcons.voice, 'vw.speak', _toggleSpeech),
+        // Sesli kitap (2026-10-22): başlıklı bölüm dosyaları, kaydedilir.
+        if (canMakeAudiobook(doc.path))
+          act(AppIcons.audiobook, 'ab.make', () {
+            Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => AudiobookScreen(path: doc.path)));
+          }),
+        if (VoiceNote.enabled)
+          act(AppIcons.micNone, 'vn.title', () => unawaited(_voiceNote(doc))),
+      ]),
+      EntryExtraGroup(context.t('dm.convert'), [
+        // PDF'te "PDF'e dönüştür" YOK: yazısını alıp yeni bir PDF yapıyordu,
+        // taranmış belgede boş sayfa çıkıyordu. Görselde alt çubukta.
+        if (!isImage && !isPdf) act(AppIcons.pdf, 'vw.to_pdf', _exportPdf),
+        if (isPdf) act(AppIcons.ocr, 'vw.ocr', _runOcr),
+        act(AppIcons.slideshow, 'vw.to_slides', _exportSlides),
+        if (_hasText && !isTextLike)
+          act(AppIcons.analytics, 'vw.word_count', _showStats),
+        // Alt çubukta İndir varken Çevir buraya iner (en çok 5 eylem).
+        if (showDownloadAction(doc.path))
+          act(AppIcons.translate, 'common.translate', _translateDocument),
+        if (!isImage) act(AppIcons.print, 'vw.print', _print),
+      ]),
+    ]));
   }
 
   /// **Okuma ayarları ("Aa")** — yazı boyutu, yazı tipi, satır numarası ve
@@ -504,7 +448,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         // Sayfalar · AI (bkz. [showPdfEditModes]).
         DocAction(AppIcons.editNote, context.t('common.edit'),
             _showPdfEditModes),
-        DocAction(AppIcons.construction, context.t('vw.tools'), _openPdfTools),
+        // "Araçlar" kalktı (2026-11-15): Düzenle › Sayfaları düzenle ile
+        // AYNI ekranı açıyordu — aynı iş iki düğmede.
       ],
       if (isImage) ...[
         DocAction(AppIcons.ocr, context.t('vw.ocr_short'),
@@ -517,18 +462,20 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             _textFocus.requestFocus),
         DocAction(AppIcons.save, context.t('common.save'), _save),
       ],
-      DocAction(
-          AppIcons.translate, context.t('common.translate'), _translateDocument),
+      // AI (2026-11-14): yüzen düğmeden çubuğa — sayfa rozetinin üstüne
+      // binmiyor, her belgede aynı yerde.
+      DocAction(AppIcons.ai, context.t('common.ai'), _openChat),
+      // İndir varken Çevir "Daha fazla › Dosya"ya iner (en çok 5 eylem).
+      if (!showDownloadAction(widget.doc.path))
+        DocAction(AppIcons.translate, context.t('common.translate'),
+            _translateDocument),
       DocAction(AppIcons.share, context.t('common.share'), _share),
       // Başka uygulamadan açılan dosya özel önbellekte duruyor; paylaş
       // dolambacı olmadan İndirilenler'e (bkz. [SaveToDownloads]).
       if (showDownloadAction(widget.doc.path))
         DocAction(
             AppIcons.download, context.t('common.download'), _download),
-      // Ferrari H11.2: çubukta en çok 5 eylem — İndir geldiğinde Yazdır
-      // "Daha fazla › Dosya"ya geçer (çubuk kaydırma istemesin).
-      if (!isImage && !showDownloadAction(widget.doc.path))
-        DocAction(AppIcons.print, context.t('vw.print'), _print),
+      // Yazdır "Daha fazla › Dosya"da (2026-11-14: çubukta AI yer aldı).
     ]);
   }
 

@@ -53,7 +53,7 @@ const Map<String, (String, String, String)> _t6 = {
     'Cancelled · {detail}',
     'أُلغيت · {detail}',
   ),
-  'act.title': ('Yaptıklarım', 'My activity', 'ما قمت به'),
+  'act.title': ('Üretilenler', 'Made', 'المُنشأة'),
   'act.subtitle': (
     'Ürettiğiniz dosyalar',
     'Files you produced',

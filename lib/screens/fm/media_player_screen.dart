@@ -13,6 +13,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../models/photo_group.dart';
 import '../../core/user_error.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
@@ -21,9 +22,13 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/pip.dart';
 import '../../services/fm/playback_positions.dart';
 import '../../services/fm/subtitles.dart';
+import '../../services/fm/thumbnail_cache.dart';
 import '../../services/fm/subtitle_delays.dart';
 import '../../services/fm/video_playback.dart';
+import '../../services/side_menu.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/fm/fm_entry_icon.dart' show fmMediaHeroTag;
+import '../../widgets/fm/fm_file_image.dart';
 import '../../widgets/mini_player_bar.dart';
 import 'entry_actions.dart';
 import '../../core/snack.dart';
@@ -78,13 +83,21 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   VideoPlayerController? get _controller => _p.controller;
   List<String> get _playlist => _p.playlist;
   int get _index => _p.index;
-  bool get _loading => _p.loading;
-  String? get _error => _p.error;
+  bool get _loading => _pending || _p.loading;
+  String? get _error => _pending ? null : _p.error;
+
+  /// Açılış geçişi bitene dek video motoru BAŞLATILMAZ (2026-11-15, kullanıcı:
+  /// "videolar animasyonsuz, donarak açılıyor"). Motor kurulumu (özellikle
+  /// ExoPlayer → mpv geçişi) ana iş parçacığını kısa süre kilitliyor; geçişin
+  /// içinde olunca Hero büyümesi hiç görünmüyordu. Bu sürede ekran kapak
+  /// resmini gösterir, yükleme geçişten sonra başlar.
+  bool _pending = false;
   double get _speed => _p.speed;
 
   /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
   VoidCallback? _unhideBar;
 
+  VoidCallback? _unhideMenuHandle;
   bool _controlsVisible = true;
 
   /// Kendiliğinden gizlenirken solma sürüyor (dokunuş almaz).
@@ -206,7 +219,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// duraklat) artık **serviste**: oynatma ekrandan uzun yaşadığı için
   /// kararları da onun vermesi gerekiyor (bkz. [VideoPlayback]).
 
-  String get _current => _p.current;
+  String get _current => _pending ? widget.path : _p.current;
   bool get _isAudio =>
       FsEntry.categoryForExtension(p.extension(_current).replaceFirst('.', ''))
           == FmCategory.audio;
@@ -215,20 +228,54 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   void initState() {
     super.initState();
     _unhideBar = MiniPlayerBar.hide();
+    // Video/fotoda yan menü tutamacı çizilmez; kenardan çekme sürer.
+    _unhideMenuHandle = SideMenu.instance.hideHandle();
+    unawaited(VideoPlayback.loadAutoNext().then((_) {
+      if (mounted) setState(() {});
+    }));
     _p.addListener(_onService);
     Pip.active.addListener(_onPip);
     _subtitlesFor = widget.path;
     // Aynı dosya zaten açıksa baştan başlatma: kullanıcı mini çubuktan ya da
     // bildirimden ekrana döndüğünde video sıfırlanmamalı.
     if (_p.current != widget.path || _p.controller == null) {
-      unawaited(_p.open(widget.path, list: widget.playlist));
+      _pending = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openAfterTransition());
+    } else {
+      unawaited(_loadSubtitles());
     }
-    unawaited(_loadSubtitles());
+  }
+
+  void _openAfterTransition() {
+    if (!mounted) return;
+    final animation = ModalRoute.of(context)?.animation;
+    void start() {
+      if (!mounted || !_pending) return;
+      unawaited(_p.open(widget.path, list: widget.playlist));
+      setState(() => _pending = false);
+      // Altyazı araması da geçişten SONRA: klasör taraması açılış karelerine
+      // karışmasın (bkz. [Subtitles.findForAsync]).
+      unawaited(_loadSubtitles());
+    }
+
+    if (animation == null || animation.isCompleted) {
+      start();
+      return;
+    }
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.completed) {
+        animation.removeStatusListener(listener);
+        start();
+      }
+    };
+    animation.addStatusListener(listener);
   }
 
   @override
   void dispose() {
     _unhideBar?.call();
+    _unhideMenuHandle?.call();
     _p.removeListener(_onService);
     Pip.active.removeListener(_onPip);
     _p.armAutoPip(false);
@@ -389,6 +436,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 bottom: 0,
                 child: Center(child: _fade(_rotateButtons())),
               ),
+            if (!_isAudio && _controlsVisible && !_locked)
+              PositionedDirectional(
+                end: Gap.md,
+                bottom: MediaQuery.paddingOf(context).bottom + 136,
+                child: _fade(_autoNextButton()),
+              ),
             if (_controlsVisible && !_locked)
               Positioned(left: 0, right: 0, top: 0, child: _fade(_topBar())),
             if (_controlsVisible && !_locked && c != null && value != null)
@@ -421,6 +474,63 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
           child: child,
         ),
       );
+
+  /// Izgaranın çözdüğü küçük resim (önbellekte ise) — açılış kapağı.
+  /// Yalnız [_current] için; yol değişince yeniden bakılır.
+  String? _posterPath;
+  FmFileImage? _poster;
+  double? _aspect;
+
+  void _syncPoster() {
+    final path = _current;
+    if (_posterPath == path) return;
+    _posterPath = path;
+    _poster = null;
+    _aspect = null;
+    if (path.isEmpty) return;
+    // Izgaranın çözdüğü boy, son üretilenden farklı olabilir: bilinen bütün
+    // boylara bakılır, en-boy oranı hazır olan ilk kapak alınır (yoksa
+    // büyüme geçişi kurulamıyor, video "donup" geçişsiz açılıyordu).
+    for (final thumb in ThumbnailCache.allKnownVideo(path)) {
+      final cached = fmCachedThumb(thumb);
+      if (cached == null) continue;
+      final aspect = fmCachedAspect(cached);
+      _poster ??= cached;
+      if (aspect != null) {
+        _poster = cached;
+        _aspect = aspect;
+        return;
+      }
+    }
+  }
+
+  FmFileImage? get _posterImage {
+    _syncPoster();
+    return _poster;
+  }
+
+  double? get _posterAspect {
+    _syncPoster();
+    return _aspect;
+  }
+
+  /// Başlık altı tarih — dosya başına bir kez (eşzamansız) `stat`.
+  String? _momentPath;
+  String? _moment;
+
+  String? _momentOf(String path) {
+    if (path.isEmpty) return null;
+    if (_momentPath != path) {
+      _momentPath = path;
+      _moment = null;
+      File(path).lastModified().then((d) {
+        final ms = d.millisecondsSinceEpoch;
+        if (!mounted || _momentPath != path || ms <= 0) return;
+        setState(() => _moment = photoMomentTitle(ms));
+      }, onError: (Object _) {});
+    }
+    return _moment;
+  }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);

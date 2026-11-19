@@ -86,6 +86,19 @@ abstract final class VideoTranscoder {
     });
   }
 
+  /// Video HDR mi (HDR10/HDR10+/HLG/Dolby Vision)? Okunamazsa false.
+  /// Oynatıcı HDR'yi doku yerine yüzey görünümünde açar ([VideoPlayback]).
+  static Future<bool> isHdr(String path) async {
+    try {
+      final v = await _channel
+          .invokeMethod<bool>('hdr', {'path': path})
+          .timeout(const Duration(seconds: 1));
+      return v ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Kaynağın gösterim ölçüsü, süresi, kare hızı. Okunamazsa null.
   static Future<VideoProbe?> probe(String path) async {
     try {
@@ -299,13 +312,64 @@ abstract final class VideoTranscoder {
     TrimRange range, {
     bool removeAudio = false,
     JobHandle? handle,
+    // Ses dosyası kesimi (2026-11-14): çıktı `.m4a` (AAC).
+    bool audioOnly = false,
   }) async {
     if (range.lengthMs <= 0) {
       throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
     }
     final base = p.basenameWithoutExtension(path);
     final target = FileOps.uniquePath(p.join(p.dirname(path),
-        '${base}_${AppStrings.current.t('vtr.suffix')}.mp4'));
+        '${base}_${AppStrings.current.t('vtr.suffix')}${audioOnly ? '.m4a' : '.mp4'}'));
+    await _trimInto(path, target, range,
+        removeAudio: removeAudio, handle: handle, audioOnly: audioOnly);
+    // Eksiksiz mi? Anahtar kare payı geniş tutulur (%80): hızlı kesimde
+    // başlangıç geriye kayabilir, kısalmaz; çok kısaysa yarım kalmıştır.
+    final out = await probe(target);
+    if (out == null) {
+      _cleanup(target);
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unreadable_output'));
+    }
+    if (out.durationMs > 0 && out.durationMs < (range.lengthMs * 0.8).round()) {
+      _cleanup(target);
+      throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
+        'out': (out.durationMs / 1000).round(),
+        'src': (range.lengthMs / 1000).round(),
+      }));
+    }
+    return target;
+  }
+
+  /// Kanal üstünde süren bir iş var mı (tek iş kuralı)?
+  static bool get busy => _running != null;
+
+  /// **Akıllı düzen kesiti** (B1 m.5, 2026-11-19): [range]'i verilen
+  /// [target]a (geçici klasör) yazar — kullanıcı klasörüne dokunmaz, özgün
+  /// korunur. Hızlı yol (yeniden kodlamasız) [trim] ile aynı. Boş/eksik
+  /// çıktıda hata; çağıran [target]ı işi bitince siler.
+  static Future<String> clipTo(
+      String path, String target, TrimRange range) async {
+    await _trimInto(path, target, range);
+    final out = File(target);
+    if (!out.existsSync() || out.lengthSync() == 0) {
+      _cleanup(target);
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unreadable_output'));
+    }
+    return target;
+  }
+
+  /// `trim` kanal çağrısı + bitişi bekleme (iptal, ilerleme); hata olursa
+  /// yarım [target] silinir.
+  static Future<void> _trimInto(
+    String path,
+    String target,
+    TrimRange range, {
+    bool removeAudio = false,
+    JobHandle? handle,
+    bool audioOnly = false,
+  }) async {
     _wire();
     final done = _running = Completer<void>();
     final cancelWatch = Timer.periodic(_cancelPoll, (_) {
@@ -323,6 +387,7 @@ abstract final class VideoTranscoder {
         'startMs': range.startMs,
         'endMs': range.endMs,
         'removeAudio': removeAudio,
+        if (audioOnly) 'audioOnly': true,
       });
       if (started != true) {
         throw VideoTranscodeException(AppStrings.current.t('vt.unsupported'));
@@ -336,22 +401,6 @@ abstract final class VideoTranscoder {
       _onProgress = null;
       _running = null;
     }
-    // Eksiksiz mi? Anahtar kare payı geniş tutulur (%80): hızlı kesimde
-    // başlangıç geriye kayabilir, kısalmaz; çok kısaysa yarım kalmıştır.
-    final out = await probe(target);
-    if (out == null) {
-      _cleanup(target);
-      throw VideoTranscodeException(
-          AppStrings.current.t('vt.unreadable_output'));
-    }
-    if (out.durationMs > 0 && out.durationMs < (range.lengthMs * 0.8).round()) {
-      _cleanup(target);
-      throw VideoTranscodeException(AppStrings.current.t('vt.truncated', {
-        'out': (out.durationMs / 1000).round(),
-        'src': (range.lengthMs / 1000).round(),
-      }));
-    }
-    return target;
   }
 
   /// **Videoyu düzenle** (2026-11-14): aradan silinen bölümler, sessiz
@@ -423,17 +472,42 @@ abstract final class VideoTranscoder {
   /// Kes ekranının kare şeridi: eşit aralıklı [count] kare, [dir] altına
   /// JPEG. Yerel taraf yoksa ya da okuyamazsa boş liste (şerit düz kalır).
   static Future<List<String>> frames(String path,
-      {required String dir, int count = 10, int width = 160}) async {
+      {required String dir,
+      int count = 10,
+      int width = 160,
+      List<int>? indices,
+      bool exact = false}) async {
     try {
       final list = await _channel.invokeListMethod<String>('frames', {
         'path': path,
         'dir': dir,
         'count': count,
         'width': width,
+        'indices': ?indices,
+        if (exact) 'exact': true,
       });
       return list ?? const [];
     } catch (_) {
       return const [];
+    }
+  }
+
+  /// [ms]'deki TAM kare (anahtar kare değil), [width] px genişlikte JPEG
+  /// olarak [dir]'e (`an_<ms>_<width>.jpg`; varsa yeniden çıkarılmaz).
+  /// Video düzenle ekranında duraklatılmış önizlemenin karesi. Okunamazsa null.
+  static Future<String?> frameAt(String path,
+      {required String dir, required int ms, int width = 960}) async {
+    try {
+      final list = await _channel.invokeListMethod<String>('frames', {
+        'path': path,
+        'dir': dir,
+        'atMs': ms,
+        'width': width,
+        'exact': true,
+      });
+      return (list == null || list.isEmpty) ? null : list.first;
+    } catch (_) {
+      return null;
     }
   }
 

@@ -186,6 +186,25 @@ abstract final class FsScan {
   }) =>
       _run(_collectSync, _CollectArgs(roots, category?.name, limit));
 
+  /// İki liste aynı dosyaları aynı sırada, aynı boyut ve tarihle mi tutuyor?
+  ///
+  /// Arkadan dönüşte sessiz tazeleme (`FsEvents.returned`) için: değişiklik
+  /// yoksa ekran yeniden çizilmez — kaydırma, seçim ve kare bütçesi korunur.
+  static bool sameListing(List<FsEntry> a, List<FsEntry> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = b[i];
+      if (x.path != y.path ||
+          x.modifiedMs != y.modifiedMs ||
+          x.sizeBytes != y.sizeBytes) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /// Listedeki artık diskte olmayan girdileri ayıklar (arka planda).
   ///
   /// *Niye isolate:* silme/taşıma sonrası tazelemede 20 bin girdi için ana

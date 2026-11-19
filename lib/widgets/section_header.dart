@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
+import '../core/skin.dart';
 
 /// Kağıt temasının bölüm başlığı: küçük, aralıklı, BÜYÜK HARF etiket + kalan
 /// genişliği dolduran 1px cetvel çizgisi (+ isteğe bağlı sayaç).
@@ -30,19 +31,47 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final faint = Paper.faint(context);
+    // **Tasarım aileleri** (2026-11-15, E-yazı panosu): BÜYÜK HARF ve harf
+    // aralığı kalkar, başlık cümle düzeninde 17 kalın; çizgi yok.
+    if (AppSkinData.of(context).metrics.homeStyle != HomeStyle.classic) {
+      final theme = Theme.of(context);
+      return Padding(
+        padding: padding,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: 0),
+              ),
+            ),
+            if (count != null)
+              Text(count!,
+                  style: theme.textTheme.bodySmall?.copyWith(color: faint)),
+            if (trailing != null) ...[const SizedBox(width: Gap.xs), trailing!],
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: padding,
       child: Row(
         children: [
           Text(
             title.toUpperCase(),
-            style: context.type.caption.copyWith(
-              height: 1.2,
-              letterSpacing: 1.1,
-              // ~.1em
-              fontWeight: FontWeight.w600,
-              color: faint,
-            ),
+            // 2026-11-14 kullanıcı isteği: biraz daha büyük ve kalın
+            // (caption + 2 pt, w800, soluk değil ikincil metin rengi).
+            style: context.type.caption
+                .copyWith(
+                  height: 1.2,
+                  letterSpacing: 1.0,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )
+                .apply(fontSizeDelta: 2),
           ),
           const SizedBox(width: Gap.sm),
           Expanded(

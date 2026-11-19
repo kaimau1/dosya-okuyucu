@@ -63,6 +63,32 @@ extension DocxEditInsert on DocxEditController {
     _afterInsert();
   }
 
+  /// [i]. paragrafın [k]. karakteri bir form denetimiyse okunmuş hâli.
+  DocxControl? controlAt(int i, int k) {
+    if (i < 0 || i >= paras.length) return null;
+    final p = paras[i];
+    if (p.opaque || k < 0 || k >= p.length) return null;
+    return doc.controlOf(p.atoms[k]);
+  }
+
+  /// Form denetimini doldurur (metin / seçim, onay kutusu, tarih). Tek geri
+  /// al adımı; değer aynıysa hiçbir şey değişmez.
+  void fillControlAt(int i, int k,
+      {String? text, bool? checked, DateTime? date}) {
+    final c = controlAt(i, k);
+    if (c == null) return;
+    if (text != null && text == c.value && checked == null && date == null) {
+      return;
+    }
+    final p = paras[i];
+    final next =
+        doc.fillControl(p, k, text: text, checked: checked, date: date);
+    if (identical(next, p)) return;
+    _record(typing: false);
+    doc.paras[i] = next;
+    _afterInsert();
+  }
+
   /// İmlecin paragrafından sonra [rows]×[cols] tablo ekler; imleç ilk
   /// hücreye gider. Hücre içindeyken tablonun ardına eklenir.
   bool insertTable(int rows, int cols) {
@@ -173,8 +199,9 @@ extension DocxEditInsert on DocxEditController {
     _afterInsert();
   }
 
-  /// İmlece dipnot başvurusu koyar (metni dipnot parçasına yazılır).
-  void insertFootnote(String text) {
+  /// İmlece dipnot ([endnote] → sonnot) başvurusu koyar (metni not
+  /// parçasına yazılır; numara belge sırasıyla kendiliğinden).
+  void insertFootnote(String text, {bool endnote = false}) {
     if (!collapsed) {
       final e = end;
       base = extent = e;
@@ -184,12 +211,37 @@ extension DocxEditInsert on DocxEditController {
     if (p.opaque) return;
     _record(typing: false);
     doc.paras[i] = doc.insertAtom(
-        p, extent.offset, doc.newFootnoteAtom(text), _typingStyle(i, extent.offset));
+        p,
+        extent.offset,
+        endnote ? doc.newEndnoteAtom(text) : doc.newFootnoteAtom(text),
+        _typingStyle(i, extent.offset));
     base = extent = DocPos(i, extent.offset + 1);
     _afterInsert();
   }
 
   String? footnoteText(String id) => doc.footnoteText(id);
+
+  /// Notu (dipnot/sonnot) siler: başvurusu metinden kalkar; tek geri al adımı.
+  void deleteNote(String key) {
+    // Başvurusu olmayan anahtar boş geri al adımı bırakmasın.
+    final has = paras.any((p) => p.atoms.any((a) =>
+        a != null && a.kind == DocxAtomKind.note && doc.noteKey(a) == key));
+    if (!has) return;
+    _record(typing: false);
+    final changed = doc.deleteNote(key);
+    if (changed.isEmpty) return;
+    final i = extent.para;
+    base = extent = DocPos(i, extent.offset.clamp(0, paras[i].length));
+    _afterInsert();
+  }
+
+  /// Anahtarı verilen notun ekranda görünen numarası (yoksa anahtar).
+  String noteNumberOf(String key) {
+    for (final e in noteLabels.entries) {
+      if (doc.noteKey(e.key) == key) return e.value;
+    }
+    return key;
+  }
 
   /// Dipnot metni (geri alınamaz; parçaya yazılır).
   bool setFootnoteText(String id, String text) {
@@ -326,7 +378,21 @@ extension DocxEditInsert on DocxEditController {
 
   // ── Gözden Geçir ────────────────────────────────────────────────────────
 
-  int get trackedChanges => doc.trackedChangeCount();
+  /// Bekleyen izlenen değişiklik sayısı (bu oturumda izlenerek yazılan,
+  /// henüz kaydedilmemiş olanlar en az 1 sayılır).
+  int get trackedChanges =>
+      doc.trackedChangeCount() + (doc.hasLiveRevisions ? 1 : 0);
+
+  /// Değişiklikleri izle (Gözden Geçir): açıkken yazılan/silinen metin
+  /// [author] adıyla işaretlenir.
+  bool get trackChanges => doc.trackChanges;
+
+  void setTrackChanges(bool on, {String? author}) {
+    if (author != null) doc.revAuthor = author;
+    if (on == doc.trackChanges) return;
+    doc.setTrackChanges(on);
+    _changed(notify: true);
+  }
 
   /// İzlenen değişiklikleri çözer. Geri alınamaz: geçmiş sıfırlanır.
   void resolveTracked({required bool accept}) {
@@ -391,7 +457,8 @@ extension DocxEditInsert on DocxEditController {
         recorded = true;
       }
       for (final h in hits.reversed) {
-        p = p.replace(h, h + q.length, replacement, p.styles[h].detached());
+        p = doc.editText(
+            p, h, h + q.length, replacement, p.styles[h].detached());
         count++;
       }
       doc.paras[i] = p;

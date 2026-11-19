@@ -15,7 +15,9 @@ import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
 import '../../core/app_icons.dart';
+import '../../widgets/side_menu_view.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
+import '../../widgets/fm/fm_layout_sheet.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
@@ -63,6 +65,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
   static const _memoryId = 'downloads';
 
+  /// Görünüm (liste/ayrıntılı/ızgara) — 2026-11-16, kullanıcı: "Önemli
+  /// Galeri'de görünüm ayarlanıyor, İndirilenler'de ayarlanamıyor". Kalıcı.
+  FmLayout _layout = FmLayout.list;
+
+  void _setLayout(FmLayout l) {
+    setState(() => _layout = l);
+    ListMemory.saveLayout(_memoryId, l);
+  }
+
   /// Tür süzgeci (Faz 13) — oturum boyunca hatırlanır, sıralama kalıcı (K17).
   FmFilter _filter = ListMemory.filterOf(_memoryId);
 
@@ -102,9 +113,16 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   void initState() {
     super.initState();
     FsEvents.version.addListener(_load);
+    // Başka uygulamanın (Claude, Notlar, tarayıcı…) indirdiği dosya: sekme
+    // ayakta kaldığı için initState bir daha koşmuyor (bkz. FsEvents.returned).
+    FsEvents.returned.addListener(_load);
     ListMemory.load(_memoryId).then((saved) {
       final restored = _fromFmSort(saved.sort, saved.descending);
-      if (restored != null && mounted) setState(() => _sort = restored);
+      if (!mounted) return;
+      setState(() {
+        if (restored != null) _sort = restored;
+        _layout = saved.layout ?? _layout;
+      });
     });
     _load();
   }
@@ -112,18 +130,27 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   @override
   void dispose() {
     FsEvents.version.removeListener(_load);
+    FsEvents.returned.removeListener(_load);
     _searchController.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
+  /// Üst üste gelen tazelemelerde yalnız EN SON taramanın sonucu yazılır.
+  int _loadSeq = 0;
+
   Future<void> _load() async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    final seq = ++_loadSeq;
+    // İskelet yalnız liste boşken: tazelemede eski liste yerinde kalır
+    // (eskiden her dosya işleminde ekran iskelete dönüp yanıp sönüyordu).
+    if (_files.isEmpty && !_loading) setState(() => _loading = true);
     // `index(perCategory: 5000)` kategori başına kırpıyordu; `collect`
     // eksiksiz döner (aynı 800 sınırı hatasının küçük kardeşi).
     final all = await FsScan.collect([widget.path]);
-    if (!mounted) return;
+    if (!mounted || seq != _loadSeq) return;
+    // Değişiklik yoksa yeniden çizme (arkadan dönüşte çoğu zaman böyle).
+    if (!_loading && FsScan.sameListing(_files, all)) return;
     setState(() {
       _files = all;
       _selected.removeWhere((s) => !all.any((e) => e.path == s));
@@ -147,7 +174,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     if (cached != null && key == _sortedKey) return cached;
     // Arama bellekte süzer: bu ekranın listesi zaten yüklü, disk okunmaz.
     var list = _filter.apply(_files)
-        .where((e) => _query.trim().isEmpty || fmMatches(e.name, _query))
+        .where((e) => _query.trim().isEmpty || fmMatches(e.name, _query, path: e.path))
         .toList();
     switch (_sort) {
       case _DlSort.oldest:
@@ -233,6 +260,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   ),
                 )
               : AppBar(
+                  leading: const SideMenuButton(),
                   // Başlıkta ne gösterdiğimiz yazıyor: bu ekran klasörün
                   // KENDİSİ değil, alt klasörler dahil TÜM dosyaların yaş
                   // odaklı listesi. Kullanıcı "ilginç, kullanışsız bir klasör"
@@ -262,6 +290,16 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                               path: widget.path, title: context.t('downloads.title')),
                         ),
                       ),
+                    ),
+                    IconButton(
+                      key: const ValueKey('downloads-layout'),
+                      tooltip: context.t('fm.layout', {'name': _layout.label}),
+                      icon: Icon(fmLayoutIcon(_layout)),
+                      onPressed: () async {
+                        final picked =
+                            await showFmLayoutSheet(context, current: _layout);
+                        if (picked != null && mounted) _setLayout(picked);
+                      },
                     ),
                     PopupMenuButton<_DlSort>(
                       tooltip: context.t('downloads.sort'),
@@ -315,7 +353,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     Expanded(
                       child: FmFileListView(
                         entries: files,
-                        layout: FmLayout.list,
+                        layout: _layout,
+                        onLayoutChange: _setLayout,
                         selected: _selected,
                         controller: _scroll,
                         onOpen: (e) => EntryOpener.open(context, e.path,
