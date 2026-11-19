@@ -68,7 +68,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | bekliyor |
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
 | B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
-| B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B9-word2: bitti m.1 (içerik denetimleri + form doldurma), m.2 (İçindekiler oluştur/güncelle), m.5 (dipnot/sonnot ekle/düzenle/sil, numara belge sırasıyla; PDF'te not listesi belge sonunda — sayfa altı yerleşim kalan), m.6 (sadakat bekçisi `word_roundtrip_test`), m.3 (değişiklikleri izle: yazılan `w:ins`, silinen `w:del`, `settings.xml` bayrağı), dilim 3 main'e gidiyor; m.4 önce-bak: yorum yaz/yanıtla/çözüldü zaten var, kalan yalnız kenar balonu; kalan m.4 kenar balonu, m.7 yazma hissi, m.8 büyük belge açılışı (+ satır/hücre düzeyi `w:sdt`, izlenen paragraf işareti/biçim değişikliği) |
+| B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B9-word2: bitti m.1 (içerik denetimleri + form doldurma), m.2 (İçindekiler oluştur/güncelle), m.5 (dipnot/sonnot ekle/düzenle/sil, numara belge sırasıyla; PDF'te not listesi belge sonunda — sayfa altı yerleşim kalan), m.6 (sadakat bekçisi `word_roundtrip_test`), m.3 (değişiklikleri izle: yazılan `w:ins`, silinen `w:del`, `settings.xml` bayrağı), m.8 (büyük belge açılışı: ilk sayfa önce — baş izolatta ≤ 60 blok çözümlenir, gerçek biçimle salt okunur önizleme; `word_perf_test` bütçesi), dilim 4 main'e gidiyor; m.4 önce-bak: yorum yaz/yanıtla/çözüldü zaten var, kalan yalnız kenar balonu; kalan m.4 kenar balonu, m.7 yazma hissi (+ satır/hücre düzeyi `w:sdt`, izlenen paragraf işareti/biçim değişikliği) |
 | B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B10-excel2: bitti m.2 (çekirdek + `_xlpm.` yazımı) + m.3 veri doğrulama + m.6 sadakat bekçisi; dilim 2 main'e gidiyor, kalan m.1, m.2 kalanı (Türkçe LAMBDA adları, TOCOL/TOROW/WRAPROWS), m.4–5, m.7–8 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | bekliyor |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | bekliyor |
@@ -196,7 +196,7 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
 `screens/editors/word_mobile_editor_screen.dart` + `word_mobile/`. Örnek belge KVKK gereği depoya
 GİRMEZ → testte sentetik docx üret. Her madde ayrı commit.
 
-_Bitti (bulut 2026-11-19, dal faz-oto-B9-word2; HAFIZA 2026-11-19 B9): m.1 içerik denetimleri, m.2 İçindekiler, m.3 değişiklikleri izle (`docx_track.dart`, test `docx_track_changes_test`), m.5 dipnot/sonnot, m.6 sadakat bekçisi; m.4 yorum yaz/yanıtla/çözüldü önceden vardı (`docx_media.dart`). Kalan: m.4 kenar balonu; satır/hücre düzeyi `w:sdt`; PDF'te dipnot sayfa altında (bugün belge sonu liste); izlenen paragraf bölme/birleştirme (`w:pPr/w:rPr/w:ins|del`) ve biçim değişikliği (`w:rPrChange`)._
+_Bitti (bulut 2026-11-19, dal faz-oto-B9-word2; HAFIZA 2026-11-19 B9): m.1 içerik denetimleri, m.2 İçindekiler, m.3 değişiklikleri izle (`docx_track.dart`, test `docx_track_changes_test`), m.5 dipnot/sonnot, m.6 sadakat bekçisi, m.8 büyük belge açılışı (`DocxDocument.parseHead`, test `docx_head_test` + `word_perf_test`); m.4 yorum yaz/yanıtla/çözüldü önceden vardı (`docx_media.dart`). Kalan: m.4 kenar balonu; satır/hücre düzeyi `w:sdt`; PDF'te dipnot sayfa altında (bugün belge sonu liste); izlenen paragraf bölme/birleştirme (`w:pPr/w:rPr/w:ins|del`) ve biçim değişikliği (`w:rPrChange`)._
 
 3. **Değişiklikleri izle (yazarken):** açıkken yazılan/silinen metin `w:ins`/`w:del` (yazar = Ayarlar'daki
    ad, tarih); `settings.xml` `w:trackRevisions` bayrağına uyulur. Bugün yalnız karşılaştırma üretiyor
@@ -342,13 +342,15 @@ görünür her değişiklikte `kasma-kontrol`; görünüş değişmeden önce es
   kare süresi (not numaraları belge sırasıyla, değişiklikte yeniden sayılır); İçindekiler oluştur/güncelle süresi büyük belgede.
   **B9 Word 2.0 m.3** (bulut 2026-11-19, dal faz-oto-B9-word2; ölçülmedi): değişiklikleri izle açıkken yazma kare süresi
   (her harf izleme işaretli; silme XML düğümü üretir) ve izlenen eklemeli büyük belgede açılış.
+  **B9 Word 2.0 m.8** (bulut 2026-11-19, dal faz-oto-B9-word2; ölçülmedi): 300+ sayfalık belgede dokunuştan ilk okunur
+  kareye süre (baş önizlemesi gerçek biçimle; tam ayrıştırma ile aynı anda iki izolat) ve önizleme→editör geçiş karesi.
 - **C3:** P11 genel tur + K20–K28; Arapça OCR, AI hızlı/toplu kontrol, paylaşım kalkanı, Akıllı düzen ve
   Ayıkla maddeleri (CIHAZ_TESTI 2026-11-18); Akıllı düzen Word/Excel/sunum/metin/APK ikinci adları
   (bulut 2026-11-18, dal faz-oto-B1-duzen2); Akıllı düzen kullanıcı kategorileri ("Dene", uygula,
   süzgeç/arama/ikinci ad — CIHAZ_TESTI 2026-11-18); Akıllı düzen hız/kota + ilk slayt görüntüsü
   (yalnız Wi-Fi, günlük sınır, büyük video kesiti — CIHAZ_TESTI 2026-11-19); Word form alanları ve
   içerik denetimleri (doldur, kaydet, Word'de aç — CIHAZ_TESTI 2026-11-19 B9); Word İçindekiler + dipnot/sonnot
-  (CIHAZ_TESTI 2026-11-19 B9 m.2/m.5); Word değişiklikleri izle (CIHAZ_TESTI 2026-11-19 B9 m.3).
+  (CIHAZ_TESTI 2026-11-19 B9 m.2/m.5); Word değişiklikleri izle (CIHAZ_TESTI 2026-11-19 B9 m.3); Word büyük belge açılışı (CIHAZ_TESTI 2026-11-19 B9 m.8).
 
 ---
 
