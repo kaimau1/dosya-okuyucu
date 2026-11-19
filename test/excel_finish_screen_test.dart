@@ -169,7 +169,9 @@ void main() {
     // Biçim düğmesi: "CSV'de saklanmaz" uyarısı.
     await button(t, 'xl-cell-styles');
     await t.tap(find.byKey(const ValueKey('xl-style-good')));
+    // Uyarı ortak alt kartta (U3): katman ilk bildirimde kurulur → iki kare.
     await t.pump();
+    await t.pump(const Duration(milliseconds: 50));
     expect(find.byKey(const ValueKey('xl-csv-warning')), findsOneWidget);
     expect(utf8.decode(SpreadsheetEditorScreen.testEditor!.save()),
         'Ad;Şehir\r\nAyşe;İzmir\r\n');
