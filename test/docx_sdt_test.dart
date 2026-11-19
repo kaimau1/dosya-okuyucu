@@ -1,4 +1,6 @@
 import 'package:dosya_okuyucu/services/docx/docx_document.dart';
+import 'package:dosya_okuyucu/services/docx/pro/docx_insert_pro.dart';
+import 'package:dosya_okuyucu/services/docx/pro/docx_package.dart';
 import 'package:dosya_okuyucu/widgets/docx_editor/docx_edit_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
@@ -280,5 +282,36 @@ void main() {
     expect(docxFormatDate(d, 'd MMMM yyyy dddd'), '5 Mart 2026 Perşembe');
     expect(docxFormatDate(d, 'MMMM d, yyyy', lang: 'en-US'), 'March 5, 2026');
     expect(docxFormatDate(d, "dd'.'MM"), '05.03');
+  });
+
+  group('paket işlemleri denetimli belgede', () {
+    // Kök: modelParagraphs blok sdt'yi tek öğe sayıyordu; editör (m.1'den
+    // beri) içindeki paragrafları ayrı okuyor → Araçlar işlemleri (kenarlık,
+    // çapraz başvuru, İçindekiler) sdt'den sonraki paragrafta kayıyordu.
+    const cellSdt = '<w:tbl><w:tr><w:tc><w:sdt><w:sdtContent>'
+        '<w:p><w:r><w:t>Hücre bir</w:t></w:r></w:p>'
+        '<w:p><w:r><w:t>Hücre iki</w:t></w:r></w:p>'
+        '</w:sdtContent></w:sdt></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>';
+    final bytes = synthDocx(synthP('Önce') + _cover + cellSdt + synthP('Sonra'));
+
+    test('model paragrafları editör paragraflarıyla bire bir', () {
+      final d = DocxDocument.parse(bytes);
+      final m = DocxPackage.open(bytes).modelParagraphs();
+      expect(m.length, d.paras.length);
+      for (var i = 0; i < m.length; i++) {
+        expect(m[i].innerText, d.paras[i].text, reason: 'paragraf $i');
+      }
+    });
+
+    test('denetimden sonraki paragrafa kenarlık doğru yere', () {
+      final d = DocxDocument.parse(bytes);
+      final i = _find(d, 'Sonra');
+      final pkg = DocxPackage.open(bytes);
+      DocxInsertPro.paraBorder(i, 'box')(pkg);
+      final out = DocxDocument.parse(pkg.save());
+      final p = out.paras[_find(out, 'Sonra')];
+      expect(p.pPr?.findAllElements('w:pBdr'), isNotEmpty);
+      expect(out.paras[_find(out, 'Üçüncü')].pPr?.findAllElements('w:pBdr') ?? const [], isEmpty);
+    });
   });
 }
