@@ -473,6 +473,34 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     c.editLinkAt(para, offset, r.$1, r.$2);
   }
 
+  /// Form denetimine dokunuş: onay kutusu işaretlenir, tarih takvimden,
+  /// metin / liste levhadan.
+  Future<void> _fillControl(int para, int offset) async {
+    final c = _ctrl;
+    final ctl = c?.controlAt(para, offset);
+    if (c == null || ctl == null) return;
+    switch (ctl.type) {
+      case DocxControlType.checkbox:
+        c.fillControlAt(para, offset, checked: !ctl.checked);
+      case DocxControlType.date:
+        final now = DateTime.now();
+        final d = await showDatePicker(
+          context: context,
+          initialDate: ctl.date ?? now,
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2200),
+        );
+        if (d == null || !mounted) return;
+        c.fillControlAt(para, offset, date: d);
+      case DocxControlType.text ||
+            DocxControlType.dropdown ||
+            DocxControlType.combo:
+        final v = await showWordControlSheet(context, ctl);
+        if (v == null || !mounted) return;
+        c.fillControlAt(para, offset, text: v);
+    }
+  }
+
   Future<void> _headerFooter() async {
     final c = _ctrl;
     if (c == null) return;
@@ -654,7 +682,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                   aiFix: _aiFix,
                   openNote: _openFootnote,
                   openComment: (id) => _comments(focus: id),
-                  openLink: _editLink),
+                  openLink: _editLink,
+                  openControl: _fillControl),
             ),
           ),
         ],

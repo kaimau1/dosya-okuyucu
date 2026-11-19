@@ -34,6 +34,7 @@ part 'docx_insert.dart';
 part 'docx_table.dart';
 part 'docx_review.dart';
 part 'docx_media.dart';
+part 'docx_controls.dart';
 
 /// Atom karakteri (Flutter `WidgetSpan` yer tutucusuyla aynı).
 const String kDocxAtom = '￼';
@@ -41,7 +42,19 @@ const String kDocxAtom = '￼';
 /// Satır içi satır sonu (`w:br`).
 const String kDocxLineBreak = ' ';
 
-enum DocxAtomKind { image, link, field, note, comment, pageBreak, inline }
+enum DocxAtomKind {
+  image,
+  link,
+  field,
+  note,
+  comment,
+  pageBreak,
+  inline,
+
+  /// Satır içi form denetimi (`w:sdt`: düz metin, onay kutusu, açılır liste,
+  /// tarih) — dokununca doldurma levhası; kayıtta kabı korunur.
+  control,
+}
 
 /// Satır içi dokunulmaz öğe.
 class DocxAtom {
@@ -481,6 +494,8 @@ class DocxDocument {
           _readTable(e, out);
         case 'sectPr':
           break;
+        case 'sdt':
+          _readSdt(e, null, out);
         default:
           final t = _textOf(e);
           if (t.trim().isNotEmpty) out.add(_opaque(e, body, null, t));
@@ -508,6 +523,10 @@ class DocxDocument {
           if (e.name.local == 'p') {
             out.add(_track(_readPara(e, tc, ref)));
             any = true;
+          } else if (e.name.local == 'sdt') {
+            final n = out.length;
+            _readSdt(e, ref, out);
+            if (out.length > n) any = true;
           } else if (e.name.local != 'tcPr') {
             final t = _textOf(e);
             if (t.trim().isNotEmpty) {
@@ -521,6 +540,74 @@ class DocxDocument {
       }
       r++;
     }
+  }
+
+  /// Blok içerik denetimi (`w:sdt` — Word'ün İçindekiler'i, kapak sayfası,
+  /// form bölümü): içindeki paragraf ve tablolar KENDİ kabında
+  /// (`w:sdtContent`) okunur, kayıtta yerinde yazılır (kap korunur). Kilitli
+  /// ya da veri bağlı (`w:dataBinding` — Word açılışta içeriği bağlı
+  /// parçadan yeniden yazar) denetim biçimiyle okunur ama düzenlenmez.
+  void _readSdt(XmlElement sdt, DocxCellRef? cell, List<DocxPara> out,
+      {bool locked = false}) {
+    final content = _child(sdt, 'sdtContent');
+    if (content == null) {
+      final t = _textOf(sdt);
+      final up = sdt.parent;
+      if (t.trim().isNotEmpty && up is XmlElement) {
+        out.add(_opaque(sdt, up, cell, t));
+      }
+      return;
+    }
+    final ro = locked || _sdtLocked(_child(sdt, 'sdtPr'));
+    for (final e in content.childElements) {
+      switch (e.name.local) {
+        case 'p':
+          final p = _readPara(e, content, cell);
+          out.add(ro ? _frozen(p) : _track(p));
+        case 'tbl' when cell == null && !ro:
+          _readTable(e, out);
+        case 'sdt':
+          _readSdt(e, cell, out, locked: ro);
+        default:
+          final t = _textOf(e);
+          if (t.trim().isNotEmpty) out.add(_opaque(e, content, cell, t));
+      }
+    }
+  }
+
+  /// Denetimin içeriği değiştirilemez mi (kilit ya da veri bağı).
+  static bool _sdtLocked(XmlElement? sdtPr) {
+    if (sdtPr == null) return false;
+    if (_child(sdtPr, 'dataBinding') != null) return true;
+    final lock = _attr(_child(sdtPr, 'lock'), 'val');
+    return lock == 'contentLocked' || lock == 'sdtContentLocked';
+  }
+
+  /// Biçimiyle okunmuş ama düzenlenmeyen paragraf (kayıtta aynen kalır).
+  static DocxPara _frozen(DocxPara p) => DocxPara(
+        source: p.source,
+        container: p.container,
+        pPr: p.pPr,
+        text: p.text,
+        styles: p.styles,
+        atoms: p.atoms,
+        anchors: p.anchors,
+        look: p.look,
+        mark: p.mark,
+        opaque: true,
+        cell: p.cell,
+      );
+
+  /// [e]'nin [container]'ın doğrudan çocuğu olan atası (kendisi dahil);
+  /// [container]'a bağlı değilse null.
+  static XmlElement? _childOf(XmlElement? e, XmlElement container) {
+    XmlNode? x = e;
+    while (x is XmlElement) {
+      final up = x.parent;
+      if (identical(up, container)) return x;
+      x = up;
+    }
+    return null;
   }
 
   DocxPara _track(DocxPara p) {
@@ -627,6 +714,8 @@ class DocxDocument {
           atom(DocxAtom(DocxAtomKind.link, [e], t), mark);
         case 'fldSimple':
           atom(DocxAtom(DocxAtomKind.field, [e], t), mark);
+        case 'sdt' when !_hasVisual(e) && _controlOf(e) != null:
+          atom(DocxAtom(DocxAtomKind.control, [e], t), mark);
         default:
           if (t.isEmpty && !_hasVisual(e)) {
             an.add((sb.length, e));
@@ -1252,10 +1341,13 @@ class DocxDocument {
       _writtenAs[el] = paras[i];
     }
     // Birleşip ya da silinip modelden çıkan paragraflar XML'den de çıkar.
+    final emptied = <XmlElement>{};
     for (final el in _writtenAs.keys.toList()) {
       if (used.contains(el)) continue;
-      if (el.parent != null) {
-        el.parent!.children.remove(el);
+      final up = el.parent;
+      if (up != null) {
+        up.children.remove(el);
+        if (up is XmlElement && up.name.local == 'sdtContent') emptied.add(up);
         changed = true;
       }
       _writtenAs.remove(el);
@@ -1268,6 +1360,12 @@ class DocxDocument {
       changed = true;
     }
     if (_syncNewTables()) changed = true;
+    // Blok içerik denetimi boş kalmasın (Word boş `w:sdtContent`i bozuk sayar).
+    for (final c in emptied) {
+      final hasBlock = c.childElements
+          .any((e) => const {'p', 'tbl', 'sdt'}.contains(e.name.local));
+      if (!hasBlock) c.children.add(XmlElement(const XmlName.qualified('w:p')));
+    }
     if (changed) _xmlDirty = true;
   }
 
@@ -1275,7 +1373,16 @@ class DocxDocument {
     final container = paras[i].container;
     for (var j = i - 1; j >= 0; j--) {
       final prev = targets[j];
-      if (!identical(paras[j].container, container)) break;
+      if (!identical(paras[j].container, container)) {
+        // Önceki paragraf iç içe bir kapta (içerik denetimi, tablo): kabın
+        // ardına.
+        final box = _childOf(prev, container);
+        if (box != null) {
+          container.children.insert(container.children.indexOf(box) + 1, el);
+          return;
+        }
+        break;
+      }
       if (prev != null && identical(prev.parent, container)) {
         container.children.insert(container.children.indexOf(prev) + 1, el);
         return;
@@ -1283,7 +1390,14 @@ class DocxDocument {
     }
     for (var j = i + 1; j < paras.length; j++) {
       final next = targets[j];
-      if (!identical(paras[j].container, container)) break;
+      if (!identical(paras[j].container, container)) {
+        final box = _childOf(next, container);
+        if (box != null) {
+          container.children.insert(container.children.indexOf(box), el);
+          return;
+        }
+        break;
+      }
       if (next != null && identical(next.parent, container)) {
         container.children.insert(container.children.indexOf(next), el);
         return;

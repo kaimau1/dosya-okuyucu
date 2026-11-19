@@ -176,7 +176,7 @@ extension DocxInsert on DocxDocument {
     final i = afterPara.clamp(0, paras.length - 1);
     // Hücre içine tablo eklenmez (iç içe tablo desteklenmiyor).
     final at = paras[i];
-    final top = at.cell == null ? i : _lastOfTable(at.cell!.table);
+    final top = _lastOfBlock(i);
     const w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
     final colW = (8800 / cols).floor();
     final b = StringBuffer('<w:tbl $w><w:tblPr>')
@@ -217,6 +217,21 @@ extension DocxInsert on DocxDocument {
     return top + 1;
   }
 
+  /// [i]. paragrafın gövde düzeyindeki kabının (tablo, içerik denetimi)
+  /// son paragrafı; gövde paragrafıysa kendisi.
+  int _lastOfBlock(int i) {
+    final at = paras[i];
+    if (identical(at.container, body)) return i;
+    final box = DocxDocument._childOf(at.container, body);
+    if (box == null) return at.cell == null ? i : _lastOfTable(at.cell!.table);
+    var last = i;
+    for (var k = i + 1; k < paras.length; k++) {
+      if (!identical(DocxDocument._childOf(paras[k].container, body), box)) break;
+      last = k;
+    }
+    return last;
+  }
+
   int _lastOfTable(XmlElement tbl) {
     var last = 0;
     for (var k = 0; k < paras.length; k++) {
@@ -245,12 +260,16 @@ extension DocxInsert on DocxDocument {
         for (var j = first - 1; j >= 0; j--) {
           final q = paras[j];
           if (q.cell != null) {
-            prev = q.cell!.table;
+            prev = DocxDocument._childOf(q.cell!.table, body) ?? q.cell!.table;
             break;
           }
-          if (identical(q.container, body) && q.source?.parent != null) {
-            prev = q.source;
-            break;
+          if (q.source?.parent != null) {
+            // Gövde paragrafı ya da içerik denetimindeki paragrafın kabı.
+            final box = DocxDocument._childOf(q.source, body);
+            if (box != null) {
+              prev = box;
+              break;
+            }
           }
         }
         final kids = body.children;
