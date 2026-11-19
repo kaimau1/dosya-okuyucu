@@ -10,7 +10,9 @@ part of 'docx_document.dart';
 ///   Belgedeki iz: `commentRangeStart/End` çapaları + `commentReference` atomu.
 ///   Silme yalnız modeldeki izi kaldırır; başvurusu kalmayan yorum kaydette
 ///   parçadan budanır ([_pruneNotes]) — böylece geri al yorumu geri getirir.
-/// * **Dipnot:** `footnotes.xml` (yoksa Word'ün ayırıcılarıyla yaratılır).
+/// * **Dipnot / sonnot:** `footnotes.xml` / `endnotes.xml` (yoksa Word'ün
+///   ayırıcılarıyla yaratılır). Numara belge sırasıyla ([DocxMedia.noteLabels]);
+///   silinen notun başvurusu modelden kalkar, not kaydedilen kopyadan budanır.
 
 const _wpNs =
     'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
@@ -45,6 +47,41 @@ class DocxComment {
 
 /// Oturumda yorum/dipnot parçasına dokunuldu mu (kaydette budama).
 final _commentsTouched = Expando<bool>('docxCommentsTouched');
+
+/// Oturumda dipnot/sonnot eklendi ya da silindi mi (kaydette budama).
+final _notesTouched = Expando<bool>('docxNotesTouched');
+
+/// Sonnot anahtarı öneki: dipnot anahtarı = `w:id`, sonnot = `e:<w:id>`.
+const kDocxEndnoteKey = 'e:';
+
+/// Not numarası Word biçiminde: `decimal`, `lowerRoman`/`upperRoman`,
+/// `lowerLetter`/`upperLetter`, `chicago` (* † ‡ §); bilinmeyen → onluk.
+String docxNoteNumber(String fmt, int n) {
+  if (n < 1) return '$n';
+  switch (fmt) {
+    case 'lowerRoman' || 'upperRoman':
+      const v = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+      const r = ['m', 'cm', 'd', 'cd', 'c', 'xc', 'l', 'xl', 'x', 'ix', 'v', 'iv', 'i'];
+      final sb = StringBuffer();
+      var m = n;
+      for (var i = 0; i < v.length; i++) {
+        while (m >= v[i]) {
+          sb.write(r[i]);
+          m -= v[i];
+        }
+      }
+      return fmt == 'upperRoman' ? sb.toString().toUpperCase() : sb.toString();
+    case 'lowerLetter' || 'upperLetter':
+      // Word: a … z, aa … zz, aaa …
+      final ch = String.fromCharCode(0x61 + (n - 1) % 26) * ((n - 1) ~/ 26 + 1);
+      return fmt == 'upperLetter' ? ch.toUpperCase() : ch;
+    case 'chicago':
+      const s = ['*', '†', '‡', '§'];
+      return s[(n - 1) % 4] * ((n - 1) ~/ 4 + 1);
+    default:
+      return '$n';
+  }
+}
 
 extension DocxMedia on DocxDocument {
   // ── paket yardımcıları ──────────────────────────────────────────────────
@@ -302,65 +339,144 @@ extension DocxMedia on DocxDocument {
     });
   }
 
-  // ── dipnot ──────────────────────────────────────────────────────────────
+  // ── dipnot / sonnot ─────────────────────────────────────────────────────
 
-  XmlDocument _footnotes() => _sidePart(
-        '/footnotes',
-        '$_relBase/footnotes',
-        'word/footnotes.xml',
-        '$_ctBase.footnotes+xml',
-        '<w:footnotes $_wMain>'
-            '<w:footnote w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote>'
-            '<w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>'
-            '</w:footnotes>',
-      );
+  XmlDocument _notesPart(bool end) {
+    final tag = end ? 'endnote' : 'footnote';
+    const sep = '<w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>';
+    return _sidePart(
+      '/${tag}s',
+      '$_relBase/${tag}s',
+      'word/${tag}s.xml',
+      '$_ctBase.${tag}s+xml',
+      '<w:${tag}s $_wMain>'
+          '<w:$tag w:type="separator" w:id="-1"><w:p>$sep<w:r><w:separator/></w:r></w:p></w:$tag>'
+          '<w:$tag w:type="continuationSeparator" w:id="0"><w:p>$sep<w:r><w:continuationSeparator/></w:r></w:p></w:$tag>'
+          '</w:${tag}s>',
+    );
+  }
 
-  /// Yeni dipnot: parçaya yazılır, başvuru atomu döner (görünen = sıra no).
-  DocxAtom newFootnoteAtom(String text) {
-    final x = _footnotes();
+  /// Yeni dipnot: parçaya yazılır, başvuru atomu döner.
+  DocxAtom newFootnoteAtom(String text) => _newNoteAtom(false, text);
+
+  /// Yeni sonnot (belge sonunda toplanan not).
+  DocxAtom newEndnoteAtom(String text) => _newNoteAtom(true, text);
+
+  DocxAtom _newNoteAtom(bool end, String text) {
+    final tag = end ? 'endnote' : 'footnote';
+    final x = _notesPart(end);
     var maxId = 0;
     for (final f in x.rootElement.childElements) {
       maxId = math.max(maxId, int.tryParse(f.getAttribute('w:id') ?? '') ?? 0);
     }
     final id = maxId + 1;
     x.rootElement.children.add(XmlDocument.parse(
-            '<w:footnote $_wMain w:id="$id"><w:p>'
-            '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:footnoteRef/></w:r>'
+            '<w:$tag $_wMain w:id="$id"><w:p>'
+            '<w:r><w:rPr><w:vertAlign w:val="superscript"/></w:rPr><w:${tag}Ref/></w:r>'
             '<w:r><w:t xml:space="preserve"> ${_esc(text)}</w:t></w:r>'
-            '</w:p></w:footnote>')
+            '</w:p></w:$tag>')
         .rootElement
         .copy());
-    _dirtyParts.add(_sidePartName('/footnotes', 'word/footnotes.xml'));
+    _dirtyParts.add(_sidePartName('/${tag}s', 'word/${tag}s.xml'));
+    _notesTouched[this] = true;
     final node = XmlDocument.parse('<w:r $_wMain>'
             '<w:rPr><w:vertAlign w:val="superscript"/></w:rPr>'
-            '<w:footnoteReference w:id="$id"/></w:r>')
+            '<w:${tag}Reference w:id="$id"/></w:r>')
         .rootElement
         .copy();
     return DocxAtom(DocxAtomKind.note, [node], '$id');
   }
 
-  XmlElement? _footnote(String id) {
-    final name = _partByRel('/footnotes');
+  /// Not atomunun başvurusu (dipnot/sonnot, kimlik, özel işaret); değilse null.
+  ({bool end, String id, bool custom})? noteRef(DocxAtom a) {
+    if (a.kind != DocxAtomKind.note) return null;
+    for (final n in a.nodes) {
+      for (final e in [n, ...n.descendantElements]) {
+        final l = e.name.local;
+        if (l != 'footnoteReference' && l != 'endnoteReference') continue;
+        final c = DocxDocument._attr(e, 'customMarkFollows');
+        return (
+          end: l == 'endnoteReference',
+          id: DocxDocument._attr(e, 'id') ?? '',
+          custom: c == '1' || c == 'true' || c == 'on',
+        );
+      }
+    }
+    return null;
+  }
+
+  /// Not anahtarı ([footnoteText] / [setFootnoteText] / [deleteNote] için):
+  /// dipnotta `w:id`, sonnotta [kDocxEndnoteKey] + `w:id`.
+  String noteKey(DocxAtom a) {
+    final r = noteRef(a);
+    if (r == null) return a.display;
+    return r.end ? '$kDocxEndnoteKey${r.id}' : r.id;
+  }
+
+  /// Bölüm ayarındaki numara biçimi + başlangıç (yoksa Word varsayılanı:
+  /// dipnot 1, 2, 3 · sonnot i, ii, iii).
+  (String, int) _noteFormat(bool end) {
+    final sect = body.childElements.where((e) => e.name.local == 'sectPr').firstOrNull;
+    final pr = sect?.childElements
+        .where((e) => e.name.local == (end ? 'endnotePr' : 'footnotePr'))
+        .firstOrNull;
+    XmlElement? k(String l) => pr?.childElements.where((e) => e.name.local == l).firstOrNull;
+    return (
+      DocxDocument._attr(k('numFmt'), 'val') ?? (end ? 'lowerRoman' : 'decimal'),
+      int.tryParse(DocxDocument._attr(k('numStart'), 'val') ?? '') ?? 1,
+    );
+  }
+
+  /// Not numaraları belge sırasıyla (Word gibi `w:id`den bağımsız): araya
+  /// eklenen ya da silinen not ötekileri kaydırır. Özel işaretli not boş.
+  Map<DocxAtom, String> noteLabels() {
+    final out = Map<DocxAtom, String>.identity();
+    final (ff, fs) = _noteFormat(false);
+    final (ef, es) = _noteFormat(true);
+    var f = 0, e = 0;
+    for (final p in paras) {
+      var k = p.text.indexOf(kDocxAtom);
+      while (k >= 0 && k < p.atoms.length) {
+        final a = p.atoms[k];
+        final r = a == null ? null : noteRef(a);
+        if (a != null && r != null) {
+          out[a] = r.custom
+              ? ''
+              : r.end
+                  ? docxNoteNumber(ef, es + e++)
+                  : docxNoteNumber(ff, fs + f++);
+        }
+        k = p.text.indexOf(kDocxAtom, k + 1);
+      }
+    }
+    return out;
+  }
+
+  XmlElement? _noteEl(String key) {
+    final end = key.startsWith(kDocxEndnoteKey);
+    final id = end ? key.substring(kDocxEndnoteKey.length) : key;
+    final tag = end ? 'endnote' : 'footnote';
+    final name = _partByRel('/${tag}s');
     if (name == null) return null;
     final x = _parts[name] ?? _partReader?.call(name);
     if (x == null) return null;
     _parts[name] = x;
     for (final f in x.rootElement.childElements) {
-      if (f.name.local == 'footnote' && f.getAttribute('w:id') == id) return f;
+      if (f.name.local == tag && f.getAttribute('w:id') == id) return f;
     }
     return null;
   }
 
-  /// Dipnotun düz metni (yoksa null).
-  String? footnoteText(String id) {
-    final f = _footnote(id);
+  /// Notun düz metni (yoksa null). [key] = [noteKey].
+  String? footnoteText(String key) {
+    final f = _noteEl(key);
     if (f == null) return null;
     return DocxDocument._textOf(f).trim();
   }
 
-  /// Dipnot metnini değiştirir (yalnız tek paragraflı, resimsiz dipnotta).
-  bool setFootnoteText(String id, String text) {
-    final f = _footnote(id);
+  /// Not metnini değiştirir (yalnız tek paragraflı, resimsiz notta).
+  bool setFootnoteText(String key, String text) {
+    final f = _noteEl(key);
     if (f == null) return false;
     final ps = f.childElements.where((e) => e.name.local == 'p').toList();
     if (ps.length != 1 || DocxDocument._hasVisual(ps.first)) return false;
@@ -369,7 +485,8 @@ extension DocxMedia on DocxDocument {
         .where((e) =>
             e.name.local == 'pPr' ||
             (e.name.local == 'r' &&
-                e.childElements.any((c) => c.name.local == 'footnoteRef')))
+                e.childElements.any((c) =>
+                    c.name.local == 'footnoteRef' || c.name.local == 'endnoteRef')))
         .map((e) => e.copy())
         .toList();
     p.children
@@ -379,8 +496,66 @@ extension DocxMedia on DocxDocument {
               '${_esc(text)}</w:t></w:r>')
           .rootElement
           .copy());
-    _dirtyParts.add(_partByRel('/footnotes')!);
+    final end = key.startsWith(kDocxEndnoteKey);
+    _dirtyParts.add(_partByRel(end ? '/endnotes' : '/footnotes')!);
     return true;
+  }
+
+  /// Notun başvurularını modelden kaldırır (değişen paragraf sıraları).
+  /// Not parçadan kaydette budanır — geri al notu geri getirir.
+  List<int> deleteNote(String key) {
+    final changed = <int>[];
+    for (var i = 0; i < paras.length; i++) {
+      final p = paras[i];
+      final at = [
+        for (var k = 0; k < p.atoms.length; k++)
+          if (p.atoms[k] case final a?
+              when a.kind == DocxAtomKind.note && noteKey(a) == key)
+            k,
+      ];
+      if (at.isEmpty) continue;
+      var q = p;
+      for (final k in at.reversed) {
+        q = q.replace(k, k + 1, '', q.mark);
+      }
+      paras[i] = q;
+      changed.add(i);
+    }
+    if (changed.isNotEmpty) _notesTouched[this] = true;
+    return changed;
+  }
+
+  /// Kaydetmeden önce: başvurusu kalmayan dipnot/sonnotlar budanmış not
+  /// parçalarının KOPYASI (ayırıcılar kalır; bellekteki parça el değmez —
+  /// kayıttan sonra geri al notu metniyle geri getirir). Yalnız oturumda not
+  /// eklendi/silindiyse; değişmeyen parça dönmez.
+  Map<String, XmlDocument> _prunedFootnotes() {
+    final out = <String, XmlDocument>{};
+    if (_notesTouched[this] != true) return out;
+    final refs = <String>{};
+    for (final e in doc.rootElement.descendantElements) {
+      final l = e.name.local;
+      if (l == 'footnoteReference' || l == 'endnoteReference') {
+        refs.add('${l == 'endnoteReference' ? kDocxEndnoteKey : ''}'
+            '${DocxDocument._attr(e, 'id')}');
+      }
+    }
+    for (final end in const [false, true]) {
+      final tag = end ? 'endnote' : 'footnote';
+      final name = _partByRel('/${tag}s');
+      if (name == null) continue;
+      final have = _parts[name] ?? _partReader?.call(name);
+      if (have == null) continue;
+      final x = have.copy();
+      final before = x.rootElement.children.length;
+      x.rootElement.children.removeWhere((n) =>
+          n is XmlElement &&
+          n.name.local == tag &&
+          n.getAttribute('w:type') == null &&
+          !refs.contains('${end ? kDocxEndnoteKey : ''}${n.getAttribute('w:id')}'));
+      if (x.rootElement.children.length != before) out[name] = x;
+    }
+    return out;
   }
 
   // ── yorumlar ────────────────────────────────────────────────────────────

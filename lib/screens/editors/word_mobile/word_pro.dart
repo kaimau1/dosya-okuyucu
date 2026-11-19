@@ -157,6 +157,8 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _crossRef();
       case 'bibliography':
         await _cite();
+      case 'toc':
+        await _toc();
       case 'reader':
         final doc = _doc;
         if (doc == null) return;
@@ -906,6 +908,37 @@ extension _WordProPart on _WordMobileEditorScreenState {
       _ => heading,
     };
     await _atCaret(DocxInsertPro.crossRef(target, kind, result: result));
+  }
+
+  /// B9 m.2: Başlık 1–3'ten İçindekiler (varsa yerinde günceller); sayfa
+  /// numaraları artımlı sayfa tahmininden.
+  Future<void> _toc() async {
+    final c = _ctrl;
+    if (c == null) return;
+    final pages = _layoutPages();
+    final entries = <DocxTocEntry>[];
+    for (var i = 0; i < c.paras.length; i++) {
+      final p = c.paras[i];
+      final lv = p.look.headingLevel;
+      if (p.opaque || lv < 1 || lv > 3) continue;
+      if ((p.look.styleName ?? '').toLowerCase() == 'title') continue;
+      final text = wordTocText(p);
+      if (text.isEmpty) continue;
+      entries.add((
+        para: i,
+        level: lv,
+        text: text,
+        page: (i < pages.length ? pages[i] : 0) + 1,
+      ));
+    }
+    if (entries.isEmpty) {
+      showSnack(context, context.t('wp.toc_none'));
+      return;
+    }
+    await _proApply(
+        DocxInsertPro.toc(entries,
+            at: c.extent.para, title: context.t('wp.toc_title')),
+        doneKey: 'wp.toc_done');
   }
 
   Future<void> _cite() async {

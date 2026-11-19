@@ -74,6 +74,7 @@ const kWordProTools = <List<(String, IconData)>>[
     ('textbox', AppIcons.textFields),
     ('shape', AppIcons.rectTool),
     ('cover', AppIcons.title),
+    ('toc', AppIcons.accountTree),
     ('section_break', AppIcons.wrapText),
     ('field', AppIcons.dataObject),
     ('cross_ref', AppIcons.link),
@@ -123,6 +124,7 @@ class WordFormatUi {
       onComments,
       onNewComment,
       onFootnote,
+      onEndnote,
       onDate;
 
   /// Faz 37: Araçlar sekmesi ([kWordProTools] kimliğiyle ekran açar; null →
@@ -137,6 +139,7 @@ class WordFormatUi {
     this.onComments,
     this.onNewComment,
     this.onFootnote,
+    this.onEndnote,
     this.onDate,
     this.onInsertTable,
     this.onInsertLink,
@@ -247,6 +250,9 @@ class WordFormatUi {
                   onTap: onNewComment),
               RibbonButton(AppIcons.footnote, _t('word.insert_footnote'),
                   key: const ValueKey('word-ins-footnote'), onTap: onFootnote),
+              if (onEndnote != null)
+                RibbonButton(AppIcons.footnote, _t('word.insert_endnote'),
+                    key: const ValueKey('word-ins-endnote'), onTap: onEndnote),
               RibbonButton(AppIcons.horizontalRule, _t('word.insert_rule'),
                   key: const ValueKey('word-ins-rule'),
                   onTap: c.insertHorizontalRule),

@@ -104,6 +104,19 @@ class DocxEditController extends ChangeNotifier
     return _labels!;
   }
 
+  Map<DocxAtom, String>? _noteLabels;
+  int _noteLabelsAt = -1;
+
+  /// Dipnot/sonnot numaraları belge sırasıyla (içerik değişince yeniden;
+  /// yalnız not çizilirken istenir — notsuz belge bedel ödemez).
+  Map<DocxAtom, String> get noteLabels {
+    if (_noteLabels == null || _noteLabelsAt != revision) {
+      _noteLabels = doc.noteLabels();
+      _noteLabelsAt = revision;
+    }
+    return _noteLabels!;
+  }
+
   // ── klavye bağlantısı ─────────────────────────────────────────────────────
 
   bool get attached => _conn?.attached ?? false;

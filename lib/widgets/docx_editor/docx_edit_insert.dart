@@ -199,8 +199,9 @@ extension DocxEditInsert on DocxEditController {
     _afterInsert();
   }
 
-  /// İmlece dipnot başvurusu koyar (metni dipnot parçasına yazılır).
-  void insertFootnote(String text) {
+  /// İmlece dipnot ([endnote] → sonnot) başvurusu koyar (metni not
+  /// parçasına yazılır; numara belge sırasıyla kendiliğinden).
+  void insertFootnote(String text, {bool endnote = false}) {
     if (!collapsed) {
       final e = end;
       base = extent = e;
@@ -210,12 +211,37 @@ extension DocxEditInsert on DocxEditController {
     if (p.opaque) return;
     _record(typing: false);
     doc.paras[i] = doc.insertAtom(
-        p, extent.offset, doc.newFootnoteAtom(text), _typingStyle(i, extent.offset));
+        p,
+        extent.offset,
+        endnote ? doc.newEndnoteAtom(text) : doc.newFootnoteAtom(text),
+        _typingStyle(i, extent.offset));
     base = extent = DocPos(i, extent.offset + 1);
     _afterInsert();
   }
 
   String? footnoteText(String id) => doc.footnoteText(id);
+
+  /// Notu (dipnot/sonnot) siler: başvurusu metinden kalkar; tek geri al adımı.
+  void deleteNote(String key) {
+    // Başvurusu olmayan anahtar boş geri al adımı bırakmasın.
+    final has = paras.any((p) => p.atoms.any((a) =>
+        a != null && a.kind == DocxAtomKind.note && doc.noteKey(a) == key));
+    if (!has) return;
+    _record(typing: false);
+    final changed = doc.deleteNote(key);
+    if (changed.isEmpty) return;
+    final i = extent.para;
+    base = extent = DocPos(i, extent.offset.clamp(0, paras[i].length));
+    _afterInsert();
+  }
+
+  /// Anahtarı verilen notun ekranda görünen numarası (yoksa anahtar).
+  String noteNumberOf(String key) {
+    for (final e in noteLabels.entries) {
+      if (doc.noteKey(e.key) == key) return e.value;
+    }
+    return key;
+  }
 
   /// Dipnot metni (geri alınamaz; parçaya yazılır).
   bool setFootnoteText(String id, String text) {

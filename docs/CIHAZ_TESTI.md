@@ -1399,3 +1399,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Form belgesi (Geliştirici → Denetimler: düz metin, onay kutusu, açılır liste, tarih seçici): alanlar noktalı altı çizili görünüyor mu? Onay kutusuna dokun → işaretleniyor mu; tarih → takvim açılıyor, seçilen tarih belgenin biçiminde mi (ör. 19.11.2026); liste → seçenekler geliyor mu; metin → yazı alanı. Geri al tek adımda geri alıyor mu?
 - [ ] Doldurulan belgeyi kaydet → Word'de (masaüstü/telefon) aç: alanlar hâlâ denetim mi (Word'de tıklayınca çerçeve), değerler doğru mu, "Metin girmek için tıklayın" yer tutucusu gitmiş mi?
 - [ ] Kilitli ya da belge özelliğine bağlı alan (ör. kapaktaki "Belge başlığı"): değiştirilemiyor mu (dokunulunca levha açılmıyor)?
+
+## 2026-11-19 — Word 2.0 m.2 İçindekiler + m.5 dipnot/sonnot (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Başlık 1–3 stilli bir belgede Araçlar → İçindekiler: başlıklar girintili, noktalı sekmeyle sayfa numarasıyla geliyor mu? Başlık yoksa "Başlık yok" uyarısı mı?
+- [ ] Yeni başlık ekle → İçindekiler'i yeniden çalıştır: yerinde güncelleniyor mu (ikinci İçindekiler oluşmuyor)? Kaydet → Word'de aç: girdiye tıklayınca başlığa gidiyor mu, Word "Alanı güncelleştir" doğru sayfaları veriyor mu?
+- [ ] Ekle → Dipnot ve Ekle → Sonnot: araya eklenen not ötekileri yeniden numaralıyor mu (dipnot 1, 2, 3 · sonnot i, ii)? Nota dokun → düzenle / Sil; silip geri al not metnini geri getiriyor mu?
+- [ ] Notlu belgeyi kaydet → Word'de aç: dipnotlar sayfa altında, sonnotlar sonda, silinen not yok mu? PDF'e aktar: notlar belge sonunda numaralı liste (sayfa altı değil — bilinen eksik).

@@ -7,6 +7,7 @@ library;
 
 import 'package:xml/xml.dart';
 
+import '../docx_document.dart';
 import 'docx_package.dart';
 import 'docx_style_ops.dart' show DocxOp, DocxStyleOps;
 
@@ -28,6 +29,26 @@ const kDocxShapes = ['rect', 'roundRect', 'ellipse', 'triangle', 'rightArrow', '
 
 /// Görsel sarma kipleri.
 const kDocxWrapModes = ['inline', 'square', 'topBottom', 'behind', 'front'];
+
+/// Başlık paragrafının İçindekiler metni: atomlar görünen yazısıyla (not ve
+/// yorum işareti hariç), boşluklar tek — [DocxInsertPro.toc] XML'deki
+/// paragrafı bu metinle doğrular.
+String wordTocText(DocxPara p) {
+  final sb = StringBuffer();
+  for (var k = 0; k < p.length; k++) {
+    final a = k < p.atoms.length ? p.atoms[k] : null;
+    if (a == null) {
+      sb.write(p.text[k]);
+    } else if (a.kind != DocxAtomKind.note && a.kind != DocxAtomKind.comment) {
+      sb.write(a.display);
+    }
+  }
+  return sb.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+/// İçindekiler girdisi: editör paragraf sırası, düzey (1–3), başlık metni,
+/// tahmini sayfa (1 tabanlı).
+typedef DocxTocEntry = ({int para, int level, String text, int page});
 
 class DocxSource {
   final String author, year, title, publisher;
@@ -337,6 +358,233 @@ abstract final class DocxInsertPro {
               w('fldSimple', attrs: {'instr': ' $code '}, kids: [wRun(result, rPr: rPr)]),
             ]);
       };
+
+  // ── İçindekiler ──────────────────────────────────────────────────────────
+
+  /// Word'ün İçindekiler denetiminin galeri adı.
+  static const tocGallery = 'Table of Contents';
+
+  /// Başlık 1–3'ten İçindekiler: `w:sdt` (galeri [tocGallery]) içinde
+  /// `TOC \o "1-3" \h \z \u` alanı, her girdi başlığın `_Toc` yer imine
+  /// köprü + `PAGEREF` sayfa alanı (sonucu [DocxTocEntry.page]). Belgede
+  /// İçindekiler varsa YERİNDE güncellenir (denetimin özellikleri kalır;
+  /// denetimsiz eski TOC alanı da bulunur), yoksa [at]. paragrafın önüne
+  /// konur. Başlığın metni [DocxTocEntry.para]'da tutmazsa aynı metinli ilk
+  /// paragraf aranır; bulunamayan girdi atlanır.
+  static DocxOp toc(List<DocxTocEntry> entries,
+          {int at = 0, String title = 'İçindekiler'}) =>
+      (pkg) {
+        _tocStyles(pkg);
+        final paras = pkg.modelParagraphs();
+        final used = <XmlElement>{};
+        var nextId = _bookmarkId(pkg);
+        final rows = <(DocxTocEntry, String)>[];
+        for (final e in entries) {
+          final want = e.text.trim();
+          if (want.isEmpty) continue;
+          bool fits(XmlElement x) =>
+              x.name.local == 'p' && !used.contains(x) && _plainText(x) == want;
+          var h = e.para >= 0 && e.para < paras.length ? paras[e.para] : null;
+          if (h == null || !fits(h)) h = paras.where(fits).firstOrNull;
+          if (h == null) continue;
+          used.add(h);
+          var name = h.childElements
+              .where((x) =>
+                  x.name.local == 'bookmarkStart' &&
+                  (attrOf(x, 'name') ?? '').startsWith('_Toc'))
+              .map((x) => attrOf(x, 'name')!)
+              .firstOrNull;
+          if (name == null) {
+            final id = nextId++;
+            name = '_Toc${100000000 + id}';
+            final pPr = kid(h, 'pPr');
+            h.children.insert(pPr == null ? 0 : h.children.indexOf(pPr) + 1,
+                w('bookmarkStart', attrs: {'id': '$id', 'name': name}));
+            h.children.add(w('bookmarkEnd', attrs: {'id': '$id'}));
+          }
+          rows.add((e, name));
+        }
+        final tab = '${_textWidthTw(pkg)}';
+        XmlElement fld(String type) =>
+            w('r', kids: [w('fldChar', attrs: {'fldCharType': type})]);
+        XmlElement instr(String code) => w('r', kids: [
+              XmlElement(const XmlName.qualified('w:instrText'),
+                  [XmlAttribute(const XmlName.qualified('xml:space'), 'preserve')],
+                  [XmlText(' $code ')]),
+            ]);
+        final head = [fld('begin'), instr(r'TOC \o "1-3" \h \z \u'), fld('separate')];
+        final body = <XmlElement>[];
+        for (var k = 0; k < rows.length; k++) {
+          final (e, name) = rows[k];
+          body.add(w('p', kids: [
+            w('pPr', kids: [
+              wv('pStyle', 'TOC${e.level.clamp(1, 3)}'),
+              w('tabs', kids: [
+                w('tab', attrs: {'val': 'right', 'leader': 'dot', 'pos': tab}),
+              ]),
+            ]),
+            if (k == 0) ...head,
+            w('hyperlink', attrs: {'anchor': name, 'history': '1'}, kids: [
+              wRun(e.text.trim()),
+              w('r', kids: [w('tab')]),
+              fld('begin'),
+              instr('PAGEREF $name \\h'),
+              fld('separate'),
+              wRun('${e.page < 1 ? 1 : e.page}'),
+              fld('end'),
+            ]),
+          ]));
+        }
+        body.add(w('p', kids: [if (rows.isEmpty) ...head, fld('end')]));
+        final heading = w('p', kids: [
+          w('pPr', kids: [wv('pStyle', 'TOCHeading')]),
+          wRun(title),
+        ]);
+        final content = [heading, ...body];
+
+        final old = _findToc(pkg);
+        if (old case final XmlElement sdt) {
+          final c = kid(sdt, 'sdtContent')!;
+          c.children
+            ..clear()
+            ..addAll(content);
+        } else if (old case final List<XmlElement> range) {
+          final parent = range.first.parent!;
+          final i = parent.children.indexOf(range.first);
+          for (final x in range) {
+            x.remove();
+          }
+          parent.children.insertAll(i, body);
+        } else {
+          pkg.insertAfterPara(at - 1, [
+            w('sdt', kids: [
+              w('sdtPr', kids: [
+                w('docPartObj', kids: [
+                  wv('docPartGallery', tocGallery),
+                  w('docPartUnique'),
+                ]),
+              ]),
+              w('sdtContent', kids: content),
+            ]),
+          ]);
+        }
+      };
+
+  /// Belgede İçindekiler var mı (Ekle mi Güncelle mi).
+  static bool hasToc(DocxPackage pkg) => _findToc(pkg) != null;
+
+  /// Var olan İçindekiler: galeri adlı `w:sdt` (XmlElement) ya da
+  /// denetimsiz `TOC` alanının yayıldığı gövde paragrafları (liste); yoksa null.
+  static Object? _findToc(DocxPackage pkg) {
+    for (final e in pkg.body.descendantElements) {
+      if (e.name.local == 'docPartGallery' && attrOf(e) == tocGallery) {
+        XmlNode? n = e;
+        while (n != null && !(n is XmlElement && n.name.local == 'sdt')) {
+          n = n.parent;
+        }
+        if (n is XmlElement && kid(n, 'sdtContent') != null) return n;
+      }
+    }
+    for (final t in pkg.body.descendantElements) {
+      if (t.name.local != 'instrText' ||
+          !t.innerText.trimLeft().toUpperCase().startsWith('TOC ')) {
+        continue;
+      }
+      // Alanın başladığı paragraftan bittiği paragrafa (iç içe PAGEREF
+      // alanları derinlikle sayılır).
+      XmlNode? n = t;
+      while (n != null && !(n is XmlElement && n.name.local == 'p')) {
+        n = n.parent;
+      }
+      if (n is! XmlElement || n.parent == null) return null;
+      final out = <XmlElement>[];
+      var depth = 0;
+      var started = false;
+      XmlElement? p = n;
+      while (p != null) {
+        if (p.name.local == 'p') {
+          out.add(p);
+          for (final f in p.descendantElements) {
+            if (f.name.local != 'fldChar') continue;
+            final type = attrOf(f, 'fldCharType');
+            if (type == 'begin') {
+              depth++;
+              started = true;
+            } else if (type == 'end') {
+              depth--;
+            }
+          }
+          if (started && depth <= 0) return out;
+        }
+        p = p.nextElementSibling;
+      }
+      return out;
+    }
+    return null;
+  }
+
+  /// Paragrafın görünen düz metni (alan kodu ve silinmiş yazı hariç).
+  static String _plainText(XmlElement p) {
+    final sb = StringBuffer();
+    for (final e in p.descendantElements) {
+      if (e.name.local == 't') sb.write(e.innerText);
+      if (const {'tab', 'br', 'cr'}.contains(e.name.local)) sb.write(' ');
+    }
+    return sb.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Sağ sekme konumu: son bölümün yazı alanı genişliği (twip; A4 varsayılan).
+  static int _textWidthTw(DocxPackage pkg) {
+    final s = kid(pkg.body, 'sectPr');
+    int tw(XmlElement? e, String a, int d) =>
+        int.tryParse(attrOf(e, a) ?? '') ?? d;
+    final wPg = tw(kid(s, 'pgSz'), 'w', 11906);
+    final mar = kid(s, 'pgMar');
+    final v = wPg - tw(mar, 'left', 1440) - tw(mar, 'right', 1440);
+    return v > 1440 ? v : 9026;
+  }
+
+  /// İçindekiler stilleri (yoksa): başlık (anahat dışı — kendini listelemez)
+  /// ve 1–3 düzey girintileri.
+  static void _tocStyles(DocxPackage pkg) {
+    final root = DocxStyleOps.stylesRoot(pkg);
+    XmlElement style(String id, String name, List<XmlElement> pPr,
+            [List<XmlElement> rPr = const []]) =>
+        w('style', attrs: {'type': 'paragraph', 'styleId': id}, kids: [
+          wv('name', name),
+          wv('basedOn', 'Normal'),
+          wv('next', 'Normal'),
+          wv('uiPriority', '39'),
+          w('unhideWhenUsed'),
+          w('pPr', kids: pPr),
+          if (rPr.isNotEmpty) w('rPr', kids: rPr),
+        ]);
+    final want = [
+      style('TOCHeading', 'TOC Heading', [
+        w('keepNext'),
+        w('spacing', attrs: {'before': '240', 'after': '120'}),
+        wv('outlineLvl', '9'),
+      ], [
+        w('b'),
+        wv('sz', '32'),
+        wv('szCs', '32'),
+      ]),
+      style('TOC1', 'toc 1', [w('spacing', attrs: {'after': '100'})]),
+      style('TOC2', 'toc 2', [
+        w('spacing', attrs: {'after': '100'}),
+        w('ind', attrs: {'left': '220'}),
+      ]),
+      style('TOC3', 'toc 3', [
+        w('spacing', attrs: {'after': '100'}),
+        w('ind', attrs: {'left': '440'}),
+      ]),
+    ];
+    for (final s in want) {
+      if (DocxStyleOps.styleById(root, attrOf(s, 'styleId')!) == null) {
+        root.children.add(s);
+      }
+    }
+  }
 
   // ── kaynakça ─────────────────────────────────────────────────────────────
 

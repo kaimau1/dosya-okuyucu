@@ -159,6 +159,10 @@ abstract final class DocxPdf {
         marginLeft: page.left,
         marginRight: page.right);
     final body = r.build(format.availableWidth);
+    // Dipnot/sonnotlar belge sonunda numaralı liste (sayfa altına yerleşim
+    // `pdf` paketinin MultiPage'inde sayfa içeriği bilinmeden kurulamıyor).
+    final notes = r.notesSection(format.availableWidth);
+    if (notes.isNotEmpty) body.last.addAll(notes);
     // Sayfa sonu atomlarına göre bölümler: her bölüm yeni sayfada başlar.
     var first = true;
     for (final chunk in body) {
@@ -235,8 +239,9 @@ class _Renderer {
   static PdfColor? _color(int? argb) =>
       argb == null ? null : PdfColor.fromInt(argb | 0xFF000000);
 
-  pw.TextStyle _style(DocxRunLook l) {
-    final small = l.vertAlign != null;
+  /// [sup]: üst simge boyu (not numarası) — run biçiminde olmasa da.
+  pw.TextStyle _style(DocxRunLook l, {bool sup = false}) {
+    final small = sup || l.vertAlign != null;
     return pw.TextStyle(
       font: _font(l),
       fontSize: (l.sizePt <= 0 ? 11 : l.sizePt) * (small ? 0.65 : 1),
@@ -261,6 +266,35 @@ class _Renderer {
   late final pw.TextStyle small = pw.TextStyle(font: _sans, fontSize: 9, color: PdfColors.grey700);
 
   late final List<String> _labels = doc.listLabels();
+  late final Map<DocxAtom, String> _noteNos = doc.noteLabels();
+
+  /// Çizilen notlar (anahtar → numara), belge sırasıyla.
+  final Map<String, String> _notesSeen = {};
+
+  /// Belge sonuna: ayırıcı çizgi + "numara  metin" satırları.
+  List<pw.Widget> notesSection(double width) {
+    if (_notesSeen.isEmpty) return const [];
+    final st = small.copyWith(color: PdfColors.black);
+    return [
+      pw.Container(
+        width: width / 3,
+        margin: const pw.EdgeInsets.only(top: 18, bottom: 6),
+        decoration: const pw.BoxDecoration(
+            border: pw.Border(top: pw.BorderSide(width: 0.5))),
+      ),
+      for (final e in _notesSeen.entries)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 3),
+          child: pw.RichText(
+            text: pw.TextSpan(children: [
+              pw.TextSpan(text: e.value, style: st, baseline: 3),
+              pw.TextSpan(text: ' ${doc.footnoteText(e.key) ?? ''}', style: st),
+            ]),
+          ),
+        ),
+    ];
+  }
+
   late final Map<DocxPara, int> _index = Map.identity()
     ..addAll({for (var i = 0; i < doc.paras.length; i++) doc.paras[i]: i});
 
@@ -392,6 +426,13 @@ class _Renderer {
               spans.add(pw.WidgetSpan(
                   child: pw.Image(pw.MemoryImage(img),
                       width: wPt * scale, height: hPt * scale)));
+            }
+          case DocxAtomKind.note:
+            final no = _noteNos[a] ?? a.display;
+            if (no.isNotEmpty) {
+              _notesSeen[doc.noteKey(a)] = no;
+              spans.add(pw.TextSpan(
+                  text: no, style: _style(l, sup: true), baseline: 4));
             }
           default:
             if (a.display.isNotEmpty) {

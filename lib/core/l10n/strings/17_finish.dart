@@ -24,6 +24,8 @@ const Map<String, (String, String, String)> _t17 = {
   'word.img_failed': ('Resim okunamadı', 'Could not read the picture', 'تعذرت قراءة الصورة'),
   'word.footnote_text': ('Dipnot metni', 'Footnote text', 'نص الحاشية'),
   'word.footnote_edit': ('Dipnot {n}', 'Footnote {n}', 'الحاشية {n}'),
+  'word.insert_endnote': ('Sonnot', 'Endnote', 'تعليق ختامي'),
+  'word.endnote_edit': ('Sonnot {n}', 'Endnote {n}', 'التعليق الختامي {n}'),
   'word.footnote_rich': (
       'Bu dipnot zengin içerik taşıyor; burada düzenlenemez',
       'This footnote has rich content and cannot be edited here',

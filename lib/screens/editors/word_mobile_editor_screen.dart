@@ -327,6 +327,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onComments: () => _comments(),
         onNewComment: _newComment,
         onFootnote: _insertFootnote,
+        onEndnote: () => _insertFootnote(endnote: true),
         onDate: _insertDate,
         onPro: _proOn ? _onPro : null,
       );
@@ -405,15 +406,17 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (text != null && mounted) c.addComment(text, author);
   }
 
-  Future<void> _insertFootnote() async {
+  Future<void> _insertFootnote({bool endnote = false}) async {
     final c = _ctrl;
     if (c == null) return;
     final t = await showWordTextSheet(context,
-        title: context.t('word.insert_footnote'),
+        title: context.t(endnote ? 'word.insert_endnote' : 'word.insert_footnote'),
         label: context.t('word.footnote_text'),
         action: context.t('common.insert'),
         fieldKey: const ValueKey('word-footnote-field'));
-    if (t != null && t.trim().isNotEmpty && mounted) c.insertFootnote(t.trim());
+    if (t != null && t.trim().isNotEmpty && mounted) {
+      c.insertFootnote(t.trim(), endnote: endnote);
+    }
   }
 
   Future<void> _openFootnote(String id) async {
@@ -421,13 +424,21 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (c == null) return;
     final cur = c.footnoteText(id);
     if (cur == null) return;
+    final end = id.startsWith(kDocxEndnoteKey);
     final t = await showWordTextSheet(context,
-        title: context.t('word.footnote_edit', {'n': id}),
+        title: context.t(end ? 'word.endnote_edit' : 'word.footnote_edit',
+            {'n': c.noteNumberOf(id)}),
         label: context.t('word.footnote_text'),
         action: context.t('common.apply'),
         initial: cur,
+        deleteLabel: context.t('common.delete'),
         fieldKey: const ValueKey('word-footnote-field'));
-    if (t == null || !mounted || t.trim() == cur) return;
+    if (t == null || !mounted) return;
+    if (t == kWordSheetDelete) {
+      c.deleteNote(id);
+      return;
+    }
+    if (t.trim() == cur) return;
     if (!c.setFootnoteText(id, t.trim())) {
       showSnack(context, context.t('word.footnote_rich'));
     }
