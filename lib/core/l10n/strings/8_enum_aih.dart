@@ -1031,6 +1031,16 @@ const Map<String, (String, String, String)> _t8 = {
     'All →',
     'الكل ←',
   ),
+  'dash.strip_title': (
+    'Son dosyalar',
+    'Recent files',
+    'الملفات الأخيرة',
+  ),
+  'dash.strip_new': (
+    'Yeni',
+    'New',
+    'جديد',
+  ),
   'dash.sec_categories': (
     'Kategori kutuları',
     'Category tiles',
