@@ -159,6 +159,11 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 label: context.t('ss.presenter'),
                 hint: context.t('sp.presenter_hint')),
             AppAction(
+                value: 'rehearse',
+                icon: AppIcons.schedule,
+                label: context.t('sp.rehearse'),
+                hint: context.t('sp.rehearse_hint')),
+            AppAction(
                 value: 'record',
                 icon: AppIcons.micNone,
                 label: context.t('sp.record'),
@@ -206,6 +211,8 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         if (play != null && play.isNotEmpty && mounted) await _playList(play);
       case 'presenter':
         await _play(_curIndex, presenter: true);
+      case 'rehearse':
+        await _rehearse();
       case 'record':
         await _recordNarration();
       case 'png_one':
@@ -306,6 +313,37 @@ extension _SlidesProPart on _SlidesEditorScreenState {
         // Geçici dosya: sistem zaten temizler.
       }
     }
+  }
+
+  // ── B11 m.6: prova (slayt başı süre → advTm) ────────────────────────────
+
+  Future<void> _rehearse() async {
+    final editor = _editor;
+    if (editor == null) return;
+    final views = <SlideVM>[], notes = <String>[], idx = <int>[];
+    for (var i = 0; i < editor.slides.length; i++) {
+      final v = editor.slides[i].view;
+      if (v == null || editor.isHidden(editor.slides[i])) continue;
+      views.add(v);
+      notes.add(editor.notesOf(editor.slides[i]));
+      idx.add(i);
+    }
+    if (views.isEmpty) return;
+    final times = await Navigator.of(context).push<Map<int, int>>(MaterialPageRoute(
+        builder: (_) => SlideshowScreen(
+            slides: views, notes: notes, deckIndex: idx, rehearse: true, presenter: true)));
+    if (!mounted || times == null) return;
+    // Yarım saniyeden kısa geçilen slayt (atlanmış) zamanlanmaz.
+    times.removeWhere((_, ms) => ms < 500);
+    if (times.isEmpty) return;
+    final total = times.values.fold(0, (a, b) => a + b) ~/ 1000;
+    final ok = await showAppConfirm(context,
+        title: context.t('sp.rehearse'),
+        message: context.t('sp.rehearse_save',
+            {'t': SlideshowScreen.clockText(total), 'n': times.length}),
+        confirmLabel: context.t('sp.apply'));
+    if (!ok || !mounted) return;
+    await _proApply(PptxMediaOps.setTimings(times), doneKey: 'sp.rehearse_done');
   }
 
   // ── Madde 3: grafik / SmartArt ─────────────────────────────────────────────

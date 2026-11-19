@@ -1474,3 +1474,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## B2 dilim 4 — Decisions kalan kullanımlar (2026-11-19, yazıldı, cihazda doğrulanmadı)
 - Tarama sonucu ⋮ → "AI ile kalite kontrolü": parlamalı/kesik/okunaksız sayfada şerit "Yeniden çek" öneriyor mu; iyi sayfada "okunaklı görünüyor" mu?
 - Akıllı temizlik → selamlaşma/bulanık kovası satırındaki AI düğmesi: yanlış eşleşen görseller listeden çıkıyor mu, sayı bildirimi doğru mu?
+## B11 Slayt 2.0 dilim 2 (2026-11-19, dal faz-oto-B11-slayt2)
+- Slayt düzenleyici → Pro menü → "Prova (süreleri kaydet)": sunucu panelinde "Bu slayt: mm:ss" sayıyor mu? Birkaç slayt geçip geri tuşuyla çık → "Zamanlamalar kaydedilsin mi?" → kaydet → normal sunumda slaytlar o sürelerle kendi ilerliyor mu? PowerPoint'te açınca zamanlamalar görünüyor mu?
+- Çok şekilli/görselli slaytta bir şekli seç ve sürükle: diğer şekiller titremeden/yanıp sönmeden yerinde kalıyor mu? Seçince ya da seçimi bırakınca görseller bir an kayboluyor mu (olmamalı)?
+- Sürükleme ve geçişli slayt A/B (C2): şekil sürüklemede kare p99 önceki [apk] ile kıyas.

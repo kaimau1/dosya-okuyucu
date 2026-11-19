@@ -162,8 +162,22 @@ go('state');setInterval(()=>go('state'),3000);
     if (mounted) await _recStart();
   }
 
-  /// Çıkış: kaydı bitirir, parçaları döndürür.
+  /// Prova: geçerli slaytın süresini toplama ekler, saati sıfırlar.
+  void _lapSlide() {
+    final deckI = _index < widget.deckIndex.length ? widget.deckIndex[_index] : _index;
+    _rehearsal[deckI] = (_rehearsal[deckI] ?? 0) + _slideClock.elapsedMilliseconds;
+    _slideClock
+      ..reset()
+      ..start();
+  }
+
+  /// Çıkış: kaydı bitirir, parçaları (provada slayt süreleri) döndürür.
   Future<void> _exit() async {
+    if (widget.rehearse) {
+      _lapSlide();
+      Navigator.of(context).pop(Map<int, int>.of(_rehearsal));
+      return;
+    }
     if (widget.record) {
       await _recCut();
       if (!mounted) return;

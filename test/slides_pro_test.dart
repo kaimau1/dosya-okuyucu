@@ -384,4 +384,19 @@ void main() {
       expect(x, contains('playFrom(0.0)'));
     });
   });
+
+  group('B11 m.6 — prova', () {
+    test('slayt başı süre advTm olur; kısa süre 500 ms tabanına çekilir', () async {
+      final b = await PptxPro.run(deck, PptxMediaOps.setTimings({0: 12345, 1: 100}));
+      final info = PptxShowInfo.read(open(b));
+      expect(info[0].advanceMs, 12345);
+      expect(info[1].advanceMs, 500);
+      expect(PptxEditor.parse(b).slides, hasLength(2));
+      // Yeniden prova üzerine yazar (tek transition).
+      final b2 = await PptxPro.run(b, PptxMediaOps.setTimings({0: 2000}));
+      expect(PptxShowInfo.read(open(b2))[0].advanceMs, 2000);
+      final x = open(b2).xml(open(b2).slidePart(0))!.toXmlString();
+      expect('<p:transition'.allMatches(x), hasLength(1));
+    });
+  });
 }

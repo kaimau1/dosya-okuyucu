@@ -10,6 +10,7 @@ import 'package:dosya_okuyucu/services/pptx_writer.dart';
 import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
 import 'package:dosya_okuyucu/widgets/slide_frame_editor.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/rebuild_probe.dart';
@@ -103,20 +104,37 @@ void main() {
     await t.pump();
     await g.moveBy(const Offset(0, 12));
     await t.pump();
-    final r = await countRebuilds(t, () async {
-      await g.moveBy(const Offset(0, 9));
-      await t.pump();
-    });
+    // B11 m.8 — çizim bütçesi: aynı karede boyanan metinler sayılır;
+    // seçili olmayan şekillerin metni ('Madde …') yeniden çizilmemeli.
+    final painted = <String>[];
+    debugOnProfilePaint = (o) {
+      if (o is RenderParagraph) painted.add(o.text.toPlainText());
+    };
+    late final RebuildCount r;
+    try {
+      r = await countRebuilds(t, () async {
+        await g.moveBy(const Offset(0, 9));
+        await t.pump();
+      });
+    } finally {
+      debugOnProfilePaint = null;
+    }
     await g.up();
     await t.pump();
     // ignore: avoid_print
     print('PERF slides_drag_rebuilds=${r.total} '
         'shape_bodies=${r.byType['_ShapeBody'] ?? 0} top=${r.top()}');
     expect(r.total, greaterThan(0), reason: 'sürükleme çerçeveyi kurmalı');
+    // ignore: avoid_print
+    print('PERF slides_drag_paint_texts=${painted.length} '
+        'others=${painted.where((x) => x.contains('Madde')).length}');
     expect(r.byType['_ShapeBody'] ?? 0, 0);
     expect(r.of(SlideCanvas), 0);
-    // Toplam tavan (tutamaklar + kılavuz): ilk CI ölçümüyle sıkılaştırılacak.
-    expect(r.total, lessThan(250));
+    // Toplam tavan (tutamaklar + kılavuz): CI ölçümü 107 (2026-11-19) + pay.
+    expect(r.total, lessThan(130));
+    expect(painted, isNotEmpty, reason: 'seçili şekil çizilmeli');
+    expect(painted.where((x) => x.contains('Madde')), isEmpty,
+        reason: 'seçili olmayan şekiller sürüklemede yeniden çizilmez');
   });
 
   // Faz 38 perf kapısı: 300 slaytlık deste — açılış, sunum bilgisi (izolatta

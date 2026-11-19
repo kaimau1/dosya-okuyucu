@@ -140,6 +140,28 @@ abstract final class PptxMediaOps {
     return out;
   }
 
+  /// **B11 m.6 — prova.** Her slayta provada geçen süreyi (ms) otomatik
+  /// ilerleme olarak yazar (`p:transition@advTm`); tıklamayla ilerleme de
+  /// açık kalır (PowerPoint "Zamanlamaları kaydet" ile aynı).
+  static PptxOp setTimings(Map<int, int> msBySlide) => (pkg) {
+        for (final e in msBySlide.entries) {
+          _writeAdvance(pkg.edit(pkg.slidePart(e.key))!, e.value);
+        }
+      };
+
+  /// Geçiş: advTm (ECMA sırası cSld, clrMapOvr, transition, timing).
+  static void _writeAdvance(XmlDocument d, int ms) {
+    var tr = d.rootElement.getElement('p:transition');
+    if (tr == null) {
+      tr = XmlElement(const XmlName.qualified('p:transition'));
+      final after = d.rootElement.getElement('p:clrMapOvr') ??
+          d.rootElement.getElement('p:cSld');
+      final kids = d.rootElement.children;
+      kids.insert(after == null ? 0 : kids.indexOf(after) + 1, tr);
+    }
+    tr.setAttribute('advTm', '${ms.clamp(500, 86400000)}');
+  }
+
   /// **Faz 38 / madde 9 — kayıtlı anlatım.** Slaytın önceki anlatımını
   /// kaldırır, yeni sesi (M4A) sağ alt köşeye küçük simgeyle ekler, slayta
   /// girince çalmasını (PowerPoint `playFrom` komutu) ve [ms] sonra sonraki
@@ -181,16 +203,7 @@ abstract final class PptxMediaOps {
             ?.findAllElements('p:cNvPr')
             .first
             .setAttribute('descr', kNarrationMarker);
-        // Geçiş: advTm (ECMA sırası cSld, clrMapOvr, transition, timing).
-        var tr = d.rootElement.getElement('p:transition');
-        if (tr == null) {
-          tr = XmlElement(const XmlName.qualified('p:transition'));
-          final after = d.rootElement.getElement('p:clrMapOvr') ??
-              d.rootElement.getElement('p:cSld');
-          final kids = d.rootElement.children;
-          kids.insert(after == null ? 0 : kids.indexOf(after) + 1, tr);
-        }
-        tr.setAttribute('advTm', '${ms.clamp(500, 86400000)}');
+        _writeAdvance(d, ms);
         // Zamanlama: slayt başında oynat.
         var t = d.rootElement.getElement('p:timing');
         if (t == null || t.findAllElements('p:cTn').where((c) => c.getAttribute('nodeType') == 'mainSeq').isEmpty) {
