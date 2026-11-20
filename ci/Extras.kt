@@ -95,6 +95,7 @@ object Extras {
                     "status" to it.status,
                     "pssKb" to it.pss,
                     "rssKb" to it.rss,
+                    "importance" to it.importance,
                 )
             }
     }

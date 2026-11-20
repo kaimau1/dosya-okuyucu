@@ -480,3 +480,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - `PdfFormPro.fieldsFromShapes` (saf, testli): `PdfEditBridge.content` yol nesneleri → ince yatay çizgi (h ≤ 2,5, w ≥ 36) üstü 16 pt metin alanı, 6–24 pt kare onay kutusu (koyu dolgulu = madde imi, atla), 40×12–80 pt boş kutu metin alanı; içinde metin olan / sayfa boyu öğe atlanır. Adaylar `detectFields(shapes:)`'e gider: var olan alan ve metin sezgisiyle çakışan düşer. Okuma ana izolatta PDFium işçisiyle (`pro_actions._shapeFields`, ilk 300 sayfa).
 - Sınır: 4 ayrı çizgiyle çizilmiş kutu bulunmaz; kutu kökeni (0,0) olmayan sayfada kayabilir.
 - "Akıllı karartma önerisi" (Faz 65/3) AI özelliği → B15 kararıyla iptal, yapılmadı.
+
+## 2026-11-20 — B3 P29 kalıcı hata şeridi (dal faz-oto-B3-hiz; yazıldı, cihazda doğrulanmadı)
+- **Büyük başlık yarısı iş değil:** H4.2 büyük başlık 2026-11-14 kullanıcı kararıyla kalktı (`FmLargeTitle` yok); P29'un "katlanmıyor" maddesi o turdan kalmaydı.
+- **Kök (hipotez, kodla gösterildi):** `ci/Extras.kt` `exitReasons` `low_memory` + `signaled` çıkışlarını da veriyor; MIUI arka plandaki uygulamayı (kaydırıp kapatma, bellek temizliği) sinyalle/bellek için öldürür → her açılışta yeni "hata" kaydı → panoda "beklenmedik hata (1 kayıt)". Düzeltme: çıkışa `importance` eklendi; `CrashLog.isBackgroundKill` (importance > 200) kaydı `(background)` etiketiyle tutar, `notifies` uyarıdan düşürür (tanı özeti `kind=='exit'` sayımı aynı). Ön plandaki bellek kapatması uyarıda kalır.
+- **Yarış da vardı:** şerit kendi `unseenCount`unu açılışta okuyordu, `importExitReasons` ondan sonra bitiyordu → çıkış kaydı hep bir SONRAKİ açılışta çıkıyordu. Şimdi `CrashLog.unseen` (ValueNotifier) içe almadan sonra dolar.
+- **Görsel birlik (U3 kararı):** ayrı kırmızı `CrashNoticeBanner` silindi; uyarı `SmartInbox` olayı (`id: crash`, warning, "ne oldu" + "ne yapmalı", Aç / ✕ = `markSeen`). Kaynak statik `_inboxSources`'a katıldı (kasma-kontrol m.2).
+- **P12b:** cihazsız kod artığı yok — `xlsx_10k_x20_*` senaryosu kodda var, dosya telefonda yoksa atlanıyor (`tool/ab_olcum.sh` kopyalar); kalan yalnız cihaz ölçümü.

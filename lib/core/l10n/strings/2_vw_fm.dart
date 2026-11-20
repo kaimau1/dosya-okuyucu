@@ -662,11 +662,17 @@ const Map<String, (String, String, String)> _t2 = {
   'apps.today': ('bugün', 'today', 'اليوم'),
   // Kullanım verisi tutulan pencereden (2 yıl) daha eski kurulumlarda kayıt
   // olmayabilir; "hiç açılmadı" demek uydurma olurdu (2026-08-28).
-  // Çökme sonrası panoda görünen tek satır (2026-08-28).
+  // Çökme sonrası panodaki bildirim kartı satırı (2026-08-28; P29 2026-11-20:
+  // ortak kartta, kısa "ne oldu" + "ne yapmalı").
   'crash.notice': (
-    'Uygulama beklenmedik şekilde hata verdi ({n} kayıt). Raporu gör.',
-    'The app hit an unexpected error ({n} reports). See the report.',
-    'واجه التطبيق خطأً غير متوقع ({n} سجل). اعرض التقرير.',
+    'Uygulama hata verdi ({n} kayıt)',
+    'The app hit an error ({n} reports)',
+    'واجه التطبيق خطأً ({n} سجل)',
+  ),
+  'crash.notice_hint': (
+    'Raporu açıp paylaşabilirsin',
+    'Open the report to share it',
+    'افتح التقرير لمشاركته',
   ),
   // ── PDF: sayfa numarası ve filigran (2026-08-28) ────────────────────────
   'pt.page_numbers': ('Sayfa numarası ekle', 'Add page numbers', 'إضافة أرقام الصفحات'),
