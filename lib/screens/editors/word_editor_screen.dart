@@ -61,11 +61,16 @@ class WordEditorScreen extends StatefulWidget {
   final String path;
   final String name;
   final String plainText;
+
+  /// [path] bir çalışma kopyasıysa (ör. `.udf` → `.docx`, P23) kaydetme
+  /// kopyaya ek olarak buraya da yazar; özgün dosyaya dokunulmaz.
+  final String? savePath;
   const WordEditorScreen({
     super.key,
     required this.path,
     required this.name,
     required this.plainText,
+    this.savePath,
   });
 
   @override

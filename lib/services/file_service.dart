@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:path/path.dart' as p;
 
+import '../core/l10n/app_strings.dart';
 import '../models/document.dart';
 import 'csv_codec.dart';
 import 'fm/safe_write.dart';
@@ -14,6 +15,8 @@ import 'office_reader.dart';
 import 'text_decode.dart';
 import 'xls_legacy.dart';
 import 'large_text.dart';
+import 'legacy_convert.dart';
+import 'udf_reader.dart';
 import 'xlsx_editor.dart' show XlsxCell, XlsxReader, generalNumberRaw;
 import '../screens/fm/pick_file_screen.dart';
 
@@ -57,7 +60,8 @@ class FileService {
   static DocKind iconKindForExtension(String ext) {
     ext = ext.toLowerCase();
     return switch (ext) {
-      'doc' || 'dot' || 'docm' || 'odt' || 'rtf' || 'pages' => DocKind.word,
+      'doc' || 'dot' || 'docm' || 'odt' || 'rtf' || 'pages' || 'udf' =>
+        DocKind.word,
       'xls' || 'xlt' || 'xlsb' || 'ods' || 'numbers' => DocKind.spreadsheet,
       'ppt' || 'pot' || 'pps' || 'odp' || 'key' => DocKind.slides,
       'csv' || 'tsv' => DocKind.spreadsheet,
@@ -94,6 +98,10 @@ class FileService {
     final file = File(path);
     final name = p.basename(path);
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+
+    // UYAP Doküman Editörü (.udf, P23): .docx çalışma kopyasına çevrilip
+    // Word okuyucusunda açılır (çizim, PDF'e aktarma, paylaşım aynı yol).
+    if (ext == 'udf') return _loadUdf(file, path, name);
 
     // Eski ikili Office biçimleri (.doc/.xls/.ppt): OLE2 kabından en iyi çaba
     // içerik çıkarılır ve SALT-OKUNUR görüntülenir. Çıkarılamazsa harici aç.
@@ -182,6 +190,42 @@ class FileService {
       case DocKind.unknown:
         return LoadedDoc(path: path, name: name, kind: kind);
     }
+  }
+
+  /// `.udf` → geçici `.docx` kopyası. Kaydetme özgünün YANINA yeni bir
+  /// `.docx` bırakır (UDF yazılmaz; var olan dosyanın üzerine yazılmaz).
+  /// Bozuk/şifreli dosyada "ne oldu, ne yapmalı" metni gösterilir.
+  Future<LoadedDoc> _loadUdf(File file, String path, String name) async {
+    var failure = UdfFailure.corrupt;
+    try {
+      final bytes = await file.readAsBytes();
+      final (docx, text) = await compute(_decodeUdf, bytes);
+      final dir = Directory('${Directory.systemTemp.path}/udf_donusum');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final stamp = path.hashCode.toUnsigned(32).toRadixString(16);
+      final base = p.basenameWithoutExtension(path);
+      final work = File('${dir.path}/${base}_$stamp.docx');
+      await work.writeAsBytes(docx, flush: true);
+      return LoadedDoc(
+        path: work.path,
+        name: name,
+        kind: DocKind.word,
+        plainText: text,
+        savePath: LegacyConvert.uniquePath(p.dirname(path), base, 'docx'),
+        sourcePath: path,
+      );
+    } on UdfError catch (e) {
+      failure = e.kind;
+    } catch (_) {
+      failure = UdfFailure.corrupt; // okuma/yazma hatası: kullanıcıya aynı yol
+    }
+    return LoadedDoc(
+      path: path,
+      name: name,
+      kind: DocKind.unknown,
+      plainText: AppStrings.current.t(
+          failure == UdfFailure.encrypted ? 'udf.encrypted' : 'udf.corrupt'),
+    );
   }
 
   /// CSV/TSV dosyasını satır/sütun tablosuna çözüp salt-okunur elektronik
@@ -530,3 +574,7 @@ typedef _LegacyDecoded = ({
   String text,
   List<List<String>>? firstRows,
 });
+
+/// Arka izlekte UDF → (.docx baytı, düz metin).
+(Uint8List, String) _decodeUdf(Uint8List bytes) =>
+    (UdfReader.toDocx(bytes), UdfReader.plainText(bytes));
