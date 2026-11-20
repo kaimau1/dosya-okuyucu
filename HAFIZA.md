@@ -475,3 +475,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - Düzenleyici: geçiş levhasında Yakınlaş + Biçim değiştir + önizleme (`SlideTransitionPreview`, dokununca yeniden); Pro animasyon listesine Kay (2/4) + Dön (vurgu 8).
 - **m.1:** dikey metin (`bodyPr@vert`) `RotatedBox` — sığdırma ölçümü dikeyde yatay boyutla yapılıyor (kenar durumu). Yansıma (`a:reflection`) hâlâ yok. Piksel altın yine yerel izin bekliyor.
 - **m.5 AI tasarımcı İPTAL** (B15 kullanıcı kararı: AI budandı).
+
+## 2026-11-20 — B4 P18 çizgi/kutu sezgisi (dal faz-oto-B4-pdfpro, dilim 7; yazıldı, cihazda doğrulanmadı)
+- `PdfFormPro.fieldsFromShapes` (saf, testli): `PdfEditBridge.content` yol nesneleri → ince yatay çizgi (h ≤ 2,5, w ≥ 36) üstü 16 pt metin alanı, 6–24 pt kare onay kutusu (koyu dolgulu = madde imi, atla), 40×12–80 pt boş kutu metin alanı; içinde metin olan / sayfa boyu öğe atlanır. Adaylar `detectFields(shapes:)`'e gider: var olan alan ve metin sezgisiyle çakışan düşer. Okuma ana izolatta PDFium işçisiyle (`pro_actions._shapeFields`, ilk 300 sayfa).
+- Sınır: 4 ayrı çizgiyle çizilmiş kutu bulunmaz; kutu kökeni (0,0) olmayan sayfada kayabilir.
+- "Akıllı karartma önerisi" (Faz 65/3) AI özelliği → B15 kararıyla iptal, yapılmadı.

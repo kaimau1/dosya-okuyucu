@@ -14,11 +14,12 @@ library;
 
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import 'pdf/pro/pdf_text_blocks.dart' show PdfPageContent;
 import 'pdf_tools.dart' show PdfToolsException;
 
 /// Profil anahtarları (sıra = arayüz sırası).
@@ -225,10 +226,12 @@ abstract final class PdfFormPro {
   /// eşlemesi bunu kullanır). Var olan form alanıyla çakışan atlanır.
   /// Koordinatlar ham sayfa puntosu (sol-üst).
   ///
-  /// ponytail: yalnız metin katmanı; çizgi/kutu VEKTÖRLERİ okunmaz ve
-  /// döndürülmüş sayfa atlanır — çizgili form için sonra yol nesnesi
-  /// (pdf_objects) okuyan sezgi eklenir.
-  static List<NewFormField> detectFields(List<int> bytes, {String? password}) {
+  /// [shapes]: çizgi/kutu sezgisinin ([fieldsFromShapes]) adayları — metin
+  /// sezgisiyle ya da var olan alanla çakışan aday atlanır.
+  ///
+  /// ponytail: döndürülmüş sayfa atlanır.
+  static List<NewFormField> detectFields(List<int> bytes,
+      {String? password, List<NewFormField> shapes = const []}) {
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
       final taken = <int, List<Rect>>{};
@@ -251,6 +254,16 @@ abstract final class PdfFormPro {
             out.add(f);
           }
         }
+      }
+      for (final f in shapes) {
+        if (f.page < 0 || f.page >= doc.pages.count) continue;
+        if ((taken[f.page] ?? const <Rect>[]).any((b) => b.overlaps(f.bounds))) {
+          continue;
+        }
+        if (out.any((o) => o.page == f.page && o.bounds.overlaps(f.bounds))) {
+          continue;
+        }
+        out.add(f);
       }
       return out;
     } finally {
@@ -323,6 +336,66 @@ abstract final class PdfFormPro {
     return out;
   }
 
+  /// Çizilmiş form öğeleri → alan (saf): yatay ince çizgi (`Ad: ______`
+  /// çizgisi) ve geniş boş kutu → metin alanı, küçük kare → onay kutusu.
+  /// İçinde/üstünde metin olan kutu ya da çizgi (tablo hücresi, altı çizili
+  /// yazı) atlanır. Etiket = aynı satırda soldaki en yakın metin.
+  /// [c] PDF uzayında (y yukarı); sonuç sol-üst puntodur.
+  ///
+  /// ponytail: tek yol nesnesi = tek öğe; 4 ayrı çizgiyle çizilmiş kutu ve
+  /// kutu kökeni (0,0) olmayan sayfa kayar — gerekirse çizgi birleştirme.
+  static List<NewFormField> fieldsFromShapes(int page, PdfPageContent c) {
+    final out = <NewFormField>[];
+    bool hasText(Rect r) => c.texts.any((t) {
+          final cx = (t.left + t.right) / 2;
+          final cy = c.height - (t.bottom + t.top) / 2;
+          return r.contains(Offset(cx, cy)) && t.text.trim().isNotEmpty;
+        });
+    String labelFor(Rect r) {
+      var best = '';
+      var bestRight = double.negativeInfinity;
+      for (final t in c.texts) {
+        final cy = c.height - (t.bottom + t.top) / 2;
+        if (cy < r.top - 4 || cy > r.bottom + 4) continue;
+        if (t.right > r.left + 2 || r.left - t.right > 200) continue;
+        if (t.right > bestRight && t.text.trim().isNotEmpty) {
+          bestRight = t.right;
+          best = t.text;
+        }
+      }
+      return _labelOf(StringBuffer(best));
+    }
+
+    for (final it in c.items) {
+      if (!it.isPath || !it.straight || (!it.stroke && !it.filled)) continue;
+      final w = it.width, h = it.height;
+      final top = c.height - it.top;
+      final dark = it.filled && !it.stroke && (it.fill >> 24) > 0x80 &&
+          ((it.fill >> 16 & 0xFF) + (it.fill >> 8 & 0xFF) + (it.fill & 0xFF)) <
+              600;
+      if (h <= 2.5 && w >= 36 && w < c.width * 0.9) {
+        // Yazı çizgisi: alan çizginin üstünde, bir satır boyu.
+        final r = Rect.fromLTRB(it.left, top - 16, it.right, top + h);
+        if (hasText(r.deflate(1))) continue;
+        out.add(NewFormField(page, r, NewFieldKind.text, labelFor(r)));
+      } else if (!dark && w >= 6 && w <= 24 && (w - h).abs() <= 2) {
+        final r = Rect.fromLTWH(it.left, top, w, h);
+        if (hasText(r)) continue;
+        out.add(NewFormField(page, r, NewFieldKind.checkbox, labelFor(r)));
+      } else if (!it.filled &&
+          w >= 40 &&
+          w < c.width * 0.9 &&
+          h >= 12 &&
+          h <= 80) {
+        final r = Rect.fromLTWH(it.left, top, w, h);
+        if (hasText(r.deflate(1))) continue;
+        out.add(NewFormField(page, r.deflate(1), NewFieldKind.text,
+            labelFor(r)));
+      }
+    }
+    return out;
+  }
+
   static String _labelOf(StringBuffer b) {
     var s = b.toString().replaceAll(RegExp(r'[\s:.\-–]+$'), '').trim();
     if (s.length > 40) s = s.substring(s.length - 40).trim();
@@ -330,10 +403,10 @@ abstract final class PdfFormPro {
   }
 
   static Future<List<NewFormField>> detectFieldsInBackground(List<int> bytes,
-          {String? password}) =>
+          {String? password, List<NewFormField> shapes = const []}) =>
       Isolate.run(() {
         try {
-          return detectFields(bytes, password: password);
+          return detectFields(bytes, password: password, shapes: shapes);
         } catch (e) {
           throw PdfToolsException('$e');
         }
