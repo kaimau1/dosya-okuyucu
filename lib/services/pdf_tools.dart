@@ -336,6 +336,8 @@ class PdfTools {
   /// [strokes] her biri 0..1 aralığında normalize edilmiş nokta dizisi (imza
   /// panosundan gelir); [rect] hedef kutu **görünen** sayfa koordinatında
   /// (sol-üst orijin) — kullanıcı sayfayı ekranda gördüğü gibi yerleştirir.
+  /// [rawSpace] `true` ise [rect] HAM sayfa uzayındadır (form alanının
+  /// `bounds`'u gibi) ve döndürme köprüsü atlanır.
   ///
   /// Neden resim değil vektör: her yakınlaştırmada keskin kalır, dosya küçük
   /// olur ve PNG saydamlığının PDF'e doğru gömülüp gömülmediğine bağlı kalmayız.
@@ -347,6 +349,7 @@ class PdfTools {
     double thickness = 1.5,
     int colorArgb = 0xFF000000,
     String? password,
+    bool rawSpace = false,
   }) async {
     if (strokes.every((s) => s.length < 2)) {
       throw ArgumentError('İmza boş');
@@ -358,7 +361,7 @@ class PdfTools {
       final g = page.graphics;
       final state = g.save();
       try {
-        if (t.angle != 0) {
+        if (t.angle != 0 && !rawSpace) {
           g.translateTransform(t.translate.dx, t.translate.dy);
           g.rotateTransform(t.angle);
         }
