@@ -93,7 +93,8 @@ Future<void> _main() async {
   // öğrenmenin başka yolu yoktu; kayıt cihazda kalır, kullanıcı Ayarlar >
   // Hata kayıtları'ndan görüp isterse paylaşır (bkz. services/crash_log.dart).
   CrashLog.install();
-  unawaited(CrashLog.importExitReasons());
+  unawaited(
+      CrashLog.importExitReasons().then((_) => CrashLog.refreshUnseen()));
   // Platformun `content://…` adresini sayfa adı diye itmesi çökertiyordu
   // (1.0.393) — `WidgetsApp`ten önce kayıtlı olmalı (bkz. route_guard.dart).
   RouteInformationGuard.install();

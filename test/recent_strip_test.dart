@@ -59,7 +59,7 @@ void main() {
             '${i.entry.name}:${i.mark == StripMark.fresh ? 'Y' : 'G'}'
         ];
 
-    test('24 saatte gelen açılmamış yeni öne; gerisi zamana göre karışık', () {
+    test('yeniler ve Geçmiş tek zaman çizgisinde karışık (U3)', () {
       final opened = {'/x/a': now - 1000, '/x/b': now - 3 * day};
       final out = mergeStripItems(
         opened: [g('a', 0), g('b', 0)],
@@ -67,7 +67,19 @@ void main() {
         openedAt: (p) => opened[p],
         nowMs: now,
       );
-      expect(names(out), ['y1:Y', 'a:G', 'eski:Y', 'b:G']);
+      expect(names(out), ['a:G', 'y1:Y', 'eski:Y', 'b:G']);
+    });
+
+    test('Geçmiş şeridi doldursa da en az 3 yeni görünür', () {
+      final out = mergeStripItems(
+        opened: [for (var i = 0; i < 20; i++) g('g$i', 0)],
+        fresh: [for (var i = 0; i < 5; i++) g('y$i', now - 10 * day)],
+        openedAt: (p) => p.contains('/g') ? now - 1 : null,
+        nowMs: now,
+      );
+      expect(out.length, 10);
+      expect(out.where((i) => i.mark == StripMark.fresh).length, 3);
+      expect(out.last.mark, StripMark.fresh);
     });
 
     test('aynı dosya bir kez; açıldıktan sonra değişmemiş yeni = son açılan',
@@ -96,7 +108,7 @@ void main() {
       final out = mergeStripItems(
         opened: [for (var i = 0; i < 5; i++) g('g$i', 0)],
         fresh: [for (var i = 0; i < 20; i++) g('y$i', now - i)],
-        openedAt: (p) => p.contains('/g') ? now - 1 : null,
+        openedAt: (p) => p.contains('/g') ? now - 2 * day : null,
         nowMs: now,
       );
       expect(out.length, 10);

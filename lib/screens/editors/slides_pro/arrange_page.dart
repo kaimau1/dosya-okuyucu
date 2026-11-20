@@ -228,6 +228,8 @@ class _SlideArrangePageState extends State<SlideArrangePage> {
       ('entr', 10) => 'sp.fx_fade',
       ('entr', 22) => 'sp.fx_wipe',
       ('entr', 53) => 'sp.fx_zoom',
+      ('entr', 2) => 'sp.fx_fly',
+      ('emph', 8) => 'sp.fx_spin',
       ('entr', _) => 'sp.fx_entr',
       ('exit', _) => 'sp.fx_exit',
       ('emph', _) => 'sp.fx_emph',

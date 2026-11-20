@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:dosya_okuyucu/core/l10n/app_language.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/models/fm_filter.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
+import 'package:dosya_okuyucu/services/fm/fm_env.dart';
 import 'package:dosya_okuyucu/services/fm/smart_sort.dart';
 import 'package:dosya_okuyucu/services/fm/smart_sort_taxonomy.dart';
 import 'package:dosya_okuyucu/services/gemini_decisions.dart';
@@ -397,6 +400,45 @@ void main() {
     await SmartSort.movePath('/e/a.pdf', '/x/.dosya-okuyucu-cop/1_a.pdf');
     expect(SmartSort.categoryOf('/e/a.pdf'), 'invoice');
     SmartSort.debugReset();
+  });
+
+  test('hayalet kayıt düşer; çöpteki ve takılı olmayan birimdeki kalır (U4)',
+      () async {
+    final tmp = Directory.systemTemp.createTempSync('sprune_');
+    final root0 = FmEnv.primaryRoot;
+    FmEnv.primaryRoot = tmp.path;
+    try {
+      final live = File('${tmp.path}/a.pdf')..writeAsStringSync('x');
+      final gone = '${tmp.path}/silindi.pdf';
+      final trashed = '${tmp.path}/copte.pdf';
+      const sd = '/yok-sd-kart/c.pdf';
+      SmartSort.debugReset([
+        SmartRecord(path: live.path, size: 1, modifiedMs: 1, cat: 'invoice'),
+        SmartRecord(path: gone, size: 1, modifiedMs: 1, cat: 'invoice'),
+        SmartRecord(path: trashed, size: 1, modifiedMs: 1, cat: 'id'),
+        const SmartRecord(path: sd, size: 1, modifiedMs: 1, cat: 'id'),
+      ]);
+      final n = await SmartSort.pruneMissing(trashed: () async => {trashed});
+      expect(n, 1);
+      expect(SmartSort.of(gone), isNull);
+      expect(SmartSort.of(live.path), isNotNull);
+      expect(SmartSort.of(trashed), isNotNull, reason: 'geri yüklenince yerinde');
+      expect(SmartSort.of(sd), isNotNull, reason: 'SD çıkarılmış olabilir');
+      expect(SmartSort.counts()['invoice'], 1);
+      // Çöp okunamazsa hiçbir şey silinmez.
+      SmartSort.debugReset([
+        SmartRecord(path: gone, size: 1, modifiedMs: 1, cat: 'invoice'),
+      ]);
+      expect(
+          await SmartSort.pruneMissing(
+              trashed: () async => throw StateError('bozuk')),
+          0);
+      expect(SmartSort.of(gone), isNotNull);
+    } finally {
+      FmEnv.primaryRoot = root0;
+      SmartSort.debugReset();
+      tmp.deleteSync(recursive: true);
+    }
   });
 
   test('taşıma kuralı: varsayılan boş, hedefte duran ve gizli atlanır', () {

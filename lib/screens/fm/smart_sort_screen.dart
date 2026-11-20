@@ -16,6 +16,7 @@ import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folder_prefs.dart';
+import '../../services/fm/smart_folders.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_quota.dart';
 import '../../services/fm/smart_sort.dart';
@@ -32,6 +33,7 @@ import 'category_screen.dart';
 import 'entry_actions.dart' show showUndoToast;
 import 'folder_picker_screen.dart';
 import 'smart_clutter_screen.dart';
+import 'smart_folders_screen.dart';
 import 'smart_user_cat_screen.dart';
 
 /// **Akıllı düzen** ana ekranı (2026-11-18): aç/kapat ve gizlilik metni,
@@ -99,9 +101,15 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(Future.wait([SmartSort.ensureLoaded(), SmartQuota.read()])
-        .then((_) {
+    unawaited(Future.wait([
+      SmartSort.ensureLoaded(),
+      SmartQuota.read(),
+      SmartFolders.instance.ensureLoaded(),
+    ])
+        .then((_) async {
       if (mounted) setState(() => _ready = true);
+      // Silinmiş dosyaların kaydı düşsün: klasör sayıları gerçek olsun (U4).
+      await SmartSort.pruneMissing();
     }));
   }
 
@@ -112,6 +120,8 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   }
 
   Future<void> _run() async {
+    // Anahtar yoksa önce anahtar kapısı (girişi olan yere götürür).
+    if (!await ensureAiKey(context) || !mounted) return;
     final state = context.read<AppState>();
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -121,8 +131,13 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
       SmartHold.wifi => s.t('sm.hold_wifi'),
       SmartHold.cap =>
         s.t('sm.hold_cap', {'n': r.processed, 'cap': SmartQuota.dailyCap}),
+      SmartHold.offline => s.t('sm.hold_offline'),
+      SmartHold.noKey => s.t('uerr.ai_key'),
+      SmartHold.noScope => s.t('sm.hold_scope'),
+      // Durma nedeni kullanıcı dilinde (anahtar / kota / bağlantı) — eskiden
+      // her durmada "günlük kota doldu" yazıyordu.
       null => r.stoppedBy != null
-          ? s.t('sm.stopped', {'n': r.processed})
+          ? s.t('sm.stopped', {'n': r.processed, 'reason': r.stoppedBy})
           : (r.processed == 0 && r.failed == 0
               ? s.t('sm.nothing_new')
               : s.t('sm.done', {'n': r.processed})),
@@ -398,17 +413,6 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         builder: (_) => _ArrangeSheet(cats: cats, onRename: _rename),
       );
 
-  Future<void> _forgetLearning() async {
-    final ok = await showAppConfirm(
-      context,
-      title: context.t('smo.learn_reset_title'),
-      message: context.t('smo.learn_reset_body'),
-      confirmLabel: context.t('smo.learn_reset'),
-      destructive: true,
-    );
-    if (ok) await SmartLearn.forgetAll();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -424,6 +428,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 SmartLearn.revision,
                 SmartUserCats.revision,
                 SmartQuota.revision,
+                SmartFolders.instance,
               ]),
               builder: (context, _) => SmartSort.enabled
                   ? Listener(
@@ -461,7 +466,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             ]),
           ),
         const SizedBox(height: Gap.md),
-        _settingsCard(context),
+        const Card(margin: EdgeInsets.zero, child: SmartSortSettings()),
         const SizedBox(height: Gap.md),
         Text(context.t('sm.privacy'),
             style: theme.textTheme.bodySmall
@@ -477,115 +482,15 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     );
   }
 
-  Widget _settingsCard(BuildContext context, {bool learning = false}) => Card(
-        margin: EdgeInsets.zero,
-        child: Column(children: [
-          if (learning)
-            ListTile(
-              key: const ValueKey('ss-learn'),
-              leading: const Icon(AppIcons.insights),
-              title: Text(context.t('smo.learn_title')),
-              subtitle: Text(SmartLearn.count == 0
-                  ? context.t('smo.learn_none')
-                  : context.t('smo.learn_n', {'n': SmartLearn.count})),
-              trailing: SmartLearn.count == 0
-                  ? null
-                  : TextButton(
-                      onPressed: () => unawaited(_forgetLearning()),
-                      child: Text(context.t('smo.learn_reset')),
-                    ),
-            ),
-          SwitchListTile(
-            key: const ValueKey('ss-camera'),
-            secondary: const Icon(AppIcons.photoCamera),
-            title: Text(context.t('sm.camera')),
-            subtitle: Text(context.t('sm.camera_sub')),
-            value: SmartSort.includeCamera,
-            onChanged: (v) => unawaited(SmartSort.setSettings(camera: v)),
-          ),
-          SwitchListTile(
-            key: const ValueKey('ss-auto'),
-            secondary: const Icon(AppIcons.moveToInbox),
-            title: Text(context.t('sm.auto')),
-            subtitle: Text(context.t('sm.auto_sub')),
-            value: SmartSort.autoNew,
-            onChanged: (v) => unawaited(SmartSort.setSettings(auto: v)),
-          ),
-          // 2026-11-19: yalnız şarjda + Wi-Fi'de, uygulama kapalıyken de.
-          if (SmartSort.autoNew)
-            SwitchListTile(
-              key: const ValueKey('ss-bg'),
-              secondary: const Icon(AppIcons.batteryChargingFull),
-              title: Text(context.t('sm.bg')),
-              subtitle: Text(context.t('sm.bg_sub', {'n': SmartSortBg.limit})),
-              value: SmartSort.chargeWifiOnly,
-              onChanged: (v) => unawaited(SmartSort.setSettings(bg: v)),
-            ),
-          SwitchListTile(
-            key: const ValueKey('ss-wifi'),
-            secondary: const Icon(AppIcons.wifi),
-            title: Text(context.t('sm.wifi')),
-            subtitle: Text(context.t('sm.wifi_sub')),
-            value: SmartQuota.wifiOnly,
-            onChanged: (v) => unawaited(SmartQuota.setSettings(wifiOnly: v)),
-          ),
-          ListTile(
-            key: const ValueKey('ss-cap'),
-            leading: const Icon(AppIcons.dataUsage),
-            title: Text(context.t('sm.cap', {'cap': SmartQuota.dailyCap})),
-            subtitle: Text(context.t('sm.cap_sub', {
-              'n': SmartQuota.usedToday,
-              'cap': SmartQuota.dailyCap,
-              'l': SmartQuota.limitedToday,
-            })),
-            onTap: () => unawaited(_pickCap()),
-          ),
-        ]),
-      );
-
-  /// Günlük istek sınırı seçimi (son günlerin sayımıyla: sınırın doğru
-  /// olup olmadığı görülsün).
-  Future<void> _pickCap() async {
-    final days = SmartQuota.days;
-    final cap = await showAppSheet<int>(
-      context,
-      title: context.t('sm.cap_title'),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final c in SmartQuota.capChoices)
-            ListTile(
-              key: ValueKey('ss-cap-$c'),
-              title: Text(ctx.t('sm.cap_n', {'n': c})),
-              trailing: c == SmartQuota.dailyCap
-                  ? const Icon(AppIcons.check)
-                  : null,
-              onTap: () => Navigator.pop(ctx, c),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md),
-            child: Text(
-              [
-                for (final d in days)
-                  ctx.t('sm.cap_day',
-                      {'d': d.day, 'n': d.requests, 'l': d.limited}),
-              ].join('\n'),
-              style: Theme.of(ctx).textTheme.bodySmall,
-            ),
-          ),
-        ],
-      ),
-    );
-    if (cap != null) await SmartQuota.setSettings(cap: cap);
-  }
-
   Widget _main(BuildContext context) {
     final theme = Theme.of(context);
     final counts = SmartSort.counts();
+    // "Diğer" de klasör (U4, B15 m.4): Akıllı düzenin yerleştiremediği
+    // dosyalar eskiden hiçbir yerde görünmüyordu — kullanıcı onları bulup
+    // "Kategori yanlış mı?" ile öğretebilsin. Varsayılan sırada en sonda.
     final cats = SmartFolderPrefs.arrange([
       for (final c in SmartTaxonomy.categoryIds)
-        if ((counts[c] ?? 0) > 0 && c != SmartTaxonomy.other) c
+        if ((counts[c] ?? 0) > 0) c
     ]);
     final cols = SmartFolderPrefs.columns;
     final clutter = SmartSort.clutter().length;
@@ -689,10 +594,29 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             ),
           ),
         ],
+        // Kayıtlı akıllı aramalar (U4): eskiden yalnız Akıllı dosya
+        // asistanının menüsündeydi; asıl yeri akıllı klasörlerin yanı.
+        const SizedBox(height: Gap.sm),
+        Card(
+          margin: EdgeInsets.zero,
+          child: ListTile(
+            key: const ValueKey('ss-searches'),
+            leading: const Icon(AppIcons.savedSearch),
+            title: Text(context.t('smart.title')),
+            subtitle: Text(SmartFolders.instance.folders.isEmpty
+                ? context.t('smart.entry_sub')
+                : context.t('smart.entry_n',
+                    {'n': SmartFolders.instance.folders.length})),
+            trailing: const Icon(AppIcons.chevron),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SmartFoldersScreen())),
+          ),
+        ),
         ..._userCats(context),
         SectionHeader(context.t('sm.settings'),
             padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
-        _settingsCard(context, learning: true),
+        const Card(
+            margin: EdgeInsets.zero, child: SmartSortSettings(learning: true)),
         const SizedBox(height: Gap.sm),
         TextButton.icon(
           key: const ValueKey('ss-disable'),
@@ -1084,5 +1008,133 @@ class _ArrangeSheetState extends State<_ArrangeSheet> {
         ),
       ),
     );
+  }
+}
+
+/// **Akıllı düzen ayarları** — kamera, kendiliğinden düzen, arka plan
+/// (şarj + Wi-Fi), yalnız Wi-Fi, günlük sınır ve ([learning]) öğrenilenler.
+/// Akıllı düzen ekranı ile Ayarlar > Yapay zekâ AYNI denetimi kullanır (U4,
+/// 2026-11-20: ayarlar eskiden yalnız bu ekrandaydı). Değerler durağan
+/// depolarda; değişiklikleri kendisi dinler (const kurulabilir).
+class SmartSortSettings extends StatelessWidget {
+  final bool learning;
+  const SmartSortSettings({super.key, this.learning = false});
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: Listenable.merge(
+            [SmartSort.revision, SmartQuota.revision, SmartLearn.revision]),
+        builder: (context, _) => _tiles(context),
+      );
+
+  Widget _tiles(BuildContext context) => Column(children: [
+        if (learning)
+          ListTile(
+            key: const ValueKey('ss-learn'),
+            leading: const Icon(AppIcons.insights),
+            title: Text(context.t('smo.learn_title')),
+            subtitle: Text(SmartLearn.count == 0
+                ? context.t('smo.learn_none')
+                : context.t('smo.learn_n', {'n': SmartLearn.count})),
+            trailing: SmartLearn.count == 0
+                ? null
+                : TextButton(
+                    onPressed: () => unawaited(_forgetLearning(context)),
+                    child: Text(context.t('smo.learn_reset')),
+                  ),
+          ),
+        SwitchListTile(
+          key: const ValueKey('ss-camera'),
+          secondary: const Icon(AppIcons.photoCamera),
+          title: Text(context.t('sm.camera')),
+          subtitle: Text(context.t('sm.camera_sub')),
+          value: SmartSort.includeCamera,
+          onChanged: (v) => unawaited(SmartSort.setSettings(camera: v)),
+        ),
+        SwitchListTile(
+          key: const ValueKey('ss-auto'),
+          secondary: const Icon(AppIcons.moveToInbox),
+          title: Text(context.t('sm.auto')),
+          subtitle: Text(context.t('sm.auto_sub')),
+          value: SmartSort.autoNew,
+          onChanged: (v) => unawaited(SmartSort.setSettings(auto: v)),
+        ),
+        // 2026-11-19: yalnız şarjda + Wi-Fi'de, uygulama kapalıyken de.
+        if (SmartSort.autoNew)
+          SwitchListTile(
+            key: const ValueKey('ss-bg'),
+            secondary: const Icon(AppIcons.batteryChargingFull),
+            title: Text(context.t('sm.bg')),
+            subtitle: Text(context.t('sm.bg_sub', {'n': SmartSortBg.limit})),
+            value: SmartSort.chargeWifiOnly,
+            onChanged: (v) => unawaited(SmartSort.setSettings(bg: v)),
+          ),
+        SwitchListTile(
+          key: const ValueKey('ss-wifi'),
+          secondary: const Icon(AppIcons.wifi),
+          title: Text(context.t('sm.wifi')),
+          subtitle: Text(context.t('sm.wifi_sub')),
+          value: SmartQuota.wifiOnly,
+          onChanged: (v) => unawaited(SmartQuota.setSettings(wifiOnly: v)),
+        ),
+        ListTile(
+          key: const ValueKey('ss-cap'),
+          leading: const Icon(AppIcons.dataUsage),
+          title: Text(context.t('sm.cap', {'cap': SmartQuota.dailyCap})),
+          subtitle: Text(context.t('sm.cap_sub', {
+            'n': SmartQuota.usedToday,
+            'cap': SmartQuota.dailyCap,
+            'l': SmartQuota.limitedToday,
+          })),
+          onTap: () => unawaited(_pickCap(context)),
+        ),
+      ]);
+
+  Future<void> _forgetLearning(BuildContext context) async {
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('smo.learn_reset_title'),
+      message: context.t('smo.learn_reset_body'),
+      confirmLabel: context.t('smo.learn_reset'),
+      destructive: true,
+    );
+    if (ok) await SmartLearn.forgetAll();
+  }
+
+  /// Günlük istek sınırı seçimi (son günlerin sayımıyla: sınırın doğru
+  /// olup olmadığı görülsün).
+  Future<void> _pickCap(BuildContext context) async {
+    final days = SmartQuota.days;
+    final cap = await showAppSheet<int>(
+      context,
+      title: context.t('sm.cap_title'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final c in SmartQuota.capChoices)
+            ListTile(
+              key: ValueKey('ss-cap-$c'),
+              title: Text(ctx.t('sm.cap_n', {'n': c})),
+              trailing: c == SmartQuota.dailyCap
+                  ? const Icon(AppIcons.check)
+                  : null,
+              onTap: () => Navigator.pop(ctx, c),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md),
+            child: Text(
+              [
+                for (final d in days)
+                  ctx.t('sm.cap_day',
+                      {'d': d.day, 'n': d.requests, 'l': d.limited}),
+              ].join('\n'),
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (cap != null) await SmartQuota.setSettings(cap: cap);
   }
 }

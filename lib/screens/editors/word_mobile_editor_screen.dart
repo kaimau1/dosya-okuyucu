@@ -103,8 +103,12 @@ class WordMobileEditorScreen extends StatefulWidget {
       {super.key,
       required this.path,
       required this.name,
+      this.savePath,
       this.startPara = -1,
       this.caretOut});
+
+  /// Çalışma kopyasında ek kayıt hedefi (bkz. `WordEditorScreen.savePath`).
+  final String? savePath;
 
   @override
   State<WordMobileEditorScreen> createState() => _WordMobileEditorScreenState();
@@ -290,7 +294,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         ? plain
         : await OfficeCrypto.encryptInBackground(plain, pw);
     await SafeWrite.bytes(widget.path, bytes);
-    unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
+    final out = widget.savePath;
+    if (out != null) await SafeWrite.bytes(out, bytes);
+    unawaited(ActivityLog.add(ActivityKind.documentEdit, out ?? widget.path));
   }
 
   Future<void> _restoreDraft(Uint8List bytes) async {
@@ -309,6 +315,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     final ok = await _session.saveNow();
     if (!mounted) return;
     if (ok) {
+      final out = widget.savePath;
+      if (out != null) {
+        showSnack(context,
+            context.t('word.saved_as_docx', {'name': out.split('/').last}));
+        return;
+      }
       // H7.3: "kalıcı yer için…" ipucu bir kez; sonra yalnız "Kaydedildi".
       final where = await OnceHints.take('save_where');
       if (!mounted) return;

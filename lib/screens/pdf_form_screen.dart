@@ -9,8 +9,10 @@ import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf_form_pro.dart';
+import '../services/pdf_tools.dart';
 import '../widgets/autofill_profile_sheet.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../widgets/signature_pad.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
@@ -50,6 +52,10 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
   /// alan dosyada olduğu gibi kalsın).
   final Map<String, String> _values = {};
   final Map<String, TextEditingController> _controllers = {};
+
+  /// İmza alanı → çizilen imza (P18: form + imza tek ekranda). Kayıtta form
+  /// doldurulduktan SONRA alanın kutusuna vektör olarak basılır.
+  final Map<PdfFormFieldInfo, Signature> _signs = {};
 
   /// Doldurulmuş form düzleştirilsin mi (alanlar kilitlensin mi)?
   bool _flatten = false;
@@ -119,6 +125,29 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
     showSnack(context, context.t('pp.autofill_done', {'n': suggestion.length}));
   }
 
+  /// İmza alanı sayfaya yerleştirilebilir mi (kutusu ve sayfası çözülmüş)?
+  static bool _signable(PdfFormFieldInfo f) =>
+      f.kind == PdfFormFieldKind.signature && f.bounds != null && f.page > 0;
+
+  /// Kayıtlı imza varsa onu kullanır (ikinci dokunuş yeniden çizdirir);
+  /// yoksa imza panosu açılır.
+  Future<void> _signField(PdfFormFieldInfo field) async {
+    final sig = _signs.containsKey(field)
+        ? await SignaturePad.show(context)
+        : await Signature.load() ?? await _pad();
+    if (sig != null && mounted) setState(() => _signs[field] = sig);
+  }
+
+  Future<Signature?> _pad() =>
+      mounted ? SignaturePad.show(context) : Future.value();
+
+  /// İmzayı alan kutusuna en-boy oranını koruyarak ortalar.
+  static Rect _fit(Rect box, double aspect) {
+    final w = box.width / box.height > aspect ? box.height * aspect : box.width;
+    final h = w / aspect;
+    return Rect.fromCenter(center: box.center, width: w, height: h);
+  }
+
   Future<void> _save() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -131,12 +160,22 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
           (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
               .buffer
               .asUint8List();
-      final out = await PdfFormFiller.fill(
+      List<int> out = await PdfFormFiller.fill(
         bytes,
         _values,
         flatten: _flatten,
         fontData: font,
       );
+      // ponytail: imza başına bir yeniden ayrıştırma; formda 1–3 imza alanı olur.
+      for (final MapEntry(key: f, value: sig) in _signs.entries) {
+        out = await PdfTools.stampStrokes(
+          out,
+          pageIndex: f.page - 1,
+          strokes: sig.strokes,
+          rect: _fit(f.bounds!, sig.aspect),
+          rawSpace: true,
+        );
+      }
       if (!mounted) return;
       setState(() => _busy = false);
       final outcome = await savePdfWithChoice(
@@ -158,7 +197,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
   Widget build(BuildContext context) {
     final fields = _fields;
     final fillable =
-        fields?.where((f) => !f.readOnly).length ?? 0;
+        fields?.where((f) => !f.readOnly || _signable(f)).length ?? 0;
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('pf.title', {'name': p.basename(widget.path)}),
@@ -279,6 +318,17 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
   }
 
   Widget _fieldTile(BuildContext context, PdfFormFieldInfo field) {
+    if (_signable(field)) {
+      final signed = _signs.containsKey(field);
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(AppIcons.gesture),
+        title: Text(field.label),
+        subtitle: Text(context.t(signed ? 'pf.signed' : 'pf.sign_tap')),
+        trailing: signed ? const Icon(AppIcons.check) : null,
+        onTap: _busy ? null : () => _signField(field),
+      );
+    }
     if (field.readOnly) {
       return ListTile(
         contentPadding: EdgeInsets.zero,

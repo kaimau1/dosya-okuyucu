@@ -213,17 +213,17 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
                 unawaited(shareEntriesFrom(context, [_current]));
               },
             ),
-            PopupMenuButton<double>(
+            // Hız: tutamaçlı çubuk, 0,05 adım (U3 m.2) — ortak levha.
+            IconButton(
+              key: const ValueKey('mp-speed'),
               tooltip: context.t('mp.play_speed'),
               icon: const Icon(AppIcons.speed),
-              onSelected: _setSpeed,
-              itemBuilder: (_) => [
-                for (final s in const [0.5, 0.75, 1.0, 1.25, 1.5, 2.0])
-                  PopupMenuItem(
-                    value: s,
-                    child: Text('${s}x${s == _speed ? '  ✓' : ''}'),
-                  ),
-              ],
+              onPressed: () {
+                _scheduleHide();
+                unawaited(showSpeedSheet(context,
+                    current: _speed,
+                    onChanged: (v) => unawaited(_setSpeed(v))));
+              },
             ),
             _moreMenu(),
           ],

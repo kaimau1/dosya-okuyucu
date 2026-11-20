@@ -178,7 +178,11 @@ const Map<String, (String, String, String)> _t19 = {
   'srch.mode_name': ('Adında', 'In name', 'في الاسم'),
   'srch.mode_meaning': ('Anlamla', 'By meaning', 'بالمعنى'),
   'srch.mode_content': ('Dosyaların içinde', 'Inside files', 'داخل الملفات'),
-  'srch.mode_content_ai': ('İçinde (AI)', 'Inside (AI)', 'في الداخل (ذكاء)'),
+  'srch.mode_content_ai': (
+    'Akıllı içerik',
+    'Smart content',
+    'محتوى ذكي',
+  ),
   'srch.mode_scope': (
     'Seçili süzgeçteki {n} dosyanın adında aranır',
     'Searching names of the {n} files in the current filter',
@@ -256,7 +260,11 @@ const Map<String, (String, String, String)> _t19 = {
   'ops.active': ('Sürenler', 'Running', 'قيد التشغيل'),
   'ops.finished': ('Biten işler', 'Finished', 'المنتهية'),
   'srch.ai_toggle_on': ('Anlamla arama açık — kapatmak için dokun', 'Meaning search on — tap to turn off', 'البحث بالمعنى مفعّل — اضغط للإيقاف'),
-  'srch.ai_toggle_off': ('Anlamla aramayı aç (AI)', 'Turn on meaning search (AI)', 'تفعيل البحث بالمعنى'),
+  'srch.ai_toggle_off': (
+    'Akıllı aramayı aç',
+    'Turn on smart search',
+    'تشغيل البحث الذكي',
+  ),
   'srch.hint_ai': ('Anlamla ara: kendi cümlenle yaz', 'Search by meaning: describe it', 'ابحث بالمعنى: صِف ما تريد'),
   'dock.edit_title': ('Alt paneli düzenle', 'Edit bottom panel', 'تعديل اللوحة السفلية'),
   'dock.edit_body': ('Çöp, Aktar ve Tara sabit. Sola ve sağa en çok 2\'şer ek düğme ekleyebilirsin (Drive da ek düğme).', 'Trash, Transfer and Scan stay. You can add up to 2 extra buttons on each side (Drive is an extra too).', 'المهملات والنقل والمسح ثابتة. يمكنك إضافة زرين إضافيين كحد أقصى على كل جانب (Drive أيضًا).'),
@@ -271,7 +279,11 @@ const Map<String, (String, String, String)> _t19 = {
   'dock.apps': ('Uygulama', 'Apps', 'التطبيقات'),
   'dock.downloads': ('İndirilen', 'Downloads', 'التنزيلات'),
   'dock.free_space': ('Yer aç', 'Free up', 'تحرير'),
-  'dock.ai': ('AI', 'AI', 'AI'),
+  'dock.ai': (
+    'Akıllı',
+    'Smart',
+    'ذكي',
+  ),
   'dock.new_doc': ('Yeni belge', 'New doc', 'مستند جديد'),
   'lib.find': ('Telefondaki kitapları bul', 'Find books on this phone', 'ابحث عن الكتب في الهاتف'),
   'lib.find_none': ('Kitaplığa eklenmemiş kitap bulunamadı', 'No new books found', 'لم يُعثر على كتب جديدة'),

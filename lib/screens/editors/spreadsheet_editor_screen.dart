@@ -80,7 +80,6 @@ import '../../widgets/sheet_cell.dart';
 import '../../widgets/translate_flow.dart';
 import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
-import '../chat_screen.dart';
 import '../../core/snack.dart';
 import '../../core/once_hints.dart';
 import '../../core/user_error.dart';
@@ -530,13 +529,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   // ── arayüz ────────────────────────────────────────────────────────────────
 
-  /// AI sohbeti bu tabloyla (alt çubuktaki AI).
-  void _openAi() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChatScreen(fileContext: _docText, fileName: widget.name),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     final editor = _editor;
@@ -670,9 +662,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
             contextLabel: context.t('ux.selection'),
             [
             // Kaydet üst çubukta (Faz 40 / 1).
-            // Ortak düzen (2026-11-15): AI · Çevir · Paylaş (+ İndir); AI
-            // yüzen düğme değil — hücrelerin üstüne biniyordu.
-            DocAction(AppIcons.ai, context.t('common.ai'), _openAi),
+            // Ortak düzen (2026-11-15): Çevir · Paylaş (+ İndir).
             DocAction(
               AppIcons.translate,
               context.t('common.translate'),

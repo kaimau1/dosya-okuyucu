@@ -192,67 +192,11 @@ const Map<String, (String, String, String)> _t5 = {
   'ph.fast_scroll': ('Hızlı kaydırma tutamacı', 'Fast scroll handle', 'مقبض التمرير السريع'),
 
   // ── AI sohbeti ────────────────────────────────────────────────────────────
-  'chat.export_short': ('Aktar', 'Export', 'تصدير'),
-  'chat.export_slides': ('Sunum (PDF)', 'Presentation (PDF)', 'عرض تقديمي (PDF)'),
-  'chat.title': ('AI Sohbet', 'AI Chat', 'محادثة الذكاء الاصطناعي'),
-  'chat.answer_title': ('AI Yanıtı', 'AI answer', 'إجابة الذكاء الاصطناعي'),
-  'chat.deck_title': ('AI Sunumu', 'AI presentation', 'عرض الذكاء الاصطناعي'),
-  'chat.key_required': ('API anahtarı gerekli', 'API key required', 'مفتاح API مطلوب'),
   'chat.key_required_body': (
-    'AI özelliklerini kullanmak için Gemini API anahtarınızı girin.',
-    'Enter your Gemini API key to use the AI features.',
-    'أدخل مفتاح Gemini API لاستخدام ميزات الذكاء الاصطناعي.',
+    'Akıllı özellikleri kullanmak için Gemini API anahtarınızı girin.',
+    'Enter your Gemini API key to use smart features.',
+    'أدخل مفتاح Gemini API لاستخدام الميزات الذكية.',
   ),
-  'chat.saved_to_memory': (
-    'Kalıcı hafızaya kaydedildi',
-    'Saved to permanent memory',
-    'تم الحفظ في الذاكرة الدائمة',
-  ),
-  'chat.export_failed': (
-    'Dışa aktarılamadı: {error}',
-    'Export failed: {error}',
-    'فشل التصدير: {error}',
-  ),
-  'chat.copied': ('Panoya kopyalandı', 'Copied to the clipboard', 'تم النسخ إلى الحافظة'),
-  'chat.context': ('Bağlam: {name}', 'Context: {name}', 'السياق: {name}'),
-  'chat.quick_summarize': ('Özetle', 'Summarise', 'لخّص'),
-  'chat.quick_summarize_prompt': (
-    'Bu dosyayı kısa ve öz biçimde özetle.',
-    'Summarise this file briefly and concisely.',
-    'لخّص هذا الملف بإيجاز ووضوح.',
-  ),
-  'chat.quick_points': ('Ana noktalar', 'Key points', 'النقاط الرئيسية'),
-  'chat.quick_points_prompt': (
-    'Bu dosyanın ana noktalarını madde madde çıkar.',
-    'List the key points of this file as bullet points.',
-    'استخرج النقاط الرئيسية لهذا الملف على شكل نقاط.',
-  ),
-  'chat.quick_simple': ('Basit anlat', 'Explain simply', 'اشرح ببساطة'),
-  'chat.quick_simple_prompt': (
-    'Bu dosyayı sade, teknik olmayan bir dille açıkla.',
-    'Explain this file in plain, non-technical language.',
-    'اشرح هذا الملف بلغة بسيطة وغير تقنية.',
-  ),
-  'chat.empty_file': (
-    'Bu dosya hakkında soru sor ya da aşağıdan hızlı bir komut seç. '
-        'Yanıtları kalıcı hafızaya kaydedebilirsin.',
-    'Ask a question about this file or pick a quick command below. You can '
-        'save the answers to permanent memory.',
-    'اطرح سؤالًا عن هذا الملف أو اختر أمرًا سريعًا بالأسفل. يمكنك حفظ الإجابات '
-        'في الذاكرة الدائمة.',
-  ),
-  'chat.empty_general': (
-    'Dosyalarını özetlet, sorular sor, düzenleme öner, PDF’den slayt planı '
-        'çıkart. Yanıtları kalıcı hafızaya kaydedebilirsin.',
-    'Have your files summarised, ask questions, get editing suggestions, or '
-        'draft a slide outline from a PDF. You can save the answers to '
-        'permanent memory.',
-    'لخّص ملفاتك، واطرح الأسئلة، واحصل على اقتراحات تحرير، أو استخرج مخطط '
-        'شرائح من ملف PDF. يمكنك حفظ الإجابات في الذاكرة الدائمة.',
-  ),
-  'chat.export': ('Dışa aktar', 'Export', 'تصدير'),
-  'chat.save_to_memory': ('Hafızaya kaydet', 'Save to memory', 'حفظ في الذاكرة'),
-  'chat.ask_hint': ('Bir şey sor…', 'Ask something…', 'اسأل شيئًا…'),
 
   // ── PDF formu doldurma ────────────────────────────────────────────────────
   'pf.title': ('Formu doldur — {name}', 'Fill form — {name}', 'تعبئة النموذج — {name}'),
@@ -260,6 +204,12 @@ const Map<String, (String, String, String)> _t5 = {
   'pf.page': ('Sayfa {n}', 'Page {n}', 'الصفحة {n}'),
   'pf.other_fields': ('Diğer alanlar', 'Other fields', 'حقول أخرى'),
   'pf.read_only': ('salt okunur', 'read-only', 'للقراءة فقط'),
+  'pf.sign_tap': ('İmzalamak için dokunun', 'Tap to sign', 'انقر للتوقيع'),
+  'pf.signed': (
+    'İmzalandı — kaydedince alana basılır',
+    'Signed — stamped into the field on save',
+    'تم التوقيع — يُختم في الحقل عند الحفظ',
+  ),
   'pf.flatten': (
     'Doldurduktan sonra kilitle',
     'Lock after filling',
@@ -453,7 +403,11 @@ const Map<String, (String, String, String)> _t5 = {
         'مهم جدًا: أعِد النص المحرَّر فقط. لا تُضِف شروحًا أو جملة تمهيدية أو '
         'عبارات مثل «إليك النص» أو علامات كتل الشيفرة.',
   ),
-  'pa.job_title': ('AI ile düzenlendi', 'Edited with AI', 'تم التعديل بالذكاء'),
+  'pa.job_title': (
+    'Akıllı düzenlendi',
+    'Smart-edited',
+    'حُرّر تحريرًا ذكيًا',
+  ),
   'pa.save_note': (
     'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
         '(sütun, tablo, logo, imza) KORUNMAZ.',
@@ -481,9 +435,9 @@ const Map<String, (String, String, String)> _t5 = {
   'pa.result': ('Sonuç', 'Result', 'النتيجة'),
   'pa.editable': ('elle düzenlenebilir', 'you can edit it by hand', 'يمكنك تحريره يدويًا'),
   'pa.result_hint': (
-    'AI çıktısı burada görünecek…',
-    'The AI output will appear here…',
-    'سيظهر ناتج الذكاء الاصطناعي هنا…',
+    'Sonuç burada görünecek…',
+    'The result will appear here…',
+    'ستظهر النتيجة هنا…',
   ),
   'pa.footer': (
     'Kaydederken üretilen PDF düz metindir: özgün sayfa düzeni '
@@ -544,28 +498,6 @@ const Map<String, (String, String, String)> _t5 = {
     'Preparing the file list…',
     'جارٍ تحضير قائمة الملفات…',
   ),
-  'sim.need_key': (
-    'Gemini için Ayarlar > API anahtarı gerekiyor. Cihaz-içi benzerlik '
-        'taraması anahtarsız çalışır.',
-    'Gemini needs an API key under Settings. The on-device similarity scan '
-        'works without a key.',
-    'يحتاج Gemini إلى مفتاح API من الإعدادات. أما فحص التشابه على الجهاز فيعمل '
-        'دون مفتاح.',
-  ),
-  'sim.sending': (
-    'Görseller küçültülüp Gemini’ye gönderiliyor…',
-    'Shrinking the images and sending them to Gemini…',
-    'جارٍ تصغير الصور وإرسالها إلى Gemini…',
-  ),
-  'sim.too_few_previews': (
-    'Karşılaştırma için en az iki önizleme üretilemedi '
-        '(dosyalar okunamıyor olabilir).',
-    'Could not produce at least two previews to compare (the files may be '
-        'unreadable).',
-    'تعذّر إنتاج معاينتين على الأقل للمقارنة (قد تكون الملفات غير قابلة للقراءة).',
-  ),
-  'sim.gemini_opinion': ('Gemini’nin görüşü', 'Gemini’s opinion', 'رأي Gemini'),
-  'sim.recoverable': ('{size} kazanılabilir', '{size} can be freed', 'يمكن تحرير {size}'),
   'sim.groups_summary': (
     '{n} benzer grup · {size} kazanılabilir',
     '{n} similar groups · {size} can be freed',
@@ -726,11 +658,15 @@ const Map<String, (String, String, String)> _t5 = {
     'أدخل مفتاح Gemini API من الإعدادات أولًا.',
   ),
   'srch.ai_fallback': (
-    'AI bu sorguyu yorumlayamadı; yerel çözümleme kullanılıyor.',
-    'The AI could not interpret this query; the local parser is used instead.',
-    'تعذّر على الذكاء الاصطناعي تفسير هذا الاستعلام؛ يُستخدم المحلّل المحلي.',
+    'Akıllı arama bu sorguyu yorumlayamadı; yerel çözümleme kullanılıyor.',
+    'Smart search could not interpret this query; the local parser is used instead.',
+    'تعذّر على البحث الذكي تفسير هذا الاستعلام؛ يُستخدم التحليل المحلي.',
   ),
-  'srch.ai_error': ('AI hatası: {error}', 'AI error: {error}', 'خطأ في الذكاء الاصطناعي: {error}'),
+  'srch.ai_error': (
+    'Akıllı işlem yapılamadı: {error}',
+    'The smart action failed: {error}',
+    'تعذّر تنفيذ الإجراء الذكي: {error}',
+  ),
   'srch.summary': (
     '{n} sonuç · {sort} ({dir}){capped}',
     '{n} results · {sort} ({dir}){capped}',
@@ -749,9 +685,9 @@ const Map<String, (String, String, String)> _t5 = {
         '«pdf هذا الأسبوع» أو «صور 2024».',
   ),
   'srch.ai_interpret': (
-    'AI ile yorumla (Gemini)',
-    'Interpret with AI (Gemini)',
-    'فسّر بالذكاء الاصطناعي (Gemini)',
+    'Akıllı yorumla',
+    'Smart interpret',
+    'تفسير ذكي',
   ),
   'srch.rebuild_index': ('Dizini yeniden kur', 'Rebuild the index', 'إعادة بناء الفهرس'),
   'srch.searching': ('Aranıyor…', 'Searching…', 'جارٍ البحث…'),

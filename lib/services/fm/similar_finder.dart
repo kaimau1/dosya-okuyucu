@@ -55,20 +55,6 @@ abstract final class SimilarFinder {
           return bySize != 0 ? bySize : b.modifiedMs.compareTo(a.modifiedMs);
         });
 
-  /// SAF: AI puanıyla (Decisions `score`, B2 dilim 3) yeniden sıralar —
-  /// puanlananlar yüksekten düşüğe başta, puansızlar eski sırasıyla sonda;
-  /// eşit puanda eski (yerel netlik) sıra korunur.
-  static List<FsEntry> orderByAi(
-      List<FsEntry> files, Map<String, double> scores) {
-    final index = {for (var i = 0; i < files.length; i++) files[i].path: i};
-    return [...files]..sort((a, b) {
-        final sa = scores[a.path], sb = scores[b.path];
-        if (sa != null && sb != null && sa != sb) return sb.compareTo(sa);
-        if ((sa == null) != (sb == null)) return sa == null ? 1 : -1;
-        return index[a.path]!.compareTo(index[b.path]!);
-      });
-  }
-
   /// [entries] içindeki benzer kümeleri döndürür.
   ///
   /// [handle] verilirse ilerleme bildirilir ve iptal isteği yoklanır.

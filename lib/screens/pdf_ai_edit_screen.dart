@@ -213,7 +213,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(AppIcons.organize),
+                      : const Icon(AppIcons.ai),
                   label: Text(
                       context.t(_busy ? 'pa.working' : 'vw.ai_edit')),
                 ),

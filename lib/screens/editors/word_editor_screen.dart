@@ -41,7 +41,6 @@ import '../../widgets/office_shell.dart';
 import '../../widgets/translate_flow.dart';
 import '../../widgets/quick_sheets.dart';
 import '../../widgets/download_action.dart';
-import '../chat_screen.dart';
 import 'word_mobile_editor_screen.dart';
 import '../../core/snack.dart';
 import '../../core/once_hints.dart';
@@ -62,11 +61,16 @@ class WordEditorScreen extends StatefulWidget {
   final String path;
   final String name;
   final String plainText;
+
+  /// [path] bir çalışma kopyasıysa (ör. `.udf` → `.docx`, P23) kaydetme
+  /// kopyaya ek olarak buraya da yazar; özgün dosyaya dokunulmaz.
+  final String? savePath;
   const WordEditorScreen({
     super.key,
     required this.path,
     required this.name,
     required this.plainText,
+    this.savePath,
   });
 
   @override

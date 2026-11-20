@@ -6,10 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dosya_okuyucu/services/fm/ai_index.dart';
+import 'package:dosya_okuyucu/services/fm/ai_scope.dart';
 import 'package:dosya_okuyucu/services/fm/bills.dart';
 import 'package:dosya_okuyucu/services/fm/exif_reader.dart';
 import 'package:dosya_okuyucu/services/fm/native_extras.dart';
 import 'package:dosya_okuyucu/services/fm/smart_folders.dart';
+import 'package:dosya_okuyucu/services/fm/smart_sort.dart';
 import 'package:dosya_okuyucu/widgets/qr_code.dart';
 
 /// 2026-10-18 öneri turu: akıllı klasörler, faturalar, anılar, QR, yerel
@@ -35,6 +37,32 @@ void main() {
       expect(sf.folders.single.name, 'Faturalar');
       await sf.remove(a.id);
       expect(sf.folders, isEmpty);
+    });
+
+    test('içerik Akıllı düzen kayıtlarını da arar; gizlenen girmez (U4)', () {
+      SmartSort.debugReset(const [
+        SmartRecord(
+            path: '/d/e.pdf', size: 3, modifiedMs: 5, cat: 'invoice', conf: 0.9),
+        SmartRecord(
+            path: '/d/g.pdf',
+            size: 3,
+            modifiedMs: 6,
+            cat: 'invoice',
+            conf: 0.9,
+            hidden: true),
+        SmartRecord(
+            path: '/d/k.jpg', size: 3, modifiedMs: 7, cat: 'id', conf: 0.9),
+      ]);
+      const folder =
+          SmartFolder(id: 'f', name: 'f', query: 'fatura', createdMs: 0);
+      const scope = AiScope(settings: AiScopeSettings());
+      final items = SmartFolders.contents(folder, scope);
+      expect(items.map((r) => r.path), ['/d/e.pdf']);
+      expect(items.single.sizeBytes, 3);
+      const id = SmartFolder(id: 'k', name: 'k', query: 'kimlik', createdMs: 0);
+      expect(SmartFolders.contents(id, scope).where(SmartFolders.isSensitive),
+          hasLength(1), reason: 'hassas → açılışta PIN');
+      SmartSort.debugReset();
     });
 
     test('yeni sayısı son bakıştan sonra değişenler', () {

@@ -13,6 +13,15 @@ enum SmartHold {
 
   /// Bugünkü istek üst sınırı doldu.
   cap,
+
+  /// Uygulamanın çevrimdışı kipi açık (U4: eskiden "yeni dosya yok" deniyordu).
+  offline,
+
+  /// Yapay zekâ anahtarı yok.
+  noKey,
+
+  /// Kapsamda düzenlenecek klasör yok (izin ya da AI kapsamı).
+  noScope,
 }
 
 /// Bir günün sayımı: düzen isteği ve kota (HTTP 429) yanıtı.

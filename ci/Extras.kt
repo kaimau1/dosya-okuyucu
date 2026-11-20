@@ -77,15 +77,13 @@ object Extras {
     fun exitReasons(ctx: Context, since: Long): List<Map<String, Any>> {
         if (Build.VERSION.SDK_INT < 30) return emptyList()
         val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        // P29 kök neden: REASON_SIGNALED (SIGKILL: sistem arka plan temizliği,
-        // zorla durdurma, APK güncellemesi) ve arka plan REASON_LOW_MEMORY
-        // gerçek uygulama çökmesi değildir; dahil edilince her açılışta
-        // ana ekranda kalıcı "beklenmedik hata (1 kayıt)" şeridi çıkıyordu.
         val wanted = mapOf(
             android.app.ApplicationExitInfo.REASON_CRASH to "crash",
             android.app.ApplicationExitInfo.REASON_CRASH_NATIVE to "native_crash",
+            android.app.ApplicationExitInfo.REASON_LOW_MEMORY to "low_memory",
             android.app.ApplicationExitInfo.REASON_ANR to "anr",
             android.app.ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE to "excessive_resource",
+            android.app.ApplicationExitInfo.REASON_SIGNALED to "signaled",
         )
         return am.getHistoricalProcessExitReasons(ctx.packageName, 0, 5)
             .filter { it.timestamp > since && wanted.containsKey(it.reason) }
@@ -97,6 +95,7 @@ object Extras {
                     "status" to it.status,
                     "pssKb" to it.pss,
                     "rssKb" to it.rss,
+                    "importance" to it.importance,
                 )
             }
     }

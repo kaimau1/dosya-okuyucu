@@ -632,6 +632,38 @@ Uint8List _styledTablePptx() {
   return Uint8List.fromList(ZipEncoder().encode(archive));
 }
 
+/// B11 m.3: geçiş (cut) + giriş kay (soldan) + çıkış + dikey metin.
+Uint8List _fxPptx(String transition) {
+  final archive = Archive();
+  void add(String name, String xml) {
+    final data = utf8.encode(xml);
+    archive.addFile(ArchiveFile(name, data.length, data));
+  }
+
+  add(
+    'ppt/presentation.xml',
+    '<p:presentation xmlns:p="ppt"><p:sldSz cx="12192000" cy="6858000"/>'
+        '</p:presentation>',
+  );
+  String sp(int id, String vert) => '<p:sp><p:nvSpPr><p:cNvPr id="$id" name="K$id"/><p:nvPr/></p:nvSpPr>'
+      '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="914400" cy="914400"/></a:xfrm><a:prstGeom prst="rect"/></p:spPr>'
+      '<p:txBody><a:bodyPr$vert/><a:p><a:r><a:t>Y$id</a:t></a:r></a:p></p:txBody></p:sp>';
+  String eff(int id, String cls, int preset, int sub) =>
+      '<p:par><p:cTn id="9" fill="hold"><p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst>'
+      '<p:par><p:cTn id="9" presetID="$preset" presetClass="$cls" presetSubtype="$sub" nodeType="clickEffect"><p:childTnLst>'
+      '<p:set><p:cBhvr><p:cTn id="9" dur="1"/><p:tgtEl><p:spTgt spid="$id"/></p:tgtEl></p:cBhvr></p:set>'
+      '</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn></p:par>';
+  add('ppt/slides/slide1.xml',
+      '<p:sld xmlns:p="ppt" xmlns:a="draw"><p:cSld><p:spTree>'
+      '${sp(2, ' vert="vert270"')}${sp(3, '')}'
+      '</p:spTree></p:cSld>$transition'
+      '<p:timing><p:tnLst><p:par><p:cTn id="1" nodeType="tmRoot"><p:childTnLst><p:seq>'
+      '<p:cTn id="2" nodeType="mainSeq"><p:childTnLst>'
+      '${eff(2, 'entr', 2, 8)}${eff(3, 'exit', 10, 0)}'
+      '</p:childTnLst></p:cTn></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst></p:timing></p:sld>');
+  return Uint8List.fromList(ZipEncoder().encode(archive));
+}
+
 void main() {
   _notesTests();
 
@@ -1168,5 +1200,31 @@ void _notesTests() {
   test('notu olmayan slaytta boş metin döner', () {
     final editor = PptxEditor.parse(_samplePptx());
     expect(editor.notesOf(editor.slides.single), isEmpty);
+  });
+
+  test('B11 m.3: efekt türü, çıkış, dikey metin; geçiş türleri eşlenir', () {
+    final v = PptxEditor.parse(_fxPptx('<p:transition><p:cut/></p:transition>'))
+        .slides
+        .single
+        .view!;
+    expect(v.transition, isNull); // cut = efektsiz
+    expect(v.steps, hasLength(2));
+    expect(v.steps[0].single.effect, 'fly');
+    expect(v.steps[0].single.dir, 'l');
+    expect(v.steps[1].single.kind, AnimKind.exit);
+    // Uçan şekil 1. tıklamada gelir; çıkan şekil baştan görünür, 2.'de gider.
+    expect(v.visibleAt(2, -1, 0), isFalse);
+    expect(v.visibleAt(2, -1, 1), isTrue);
+    expect(v.visibleAt(3, -1, 1), isTrue);
+    expect(v.visibleAt(3, -1, 2), isFalse);
+    // Henüz oynamamış efekt: gizli duruş gelecek efekte göre.
+    expect(v.effectAt(2, -1, 0).$1?.effect, 'fly');
+    expect(v.shapes.firstWhere((s) => s.id == 2).textQuarterTurns, 3);
+    expect(v.shapes.firstWhere((s) => s.id == 3).textQuarterTurns, 0);
+    String? tr(String x) =>
+        PptxEditor.parse(_fxPptx(x)).slides.single.view!.transition;
+    expect(tr('<p:transition><p:zoom/></p:transition>'), 'zoom');
+    expect(tr('<p:transition><p:cover dir="r"/></p:transition>'), 'push');
+    expect(tr('<p:transition><p:circle/></p:transition>'), 'wipe');
   });
 }

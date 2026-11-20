@@ -14,11 +14,12 @@ library;
 
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:ui' show Rect;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import 'pdf/pro/pdf_text_blocks.dart' show PdfPageContent;
 import 'pdf_tools.dart' show PdfToolsException;
 
 /// Profil anahtarları (sıra = arayüz sırası).
@@ -214,6 +215,202 @@ abstract final class PdfFormPro {
       doc.dispose();
     }
   }
+
+  // ── Düz PDF'te alan algılama (P18) ──────────────────────────────────────
+
+  static const _boxGlyphs = {'☐', '□', '❏', '❑', '▢'};
+
+  /// Düz (formsuz) PDF'te doldurulacak yerleri bulur: `____` ve `.....`
+  /// dizileri → metin alanı, `☐`/`□` → onay kutusu. Alan adı satırda diziden
+  /// önceki etikettir ("Adı Soyadı: ____" → "Adı Soyadı"; otomatik doldurma
+  /// eşlemesi bunu kullanır). Var olan form alanıyla çakışan atlanır.
+  /// Koordinatlar ham sayfa puntosu (sol-üst).
+  ///
+  /// [shapes]: çizgi/kutu sezgisinin ([fieldsFromShapes]) adayları — metin
+  /// sezgisiyle ya da var olan alanla çakışan aday atlanır.
+  ///
+  /// ponytail: döndürülmüş sayfa atlanır.
+  static List<NewFormField> detectFields(List<int> bytes,
+      {String? password, List<NewFormField> shapes = const []}) {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final taken = <int, List<Rect>>{};
+      for (var i = 0; i < doc.form.fields.count; i++) {
+        final f = doc.form.fields[i];
+        final pg = f.page;
+        if (pg == null) continue;
+        (taken[doc.pages.indexOf(pg)] ??= []).add(f.bounds);
+      }
+      final extractor = PdfTextExtractor(doc);
+      final out = <NewFormField>[];
+      for (var i = 0; i < doc.pages.count; i++) {
+        if (doc.pages[i].rotation.index % 4 != 0) continue;
+        final busy = taken[i] ?? const <Rect>[];
+        for (final line
+            in extractor.extractTextLines(startPageIndex: i, endPageIndex: i)) {
+          final glyphs = [for (final w in line.wordCollection) ...w.glyphs];
+          for (final f in fieldsInLine(i, glyphs)) {
+            if (busy.any((b) => b.overlaps(f.bounds))) continue;
+            out.add(f);
+          }
+        }
+      }
+      for (final f in shapes) {
+        if (f.page < 0 || f.page >= doc.pages.count) continue;
+        if ((taken[f.page] ?? const <Rect>[]).any((b) => b.overlaps(f.bounds))) {
+          continue;
+        }
+        if (out.any((o) => o.page == f.page && o.bounds.overlaps(f.bounds))) {
+          continue;
+        }
+        out.add(f);
+      }
+      return out;
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// Tek satırın glifleri → alanlar (saf; [detectFields] çağırır).
+  static List<NewFormField> fieldsInLine(int page, List<TextGlyph> glyphs) {
+    final out = <NewFormField>[];
+    final label = StringBuffer();
+    var g = 0;
+    while (g < glyphs.length) {
+      final t = glyphs[g].text;
+      if (_boxGlyphs.contains(t)) {
+        final b = glyphs[g].bounds;
+        final side = b.height.clamp(8.0, 24.0).toDouble();
+        out.add(NewFormField(
+            page,
+            Rect.fromCenter(center: b.center, width: side, height: side),
+            NewFieldKind.checkbox,
+            _labelOf(label)));
+        label.clear();
+        g++;
+        continue;
+      }
+      if (t != '_' && t != '.' && t != '…') {
+        // Sözcük arası boşluk glif değildir; aralıktan geri kur.
+        if (g > 0 &&
+            glyphs[g].bounds.left - glyphs[g - 1].bounds.right >
+                glyphs[g].bounds.height * 0.15) {
+          label.write(' ');
+        }
+        label.write(t);
+        g++;
+        continue;
+      }
+      // Dolgu dizisi: araya glif boyundan geniş boşluk girerse kopar.
+      final under = t == '_';
+      var end = g;
+      var weight = 0;
+      while (end < glyphs.length) {
+        final c = glyphs[end].text;
+        if (under ? c != '_' : (c != '.' && c != '…')) break;
+        if (end > g) {
+          final gap = glyphs[end].bounds.left - glyphs[end - 1].bounds.right;
+          if (gap > glyphs[end].bounds.height) break;
+        }
+        weight += c == '…' ? 3 : 1;
+        end++;
+      }
+      if (weight >= (under ? 3 : 5)) {
+        final first = glyphs[g].bounds;
+        final last = glyphs[end - 1].bounds;
+        final h = first.height.clamp(12.0, 28.0).toDouble();
+        out.add(NewFormField(
+            page,
+            Rect.fromLTRB(
+                first.left, first.bottom - h, last.right, first.bottom),
+            NewFieldKind.text,
+            _labelOf(label)));
+        label.clear();
+      } else {
+        for (var k = g; k < end; k++) {
+          label.write(glyphs[k].text);
+        }
+      }
+      g = end;
+    }
+    return out;
+  }
+
+  /// Çizilmiş form öğeleri → alan (saf): yatay ince çizgi (`Ad: ______`
+  /// çizgisi) ve geniş boş kutu → metin alanı, küçük kare → onay kutusu.
+  /// İçinde/üstünde metin olan kutu ya da çizgi (tablo hücresi, altı çizili
+  /// yazı) atlanır. Etiket = aynı satırda soldaki en yakın metin.
+  /// [c] PDF uzayında (y yukarı); sonuç sol-üst puntodur.
+  ///
+  /// ponytail: tek yol nesnesi = tek öğe; 4 ayrı çizgiyle çizilmiş kutu ve
+  /// kutu kökeni (0,0) olmayan sayfa kayar — gerekirse çizgi birleştirme.
+  static List<NewFormField> fieldsFromShapes(int page, PdfPageContent c) {
+    final out = <NewFormField>[];
+    bool hasText(Rect r) => c.texts.any((t) {
+          final cx = (t.left + t.right) / 2;
+          final cy = c.height - (t.bottom + t.top) / 2;
+          return r.contains(Offset(cx, cy)) && t.text.trim().isNotEmpty;
+        });
+    String labelFor(Rect r) {
+      var best = '';
+      var bestRight = double.negativeInfinity;
+      for (final t in c.texts) {
+        final cy = c.height - (t.bottom + t.top) / 2;
+        if (cy < r.top - 4 || cy > r.bottom + 4) continue;
+        if (t.right > r.left + 2 || r.left - t.right > 200) continue;
+        if (t.right > bestRight && t.text.trim().isNotEmpty) {
+          bestRight = t.right;
+          best = t.text;
+        }
+      }
+      return _labelOf(StringBuffer(best));
+    }
+
+    for (final it in c.items) {
+      if (!it.isPath || !it.straight || (!it.stroke && !it.filled)) continue;
+      final w = it.width, h = it.height;
+      final top = c.height - it.top;
+      final dark = it.filled && !it.stroke && (it.fill >> 24) > 0x80 &&
+          ((it.fill >> 16 & 0xFF) + (it.fill >> 8 & 0xFF) + (it.fill & 0xFF)) <
+              600;
+      if (h <= 2.5 && w >= 36 && w < c.width * 0.9) {
+        // Yazı çizgisi: alan çizginin üstünde, bir satır boyu.
+        final r = Rect.fromLTRB(it.left, top - 16, it.right, top + h);
+        if (hasText(r.deflate(1))) continue;
+        out.add(NewFormField(page, r, NewFieldKind.text, labelFor(r)));
+      } else if (!dark && w >= 6 && w <= 24 && (w - h).abs() <= 2) {
+        final r = Rect.fromLTWH(it.left, top, w, h);
+        if (hasText(r)) continue;
+        out.add(NewFormField(page, r, NewFieldKind.checkbox, labelFor(r)));
+      } else if (!it.filled &&
+          w >= 40 &&
+          w < c.width * 0.9 &&
+          h >= 12 &&
+          h <= 80) {
+        final r = Rect.fromLTWH(it.left, top, w, h);
+        if (hasText(r.deflate(1))) continue;
+        out.add(NewFormField(page, r.deflate(1), NewFieldKind.text,
+            labelFor(r)));
+      }
+    }
+    return out;
+  }
+
+  static String _labelOf(StringBuffer b) {
+    var s = b.toString().replaceAll(RegExp(r'[\s:.\-–]+$'), '').trim();
+    if (s.length > 40) s = s.substring(s.length - 40).trim();
+    return s;
+  }
+
+  static Future<List<NewFormField>> detectFieldsInBackground(List<int> bytes,
+          {String? password, List<NewFormField> shapes = const []}) =>
+      Isolate.run(() {
+        try {
+          return detectFields(bytes, password: password, shapes: shapes);
+        } catch (e) {
+          throw PdfToolsException('$e');
+        }
+      });
 
   static Future<List<int>> addFieldsInBackground(
           List<int> bytes, List<NewFormField> fields,

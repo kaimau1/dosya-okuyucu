@@ -127,10 +127,10 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'search_meaning',
       group: 'Arama ve gezinme',
-      name: 'Anlamla ara (AI)',
-      where: 'Arama ekranı → üstteki yıldız (AI) düğmesi',
+      name: 'Akıllı arama',
+      where: 'Arama ekranı → üstteki "Akıllı arama" düğmesi',
       how: [
-        'AI düğmesine bas, aradığını cümleyle yaz ("geçen ayın faturası").',
+        'Akıllı arama düğmesine bas, aradığını cümleyle yaz ("geçen ayın faturası").',
         'Ara\'ya bas; eş anlamlı sözcüklerle cihazda aranır.',
       ],
       keywords: ['ai', 'yapay zeka', 'akilli arama', 'cumle'],
@@ -173,7 +173,7 @@ class FeatureHelpIndex {
       id: 'edit_home',
       group: 'Ana ekran',
       name: 'Ana ekranı düzenle',
-      where: 'Ana ekran → en altta "Ana ekranı düzenle"',
+      where: 'Ana ekran → en altta "Düzenle" → "Ana ekranı düzenle"',
       how: [
         'Kutuları ve bölümleri sürükleyerek sırala.',
         'Anahtarla gizle ya da göster.',
@@ -185,7 +185,7 @@ class FeatureHelpIndex {
       id: 'custom_card',
       group: 'Ana ekran',
       name: 'Kendi kartını oluştur',
-      where: 'Ana ekran → "Ana ekranı düzenle" → "Yeni kart"',
+      where: 'Ana ekran → "Düzenle" → "Ana ekranı düzenle" → "Yeni kart"',
       how: [
         'Kartın adını ve içine girecek dosya türlerini seç.',
         'Galeri ya da klasör görünümünü seç, kaydet.',
@@ -196,7 +196,7 @@ class FeatureHelpIndex {
       id: 'bottom_bar',
       group: 'Ana ekran',
       name: 'Alt paneli düzenle',
-      where: 'Ana ekran → en altta "Alt paneli düzenle"',
+      where: 'Ana ekran → en altta "Düzenle" → "Alt paneli düzenle"',
       how: [
         'Aktar\'ın solunda ve sağında 3\'er düğme olabilir.',
         'Ek düğmeleri (İşlemler, Drive…) sola ya da sağa ekle; her yana en çok 2 ek.',
@@ -361,10 +361,10 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'pdf_ai',
       group: 'PDF ve belgeler',
-      name: 'Belgeyi AI ile özetle / soru sor',
-      where: 'Belgeyi aç → alttaki "AI"',
-      how: ['Özet iste ya da belge hakkında soru sor.'],
-      keywords: ['ozet', 'yapay zeka', 'soru', 'gemini'],
+      name: "PDF'i akıllı düzenle",
+      where: "PDF'i aç → alttaki \"Düzenle\" → \"Akıllı düzenle\"",
+      how: ['Ne istediğini yaz; metin yeniden yazılıp yeni PDF olarak kaydedilir.'],
+      keywords: ['akilli', 'yapay zeka', 'yeniden yaz', 'gemini'],
     ),
     FeatureHelp(
       id: 'translate',
@@ -533,25 +533,17 @@ class FeatureHelpIndex {
       keywords: ['apk', 'kaldir', 'uygulama boyutu'],
     ),
 
-    // ── AI ────────────────────────────────────────────────────────────
+    // ── Akıllı ──────────────────────────────────────────────────────────
     FeatureHelp(
       id: 'ai_hub',
-      group: 'AI',
-      name: 'AI Dosya Asistanı (analiz ve öneriler)',
-      where: 'Ana ekran → alt panel → "AI"',
+      group: 'Akıllı',
+      name: 'Akıllı dosya asistanı (analiz ve öneriler)',
+      where: 'Ana ekran → alt panel → "Akıllı"',
       how: [
         '"Yeni dosyaları analiz et" ile dosyalar türlere ayrılır.',
         'Öneriler sekmesinde ad/klasör önerilerini tek tek ya da toplu seçip uygula.',
       ],
       keywords: ['yapay zeka', 'oneri', 'siniflandir', 'duzenle', 'ai merkezi'],
-    ),
-    FeatureHelp(
-      id: 'ai_chat',
-      group: 'AI',
-      name: 'Dosyalarına soru sor',
-      where: 'AI → "Sohbet" sekmesi',
-      how: ['"Kimlik fotokopim nerede?" gibi sor; ilgili dosyalar listelenir.'],
-      keywords: ['sohbet', 'soru', 'chat'],
     ),
 
     // ── Ayarlar ───────────────────────────────────────────────────────

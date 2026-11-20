@@ -95,7 +95,11 @@ const Map<String, (String, String, String)> _t24 = {
   'vn.prompt': ('Konuşun — not Notlar\'a gidecek', 'Speak — the note goes to Notes', 'تحدث — ستُرسل الملاحظة إلى الملاحظات'),
   'wp.dictate_prompt': ('Konuşun — imleç yerine yazılacak', 'Speak — text goes at the cursor', 'تحدث — يُكتب النص عند المؤشر'),
   'wp.dictate_unavailable': ('Cihazda konuşma tanıma yok (Google uygulaması gerekli)', 'No speech recognizer on this device', 'لا يوجد تعرف على الكلام في هذا الجهاز'),
-  'wp.ai_inline': ('AI ile yaz', 'Write with AI', 'الكتابة بالذكاء الاصطناعي'),
+  'wp.ai_inline': (
+    'Akıllı yaz',
+    'Smart write',
+    'كتابة ذكية',
+  ),
   'wp.ai_empty': ('Önce bir metin seçin', 'Select some text first', 'حدد نصًا أولًا'),
   'wp.ai_rewrite': ('Yeniden yaz', 'Rewrite', 'إعادة صياغة'),
   'wp.ai_summarize': ('Özetle', 'Summarize', 'تلخيص'),
@@ -141,7 +145,11 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.outline': ('Gezinti bölmesi', 'Navigation pane', 'جزء التنقل'),
   'wp.thumbnails': ('Sayfa küçük resimleri', 'Page thumbnails', 'مصغرات الصفحات'),
   'wp.stats': ('Sayaç ve okuma süresi', 'Counts and reading time', 'العدّ ووقت القراءة'),
-  'wp.ai_proof': ('AI yazım denetimi', 'AI proofreading', 'تدقيق بالذكاء الاصطناعي'),
+  'wp.ai_proof': (
+    'Akıllı yazım denetimi',
+    'Smart proofreading',
+    'تدقيق إملائي ذكي',
+  ),
 
   // Madde 7
   'wp.export_pdf': ('PDF (yazı tipleri gömülü)', 'PDF (fonts embedded)', 'PDF (مع تضمين الخطوط)'),
@@ -222,4 +230,21 @@ const Map<String, (String, String, String)> _t24 = {
   'wp.reader_night': ('Gece', 'Night', 'ليلي'),
 
   'wp.outline_fold': ('Aç / kapat', 'Expand / collapse', 'توسيع / طي'),
+
+  // P23 — UYAP (.udf) belgeleri Word okuyucusunda açılır.
+  'word.saved_as_docx': (
+    '{name} olarak kaydedildi (özgün UDF dosyanız olduğu gibi duruyor)',
+    'Saved as {name} (your original UDF file is untouched)',
+    'تم الحفظ باسم {name} (ملف UDF الأصلي كما هو)',
+  ),
+  'udf.corrupt': (
+    'Bu UYAP (.udf) dosyası bozuk ya da eksik görünüyor, açılamadı. Dosyayı UYAP’tan ya da gönderen kişiden yeniden indirip deneyin.',
+    'This UYAP (.udf) file looks damaged or incomplete and could not be opened. Download it again from UYAP or ask the sender for a new copy.',
+    'يبدو أن ملف UYAP (.udf) هذا تالف أو غير مكتمل ولم يمكن فتحه. نزّله مرة أخرى من UYAP أو اطلب نسخة جديدة من المرسل.',
+  ),
+  'udf.encrypted': (
+    'Bu UYAP (.udf) dosyası şifreli, burada açılamıyor. UYAP Doküman Editörü’nde açıp şifresiz kaydedin ya da PDF olarak alın.',
+    'This UYAP (.udf) file is encrypted and cannot be opened here. Open it in UYAP Document Editor and save it without a password, or get it as a PDF.',
+    'ملف UYAP (.udf) هذا مشفّر ولا يمكن فتحه هنا. افتحه في محرر مستندات UYAP واحفظه دون كلمة مرور، أو احصل عليه بصيغة PDF.',
+  ),
 };

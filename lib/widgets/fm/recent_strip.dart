@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
@@ -18,16 +19,53 @@ enum StripMark { fresh, opened }
 
 typedef StripItem = ({FsEntry entry, StripMark mark});
 
-/// **Tek akıllı şerit sırası** (U2, 2026-11-19, kullanıcı: *"ikisi akıllı
-/// bir şekilde birleşsin … iki satıra çıkmasın"*).
+/// Şeridin sekmesi: karışık (Otomatik) · yalnız Geçmiş · yalnız Yeniler.
+enum StripMode { auto, opened, fresh }
+
+/// **Varsayılan sekme** (U3 m.3, 2026-11-20, kullanıcı: "Ana ekranı
+/// düzenle'den varsayılan kip: Otomatik / Geçmiş / Yeni"). Ana ekran ve yan
+/// menü şeridi her açılışta buradan başlar; sekmeye dokunmak yalnız o an.
+abstract final class StripPrefs {
+  static const _key = 'home_strip_mode';
+  static final mode = ValueNotifier<StripMode>(StripMode.auto);
+  static Future<void>? _loading;
+
+  static Future<void> ensureLoaded() => _loading ??= _read();
+
+  static Future<void> _read() async {
+    try {
+      final i = (await SharedPreferences.getInstance()).getInt(_key);
+      if (i != null && i >= 0 && i < StripMode.values.length) {
+        mode.value = StripMode.values[i];
+      }
+    } catch (_) {
+      // Bilinçli: okunamazsa Otomatik kalır.
+    }
+  }
+
+  static Future<void> set(StripMode m) async {
+    await ensureLoaded();
+    mode.value = m;
+    await (await SharedPreferences.getInstance()).setInt(_key, m.index);
+  }
+
+  @visibleForTesting
+  static void resetForTest() {
+    _loading = null;
+    mode.value = StripMode.auto;
+  }
+}
+
+/// **Tek akıllı şerit sırası** (U2 2026-11-19; U3 2026-11-20 kullanıcı:
+/// *"yeni + geçmiş akıllı biçimde TEK karışık liste"* — eskiden 24 saatin
+/// yenileri hep öndeydi, Geçmiş arkaya düşüyordu).
 ///
-/// * Son 24 saatte gelen ve o sürümü hiç açılmamış yeniler öne (en yeni önce);
-/// * gerisi (son açılanlar = açılma zamanı, eski yeniler = değişme zamanı)
-///   zamana göre karışık;
+/// * Hepsi tek zaman çizgisinde: yeni = değişme zamanı, son açılan = açılma
+///   zamanı (en yeni önce);
 /// * aynı yol bir kez; açıldıktan sonra değişmemiş "yeni" dosya son açılan
 ///   sayılır;
-/// * yeniler şeridi doldursa da en az [reserve] son açılan görünür (ikisi
-///   aynı anda).
+/// * biri şeridi doldursa da öbüründen en az [reserve] öğe görünür (ikisi
+///   aynı anda; yerleri yine zamana göre).
 List<StripItem> mergeStripItems({
   required List<FsEntry> opened,
   required List<FsEntry> fresh,
@@ -36,60 +74,81 @@ List<StripItem> mergeStripItems({
   int limit = 10,
   int reserve = 3,
 }) {
-  const day = Duration.millisecondsPerDay;
   final seen = <String>{};
-  final front = <FsEntry>[];
-  final rest = <(int, int, StripItem)>[];
-  void later(int at, StripItem item) => rest.add((at, rest.length, item));
+  final all = <(int, int, StripItem)>[];
+  void add(int at, StripItem item) => all.add((at, all.length, item));
   for (final e in fresh) {
     if (!seen.add(e.path)) continue;
     final at = openedAt(e.path);
     if (at != null && at >= e.modifiedMs) {
-      later(at, (entry: e, mark: StripMark.opened));
-    } else if (nowMs - e.modifiedMs <= day) {
-      front.add(e);
+      add(at, (entry: e, mark: StripMark.opened));
     } else {
-      later(e.modifiedMs, (entry: e, mark: StripMark.fresh));
+      add(e.modifiedMs, (entry: e, mark: StripMark.fresh));
     }
   }
   for (final e in opened) {
     if (!seen.add(e.path)) continue;
-    later(openedAt(e.path) ?? e.modifiedMs, (entry: e, mark: StripMark.opened));
+    add(openedAt(e.path) ?? e.modifiedMs, (entry: e, mark: StripMark.opened));
   }
-  front.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
   // Eşit zamanda ilk geliş sırası korunur (Dart sort kararlı değil).
-  rest.sort((a, b) {
+  all.sort((a, b) {
     final c = b.$1.compareTo(a.$1);
     return c != 0 ? c : a.$2.compareTo(b.$2);
   });
-  final keep = math.min(reserve, rest.length);
-  return [
-    for (final e in front.take(math.max(0, limit - keep)))
-      (entry: e, mark: StripMark.fresh),
-    for (final r in rest) r.$3,
-  ].take(limit).toList();
+  final openedCount = all.where((r) => r.$3.mark == StripMark.opened).length;
+  final needOpened = math.min(reserve, openedCount);
+  final needFresh = math.min(reserve, all.length - openedCount);
+  final out = <StripItem>[];
+  var o = 0;
+  var f = 0;
+  for (final r in all) {
+    if (out.length >= limit) break;
+    final isOpened = r.$3.mark == StripMark.opened;
+    // Öbür türe ayrılan yerler dolmadan bu tür son boşlukları yiyemez.
+    final owed = isOpened
+        ? math.max(0, needFresh - f)
+        : math.max(0, needOpened - o);
+    if (limit - out.length <= owed) continue;
+    out.add(r.$3);
+    if (isOpened) {
+      o++;
+    } else {
+      f++;
+    }
+  }
+  return out;
 }
 
 /// **Panoda tek şerit: yeni gelenler + Geçmiş** (Faz 17 / G15 şeridi;
-/// 2026-11-18'de iki sekmeliydi, U2 2026-11-19'da tek akıllı şeride döndü).
+/// 2026-11-18'de iki sekmeliydi, U2 2026-11-19'da tek akıllı şerit, U3
+/// 2026-11-20 başlıkta sekmeler: "Son dosyalar" (karışık) · Geçmiş · Yeniler).
 ///
 /// Yatay, küçük resimli en çok [limit] öğe; sırası [mergeStripItems].
 /// Yeni dosyada küçük "Yeni" etiketi, son açılanda ince saat işareti.
-/// Başlıkta "Yeniler" ve "Geçmiş" düğmeleri tam listelere gider.
+/// Sağdaki "Tümü" sekmenin tam listesine gider. Yan menü de aynı şeridi
+/// [dense] boyda kullanır.
 ///
 /// **Ana ekran hız kapısı:** ilk karede disk işi yok — yeniler bellekteki son
-/// taramadan ([FreshCache.last]) gelir, yoksa ilk kareden SONRA önce diskteki
-/// son yolların `stat`ı ([FreshCache.warm]), ardından izolattaki tam tarama
-/// ([FreshCache.scan], tüm şeritlerle ortak). Geçmiş varlık denetimi
+/// taramadan ([FreshCache.last]), Geçmiş bellekteki son sonuçtan gelir; yoksa
+/// ilk kareden SONRA önce diskteki son yolların `stat`ı ([FreshCache.warm]),
+/// ardından izolattaki tam tarama ([FreshCache.scan], tüm şeritlerle ortak;
+/// [scan] kapalıysa ve Geçmiş sekmesinde hiç). Geçmiş varlık denetimi
 /// [FsScan.statPaths] ile arka planda. Dönüşte ([FsEvents.returned]) ve
 /// uygulama içi dosya işleminde tazelenir; liste aynıysa çizilmez. Boy sabit.
 class RecentStrip extends StatefulWidget {
   final void Function(FsEntry entry) onOpen;
   final VoidCallback onAll;
 
-  /// Doluysa yeni gelenler şeride katılır; başlıktaki "Yeniler" buraya gider.
+  /// Doluysa yeni gelenler şeride katılır ve sekmeler görünür; "Yeniler"
+  /// sekmesinde "Tümü" buraya gider.
   final VoidCallback? onAllNew;
   final int limit;
+
+  /// Yan menü boyu (küçük resim 52, yatay iç boşluk).
+  final bool dense;
+
+  /// Tam tarama yapılsın mı (yan menü yalnız önbelleği okur).
+  final bool scan;
 
   /// Testler için: geçmiş yerine verilen girdiler (yeniler taranmaz).
   final List<FsEntry>? entriesForTest;
@@ -100,6 +159,8 @@ class RecentStrip extends StatefulWidget {
     required this.onAll,
     this.onAllNew,
     this.limit = 10,
+    this.dense = false,
+    this.scan = true,
     this.entriesForTest,
   });
 
@@ -108,8 +169,9 @@ class RecentStrip extends StatefulWidget {
 }
 
 class _RecentStripState extends State<RecentStrip> {
-  static const _thumb = 72.0;
-  static const _cell = _thumb + Gap.md;
+  /// Son Geçmiş sonucu (oturum içi): pano yeniden kurulunca ya da yan menü
+  /// açılınca ilk karede hazır; ardından yine `stat` ile doğrulanır.
+  static List<FsEntry>? _memOpened;
 
   List<FsEntry> _opened = const [];
   int _seenRevision = -1;
@@ -119,26 +181,51 @@ class _RecentStripState extends State<RecentStrip> {
   List<StripItem> _items = const [];
   bool _scanning = false;
   bool _again = false;
+  StripMode _mode = StripPrefs.mode.value;
+  bool _modeTouched = false;
 
   bool get _live => widget.onAllNew != null && widget.entriesForTest == null;
+  bool get _wantsFresh => _live && _mode != StripMode.opened;
+  double get _thumb => widget.dense ? 52 : 72;
 
   @override
   void initState() {
     super.initState();
     OpenHistory.changes.addListener(_onHistory);
-    _load();
+    final mem = _memOpened;
+    if (widget.entriesForTest == null && mem != null) _opened = mem;
     if (_live) {
       FsEvents.returned.addListener(_onFs);
       FsEvents.version.addListener(_onFs);
-      final mem = FreshCache.last;
-      if (mem != null) _fresh = _pick(mem);
+      final fresh = FreshCache.last;
+      if (fresh != null) _fresh = _pick(fresh);
+      unawaited(StripPrefs.ensureLoaded().then((_) {
+        final m = StripPrefs.mode.value;
+        if (!mounted || _modeTouched || _mode == m) return;
+        _setMode(m, touched: false);
+      }));
+    }
+    _items = _compute();
+    _load();
+    if (_live) {
       // Disk işi ilk kareden sonra: açılışın çizimine yük bindirmesin.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (_fresh == null) unawaited(_warm());
-        unawaited(_loadFresh());
+        if (mounted) _ensureFresh();
       });
     }
+  }
+
+  void _ensureFresh() {
+    if (!_wantsFresh) return;
+    if (_fresh == null) unawaited(_warm());
+    if (widget.scan) unawaited(_loadFresh());
+  }
+
+  void _setMode(StripMode m, {bool touched = true}) {
+    _modeTouched |= touched;
+    _mode = m;
+    _remerge(force: true);
+    _ensureFresh();
   }
 
   List<FsEntry> _pick(List<FsEntry> all) => [
@@ -146,14 +233,16 @@ class _RecentStripState extends State<RecentStrip> {
           if (!e.isDir && !e.path.contains('/.')) e
       ].take(widget.limit * 2).toList();
 
-  void _remerge() {
-    final next = mergeStripItems(
-      opened: _opened,
-      fresh: _fresh ?? const [],
-      openedAt: OpenHistory.forPath,
-      nowMs: DateTime.now().millisecondsSinceEpoch,
-      limit: widget.limit,
-    );
+  List<StripItem> _compute() => mergeStripItems(
+        opened: _mode == StripMode.fresh ? const [] : _opened,
+        fresh: _mode == StripMode.opened ? const [] : (_fresh ?? const []),
+        openedAt: OpenHistory.forPath,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+        limit: widget.limit,
+      );
+
+  void _remerge({bool force = false}) {
+    final next = _compute();
     final old = _items;
     final same = old.length == next.length &&
         [
@@ -162,7 +251,7 @@ class _RecentStripState extends State<RecentStrip> {
                 old[i].entry.path == next[i].entry.path &&
                 old[i].entry.modifiedMs == next[i].entry.modifiedMs
         ].every((b) => b);
-    if (!same) setState(() => _items = next);
+    if (!same || force) setState(() => _items = next);
   }
 
   /// Önbellekten ilk görüntü (yalnız `stat`, ağaç gezilmez).
@@ -174,7 +263,7 @@ class _RecentStripState extends State<RecentStrip> {
   }
 
   void _onFs() {
-    if (mounted) unawaited(_loadFresh());
+    if (mounted && _wantsFresh && widget.scan) unawaited(_loadFresh());
   }
 
   Future<void> _loadFresh() async {
@@ -230,19 +319,49 @@ class _RecentStripState extends State<RecentStrip> {
       _remerge();
       return;
     }
-    await OpenHistory.ensureLoaded();
-    _seenRevision = OpenHistory.revision;
-    // Fazlasını iste: bazıları silinmiş olabilir.
-    final paths = OpenHistory.pathsByRecency().take(widget.limit * 2).toList();
-    final loadedAt = _seenRevision;
-    final stats = await FsScan.statPaths(paths);
-    // Yükleme sürerken yeni kayıt geldiyse onun yüklemesi sonucu yazar.
-    if (!mounted || loadedAt != _seenRevision) return;
-    _opened = [
-      for (final e in stats)
-        if (!e.isDir) e,
-    ];
-    _remerge();
+    try {
+      await OpenHistory.ensureLoaded();
+      _seenRevision = OpenHistory.revision;
+      // Fazlasını iste: bazıları silinmiş olabilir.
+      final paths =
+          OpenHistory.pathsByRecency().take(widget.limit * 2).toList();
+      final loadedAt = _seenRevision;
+      final stats = await FsScan.statPaths(paths);
+      // Yükleme sürerken yeni kayıt geldiyse onun yüklemesi sonucu yazar.
+      if (!mounted || loadedAt != _seenRevision) return;
+      final opened = [
+        for (final e in stats)
+          if (!e.isDir) e,
+      ];
+      _opened = opened;
+      _memOpened = opened;
+      _remerge();
+    } catch (_) {
+      // Bilinçli: Geçmiş okunamazsa şerit yeniler ile kalır.
+    }
+  }
+
+  Widget _tab(StripMode m, String label) {
+    final theme = Theme.of(context);
+    final on = _mode == m;
+    final color =
+        on ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant;
+    return TextButton(
+      key: ValueKey('recent-strip-tab-${m.name}'),
+      style: TextButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+      ),
+      onPressed: on ? null : () => _setMode(m),
+      child: Text(label,
+          style: (widget.dense
+                  ? theme.textTheme.labelMedium
+                  : theme.textTheme.titleSmall)
+              ?.copyWith(
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                  color: color)),
+    );
   }
 
   @override
@@ -250,53 +369,60 @@ class _RecentStripState extends State<RecentStrip> {
     // Canlı şerit boş olsa da yerini korur (yeniler gelince zıplamasın).
     if (_items.isEmpty && !_live) return const SizedBox.shrink();
     final items = _items;
+    final thumb = _thumb;
     // Yazı ölçeğiyle büyüyen yükseklik: 2,0× yazıda ad satırı kesilmesin.
     final scale = MediaQuery.textScalerOf(context).scale(1);
-    final compact = TextButton.styleFrom(
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-    );
+    final side = widget.dense ? Gap.md : 0.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Başlık satırı sıkı (kullanıcı 2026-11-15: gereksiz büyük boşluk).
+        // Sekmeler: ilk sekmenin adı bölümün adı ("Son dosyalar" = karışık).
         Padding(
-          padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xs),
+          padding: EdgeInsetsDirectional.fromSTEB(side, Gap.sm, 0, Gap.xs),
           child: Row(
             children: [
               Expanded(
-                child: Text(context.t('dash.strip_title'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium),
+                child: !_live
+                    ? Text(context.t('dash.strip_title'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium)
+                    : SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
+                          _tab(StripMode.auto, context.t('dash.strip_title')),
+                          _tab(StripMode.opened, context.t('dash.sec_recent')),
+                          _tab(StripMode.fresh, context.t('fresh.new')),
+                        ]),
+                      ),
               ),
-              if (widget.onAllNew != null)
-                TextButton(
-                  key: const ValueKey('recent-strip-all-new'),
-                  style: compact,
-                  onPressed: widget.onAllNew,
-                  child: Text(context.t('fresh.new')),
-                ),
-              TextButton(
+              IconButton(
                 key: const ValueKey('recent-strip-all'),
-                style: compact,
-                onPressed: widget.onAll,
-                child: Text(context.t('dash.sec_recent')),
+                tooltip: context.t('dash.strip_all'),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(AppIcons.chevron),
+                onPressed: _mode == StripMode.fresh && widget.onAllNew != null
+                    ? widget.onAllNew
+                    : widget.onAll,
               ),
             ],
           ),
         ),
         SizedBox(
-          height: _thumb + Gap.sm + 20 * scale + Gap.sm,
+          height: thumb + Gap.sm + 20 * scale + Gap.sm,
           child: ListView.builder(
-            key: const PageStorageKey('recent-strip'),
+            key: PageStorageKey(
+                widget.dense ? 'side-menu-recents' : 'recent-strip'),
             scrollDirection: Axis.horizontal,
-            itemExtent: _cell + Gap.sm,
+            padding: EdgeInsets.symmetric(horizontal: side),
+            itemExtent: thumb + Gap.md + Gap.sm,
             itemCount: items.length,
             itemBuilder: (context, i) => RepaintBoundary(
               child: _StripTile(
                 key: ValueKey(items[i].entry.path),
                 item: items[i],
+                thumb: thumb,
                 onOpen: widget.onOpen,
               ),
             ),
@@ -309,9 +435,15 @@ class _RecentStripState extends State<RecentStrip> {
 
 class _StripTile extends StatelessWidget {
   final StripItem item;
+  final double thumb;
   final void Function(FsEntry entry) onOpen;
 
-  const _StripTile({super.key, required this.item, required this.onOpen});
+  const _StripTile({
+    super.key,
+    required this.item,
+    required this.thumb,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -332,10 +464,10 @@ class _StripTile extends StatelessWidget {
           child: Column(
             children: [
               SizedBox.square(
-                dimension: _RecentStripState._thumb,
+                dimension: thumb,
                 child: Stack(
                   children: [
-                    FmEntryIcon(entry: e, size: _RecentStripState._thumb),
+                    FmEntryIcon(entry: e, size: thumb),
                     if (isNew)
                       PositionedDirectional(
                         top: 2,

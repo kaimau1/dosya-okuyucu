@@ -19,6 +19,7 @@ import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/media_library.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
+import '../../services/fm/smart_sort.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
@@ -36,6 +37,7 @@ import 'similar_screen.dart';
 import 'entry_actions.dart';
 import '../../core/safe_insets.dart';
 import 'smart_cleanup_screen.dart';
+import 'smart_clutter_screen.dart';
 
 part 'analysis/actions.dart';
 part 'analysis/widgets.dart';
@@ -108,9 +110,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// kart hiç görünmez (boş bir kutu göstermek yanıltıcı olurdu).
   AppStorageSummary? _apps;
 
+  /// Akıllı düzenin "Ayıkla" önerisi (U4): Akıllı düzen açıksa ve gereksiz
+  /// varsa araçlarda görünür. Depo açılışta (main) yüklenir; burada yükleme
+  /// TETİKLENMEZ, sayı bir kez hesaplanır (her tuşta değil).
+  int _clutter = 0;
+
+  void _countClutter() => _clutter = SmartSort.isLoaded && SmartSort.enabled
+      ? SmartSort.clutter().length
+      : 0;
+
   @override
   void initState() {
     super.initState();
+    _countClutter();
     _loadTrend();
     _loadApps();
     // Süzgeç sayfasındaki "açılmış/açılmamış" ölçütleri için.
@@ -239,9 +251,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           )),
                         ),
                         const Divider(height: 1),
+                        // "Kopyalar" (U4): ana ekrandaki araçla aynı ad ve
+                        // simge — ana ekrandan buraya taşınıyor (U3).
                         _ToolRow(
-                          icon: AppIcons.cleanEmpty,
-                          color: AppHues.green,
+                          icon: AppIcons.filterNone,
+                          color: AppHues.teal,
                           title: context.t('ana.find_dupes'),
                           note: context.t('ana.find_dupes_note'),
                           onTap: () =>
@@ -280,6 +294,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                   builder: (_) => const SmartCleanupScreen())),
                         ),
                         const Divider(height: 1),
+                        if (_clutter > 0) ...[
+                          _ToolRow(
+                            icon: AppIcons.cleanEmpty,
+                            color: AppHues.violet,
+                            title: context.t('sm.clutter_title', {'n': _clutter}),
+                            note: context.t('sm.clutter_sub'),
+                            onTap: () async {
+                              await SmartClutterScreen.open(context);
+                              if (mounted) _partSetState(_countClutter);
+                            },
+                          ),
+                          const Divider(height: 1),
+                        ],
                         // **Klasör haritası** (kullanıcı isteği 2026-08-17,
                         // ekran görüntüsü): tür kırılımı "53 GB video" diyor ama
                         // hangi klasörü temizleyeceğini söylemiyor. Harita
@@ -424,9 +451,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       ),
                     ),
                   ),
-                // 200 sınırı bilinçli: "en büyük dosyalar" listesi zaten sıralı,
-                // aşağısı yer açma kararına katkı vermiyor.
-                for (final e in visible.take(200))
+                // 200 sınırı [_visible]da (U4): seçim/"Tümünü seç" de onu görür.
+                for (final e in visible)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     selected: _selected.contains(e.path),

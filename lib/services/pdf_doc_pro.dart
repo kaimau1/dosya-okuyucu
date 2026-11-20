@@ -44,6 +44,9 @@ class PdfOutlineItem {
 /// Belgede açık bırakılacak yetkiler (geri kalanı kapanır).
 enum PdfAllow { print, copy, edit, annotate, fillForms, assemble }
 
+/// Belge bilgisi (Info sözlüğü) — B4/P21 meta veri.
+typedef PdfMeta = ({String title, String author, String subject, String keywords});
+
 /// Hazır damga şablonları.
 enum PdfStampKind {
   approved,
@@ -149,7 +152,7 @@ abstract final class PdfDocPro {
     final doc = PdfDocument(inputBytes: bytes, password: currentPassword);
     try {
       final security = doc.security
-        ..algorithm = PdfEncryptionAlgorithm.aesx256Bit
+        ..algorithm = PdfEncryptionAlgorithm.aesx256BitRevision6
         ..ownerPassword = ownerPassword
         ..userPassword = userPassword;
       security.permissions.clear();
@@ -208,6 +211,86 @@ abstract final class PdfDocPro {
           userPassword: userPassword,
           allow: allow,
           currentPassword: currentPassword));
+
+  // ── Meta veri (B4/P21) ───────────────────────────────────────────────────
+
+  static PdfMeta readMeta(List<int> bytes, {String? password}) {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final i = doc.documentInformation;
+      return (
+        title: i.title,
+        author: i.author,
+        subject: i.subject,
+        keywords: i.keywords,
+      );
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// Başlık/yazar/konu/anahtar sözcük yazar; parola ve izinler korunur.
+  static Future<List<int>> writeMeta(List<int> bytes, PdfMeta meta,
+      {String? password}) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      doc.documentInformation
+        ..title = meta.title.trim()
+        ..author = meta.author.trim()
+        ..subject = meta.subject.trim()
+        ..keywords = meta.keywords.trim()
+        ..modificationDate = DateTime.now();
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static Future<PdfMeta> readMetaInBackground(List<int> bytes,
+          {String? password}) =>
+      Isolate.run(() => readMeta(bytes, password: password));
+
+  static Future<List<int>> writeMetaInBackground(List<int> bytes, PdfMeta meta,
+          {String? password}) =>
+      _bg(() => writeMeta(bytes, meta, password: password));
+
+  // ── XFDF (B4/P17) ────────────────────────────────────────────────────────
+
+  /// Açıklamaları (vurgu, not, çizim…) XFDF olarak dışa verir; açıklama
+  /// yoksa `null`.
+  static List<int>? exportXfdf(List<int> bytes, {String? password}) {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      var n = 0;
+      for (var p = 0; p < doc.pages.count; p++) {
+        n += doc.pages[p].annotations.count;
+      }
+      if (n == 0) return null;
+      return doc.exportAnnotation(PdfAnnotationDataFormat.xfdf);
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// XFDF'teki açıklamaları belgeye ekler (var olanlar kalır).
+  static Future<List<int>> importXfdf(List<int> bytes, List<int> xfdf,
+      {String? password}) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      doc.importAnnotation(xfdf, PdfAnnotationDataFormat.xfdf);
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static Future<List<int>?> exportXfdfInBackground(List<int> bytes,
+          {String? password}) =>
+      Isolate.run(() => exportXfdf(bytes, password: password));
+
+  static Future<List<int>> importXfdfInBackground(List<int> bytes, List<int> xfdf,
+          {String? password}) =>
+      _bg(() => importXfdf(bytes, xfdf, password: password));
 
   // ── Damga ────────────────────────────────────────────────────────────────
 

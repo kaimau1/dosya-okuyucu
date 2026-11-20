@@ -255,7 +255,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       });
       if (hint == null) _snack(str.t('sq.ai_ok'));
     } catch (e) {
-      if (mounted) _snack('Gemini: ${userErrorText(e)}');
+      if (mounted) _snack(str.t('common.smart_failed', {'error': userErrorText(e)}));
     }
   }
 
@@ -684,9 +684,13 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     final strings = AppStrings.of(context);
     unawaited(Navigator.of(context).pushReplacement(browserRoute(
         BrowserScreen(path: p.dirname(path), focusPath: path))));
-    messenger?.showSnackBar(SnackBar(
-        content:
-            Text(strings.t('scr.saved_here', {'name': p.basename(path)}))));
+    if (messenger != null) {
+      showSnackBarReplacing(
+          messenger,
+          SnackBar(
+              content: Text(
+                  strings.t('scr.saved_here', {'name': p.basename(path)}))));
+    }
   }
 
   Future<void> _openPdf() async {

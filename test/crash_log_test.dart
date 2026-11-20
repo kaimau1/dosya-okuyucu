@@ -131,6 +131,26 @@ void main() {
     });
   });
 
+  // P29 (2026-11-20): arka planda sistemin kapatması panoda kalıcı "hata"
+  // şeridi açıyordu.
+  test('arka plan kapatması kaydedilir ama uyarı AÇMAZ', () async {
+    expect(CrashLog.isBackgroundKill('signaled', 400), isTrue);
+    expect(CrashLog.isBackgroundKill('low_memory', 400), isTrue);
+    expect(CrashLog.isBackgroundKill('low_memory', 100), isFalse);
+    expect(CrashLog.isBackgroundKill('crash', 400), isFalse);
+    expect(CrashLog.isBackgroundKill('signaled', null), isFalse);
+    await CrashLog.record('Process exit: signaled (background) ', null,
+        kind: 'exit');
+    expect(await CrashLog.load(), hasLength(1));
+    expect(await CrashLog.unseenCount(), 0);
+    await CrashLog.record('Process exit: anr', null, kind: 'exit');
+    expect(await CrashLog.unseenCount(), 1);
+    await CrashLog.refreshUnseen();
+    expect(CrashLog.unseen.value, 1);
+    await CrashLog.markSeen();
+    expect(CrashLog.unseen.value, 0);
+  });
+
   test('JSON biçimi ileri/geri dönüşümlüdür', () {
     // `DateTime` const olamaz → kayıt da const değil.
     final record = CrashRecord(

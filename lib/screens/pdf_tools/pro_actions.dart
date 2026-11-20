@@ -25,9 +25,13 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'compare' => _compare(),
       'permissions' => _permissions(),
       'outline' => _editOutline(),
+      'meta' => _editMeta(),
+      'xfdf_out' => _exportXfdf(),
+      'xfdf_in' => _importXfdf(),
       'stamp' => _stamp(),
       'numbering' => _numbering(),
       'compress_hard' => _compressHard(),
+      'ocr_layer' => _ocrLayer(),
       'reorder' => _reorderPages(),
       'blank' => _findBlankPages(),
       'crop' => _cropPages(),
@@ -419,6 +423,56 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     _snack(_str.t('pp.permissions_done'));
   }
 
+  // ── B4/P21 meta veri · P17 XFDF ─────────────────────────────────────────
+
+  Future<void> _editMeta() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final PdfMeta current;
+    try {
+      current = await PdfDocPro.readMetaInBackground(bytes, password: pw);
+    } catch (_) {
+      _snack(_str.t('pp.meta_failed'));
+      return;
+    }
+    if (!mounted) return;
+    final edited = await showAppSheet<PdfMeta>(
+      context,
+      title: context.t('pp.meta'),
+      builder: (_) => _MetaSheet(initial: current),
+    );
+    if (edited == null || edited == current || !mounted) return;
+    await _apply(_str.t('pp.meta'),
+        (b) => PdfDocPro.writeMetaInBackground(b, edited, password: pw));
+  }
+
+  Future<void> _exportXfdf() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    await _produce(_str.t('pp.xfdf_out'), () async {
+      final data = await PdfDocPro.exportXfdfInBackground(bytes, password: pw);
+      if (data == null) {
+        _snack(_str.t('pp.notes_empty'));
+        return;
+      }
+      await _saveSibling(data, '-aciklamalar', 'xfdf');
+    });
+  }
+
+  Future<void> _importXfdf() async {
+    final res = await AppFilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['xfdf'],
+    );
+    final path = res?.files.single.path;
+    if (path == null || !mounted) return;
+    final xfdf = await File(path).readAsBytes();
+    if (!mounted) return;
+    final pw = _password;
+    await _apply(_str.t('pp.xfdf_in'),
+        (b) => PdfDocPro.importXfdfInBackground(b, xfdf, password: pw));
+  }
+
   Future<void> _editOutline() async {
     final bytes = _bytes!;
     final pw = _password;
@@ -545,17 +599,96 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
 
   static const _hardChunk = 40;
 
+  // ── P19. Aranabilir PDF (OCR görünmez katman) ────────────────────────────
+
+  Future<void> _ocrLayer() async {
+    final pw = _password;
+    final label = _str.t('pp.ocr_layer');
+    var lines = <int, List<({String text, Rect rect})>>{};
+    await _produce(label, () async {
+      lines = await _ocrLines(_bytes!, pw);
+      if (lines.isEmpty) _snack(_str.t('pp.ocr_layer_none'));
+    });
+    if (lines.isEmpty || !mounted) return;
+    final font = await _unicodeFont();
+    final prev = _bytes;
+    await _apply(
+      label,
+      (b) => PdfTools.addTextLayerInBackground(b, lines,
+          fontBytes: font, password: pw),
+    );
+    if (!mounted || identical(prev, _bytes)) return;
+    _snack(_str.t('pp.ocr_layer_done', {'n': lines.length}));
+  }
+
+  /// Metin katmanı OLMAYAN (taranmış) sayfaların OCR satırları, görünen
+  /// sayfa koordinatında (sol-üst). Doğal metinli sayfaya OCR yazılmaz (PK7).
+  Future<Map<int, List<({String text, Rect rect})>>> _ocrLines(
+      Uint8List bytes, String? pw) async {
+    final out = <int, List<({String text, Rect rect})>>{};
+    final doc = await PdfDocument.openData(bytes,
+        passwordProvider: pw == null ? null : () async => pw);
+    try {
+      for (var i = 0; i < doc.pages.length; i++) {
+        final page = doc.pages[i];
+        if (page.rotation != PdfPageRotation.none) continue;
+        final own = await page.loadText();
+        if (pdfHasTextLayer(own?.fullText ?? '')) continue;
+        final ocr = await PdfOcrText.forPage(page);
+        if (ocr == null) continue;
+        final rows = [
+          for (final f in ocr.fragments)
+            (
+              text: ocr.fullText.substring(f.index, f.index + f.length),
+              // PDF uzayı (y yukarı) → görünen sayfa (sol-üst).
+              rect: Rect.fromLTRB(f.bounds.left, page.height - f.bounds.top,
+                  f.bounds.right, page.height - f.bounds.bottom),
+            ),
+        ];
+        if (rows.isNotEmpty) out[i] = rows;
+      }
+    } finally {
+      await doc.dispose();
+    }
+    return out;
+  }
+
   // ── 8. Sayfa ızgarası işlemleri ──────────────────────────────────────────
 
+  /// Sayfa stüdyosu (B4/P20): yalnız sil/döndür yerinde çalışır, açıklamalar
+  /// kalır; sıralama/çoğaltma kopyalar → önce kayıp uyarısı.
   Future<void> _reorderPages() async {
     final bytes = _bytes!;
-    final order =
-        await PdfReorderScreen.open(context, bytes: bytes, password: _password);
-    if (order == null || !mounted) return;
-    if (!await _confirmAnnotationLoss(_str.t('pp.reorder')) || !mounted) return;
+    final res = await PdfPageStudioScreen.open(context,
+        bytes: bytes, password: _password);
+    if (res == null || !mounted) return;
+    final plan = res.plan;
+    final extra = res.extra;
     final pw = _password;
-    await _apply(_str.t('pp.reorder'),
-        (b) => PdfTools.selectPagesInBackground(b, order, password: pw));
+    if (res.newFiles.isNotEmpty) {
+      // Çıkar/böl: belge değişmez, her parça yanına yeni PDF.
+      final parts = res.newFiles;
+      await _produce(_str.t('pp.studio'), () async {
+        for (var k = 0; k < parts.length; k++) {
+          final out = await PdfTools.applyPageStudioInBackground(
+              bytes, parts[k],
+              password: pw, extra: extra);
+          await _saveSibling(
+              out, parts.length == 1 ? '-sayfalar' : '-bolum${k + 1}', 'pdf');
+        }
+      });
+      return;
+    }
+    final keeps = PdfTools.studioKeepsAnnotations(
+        [for (final (i, _) in plan) i],
+        pageCount: res.pageCount);
+    if (!keeps && (!await _confirmAnnotationLoss(_str.t('pp.studio')) ||
+        !mounted)) {
+      return;
+    }
+    await _apply(_str.t('pp.studio'),
+        (b) => PdfTools.applyPageStudioInBackground(b, plan,
+            password: pw, extra: extra));
   }
 
   /// Boş sayfaları bulur (küçük gri çizim), seçer ve silmeyi önerir.
@@ -628,12 +761,18 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   // ── 9. Form oluşturma ────────────────────────────────────────────────────
 
   Future<void> _createForm() async {
-    final kind = await showAppSheet<NewFieldKind>(
+    final kind = await showAppSheet<Object>(
       context,
       title: context.t('pp.form_create'),
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          ListTile(
+            leading: const Icon(AppIcons.search),
+            title: Text(ctx.t('pp.field_detect')),
+            subtitle: Text(ctx.t('pp.field_detect_sub')),
+            onTap: () => Navigator.pop(ctx, 'detect'),
+          ),
           for (final k in NewFieldKind.values)
             ListTile(
               leading: Icon(switch (k) {
@@ -647,7 +786,8 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         ],
       ),
     );
-    if (kind == null || !mounted) return;
+    if (kind == 'detect') return _detectFields();
+    if (kind is! NewFieldKind || !mounted) return;
     final pw = _password;
     final marks = await PdfRegionScreen.open(
       context,
@@ -669,6 +809,75 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       (b) => PdfFormPro.addFieldsInBackground(b, fields,
           fontBytes: font, password: pw),
     );
+  }
+
+  /// P18: düz PDF'teki `____` / `.....` / `☐` yerlerini bulur, kullanıcı
+  /// işaretleme ekranında gözden geçirir (dokun = sil, sürükle = ekle),
+  /// onaylayınca doldurulabilir alan olur.
+  Future<void> _detectFields() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final label = _str.t('pp.field_detect');
+    var found = const <NewFormField>[];
+    await _produce(label, () async {
+      found = await PdfFormPro.detectFieldsInBackground(bytes,
+          password: pw, shapes: await _shapeFields(bytes, pw));
+      if (found.isEmpty) _snack(_str.t('pp.field_detect_none'));
+    });
+    if (found.isEmpty || !mounted) return;
+    final initial = <int, List<Rect>>{};
+    for (final f in found) {
+      (initial[f.page] ??= []).add(f.bounds);
+    }
+    final marks = await PdfRegionScreen.open(
+      context,
+      bytes: bytes,
+      mode: PdfRegionMode.field,
+      password: pw,
+      initial: initial,
+      title: label,
+    );
+    if (marks == null || marks.isEmpty || !mounted) return;
+    final base = _str.t('pp.field_text');
+    var n = 0;
+    final fields = <NewFormField>[];
+    for (final e in marks.entries) {
+      for (final r in e.value) {
+        final hit =
+            found.where((f) => f.page == e.key && f.bounds == r).firstOrNull;
+        final name = hit == null || hit.name.isEmpty ? '$base${++n}' : hit.name;
+        fields.add(
+            NewFormField(e.key, r, hit?.kind ?? NewFieldKind.text, name));
+      }
+    }
+    final font = await _unicodeFont();
+    await _apply(
+      _str.t('pp.form_create'),
+      (b) => PdfFormPro.addFieldsInBackground(b, fields,
+          fontBytes: font, password: pw),
+    );
+  }
+
+  /// Çizilmiş çizgi/kutu adayları (PDFium yol nesneleri; ilk 300 sayfa).
+  /// Okunamazsa boş — metin sezgisi yine çalışır.
+  Future<List<NewFormField>> _shapeFields(Uint8List bytes, String? pw) async {
+    final out = <NewFormField>[];
+    PdfDocument? doc;
+    try {
+      doc = await PdfDocument.openData(bytes,
+          passwordProvider: pw == null ? null : () async => pw);
+      final n = math.min(doc.pages.length, 300);
+      for (var i = 0; i < n; i++) {
+        if (doc.pages[i].rotation != PdfPageRotation.none) continue;
+        out.addAll(
+            PdfFormPro.fieldsFromShapes(i, await PdfEditBridge.content(doc, i)));
+      }
+    } catch (_) {
+      // Metin sezgisi yeter.
+    } finally {
+      await doc?.dispose();
+    }
+    return out;
   }
 
   // ── 10. Not özeti ────────────────────────────────────────────────────────

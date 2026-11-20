@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
+import '../../core/user_error.dart';
 import '../../models/fs_entry.dart';
 import '../ai_pool.dart';
 import '../gemini_decisions.dart';
@@ -354,7 +355,8 @@ class SmartRunResult {
   final int processed;
   final int failed;
 
-  /// Kota (429) ya da yetki hatasıyla erken bitti.
+  /// Kota (429) ya da yetki hatasıyla erken bitti — kullanıcı dilinde
+  /// ([SmartSort.stopText]).
   final String? stoppedBy;
 
   /// Son başarısızlığın nedeni (kullanıcıya gösterilir; kota dışı hatalar).
@@ -933,7 +935,8 @@ abstract final class SmartSort {
   }
 
   /// Genel arama: bütün terimler ikinci adda ya da üç dildeki adlarda geçen
-  /// kayıtlar (katlanmış karşılaştırma).
+  /// kayıtlar (katlanmış karşılaştırma). Ayıkla'da gizlenenler girmez (U4:
+  /// tek yerde — arama ve akıllı aramalar aynı kapıdan geçer).
   static List<SmartRecord> matches(String query, {int limit = 200}) {
     final terms = asciiFold(query)
         .split(RegExp(r'\s+'))
@@ -942,6 +945,7 @@ abstract final class SmartSort {
     if (terms.isEmpty || limit <= 0) return const [];
     final out = <SmartRecord>[];
     for (final r in _records.values) {
+      if (r.hidden) continue;
       final key = asciiFold('${aliasOf(r.path)} ${keywordsOf(r.path)}');
       if (key.trim().isEmpty || !terms.every(key.contains)) continue;
       out.add(r);
@@ -1100,6 +1104,47 @@ abstract final class SmartSort {
     }
     _changed();
   }
+
+  /// **Hayalet kayıtlar** (U4 kökü, 2026-11-20): dosya başka uygulamada
+  /// silinince ya da çöp boşaltılınca kaydı kalıyordu → akıllı klasör
+  /// sayıları ve "n dosya düzenli" şişik, açılan listede daha az dosya.
+  /// Diskte olmayan kayıt düşer; ŞU İKİSİ KALIR: çöpteki dosyanın kaydı
+  /// (asıl yolunda — geri yüklenince yerinde, B2 dilim 2 kararı) ve takılı
+  /// olmayan birimdeki (SD kart çıkarılmış) kayıt. Çöp okunamazsa hiçbir şey
+  /// silinmez. Tur sürerken dokunulmaz. Düşen kayıt sayısını döner.
+  static Future<int> pruneMissing(
+      {Future<Set<String>> Function()? trashed}) async {
+    await ensureLoaded();
+    if (isRunning || _records.isEmpty) return 0;
+    final paths = _records.keys.toList();
+    final alive = {for (final e in await FsScan.statPaths(paths)) e.path};
+    final roots = [
+      for (final r in FmEnv.volumeRoots)
+        if (r.isNotEmpty && await Directory(r).exists()) r
+    ];
+    final gone = [
+      for (final x in paths)
+        if (!alive.contains(x) && roots.any((r) => p.isWithin(r, x))) x
+    ];
+    if (gone.isEmpty) return 0;
+    Set<String> inTrash;
+    try {
+      inTrash = await (trashed ?? _trashedOriginals)();
+    } catch (_) {
+      return 0; // Bilinçli: çöp okunamazsa en güvenlisi silmemek.
+    }
+    if (isRunning) return 0;
+    var n = 0;
+    for (final x in gone) {
+      if (inTrash.contains(x)) continue;
+      if (_records.remove(x) != null) n++;
+    }
+    if (n > 0) _changed();
+    return n;
+  }
+
+  static Future<Set<String>> _trashedOriginals() async =>
+      {for (final i in await FmEnv.trash.list()) i.originalPath};
 
   // ── Yanıt → kayıt ──────────────────────────────────────────────────────
   /// Saf: Decisions yanıtı → kayıt. Birim testli.
@@ -1441,10 +1486,16 @@ abstract final class SmartSort {
   }) async {
     if (isRunning) return const SmartRunResult(0, 0);
     await ensureLoaded();
+    // U4 (2026-11-20): neden söylenir — eskiden üçü de "yeni dosya yok"tu.
     final keys = credentials.normalized.keys;
-    if (keys.isEmpty || OfflineMode.enabled) return const SmartRunResult(0, 0);
+    if (keys.isEmpty) return const SmartRunResult(0, 0, hold: SmartHold.noKey);
+    if (OfflineMode.enabled) {
+      return const SmartRunResult(0, 0, hold: SmartHold.offline);
+    }
     final roots = scopeRoots();
-    if (roots.isEmpty) return const SmartRunResult(0, 0);
+    if (roots.isEmpty) {
+      return const SmartRunResult(0, 0, hold: SmartHold.noScope);
+    }
     // Hız/kota (m.5): yalnız Wi-Fi'de + günlük üst sınır.
     final held = await SmartQuota.check();
     if (held != null) return SmartRunResult(0, 0, hold: held);
@@ -1538,16 +1589,16 @@ abstract final class SmartSort {
             } else {
               failed++;
               _markFailed(e);
-              lastError = result.blockReason != null
-                  ? 'engellendi (${result.blockReason})'
-                  : 'yanıt boş';
+              lastError = AppStrings.current.t(result.blockReason != null
+                  ? 'sm.fail_blocked'
+                  : 'sm.fail_empty');
             }
           } on GeminiException catch (err) {
             failed++;
             if (err.statusCode == 429) SmartQuota.noteLimited();
             if (const {401, 403, 429}.contains(err.statusCode) ||
                 OfflineMode.enabled) {
-              stoppedBy = err.message;
+              stoppedBy = stopText(err);
             } else {
               _markFailed(e);
               lastError = err.message;
@@ -1555,7 +1606,7 @@ abstract final class SmartSort {
           } catch (err) {
             failed++;
             _markFailed(e);
-            lastError = '$err';
+            lastError = UserError.from(err).message;
           }
           progress.value = SmartProgress(processed + failed, todo.length);
           if ((processed + failed) % 10 == 0) _changed();
@@ -1583,6 +1634,12 @@ abstract final class SmartSort {
     return SmartRunResult(processed, failed,
         stoppedBy: stoppedBy, lastError: lastError, usage: usage, hold: hold);
   }
+
+  /// Turu durduran hatanın kullanıcı dilindeki açıklaması: ne oldu + ne
+  /// yapmalı (U4 kökü: 401/403 de "günlük kota doldu" diye yazılıyordu, ham
+  /// API iletisi de "Durdu: …" diye gösteriliyordu). Akıllı düzen, Kategorilerim
+  /// denemesi ve geriye dönük uygulama aynı metni kullanır.
+  static String stopText(Object err) => UserError.from(err).message;
 
   /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
   @visibleForTesting

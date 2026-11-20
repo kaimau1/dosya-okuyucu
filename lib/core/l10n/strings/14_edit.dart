@@ -193,6 +193,9 @@ const Map<String, (String, String, String)> _t14 = {
   'sl.tr_fade': ('Soldur', 'Fade', 'تلاشي'),
   'sl.tr_push': ('İt', 'Push', 'دفع'),
   'sl.tr_wipe': ('Sil', 'Wipe', 'مسح'),
+  'sl.tr_zoom': ('Yakınlaş', 'Zoom', 'تكبير'),
+  'sl.tr_morph': ('Biçim değiştir', 'Morph', 'تحويل'),
+  'sl.tr_preview': ('Önizle', 'Preview', 'معاينة'),
   'sl.duplicate_shape': ('Çoğalt', 'Duplicate', 'تكرار'),
   'sl.bring_front': ('Öne getir', 'Bring to front', 'إحضار إلى الأمام'),
   'sl.send_back': ('Arkaya gönder', 'Send to back', 'إرسال إلى الخلف'),
@@ -205,7 +208,11 @@ const Map<String, (String, String, String)> _t14 = {
   'sl.undo_notes': ('Not düzenleme', 'Notes edit', 'تحرير الملاحظات'),
   // ── Faz 22: Word Mobil görünüm editörü ───────────────────────────────────
   'word.page_break': ('Sayfa sonu', 'Page break', 'فاصل صفحات'),
-  'word.ai_fix': ('AI ile düzelt', 'Fix with AI', 'إصلاح بالذكاء الاصطناعي'),
+  'word.ai_fix': (
+    'Akıllı düzelt',
+    'Smart fix',
+    'تصحيح ذكي',
+  ),
   'word.mobile_view': ('Mobil görünüm', 'Mobile view', 'عرض الجوال'),
   'word.paste': ('Yapıştır', 'Paste', 'لصق'),
   'word.edit_page': (

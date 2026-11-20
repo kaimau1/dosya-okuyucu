@@ -83,7 +83,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           if (!_plainMode)
             EditorMenuItem(
               id: 'rewrite',
-              icon: AppIcons.organize,
+              icon: AppIcons.ai,
               label: context.t('word.rewrite_selection'),
               onTap: editor == null ? null : _rewriteSelection,
             ),
@@ -138,15 +138,12 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           ? null
           : DocActionBar([
               // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —
-              // Düzenle · AI · Çevir · Paylaş (+ İndir). Mobil görünüm ve
+              // Düzenle · Çevir · Paylaş (+ İndir). Mobil görünüm ve
               // seçili metin işleri ⋮'da.
               if (!_plainMode)
                 // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar.
                 DocAction(AppIcons.edit, context.t('common.edit'),
                     editor == null ? null : _openMobileEditor),
-              // AI artık yüzen düğme değil, çubukta (PDF'teki gibi): sayfa
-              // rozetinin ve metnin üstüne binmiyor.
-              DocAction(AppIcons.ai, context.t('common.ai'), _openAi),
               DocAction(
                 AppIcons.translate,
                 context.t('common.translate'),
@@ -282,16 +279,6 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                       ],
                     ))),
     );
-  }
-
-  /// AI sohbeti bu belgeyle (alt çubuktaki AI).
-  void _openAi() {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChatScreen(
-        fileContext: widget.plainText,
-        fileName: widget.name,
-      ),
-    ));
   }
 
   /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage].

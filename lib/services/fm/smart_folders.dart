@@ -1,12 +1,16 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/text_search.dart';
+import '../../models/fs_entry.dart';
 import 'ai_ask.dart';
 import 'ai_index.dart';
 import 'ai_scope.dart';
+import 'smart_sort.dart';
+import 'smart_sort_taxonomy.dart';
 
 /// Kayıtlı bir AI araması.
 @immutable
@@ -167,10 +171,33 @@ class SmartFolders extends ChangeNotifier {
   }
 
   /// Klasörün ŞU ANKİ içeriği — en yeni önce.
+  ///
+  /// U4 kökü (2026-11-20): yalnız eski dosya analizine ([AiIndex]) bakıyordu;
+  /// Akıllı düzen kullanan kişide "fatura" araması boş kalıyordu. Artık
+  /// Akıllı düzenin kategori · ikinci ad · kurum eşleşmeleri de girer (üç
+  /// dilde, cihazda, ağ yok); gizlenenler ([SmartSort.matches]) girmez.
   static List<AiRecord> contents(SmartFolder folder, AiScope scope) {
-    final hits = AiAsk.rank(folder.query, scope: scope, limit: maxItems);
-    return [...hits]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    final out = [...AiAsk.rank(folder.query, scope: scope, limit: maxItems)];
+    final seen = {for (final r in out) r.path};
+    for (final r in SmartSort.matches(folder.query, limit: maxItems)) {
+      if (out.length >= maxItems) break;
+      if (!scope.allowsDir(p.dirname(r.path)) || !seen.add(r.path)) continue;
+      out.add(AiRecord(
+        path: r.path,
+        sizeBytes: r.size,
+        modifiedMs: r.modifiedMs,
+        category: FsEntry.categoryForExtension(
+            p.extension(r.path).toLowerCase().replaceFirst('.', '')),
+        title: SmartSort.aliasOf(r.path),
+      ));
+    }
+    return out..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
   }
+
+  /// Hassas Akıllı düzen kategorisindeki (kimlik/sağlık/banka/vergi) kayıt
+  /// mı — klasör açılmadan PIN, satırdaki küçük resimde gösterilmez.
+  static bool isSensitive(AiRecord r) =>
+      SmartTaxonomy.sensitive.contains(SmartSort.of(r.path)?.cat);
 
   /// Son bakıştan sonra gelen dosya sayısı.
   static int newCount(SmartFolder folder, List<AiRecord> items) =>

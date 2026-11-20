@@ -16,7 +16,7 @@ const _proTools = <List<_ProTool>>[
     _ProTool('signatures', AppIcons.pdfInitials, 'pp.signatures', 'pp.signatures_sub'),
   ],
   [
-    _ProTool('reorder', AppIcons.dragHandle, 'pp.reorder', 'pp.reorder_sub'),
+    _ProTool('reorder', AppIcons.gridOn, 'pp.studio', 'pp.studio_sub'),
     _ProTool('blank', AppIcons.pdfBlankPage, 'pp.blank', 'pp.blank_sub'),
     _ProTool('crop', AppIcons.crop, 'pp.crop', 'pp.crop_sub'),
     _ProTool('fit_a4', AppIcons.pdfFitPage, 'pp.fit_a4', 'pp.fit_a4_sub'),
@@ -36,10 +36,13 @@ const _proTools = <List<_ProTool>>[
   [
     _ProTool('compare', AppIcons.pdfCompare, 'pp.compare', 'pp.compare_sub'),
     _ProTool('notes', AppIcons.pdfNotes, 'pp.notes_booklet', 'pp.notes_booklet_sub'),
+    _ProTool('xfdf_out', AppIcons.iosShare, 'pp.xfdf_out', 'pp.xfdf_out_sub'),
+    _ProTool('xfdf_in', AppIcons.download, 'pp.xfdf_in', 'pp.xfdf_in_sub'),
   ],
   [
     _ProTool('permissions', AppIcons.pdfKey, 'pp.permissions', 'pp.permissions_sub'),
     _ProTool('outline', AppIcons.bookmarks, 'pp.outline', 'pp.outline_sub'),
+    _ProTool('meta', AppIcons.info, 'pp.meta', 'pp.meta_sub'),
     _ProTool('stamp', AppIcons.pdfStamp, 'pp.stamp', 'pp.stamp_sub'),
     _ProTool('numbering', AppIcons.formatListNumbered, 'pp.numbering', 'pp.numbering_sub'),
   ],
@@ -60,6 +63,7 @@ const _proTools = <List<_ProTool>>[
   [
     _ProTool('compress_hard', AppIcons.pdfCompressHard, 'pp.compress_hard',
         'pp.compress_hard_sub'),
+    _ProTool('ocr_layer', AppIcons.ocr, 'pp.ocr_layer', 'pp.ocr_layer_sub'),
   ],
 ];
 
@@ -289,6 +293,66 @@ class _PermissionsSheetState extends State<_PermissionsSheet> {
                   Navigator.pop(context,
                       _PermOptions(_owner.text, _user.text, {..._allow}));
                 },
+                child: Text(context.t('common.ok')),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+// ── Belge bilgisi (B4/P21) ────────────────────────────────────────────────
+
+class _MetaSheet extends StatefulWidget {
+  const _MetaSheet({required this.initial});
+
+  final PdfMeta initial;
+
+  @override
+  State<_MetaSheet> createState() => _MetaSheetState();
+}
+
+class _MetaSheetState extends State<_MetaSheet> {
+  late final _title = TextEditingController(text: widget.initial.title);
+  late final _author = TextEditingController(text: widget.initial.author);
+  late final _subject = TextEditingController(text: widget.initial.subject);
+  late final _keywords = TextEditingController(text: widget.initial.keywords);
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _author.dispose();
+    _subject.dispose();
+    _keywords.dispose();
+    super.dispose();
+  }
+
+  Widget _field(TextEditingController c, String label) => TextField(
+        controller: c,
+        textInputAction: TextInputAction.next,
+        decoration: InputDecoration(labelText: context.t(label)),
+      );
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _field(_title, 'pp.meta_title'),
+            _field(_author, 'pp.meta_author'),
+            _field(_subject, 'pp.meta_subject'),
+            _field(_keywords, 'pp.meta_keywords'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+              child: FilledButton(
+                onPressed: () => Navigator.pop<PdfMeta>(context, (
+                  title: _title.text.trim(),
+                  author: _author.text.trim(),
+                  subject: _subject.text.trim(),
+                  keywords: _keywords.text.trim(),
+                )),
                 child: Text(context.t('common.ok')),
               ),
             ),

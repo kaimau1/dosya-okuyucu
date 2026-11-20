@@ -1479,6 +1479,13 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Çok şekilli/görselli slaytta bir şekli seç ve sürükle: diğer şekiller titremeden/yanıp sönmeden yerinde kalıyor mu? Seçince ya da seçimi bırakınca görseller bir an kayboluyor mu (olmamalı)?
 - Sürükleme ve geçişli slayt A/B (C2): şekil sürüklemede kare p99 önceki [apk] ile kıyas.
 
+## B11 Slayt 2.0 dilim 3 (2026-11-20, dal faz-oto-B11-slayt3) — yazıldı, cihazda doğrulanmadı
+- [ ] PowerPoint'te Biçim değiştir (Morph) geçişli, aynı adlı şekli iki slaytta farklı yerde olan deste: sunumda ileri → şekil yerinden kayıp büyüyor/küçülüyor mu, takılma var mı?
+- [ ] Kay/Yakınlaş/Dön/çıkış animasyonlu deste: her tıklamada efekt dosyadaki gibi mi (kay doğru yönden, dönen şekil baştan görünür, çıkan şekil tıklamada kaybolur)? "Kes" geçişli slayt efektsiz geliyor mu?
+- [ ] Düzenleyici → Tasarım → Geçiş: Yakınlaş / Biçim değiştir seç → altta önizleme oynuyor mu, dokununca yeniden? Kaydet → PowerPoint'te geçiş Biçim değiştir görünüyor mu?
+- [ ] Dikey yazılı metin kutusu (PowerPoint "Metin yönü: 270°") dikey çiziliyor mu?
+- [ ] A/B (C2): Biçim değiştir ve efektli tıklamada kare p99.
+
 ## B2 dilim 5 — galeride hassas kategori PIN'i (2026-11-19, yazıldı, cihazda doğrulanmadı)
 - [ ] PIN kurulu, uygulama kilidi kapalı: Fotoğraflar → AI kategori hapı → Kimlik/Sağlık/Banka/Vergi seçince PIN sorulur; yanlış/iptal → seçilmez; doğru → süzülür, oturumda bir daha sorulmaz (Akıllı düzen listelerinde de sorulmaz). Seçimi kaldırmak PIN istemez. PIN yoksa hiç sorulmaz.
 
@@ -1486,3 +1493,70 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Çoklu seçim → Daha fazla: en üstte "AI ile ikinci ad ver" + "Kategori ekle"; "AI ile etiketle" yok. Toplu ad: bildirimde ilerleme, Durdur çalışıyor mu, adlar listede görünüyor mu.
 - ⋮: en üst bölüm "İkinci ad ve kategori". Kategori ekle → Yeni kategori (yalnız ad) → Akıllı düzen › Kategorilerim'de ve süzgeçte görünüyor mu.
 - Akıllı düzen ayarı "Yalnız şarjda ve Wi-Fi'de": şarjsız/mobil veride uygulama içi otomatik tur koşmamalı; şarj + Wi-Fi'de uygulama kapalıyken (birkaç saat) yeni dosyalar düzenlenmiş mi (MIUI pil kısıtı: uygulamaya "kısıtlama yok" gerekebilir).
+
+## B4 PDF Pro dilim 1 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → Pro araçlar → "Belge bilgileri": mevcut başlık/yazar dolu geliyor mu; değiştir → kaydet → yeniden açınca yeni değerler; parolalı belgede parola duruyor mu (Türkçe harfler bozulmadan).
+- [ ] "Açıklamaları dışa aktar (XFDF)": vurgulu PDF'te yanına `-aciklamalar.xfdf` çıkıyor mu; vurgusuz belgede "vurgu ya da not yok" uyarısı. "İçe aktar": aynı dosyayı vurgusuz kopyaya al → vurgular doğru sayfada mı.
+
+## B4 PDF Pro dilim 2 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Word'den "parolayla şifrele" ile kaydedilmiş PDF → PDF araçları → Kilidi aç: sayfalar duruyor mu, açılan kopya parolasız açılıyor mu.
+- [ ] Parola koy → başka bir okuyucuda (ör. Chrome/Drive) parolayla açılıyor mu (yeni koruma AES-256 R6).
+
+## B4 PDF Pro dilim 3 (2026-11-19, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → Pro araçlar → "Sayfa stüdyosu": ızgara açılıyor mu; dokun = seç (çerçeve + tik), birkaç sayfa seç → sola/sağa döndür, çoğalt, sil; Geri al her adımı geri alıyor mu; Tamam → önizleme doğru mu.
+- [ ] Basılı tut + sürükle → başka sayfanın üstüne bırak: sayfa oraya taşınıyor mu (uzun belgede kenarda kendiliğinden kaydırma YOK — sorun mu?).
+- [ ] Vurgulu belgede yalnız sil/döndür → vurgular kalıyor, uyarı çıkmıyor; sıralama/çoğaltma → "açıklamalar gider" uyarısı çıkıyor.
+- [ ] 300 sayfalık belgede ızgara kaydırma akıcı mı (C2 ölçümü, p99 ≤ 16 ms hedefi).
+## B4 PDF Pro dilim 4 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Sayfa stüdyosu → sayfa seç → alt çubukta "Boş sayfa ekle": seçilenin ardına komşu ölçüsünde boş sayfa geliyor mu; vurgulu belgede uyarı çıkmadan vurgular kalıyor mu.
+- [ ] Üst çubukta "Dosyadan sayfa ekle" → başka PDF seç: sayfaları son seçilenin ardına (seçim yoksa sona) geliyor mu, küçük resimler doğru mu; şifreli PDF seçince "açılamadı" uyarısı; Tamam → "açıklamalar gider" uyarısı + çıktı sırası doğru mu.
+## B4 PDF Pro dilim 5 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Stüdyo → sayfa seç → alt çubuk "Seçilenleri yeni PDF'e çıkar": özgünün yanına `-sayfalar.pdf` (sıra/döndürme stüdyodaki gibi), özgün değişmiyor; "Seçilen sayfalardan böl": `-bolum1..n.pdf`, yalnız ilk sayfa seçiliyse uyarı.
+- [ ] Üst çubuk "Sayfa ekle" menüsü: görselden (A4) ve taramadan sayfa son seçilenin ardına geliyor; yüklenirken ince ilerleme çubuğu.
+- [ ] 100+ sayfada sayfayı basılı tutup ızgaranın alt/üst kenarına sürükle: kendiliğinden kayıyor, bırakınca duruyor; kayarken takılma (p99) gözle.
+## B4 PDF Pro dilim 6 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Düz (formsuz) bir başvuru PDF'i → PDF araçları → Pro araçlar → "Form alanı ekle" → "Doldurulacak yerleri bul": `____` / `.....` / `☐` yerleri kutulu geliyor, dokununca siliniyor, sürükleyince ekleniyor; Tamam → alanlar doldurulabiliyor, otomatik doldurma "Ad Soyad" gibi etiketli alanı tanıyor. Formsuz/yeri olmayan PDF'te "bulunamadı" uyarısı.
+## B4 PDF Pro dilim 7 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Çizgili (alt çizgi / boş kutu / kare onay kutusu ÇİZİLMİŞ, metin `___` değil) bir başvuru PDF'i → "Doldurulacak yerleri bul": çizgilerin üstü metin alanı, kareler onay kutusu olarak geliyor; içi yazılı tablo hücreleri ve altı çizili yazılar önerilmiyor; 300 sayfalık belgede tarama donmuyor.
+## B4 PDF Pro dilim 8 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] İmza alanı olan bir form PDF'i → ⋮ › Formu doldur: imza alanı kilitli değil "İmzalamak için dokunun"; dokununca kayıtlı imza geliyor (yoksa pano); Doldur ve kaydet → imza alanın kutusunda, oranı bozulmadan; Chrome/Acrobat'ta da görünüyor.
+- [ ] Taranmış (yalnız görüntü) PDF → Pro araçlar › "Aranabilir yap (OCR)": ilerleme şeridi, bitince "N sayfa aranabilir oldu"; görüntü değişmiyor; kaydedince aramada sözcük bulunuyor, seçip kopyalanıyor; doğal metinli PDF'te "bulunamadı" diyor.
+## B15 Akıllı bütünlük dilim 1 (2026-11-19, dal faz-oto-B15-akilli) — yazıldı, cihazda doğrulanmadı
+- [ ] Alt gezinmede sekme "Akıllı"; Akıllı dosya asistanında 4 sekme (Analiz · Türler · Öneriler · Rapor), ⋮ menüsünde "Sohbet" yok; Analiz'deki sayı kartları doğru sekmeyi açıyor.
+- [ ] Dosya ⋮: en üstte "Akıllı ikinci ad" (AI simgesi), "AI ile özetle / hızlı kontrol / kontrol listesi" yok; görselde "Görselde ne var?" AI simgesiyle. Çoklu seçim "Daha fazla": "Akıllı ikinci ad" + "Kategori ekle" aynı sırada; toplu kontrol/kontrol listesi yok.
+- [ ] Kategori ekranı ⋮ "Analiz ve düzenle": "Akıllı ikinci ad" toplu iş başlatıyor (bildirim + şerit); Akıllı analiz raporundaki düğme de aynı işi açıyor.
+- [ ] PDF/Word/Excel/Slayt alt çubuğunda "AI ile çalış" yok; çubuk kaymıyor. Slayt ⋮'da özet yok. PDF ⋮ › Dönüştür › "Slayta dönüştür" doğrudan biçim soruyor (AI/hızlı seçimi yok), .pptx/PDF çıkıyor.
+- [ ] Benzer görseller: grup başlığında yıldız/"Gemini'ye sor" yok; boyut yazısı düz.
+- [ ] PDF Düzenle levhasında "Akıllı düzenle" AI simgesiyle; Word seçim menüsü "Seçimi akıllı düzelt"; arama "Akıllı arama"; Akıllı düzen kartı/başlığı tek yazım.
+- [ ] Ölçüm (C2): PDF görüntüleyici alt çubuk + ana ekran sekme geçişi, `.r8test` taban önceki [apk].
+
+## U4 Akıllı klasörler + Analiz + Yapay zekâ ayarları (2026-11-20, dal faz-oto-U4-akilli-klasor) — yazıldı, cihazda doğrulanmadı
+- [ ] Anahtarı geçici bozuk yap → Akıllı düzen "Şimdi düzenle": ileti "anahtar geçersiz … Ayarlar > Yapay zekâ" diyor mu (eskiden "kota doldu"). Çevrimdışı kip açıkken: "Çevrimdışı kip açık …".
+- [ ] Başka bir uygulamayla düzenlenmiş bir dosyayı sil → Akıllı düzen ekranını aç: klasör sayısı bir düşüyor mu; çöpe atıp geri yüklenen dosya kategorisinde mi.
+- [ ] Akıllı düzen ekranı: ızgaranın sonunda "Diğer" klasörü (varsa); altında "Akıllı aramalar" kartı → "fatura" araması kaydet → faturalar listeleniyor mu; "kimlik" araması PIN istiyor mu (PIN kuruluysa).
+- [ ] Ayarlar > Yapay zekâ: en üstte "Akıllı klasörler" (Akıllı düzen durumu, kamera/arka plan/Wi-Fi/günlük sınır, hassas klasör PIN'i, Kategorilerim); "AI Kalıcı Hafıza" yok; onay ve kişisel veri gizleme burada, Gizlilik'te yok.
+- [ ] Bellek Analizi: araçlarda "Kopyalar" (ana ekrandakiyle aynı simge) ve Akıllı düzen açıksa "Ayıkla · n"; aramada 200'den çok sonuç → "Tümünü seç" en çok 200 seçiyor.
+- [ ] Ölçüm (C2): Akıllı düzen ekranı açılışı (budama izolatta) — kasma yok mu.
+
+## U3 Ana ekran + bildirim bütünlüğü (2026-11-20, dal faz-oto-U3-ana-ekran) — yazıldı, cihazda doğrulanmadı
+- [ ] Ayarlar > Depolama ve başarım > Başarım: satırda güncel değer ("Otomatik (orta)" gibi) görünüyor; menüde seçili onay işaretli. Çöp otomatik temizle, varsayılan sıralama, medya açılışında da aynı.
+- [ ] Ana ekran Araçlar: "Kopyalar" ve "Bağlantıdan indir" yok; paylaşılan bir bağlantı yine indirme ekranını açıyor.
+- [ ] Ana ekran en altta tek "Düzenle" → iki seçenek; ikisi de doğru sayfayı açıyor.
+- [ ] Ses ve video oynatıcıda hız simgesi → çubuk (0,5–2,0, 0,05 adım) + hızlı düğmeler; ses perdesi/takılma yok; 1,05× gibi ara hızlar çalışıyor.
+- [ ] Akıllı düzen turu sonrası "N yeni dosya düzenlendi" iş bildirimleriyle aynı kartta (Göster · ✕); ✕ sonrası geri gelmiyor.
+- [ ] Çöp kutusu kapalıyken bir dosyayı sil → "1 öğe kalıcı olarak silindi" kartı. Excel CSV biçim uyarısı, taşıma "Geri al" sonucu, taramada "kaydedildi" ortak alt kartta.
+- [ ] Son dosyalar: yeniler ve açılanlar zamana göre karışık, "Yeni" etiketi duruyor; sekmeler Son dosyalar · Geçmiş · Yeniler; › doğru listeye gidiyor. Ana ekranı düzenle › Bölümler'de varsayılan Geçmiş seç → uygulamayı kapat-aç → şerit Geçmiş'te açılıyor. Yan menüde aynı şerit.
+- [ ] Ölçüm (C2): ana ekran soğuk açılış + şerit sekme geçişi + yan menü açılışı; `.r8test` taban önceki [apk].
+
+## B5 P23 UYAP (.udf) okuyucu (2026-11-20, dal faz-oto-B5-udf) — yazıldı, cihazda doğrulanmadı
+- [ ] Dosya listesinde .udf Word simgesiyle görünüyor; dokununca Word okuyucusunda açılıyor (başlık, kalın/eğik, hiza, tablo, gömülü resim yerinde).
+- [ ] WhatsApp/Gmail'den gelen .udf "Birlikte aç" listesinde Dosya Okuyucu çıkıyor mu (zip türüyle geliyorsa çıkar; çıkmıyorsa bildir).
+- [ ] Paylaş/Dışa aktar → PDF: PDF içeriği ekrandakiyle aynı. Düzenleyip kaydet → "X.docx olarak kaydedildi"; özgün .udf değişmedi, yanına .docx geldi.
+- [ ] Bozuk .udf (ör. yarım indirilmiş) → "bozuk ya da eksik… yeniden indirin" metni; uygulama çökmüyor.
+- [ ] Gerçek UYAP belgesinde eksik kalan (madde imi, numara, üst/alt bilgi, birleşik hücre) var mı → not al (çevrilmiyor, bilinçli).
+- [ ] Ölçüm (C2): .udf açılış süresi (çevrim izolatta), kasma yok mu.
+
+## B3 P29 — çökme uyarısı bildirim kartında (dal faz-oto-B3-hiz, 2026-11-20; yazıldı, cihazda doğrulanmadı)
+- [ ] Uygulamayı son uygulamalardan kaydırıp kapat (MIUI bellek temizliği de olur) → yeniden aç: ana ekranda "Uygulama hata verdi" satırı ÇIKMIYOR (kayıt Ayarlar › Hata kayıtları'nda "(background)" ile duruyor).
+- [ ] Gerçek bir hata kaydı varken açılış: satır en üstteki bildirim kartında (ayrı kırmızı şerit yok), "Aç" raporu açıyor; ✕ ile kapatınca bir daha (yeni hataya dek) gelmiyor.
+- [ ] Ölçüm (C2): ana ekran açılışı, taban önceki [apk] `.r8test`.

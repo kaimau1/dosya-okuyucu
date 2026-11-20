@@ -6,9 +6,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
-import '../../screens/fm/ai_batch_check.dart';
 import '../../screens/fm/ai_actions.dart' show giveAiAliasBatch;
-import '../../screens/fm/ai_checklist.dart';
 import '../../screens/fm/category_add_sheet.dart';
 import '../../screens/fm/entry_actions.dart';
 import '../../screens/fm/resize_actions.dart';
@@ -226,18 +224,6 @@ class FmSelectionBar extends StatelessWidget {
                     value: 'tag',
                     icon: AppIcons.tag,
                     label: context.t('fm.tag')),
-                // Decisions API (2026-11-18): hepsine aynı soru, süz, işle.
-                AppAction(
-                    value: 'ai_check',
-                    icon: AppIcons.ai,
-                    accent: true,
-                    label: context.t('qcb.action'),
-                    hint: context.t('qcb.action_hint')),
-                AppAction(
-                    value: 'ai_checklist',
-                    icon: AppIcons.listAlt,
-                    label: context.t('ckl.action'),
-                    hint: context.t('ckl.action_hint')),
                 if (_anyMedia)
                   AppAction(
                       value: 'resize',
@@ -352,10 +338,6 @@ class FmSelectionBar extends StatelessWidget {
         if (files.isNotEmpty && await showAddCategory(context, files)) {
           await onChanged();
         }
-      case 'ai_check':
-        if (await showAiBatchCheck(context, selected)) await onChanged();
-      case 'ai_checklist':
-        await showAiChecklist(context, selected);
       case 'hide':
         if (await hideEntries(context, _paths)) await onChanged();
       case 'properties':

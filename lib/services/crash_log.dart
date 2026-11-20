@@ -148,8 +148,12 @@ abstract final class CrashLog {
         if (time > newest) newest = time;
         final exitAt =
             time > 0 ? DateTime.fromMillisecondsSinceEpoch(time) : null;
+        final bg = isBackgroundKill(
+            e['reason'] as String?, (e['importance'] as num?)?.toInt());
         await record(
-          'Process exit: ${e['reason']} ${e['description'] ?? ''}'.trim(),
+          'Process exit: ${e['reason']}${bg ? ' $_bgTag' : ''} '
+                  '${e['description'] ?? ''}'
+              .trim(),
           null,
           kind: 'exit',
           at: exitAt,
@@ -163,6 +167,35 @@ abstract final class CrashLog {
       // Bilinçli: Eski Android / kanal yok (test): sessiz.
     }
   }
+
+  /// **Arka plandayken sistemin kapatması uygulama hatası DEĞİLDİR** (P29,
+  /// 2026-11-20; cihaz turu 2026-11-14: panoda kalıcı "beklenmedik hata (1
+  /// kayıt)" şeridi). Kök neden: [importExitReasons] `low_memory` ve
+  /// `signaled` çıkışlarını da alıyordu; MIUI gibi sistemler arka plandaki
+  /// uygulamayı (son uygulamalardan kaydırınca, bellek temizliğinde) sinyalle
+  /// ya da bellek için öldürür — her açılışta yeni bir "hata" doğardı. Kayıt
+  /// tanı için tutulur (Hata kayıtları, tanılama özeti), panoda uyarı açmaz.
+  /// Ön plandaki (görünür, `importance` ≤ 200) bellek kapatması uyarıda kalır:
+  /// kullanıcı uygulamanın kapandığını gördü.
+  static bool isBackgroundKill(String? reason, int? importance) =>
+      (reason == 'low_memory' || reason == 'signaled') &&
+      importance != null &&
+      importance > 200;
+
+  static const _bgTag = '(background)';
+
+  /// Panoda uyarı açar mı? (Arka plan kapatması ve ele alınmış kayıtlar açmaz.)
+  static bool notifies(CrashRecord r) =>
+      r.kind != 'handled' && !(r.kind == 'exit' && r.error.contains(_bgTag));
+
+  /// Panodaki bildirim kartının kaynağı: görülmemiş kayıt sayısı. Açılışta
+  /// çıkış nedenleri içeri alındıktan SONRA bir kez doldurulur
+  /// ([refreshUnseen]); önceden şerit kendi başına okuyup çıkış kaydını bir
+  /// sonraki açılışa bırakıyordu.
+  static final ValueNotifier<int> unseen = ValueNotifier(0);
+
+  static Future<void> refreshUnseen() async =>
+      unseen.value = await unseenCount();
 
   /// Bir hatayı kaydeder. **Hiçbir koşulda fırlatmaz:** hata kaydedicinin
   /// kendisi hata verirse (disk dolu, izin yok) uygulamayı çökertmek en kötü
@@ -204,27 +237,17 @@ abstract final class CrashLog {
     }
   }
 
-  static bool _isBannerWorthy(CrashRecord r) {
-    if (r.kind == 'handled') return false;
-    if (r.kind == 'exit' &&
-        (r.error.startsWith('Process exit: signaled') ||
-            r.error.startsWith('Process exit: low_memory'))) {
-      return false;
-    }
-    return true;
-  }
-
   /// **Kullanıcının HENÜZ GÖRMEDİĞİ kayıt sayısı.**
   ///
   /// Kayıt tutmak tek başına geri bildirim döngüsü kurmuyor: kimse kendi
   /// isteğiyle Ayarlar > Hakkında'ya bakmaz. Uygulama bir çökmeden sonra
   /// açıldığında panoda bir kez, kapatılabilir bir satır gösteriliyor
-  /// (`CrashNoticeBanner`); "görüldü" işareti son okunan kaydın zamanı.
+  /// (panodaki bildirim kartı, [unseen]); "görüldü" işareti son okunan kaydın zamanı.
   ///
   /// Zaman damgası kullanılıyor, sayaç değil: kayıt listesi 20'de dolup
   /// başından kırpıldığı için "kaç tane vardı" güvenilir değil.
   static Future<int> unseenCount() async {
-    final records = (await load()).where(_isBannerWorthy).toList();
+    final records = (await load()).where(notifies).toList();
     if (records.isEmpty) return 0;
     final seen = await _readSeenStamp();
     if (seen == null) return records.length;
@@ -233,6 +256,7 @@ abstract final class CrashLog {
 
   /// En yeni kaydı "görüldü" olarak işaretler.
   static Future<void> markSeen() async {
+    unseen.value = 0;
     final records = await load();
     if (records.isEmpty) return;
     try {
@@ -280,6 +304,7 @@ abstract final class CrashLog {
   }
 
   static Future<void> clear() async {
+    unseen.value = 0;
     try {
       final dir = await _resolveDir();
       if (dir == null) return;

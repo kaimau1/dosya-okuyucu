@@ -6,6 +6,49 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   /// eşik basamağını taşır: kapatılan uyarı durum kötüleşince yeniden gelir.
   List<InboxEvent> _inboxEvents(List<StorageVolume> volumes) {
     final out = <InboxEvent>[];
+    // **Çökme uyarısı da bu kartta, en üstte** (P29, 2026-11-20; kullanıcı:
+    // "tüm bildirimler görsel birlik"): eski ayrı kırmızı `CrashNoticeBanner`
+    // kalktı. Arka plan kapatmaları sayılmaz (`CrashLog.isBackgroundKill`).
+    final crashes = CrashLog.unseen.value;
+    if (crashes > 0) {
+      out.add(InboxEvent(
+        id: 'crash',
+        icon: AppIcons.bugReport,
+        warning: true,
+        title: context.t('crash.notice', {'n': crashes}),
+        subtitle: context.t('crash.notice_hint'),
+        actionLabel: context.t('inbox.open'),
+        onTap: () {
+          unawaited(CrashLog.markSeen());
+          _push(const CrashLogScreen());
+        },
+        onDismiss: () => unawaited(CrashLog.markSeen()),
+      ));
+    }
+    // **Akıllı düzen sonucu da bu kartta** (U3 m.4, 2026-11-20, kullanıcı:
+    // "üstteki iş bildirimi ile altındaki Akıllı düzen şeridi görsel olarak
+    // farklı → tek dil"): eski ayrı `SmartBatchStrip` kalktı.
+    final batch = SmartSort.lastBatch.value;
+    if (batch != null) {
+      void open() {
+        SmartSort.lastBatch.value = null;
+        unawaited(SmartSortScreen.open(context));
+      }
+
+      out.add(InboxEvent(
+        id: 'smart_batch_${batch.at.millisecondsSinceEpoch}',
+        icon: AppIcons.ai,
+        title: context.t('sm.batch_title', {'n': batch.paths.length}),
+        subtitle: (batch.byCategory.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .take(3)
+            .map((e) => '${e.value} ${SmartCatStyle.label(context, e.key)}')
+            .join(', '),
+        actionLabel: context.t('jp.show'),
+        onTap: open,
+        onDismiss: () => SmartSort.lastBatch.value = null,
+      ));
+    }
     if (_proCard) {
       out.add(InboxEvent(
         id: 'pro_card',
@@ -132,16 +175,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         subtitle: '',
         onTap: () => _push(const ActivityScreen()),
       ),
-      // İkinci araç satırı (2026-11-18, "araçlar 2 satır olsun"): telefonun
-      // başka yerlerinde iki-üç dokunuş derindeki sık işler.
-      FmTileData(
-        icon: AppIcons.filterNone,
-        color: AppHues.teal,
-        id: 'duplicates',
-        label: context.t('tools.dupes'),
-        subtitle: '',
-        onTap: () => _push(DuplicatesScreen(roots: FmEnv.volumeRoots)),
-      ),
+      // (Kopyalar 2026-11-20'de araçlardan çıktı — U3, kullanıcı: "ana
+      // ekranda gereksiz"; Bellek Analizi'nde duruyor.)
       FmTileData(
         icon: FtpService.instance.running ? AppIcons.hotspot : AppIcons.computer,
         color: AppHues.blue,
@@ -152,14 +187,8 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
             FtpService.instance.running ? context.t('ftpd.running') : '',
         onTap: () => _push(const FtpServerScreen()),
       ),
-      FmTileData(
-        icon: AppIcons.downloadForOffline,
-        color: AppHues.tangerine,
-        id: 'link_download',
-        label: context.t('dl.from_link'),
-        subtitle: '',
-        onTap: () => _push(const DownloadManagerScreen()),
-      ),
+      // (Bağlantıdan indir 2026-11-20'de araçlardan kalktı — U3 kullanıcı
+      // isteği; paylaşılan bağlantı ve Yakındaki cihazlar yine açar.)
       // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği
       // şifreli klasör — kimlik, tapu, sözleşme taramaları için.
       FmTileData(
@@ -203,9 +232,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       'produced',
       'vault',
       'new_document',
-      'duplicates',
       'ftp',
-      'link_download',
     ];
     int rank(FmTileData t) {
       final i = order.indexOf(t.id);

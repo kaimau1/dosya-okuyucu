@@ -19,6 +19,7 @@ import 'tiles_backup.dart';
 import 'tiles_browsing.dart';
 import 'tiles_privacy.dart';
 import 'tiles_reading.dart';
+import 'tiles_smart.dart';
 import 'tiles_system.dart';
 import 'tiles_trash.dart';
 import '../../core/app_version.dart';
@@ -403,6 +404,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       ),
 
       // ── 4. YAPAY ZEKÂ ────────────────────────────────────────────────────
+      // U4 (2026-11-20, kullanıcı: "Yapay zekâ ayar sayfası yeni duruma göre
+      // baştan yazılsın, artık ana özelliğimiz akıllı klasörler"): EN ÜSTTE
+      // Akıllı klasörler (Akıllı düzen ayarları, hassas kategori PIN'i,
+      // Kategorilerim), sonra erişim (anahtar), sonra gizlilik ve onay
+      // (Gizlilik kategorisinden AI'ya özgü iki satır buraya geldi). Sohbetle
+      // işlevsiz kalan "AI Kalıcı Hafıza" bölümü kalktı (notlar silinmedi).
       SettingsCategory(
         id: 'ai',
         color: AppHues.royal,
@@ -417,6 +424,27 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               })}';
         },
         sections: const [
+          SettingsSection('set.sec_smart', [
+            SettingRow(
+              id: 'smart_sort',
+              titleKey: 'sm.title',
+              subtitleKey: 'set.smart_sort_sub',
+              altKeys: ['sm.folders', 'sm.cap_title', 'sm.bg', 'sm.camera'],
+              builder: _smartSortTile,
+            ),
+            SettingRow(
+              id: 'smart_sensitive',
+              titleKey: 'set.smart_pin',
+              subtitleKey: 'set.smart_pin_none',
+              builder: _smartPinTile,
+            ),
+            SettingRow(
+              id: 'smart_user_cats',
+              titleKey: 'suc.section',
+              subtitleKey: 'suc.sub',
+              builder: _smartUserCatsTile,
+            ),
+          ]),
           SettingsSection('set.sec_key', [
             SettingRow(
               id: 'api_key',
@@ -432,19 +460,34 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               builder: _aiTaskModelsTile,
             ),
           ]),
-          SettingsSection('set.sec_ai_scope', [
+          SettingsSection('set.sec_ai_privacy', [
+            SettingRow(
+              id: 'ai_send_ask',
+              titleKey: 'aisend.setting',
+              subtitleKey: 'aisend.setting_sub',
+              builder: _aiSendAskTile,
+            ),
+            SettingRow(
+              id: 'ai_pii_mask',
+              titleKey: 'pii.setting',
+              subtitleKey: 'pii.setting_sub',
+              builder: _piiMaskTile,
+            ),
+            SettingRow(
+              id: 'ai_privacy',
+              titleKey: 'aiset.send_text',
+              subtitleKey: 'aiset.send_text_sub',
+              altKeys: ['aiset.send_images', 'aiset.hidden', 'aiset.excerpt'],
+              builder: _aiPrivacyTile,
+            ),
             SettingRow(
               id: 'share_shield',
               titleKey: 'shield.setting',
               subtitleKey: 'shield.setting_sub',
               builder: _shareShieldTile,
             ),
-            SettingRow(
-              id: 'ai_auto_new',
-              titleKey: 'aiset.auto_new',
-              subtitleKey: 'aiset.auto_new_sub',
-              builder: _aiAutoNewTile,
-            ),
+          ]),
+          SettingsSection('set.sec_ai_scope', [
             SettingRow(
               id: 'ai_excluded',
               titleKey: 'aiset.excluded',
@@ -456,19 +499,13 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               titleKey: 'aiset.types',
               builder: _aiTypesTile,
             ),
+            // Akıllı dosya asistanının (eski analiz) kendiliğinden turu.
             SettingRow(
-              id: 'ai_privacy',
-              titleKey: 'aiset.send_text',
-              subtitleKey: 'aiset.send_text_sub',
-              altKeys: ['aiset.send_images', 'aiset.hidden', 'aiset.excerpt'],
-              builder: _aiPrivacyTile,
+              id: 'ai_auto_new',
+              titleKey: 'aiset.auto_new',
+              subtitleKey: 'aiset.auto_new_sub',
+              builder: _aiAutoNewTile,
             ),
-          ]),
-          SettingsSection('settings.memory', [
-            SettingRow(
-                id: 'memory',
-                titleKey: 'settings.memory',
-                builder: _memoryTile),
           ]),
           // Uzman işi: model zinciri, yedek anahtar havuzu, günlük bütçe.
           SettingsSection('set.sec_advanced', [
@@ -550,18 +587,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
               subtitleKey: 'offline.sub',
               altKeys: ['set.kw_offline'],
               builder: _offlineTile,
-            ),
-            SettingRow(
-              id: 'ai_send_ask',
-              titleKey: 'aisend.setting',
-              subtitleKey: 'aisend.setting_sub',
-              builder: _aiSendAskTile,
-            ),
-            SettingRow(
-              id: 'ai_pii_mask',
-              titleKey: 'pii.setting',
-              subtitleKey: 'pii.setting_sub',
-              builder: _piiMaskTile,
             ),
             SettingRow(
               id: 'privacy_wipe',
@@ -865,7 +890,9 @@ Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();
 Widget _startFolderTile(BuildContext _) => const StartFolderTile();
 Widget _aiAccessTile(BuildContext _) => const AiAccessTile();
 Widget _aiTaskModelsTile(BuildContext _) => const AiTaskModelsTile();
-Widget _memoryTile(BuildContext _) => const MemoryTile();
+Widget _smartSortTile(BuildContext _) => const SmartSortSettingsTile();
+Widget _smartPinTile(BuildContext _) => const SmartSensitivePinTile();
+Widget _smartUserCatsTile(BuildContext _) => const SmartUserCatsTile();
 Widget _aiBackupKeysTile(BuildContext _) => const AiBackupKeysTile();
 Widget _aiModelChainTile(BuildContext _) => const AiModelChainTile();
 Widget _aiPoolStatusTile(BuildContext _) => const AiPoolStatusTile();

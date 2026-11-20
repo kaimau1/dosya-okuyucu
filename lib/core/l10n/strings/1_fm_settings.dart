@@ -94,7 +94,12 @@ const Map<String, (String, String, String)> _t1 = {
     'تعذّر الحفظ: {error}',
   ),
   'common.translate': ('Çevir', 'Translate', 'ترجمة'),
-  'common.ai': ('AI ile çalış', 'Work with AI', 'العمل بالذكاء الاصطناعي'),
+  // B15 (2026-11-19): akıllı işlerin tek hata kalıbı.
+  'common.smart_failed': (
+    'Akıllı işlem yapılamadı: {error}',
+    'The smart action failed: {error}',
+    'تعذّر تنفيذ الإجراء الذكي: {error}',
+  ),
   'common.bold': ('Kalın', 'Bold', 'عريض'),
   'common.italic': ('İtalik', 'Italic', 'مائل'),
   'common.underline': ('Altı çizili', 'Underline', 'تسطير'),
@@ -135,7 +140,11 @@ const Map<String, (String, String, String)> _t1 = {
   // ── Ana ekran / gezinme ───────────────────────────────────────────────────
   'home.tab_files': ('Dosyalar', 'Files', 'الملفات'),
   'home.tab_recent': ('Son belgeler', 'Recent', 'المستندات الأخيرة'),
-  'home.tab_ai': ('AI', 'AI', 'الذكاء الاصطناعي'),
+  'home.tab_ai': (
+    'Akıllı',
+    'Smart',
+    'ذكي',
+  ),
   'home.pdf_tools': ('PDF araçları', 'PDF tools', 'أدوات PDF'),
   'home.new_document': ('Yeni belge', 'New document', 'مستند جديد'),
   'home.new_document_title': (
@@ -174,9 +183,9 @@ const Map<String, (String, String, String)> _t1 = {
   ),
   'home.empty_cta': ('İlk dosyanı aç', 'Open your first file', 'افتح أول ملف لك'),
   'home.empty_ai_hint': (
-    'AI özellikleri için Ayarlar’dan Gemini API anahtarı ekleyin.',
-    'Add a Gemini API key in Settings to enable AI features.',
-    'أضف مفتاح Gemini API من الإعدادات لتفعيل ميزات الذكاء الاصطناعي.',
+    'Akıllı özellikler için Ayarlar’dan Gemini API anahtarı ekleyin.',
+    'Add a Gemini API key in Settings to enable smart features.',
+    'أضف مفتاح Gemini API من الإعدادات لتفعيل الميزات الذكية.',
   ),
   'home.open_error': (
     'Dosya açılamadı: {error}',
@@ -287,11 +296,6 @@ const Map<String, (String, String, String)> _t1 = {
     'Gemini key and model choice',
     'مفتاح Gemini واختيار النموذج',
   ),
-  'settings.memory_sub': (
-    'Yapay zekânın hatırlamasını istediğiniz notlar',
-    'Notes you want the AI to remember',
-    'ملاحظات تريد أن يتذكرها الذكاء الاصطناعي',
-  ),
   'settings.perf_section': (
     'Pil ve başarım',
     'Battery & performance',
@@ -360,16 +364,6 @@ const Map<String, (String, String, String)> _t1 = {
   'settings.theme_system': ('Sistem', 'System', 'النظام'),
   'settings.theme_light': ('Açık', 'Light', 'فاتح'),
   'settings.theme_dark': ('Koyu', 'Dark', 'داكن'),
-  'settings.memory': ('AI Kalıcı Hafıza', 'AI long-term memory', 'ذاكرة الذكاء الاصطناعي'),
-  'settings.memory_count': ('{n} not', '{n} notes', '{n} ملاحظة'),
-  'settings.memory_empty': (
-    'Henüz kayıtlı not yok. AI sohbetinde bir yanıtı “Hafızaya kaydet” ile '
-        'ekleyebilirsiniz.',
-    'No saved notes yet. In the AI chat you can add an answer with “Save to '
-        'memory”.',
-    'لا توجد ملاحظات محفوظة بعد. يمكنك إضافة إجابة من محادثة الذكاء الاصطناعي '
-        'عبر «حفظ في الذاكرة».',
-  ),
   'settings.about': ('Hakkında', 'About', 'حول'),
   'settings.about_body': (
     'Dosyalarım • sürüm {version}\n'

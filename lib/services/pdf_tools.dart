@@ -1,7 +1,9 @@
 import 'dart:isolate';
 import 'dart:math' as math;
+import 'dart:typed_data' show Uint8List;
 import 'dart:ui' show Offset, Rect, Size;
 
+import 'package:pdfrx/pdfrx.dart' as pdfrx;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 /// PDF **dosya/sayfa düzeyi** işlemler: birleştir, sayfa seç (böl/çıkar/sil/
@@ -134,18 +136,22 @@ class PdfTools {
   }) async {
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
-      final count = doc.pages.count;
-      final at = index.clamp(0, count);
-      final reference = doc.pages[at > 0 ? at - 1 : 0];
-      final size = reference.size;
-      if (at >= count) {
-        doc.pages.add();
-      } else {
-        doc.pages.insert(at, size);
-      }
+      _insertBlank(doc, index);
       return await doc.save();
     } finally {
       doc.dispose();
+    }
+  }
+
+  /// Açık belgeye [index]'e komşu ölçüsünde boş sayfa sokar.
+  static void _insertBlank(PdfDocument doc, int index) {
+    final count = doc.pages.count;
+    final at = index.clamp(0, count);
+    final size = doc.pages[at > 0 ? at - 1 : 0].size;
+    if (at >= count) {
+      doc.pages.add();
+    } else {
+      doc.pages.insert(at, size);
     }
   }
 
@@ -268,7 +274,7 @@ class PdfTools {
     final doc = PdfDocument(inputBytes: bytes, password: currentPassword);
     try {
       doc.security
-        ..algorithm = PdfEncryptionAlgorithm.aesx256Bit
+        ..algorithm = PdfEncryptionAlgorithm.aesx256BitRevision6
         ..userPassword = password
         ..ownerPassword = ownerPassword ?? password;
       // Şifreleme eski gövdeye ek olarak yazılırsa (incremental update) şifresiz
@@ -330,6 +336,8 @@ class PdfTools {
   /// [strokes] her biri 0..1 aralığında normalize edilmiş nokta dizisi (imza
   /// panosundan gelir); [rect] hedef kutu **görünen** sayfa koordinatında
   /// (sol-üst orijin) — kullanıcı sayfayı ekranda gördüğü gibi yerleştirir.
+  /// [rawSpace] `true` ise [rect] HAM sayfa uzayındadır (form alanının
+  /// `bounds`'u gibi) ve döndürme köprüsü atlanır.
   ///
   /// Neden resim değil vektör: her yakınlaştırmada keskin kalır, dosya küçük
   /// olur ve PNG saydamlığının PDF'e doğru gömülüp gömülmediğine bağlı kalmayız.
@@ -341,6 +349,7 @@ class PdfTools {
     double thickness = 1.5,
     int colorArgb = 0xFF000000,
     String? password,
+    bool rawSpace = false,
   }) async {
     if (strokes.every((s) => s.length < 2)) {
       throw ArgumentError('İmza boş');
@@ -352,7 +361,7 @@ class PdfTools {
       final g = page.graphics;
       final state = g.save();
       try {
-        if (t.angle != 0) {
+        if (t.angle != 0 && !rawSpace) {
           g.translateTransform(t.translate.dx, t.translate.dy);
           g.rotateTransform(t.angle);
         }
@@ -384,6 +393,46 @@ class PdfTools {
           g.drawPath(path, pen: pen);
         }
       } finally {
+        g.restore(state);
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// **P19 — aranabilir PDF:** OCR satırlarını sayfaya GÖRÜNMEZ (saydamlık 0)
+  /// metin olarak yazar; görüntü aynı kalır, metin aranır/seçilir/kopyalanır.
+  /// [lines] sayfa indeksi → satırlar; `rect` görünen sayfa koordinatında
+  /// (sol-üst, pt). Döndürülmüş sayfa atlanır (redaksiyon katmanıyla aynı sınır).
+  /// [fontBytes] Türkçe glifli TrueType; yoksa standart font.
+  static Future<List<int>> addTextLayer(
+    List<int> bytes,
+    Map<int, List<({String text, Rect rect})>> lines, {
+    List<int>? fontBytes,
+    String? password,
+  }) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      for (final MapEntry(key: i, value: rows) in lines.entries) {
+        if (i < 0 || i >= doc.pages.count) continue;
+        final page = doc.pages[i];
+        if (page.rotation.index % 4 != 0) continue;
+        final g = page.graphics;
+        final state = g.save();
+        g.setTransparency(0);
+        for (final row in rows) {
+          final text = row.text.trim();
+          if (text.isEmpty) continue;
+          // ponytail: punto = kutu yüksekliği; genişlik ölçeklenmez (arama
+          // ve kopyalama yeter, seçim vurgusu satırdan biraz kısa/uzun olabilir).
+          final size = (row.rect.height * 0.85).clamp(2.0, 96.0).toDouble();
+          final font = fontBytes != null
+              ? PdfTrueTypeFont(fontBytes, size)
+              : PdfStandardFont(PdfFontFamily.helvetica, size);
+          g.drawString(text, font,
+              bounds: Rect.fromLTWH(row.rect.left, row.rect.top, 0, 0));
+        }
         g.restore(state);
       }
       return await doc.save();
@@ -666,6 +715,16 @@ class PdfTools {
   // içinden yazılan kapanış `this`i (State + BuildContext) yakalar ve
   // gönderilemez. Burada kapanış yalnız yerel değişkenleri görüyor.
 
+  /// [addTextLayer] — arka plan isolate'inde.
+  static Future<List<int>> addTextLayerInBackground(
+    List<int> bytes,
+    Map<int, List<({String text, Rect rect})>> lines, {
+    List<int>? fontBytes,
+    String? password,
+  }) =>
+      _bg(() => addTextLayer(bytes, lines,
+          fontBytes: fontBytes, password: password));
+
   /// [compress] — arka plan isolate'inde.
   static Future<List<int>> compressInBackground(
     List<int> bytes, {
@@ -709,6 +768,116 @@ class PdfTools {
   static Future<List<int>> mergeInBackground(List<List<int>> sources) =>
       _bg(() => merge(sources));
 
+  /// **Sayfa stüdyosu planını uygular** (B4/P20). [pages] çıktı sırasıdır;
+  /// her öğe (sanal 0-tabanlı indeks, eklenecek çeyrek tur, 1 = 90° saat
+  /// yönü). Sanal indeks: önce bu belgenin sayfaları, ardından [extra]
+  /// belgeleri sırayla (dosyadan sayfa ekle); [studioBlank] = boş sayfa.
+  /// Sıra korunuyorsa (yalnız sil/döndür/boş ekle —
+  /// [studioKeepsAnnotations]) belge YERİNDE değişir, vurgular kalır;
+  /// sıralama/çoğaltma/dosyadan ekleme [_compose] ile kopyalar
+  /// ([selectPages] KAYIP UYARISI geçerli). [extra] şifresiz olmalı.
+  static Future<List<int>> applyPageStudio(
+    List<int> bytes,
+    List<(int, int)> pages, {
+    String? password,
+    List<List<int>> extra = const [],
+  }) async {
+    if (pages.isEmpty) throw ArgumentError('En az bir sayfa kalmalı');
+    final order = [for (final (i, _) in pages) if (i != studioBlank) i];
+    if (order.isEmpty) throw ArgumentError('En az bir özgün sayfa kalmalı');
+    final main = PdfDocument(inputBytes: bytes, password: password);
+    final others = <PdfDocument>[];
+    PdfDocument? composed;
+    try {
+      final n = main.pages.count;
+      final PdfDocument doc;
+      if (studioKeepsAnnotations(order, pageCount: n)) {
+        doc = main;
+        final keep = order.toSet();
+        for (var i = n - 1; i >= 0; i--) {
+          if (!keep.contains(i)) doc.pages.removeAt(i);
+        }
+      } else {
+        for (final e in extra) {
+          others.add(PdfDocument(inputBytes: e));
+        }
+        final sources = [main, ...others];
+        (PdfDocument, int) locate(int v) {
+          var local = v;
+          for (final d in sources) {
+            if (local >= 0 && local < d.pages.count) return (d, local);
+            local -= d.pages.count;
+          }
+          throw RangeError('Sayfa ${v + 1} yok');
+        }
+
+        final out = await _compose([for (final v in order) locate(v)]);
+        doc = composed = PdfDocument(inputBytes: out);
+      }
+      // Boşlar artan çıktı sırasıyla: her ekleme öncekileri yerinde bırakır.
+      for (var k = 0; k < pages.length; k++) {
+        if (pages[k].$1 == studioBlank) _insertBlank(doc, k);
+      }
+      for (var k = 0; k < pages.length; k++) {
+        final turns = pages[k].$2 % 4;
+        if (turns == 0) continue;
+        final page = doc.pages[k];
+        page.rotation =
+            PdfPageRotateAngle.values[(page.rotation.index + turns) % 4];
+      }
+      return await doc.save();
+    } finally {
+      composed?.dispose();
+      main.dispose();
+      for (final d in others) {
+        d.dispose();
+      }
+    }
+  }
+
+  /// [order] kesin artan mı (tekrar/yer değiştirme yok) ve hepsi bu belgenin
+  /// sayfası mı ([pageCount] verilirse; ötesi [applyPageStudio] `extra`'dır)
+  /// — öyleyse [applyPageStudio] yerinde çalışır ve açıklamalar korunur.
+  /// Boş sayfa ([studioBlank]) yeri bozmaz, atlanır.
+  static bool studioKeepsAnnotations(List<int> order, {int? pageCount}) {
+    var prev = -1;
+    for (final i in order) {
+      if (i == studioBlank) continue;
+      if (i <= prev || (pageCount != null && i >= pageCount)) return false;
+      prev = i;
+    }
+    return true;
+  }
+
+  /// Stüdyo planında "araya boş sayfa" öğesinin indeksi.
+  static const studioBlank = -1;
+
+  /// Stüdyoda "böl": [plan] her [cutBefore] konumundan (0 hariç) önce
+  /// kesilir; yalnız boş sayfadan oluşan parça atılır (tek başına PDF
+  /// olamaz, bkz. [applyPageStudio]).
+  static List<List<(int, int)>> studioSplit(
+      List<(int, int)> plan, Set<int> cutBefore) {
+    final parts = <List<(int, int)>>[[]];
+    for (var k = 0; k < plan.length; k++) {
+      if (k > 0 && cutBefore.contains(k)) parts.add([]);
+      parts.last.add(plan[k]);
+    }
+    return [
+      for (final p in parts)
+        if (p.any((e) => e.$1 != studioBlank)) p,
+    ];
+  }
+
+  /// [applyPageStudio] — arka plan isolate'inde.
+  static Future<List<int>> applyPageStudioInBackground(
+    List<int> bytes,
+    List<(int, int)> pages, {
+    String? password,
+    List<List<int>> extra = const [],
+  }) =>
+      _bg(() =>
+          applyPageStudio(bytes, pages, password: password, extra: extra));
+
   /// [selectPages] — arka plan isolate'inde.
   static Future<List<int>> selectPagesInBackground(
     List<int> bytes,
@@ -747,11 +916,53 @@ class PdfTools {
           password: password, currentPassword: currentPassword));
 
   /// [removePassword] — arka plan isolate'inde.
+  ///
+  /// KÖK NEDEN (PDF Pro tezgâhı 2026-11-08, B4 P21): AES-256 **R6** (qpdf,
+  /// Word "parolayla şifrele") belgede Syncfusion kilidi açılmış ama SAYFASIZ
+  /// çıktı üretiyordu. Çıktının sayfa sayısı girdiyle aynı değilse (ya da
+  /// Syncfusion açamazsa) iş PDFium'a düşer: `FPDF_REMOVE_SECURITY` ile kopya.
   static Future<List<int>> removePasswordInBackground(
     List<int> bytes, {
     required String currentPassword,
-  }) =>
-      _bg(() => removePassword(bytes, currentPassword: currentPassword));
+  }) async {
+    final out = await _bg(() => _removePasswordChecked(bytes, currentPassword));
+    if (out.isNotEmpty) return out;
+    return removePasswordPdfium(bytes, currentPassword: currentPassword);
+  }
+
+  /// Syncfusion yolu; sayfa kaybı ya da hata → boş liste (PDFium'a düş).
+  static Future<List<int>> _removePasswordChecked(
+      List<int> bytes, String password) async {
+    try {
+      final want = await pageCount(bytes, password: password);
+      final out = await removePassword(bytes, currentPassword: password);
+      return want > 0 && await pageCount(out) == want ? out : const <int>[];
+    } catch (_) {
+      return const <int>[];
+    }
+  }
+
+  /// Korumayı PDFium ile kaldırır (pdfrx kendi işçisinde çalışır, ana izlek
+  /// donmaz). Yanlış parolada pdfrx hata fırlatır.
+  static Future<List<int>> removePasswordPdfium(
+    List<int> bytes, {
+    required String currentPassword,
+  }) async {
+    var asked = false;
+    final doc = await pdfrx.PdfDocument.openData(
+      Uint8List.fromList(bytes),
+      passwordProvider: () {
+        if (asked) return null; // yanlış parola: ikinci kez sorma
+        asked = true;
+        return currentPassword;
+      },
+    );
+    try {
+      return await doc.encodePdf(removeSecurity: true);
+    } finally {
+      await doc.dispose();
+    }
+  }
 
   /// [replaceText] — arka plan isolate'inde.
   static Future<List<int>> insertBlankPageInBackground(

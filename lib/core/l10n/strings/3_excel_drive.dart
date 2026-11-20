@@ -563,9 +563,9 @@ const Map<String, (String, String, String)> _t3 = {
   'word.bullets': ('Madde işareti', 'Bullets', 'تعداد نقطي'),
   'word.numbering': ('Numaralandırma', 'Numbering', 'تعداد رقمي'),
   'word.rewrite_selection': (
-    'Seçimi AI ile düzelt',
-    'Rewrite selection with AI',
-    'أعد صياغة التحديد بالذكاء الاصطناعي',
+    'Seçimi akıllı düzelt',
+    'Smart-fix selection',
+    'تصحيح ذكي للتحديد',
   ),
   'word.translate_selection': (
     'Seçimi çevir',
