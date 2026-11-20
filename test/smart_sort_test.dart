@@ -86,6 +86,18 @@ void main() {
     expect(rec.bank, '', reason: 'banka yalnız banka belgesinde');
   });
 
+  test('öğrenilen kategori alt türünü kendi yanıtından alır (U4 dilim 2)', () {
+    final answers = DecisionResult([
+      choice('cat', 'receipt', 0.9),
+      choice('sub_receipt', 'grocery', 0.8),
+      choice('sub_invoice', 'electricity', 0.7),
+    ]);
+    final rec = SmartSort.fromAnswers(entry, answers, asCat: 'invoice')!;
+    expect(rec.cat, 'invoice');
+    expect(rec.sub, 'electricity');
+    expect(SmartSort.fromAnswers(entry, answers)!.sub, 'grocery');
+  });
+
   test('ikinci ad dil bağımsız kimlikten kurulur', () {
     const r = SmartRecord(
       path: '/a.pdf', size: 1, modifiedMs: 1, cat: 'bank', conf: 0.9,
