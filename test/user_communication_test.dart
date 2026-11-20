@@ -11,6 +11,7 @@ import 'package:dosya_okuyucu/widgets/permission_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +24,10 @@ void main() {
   group('UserError.classify', () {
     test('dosya izni yok / yer yok / dosya yok / salt okunur / var', () {
       expect(UserError.classify(fs(13)), UserErrorKind.permission);
+      expect(
+          UserError.classify(
+              ClientException('Software caused connection abort')),
+          UserErrorKind.offline);
       expect(UserError.classify(fs(1)), UserErrorKind.permission);
       expect(UserError.classify(fs(28)), UserErrorKind.noSpace);
       expect(UserError.classify(fs(2)), UserErrorKind.notFound);

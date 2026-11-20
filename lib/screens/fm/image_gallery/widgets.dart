@@ -282,6 +282,27 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   final _tx = TransformationController();
   TapDownDetails? _doubleTapAt;
 
+  /// Ekrandaki parmak sayısı. İki parmak inince sayfa kaydırma ve aşağı
+  /// çekip kapatma HEMEN kilitlenir (2026-11-20, kullanıcı: "zoom yapmak
+  /// zor, çift tıklamadan zoom yapılmıyor"): yoksa çimdik hareketi yatay
+  /// sayfa ya da dikey kapatma sürüklemesine kaptırılıyordu.
+  int _pointers = 0;
+
+  /// Tam boy görselin ilk karesi geldi mi. Geldikten sonra çözünürlük
+  /// kademesi değişse de küçük resme DÖNÜLMEZ (kullanıcı 2026-11-20: "zoom
+  /// yapınca fotoğraf her seferinde bulanıklaşıp yeniden düzeliyor" — yeni
+  /// akışta `frame` null'a dönüyor, `frameBuilder` küçük resmi çiziyordu).
+  bool _hadFullFrame = false;
+
+  void _onPointer(int delta) {
+    final before = _pointers >= 2;
+    _pointers = (_pointers + delta).clamp(0, 10);
+    if (before != (_pointers >= 2)) _reportLock();
+  }
+
+  void _reportLock() => widget.onZoomChanged(
+      _tx.value.getMaxScaleOnAxis() > 1.02 || _pointers >= 2);
+
   /// Görselin kaç piksel genişlikte çözüleceği. Yakınlaştırınca kademeli
   /// olarak artar (bkz. [ImageBudget]); tam çözünürlükte açmak 12 MP'lik bir
   /// fotoğrafta 48 MB bitmap demekti.
@@ -348,8 +369,9 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 
   void _onTransform() {
     final scale = _tx.value.getMaxScaleOnAxis();
-    // Ölçek 1'in üstündeyken sayfa kaydırma kilitlenir (üst ekran dinler).
-    widget.onZoomChanged(scale > 1.02);
+    // Ölçek 1'in üstündeyken (ya da iki parmak ekrandayken) sayfa kaydırma
+    // kilitlenir (üst ekran dinler).
+    _reportLock();
     _syncDecodeWidth(scale);
   }
 
@@ -436,16 +458,23 @@ class _ZoomableImageState extends State<_ZoomableImage> {
       gaplessPlayback: true,
       frameBuilder: thumb == null
           ? null
-          : (context, child, frame, sync) => frame == null && !sync
-              ? Image(image: thumb, fit: fit, gaplessPlayback: true)
-              : child,
+          : (context, child, frame, sync) {
+              if (frame != null || sync) _hadFullFrame = true;
+              return _hadFullFrame
+                  ? child
+                  : Image(image: thumb, fit: fit, gaplessPlayback: true);
+            },
       // Çözücü reddetti → kurtarmayı dene (başında çöp, yarım JPEG …).
       errorBuilder: (_, _, _) =>
           _RepairedImage(widget.path, fit: fit, cacheWidth: _decodeWidth),
     );
     final tag = widget.heroTag;
     if (tag != null) image = Hero(tag: tag, child: image);
-    return GestureDetector(
+    return Listener(
+      onPointerDown: (_) => _onPointer(1),
+      onPointerUp: (_) => _onPointer(-1),
+      onPointerCancel: (_) => _onPointer(-1),
+      child: GestureDetector(
       onTap: widget.onTap,
       onDoubleTapDown: (d) => _doubleTapAt = d,
       onDoubleTap: _handleDoubleTap,
@@ -465,6 +494,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
             );
           },
         ),
+      ),
       ),
     );
   }

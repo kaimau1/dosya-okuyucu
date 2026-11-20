@@ -1,6 +1,26 @@
 part of '../dashboard_screen.dart';
 
 extension _DashboardScreenSectionsPart on _DashboardScreenState {
+  /// Araç ızgarasının hafif çerçevesi (2026-11-20 geri geldi — kullanıcı:
+  /// "araçlar kısmı kesinlikle olmamış, eski hali çok daha iyiydi"; hap
+  /// düğmeler kaldırıldı). Çerçeve kategori kutularından DAHA HAFİF (bir ton
+  /// açık zemin + ince kenarlık) — araçlar içerik kutularının önüne geçmez.
+  Widget _toolFrame(Widget child) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: Gap.sm),
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerLow : Paper.card,
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(
+          color: isDark ? scheme.outlineVariant : Paper.rule,
+        ),
+      ),
+      child: child,
+    );
+  }
+
   Widget _permissionCard() => Card(
         child: Padding(
           // Dikeyde 16 → 12: kart zaten çember + iki satır + çubuk taşıyor,
@@ -203,7 +223,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                         top: Gap.sm, bottom: Gap.xs)),
                 _homeStyle == HomeStyle.band
                     ? HomeBandList(tiles: shown)
-                    : FmToolPills(tools: shown),
+                    : _toolFrame(FmToolGrid(tools: shown)),
               ],
             );
           },

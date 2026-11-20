@@ -136,7 +136,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         color: OfficeColors.word,
         id: 'new_document',
         feature: Feature.officeEdit,
-        label: context.t('home.new_document_title'),
+        label: context.t('ui.tool_new_doc'),
         subtitle: '',
         onTap: () => showNewDocumentSheet(context),
       ),
@@ -161,7 +161,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         color: AppHues.blue,
         id: 'ftp',
         feature: Feature.transfer,
-        label: context.t('ftpd.title'),
+        label: context.t('ui.tool_ftp'),
         subtitle:
             FtpService.instance.running ? context.t('ftpd.running') : '',
         onTap: () => _push(const FtpServerScreen()),
@@ -194,15 +194,6 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         onTap: () => _push(const NearbyScreen()),
       ),
       FmTileData(
-        icon: AppIcons.cloud,
-        color: AppHues.navy,
-        id: 'remote',
-        feature: Feature.remote,
-        label: context.t('ui.tool_remote'),
-        subtitle: '',
-        onTap: () => _push(const RemoteConnectionsScreen()),
-      ),
-      FmTileData(
         icon: AppIcons.cleanEmpty,
         color: AppHues.cyan,
         id: 'free_space',
@@ -211,15 +202,9 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         subtitle: '',
         onTap: () => OperationsScreen.open(context, tab: OpsTab.cleanup),
       ),
-      FmTileData(
-        icon: AppIcons.ai,
-        color: AppHues.violet,
-        id: 'ai_hub',
-        feature: Feature.ai,
-        label: context.t('ui.tool_ai'),
-        subtitle: '',
-        onTap: () => _push(const AiHubScreen()),
-      ),
+      // (AI Merkezi ve Ağ depolama 2026-11-20'de araçlardan ÇIKTI —
+      // kullanıcı: "fazlalıkları çıkar". AI Merkezi alt sekmede, Ağ depolama
+      // Yakındaki cihazlar ekranında; panoda 8 araç = tam 4×2 ızgara.)
       // (Faturalar ve Akıllı klasörler 2026-10-21'de AI Merkezi'ne indi —
       // K8: "ayrı pano kutusu değil, AI Merkezi'nin alt bölümü".)
       // (Sohbet medyası ve Benzer görseller 2026-10-21'de Depolama
@@ -250,13 +235,11 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
     const order = [
       'jobs',
       'free_space',
-      'produced',
-      'vault',
       'new_document',
+      'vault',
+      'produced',
       'nearby',
-      'ai_hub',
       'ftp',
-      'remote',
     ];
     int rank(FmTileData t) {
       final i = order.indexOf(t.id);

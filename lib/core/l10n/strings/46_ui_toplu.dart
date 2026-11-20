@@ -21,9 +21,9 @@ const Map<String, (String, String, String)> _t46 = {
     'Could not split: {error}',
     'تعذر التقسيم: {error}'
   ),
-  'ui.tool_nearby': ('Yakındakiler', 'Nearby', 'القريبة'),
-  'ui.tool_remote': ('Ağ depolama', 'Network storage', 'تخزين الشبكة'),
-  'ui.tool_ai': ('AI Merkezi', 'AI Hub', 'مركز الذكاء'),
+  'ui.tool_nearby': ('Yakındaki cihazlar', 'Nearby devices', 'الأجهزة القريبة'),
+  'ui.tool_new_doc': ('Yeni belge', 'New document', 'مستند جديد'),
+  'ui.tool_ftp': ('Bilgisayardan eriş', 'Access from PC', 'الوصول من الحاسوب'),
   'ui.ct_docs': ('Belgeler', 'Documents', 'المستندات'),
   'ui.ct_ask': ('Dosyalarıma sor', 'Ask my files', 'اسأل ملفاتي'),
   'ui.ct_ask_hint': (

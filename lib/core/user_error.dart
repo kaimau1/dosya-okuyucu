@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' show ClientException;
 
 import '../services/crash_log.dart';
 import '../services/gemini_service.dart';
@@ -64,7 +65,12 @@ class UserError {
     if (error is SocketException ||
         error is TimeoutException ||
         error is HttpException ||
-        error is HandshakeException) {
+        error is HandshakeException ||
+        // `package:http` bağlantı kopmasını SocketException değil
+        // ClientException olarak sarar ("Software caused connection abort" —
+        // uygulama arka plana geçince/ağ değişince). Kullanıcı hata
+        // kaydına "bilinmeyen" diye düşüyordu (2026-11-20 kaydı, ×3 sürüm).
+        error is ClientException) {
       return UserErrorKind.offline;
     }
     if (error is GeminiException) {

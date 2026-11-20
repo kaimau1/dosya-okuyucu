@@ -1572,3 +1572,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Bellek Analizi → en büyük dosyalardan birkaç video seç → sil: "Türlere göre" Videolar çubuğu/sayısı ve ana bellek dilimleri birkaç saniye içinde küçülür, "boş" manşeti artar (ekrandan çıkıp girmeden).
 - [ ] Analiz'den "Yer aç"/Kopyalar ekranına gir, orada sil, geri dön: çubuklar güncel.
 - [ ] SD kart/USB analizi açıkken silme: ekran bozulmaz (bu analizde yenileme yok, eski davranış).
+
+## U5 Kullanıcı istekleri 2026-11-20 akşam — yazıldı, cihazda doğrulanmadı
+- Fotoğraflar → bir fotoğraf aç → iki parmakla çimdikle: sayfa kaymadan/ekran kapanmadan büyümeli; büyütüp bırakınca görüntü bulanıklaşıp yeniden netleşMEMELİ.
+- Belgeler ya da bir klasörde dosyaya uzun bas (seçim) → telefonun geri tuşu: önce seçim kalkmalı, ikinci basışta klasörden çıkmalı.
+- Ana ekran Araçlar: çerçeveli 4×2 ızgara, 8 araç (Harici bellek, İşlemler, Yer aç, Yeni belge, Şifreli kasa, Üretilenler, Yakındaki cihazlar, Bilgisayardan eriş), "Tümü" düğmesi yok.
+- Ağ kesilince/uygulama arka plana atılınca Ayarlar → hata kaydında yeni "ClientException … connection abort" satırı çıkmamalı.

@@ -836,7 +836,7 @@ const Map<String, (String, String, String)> _t3 = {
   'fm.vol_sdcard': ('SD kart', 'SD card', 'بطاقة SD'),
   'fm.vol_usb': ('USB bellek', 'USB drive', 'محرك USB'),
   'fm.external_storage': (
-    'Harici Bellek',
+    'Harici bellek',
     'External drive',
     'محرك خارجي',
   ),

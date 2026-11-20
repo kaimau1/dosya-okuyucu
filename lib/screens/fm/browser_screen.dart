@@ -250,8 +250,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   // ── arayüz ────────────────────────────────────────────────────────────────
 
+  /// Seçim varken sistem geri tuşu önce SEÇİMİ bırakır, ekrandan/klasörden
+  /// çıkmaz (2026-11-20, kullanıcı: "seçim yaptığımda geri butonu klasörden
+  /// çıkıyor, önce seçimi iptal etmeli").
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => PopScope(
+        canPop: _selected.isEmpty,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop && _selected.isNotEmpty) setState(_selected.clear);
+        },
+        child: _buildSelectable(context),
+      );
+
+  Widget _buildSelectable(BuildContext context) {
     final appState = context.watchBrowse();
     final sorted = _sorted(appState);
     final entries = _visible(sorted);
