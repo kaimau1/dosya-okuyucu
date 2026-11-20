@@ -108,11 +108,12 @@ void main() {
 
   test('Görüntüler (foto + video) kutusu varsayılan GİZLİ, eklenince kalıcı',
       () async {
-    // Eski sürümden gelen kullanıcı: kayıtlı kutu sırasında 'media' yok.
+    // Eski sürümden gelen kullanıcı: kayıtlı kutu sırasında 'media' (ve
+    // 2026-11-20'de gelen 'history') yok.
     SharedPreferences.setMockInitialValues({
       'dash_tiles': [
         for (final t in DashboardLayout.tiles)
-          if (t != 'media') t,
+          if (t != 'media' && t != 'history') t,
       ],
       'dash_hidden_tiles': <String>[],
     });

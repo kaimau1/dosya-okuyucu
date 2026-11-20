@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
@@ -293,7 +294,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           _ExtraTile(
             key: 'ss-amount-$b',
             icon: AppIcons.topicInvoice,
-            color: const Color(0xFF2E7D32),
+            color: AppHues.green,
             label: context.t('sm.amount_title', {'range': context.t('sm.a_$b')}),
             n: amounts[b]!,
             onTap: () => unawaited(_openList(
@@ -305,7 +306,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         _ExtraTile(
           key: 'ss-clutter',
           icon: AppIcons.cleanEmpty,
-          color: const Color(0xFF6D6D6D),
+          color: AppHues.slate,
           label: context.t('ui.clutter_tile'),
           n: clutter,
           onTap: () => SmartClutterScreen.open(context),

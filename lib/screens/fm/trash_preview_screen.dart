@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
@@ -9,6 +7,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/trash_service.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_file_image.dart';
 
 /// **Çöp kutusu önizlemesi** (kullanıcı 2026-11-20: *"çöp kutusundan açınca
 /// PDF'e dönüştür falan gerek yok; geri yükle ve tamamen sil olabilir, başka
@@ -163,10 +162,9 @@ class _Preview extends StatelessWidget {
       return InteractiveViewer(
         maxScale: 6,
         child: Center(
-          child: Image.file(
-            File(item.storedPath),
+          child: Image(
+            image: FmFileImage(item.storedPath, cacheWidth: 2048),
             fit: BoxFit.contain,
-            cacheWidth: 2048,
             errorBuilder: (_, _, _) => _icon(context, entry),
           ),
         ),
