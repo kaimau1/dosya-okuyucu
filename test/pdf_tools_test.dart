@@ -461,6 +461,21 @@ void main() {
           PdfTools.applyPageStudio(src, [(b, 0)]), throwsArgumentError);
     });
 
+    test('dosyadan sayfa ekle: sanal indeks ek belgeye gider', () async {
+      final src = await _makePdf([100, 200]);
+      final other = await _makePdf([300, 400]);
+      final out = await PdfTools.applyPageStudio(
+          src, [(0, 0), (3, 1), (2, 0), (1, 0)],
+          extra: [other]);
+      expect(await _widths(out), [100, 400, 300, 200]);
+      expect(await rotations(out), [0, 1, 0, 0]);
+      expect(PdfTools.studioKeepsAnnotations([0, 2], pageCount: 2), isFalse);
+      expect(PdfTools.studioKeepsAnnotations([0, 1], pageCount: 2), isTrue);
+      await expectLater(
+          PdfTools.applyPageStudio(src, [(0, 0), (4, 0)], extra: [other]),
+          throwsRangeError);
+    });
+
     test('yerinde yol karar kuralı ve boş plan', () async {
       expect(PdfTools.studioKeepsAnnotations([0, 2, 5]), isTrue);
       expect(PdfTools.studioKeepsAnnotations([0, 0]), isFalse);

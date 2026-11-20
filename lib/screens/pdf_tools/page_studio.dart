@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -10,17 +12,19 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../services/pdf_tools.dart';
+import '../fm/pick_file_screen.dart' show AppFilePicker;
 
 /// Stüdyodaki bir sayfa: [id] çoğaltılan kopyaları ayırır (anahtar),
-/// [page] özgün 0-tabanlı indeks ([PdfTools.studioBlank] = boş sayfa),
+/// [page] sanal 0-tabanlı indeks (önce bu belge, sonra dosyadan eklenenler;
+/// [PdfTools.studioBlank] = boş sayfa),
 /// [turns] eklenecek çeyrek tur.
 typedef _Item = ({int id, int page, int turns});
 
 /// **Sayfa stüdyosu** (B4/P20, PDF_PRO Faz 63 m.1) — küçük resim ızgarası:
 /// dokun = seç, basılı tut + sürükle = taşı; seçilenleri döndür, sil, çoğalt,
-/// ardına boş sayfa ekle;
-/// her adım geri alınabilir. Sonuç `PdfTools.applyPageStudio` planıdır
-/// (çıktı sırası: özgün indeks + çeyrek tur) ya da vazgeçilirse `null`.
+/// ardına boş sayfa ya da başka PDF'in sayfalarını ekle;
+/// her adım geri alınabilir. Sonuç `PdfTools.applyPageStudio` girdisidir
+/// ([PdfStudioResult]) ya da vazgeçilirse `null`.
 ///
 /// Perf: hücre boyu ızgara delegesiyle sabit (ölçüm yok), küçük resim 72 DPI
 /// + `RepaintBoundary`, ızgara tembel (yalnız görünen sayfa çizilir); belge
@@ -29,15 +33,21 @@ typedef _Item = ({int id, int page, int turns});
 /// aynı girdiyle yeniden çizmez) — cihazda ölçülmedi, C2'de.
 // ponytail: sürüklerken kenarda kendiliğinden kaydırma yok; uzun belgede
 // gerekirse `Scrollable.ensureVisible`/kenar kaydırıcı eklenir.
+typedef PdfStudioResult = ({
+  List<(int, int)> plan,
+  int pageCount,
+  List<Uint8List> extra,
+});
+
 class PdfPageStudioScreen extends StatefulWidget {
   const PdfPageStudioScreen({super.key, required this.bytes, this.password});
 
   final Uint8List bytes;
   final String? password;
 
-  static Future<List<(int, int)>?> open(BuildContext context,
+  static Future<PdfStudioResult?> open(BuildContext context,
           {required Uint8List bytes, String? password}) =>
-      Navigator.of(context).push<List<(int, int)>>(MaterialPageRoute(
+      Navigator.of(context).push<PdfStudioResult>(MaterialPageRoute(
           builder: (_) =>
               PdfPageStudioScreen(bytes: bytes, password: password)));
 
@@ -47,6 +57,10 @@ class PdfPageStudioScreen extends StatefulWidget {
 
 class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   PdfDocument? _doc;
+
+  /// Dosyadan eklenen belgeler (sanal indeks bu belgeden sonra sürer).
+  final List<PdfDocument> _extraDocs = [];
+  final List<Uint8List> _extraBytes = [];
   List<_Item> _items = const [];
   final List<List<_Item>> _history = [];
   final Set<int> _selected = {};
@@ -81,6 +95,9 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   @override
   void dispose() {
     _doc?.dispose();
+    for (final d in _extraDocs) {
+      d.dispose();
+    }
     super.dispose();
   }
 
@@ -129,6 +146,61 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
 
   void _insertBlank() => _insertAfterSelected(
       (_) => (id: _nextId++, page: PdfTools.studioBlank, turns: 0));
+
+  /// Sanal indeks → (belge, 1-tabanlı sayfa no).
+  (PdfDocument, int) _locate(PdfDocument doc, int v) {
+    var local = v;
+    for (final d in [doc, ..._extraDocs]) {
+      if (local < d.pages.length) return (d, local + 1);
+      local -= d.pages.length;
+    }
+    return (doc, 1); // ulaşılmaz: indeksler yalnız buradan üretilir
+  }
+
+  /// Başka PDF'in tüm sayfalarını son seçilenin ardına (yoksa sona) koyar.
+  Future<void> _insertFile() async {
+    final res = await AppFilePicker.pickFiles(
+        type: FileType.custom, allowedExtensions: ['pdf']);
+    final path = res?.files.firstOrNull?.path;
+    if (path == null || !mounted) return;
+    (Uint8List, PdfDocument)? opened;
+    try {
+      final b = await File(path).readAsBytes();
+      opened = (b, await PdfDocument.openData(b));
+    } catch (_) {
+      opened = null;
+    }
+    if (!mounted) {
+      await opened?.$2.dispose();
+      return;
+    }
+    if (opened == null) {
+      showSnack(context, context.t('pp.studio_file_failed'));
+      return;
+    }
+    final (bytes, other) = opened;
+    final doc = _doc!;
+    var start = doc.pages.length;
+    for (final d in _extraDocs) {
+      start += d.pages.length;
+    }
+    _extraDocs.add(other);
+    _extraBytes.add(bytes);
+    var at = _items.length;
+    for (var i = _items.length - 1; i >= 0; i--) {
+      if (_selected.contains(_items[i].id)) {
+        at = i + 1;
+        break;
+      }
+    }
+    AppHaptics.step();
+    _commit([
+      ..._items.take(at),
+      for (var i = 0; i < other.pages.length; i++)
+        (id: _nextId++, page: start + i, turns: 0),
+      ..._items.skip(at),
+    ]);
+  }
 
   void _delete() {
     // En az bir özgün sayfa kalmalı (yalnız boş sayfalı belge anlamsız).
@@ -181,6 +253,11 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
             onPressed: _history.isEmpty ? null : _undo,
           ),
           IconButton(
+            tooltip: context.t('pp.studio_insert_file'),
+            icon: const Icon(AppIcons.postAdd),
+            onPressed: doc == null ? null : _insertFile,
+          ),
+          IconButton(
             tooltip: context.t('pt.select_all'),
             icon: const Icon(AppIcons.selectAll),
             onPressed: doc == null ? null : _toggleAll,
@@ -188,8 +265,11 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
           TextButton(
             onPressed: _history.isEmpty
                 ? null
-                : () => Navigator.pop(
-                    context, [for (final e in _items) (e.page, e.turns)]),
+                : () => Navigator.pop<PdfStudioResult>(context, (
+                      plan: [for (final e in _items) (e.page, e.turns)],
+                      pageCount: doc!.pages.length,
+                      extra: _extraBytes,
+                    )),
             child: Text(context.t('common.ok')),
           ),
         ],
@@ -267,8 +347,8 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
         child: item.page == PdfTools.studioBlank
             ? const ColoredBox(color: AppColors.page, child: SizedBox.expand())
             : PdfPageView(
-                document: doc,
-                pageNumber: item.page + 1,
+                document: _locate(doc, item.page).$1,
+                pageNumber: _locate(doc, item.page).$2,
                 maximumDpi: 72,
                 decoration: const BoxDecoration(color: AppColors.page),
               ),

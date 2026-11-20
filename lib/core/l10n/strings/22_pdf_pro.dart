@@ -233,6 +233,8 @@ const Map<String, (String, String, String)> _t22 = {
   // ── Sayfa işlemleri ──
   'pp.studio': ('Sayfa stüdyosu', 'Page studio', 'استوديو الصفحات'),
   'pp.studio_sub': ('Sayfaları seç, döndür, sil, çoğalt, sırala', 'Select, rotate, delete, duplicate and reorder pages', 'حدد الصفحات ودوّرها واحذفها وكرّرها ورتّبها'),
+  'pp.studio_insert_file': ('Dosyadan sayfa ekle', 'Insert pages from file', 'إدراج صفحات من ملف'),
+  'pp.studio_file_failed': ('Bu PDF açılamadı (şifreli ya da bozuk olabilir)', 'Could not open this PDF (it may be encrypted or damaged)', 'تعذّر فتح ملف PDF هذا (قد يكون مشفّرًا أو تالفًا)'),
   'pp.studio_hint': ('Seçmek için dokun · taşımak için basılı tut ve sürükle', 'Tap to select · long-press and drag to move', 'انقر للتحديد · اضغط مطولًا واسحب للنقل'),
   'pp.studio_selected': ('{n} seçili', '{n} selected', '{n} محدد'),
   'pp.rotate_left': ('Sola döndür', 'Rotate left', 'تدوير لليسار'),

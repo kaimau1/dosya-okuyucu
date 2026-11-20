@@ -716,31 +716,50 @@ class PdfTools {
       _bg(() => merge(sources));
 
   /// **Sayfa stüdyosu planını uygular** (B4/P20). [pages] çıktı sırasıdır;
-  /// her öğe (özgün 0-tabanlı indeks, eklenecek çeyrek tur, 1 = 90° saat
-  /// yönü; indeks [studioBlank] = araya boş sayfa). Sıra korunuyorsa (yalnız sil/döndür — [studioKeepsAnnotations])
-  /// belge YERİNDE değişir, vurgular kalır; sıralama/çoğaltma [selectPages]
-  /// ile kopyalar (oradaki KAYIP UYARISI geçerli).
+  /// her öğe (sanal 0-tabanlı indeks, eklenecek çeyrek tur, 1 = 90° saat
+  /// yönü). Sanal indeks: önce bu belgenin sayfaları, ardından [extra]
+  /// belgeleri sırayla (dosyadan sayfa ekle); [studioBlank] = boş sayfa.
+  /// Sıra korunuyorsa (yalnız sil/döndür/boş ekle —
+  /// [studioKeepsAnnotations]) belge YERİNDE değişir, vurgular kalır;
+  /// sıralama/çoğaltma/dosyadan ekleme [_compose] ile kopyalar
+  /// ([selectPages] KAYIP UYARISI geçerli). [extra] şifresiz olmalı.
   static Future<List<int>> applyPageStudio(
     List<int> bytes,
     List<(int, int)> pages, {
     String? password,
+    List<List<int>> extra = const [],
   }) async {
     if (pages.isEmpty) throw ArgumentError('En az bir sayfa kalmalı');
     final order = [for (final (i, _) in pages) if (i != studioBlank) i];
     if (order.isEmpty) throw ArgumentError('En az bir özgün sayfa kalmalı');
-    final inPlace = studioKeepsAnnotations(order);
-    final base = inPlace ? bytes : await selectPages(bytes, order, password: password);
-    final doc = PdfDocument(
-        inputBytes: base, password: inPlace ? password : null);
+    final main = PdfDocument(inputBytes: bytes, password: password);
+    final others = <PdfDocument>[];
+    PdfDocument? composed;
     try {
-      if (inPlace) {
+      final n = main.pages.count;
+      final PdfDocument doc;
+      if (studioKeepsAnnotations(order, pageCount: n)) {
+        doc = main;
         final keep = order.toSet();
-        for (var i = doc.pages.count - 1; i >= 0; i--) {
+        for (var i = n - 1; i >= 0; i--) {
           if (!keep.contains(i)) doc.pages.removeAt(i);
         }
-        if (doc.pages.count != order.length) {
-          throw RangeError('Sayfa yok (belge ${doc.pages.count} sayfa)');
+      } else {
+        for (final e in extra) {
+          others.add(PdfDocument(inputBytes: e));
         }
+        final sources = [main, ...others];
+        (PdfDocument, int) locate(int v) {
+          var local = v;
+          for (final d in sources) {
+            if (local >= 0 && local < d.pages.count) return (d, local);
+            local -= d.pages.count;
+          }
+          throw RangeError('Sayfa ${v + 1} yok');
+        }
+
+        final out = await _compose([for (final v in order) locate(v)]);
+        doc = composed = PdfDocument(inputBytes: out);
       }
       // Boşlar artan çıktı sırasıyla: her ekleme öncekileri yerinde bırakır.
       for (var k = 0; k < pages.length; k++) {
@@ -755,18 +774,23 @@ class PdfTools {
       }
       return await doc.save();
     } finally {
-      doc.dispose();
+      composed?.dispose();
+      main.dispose();
+      for (final d in others) {
+        d.dispose();
+      }
     }
   }
 
-  /// [order] kesin artan mı (tekrar/yer değiştirme yok) — öyleyse
-  /// [applyPageStudio] yerinde çalışır ve açıklamalar korunur.
+  /// [order] kesin artan mı (tekrar/yer değiştirme yok) ve hepsi bu belgenin
+  /// sayfası mı ([pageCount] verilirse; ötesi [applyPageStudio] `extra`'dır)
+  /// — öyleyse [applyPageStudio] yerinde çalışır ve açıklamalar korunur.
   /// Boş sayfa ([studioBlank]) yeri bozmaz, atlanır.
-  static bool studioKeepsAnnotations(List<int> order) {
+  static bool studioKeepsAnnotations(List<int> order, {int? pageCount}) {
     var prev = -1;
     for (final i in order) {
       if (i == studioBlank) continue;
-      if (i <= prev) return false;
+      if (i <= prev || (pageCount != null && i >= pageCount)) return false;
       prev = i;
     }
     return true;
@@ -780,8 +804,10 @@ class PdfTools {
     List<int> bytes,
     List<(int, int)> pages, {
     String? password,
+    List<List<int>> extra = const [],
   }) =>
-      _bg(() => applyPageStudio(bytes, pages, password: password));
+      _bg(() =>
+          applyPageStudio(bytes, pages, password: password, extra: extra));
 
   /// [selectPages] — arka plan isolate'inde.
   static Future<List<int>> selectPagesInBackground(
