@@ -3,12 +3,16 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:dosya_okuyucu/core/app_navigator.dart';
+import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/main.dart' as app;
 import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/smart_sort_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
+import 'package:dosya_okuyucu/widgets/side_menu_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -24,6 +28,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Her senaryo `traceAction` ile ayrı zaman çizelgesi üretir; sürücü
 /// (`test_driver/perf_driver.dart`) `build/<anahtar>.timeline_summary.json`
 /// yazar, betik p90/p99/en kötü kare tablosunu `docs/perf/`e çıkarır.
+/// Bir senaryo grubu hata verirse (`bolum`) yazılır, kalanlar sürer (T1).
 ///
 /// Veri klasörü uygulamanın kendi dış dizininde (izin istemez); başka bir
 /// yer için `--dart-define=OLCUM_VERISI=/yol`.
@@ -70,6 +75,20 @@ void main() {
     await bekle(tester, 800);
   }
 
+  /// Bir senaryo grubu: hata verirse yazılır, kök rotaya dönülür ve kalan
+  /// gruplar sürer (T1, 2026-11-20: Huawei'de tek hata tüm koşuyu düşürdü).
+  Future<void> bolum(
+      WidgetTester tester, String ad, Future<void> Function() fn) async {
+    try {
+      await fn();
+    } catch (e) {
+      // ignore: avoid_print
+      print('PERF $ad: hata, atlandı — $e');
+      navigatorKey.currentState?.popUntil((r) => r.isFirst);
+      await bekle(tester, 800);
+    }
+  }
+
   testWidgets('P13: açılış, klasör, galeri, PDF, Excel', (tester) async {
     // "Neler yeni" levhası açılış ölçümüne girmesin (taban Faz 43'te yoktu).
     await WhatsNew.markSeen();
@@ -85,42 +104,129 @@ void main() {
     }, reportKey: 'soguk_acilis');
 
     // Boşta: hiçbir şey dokunulmadan 3 sn — kare sayısı ~0 olmalı (k.6).
-    await binding.traceAction(() => bekle(tester, 3000),
-        reportKey: 'pano_bosta');
+    // Hiç kare yoksa sürücü "kare yok" yazar (özet çıkarılamaz).
+    await bolum(tester, 'pano_bosta', () async {
+      await binding.traceAction(() => bekle(tester, 3000),
+          reportKey: 'pano_bosta');
+    });
 
-    await ac(tester, const BrowserScreen(path: '$_veri/klasor_5000'));
-    await binding.traceAction(() => kaydir(tester),
-        reportKey: 'klasor_5000_kaydirma');
-    await kapat(tester);
+    // T1: sol menü açılış + kapanış (3 kez).
+    await bolum(tester, 'sol_menu', () async {
+      await binding.traceAction(() async {
+        for (var i = 0; i < 3; i++) {
+          unawaited(SideMenuView.show());
+          await bekle(tester, 900);
+          navigatorKey.currentState!.pop();
+          await bekle(tester, 700);
+        }
+      }, reportKey: 'sol_menu_acilis');
+    });
 
-    await ac(tester, const BrowserScreen(path: '$_veri/galeri_2000'));
-    await binding.traceAction(() => kaydir(tester),
-        reportKey: 'galeri_2000_kaydirma');
-    await kapat(tester);
+    // T1: Bellek Analizi — kullanıcının yolu (bellek kartındaki "Analiz").
+    await bolum(tester, 'bellek_analizi', () async {
+      final ctx = navigatorKey.currentContext!;
+      final dugme = find.text(ctx.t('home.analysis'));
+      if (dugme.evaluate().isEmpty) {
+        // ignore: avoid_print
+        print('PERF bellek_analizi: düğme yok, atlandı');
+        return;
+      }
+      await binding.traceAction(() async {
+        await tester.tap(dugme.first);
+        await bekle(tester, 2500);
+      }, reportKey: 'bellek_analizi_acilis');
+      if (find.byType(AnalysisScreen).evaluate().isEmpty) {
+        // ignore: avoid_print
+        print('PERF bellek_analizi: ekran açılmadı');
+        navigatorKey.currentState!.popUntil((r) => r.isFirst);
+        await bekle(tester, 800);
+        return;
+      }
+      await binding.traceAction(() => kaydir(tester, n: 6),
+          reportKey: 'bellek_analizi_kaydirma');
+      await kapat(tester);
+    });
+
+    // T1: Akıllı düzen ekranı (ana ekrandaki kutuyla aynı giriş).
+    await bolum(tester, 'akilli_duzen', () async {
+      await binding.traceAction(() async {
+        unawaited(SmartSortScreen.open(navigatorKey.currentContext!));
+        await bekle(tester, 2500);
+      }, reportKey: 'akilli_duzen_acilis');
+      await binding.traceAction(() => kaydir(tester, n: 6),
+          reportKey: 'akilli_duzen_kaydirma');
+      await kapat(tester);
+    });
+
+    await bolum(tester, 'klasor_galeri', () async {
+      await ac(tester, const BrowserScreen(path: '$_veri/klasor_5000'));
+      await binding.traceAction(() => kaydir(tester),
+          reportKey: 'klasor_5000_kaydirma');
+      await kapat(tester);
+
+      await ac(tester, const BrowserScreen(path: '$_veri/galeri_2000'));
+      await binding.traceAction(() => kaydir(tester),
+          reportKey: 'galeri_2000_kaydirma');
+      await kapat(tester);
+    });
 
     final fs = FileService();
-    await binding.traceAction(() async {
-      final pdf = await fs.load('$_veri/belge_100.pdf');
-      await ac(tester, EntryOpener.screenFor(pdf));
-    }, reportKey: 'pdf_100_acilis');
-    await binding.traceAction(() => kaydir(tester, n: 20),
-        reportKey: 'pdf_100_kaydirma');
-    await kapat(tester);
+    await bolum(tester, 'pdf_100', () async {
+      await binding.traceAction(() async {
+        final pdf = await fs.load('$_veri/belge_100.pdf');
+        await ac(tester, EntryOpener.screenFor(pdf));
+      }, reportKey: 'pdf_100_acilis');
+      await binding.traceAction(() => kaydir(tester, n: 20),
+          reportKey: 'pdf_100_kaydirma');
+      await kapat(tester);
+    });
 
-    await binding.traceAction(() async {
-      final xlsx = await fs.load('$_veri/tablo_100k.xlsx');
-      await ac(tester, EntryOpener.screenFor(xlsx));
-      await bekle(tester, 4000); // izolatta ayrıştırma
-    }, reportKey: 'xlsx_100k_acilis');
-    await binding.traceAction(() => kaydir(tester, n: 20),
-        reportKey: 'xlsx_100k_kaydirma');
-    await kapat(tester);
+    await bolum(tester, 'xlsx_100k', () async {
+      await binding.traceAction(() async {
+        final xlsx = await fs.load('$_veri/tablo_100k.xlsx');
+        await ac(tester, EntryOpener.screenFor(xlsx));
+        await bekle(tester, 4000); // izolatta ayrıştırma
+      }, reportKey: 'xlsx_100k_acilis');
+      await binding.traceAction(() => kaydir(tester, n: 20),
+          reportKey: 'xlsx_100k_kaydirma');
+      await kapat(tester);
+    });
+
+    // T1: ana ekran "Son dosyalar" şeridinin sekmeleri (Son dosyalar /
+    // Geçmiş / Yeniler, U3). Dosyalar açıldıktan SONRA — geçmiş dolu olsun.
+    await bolum(tester, 'ana_sekmeler', () async {
+      final sekmeler = [
+        for (final m in ['opened', 'fresh', 'auto'])
+          find.byKey(ValueKey('recent-strip-tab-$m')),
+      ];
+      if (sekmeler.first.evaluate().isEmpty) {
+        // ignore: avoid_print
+        print('PERF ana_sekmeler: sekme yok, atlandı');
+        return;
+      }
+      await tester.ensureVisible(sekmeler.first);
+      await bekle(tester, 500);
+      await binding.traceAction(() async {
+        for (var tur = 0; tur < 2; tur++) {
+          for (final s in sekmeler) {
+            if (s.evaluate().isEmpty) continue;
+            await tester.tap(s);
+            await bekle(tester, 700);
+          }
+        }
+      }, reportKey: 'ana_sekmeler');
+    });
 
     // P12 (KALANLAR B3.3a / K23): 10 bin × 20 — kullanıcının yolu
     // (`EntryOpener.open`: yükleme + ekran), dokunuştan ilk hücre karesine
     // kadar. Süre logcat'e `OFIS_PERF faz=acilis_…` (ab_karar.py okur).
     const x20 = '$_veri/tablo_10k_x20.xlsx';
-    if (File(x20).existsSync()) {
+    await bolum(tester, 'xlsx_10k_x20', () async {
+      if (!File(x20).existsSync()) {
+        // ignore: avoid_print
+        print('PERF xlsx_10k_x20: dosya yok, atlandı');
+        return;
+      }
       final sw = Stopwatch();
       await binding.traceAction(() async {
         sw.start();
@@ -138,15 +244,17 @@ void main() {
       await binding.traceAction(() => kaydir(tester, n: 20),
           reportKey: 'xlsx_10k_x20_kaydirma');
       await kapat(tester);
-    } else {
-      // ignore: avoid_print
-      print('PERF xlsx_10k_x20: dosya yok, atlandı');
-    }
+    });
 
     // H0.2: büyük PDF aç + 50 sayfa hızlı kaydır. Sayfa sayısı
     // denetleyiciden; fırlatma sayısı tavanlı (bitmezse kaç sayfa gidildi
     // logda).
-    if (File(_buyukPdf).existsSync()) {
+    await bolum(tester, 'pdf_buyuk', () async {
+      if (!File(_buyukPdf).existsSync()) {
+        // ignore: avoid_print
+        print('PERF pdf_buyuk: dosya yok, atlandı');
+        return;
+      }
       await binding.traceAction(() async {
         final pdf = await fs.load(_buyukPdf);
         await ac(tester, EntryOpener.screenFor(pdf));
@@ -165,10 +273,7 @@ void main() {
       print('PERF pdf_buyuk_50_sayfa: $n fırlatma, sayfa $ilk → '
           '${ctl?.pageNumber}');
       await kapat(tester);
-    } else {
-      // ignore: avoid_print
-      print('PERF pdf_buyuk: dosya yok, atlandı');
-    }
+    });
 
     // P14 — Word (Faz 37 + KALANLAR B3.3d) ve Slayt (Faz 38). Veri
     // `make_test_tree.py` (word_300.docx, slayt_300.pptx); yoksa atlanır.
@@ -176,7 +281,12 @@ void main() {
     // arayüz (anayasa k.9) — aynı derlemede karşılaştırma.
     final prefs = await SharedPreferences.getInstance();
     const docx = '$_veri/word_300.docx';
-    if (File(docx).existsSync()) {
+    await bolum(tester, 'word_300', () async {
+      if (!File(docx).existsSync()) {
+        // ignore: avoid_print
+        print('PERF word_300: dosya yok, atlandı');
+        return;
+      }
       // Sayfa görünümü (hybrid composition WebView) — B3.3d şüphelisi.
       await binding.traceAction(() async {
         await ac(tester, EntryOpener.screenFor(await fs.load(docx)));
@@ -214,14 +324,16 @@ void main() {
             reportKey: 'word_mobil_kaydirma_$k');
         await kapat(tester);
       }
-      await prefs.remove('word_pro_v1');
-    } else {
-      // ignore: avoid_print
-      print('PERF word_300: dosya yok, atlandı');
-    }
+    });
+    await prefs.remove('word_pro_v1');
 
     const pptx = '$_veri/slayt_300.pptx';
-    if (File(pptx).existsSync()) {
+    await bolum(tester, 'slayt_300', () async {
+      if (!File(pptx).existsSync()) {
+        // ignore: avoid_print
+        print('PERF slayt_300: dosya yok, atlandı');
+        return;
+      }
       for (final pro in [false, true]) {
         await prefs.setBool('slides_pro_v1', pro);
         final k = pro ? 'pro1' : 'pro0';
@@ -234,23 +346,22 @@ void main() {
         await binding.traceAction(() => kapat(tester),
             reportKey: 'slayt_300_kapanis_$k');
       }
-      await prefs.remove('slides_pro_v1');
-    } else {
-      // ignore: avoid_print
-      print('PERF slayt_300: dosya yok, atlandı');
-    }
+    });
+    await prefs.remove('slides_pro_v1');
 
     // B3.3b: aynı kaydırmalar anlamsal ağaç KAPALI (cihazda erişilebilirlik
     // hizmeti açıksa motor yine açar — o koşu `_sk`yi açık ölçer).
     anlam.dispose();
     await bekle(tester, 500);
-    await ac(tester, const BrowserScreen(path: '$_veri/klasor_5000'));
-    await binding.traceAction(() => kaydir(tester),
-        reportKey: 'klasor_5000_kaydirma_sk');
-    await kapat(tester);
-    await ac(tester, const BrowserScreen(path: '$_veri/galeri_2000'));
-    await binding.traceAction(() => kaydir(tester),
-        reportKey: 'galeri_2000_kaydirma_sk');
-    await kapat(tester);
+    await bolum(tester, 'klasor_galeri_sk', () async {
+      await ac(tester, const BrowserScreen(path: '$_veri/klasor_5000'));
+      await binding.traceAction(() => kaydir(tester),
+          reportKey: 'klasor_5000_kaydirma_sk');
+      await kapat(tester);
+      await ac(tester, const BrowserScreen(path: '$_veri/galeri_2000'));
+      await binding.traceAction(() => kaydir(tester),
+          reportKey: 'galeri_2000_kaydirma_sk');
+      await kapat(tester);
+    });
   }, semanticsEnabled: false, timeout: const Timeout(Duration(minutes: 25)));
 }
