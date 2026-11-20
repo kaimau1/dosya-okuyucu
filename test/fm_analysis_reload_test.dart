@@ -73,5 +73,9 @@ void main() {
         reason: 'silinen videonun çubuğu eski taramadan kalmamalı');
     expect(find.text(strings.t(FmCategory.image.labelKey)), findsWidgets);
     expect(tester.takeException(), isNull);
+    // Boş yer okuması (`usageOf`) zaman aşımlı bir süreç bekliyor: ağacı
+    // kaldırıp o zamanlayıcıyı doldur.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
   });
 }
