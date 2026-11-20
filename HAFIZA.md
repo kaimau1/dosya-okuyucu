@@ -453,3 +453,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **P20 stüdyo planı = sanal indeks:** önce bu belgenin sayfaları, sonra `extra` belgeleri sırayla; `PdfTools.studioBlank` (-1) = boş sayfa. `applyPageStudio(extra:)` ek belgeyi `_compose` ile alır (selectPages tek kaynaklı); `studioKeepsAnnotations(order, pageCount:)` ek belge sayfası görünce yerinde yolu kapatır — `pageCount` verilmezse ek sayfa "artan" sayılıp yanlışlıkla yerinde yola girerdi.
 - **Önce bak bulgusu:** PDF_PRO Faz 63 m.2 (kırpma `crop`, boyut `fit_a4`), m.3 (sayfa no + Bates `numbering`, filigran `stamp`), m.4 (yer imi ekle/yeniden adlandır/sürükle/iç içe — `_OutlineEditor`) Pro araçlarda ZATEN var; P20'de kalan yalnız stüdyo içi böl/çıkar ve görselden/taramadan ekle.
 
+## 2026-11-20 — B4 PDF Pro dilim 5 (dal faz-oto-B4-pdfpro)
+- **P20 çıkar/böl = `PdfStudioResult.newFiles`:** boş değilse her parça `applyPageStudio` ile ayrı dosya (`_saveSibling`, `-sayfalar` / `-bolumN`), belge DEĞİŞMEZ; böl kuralı `PdfTools.studioSplit` (seçili konumdan önce kes, yalnız boş sayfalı parça atılır).
+- **Görselden/taramadan ekle:** görüntüler önce `ConversionService.imagesToPdf(A4)` ile PDF'e, sonra dosyadan ekleme yoluyla `extra` (tek ekleme yolu `_insertPdf`). Tarama "tara ve ekle" kuralıyla (kendiliğinden kırpma yok).
+- **Kenar kaydırma:** `LongPressDraggable.onDragUpdate` → ızgaranın üst/alt 56 px bandında `Timer.periodic` (kare başı 14 px `jumpTo`), `onDragEnd`'de durur. Süre `Duration(microseconds:)` — zamanlayıcı, tasarım tokenı değil (bekçi `milliseconds` sayar).
+
