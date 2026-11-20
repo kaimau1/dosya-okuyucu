@@ -9,7 +9,8 @@
 # Ortam: AB_TUR=2 (A,B çifti sayısı; sıra tur başına dönüşümlü AB/BA → ABBA ABBA…,
 # iki tarafın ortalama ısısı eşit; her koşudan önce pil ilk koşu + 1,5 °C'ye (en çok 33 °C)
 # inene dek ekran kapalı beklenir, üst sınır 20 dk) · BUYUK_PDF=/storage/<usb>/x.pdf
-# (H0.2; yoksa make_test_tree --buyuk çıktısı) · AB_SERI=<seri> · AB_KURU=1 (tek A
+# (H0.2; yoksa make_test_tree --buyuk çıktısı) · AB_SENARYO=grup1,grup2 (yalnız bu
+# `bolum` grupları; ör. klasor_galeri,slayt_300 — ikiye bölme) · AB_SERI=<seri> · AB_KURU=1 (tek A
 # koşusu, karar yok — kuru deneme) · AB_TUT=1 (taban/aday ağaçları silinmez).
 #
 # Ne yapar: iki ref'i ayrı git worktree'de (`../okuyucu_ab_<sha>`) `.r8test`
@@ -86,6 +87,7 @@ derle() {  # derle <etiket> <sha>
     fi
     local EK=(--dart-define=OLCUM_VERISI="$OLCUM")
     [ -n "${BUYUK_PDF:-}" ] && EK+=(--dart-define=BUYUK_PDF="$BUYUK_PDF")
+    [ -n "${AB_SENARYO:-}" ] && EK+=(--dart-define=AB_SENARYO="$AB_SENARYO")
     yap() { timeout 3600 flutter build apk --profile --target-platform android-arm64 \
       --target=integration_test/perf_senaryolari_test.dart "${EK[@]}" > "$OUT/derle_$ET.log" 2>&1; }
     # Kopyalanan senaryo eski ref'te derlenmezse o ref'in kendi senaryosu
