@@ -761,7 +761,8 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final label = _str.t('pp.field_detect');
     var found = const <NewFormField>[];
     await _produce(label, () async {
-      found = await PdfFormPro.detectFieldsInBackground(bytes, password: pw);
+      found = await PdfFormPro.detectFieldsInBackground(bytes,
+          password: pw, shapes: await _shapeFields(bytes, pw));
       if (found.isEmpty) _snack(_str.t('pp.field_detect_none'));
     });
     if (found.isEmpty || !mounted) return;
@@ -796,6 +797,28 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       (b) => PdfFormPro.addFieldsInBackground(b, fields,
           fontBytes: font, password: pw),
     );
+  }
+
+  /// Çizilmiş çizgi/kutu adayları (PDFium yol nesneleri; ilk 300 sayfa).
+  /// Okunamazsa boş — metin sezgisi yine çalışır.
+  Future<List<NewFormField>> _shapeFields(Uint8List bytes, String? pw) async {
+    final out = <NewFormField>[];
+    PdfDocument? doc;
+    try {
+      doc = await PdfDocument.openData(bytes,
+          passwordProvider: pw == null ? null : () async => pw);
+      final n = math.min(doc.pages.length, 300);
+      for (var i = 0; i < n; i++) {
+        if (doc.pages[i].rotation != PdfPageRotation.none) continue;
+        out.addAll(
+            PdfFormPro.fieldsFromShapes(i, await PdfEditBridge.content(doc, i)));
+      }
+    } catch (_) {
+      // Metin sezgisi yeter.
+    } finally {
+      await doc?.dispose();
+    }
+    return out;
   }
 
   // ── 10. Not özeti ────────────────────────────────────────────────────────

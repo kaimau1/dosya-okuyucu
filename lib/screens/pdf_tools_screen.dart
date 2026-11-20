@@ -34,6 +34,7 @@ import '../services/office_html.dart';
 import '../services/pdf_doc_pro.dart';
 import '../services/pdf_export_pro.dart';
 import '../services/pdf_form_pro.dart';
+import '../services/pdf/pro/pdf_edit_bridge.dart' show PdfEditBridge;
 import '../services/pdf_notes.dart';
 import '../services/pdf_page_pro.dart';
 import '../services/pdf_raster.dart';

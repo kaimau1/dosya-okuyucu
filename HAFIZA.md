@@ -468,3 +468,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - `PdfFormPro.detectFields` (izolatta): Syncfusion metin glifleri → `___`(≥3) / `.....`(≥5, `…`=3) dizisi metin alanı, `☐□❏❑▢` onay kutusu; alan adı = satırda diziden önceki etiket (otomatik doldurma `matchKey` bunu tanır). Var olan alanla çakışan ve döndürülmüş sayfa atlanır. Sözcük arası boşluk glif değil — etiket boşluğu glif aralığından geri kurulur.
 - Sınır (bilerek): çizgi/kutu VEKTÖRLERİ okunmaz (çizgili/taranmış form bulunmaz) → sonra `pdf_objects` yol sezgisi. Arayüz: "Form alanı ekle" levhasında "Doldurulacak yerleri bul" → `PdfRegionScreen(initial:)` gözden geçirme.
 - Form otomatik doldurma (profil), form oluşturma (`_createForm` + alan kipi) ZATEN vardı (Faz 39 m.9) — yeniden yazılmadı.
+
+## 2026-11-20 — B4 P18 çizgi/kutu sezgisi (dal faz-oto-B4-pdfpro, dilim 7; yazıldı, cihazda doğrulanmadı)
+- `PdfFormPro.fieldsFromShapes` (saf, testli): `PdfEditBridge.content` yol nesneleri → ince yatay çizgi (h ≤ 2,5, w ≥ 36) üstü 16 pt metin alanı, 6–24 pt kare onay kutusu (koyu dolgulu = madde imi, atla), 40×12–80 pt boş kutu metin alanı; içinde metin olan / sayfa boyu öğe atlanır. Adaylar `detectFields(shapes:)`'e gider: var olan alan ve metin sezgisiyle çakışan düşer. Okuma ana izolatta PDFium işçisiyle (`pro_actions._shapeFields`, ilk 300 sayfa).
+- Sınır: 4 ayrı çizgiyle çizilmiş kutu bulunmaz; kutu kökeni (0,0) olmayan sayfada kayabilir.
+- "Akıllı karartma önerisi" (Faz 65/3) AI özelliği → B15 kararıyla iptal, yapılmadı.

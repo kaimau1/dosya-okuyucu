@@ -1,6 +1,7 @@
 import 'dart:ui' show Rect;
 
 import 'package:dosya_okuyucu/services/pdf/pdf_form.dart';
+import 'package:dosya_okuyucu/services/pdf/pro/pdf_text_blocks.dart';
 import 'package:dosya_okuyucu/services/pdf_form_pro.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -62,6 +63,53 @@ void main() {
     // Alan eklenince ikinci taramada aynı yer yeniden önerilmez.
     final withFields = await PdfFormPro.addFields(bytes, found);
     expect(PdfFormPro.detectFields(withFields), isEmpty);
+  });
+
+  test('çizgi/kutu sezgisi: boş çizgi, kare ve kutu alan olur; dolu hücre olmaz',
+      () {
+    PdfTextObjectInfo text(String s, double l, double b, double r, double t) =>
+        PdfTextObjectInfo(
+            index: 0,
+            text: s,
+            left: l,
+            bottom: b,
+            right: r,
+            top: t,
+            tfSize: 10,
+            fontName: 'Helvetica',
+            matrix: [1, 0, 0, 1, l, b],
+            renderMode: 0);
+    PdfPageItem path(double l, double b, double r, double t,
+            {bool filled = false}) =>
+        PdfPageItem(
+            index: 1,
+            type: 2,
+            left: l,
+            bottom: b,
+            right: r,
+            top: t,
+            stroke: !filled,
+            filled: filled,
+            straight: true,
+            fill: filled ? 0xFF000000 : 0);
+    final c = PdfPageContent([
+      text('Ad Soyad:', 40, 700, 100, 712),
+      text('Onay', 60, 650, 90, 660),
+      text('Dolu hücre', 50, 560, 120, 572),
+    ], [
+      path(110, 699, 300, 700), // yazı çizgisi
+      path(40, 648, 52, 660), // onay kutusu
+      path(40, 590, 300, 630), // boş kutu
+      path(40, 550, 300, 580), // içinde metin var → atla
+      path(40, 500, 52, 512, filled: true), // siyah kare (madde imi) → atla
+      path(0, 0, 595, 1), // sayfa boyu çizgi → atla
+    ], 595, 842);
+    final f = PdfFormPro.fieldsFromShapes(0, c);
+    expect(f.map((x) => x.kind).toList(),
+        [NewFieldKind.text, NewFieldKind.checkbox, NewFieldKind.text]);
+    expect(f.first.name, 'Ad Soyad');
+    expect(f.first.bounds.bottom, closeTo(842 - 699, 0.01));
+    expect(f[1].bounds.top, closeTo(842 - 660, 0.01));
   });
 
   test('form oluşturma: metin, onay, imza alanları okunur', () async {
