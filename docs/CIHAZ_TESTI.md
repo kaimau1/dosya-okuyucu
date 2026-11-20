@@ -1500,6 +1500,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Basılı tut + sürükle → başka sayfanın üstüne bırak: sayfa oraya taşınıyor mu (uzun belgede kenarda kendiliğinden kaydırma YOK — sorun mu?).
 - [ ] Vurgulu belgede yalnız sil/döndür → vurgular kalıyor, uyarı çıkmıyor; sıralama/çoğaltma → "açıklamalar gider" uyarısı çıkıyor.
 - [ ] 300 sayfalık belgede ızgara kaydırma akıcı mı (C2 ölçümü, p99 ≤ 16 ms hedefi).
+## B4 PDF Pro dilim 4 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Sayfa stüdyosu → sayfa seç → alt çubukta "Boş sayfa ekle": seçilenin ardına komşu ölçüsünde boş sayfa geliyor mu; vurgulu belgede uyarı çıkmadan vurgular kalıyor mu.
+- [ ] Üst çubukta "Dosyadan sayfa ekle" → başka PDF seç: sayfaları son seçilenin ardına (seçim yoksa sona) geliyor mu, küçük resimler doğru mu; şifreli PDF seçince "açılamadı" uyarısı; Tamam → "açıklamalar gider" uyarısı + çıktı sırası doğru mu.
 ## B15 Akıllı bütünlük dilim 1 (2026-11-19, dal faz-oto-B15-akilli) — yazıldı, cihazda doğrulanmadı
 - [ ] Alt gezinmede sekme "Akıllı"; Akıllı dosya asistanında 4 sekme (Analiz · Türler · Öneriler · Rapor), ⋮ menüsünde "Sohbet" yok; Analiz'deki sayı kartları doğru sekmeyi açıyor.
 - [ ] Dosya ⋮: en üstte "Akıllı ikinci ad" (AI simgesi), "AI ile özetle / hızlı kontrol / kontrol listesi" yok; görselde "Görselde ne var?" AI simgesiyle. Çoklu seçim "Daha fazla": "Akıllı ikinci ad" + "Kategori ekle" aynı sırada; toplu kontrol/kontrol listesi yok.
