@@ -8,6 +8,7 @@ import '../services/pptx_render.dart';
 import 'chart_painter.dart';
 import 'slide_frame_editor.dart';
 import '../core/app_colors.dart';
+import '../core/motion.dart';
 
 /// Slayt run'ının çizim stili (punto biriminde). Kanvas ve düzenleyici
 /// ([SlideTextController]) AYNI kuralla çizer — yazarken ve Bitti'den sonra
@@ -52,6 +53,125 @@ ImageProvider slideImageProvider(Uint8List bytes) => ResizeImage(
       policy: ResizeImagePolicy.fit,
     );
 
+/// B11 m.3 — "Biçim değiştir" (Morph) eşleşmesi: [to] slaytındaki her şekil →
+/// [from] slaytında AYNI adlı (`p:cNvPr@name`) şeklin çerçevesi (pt).
+/// PowerPoint de şekilleri adla eşler; yalnız slaytın kendi şekilleri.
+Map<ShapeVM, Rect> slideMorphFrom(SlideVM from, SlideVM to) {
+  String? nameOf(ShapeVM s) => s.element?.childElements
+      .where((e) => e.name.local.startsWith('nv'))
+      .firstOrNull
+      ?.getElement('p:cNvPr')
+      ?.getAttribute('name');
+  final old = <String, Rect>{};
+  for (final s in from.shapes) {
+    final n = nameOf(s);
+    if (n != null && !s.tableFrame) {
+      old.putIfAbsent(n, () => Rect.fromLTWH(s.x, s.y, s.w, s.h));
+    }
+  }
+  final out = Map<ShapeVM, Rect>.identity();
+  for (final s in to.shapes) {
+    final r = old[nameOf(s) ?? ''];
+    if (r != null && !s.tableFrame) out[s] = r;
+  }
+  return out;
+}
+
+/// Slaytın giriş efekti ([t] 0→1) — sunum ve düzenleyicideki önizleme aynı
+/// kodu kullanır (B11 m.3).
+Widget slideTransitionFx(SlideVM slide, double t, Widget child) {
+  final rest = 1 - Curves.easeOutCubic.transform(t);
+  final dir = slide.transitionDir;
+  switch (slide.transition) {
+    case 'push':
+      return FractionalTranslation(
+        translation: switch (dir) {
+          'r' => Offset(-rest, 0),
+          'u' => Offset(0, rest),
+          'd' => Offset(0, -rest),
+          _ => Offset(rest, 0),
+        },
+        child: child,
+      );
+    case 'zoom':
+      return Opacity(
+        opacity: (1 - rest).clamp(0.0, 1.0),
+        child: Transform.scale(scale: 1 - 0.4 * rest, child: child),
+      );
+    case 'wipe':
+      final f = (1 - rest).clamp(0.001, 1.0);
+      final vertical = dir == 'u' || dir == 'd';
+      // Silme yönü SLAYTIN kendi yönüdür (`p:wipe@dir`), arayüz dilinin
+      // değil: Arapça arayüzde de aynalanmaz — bu yüzden fiziksel hiza.
+      return ClipRect(
+        child: Align(
+          alignment: switch (dir) {
+            'r' => const Alignment(-1, 0),
+            'u' => Alignment.bottomCenter,
+            'd' => Alignment.topCenter,
+            _ => const Alignment(1, 0),
+          },
+          widthFactor: vertical ? 1 : f,
+          heightFactor: vertical ? f : 1,
+          child: child,
+        ),
+      );
+    default:
+      return Opacity(opacity: (1 - rest).clamp(0.0, 1.0), child: child);
+  }
+}
+
+/// Düzenleyicideki geçiş önizlemesi (B11 m.3): açılınca bir kez oynar,
+/// dokununca yeniden. Sunumla aynı efekt kodu; önceki slayt altta durur.
+class SlideTransitionPreview extends StatefulWidget {
+  final SlideVM slide;
+  final SlideVM? previous;
+  const SlideTransitionPreview({super.key, required this.slide, this.previous});
+
+  @override
+  State<SlideTransitionPreview> createState() => _SlideTransitionPreviewState();
+}
+
+class _SlideTransitionPreviewState extends State<SlideTransitionPreview>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: Motion.of(context, Motion.long * 2))
+        ..forward();
+  late final Map<ShapeVM, Rect> _morph =
+      widget.slide.transition == 'morph' && widget.previous != null
+          ? slideMorphFrom(widget.previous!, widget.slide)
+          : const {};
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.slide;
+    final prev = widget.previous;
+    final Widget stage = _morph.isNotEmpty
+        ? SlideCanvas(slide: s, morph: _c, morphFrom: _morph)
+        : Stack(fit: StackFit.expand, children: [
+            if (prev != null) SlideCanvas(slide: prev),
+            AnimatedBuilder(
+              animation: _c,
+              child: SlideCanvas(slide: s),
+              builder: (_, c) => slideTransitionFx(s, _c.value, c!),
+            ),
+          ]);
+    return GestureDetector(
+      onTap: () => _c.forward(from: 0),
+      child: AspectRatio(
+        aspectRatio: s.widthPt / s.heightPt,
+        child: ClipRect(child: RepaintBoundary(child: stage)),
+      ),
+    );
+  }
+}
+
 /// Bir slaytı orijinal tasarımıyla (arka plan, şekiller, görseller, biçimli
 /// metin) çizer. Ölçü birimi punto; [FittedBox] ile kullanılabilir genişliğe
 /// orantılı olarak ölçeklenir — yani her ekranda PowerPoint'teki yerleşimin
@@ -91,6 +211,14 @@ class SlideCanvas extends StatelessWidget {
   final void Function(ShapeVM shape, Rect frame, double rotationDeg)?
       onFrameChanged;
 
+  /// B11 m.3 — "Biçim değiştir" geçişi (0→1): [morphFrom]'daki şekiller eski
+  /// çerçevelerinden yerlerine kayar/boyutlanır, eşi olmayanlar belirir.
+  /// Yalnız dönüşüm/saydamlık her karede kurulur; şekil gövdeleri önbellekte.
+  // ponytail: renk ara geçişi yok (konum + boyut); eski slaytta kalıp eşi
+  // olmayan şekiller hemen kaybolur.
+  final Animation<double>? morph;
+  final Map<ShapeVM, Rect>? morphFrom;
+
   const SlideCanvas({
     super.key,
     required this.slide,
@@ -102,6 +230,8 @@ class SlideCanvas extends StatelessWidget {
     this.promptFor,
     this.step,
     this.onFrameChanged,
+    this.morph,
+    this.morphFrom,
   });
 
   @override
@@ -177,11 +307,10 @@ class SlideCanvas extends StatelessWidget {
     List<bool>? paraVisible;
     var shapeVisible = true;
     if (animated) {
-      final shapeStep = slide.stepFor(s.id, -1);
-      shapeVisible = shapeStep == 0 || step! >= shapeStep;
+      shapeVisible = slide.visibleAt(s.id, -1, step!);
       paraVisible = [
         for (var i = 0; i < s.paragraphs.length; i++)
-          slide.stepFor(s.id, i) == 0 || step! >= slide.stepFor(s.id, i),
+          slide.visibleAt(s.id, i, step!),
       ];
     }
 
@@ -198,7 +327,10 @@ class SlideCanvas extends StatelessWidget {
       editor: editing ? editorBuilder?.call(s) : null,
       prompt: prompt,
     );
-    if (animated) child = _Reveal(visible: shapeVisible, child: child);
+    if (animated) {
+      final (fx, spins) = slide.effectAt(s.id, -1, step!);
+      child = _Reveal(visible: shapeVisible, fx: fx, spins: spins, child: child);
+    }
     // Grup içindeki şekil de çerçeveyle taşınır (Faz 29 kalanı; düzenleyici
     // grup dönüşümünü tersine çevirir).
     final parentName = (s.element?.parent as XmlElement?)?.name.qualified;
@@ -288,6 +420,29 @@ class SlideCanvas extends StatelessWidget {
         );
       }
     }
+    final m = morph;
+    if (m != null && s.element != null) {
+      final from = morphFrom?[s];
+      child = from == null
+          ? FadeTransition(opacity: m, child: child)
+          : AnimatedBuilder(
+              animation: m,
+              child: child,
+              builder: (_, c) {
+                final r = Rect.lerp(from, Rect.fromLTWH(s.x, s.y, s.w, s.h),
+                    Curves.easeInOut.transform(m.value))!;
+                return Transform.translate(
+                  offset: Offset(r.left - s.x, r.top - s.y),
+                  child: Transform.scale(
+                    alignment: Alignment.topLeft,
+                    scaleX: s.w > 0 ? r.width / s.w : 1,
+                    scaleY: s.h > 0 ? r.height / s.h : 1,
+                    child: c,
+                  ),
+                );
+              },
+            );
+    }
     // Yatay/dikey çizginin tek boyutu 0 olabilir → çizim için stroke kadar taban ver.
     final floor = math.max(s.strokeWidth, 1.0);
     return Positioned(
@@ -300,24 +455,53 @@ class SlideCanvas extends StatelessWidget {
   }
 }
 
-/// Adımı gelen içeriği hafifçe yukarı kayarak belirtir — jenerik ama
-/// PowerPoint'teki "beliriş" hissini verir.
+/// Adımı gelen içeriği dosyadaki efektle belirtir/gizler (B11 m.3): görün
+/// (anında), soldur, kay (yönünden), yaklaş, sil (soldur + hafif kayma
+/// yaklaşığı), dön (vurgu: tam tur); çıkış soldurarak gizler.
 class _Reveal extends StatelessWidget {
   final bool visible;
+  final AnimTarget? fx;
+  final int spins;
   final Widget child;
-  const _Reveal({required this.visible, required this.child});
+  const _Reveal(
+      {required this.visible, this.fx, this.spins = 0, required this.child});
+
+  static const _dur = Duration(milliseconds: 260);
 
   @override
   Widget build(BuildContext context) {
-    // Yapı iki durumda da aynı kalmalı, yoksa geçiş animasyonu oynamaz.
+    final e = fx?.effect ?? 'fade';
+    final d = e == 'appear' ? Duration.zero : _dur;
+    final hidden = switch (e) {
+      'fly' => switch (fx!.dir) {
+          'u' => const Offset(0, -1),
+          'l' => const Offset(-1, 0),
+          'r' => const Offset(1, 0),
+          _ => const Offset(0, 1),
+        },
+      'zoom' || 'appear' => Offset.zero,
+      _ => const Offset(0, 0.06),
+    };
+    final out = fx?.kind == AnimKind.exit;
+    // Yapı her durumda aynı kalmalı, yoksa geçiş animasyonu oynamaz.
     return AnimatedOpacity(
       opacity: visible ? 1 : 0,
-      duration: const Duration(milliseconds: 260),
+      duration: d,
       child: AnimatedSlide(
-        offset: visible ? Offset.zero : const Offset(0, 0.06),
-        duration: const Duration(milliseconds: 260),
+        offset: visible || out ? Offset.zero : hidden,
+        duration: d,
         curve: Curves.easeOut,
-        child: child,
+        child: AnimatedScale(
+          scale: visible || out || e != 'zoom' ? 1 : 0.3,
+          duration: d,
+          curve: Curves.easeOut,
+          child: AnimatedRotation(
+            turns: spins.toDouble(),
+            duration: _dur * 2,
+            curve: Curves.easeInOut,
+            child: child,
+          ),
+        ),
       ),
     );
   }
@@ -411,7 +595,10 @@ class _ShapeBody extends StatelessWidget {
     final body = editor != null
         ? _editorBody(shape, editor!)
         : shape.hasText
-            ? _text(shape)
+            ? (shape.textQuarterTurns == 0
+                ? _text(shape)
+                : RotatedBox(
+                    quarterTurns: shape.textQuarterTurns, child: _text(shape)))
             : prompt != null
                 ? _promptBody(shape, prompt!)
                 : null;

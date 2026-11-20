@@ -249,11 +249,31 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
                     set(() {});
                   }, selected: t == k, width: 88),
               ]),
+              if (t != PptxTransition.none && slide.view != null) ...[
+                const SizedBox(height: Gap.md),
+                Text(ctx.t('sl.tr_preview'), style: style),
+                const SizedBox(height: Gap.sm),
+                Center(
+                  child: SizedBox(
+                    width: 240,
+                    child: SlideTransitionPreview(
+                      key: ValueKey('sl-tr-preview-${t.name}'),
+                      slide: slide.view!,
+                      previous: _previousView(editor, slide),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
       }),
     );
+  }
+
+  static SlideVM? _previousView(PptxEditor editor, PptxSlide slide) {
+    final i = editor.slides.indexOf(slide);
+    return i > 0 ? editor.slides[i - 1].view : null;
   }
 
   /// Seçili şeklin dolgu rengi.

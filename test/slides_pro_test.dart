@@ -10,6 +10,7 @@ import 'package:dosya_okuyucu/services/pptx/pro/pptx_show_info.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_package.dart';
 import 'package:dosya_okuyucu/services/pptx/pro/pptx_templates.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
+import 'package:dosya_okuyucu/services/pptx_render.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart';
@@ -245,6 +246,25 @@ void main() {
       expect(ids.toSet().length, ids.length); // kimlikler benzersiz
       b = await PptxPro.run(b, PptxArrangeOps.removeAnimation(1, 0));
       expect(PptxArrangeOps.animations(open(b), 1).single.shapeIds, [51]);
+    });
+
+    test('B11 m.3: kay + dön efekt türü çizim modeline girer; dön vurgudur', () async {
+      var b = await threeBoxes();
+      b = await PptxPro.run(b, PptxArrangeOps.addEntrance(1, 51, SlideEntrance.fly));
+      b = await PptxPro.run(b, PptxArrangeOps.addEntrance(1, 52, SlideEntrance.spin));
+      final a = PptxArrangeOps.animations(open(b), 1);
+      expect([for (final s in a) (s.presetClass, s.presetId)], [('entr', 2), ('emph', 8)]);
+      final v = PptxEditor.parse(b).slides[1].view!;
+      expect(v.steps, hasLength(2));
+      expect(v.steps[0].single.effect, 'fly');
+      expect(v.steps[0].single.dir, 'd');
+      expect(v.steps[1].single.kind, AnimKind.emphasis);
+      expect(v.steps[1].single.effect, 'spin');
+      // Uçan şekil ilk tıklamaya dek gizli; dönen şekil baştan görünür.
+      expect(v.visibleAt(51, -1, 0), isFalse);
+      expect(v.visibleAt(51, -1, 1), isTrue);
+      expect(v.visibleAt(52, -1, 0), isTrue);
+      expect(v.effectAt(52, -1, 2).$2, 1);
     });
   });
 
