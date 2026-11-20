@@ -115,7 +115,7 @@ veri() {
   echo "ölçüm verisi itildi"
 }
 
-# ── MIUI kurulum bekçisi (arka plan) ─────────────────────────────────────────
+# ── Kurulum bekçisi (MIUI + Huawei) (arka plan) ─────────────────────────────────────────
 bekci() {  # bekci <koşu klasörü>
   local son=$((SECONDS + 900)) i=0
   while [ $SECONDS -lt $son ]; do
@@ -124,10 +124,14 @@ bekci() {  # bekci <koşu klasörü>
       adb shell appops set "$PKG" MANAGE_EXTERNAL_STORAGE allow >/dev/null 2>&1 || true
       return
     fi
+    # MIUI AdbInstallActivity · Huawei com.android.packageinstaller (DEVAM ET →
+    # YÜKLE → BİTTİ; T1 2026-11-20) — yalnız bu kurulum ekranlarında dokunulur.
     if adb shell dumpsys activity activities 2>/dev/null \
-        | grep -E 'mResumedActivity|topResumedActivity' | grep -q AdbInstallActivity; then
+        | grep -E 'mResumedActivity|topResumedActivity' \
+        | grep -qE 'AdbInstallActivity|packageinstaller'; then
       i=$((i + 1))
       adb shell input keyevent KEYCODE_WAKEUP
+      adb shell wm dismiss-keyguard </dev/null || true
       adb exec-out screencap -p > "$1/miui_$i.png" 2>/dev/null || true
       adb shell uiautomator dump /sdcard/ab_ui.xml >/dev/null 2>&1 || true
       adb pull /sdcard/ab_ui.xml "$1/miui_$i.xml" >/dev/null 2>&1 || true
@@ -160,7 +164,8 @@ kos() {  # kos <sıra> <A|B>
   veri
   adb shell am force-stop "$PKG" || true
   adb logcat -c || true
-  adb shell input keyevent KEYCODE_WAKEUP; adb shell input swipe 540 1800 540 600 200
+  adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard || true
+  adb shell input swipe 540 1800 540 600 200
   adb shell svc power stayon true   # koşu boyunca (sürücü kopmasın), bitis() kapatır
   bekci "$D" & BEKCI=$!
   rm -f "$SURUCU"/build/*.timeline_summary.json

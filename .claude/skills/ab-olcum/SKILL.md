@@ -135,3 +135,13 @@ yukarı kaydırarak açılır. **Telefon aynı anda TEK ajanda / tek işte.** Di
   "denenmedi". Telefondaki test kopyalarını (`/sdcard/Download/PdfPro/` vb.) iş bitince sil.
 - Python heredoc'ta `\b` geri silmeye döner (regex bozulur); `python -` heredoc'suz REPL açar.
   Git Bash'te `/sdcard` yolları için `export MSYS_NO_PATHCONV=1`.
+
+## Huawei tablet (DBY-W09; T1 2026-11-20)
+
+- Kurulum `com.android.packageinstaller`: "Bilinmeyen kaynaklardan…" uyarısı **DEVAM ET** →
+  tarama ("Hiçbir tehdit bulunmadı") **YÜKLE** → **BİTTİ**. `tool/ab_olcum.sh` bekçisi bunları
+  `uiautomator dump` metninden bulur (`ab_karar.py --dugme`, koordinat sabit değil). Kullanıcı
+  izni YALNIZ kendi `.r8test` APK'mızın bu düğmeleri için; başka izin/ayar ekranına dokunma, PIN girme.
+- Kilit: `adb shell wm dismiss-keyguard` (kaydırma koordinatı tablette farklı; ekran 1600×2560).
+- Boşta senaryoda (`pano_bosta`) kare çıkmayabilir → sürücü "kare yok, atlandı" yazar (çökme
+  değil); bir senaryo grubu hata verirse (`bolum`) kalanlar sürer.
