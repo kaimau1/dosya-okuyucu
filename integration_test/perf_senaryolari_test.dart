@@ -90,9 +90,10 @@ void main() {
     if (_yalniz.isNotEmpty && !_yalniz.split(',').contains(ad)) return;
     try {
       await fn();
-    } catch (e) {
+    } catch (e, st) {
+      final yigin = st.toString().split('\n').take(6).join(' | ');
       // ignore: avoid_print
-      print('PERF $ad: hata, atlandı — $e');
+      print('PERF $ad: hata, atlandı — $e — $yigin');
       navigatorKey.currentState?.popUntil((r) => r.isFirst);
       await bekle(tester, 800);
     }
@@ -391,28 +392,14 @@ void main() {
     // bitti (WebView içi çizim görülemez) · PDF denetleyicisi hazır.
     await bolum(tester, 'acilis_gecis', () async {
       await ac(tester, const BrowserScreen(path: _veri));
+      // Dikey dosya listesi (üstteki yol şeridi de bir Scrollable).
       final liste = find.descendant(
-          of: find.byType(BrowserScreen), matching: find.byType(Scrollable));
+          of: find.byType(BrowserScreen),
+          matching: find.byWidgetPredicate((w) =>
+              w is Scrollable && w.axisDirection == AxisDirection.down));
       bool iskeletYok() => find.byType(AppSkeleton).evaluate().isEmpty;
       final turler = <String, (String, bool Function())>{
-        'xlsx': (
-          'tablo_10k_x20',
-          () =>
-              find.byType(SheetCell).evaluate().isNotEmpty ||
-              find.byType(OfficeLoadingPreview).evaluate().isNotEmpty
-        ),
-        'pptx': (
-          'slayt_300',
-          () =>
-              find.byType(SlidesEditorScreen).evaluate().isNotEmpty &&
-              iskeletYok()
-        ),
-        'docx': (
-          'word_300',
-          () =>
-              find.byType(WordEditorScreen).evaluate().isNotEmpty &&
-              iskeletYok()
-        ),
+        // Listedeki sırayla (aşağı kaydırarak bulunur).
         'pdf': (
           'belge_100',
           () {
@@ -422,6 +409,24 @@ void main() {
                     false);
           }
         ),
+        'pptx': (
+          'slayt_300',
+          () =>
+              find.byType(SlidesEditorScreen).evaluate().isNotEmpty &&
+              iskeletYok()
+        ),
+        'xlsx': (
+          'tablo_10k_x20',
+          () =>
+              find.byType(SheetCell).evaluate().isNotEmpty ||
+              find.byType(OfficeLoadingPreview).evaluate().isNotEmpty
+        ),
+        'docx': (
+          'word_300',
+          () =>
+              find.byType(WordEditorScreen).evaluate().isNotEmpty &&
+              iskeletYok()
+        ),
       };
       for (final MapEntry(key: tur, value: (ad, okunur)) in turler.entries) {
         final satir = find.textContaining(ad);
@@ -429,6 +434,7 @@ void main() {
           await tester.scrollUntilVisible(satir, 300,
               scrollable: liste.first, maxScrolls: 10);
         }
+        await tester.ensureVisible(satir.first);
         await bekle(tester, 400);
         final sw = Stopwatch();
         await binding.traceAction(() async {
