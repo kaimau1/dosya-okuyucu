@@ -55,7 +55,8 @@ void main() {
     expect(found.map((f) => f.name).toList(), ['Ad Soyad', 'E-posta']);
     final first = found.first.bounds;
     expect(first.left, greaterThan(80)); // etiketten sonra başlar
-    expect(first.top, inInclusiveRange(30, 60));
+    // Yeni sayfanın 40 pt kenar boşluğu: y=40 çizim → sayfada ≈ 80.
+    expect(first.top, inInclusiveRange(70, 100));
     expect(first.width, greaterThan(40));
 
     // Alan eklenince ikinci taramada aynı yer yeniden önerilmez.
