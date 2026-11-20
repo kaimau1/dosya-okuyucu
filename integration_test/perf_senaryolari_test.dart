@@ -8,6 +8,7 @@ import 'package:dosya_okuyucu/main.dart' as app;
 import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/smart_sort_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
@@ -89,6 +90,36 @@ void main() {
     }
   }
 
+  /// Ana ekranda [hedef]i bulur: kök rotaya döner, gerekirse panoyu
+  /// kaydırıp görünür yapar. Yoksa tanı satırı yazar, `null` döner (senaryo
+  /// atlanır). T1: Huawei'de ilk koşuda "Analiz" ve şerit sekmeleri
+  /// bulunamadı — tanı neden olduğunu söyler.
+  Future<Finder?> anaEkranda(
+      WidgetTester tester, String ad, Finder hedef) async {
+    navigatorKey.currentState!.popUntil((r) => r.isFirst);
+    await bekle(tester, 600);
+    final tum = hedef; // çağıran skipOffstage: false verir
+    final liste = find.descendant(
+        of: find.byType(DashboardScreen), matching: find.byType(Scrollable));
+    if (tum.evaluate().isEmpty && liste.evaluate().isNotEmpty) {
+      // Pano tembel liste: aşağıdaki bölüm henüz kurulmamış olabilir.
+      try {
+        await tester.scrollUntilVisible(tum, 400,
+            scrollable: liste.first, maxScrolls: 15);
+      } catch (_) {}
+    }
+    if (tum.evaluate().isEmpty) {
+      final pano = find.byType(DashboardScreen, skipOffstage: false);
+      // ignore: avoid_print
+      print('PERF $ad: hedef yok, atlandı (pano ${pano.evaluate().length}, '
+          'görünür ${find.byType(DashboardScreen).evaluate().length})');
+      return null;
+    }
+    await tester.ensureVisible(tum.first);
+    await bekle(tester, 500);
+    return tum.first;
+  }
+
   testWidgets('P13: açılış, klasör, galeri, PDF, Excel', (tester) async {
     // "Neler yeni" levhası açılış ölçümüne girmesin (taban Faz 43'te yoktu).
     await WhatsNew.markSeen();
@@ -125,14 +156,11 @@ void main() {
     // T1: Bellek Analizi — kullanıcının yolu (bellek kartındaki "Analiz").
     await bolum(tester, 'bellek_analizi', () async {
       final ctx = navigatorKey.currentContext!;
-      final dugme = find.text(ctx.t('home.analysis'));
-      if (dugme.evaluate().isEmpty) {
-        // ignore: avoid_print
-        print('PERF bellek_analizi: düğme yok, atlandı');
-        return;
-      }
+      final dugme = await anaEkranda(tester, 'bellek_analizi',
+          find.text(ctx.t('home.analysis'), skipOffstage: false));
+      if (dugme == null) return;
       await binding.traceAction(() async {
-        await tester.tap(dugme.first);
+        await tester.tap(dugme);
         await bekle(tester, 2500);
       }, reportKey: 'bellek_analizi_acilis');
       if (find.byType(AnalysisScreen).evaluate().isEmpty) {
@@ -199,13 +227,12 @@ void main() {
         for (final m in ['opened', 'fresh', 'auto'])
           find.byKey(ValueKey('recent-strip-tab-$m')),
       ];
-      if (sekmeler.first.evaluate().isEmpty) {
-        // ignore: avoid_print
-        print('PERF ana_sekmeler: sekme yok, atlandı');
+      if (await anaEkranda(tester, 'ana_sekmeler',
+              find.byKey(const ValueKey('recent-strip-tab-opened'),
+                  skipOffstage: false)) ==
+          null) {
         return;
       }
-      await tester.ensureVisible(sekmeler.first);
-      await bekle(tester, 500);
       await binding.traceAction(() async {
         for (var tur = 0; tur < 2; tur++) {
           for (final s in sekmeler) {
