@@ -401,6 +401,46 @@ class PdfTools {
     }
   }
 
+  /// **P19 — aranabilir PDF:** OCR satırlarını sayfaya GÖRÜNMEZ (saydamlık 0)
+  /// metin olarak yazar; görüntü aynı kalır, metin aranır/seçilir/kopyalanır.
+  /// [lines] sayfa indeksi → satırlar; `rect` görünen sayfa koordinatında
+  /// (sol-üst, pt). Döndürülmüş sayfa atlanır (redaksiyon katmanıyla aynı sınır).
+  /// [fontBytes] Türkçe glifli TrueType; yoksa standart font.
+  static Future<List<int>> addTextLayer(
+    List<int> bytes,
+    Map<int, List<({String text, Rect rect})>> lines, {
+    List<int>? fontBytes,
+    String? password,
+  }) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      for (final MapEntry(key: i, value: rows) in lines.entries) {
+        if (i < 0 || i >= doc.pages.count) continue;
+        final page = doc.pages[i];
+        if (page.rotation.index % 4 != 0) continue;
+        final g = page.graphics;
+        final state = g.save();
+        g.setTransparency(0);
+        for (final row in rows) {
+          final text = row.text.trim();
+          if (text.isEmpty) continue;
+          // ponytail: punto = kutu yüksekliği; genişlik ölçeklenmez (arama
+          // ve kopyalama yeter, seçim vurgusu satırdan biraz kısa/uzun olabilir).
+          final size = (row.rect.height * 0.85).clamp(2.0, 96.0).toDouble();
+          final font = fontBytes != null
+              ? PdfTrueTypeFont(fontBytes, size)
+              : PdfStandardFont(PdfFontFamily.helvetica, size);
+          g.drawString(text, font,
+              bounds: Rect.fromLTWH(row.rect.left, row.rect.top, 0, 0));
+        }
+        g.restore(state);
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
   /// Sayfadaki bir metin parçasını **yerinde** yenisiyle değiştirir: eski
   /// satırların üstü [backgroundArgb] ile kapatılır, yeni metin aynı kutuya
   /// sığdırılarak yazılır.
@@ -674,6 +714,16 @@ class PdfTools {
   // yalnız gönderilebilir (sendable) değerler yakalayabilir. Ekran sınıfının
   // içinden yazılan kapanış `this`i (State + BuildContext) yakalar ve
   // gönderilemez. Burada kapanış yalnız yerel değişkenleri görüyor.
+
+  /// [addTextLayer] — arka plan isolate'inde.
+  static Future<List<int>> addTextLayerInBackground(
+    List<int> bytes,
+    Map<int, List<({String text, Rect rect})>> lines, {
+    List<int>? fontBytes,
+    String? password,
+  }) =>
+      _bg(() => addTextLayer(bytes, lines,
+          fontBytes: fontBytes, password: password));
 
   /// [compress] — arka plan isolate'inde.
   static Future<List<int>> compressInBackground(

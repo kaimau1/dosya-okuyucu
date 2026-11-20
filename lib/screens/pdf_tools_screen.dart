@@ -39,6 +39,8 @@ import '../services/pdf_notes.dart';
 import '../services/pdf_page_pro.dart';
 import '../services/pdf_raster.dart';
 import '../services/pdf_redact.dart';
+import '../services/pdf/pdf_ocr_text.dart';
+import '../services/pdf/pdf_selection_target.dart' show pdfHasTextLayer;
 import 'package:syncfusion_flutter_pdf/pdf.dart' show PdfConformanceLevel;
 import '../services/pdf_tools.dart';
 import '../services/scan_prepare.dart';

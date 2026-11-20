@@ -281,6 +281,22 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.field_text': ('Metin alanı', 'Text field', 'حقل نص'),
   'pp.field_checkbox': ('Onay kutusu', 'Checkbox', 'مربع اختيار'),
   'pp.field_signature': ('İmza alanı', 'Signature field', 'حقل توقيع'),
+  'pp.ocr_layer': ('Aranabilir yap (OCR)', 'Make searchable (OCR)', 'اجعله قابلاً للبحث (OCR)'),
+  'pp.ocr_layer_sub': (
+    'Taranmış sayfalara görünmez metin katmanı ekler',
+    'Adds an invisible text layer to scanned pages',
+    'يضيف طبقة نص مخفية إلى الصفحات الممسوحة',
+  ),
+  'pp.ocr_layer_none': (
+    'Metni tanınacak taranmış sayfa bulunamadı',
+    'No scanned pages with recognisable text found',
+    'لم يُعثر على صفحات ممسوحة بنص قابل للتعرّف',
+  ),
+  'pp.ocr_layer_done': (
+    '{n} sayfa aranabilir oldu',
+    '{n} pages are now searchable',
+    'أصبحت {n} صفحة قابلة للبحث',
+  ),
   'pp.field_detect': ('Doldurulacak yerleri bul', 'Find fill-in spots', 'العثور على أماكن التعبئة'),
   'pp.field_detect_sub': ('Çizgi, nokta ve kutuları alana çevirir', 'Turns blanks, dots and boxes into fields', 'يحوّل الفراغات والنقاط والمربعات إلى حقول'),
   'pp.field_detect_none': ('Doldurulacak yer bulunamadı', 'No fill-in spots found', 'لم يُعثر على أماكن للتعبئة'),
