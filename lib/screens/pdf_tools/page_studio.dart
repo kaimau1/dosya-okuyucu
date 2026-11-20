@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart' show FileType;
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/app_colors.dart';
@@ -11,8 +13,11 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../services/conversion_service.dart';
+import '../../services/document_scanner.dart';
 import '../../services/pdf_tools.dart';
-import '../fm/pick_file_screen.dart' show AppFilePicker;
+import '../../services/scan_prepare.dart';
+import '../fm/pick_file_screen.dart' show AppFilePicker, PickedFile;
 
 /// Stüdyodaki bir sayfa: [id] çoğaltılan kopyaları ayırır (anahtar),
 /// [page] sanal 0-tabanlı indeks (önce bu belge, sonra dosyadan eklenenler;
@@ -22,21 +27,26 @@ typedef _Item = ({int id, int page, int turns});
 
 /// **Sayfa stüdyosu** (B4/P20, PDF_PRO Faz 63 m.1) — küçük resim ızgarası:
 /// dokun = seç, basılı tut + sürükle = taşı; seçilenleri döndür, sil, çoğalt,
-/// ardına boş sayfa ya da başka PDF'in sayfalarını ekle;
+/// ardına boş sayfa, başka PDF'in sayfalarını, görsel ya da tarama ekle;
+/// seçilenleri yeni PDF'e çıkar ya da seçilenlerden böl;
 /// her adım geri alınabilir. Sonuç `PdfTools.applyPageStudio` girdisidir
-/// ([PdfStudioResult]) ya da vazgeçilirse `null`.
+/// ([PdfStudioResult]; `newFiles` boş değilse her parça ayrı yeni dosya,
+/// belge değişmez) ya da vazgeçilirse `null`.
 ///
 /// Perf: hücre boyu ızgara delegesiyle sabit (ölçüm yok), küçük resim 72 DPI
 /// + `RepaintBoundary`, ızgara tembel (yalnız görünen sayfa çizilir); belge
 /// bir kez açılır. Döndürme yeniden çizim değil `RotatedBox`. Seçim kök
 /// `setState` ile (ekran kısa ömürlü araç; görünür hücre ~20, `PdfPageView`
 /// aynı girdiyle yeniden çizmez) — cihazda ölçülmedi, C2'de.
-// ponytail: sürüklerken kenarda kendiliğinden kaydırma yok; uzun belgede
-// gerekirse `Scrollable.ensureVisible`/kenar kaydırıcı eklenir.
+///
+/// Sürüklerken parmak ızgaranın üst/alt kenar bandındaysa ızgara
+/// kendiliğinden kayar (kare başı sabit adım; `Timer` yalnız sürüklerken,
+/// hücreler yeniden kurulmaz).
 typedef PdfStudioResult = ({
   List<(int, int)> plan,
   int pageCount,
   List<Uint8List> extra,
+  List<List<(int, int)>> newFiles,
 });
 
 class PdfPageStudioScreen extends StatefulWidget {
@@ -65,6 +75,13 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   final List<List<_Item>> _history = [];
   final Set<int> _selected = {};
   int _nextId = 0;
+  bool _loading = false;
+  final _scroll = ScrollController();
+  final _gridKey = GlobalKey();
+  Timer? _edgeTimer;
+  double _edgeDir = 0;
+  static const _edge = 56.0;
+  static const _edgeStep = 14.0;
 
   @override
   void initState() {
@@ -94,6 +111,8 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
 
   @override
   void dispose() {
+    _edgeTimer?.cancel();
+    _scroll.dispose();
     _doc?.dispose();
     for (final d in _extraDocs) {
       d.dispose();
@@ -157,19 +176,48 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
     return (doc, 1); // ulaşılmaz: indeksler yalnız buradan üretilir
   }
 
-  /// Başka PDF'in tüm sayfalarını son seçilenin ardına (yoksa sona) koyar.
   Future<void> _insertFile() async {
     final res = await AppFilePicker.pickFiles(
         type: FileType.custom, allowedExtensions: ['pdf']);
     final path = res?.files.firstOrNull?.path;
     if (path == null || !mounted) return;
+    await _insertPdf(() => File(path).readAsBytes());
+  }
+
+  /// Görseller A4 sayfalara (Pro "Görsellerden PDF" ile aynı yol).
+  Future<void> _insertImages() async {
+    final res =
+        await AppFilePicker.pickFiles(type: FileType.image, allowMultiple: true);
+    final paths = [
+      for (final f in res?.files ?? const <PickedFile>[])
+        if (f.path != null) f.path!,
+    ];
+    if (paths.isEmpty || !mounted) return;
+    await _insertPdf(() => ConversionService()
+        .imagesToPdf(paths, uniformPage: PdfPageFormat.a4));
+  }
+
+  /// Tarama, araçlardaki "tara ve ekle" kuralıyla: sayfa olduğu gibi.
+  Future<void> _insertScan() async {
+    final scanned = await DocumentScanner.scanPages();
+    if (scanned == null || scanned.isEmpty || !mounted) return;
+    await _insertPdf(() async => ConversionService().imagesToPdf(
+        ScanPage.displays(await ScanPrepare.pages(scanned)),
+        uniformPage: PdfPageFormat.a4));
+  }
+
+  /// [load]'un verdiği PDF'in tüm sayfalarını son seçilenin ardına (yoksa
+  /// sona) koyar.
+  Future<void> _insertPdf(Future<Uint8List> Function() load) async {
+    setState(() => _loading = true);
     (Uint8List, PdfDocument)? opened;
     try {
-      final b = await File(path).readAsBytes();
+      final b = await load();
       opened = (b, await PdfDocument.openData(b));
     } catch (_) {
       opened = null;
     }
+    if (mounted) setState(() => _loading = false);
     if (!mounted) {
       await opened?.$2.dispose();
       return;
@@ -216,6 +264,72 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
     ]);
   }
 
+  /// Seçilenleri (stüdyodaki sırayla) yeni PDF'e çıkarır.
+  void _extract() {
+    final part = [
+      for (final e in _items)
+        if (_selected.contains(e.id)) (e.page, e.turns),
+    ];
+    if (!part.any((e) => e.$1 != PdfTools.studioBlank)) {
+      showSnack(context, context.t('pp.studio_need_page'));
+      return;
+    }
+    _finish([part]);
+  }
+
+  /// Her seçili sayfadan önce keserek parçaları ayrı PDF'lere böler.
+  void _split() {
+    final parts = PdfTools.studioSplit(
+      [for (final e in _items) (e.page, e.turns)],
+      {
+        for (var k = 0; k < _items.length; k++)
+          if (_selected.contains(_items[k].id)) k,
+      },
+    );
+    if (parts.length < 2) {
+      showSnack(context, context.t('pp.studio_split_hint'));
+      return;
+    }
+    _finish(parts);
+  }
+
+  void _finish(List<List<(int, int)>> newFiles) =>
+      Navigator.pop<PdfStudioResult>(context, (
+        plan: [for (final e in _items) (e.page, e.turns)],
+        pageCount: _doc!.pages.length,
+        extra: _extraBytes,
+        newFiles: newFiles,
+      ));
+
+  /// Sürükleme konumu ızgaranın kenar bandındaysa kaydırıcıyı başlatır.
+  void _dragAt(Offset global) {
+    final box = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !_scroll.hasClients) return;
+    final y = box.globalToLocal(global).dy;
+    _edgeDir = y < _edge
+        ? -1.0
+        : y > box.size.height - _edge
+            ? 1.0
+            : 0.0;
+    if (_edgeDir == 0) {
+      _stopEdge();
+      return;
+    }
+    // Kare başı bir adım (zamanlayıcı, animasyon süresi değil).
+    _edgeTimer ??= Timer.periodic(const Duration(microseconds: 16667), (_) {
+      if (!_scroll.hasClients) return;
+      final pos = _scroll.position;
+      final to = (pos.pixels + _edgeDir * _edgeStep)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (to != pos.pixels) _scroll.jumpTo(to);
+    });
+  }
+
+  void _stopEdge() {
+    _edgeTimer?.cancel();
+    _edgeTimer = null;
+  }
+
   void _move(int from, int to) {
     if (from == to) return;
     final next = [..._items];
@@ -252,10 +366,26 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
             icon: const Icon(AppIcons.undo),
             onPressed: _history.isEmpty ? null : _undo,
           ),
-          IconButton(
-            tooltip: context.t('pp.studio_insert_file'),
+          PopupMenuButton<Future<void> Function()>(
+            tooltip: context.t('pp.studio_insert'),
             icon: const Icon(AppIcons.postAdd),
-            onPressed: doc == null ? null : _insertFile,
+            enabled: doc != null && !_loading,
+            onSelected: (f) => unawaited(f()),
+            itemBuilder: (ctx) => [
+              for (final (icon, key, f) in [
+                (AppIcons.postAdd, 'pp.studio_insert_file', _insertFile),
+                (AppIcons.addPhoto, 'pp.studio_insert_image', _insertImages),
+                (AppIcons.scanHere, 'pp.studio_insert_scan', _insertScan),
+              ])
+                PopupMenuItem(
+                  value: f,
+                  child: ListTile(
+                    leading: Icon(icon),
+                    title: Text(ctx.t(key)),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+            ],
           ),
           IconButton(
             tooltip: context.t('pt.select_all'),
@@ -265,11 +395,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
           TextButton(
             onPressed: _history.isEmpty
                 ? null
-                : () => Navigator.pop<PdfStudioResult>(context, (
-                      plan: [for (final e in _items) (e.page, e.turns)],
-                      pageCount: doc!.pages.length,
-                      extra: _extraBytes,
-                    )),
+                : () => _finish(const []),
             child: Text(context.t('common.ok')),
           ),
         ],
@@ -300,6 +426,16 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
                     onPressed: _insertBlank,
                   ),
                   IconButton(
+                    tooltip: context.t('pp.studio_extract'),
+                    icon: const Icon(AppIcons.pdf),
+                    onPressed: _extract,
+                  ),
+                  IconButton(
+                    tooltip: context.t('pp.studio_split'),
+                    icon: const Icon(AppIcons.split),
+                    onPressed: _split,
+                  ),
+                  IconButton(
                     tooltip: context.t('common.delete'),
                     icon: const Icon(AppIcons.delete),
                     onPressed: _delete,
@@ -318,8 +454,11 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
                   child: Text(context.t('pp.studio_hint'),
                       style: Theme.of(context).textTheme.bodySmall),
                 ),
+                if (_loading) const LinearProgressIndicator(),
                 Expanded(
                   child: GridView.builder(
+                    key: _gridKey,
+                    controller: _scroll,
                     padding: const EdgeInsets.all(Gap.md),
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -392,6 +531,8 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
         data: index,
         hapticFeedbackOnStart: false, // AppHaptics ayarı dinler
         onDragStarted: AppHaptics.longPress,
+        onDragUpdate: (d) => _dragAt(d.globalPosition),
+        onDragEnd: (_) => _stopEdge(),
         feedback: SizedBox(
           width: 96,
           height: 132,
