@@ -33,6 +33,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Veri klasörü uygulamanın kendi dış dizininde (izin istemez); başka bir
 /// yer için `--dart-define=OLCUM_VERISI=/yol`.
+/// Yalnız bu gruplar koşar (virgüllü `bolum` adları; boş = hepsi). Gerileme
+/// ikiye bölmesinde tek senaryo (R1): `AB_SENARYO=klasor_galeri bash tool/ab_olcum.sh`.
+const _yalniz = String.fromEnvironment('AB_SENARYO');
+
 const _veri = String.fromEnvironment('OLCUM_VERISI',
     defaultValue:
         '/sdcard/Android/data/com.dosyaokuyucu.dosya_okuyucu/files/olcum');
@@ -80,6 +84,7 @@ void main() {
   /// gruplar sürer (T1, 2026-11-20: Huawei'de tek hata tüm koşuyu düşürdü).
   Future<void> bolum(
       WidgetTester tester, String ad, Future<void> Function() fn) async {
+    if (_yalniz.isNotEmpty && !_yalniz.split(',').contains(ad)) return;
     try {
       await fn();
     } catch (e) {
