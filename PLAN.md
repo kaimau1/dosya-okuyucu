@@ -430,6 +430,7 @@ Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
 - **K27 Telefonda temizlik:** `/sdcard/Download/PdfPro/` test kopyaları ve `….r8test` ölçüm uygulaması ölçümler bitince silinebilir.
 
 ### Hesap / anahtar / ayar
+- 👤 **Play Console öncesi (2026-11-20, güvenlik denetimi 38ff7343'ten):** (1) kalıcı imzalama anahtarının SHA-256 parmak izini GitHub → Settings → Variables'a `SIGN_CERT_SHA256` olarak ekle; (2) mağaza için `EDITION=play` ile AAB tam derlemesini al (Actions → APK Derle → elle tetik ya da `v*` etiketi).
 - **K30 Drive girişi, OCR/çeviri modeli, SFTP/FTP/NAS** — kendi hesabın/sunucunla dene; liste gelir, aktarım biter mi?
 - **K31 Kalıcı sürüm:** `v1.2.N` etiketi (GitHub → Releases) — ya da "at" de, ben atayım.
 - **K32 Güvenlik e-postası:** `SECURITY.md` için adres.
