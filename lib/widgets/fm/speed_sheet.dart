@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
-import '../app_dialog.dart';
+import '../../core/app_icons.dart';
 
 /// Ses ve video oynatıcılarının **ortak oynatma hızı** levhası (U3 m.2,
 /// 2026-11-20, kullanıcı: "6 sabit seçenek yerine tutamaçlı çubuk, 0,05
@@ -28,16 +28,94 @@ abstract final class PlaybackSpeed {
   }
 }
 
+/// **Canlı hız paneli** (2026-11-20, kullanıcı: "ekranı karartmadan altta
+/// daha ufak panel; hem çekerken hem izleyebileyim, premium"). Arka plan
+/// KARARMAZ (saydam bariyer), panel alçak ve yarı saydam; çubuk sürüklenirken
+/// hız ANINDA uygulanır (0,05 adımda değişince — her karede değil). Hız 1×
+/// değilken başlıkta "1× yap" düğmesi.
 Future<void> showSpeedSheet(
   BuildContext context, {
   required double current,
   required ValueChanged<double> onChanged,
 }) {
-  return showAppSheet<void>(
-    context,
-    title: context.t('mp.play_speed'),
-    builder: (_) => _SpeedBody(current: current, onChanged: onChanged),
+  return showModalBottomSheet<void>(
+    context: context,
+    barrierColor: Colors.transparent,
+    backgroundColor:
+        Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
+    useSafeArea: true,
+    showDragHandle: false,
+    builder: (_) => SafeArea(
+      top: false,
+      child: _SpeedBody(current: current, onChanged: onChanged),
+    ),
   );
+}
+
+/// Üst çubuktaki hız düğmesi: 1×'te yalnız simge; değilse "1,7×" hapı ve
+/// yanında tek dokunuşla 1×'e döndüren ✕ (kullanıcı 2026-11-20: "hız farklı
+/// olduğunda hiçbir yerde anlaşılmıyor; görülmeli ve sıfırlama tuşlu olmalı").
+class SpeedButton extends StatelessWidget {
+  final double speed;
+  final VoidCallback onOpen;
+  final VoidCallback onReset;
+  final String tooltip;
+  final Color? color;
+
+  const SpeedButton({
+    super.key,
+    required this.speed,
+    required this.onOpen,
+    required this.onReset,
+    required this.tooltip,
+    this.color,
+  });
+
+  static bool isNormal(double v) => (v - 1).abs() < 0.001;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNormal(speed)) {
+      return IconButton(
+        key: const ValueKey('mp-speed'),
+        tooltip: tooltip,
+        icon: const Icon(AppIcons.speed),
+        onPressed: onOpen,
+      );
+    }
+    final fg = color ?? IconTheme.of(context).color;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Material(
+        key: const ValueKey('mp-speed'),
+        color: (fg ?? Colors.white).withValues(alpha: 0.16),
+        shape: const StadiumBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          InkWell(
+            onTap: onOpen,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 4, 8),
+              child: Text(PlaybackSpeed.label(speed),
+                  style: TextStyle(
+                      color: fg, fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+          ),
+          InkWell(
+            key: const ValueKey('mp-speed-reset'),
+            onTap: onReset,
+            child: Tooltip(
+              message: context.t('mp.speed_reset'),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(2, 8, 8, 8),
+                child: Icon(AppIcons.close, size: 16, color: fg),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 class _SpeedBody extends StatefulWidget {
@@ -53,7 +131,9 @@ class _SpeedBodyState extends State<_SpeedBody> {
   late double _v = PlaybackSpeed.snap(widget.current);
 
   void _apply(double v) {
-    setState(() => _v = PlaybackSpeed.snap(v));
+    final next = PlaybackSpeed.snap(v);
+    if ((next - _v).abs() < 0.001) return;
+    setState(() => _v = next);
     widget.onChanged(_v);
   }
 
@@ -61,13 +141,27 @@ class _SpeedBodyState extends State<_SpeedBody> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(PlaybackSpeed.label(_v),
-              textAlign: TextAlign.center, style: theme.textTheme.headlineSmall),
+          Row(children: [
+            Text(context.t('mp.play_speed'),
+                style: theme.textTheme.titleSmall),
+            const SizedBox(width: Gap.sm),
+            Text(PlaybackSpeed.label(_v),
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const Spacer(),
+            if (!SpeedButton.isNormal(_v))
+              TextButton.icon(
+                key: const ValueKey('speed-reset'),
+                onPressed: () => _apply(1.0),
+                icon: const Icon(AppIcons.undo, size: 18),
+                label: Text(context.t('mp.speed_reset')),
+              ),
+          ]),
           Slider(
             key: const ValueKey('speed-slider'),
             value: _v,
@@ -77,22 +171,25 @@ class _SpeedBodyState extends State<_SpeedBody> {
                     PlaybackSpeed.step)
                 .round(),
             label: PlaybackSpeed.label(_v),
-            // Sürüklerken yalnız etiket; motora bırakınca gider (her karede
-            // hız değiştirmek sesi takırdatır).
-            onChanged: (v) => setState(() => _v = PlaybackSpeed.snap(v)),
-            onChangeEnd: _apply,
+            // Canlı: yalnız 0,05 kademesi değişince motora gider.
+            onChanged: _apply,
           ),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: Gap.sm,
-            children: [
-              for (final s in PlaybackSpeed.quick)
-                ChoiceChip(
-                  label: Text(PlaybackSpeed.label(s)),
-                  selected: (s - _v).abs() < 0.001,
-                  onSelected: (_) => _apply(s),
-                ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final s in PlaybackSpeed.quick)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+                    child: ChoiceChip(
+                      visualDensity: VisualDensity.compact,
+                      label: Text(PlaybackSpeed.label(s)),
+                      selected: (s - _v).abs() < 0.001,
+                      onSelected: (_) => _apply(s),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),

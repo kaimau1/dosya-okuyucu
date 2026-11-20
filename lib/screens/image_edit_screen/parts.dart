@@ -313,38 +313,45 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
             ),
           ]),
         );
+    Widget chip(_Tool tool, IconData icon, String key) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: ChoiceChip(
+            key: ValueKey('tool-${tool.name}'),
+            avatar: Icon(icon, size: 18),
+            label: Text(context.t(key)),
+            selected: _tool == tool,
+            onSelected: (_) => _update(() {
+              _tool = tool;
+              if (tool != _Tool.select && tool != _Tool.text) _sel = null;
+            }),
+          ),
+        );
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [
-          for (final (tool, icon, key) in const [
-            (_Tool.select, AppIcons.pointer, 'ied.select'),
-            (_Tool.pen, AppIcons.edit, 'ied.pen'),
-            (_Tool.text, AppIcons.textFields, 'ied.text'),
-            (_Tool.highlighter, AppIcons.highlighter, 'ied.highlighter'),
-            (_Tool.eraser, AppIcons.eraser, 'ied.eraser'),
-            (_Tool.arrow, AppIcons.arrowTool, 'ied.arrow'),
-            (_Tool.line, AppIcons.lineTool, 'ied.line'),
-            (_Tool.rect, AppIcons.rectTool, 'ied.rect'),
-            (_Tool.ellipse, AppIcons.ellipseTool, 'ied.ellipse'),
-            (_Tool.blur, AppIcons.blur, 'ied.blur'),
-            (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
-          ])
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 3),
-              child: ChoiceChip(
-                key: ValueKey('tool-${tool.name}'),
-                avatar: Icon(icon, size: 18),
-                label: Text(context.t(key)),
-                selected: _tool == tool,
-                onSelected: (_) => _update(() {
-                  _tool = tool;
-                  if (tool != _Tool.select && tool != _Tool.text) _sel = null;
-                }),
-              ),
-            ),
-        ]),
-      ),
+      // "Seç" kaymaz, hep solda (2026-11-20, kullanıcı: "seç direkt alt
+      // panelde hazır olarak bulunmalı" — şerit kaydırılınca kayboluyordu).
+      Row(children: [
+        chip(_Tool.select, AppIcons.pointer, 'ied.select'),
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final (tool, icon, key) in const [
+                (_Tool.pen, AppIcons.edit, 'ied.pen'),
+                (_Tool.text, AppIcons.textFields, 'ied.text'),
+                (_Tool.highlighter, AppIcons.highlighter, 'ied.highlighter'),
+                (_Tool.eraser, AppIcons.eraser, 'ied.eraser'),
+                (_Tool.arrow, AppIcons.arrowTool, 'ied.arrow'),
+                (_Tool.line, AppIcons.lineTool, 'ied.line'),
+                (_Tool.rect, AppIcons.rectTool, 'ied.rect'),
+                (_Tool.ellipse, AppIcons.ellipseTool, 'ied.ellipse'),
+                (_Tool.blur, AppIcons.blur, 'ied.blur'),
+                (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
+              ])
+                chip(tool, icon, key),
+            ]),
+          ),
+        ),
+      ]),
       SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [

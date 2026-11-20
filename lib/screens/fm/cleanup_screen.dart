@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../services/fm/empty_folders.dart';
 import '../../services/fm/important_files.dart';
 import '../../services/fm/cleanup_advisor.dart';
+import '../../services/fm/cleanup_ignore.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -17,7 +18,9 @@ import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
 import '../../widgets/fm/fm_entry_icon.dart';
+import 'smart_clutter_screen.dart';
 import 'trash_screen.dart';
+import '../../services/fm/smart_sort.dart';
 import '../../core/safe_insets.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/motion.dart' show FmEmptyState;
@@ -85,6 +88,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
   void initState() {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
+    // Gizlenenler yüklenince liste süzülür (bir kerelik, küçük okuma).
+    unawaited(CleanupIgnore.instance.load().then((_) {
+      if (mounted) setState(() {});
+    }));
     final job = JobQueue.instance.find(_scanJobId);
     final hasResult = job?.result is CleanupScanResult;
     // Sonuç varsa yeniden taramıyoruz: kullanıcı geri döndüğünde beklemesin.
@@ -122,7 +129,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
   List<CleanupSuggestion> get _suggestions {
     final result = _scanJob?.result;
-    return result is CleanupScanResult ? result.suggestions : const [];
+    return result is CleanupScanResult
+        ? CleanupIgnore.instance.apply(result.suggestions)
+        : const [];
   }
 
   /// Güvenli öneriler açık gelir. Yalnız sonuç DEĞİŞTİĞİNDE kurulur, yoksa
@@ -326,7 +335,34 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   padding: withNavInset(context, const EdgeInsets.fromLTRB(
                       Gap.md, Gap.md, Gap.md, 120)),
                   children: [
+                    // Akıllı düzenin (Decisions modeli) "Ayıkla" bulguları
+                    // Yer aç'ta da (2026-11-20, kullanıcı: "yer aç gibi
+                    // şeylerde bu yeni model kullanılabilir"). Silme Ayıkla
+                    // ekranında tek tek onayla — burada otomatik seçilmez.
+                    if (_clutterCount > 0)
+                      Card(
+                        child: ListTile(
+                          key: const ValueKey('clean-smart-clutter'),
+                          leading: const Icon(AppIcons.ai),
+                          title: Text(context
+                              .t('sm.clutter_title', {'n': _clutterCount})),
+                          subtitle: Text(context.t('sm.clutter_sub')),
+                          trailing: const Icon(AppIcons.chevron),
+                          onTap: () async {
+                            await SmartClutterScreen.open(context);
+                            if (mounted) setState(() {});
+                          },
+                        ),
+                      ),
                     for (final s in _suggestions) _card(s),
+                    if (CleanupIgnore.instance.count > 0)
+                      Center(
+                        child: TextButton(
+                          onPressed: () => _ignore(CleanupIgnore.instance.clear),
+                          child: Text(context.t('clean.show_hidden',
+                              {'n': CleanupIgnore.instance.count})),
+                        ),
+                      ),
                   ],
                 ),
       bottomNavigationBar: _loading || _suggestions.isEmpty
@@ -346,6 +382,19 @@ class _CleanupScreenState extends State<CleanupScreen> {
               ),
             ),
     );
+  }
+
+  int get _clutterCount => SmartSort.isLoaded && SmartSort.enabled
+      ? SmartSort.clutter().length
+      : 0;
+
+  Future<void> _ignore(Future<void> Function() op) async {
+    await op();
+    if (!mounted) return;
+    setState(() {
+      _seedSignature = null;
+      _seedSelection();
+    });
   }
 
   Widget _card(CleanupSuggestion s) {
@@ -370,6 +419,16 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   )
                 : const Icon(AppIcons.verified),
           ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton.icon(
+              key: ValueKey('clean-ignore-${s.id}'),
+              onPressed: () => _ignore(() => CleanupIgnore.instance
+                  .ignoreSuggestion(s.id)),
+              icon: const Icon(AppIcons.hiddenOff, size: 18),
+              label: Text(context.t('clean.never_suggest')),
+            ),
+          ),
           if (s.files.isNotEmpty)
             ExpansionTile(
               title: Text(context.t('clean.see_files', {'n': s.files.length})),
@@ -385,6 +444,12 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       '${FsPaths.humanSize(f.sizeBytes)} · ${p.dirname(f.path)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      tooltip: context.t('clean.never_suggest_file'),
+                      icon: const Icon(AppIcons.hiddenOff, size: 20),
+                      onPressed: () => _ignore(
+                          () => CleanupIgnore.instance.ignoreFile(f.path)),
                     ),
                   ),
                 if (s.files.length > 20)

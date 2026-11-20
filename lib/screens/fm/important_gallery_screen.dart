@@ -33,7 +33,10 @@ import 'important_screen.dart';
 /// konusu, etiketler) ve **Zaman ve boyut**. Sıralama üst çubukta, arama
 /// alanı ad üzerinde. Her seçeneğin yanında "bunu seçersem kaç dosya" sayısı.
 class ImportantGalleryScreen extends StatefulWidget {
-  const ImportantGalleryScreen({super.key});
+  /// Önemli Dosyalar'ın "Galeri" sekmesi olarak: kendi üst çubuğu yok,
+  /// arama + sıralama süzgeç şeridinin yanında.
+  final bool embedded;
+  const ImportantGalleryScreen({super.key, this.embedded = false});
 
   @override
   State<ImportantGalleryScreen> createState() => _ImportantGalleryScreenState();
@@ -111,7 +114,9 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
       child: Scaffold(
       appBar: _selecting
           ? _selectionAppBar(shown, selectedEntries)
-          : AppBar(
+          : widget.embedded
+              ? null
+              : AppBar(
         title: _searching
             ? TextField(
                 controller: _query,
@@ -167,13 +172,61 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
         children: [
           if (_loading) const LinearProgressIndicator(minHeight: 3),
           const SizedBox(height: Gap.xs),
-          FmFilterBar(children: [
-            _pill(context, AppIcons.layoutGrid, 'ig.type',
-                _filter.typeActive, _typeSheet),
-            _pill(context, AppIcons.labelOutline, 'ig.topic',
-                _filter.topicActive, _topicSheet),
-            _pill(context, AppIcons.dateRange, 'ig.when',
-                _filter.whenActive, _whenSheet),
+          if (widget.embedded && _searching)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: TextField(
+                controller: _query,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: context.t('ig.search_hint'),
+                  prefixIcon: const Icon(AppIcons.search),
+                  suffixIcon: IconButton(
+                    tooltip: context.t('common.close'),
+                    icon: const Icon(AppIcons.close),
+                    onPressed: () => setState(() {
+                      _searching = false;
+                      _query.clear();
+                      _filter = _filter.copyWith(query: '');
+                    }),
+                  ),
+                ),
+                onChanged: (v) => _set(_filter.copyWith(query: v)),
+              ),
+            )
+          else
+          Row(children: [
+            Expanded(
+              child: FmFilterBar(children: [
+                _pill(context, AppIcons.layoutGrid, 'ig.type',
+                    _filter.typeActive, _typeSheet),
+                _pill(context, AppIcons.labelOutline, 'ig.topic',
+                    _filter.topicActive, _topicSheet),
+                _pill(context, AppIcons.dateRange, 'ig.when',
+                    _filter.whenActive, _whenSheet),
+              ]),
+            ),
+            if (widget.embedded) ...[
+              IconButton(
+                tooltip: context.t('important.search'),
+                icon: const Icon(AppIcons.search),
+                onPressed: () => setState(() => _searching = true),
+              ),
+              PopupMenuButton<ImpSort>(
+                tooltip: context.t('ig.sort'),
+                icon: const Icon(AppIcons.sort),
+                initialValue: _filter.sort,
+                onSelected: (s) => _set(_filter.copyWith(sort: s)),
+                itemBuilder: (ctx) => [
+                  for (final s in ImpSort.values)
+                    CheckedPopupMenuItem(
+                      value: s,
+                      checked: _filter.sort == s,
+                      child: Text(ctx.t(s.labelKey)),
+                    ),
+                ],
+              ),
+            ],
           ]),
           if (!_filter.isEmpty)
             Padding(

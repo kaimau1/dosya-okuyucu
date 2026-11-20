@@ -528,6 +528,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   // ── kanvas jestleri ────────────────────────────────────────────────────────
 
   void _gestureStart(ScaleStartDetails d) {
+    // Önce/sonra açıkken tuvale dokunmak düzenlemeye döner.
+    if (_showOriginal) setState(() => _showOriginal = false);
     _viewGesture = d.pointerCount > 1;
     if (_viewGesture) return _viewStart(d.localFocalPoint);
     if (_tab == _Tab.crop && !_showOriginal) {
@@ -665,18 +667,29 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           title: Text(context.t('ied.title'),
               style: OverlayBar.title(context)),
           actions: [
-            // Basılı tut → özgünü gör (Faz 14b). Bırakınca düzenlenmiş hâl.
-            if (!_e.isIdentity)
+            // Özgünü gör (Faz 14b): DOKUN = aç/kapa, basılı tut = bırakınca
+            // döner. Eskiden yalnız basılı tutma vardı; kısa dokunuşta hiçbir
+            // şey görünmüyordu (kullanıcı 2026-11-20: "üstteki buton
+            // çalışmıyor").
+            if (!_e.isIdentity || _showOriginal)
               Tooltip(
                 message: context.t('ied.hold_original'),
                 child: GestureDetector(
                   key: const ValueKey('hold-original'),
-                  onTapDown: (_) => setState(() => _showOriginal = true),
-                  onTapUp: (_) => setState(() => _showOriginal = false),
-                  onTapCancel: () => setState(() => _showOriginal = false),
-                  child: const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Icon(AppIcons.compare),
+                  onTap: () => setState(() => _showOriginal = !_showOriginal),
+                  onLongPressStart: (_) =>
+                      setState(() => _showOriginal = true),
+                  onLongPressEnd: (_) => setState(() => _showOriginal = false),
+                  child: Container(
+                    margin: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _showOriginal
+                          ? AppColors.onMedia.withValues(alpha: 0.22)
+                          : null,
+                    ),
+                    child: const Icon(AppIcons.compare),
                   ),
                 ),
               ),

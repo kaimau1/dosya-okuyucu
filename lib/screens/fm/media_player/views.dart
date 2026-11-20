@@ -214,15 +214,19 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               },
             ),
             // Hız: tutamaçlı çubuk, 0,05 adım (U3 m.2) — ortak levha.
-            IconButton(
-              key: const ValueKey('mp-speed'),
+            SpeedButton(
+              speed: _speed,
               tooltip: context.t('mp.play_speed'),
-              icon: const Icon(AppIcons.speed),
-              onPressed: () {
+              color: AppColors.onMedia,
+              onOpen: () {
                 _scheduleHide();
                 unawaited(showSpeedSheet(context,
                     current: _speed,
                     onChanged: (v) => unawaited(_setSpeed(v))));
+              },
+              onReset: () {
+                _scheduleHide();
+                unawaited(_setSpeed(1.0));
               },
             ),
             _moreMenu(),

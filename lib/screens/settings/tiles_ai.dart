@@ -10,6 +10,7 @@ import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/ai_tasks.dart';
+import '../../services/gemini_decisions.dart';
 import '../../services/gemini_service.dart';
 import '../../core/user_error.dart';
 
@@ -273,6 +274,20 @@ class AiTaskModelsTile extends StatelessWidget {
                   style:
                       context.type.small.copyWith(color: Paper.faint(context))),
             ),
+          // Akıllı kararlar modeli (Decisions) görünür satır (2026-11-20,
+          // kullanıcı: "AI menüsünde yeni modeli göremiyorum"). Seçilemez:
+          // `generateContent` desteklemez, katalogda yoktur; Akıllı düzen,
+          // kategori, ikinci ad ve öneriler hep bunu kullanır.
+          InputDecorator(
+            key: const ValueKey('aitask-decisions'),
+            decoration: InputDecoration(
+              labelText: context.t('aitask.decisions'),
+              helperText: context.t('aitask.decisions_sub'),
+              helperMaxLines: 3,
+            ),
+            child: const Text(GeminiDecisions.model),
+          ),
+          const SizedBox(height: Gap.md),
           for (final task in AiTask.values) ...[
             _row(context, state, task, catalog),
             const SizedBox(height: Gap.md),

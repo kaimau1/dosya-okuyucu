@@ -1578,3 +1578,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Belgeler ya da bir klasörde dosyaya uzun bas (seçim) → telefonun geri tuşu: önce seçim kalkmalı, ikinci basışta klasörden çıkmalı.
 - Ana ekran Araçlar: çerçeveli 4×2 ızgara, 8 araç (Harici bellek, İşlemler, Yer aç, Yeni belge, Şifreli kasa, Üretilenler, Yakındaki cihazlar, Bilgisayardan eriş), "Tümü" düğmesi yok.
 - Ağ kesilince/uygulama arka plana atılınca Ayarlar → hata kaydında yeni "ClientException … connection abort" satırı çıkmamalı.
+
+## U6 Kullanıcı istekleri 2026-11-20 gece — yazıldı, cihazda doğrulanmadı
+- İndirilenler: başlık altında "54 dosya · 1,2 GB" tek satır; ayrı özet satırı yok (eski dosya varsa yalnız kırmızı satır + "Eskileri seç").
+- Görsel → Düzenle → bir şey çiz → üstteki önce/sonra düğmesine DOKUN: özgün görünür (düğme vurgulu), tekrar dokun ya da tuvale dokun: düzenlenmiş. İşaretle şeridini sona kaydır: "Seç" solda sabit kalmalı.
+- Ana ekran Son dosyalar / Geçmiş'ten fotoğrafa dokun: Fotoğraflar galerisi (alt şerit, Paylaş/Düzenle/İyileştir) açılmalı.
+- Önemli Dosyalar: üstte "Klasör · Galeri" sekmeleri, sağa kaydırınca Galeri; "Yok" türler görünmemeli.
+- Video: iki parmakla yakınlaştır/kaydır (sarma ya da ses değişmemeli); hız simgesi → ekran kararmadan küçük panel, sürüklerken hız anında değişmeli; 1,7× iken üstte "1.7× ✕" hapı, ✕ ile 1×. Ses oynatıcıda da aynı hap.
+- Yer aç: öneri kartında "Bir daha önerme" ve dosya listesinde göz simgesi; yeniden analizde gelmemeli; en altta "Gizlenen n öneriyi geri getir". Akıllı düzen açıksa en üstte "Ayıkla · n gereksiz" kartı.
+- Ayarlar → Yapay zekâ → Görev başına model: en üstte "Akıllı kararlar — gemini-decision-1".

@@ -95,6 +95,15 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   bool _pending = false;
   double get _speed => _p.speed;
 
+  /// **Videoda çimdik yakınlaştırma** (2026-11-20, kullanıcı: "videolarda da
+  /// zoom yapılabilmeli"). İki parmak inince sarma/ses/parlaklık sürüklemeleri
+  /// kapanır (yoksa çimdik onlara kaptırılır — galerideki dersin aynısı).
+  int _pointers = 0;
+  bool get _pinching => _pointers >= 2;
+  double _vZoom = 1;
+  double _vZoomBase = 1;
+  Offset _vPan = Offset.zero;
+
   /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
   VoidCallback? _unhideBar;
 
@@ -337,7 +346,33 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       // kontroller açılıp kapandıkça body'nin yüksekliği değişir, ortalanmış
       // video her dokunuşta küçülüp kayardı. Bar da alt kontroller gibi
       // Stack'te videonun üstünde yüzer → görüntü hiç oynamaz.
-      body: GestureDetector(
+      body: Listener(
+        onPointerDown: (_) => _countPointer(1),
+        onPointerUp: (_) => _countPointer(-1),
+        onPointerCancel: (_) => _countPointer(-1),
+        child: GestureDetector(
+        onScaleStart: _locked || _isAudio
+            ? null
+            : (_) => _vZoomBase = _vZoom,
+        onScaleUpdate: _locked || _isAudio
+            ? null
+            : (d) {
+                if (d.pointerCount < 2) return;
+                setState(() {
+                  _vZoom = (_vZoomBase * d.scale).clamp(1.0, 5.0);
+                  final size = MediaQuery.sizeOf(context);
+                  final mx = size.width * (_vZoom - 1) / 2;
+                  final my = size.height * (_vZoom - 1) / 2;
+                  final next = _vPan + d.focalPointDelta;
+                  _vPan = Offset(next.dx.clamp(-mx, mx), next.dy.clamp(-my, my));
+                });
+              },
+        onScaleEnd: (_) {
+          if (_vZoom < 1.05) setState(() {
+            _vZoom = 1;
+            _vPan = Offset.zero;
+          });
+        },
         // Videonun yanındaki siyah boşluklarda da dokunma çalışsın diye
         // opaque: varsayılan `deferToChild` ile yalnız görüntünün kendisi
         // dokunmayı yakalıyordu.
@@ -356,9 +391,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
         onTapUp: _locked ? (_) => _showLockHint() : _handleTap,
         // **Yatay kaydırma** (Faz 18): yavaş sürükleme SARAR (zaman balonu),
         // hızlı fiske çalma listesinde önceki/sonraki dosyaya geçer.
-        onHorizontalDragStart: _locked || _isAudio ? null : _scrubStart,
-        onHorizontalDragUpdate: _locked || _isAudio ? null : _scrubUpdate,
-        onHorizontalDragEnd: _locked
+        onHorizontalDragStart: _locked || _pinching || _isAudio ? null : _scrubStart,
+        onHorizontalDragUpdate: _locked || _pinching || _isAudio ? null : _scrubUpdate,
+        onHorizontalDragEnd: _locked || _pinching
             ? null
             : (details) {
                 final v = details.primaryVelocity ?? 0;
@@ -372,22 +407,32 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
               },
         // **Dikey kaydırma**: sağ yarıda ses (oynatıcının kendi sesi), sol
         // yarıda pencere parlaklığı (Faz 18). Gösterge kaydırma boyunca.
-        onVerticalDragStart: _locked || _isAudio
+        onVerticalDragStart: _locked || _pinching || _isAudio
             ? null
             : (d) => _dragBrightness = d.localPosition.dx <
                 MediaQuery.sizeOf(context).width / 2,
-        onVerticalDragUpdate: _locked || _isAudio
+        onVerticalDragUpdate: _locked || _pinching || _isAudio
             ? null
             : (d) => _dragBrightness
                 ? _handleBrightnessDrag(d)
                 : _handleVolumeDrag(d),
         onVerticalDragEnd: (_) => _hideVolumeSoon(),
         // **Uzun basış = 2× hız** (bırakınca eski hız).
-        onLongPressStart: _locked || _isAudio ? null : (_) => _boostStart(),
-        onLongPressEnd: _locked || _isAudio ? null : (_) => _boostEnd(),
+        onLongPressStart: _locked || _pinching || _isAudio ? null : (_) => _boostStart(),
+        onLongPressEnd: _locked || _pinching || _isAudio ? null : (_) => _boostEnd(),
         child: Stack(
           children: [
-            Positioned.fill(child: _surface(c, value)),
+            Positioned.fill(
+              child: ClipRect(
+                child: Transform(
+                  transform: Matrix4.identity()
+                    ..translateByDouble(_vPan.dx, _vPan.dy, 0, 1)
+                    ..scaleByDouble(_vZoom, _vZoom, 1, 1),
+                  alignment: Alignment.center,
+                  child: _surface(c, value),
+                ),
+              ),
+            ),
             // Altyazı katmanı: konum saniyede iki kez değişiyor, yeniden
             // çizilen alan BURAYA hapsediliyor (bkz. [_onTick] notu).
             // Kontroller açıkken yukarı kaçar ki alttaki çubuk metni örtmesin.
@@ -460,7 +505,14 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
           ],
         ),
       ),
+      ),
     );
+  }
+
+  void _countPointer(int delta) {
+    final before = _pinching;
+    _pointers = (_pointers + delta).clamp(0, 10);
+    if (before != _pinching) setState(() {});
   }
 
 

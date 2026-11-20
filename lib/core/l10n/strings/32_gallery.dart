@@ -4,6 +4,8 @@ part of '../app_strings.dart';
 /// kartı + geniş, kategorize süzgeçler).
 const Map<String, (String, String, String)> _t32 = {
   'ig.title': ('Önemli Galeri', 'Important gallery', 'المعرض المهم'),
+  'imp.tab_folder': ('Klasör', 'Folder', 'المجلد'),
+  'imp.tab_gallery': ('Galeri', 'Gallery', 'المعرض'),
   'ig.tile_empty': ('Henüz dosya yok', 'No files yet', 'لا ملفات بعد'),
   'ig.empty': ('Önemli Dosyalar klasöründe henüz dosya yok. Herhangi bir dosyada ⋮ › Önemliye ekle ile buraya toplayabilirsiniz.', 'There are no files in Important Files yet. Use ⋮ › Add to important on any file to collect it here.', 'لا توجد ملفات في الملفات المهمة بعد. استخدم ⋮ › إضافة إلى المهمة على أي ملف لجمعه هنا.'),
   'ig.no_match': ('Bu süzgeçlere uyan dosya yok.', 'No files match these filters.', 'لا توجد ملفات تطابق هذه المرشحات.'),

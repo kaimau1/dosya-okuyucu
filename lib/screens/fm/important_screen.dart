@@ -12,7 +12,6 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/custom_cards.dart';
-import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -74,9 +73,6 @@ class _ImportantScreenState extends State<ImportantScreen> {
   bool _loading = true;
   bool _exists = false;
 
-  /// Galeri süzgeci (null = tümü); önizleme ilk [_galleryPreview] dosya.
-  FmCategory? _galleryFilter;
-  static const _galleryPreview = 12;
 
   @override
   void initState() {
@@ -221,10 +217,19 @@ class _ImportantScreenState extends State<ImportantScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    return Scaffold(
+    // İki sekme (2026-11-20, kullanıcı: "Önemli galeri sekme olarak
+    // bulunsun, sağa kaydırınca galeriye geçsin"): Klasör · Galeri. Eski
+    // klasör sayfasındaki 12'lik galeri önizlemesi kalktı (sekme var).
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
       appBar: AppBar(
         leading: const SideMenuButton(),
         title: const Text(ImportantScreen.folderName),
+        bottom: TabBar(tabs: [
+          Tab(text: context.t('imp.tab_folder')),
+          Tab(text: context.t('imp.tab_gallery')),
+        ]),
         actions: [
           if (_exists)
             IconButton(
@@ -251,7 +256,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
             ),
         ],
       ),
-      body: RefreshIndicator(
+      body: TabBarView(children: [
+      RefreshIndicator(
         onRefresh: _load,
         child: ListView(
           padding: withNavInset(
@@ -266,11 +272,9 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: Gap.sm),
               FmCategoryGrid(tiles: _categoryTiles()),
-              const SizedBox(height: Gap.lg),
+              const SizedBox(height: Gap.md),
               ..._cardsSection(context),
-              const SizedBox(height: Gap.lg),
-              ..._gallery(context),
-              const SizedBox(height: Gap.lg),
+              const SizedBox(height: Gap.md),
               Row(
                 children: [
                   Expanded(
@@ -319,6 +323,8 @@ class _ImportantScreenState extends State<ImportantScreen> {
           ],
         ),
       ),
+      const ImportantGalleryScreen(embedded: true),
+      ]),
       floatingActionButton: !_exists
           ? null
           // Pano ayrı bildirici (A4.2).
@@ -335,6 +341,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   tooltip: context.t('important.new_subfolder'),
                   child: const Icon(AppIcons.newFolder),
                 )),
+    ),
     );
   }
 
@@ -462,88 +469,6 @@ class _ImportantScreenState extends State<ImportantScreen> {
     if (mounted) await _load();
   }
 
-  // ── Galeri: tüm önemli dosyalar önizlemeli ızgarada ────────────────────
-
-  static const _galleryKinds = [
-    FmCategory.image,
-    FmCategory.video,
-    FmCategory.document,
-    FmCategory.audio,
-    FmCategory.other,
-  ];
-
-  List<Widget> _gallery(BuildContext context) {
-    final all = [..._files]
-      ..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
-    final kinds = {for (final f in all) f.category};
-    final filter = _galleryFilter;
-    final items = filter == null
-        ? all
-        : all.where((f) => f.category == filter).toList();
-    final shown = items.take(_galleryPreview).toList();
-    final paths = [for (final f in items) f.path];
-    return [
-      Text(context.t('important.gallery'),
-          style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: Gap.sm),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            ChoiceChip(
-              label: Text(context.t('important.gallery_all')),
-              selected: filter == null,
-              onSelected: (_) => setState(() => _galleryFilter = null),
-            ),
-            for (final c in _galleryKinds)
-              if (kinds.contains(c))
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: Gap.xs),
-                  child: ChoiceChip(
-                    avatar: Icon(FmColors.iconFor(c), size: 18),
-                    label: Text(c.label),
-                    selected: filter == c,
-                    onSelected: (_) => setState(() => _galleryFilter = c),
-                  ),
-                ),
-          ],
-        ),
-      ),
-      const SizedBox(height: Gap.sm),
-      if (items.isEmpty)
-        Text(context.t('important.gallery_empty'))
-      else
-        LayoutBuilder(builder: (context, box) {
-          final cols = (box.maxWidth / 120).floor().clamp(3, 8);
-          final cell = (box.maxWidth - (cols - 1) * 4) / cols;
-          return Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: [
-              for (final f in shown)
-                ImportantGalleryTile(
-                  key: ValueKey(f.path),
-                  entry: f,
-                  size: cell,
-                  onTap: () =>
-                      EntryOpener.open(context, f.path, siblings: paths),
-                ),
-            ],
-          );
-        }),
-      // 2026-11-10: tümü artık ayrı **Önemli Galeri** ekranında (ana ekranda
-      // da kendi kartı var) — geniş, kategorize süzgeçlerle.
-      if (all.isNotEmpty)
-        Align(
-          alignment: AlignmentDirectional.centerEnd,
-          child: TextButton.icon(
-            onPressed: () => _push(const ImportantGalleryScreen()),
-            icon: const Icon(AppIcons.importantGallery, size: 18),
-            label: Text(context.t('ig.open_gallery', {'n': all.length})),
-          ),
-        ),
-    ];
-  }
 
   int _countIn(String dir) =>
       _files.where((f) => FsPaths.isInside(dir, f.path)).length;
@@ -627,7 +552,9 @@ class _ImportantScreenState extends State<ImportantScreen> {
       FmCategory.other,
     ];
     return [
+      // Boş türler gizli (2026-11-20, kullanıcı: "çok boşluklu kalmış").
       for (final c in order)
+        if ((counts[c] ?? 0) > 0)
         FmTileData(
           icon: FmColors.iconFor(c),
           color: FmColors.forCategory(c),

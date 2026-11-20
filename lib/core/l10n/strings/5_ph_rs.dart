@@ -850,6 +850,7 @@ const Map<String, (String, String, String)> _t5 = {
   ),
   'mp.next_page': ('Sonraki sayfa', 'Next page', 'الصفحة التالية'),
   'mp.play_speed': ('Oynatma hızı', 'Playback speed', 'سرعة التشغيل'),
+  'mp.speed_reset': ('1× yap', 'Reset to 1×', 'إعادة إلى 1×'),
   'mp.subtitles': ('Altyazı', 'Subtitles', 'الترجمة'),
   'mp.sub_off': ('Altyazı kapalı', 'Subtitles off', 'إيقاف الترجمة'),
   'mp.audio_engine': ('Ses ve oynatma motoru', 'Audio and player engine', 'الصوت ومحرك التشغيل'),

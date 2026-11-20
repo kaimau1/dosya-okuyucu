@@ -222,7 +222,11 @@ abstract final class EntryOpener {
       ));
       return;
     }
-    if (route == OpenRoute.gallery && group.length > 1) {
+    // Tek görsel de galeride açılır (2026-11-20, kullanıcı: "ana ekrandaki
+    // Geçmiş'ten açılınca görsel Fotoğraflar'da değil normal dosya olarak
+    // açılıyor"): şerit/Geçmiş kardeş listesi vermiyordu → tek öğe →
+    // belge görüntüleyicisi. OCR/PDF yap/çeviri galerinin ⋮ menüsünde.
+    if (route == OpenRoute.gallery && !startInk) {
       // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
       // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
       // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).

@@ -131,7 +131,7 @@ const Map<String, (String, String, String)> _t12 = {
   'ied.custom_ratio': ('Özel oran', 'Custom ratio', 'نسبة مخصصة'),
   'ied.ratio_hint': ('Oran (ör. 4:5)', 'Ratio (e.g. 4:5)', 'النسبة (مثال 4:5)'),
   'ied.ratio_invalid': ('Oran anlaşılamadı — "4:5" gibi yazın.', 'Could not read the ratio — type it like "4:5".', 'تعذرت قراءة النسبة — اكتبها مثل "4:5".'),
-  'ied.hold_original': ('Özgünü görmek için basılı tut', 'Hold to see the original', 'اضغط مطولاً لرؤية الأصل'),
+  'ied.hold_original': ('Önce / sonra — dokun ya da basılı tut', 'Before / after — tap or hold', 'قبل / بعد — انقر أو اضغط مطولاً'),
   'ied.size_now': ('Şu an {from} → Kaydedilince {to}', 'Now {from} → Saved as {to}', 'الآن {from} ← عند الحفظ {to}'),
   'ied.size_original': ('Olduğu gibi', 'As is', 'كما هو'),
   'rs.strip_location': ('Konum bilgisini kaldır', 'Remove location', 'إزالة معلومات الموقع'),

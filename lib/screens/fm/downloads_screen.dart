@@ -282,7 +282,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     children: [
                       Text(context.t('downloads.title')),
                       Text(
-                        context.t('downloads.count', {'n': _files.length}),
+                        // Sayı + boyut tek satırda (2026-11-20, kullanıcı:
+                        // "üstte de altta da 54 dosya yazıyor") — alttaki
+                        // ayrı özet satırı kalktı.
+                        context.t('count.files_size', {
+                          'n': _files.length,
+                          'size': FsPaths.humanSize(total),
+                        }),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -340,8 +346,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   icon: AppIcons.download, title: context.t('downloads.empty'))
               : Column(
                   children: [
-                    _summary(total, ancient),
-                    const Divider(height: 1),
+                    if (ancient.isNotEmpty) ...[
+                      _summary(ancient),
+                      const Divider(height: 1),
+                    ],
                     FmQuickFilters(
                       source: _files,
                       filter: _filter,
@@ -455,39 +463,28 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     );
   }
 
-  Widget _summary(int total, List<FsEntry> ancient) {
+  /// Yalnız dokunulmamış eski dosya varsa görünen ince satır (sayı/boyut
+  /// başlıkta).
+  Widget _summary(List<FsEntry> ancient) {
     final ancientBytes = ancient.fold<int>(0, (s, e) => s + e.sizeBytes);
     return Padding(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                    context.t('count.files_size', {
-                      'n': _files.length,
-                      'size': FsPaths.humanSize(total),
-                    }),
-                    style: Theme.of(context).textTheme.titleSmall),
-                if (ancient.isNotEmpty)
-                  Text(
-                    '${context.t('dls.untouched', {'n': ancient.length})}'
-                    '${FsPaths.humanSize(ancientBytes)}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+            child: Text(
+              '${context.t('dls.untouched', {'n': ancient.length})}'
+              '${FsPaths.humanSize(ancientBytes)}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
                   ),
-              ],
             ),
           ),
-          if (ancient.isNotEmpty)
-            TextButton(
-              onPressed: () =>
-                  setState(() => _selected.addAll(ancient.map((e) => e.path))),
-              child: Text(context.t('downloads.select_old')),
-            ),
+          TextButton(
+            onPressed: () =>
+                setState(() => _selected.addAll(ancient.map((e) => e.path))),
+            child: Text(context.t('downloads.select_old')),
+          ),
         ],
       ),
     );

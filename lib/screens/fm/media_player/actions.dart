@@ -197,7 +197,11 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
   /// Sıradaki/önceki dosya, oynat/duraklat, sarma ve hız — hepsi **serviste**
   /// (`VideoPlayback`). Ekran yalnız düğmeyi basıyor: aynı işlemler mini
   /// çubuktan ve bildirimden de geliyor, tek bir yerde olmaları şart.
-  void _skip(int delta) => unawaited(_p.skip(delta));
+  void _skip(int delta) {
+    _vZoom = 1;
+    _vPan = Offset.zero;
+    unawaited(_p.skip(delta));
+  }
 
   void _togglePlay() {
     unawaited(_p.toggle());

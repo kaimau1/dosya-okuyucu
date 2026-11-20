@@ -176,11 +176,12 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
               ),
         actions: [
           // Hız: tutamaçlı çubuk, 0,05 adım (U3 m.2) — ortak levha.
-          IconButton(
+          SpeedButton(
+            speed: _speed,
             tooltip: context.t('mp.speed'),
-            icon: const Icon(AppIcons.speed),
-            onPressed: () => showSpeedSheet(context,
+            onOpen: () => showSpeedSheet(context,
                 current: _speed, onChanged: (v) => unawaited(_setSpeed(v))),
+            onReset: () => unawaited(_setSpeed(1.0)),
           ),
           // **Uyku zamanlayıcısı** (kullanıcı isteği 2026-09-03, premium):
           // gece dinlerken uyuyan telefon sabaha kadar çalmasın. Kurulu
