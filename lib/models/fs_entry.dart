@@ -78,7 +78,7 @@ abstract final class FmExtensions {
 
   /// Belge sayılan uzantılar (ofis + PDF + metin/kod/veri).
   static const document = {
-    'pdf', 'xps', 'djvu', 'doc', 'docx', 'docm', 'dot', 'dotx', 'odt', 'rtf',
+    'pdf', 'xps', 'djvu', 'doc', 'docx', 'docm', 'dot', 'dotx', 'odt', 'rtf', 'udf',
     'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'ods', 'csv', 'tsv',
     'ppt', 'pptx', 'pptm', 'pot', 'potx', 'pps', 'ppsx', 'odp', 'odg',
     'txt', 'md', 'markdown', 'log', 'json', 'xml', 'yaml', 'yml', 'html',

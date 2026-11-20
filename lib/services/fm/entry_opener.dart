@@ -346,7 +346,10 @@ abstract final class EntryOpener {
         );
       case DocKind.word:
         return WordEditorScreen(
-            path: doc.path, name: doc.name, plainText: doc.plainText);
+            path: doc.path,
+            name: doc.name,
+            plainText: doc.plainText,
+            savePath: doc.savePath);
       case DocKind.slides:
         return SlidesEditorScreen(
             path: doc.path, name: doc.name, plainText: doc.plainText);

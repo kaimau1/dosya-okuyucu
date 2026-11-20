@@ -18,6 +18,7 @@ import '../legacy_text.dart';
 import '../office_reader.dart';
 import '../office_zip_guard.dart';
 import '../text_decode.dart';
+import '../udf_reader.dart';
 import '../xls_legacy.dart';
 import '../xlsx/xlsx_stream.dart';
 import 'fm_env.dart';
@@ -105,7 +106,7 @@ abstract final class SmartSortInput {
   static const _headBytes = 512 * 1024;
 
   static const _textExts = {
-    'docx', 'docm', 'doc', 'dot', 'odt', 'rtf', 'txt', 'text', 'md',
+    'docx', 'docm', 'doc', 'dot', 'odt', 'rtf', 'udf', 'txt', 'text', 'md',
     'markdown', 'html', 'htm', 'xhtml', 'epub',
   };
   static const _sheetExts = {'xlsx', 'xlsm', 'xls', 'xlt', 'csv', 'tsv', 'ods'};
@@ -506,6 +507,7 @@ abstract final class SmartSortInput {
             return rowsToCsv(x.sheets.first.rows);
           }(),
         'odt' => odfText(bytes),
+        'udf' => clip(UdfReader.plainText(bytes)),
         'odp' => odfText(bytes, slides: true),
         'ods' => odsCsv(bytes),
         'epub' => epubText(bytes),

@@ -1533,3 +1533,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Çöp kutusu kapalıyken bir dosyayı sil → "1 öğe kalıcı olarak silindi" kartı. Excel CSV biçim uyarısı, taşıma "Geri al" sonucu, taramada "kaydedildi" ortak alt kartta.
 - [ ] Son dosyalar: yeniler ve açılanlar zamana göre karışık, "Yeni" etiketi duruyor; sekmeler Son dosyalar · Geçmiş · Yeniler; › doğru listeye gidiyor. Ana ekranı düzenle › Bölümler'de varsayılan Geçmiş seç → uygulamayı kapat-aç → şerit Geçmiş'te açılıyor. Yan menüde aynı şerit.
 - [ ] Ölçüm (C2): ana ekran soğuk açılış + şerit sekme geçişi + yan menü açılışı; `.r8test` taban önceki [apk].
+
+## B5 P23 UYAP (.udf) okuyucu (2026-11-20, dal faz-oto-B5-udf) — yazıldı, cihazda doğrulanmadı
+- [ ] Dosya listesinde .udf Word simgesiyle görünüyor; dokununca Word okuyucusunda açılıyor (başlık, kalın/eğik, hiza, tablo, gömülü resim yerinde).
+- [ ] WhatsApp/Gmail'den gelen .udf "Birlikte aç" listesinde Dosya Okuyucu çıkıyor mu (zip türüyle geliyorsa çıkar; çıkmıyorsa bildir).
+- [ ] Paylaş/Dışa aktar → PDF: PDF içeriği ekrandakiyle aynı. Düzenleyip kaydet → "X.docx olarak kaydedildi"; özgün .udf değişmedi, yanına .docx geldi.
+- [ ] Bozuk .udf (ör. yarım indirilmiş) → "bozuk ya da eksik… yeniden indirin" metni; uygulama çökmüyor.
+- [ ] Gerçek UYAP belgesinde eksik kalan (madde imi, numara, üst/alt bilgi, birleşik hücre) var mı → not al (çevrilmiyor, bilinçli).
+- [ ] Ölçüm (C2): .udf açılış süresi (çevrim izolatta), kasma yok mu.

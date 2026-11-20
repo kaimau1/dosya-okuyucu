@@ -10,7 +10,10 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
         if (!mounted) return;
         unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
             builder: (_) =>
-                WordMobileEditorScreen(path: widget.path, name: widget.name))));
+                WordMobileEditorScreen(
+                    path: widget.path,
+                    name: widget.name,
+                    savePath: widget.savePath))));
         return;
       }
       // Ayrıştırma + görünüm kopyası arka izlekte (bkz. `openForView`):
@@ -50,9 +53,11 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     if (editor == null) return;
     final bytes = await editor.saveAsync();
     await SafeWrite.bytes(widget.path, bytes);
+    final out = widget.savePath;
+    if (out != null) await SafeWrite.bytes(out, bytes);
     // "Yaptıklarım" defteri (istek 2026-08-07): düzenlenen belge orada
     // görünsün. Beklenmez — kaydetmenin hızını defter yavaşlatmamalı.
-    unawaited(ActivityLog.add(ActivityKind.documentEdit, widget.path));
+    unawaited(ActivityLog.add(ActivityKind.documentEdit, out ?? widget.path));
   }
 
   Future<void> _save() async {
@@ -64,6 +69,13 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     // Canlı görünüm DOM'da zaten güncel — yeniden çizim yok, imleç kaybolmaz.
     if (!mounted) return;
     if (ok) {
+      final out = widget.savePath;
+      if (out != null) {
+        showSnack(context,
+            context.t('word.saved_as_docx', {'name': out.split('/').last}));
+        _partSetState(() {});
+        return;
+      }
       // H7.3: "kalıcı yer için…" ipucu bir kez; sonra yalnız "Kaydedildi".
       final where = await OnceHints.take('save_where');
       if (!mounted) return;
@@ -121,6 +133,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       builder: (_) => WordMobileEditorScreen(
         path: widget.path,
         name: widget.name,
+        savePath: widget.savePath,
         startPara: top,
         caretOut: caret,
       ),

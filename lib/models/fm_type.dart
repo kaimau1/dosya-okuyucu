@@ -80,7 +80,7 @@ enum FmType {
 
   // Eski Office (.doc/.xls/.ppt) ve OpenDocument kendi ailesine düşer:
   // kullanıcı ".xls Excel değil mi?" diye sorar, "Eski Office" diye değil.
-  static const _word = {'doc', 'docx', 'docm', 'dot', 'dotx', 'odt', 'rtf'};
+  static const _word = {'doc', 'docx', 'docm', 'dot', 'dotx', 'odt', 'rtf', 'udf'};
   static const _excel = {
     'xls', 'xlsx', 'xlsm', 'xlsb', 'xlt', 'xltx', 'ods', 'csv', 'tsv',
   };
