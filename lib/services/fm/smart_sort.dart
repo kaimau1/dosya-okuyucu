@@ -135,11 +135,18 @@ class SmartRecord {
 
   /// Gereksiz mi (Ayıkla)? Görsellerde ve videoda (yanlışlıkla çekilmiş,
   /// çok kısa, karanlık) anlamlı.
+  ///
+  /// U4 dilim 2 kökü: bulanık/yanlışlıkla işareti kategoriden bağımsız
+  /// sayılıyordu → bulanık çekilmiş kimlik, fiş, dekont fotoğrafı silinmeye
+  /// önerildi; kullanıcı "Kategori yanlış mı?" ile belgeye çevirdiğinde de
+  /// Ayıkla'da kalıyordu. Belge kategorisinde bu işaretler sayılmaz (kayıt
+  /// değişmez, yalnız yorum — eski kayıtlar da düzelir).
   bool get clutter =>
       SmartTaxonomy.clutterCategories.contains(cat) ||
-      blurry ||
-      accidental ||
+      _junkShot ||
       oldScreenshot;
+
+  bool get _junkShot => (blurry || accidental) && !SmartTaxonomy.isDoc(cat);
 
   /// Ekran görüntüsü yaşı (B2 dilim 2, PLAN §1.2 Ayıkla 2): bu kadar günden
   /// eski ekran görüntüsü Ayıkla'ya önerilir (silinmez, kullanıcı seçer).
@@ -155,9 +162,9 @@ class SmartRecord {
   /// bulanık → eski ekran görüntüsü).
   String? get clutterReason => SmartTaxonomy.clutterCategories.contains(cat)
       ? cat
-      : (accidental
-          ? 'accidental'
-          : (blurry ? 'blurry' : (oldScreenshot ? 'old_shot' : null)));
+      : (_junkShot
+          ? (accidental ? 'accidental' : 'blurry')
+          : (oldScreenshot ? 'old_shot' : null));
 
   /// Baskın kullanıcı kategorisi: en yüksek eşleşme, yerleşik kategorinin
   /// güveninden yüksekse ya da yerleşik ikinci ad boş kalacaksa ([builtinEmpty]).
@@ -997,16 +1004,25 @@ abstract final class SmartSort {
   /// önbellekleri tazelensin ([save]: kayıtlar da diske yazılsın).
   static void invalidateLabels({bool save = false}) => _changed(save: save);
 
-  /// Öğrenilen düzeltmeler bu yeni sonucu çeviriyor mu? (elle düzeltilmiş
-  /// kayda dokunulmaz.)
-  static SmartRecord _learned(SmartRecord rec, {required bool image}) {
-    // Kurulum/arşiv kategorisi uzantıdan kesin; öğrenme çevirmez (çevirse
+  /// Yanıt → kayıt + öğrenilen düzeltmeler. Öğrenme kategoriyi çevirirse
+  /// kayıt YENİ kategoriyle aynı yanıttan yeniden kurulur: her kategorinin
+  /// alt türü, banka, kurum, son ödeme, tutar aynı istekte soruluyor. U4
+  /// dilim 2 kökü: eskiden yalnız kategori değişiyor, bunlar düşüyordu —
+  /// öğrenilen faturanın adı "Elektrik faturası · Ekim 2026" yerine "Fatura"
+  /// kalıyor, son ödeme süzgecine girmiyordu. Yanıt yoksa null.
+  static SmartRecord? _answered(FsEntry e, DecisionResult result,
+      {required DateTime today, required bool image}) {
+    final raw = fromAnswers(e, result, today: today);
+    // Kurulum/arşiv/ses/video uzantıdan kesin; öğrenme çevirmez (çevirse
     // `needs` her turda yeniden sorardı).
-    if (rec.user || SmartTaxonomy.fixedCategories.contains(rec.cat)) {
-      return rec;
+    if (raw == null || SmartTaxonomy.fixedCategories.contains(raw.cat)) {
+      return raw;
     }
-    final to = SmartLearn.adjust(rec.path, rec.cat, image: image);
-    return to == null ? rec : rec.copyWith(cat: to);
+    final to = SmartLearn.adjust(raw.path, raw.cat, image: image);
+    if (to == null) return raw;
+    // copyWith(cat): öğrenilen kategorinin güveni 1 (eskisi gibi).
+    return (fromAnswers(e, result, today: today, asCat: to) ?? raw)
+        .copyWith(cat: to);
   }
 
   /// "Gereksiz değil": kutlama/mem ise kişisel fotoğrafa çevrilir, bulanık /
@@ -1152,8 +1168,11 @@ abstract final class SmartSort {
   /// [today]: isteğin sorulduğu gün (tarih aralıkları buna göre; verilmezse
   /// şimdi). APK/arşivde ([SmartInputKind.meta]) kategori sabit
   /// [SmartTaxonomy.package], yalnız alt tür yanıtı okunur.
+  ///
+  /// [asCat]: modelin kategorisi yerine bu kategoriyle kur (öğrenilen
+  /// düzeltme — alt tür vb. o kategorinin yanıtından okunur).
   static SmartRecord? fromAnswers(FsEntry e, DecisionResult r,
-      {DateTime? today}) {
+      {DateTime? today, String? asCat}) {
     final by = {for (final a in r.answers) a.question.id: a};
     final kind = SmartSortInput.kindOf(e.path);
     if (kind == SmartInputKind.audio || kind == SmartInputKind.video) {
@@ -1175,7 +1194,7 @@ abstract final class SmartSort {
       );
     }
     final catAns = by['cat'];
-    final cat = catAns?.choice;
+    final cat = asCat ?? catAns?.choice;
     if (cat == null) return null;
     // Belgeye görsel kategorisi gelirse (seçenekte yok; güvenlik) kayıt yok.
     if (SmartTaxonomy.isImageCat(cat) &&
@@ -1319,9 +1338,9 @@ abstract final class SmartSort {
     } finally {
       prep?.release();
     }
-    final raw = fromAnswers(entry, result, today: now);
-    if (raw == null) return null;
-    final rec = _withUser(_learned(raw, image: image), result);
+    final learned = _answered(entry, result, today: now, image: image);
+    if (learned == null) return null;
+    final rec = _withUser(learned, result);
     final old = _records[entry.path];
     final kept = _keepManual(old, rec);
     _records[entry.path] =
@@ -1361,8 +1380,7 @@ abstract final class SmartSort {
     } finally {
       prep.release();
     }
-    final raw = fromAnswers(entry, result, today: now);
-    return raw == null ? null : _learned(raw, image: image);
+    return _answered(entry, result, today: now, image: image);
   }
 
   // ── Kapsam ─────────────────────────────────────────────────────────────
@@ -1575,10 +1593,9 @@ abstract final class SmartSort {
               usedTokens += tokens;
               usedQuestions += questions.length;
             }
-            final raw = fromAnswers(e, result, today: today);
-            final rec = raw == null
-                ? null
-                : _withUser(_learned(raw, image: image), result);
+            final learned =
+                _answered(e, result, today: today, image: image);
+            final rec = learned == null ? null : _withUser(learned, result);
             if (rec != null) {
               final old = _records[e.path];
               final kept = _keepManual(old, rec);
@@ -1594,19 +1611,23 @@ abstract final class SmartSort {
                   : 'sm.fail_empty');
             }
           } on GeminiException catch (err) {
-            failed++;
             if (err.statusCode == 429) SmartQuota.noteLimited();
-            if (const {401, 403, 429}.contains(err.statusCode) ||
-                OfflineMode.enabled) {
+            if (stopsRun(err)) {
+              // Dosyanın suçu değil: başarısız sayılmaz, sonraki turda sorulur.
               stoppedBy = stopText(err);
             } else {
+              failed++;
               _markFailed(e);
               lastError = err.message;
             }
           } catch (err) {
-            failed++;
-            _markFailed(e);
-            lastError = UserError.from(err).message;
+            if (stopsRun(err)) {
+              stoppedBy = stopText(err);
+            } else {
+              failed++;
+              _markFailed(e);
+              lastError = UserError.from(err).message;
+            }
           }
           progress.value = SmartProgress(processed + failed, todo.length);
           if ((processed + failed) % 10 == 0) _changed();
@@ -1640,6 +1661,18 @@ abstract final class SmartSort {
   /// API iletisi de "Durdu: …" diye gösteriliyordu). Akıllı düzen, Kategorilerim
   /// denemesi ve geriye dönük uygulama aynı metni kullanır.
   static String stopText(Object err) => UserError.from(err).message;
+
+  /// Turu durduran hata mı: yetki/kota (401/403/429), çevrimdışı kip ya da
+  /// bağlantı kopması. U4 dilim 2 kökü: ağ tur ortasında kopunca kalan
+  /// yüzlerce dosya tek tek "Ağ hatası" alıyor, başarısız sayılıp oturumda
+  /// bir daha sorulmuyor ve günlük hak harcanıyordu (ağ hatası kodu 0'dı,
+  /// listede yoktu). Tur, Kategorilerim denemesi, geriye dönük uygulama ve
+  /// doğruluk tezgâhı AYNI kuralı kullanır.
+  static bool stopsRun(Object err) =>
+      OfflineMode.enabled ||
+      UserError.classify(err) == UserErrorKind.offline ||
+      (err is GeminiException &&
+          const {401, 403, 429}.contains(err.statusCode));
 
   /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
   @visibleForTesting

@@ -1538,6 +1538,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Bellek Analizi: araçlarda "Kopyalar" (ana ekrandakiyle aynı simge) ve Akıllı düzen açıksa "Ayıkla · n"; aramada 200'den çok sonuç → "Tümünü seç" en çok 200 seçiyor.
 - [ ] Ölçüm (C2): Akıllı düzen ekranı açılışı (budama izolatta) — kasma yok mu.
 
+## U4.2 Akıllı düzen doğruluk ve durma (2026-11-20, dal faz-oto-U4-akilli-2) — yazıldı, cihazda doğrulanmadı
+- [ ] Akıllı düzen "Şimdi düzenle" → tur sürerken Wi-Fi/veriyi kapat: tur kısa sürede "Durdu: … Bağlantı yok — internet ya da ağ bağlantısını denetleyin" diyor; "N dosya yapılamadı" yığılmıyor. Bağlantıyı aç, yeniden düzenle → kalan dosyalar düzenleniyor (aynı oturumda da).
+- [ ] Kategorilerim → yeni kategori "Dene" sürerken bağlantıyı kes: deneme duruyor ve nedenini söylüyor. Geliştirici › Doğruluk ölçümü "Hepsini yeniden sor" için de aynı (ham İngilizce ileti değil).
+- [ ] Bulanık bir fiş/kimlik fotoğrafı (ya da bulanık bir fotoğrafı "Kategori yanlış mı?" ile Fiş yap) → Ayıkla listesinde YOK; bulanık kişisel fotoğraf hâlâ "Bulanık" nedeniyle orada.
+- [ ] Bir fişi "Kategori yanlış mı?" ile Fatura'ya düzelt (benzerleri de öğrensin) → sonraki turda benzer yeni dosyanın ikinci adı yalnız "Fatura" değil, türüyle ("Elektrik faturası · …") geliyor mu.
+
 ## U3 Ana ekran + bildirim bütünlüğü (2026-11-20, dal faz-oto-U3-ana-ekran) — yazıldı, cihazda doğrulanmadı
 - [ ] Ayarlar > Depolama ve başarım > Başarım: satırda güncel değer ("Otomatik (orta)" gibi) görünüyor; menüde seçili onay işaretli. Çöp otomatik temizle, varsayılan sıralama, medya açılışında da aynı.
 - [ ] Ana ekran Araçlar: "Kopyalar" ve "Bağlantıdan indir" yok; paylaşılan bir bağlantı yine indirme ekranını açıyor.

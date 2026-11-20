@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/services/ai_pool.dart';
 import 'package:dosya_okuyucu/services/fm/ai_scope.dart';
 import 'package:dosya_okuyucu/services/fm/smart_bench.dart';
@@ -233,7 +234,8 @@ void main() {
         await SmartBench.askModel(credentials: creds, scope: scope, all: true);
     expect(ok2, 0);
     expect(failed2, greaterThan(0));
-    expect(stopped2, 'kota');
+    // U4 dilim 2: ham API iletisi değil, kullanıcı dilinde neden.
+    expect(stopped2, AppStrings.current.t('uerr.ai_quota'));
     expect(SmartBench.asking.value, isNull);
   });
 }

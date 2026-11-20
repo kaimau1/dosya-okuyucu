@@ -6,7 +6,6 @@ import 'package:path/path.dart' as p;
 
 import '../../models/fs_entry.dart';
 import '../ai_pool.dart';
-import '../gemini_service.dart';
 import '../offline_mode.dart';
 import 'ai_scope.dart';
 import 'fm_env.dart';
@@ -486,14 +485,11 @@ abstract final class SmartBench {
               _items[i] = _items[i].withProbe(SmartBenchGuess.of(rec));
             }
           }
-        } on GeminiException catch (err) {
+        } catch (err) {
+          // Kota/yetki/bağlantı → dur, neden kullanıcı dilinde (Akıllı
+          // düzenle ortak kural); öteki hatada okunamayan dosya düşer, sayılır.
           failed++;
-          if (const {401, 403, 429}.contains(err.statusCode)) {
-            stoppedBy = err.message;
-          }
-        } catch (_) {
-          // Bilinçli: okunamayan dosya düşer, sayılır.
-          failed++;
+          if (SmartSort.stopsRun(err)) stoppedBy = SmartSort.stopText(err);
         }
         done++;
         asking.value = (done, todo.length);
