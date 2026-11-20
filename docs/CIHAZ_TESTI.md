@@ -1518,6 +1518,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Düz (formsuz) bir başvuru PDF'i → PDF araçları → Pro araçlar → "Form alanı ekle" → "Doldurulacak yerleri bul": `____` / `.....` / `☐` yerleri kutulu geliyor, dokununca siliniyor, sürükleyince ekleniyor; Tamam → alanlar doldurulabiliyor, otomatik doldurma "Ad Soyad" gibi etiketli alanı tanıyor. Formsuz/yeri olmayan PDF'te "bulunamadı" uyarısı.
 ## B4 PDF Pro dilim 7 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
 - [ ] Çizgili (alt çizgi / boş kutu / kare onay kutusu ÇİZİLMİŞ, metin `___` değil) bir başvuru PDF'i → "Doldurulacak yerleri bul": çizgilerin üstü metin alanı, kareler onay kutusu olarak geliyor; içi yazılı tablo hücreleri ve altı çizili yazılar önerilmiyor; 300 sayfalık belgede tarama donmuyor.
+## B4 PDF Pro dilim 8 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] İmza alanı olan bir form PDF'i → ⋮ › Formu doldur: imza alanı kilitli değil "İmzalamak için dokunun"; dokununca kayıtlı imza geliyor (yoksa pano); Doldur ve kaydet → imza alanın kutusunda, oranı bozulmadan; Chrome/Acrobat'ta da görünüyor.
+- [ ] Taranmış (yalnız görüntü) PDF → Pro araçlar › "Aranabilir yap (OCR)": ilerleme şeridi, bitince "N sayfa aranabilir oldu"; görüntü değişmiyor; kaydedince aramada sözcük bulunuyor, seçip kopyalanıyor; doğal metinli PDF'te "bulunamadı" diyor.
 ## B15 Akıllı bütünlük dilim 1 (2026-11-19, dal faz-oto-B15-akilli) — yazıldı, cihazda doğrulanmadı
 - [ ] Alt gezinmede sekme "Akıllı"; Akıllı dosya asistanında 4 sekme (Analiz · Türler · Öneriler · Rapor), ⋮ menüsünde "Sohbet" yok; Analiz'deki sayı kartları doğru sekmeyi açıyor.
 - [ ] Dosya ⋮: en üstte "Akıllı ikinci ad" (AI simgesi), "AI ile özetle / hızlı kontrol / kontrol listesi" yok; görselde "Görselde ne var?" AI simgesiyle. Çoklu seçim "Daha fazla": "Akıllı ikinci ad" + "Kategori ekle" aynı sırada; toplu kontrol/kontrol listesi yok.

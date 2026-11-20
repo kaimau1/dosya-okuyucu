@@ -135,6 +135,22 @@ void main() {
     });
   });
 
+  group('PdfTools.addTextLayer — P19 aranabilir PDF', () {
+    test('OCR satırı görünmez metin olarak aranabilir olur', () async {
+      final src = await _makePdf([300, 300]);
+      final out = await PdfTools.addTextLayer(src, {
+        1: [(text: 'Merhaba OCR', rect: const Rect.fromLTWH(40, 60, 120, 14))],
+      });
+      final doc = PdfDocument(inputBytes: out);
+      final ex = PdfTextExtractor(doc);
+      expect(ex.extractText(startPageIndex: 1, endPageIndex: 1),
+          contains('Merhaba OCR'));
+      expect(ex.extractText(startPageIndex: 0, endPageIndex: 0),
+          isNot(contains('Merhaba')));
+      doc.dispose();
+    });
+  });
+
   group('movePageOrder — sayfa taşıma sırası', () {
     test('bir sayfa arkaya (aşağı) taşınır', () {
       expect(movePageOrder(4, 1, 2), [0, 2, 1, 3]);

@@ -63,6 +63,7 @@ const _proTools = <List<_ProTool>>[
   [
     _ProTool('compress_hard', AppIcons.pdfCompressHard, 'pp.compress_hard',
         'pp.compress_hard_sub'),
+    _ProTool('ocr_layer', AppIcons.ocr, 'pp.ocr_layer', 'pp.ocr_layer_sub'),
   ],
 ];
 

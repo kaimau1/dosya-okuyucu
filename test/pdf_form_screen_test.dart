@@ -32,6 +32,8 @@ void main() {
         ..text = 'sabit'
         ..readOnly = true;
       doc.form.fields.add(locked);
+      doc.form.fields.add(PdfSignatureField(page, 'Imza',
+          bounds: const Rect.fromLTWH(0, 100, 150, 40)));
     }
     final path = '${dir.path}/form${withFields ? '' : '_bos'}.pdf';
     File(path).writeAsBytesSync(doc.saveSync());
@@ -60,6 +62,8 @@ void main() {
     expect(find.byType(CheckboxListTile), findsOneWidget);
     // Salt-okunur alan düzenlenebilir olarak DEĞİL, kilit simgesiyle çizilir.
     expect(find.byIcon(AppIcons.lock), findsOneWidget);
+    // İmza alanı kilitli değil, aynı ekranda imzalanır (P18 tek ekran).
+    expect(find.text('İmzalamak için dokunun'), findsOneWidget);
     // Kaydet çubuğu var (doldurulabilir alan olduğu için).
     expect(find.text('Doldur ve kaydet'), findsOneWidget);
     // Kilitleme varsayılan KAPALI (geri alınamaz bir iş).

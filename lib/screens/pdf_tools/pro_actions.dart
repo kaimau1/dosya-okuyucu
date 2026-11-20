@@ -31,6 +31,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'stamp' => _stamp(),
       'numbering' => _numbering(),
       'compress_hard' => _compressHard(),
+      'ocr_layer' => _ocrLayer(),
       'reorder' => _reorderPages(),
       'blank' => _findBlankPages(),
       'crop' => _cropPages(),
@@ -593,6 +594,60 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   }
 
   static const _hardChunk = 40;
+
+  // ── P19. Aranabilir PDF (OCR görünmez katman) ────────────────────────────
+
+  Future<void> _ocrLayer() async {
+    final pw = _password;
+    final label = _str.t('pp.ocr_layer');
+    var lines = <int, List<({String text, Rect rect})>>{};
+    await _produce(label, () async {
+      lines = await _ocrLines(_bytes!, pw);
+      if (lines.isEmpty) _snack(_str.t('pp.ocr_layer_none'));
+    });
+    if (lines.isEmpty || !mounted) return;
+    final font = await _unicodeFont();
+    final prev = _bytes;
+    await _apply(
+      label,
+      (b) => PdfTools.addTextLayerInBackground(b, lines,
+          fontBytes: font, password: pw),
+    );
+    if (!mounted || identical(prev, _bytes)) return;
+    _snack(_str.t('pp.ocr_layer_done', {'n': lines.length}));
+  }
+
+  /// Metin katmanı OLMAYAN (taranmış) sayfaların OCR satırları, görünen
+  /// sayfa koordinatında (sol-üst). Doğal metinli sayfaya OCR yazılmaz (PK7).
+  Future<Map<int, List<({String text, Rect rect})>>> _ocrLines(
+      Uint8List bytes, String? pw) async {
+    final out = <int, List<({String text, Rect rect})>>{};
+    final doc = await PdfDocument.openData(bytes,
+        passwordProvider: pw == null ? null : () async => pw);
+    try {
+      for (var i = 0; i < doc.pages.length; i++) {
+        final page = doc.pages[i];
+        if (page.rotation != PdfPageRotation.none) continue;
+        final own = await page.loadText();
+        if (pdfHasTextLayer(own?.fullText ?? '')) continue;
+        final ocr = await PdfOcrText.forPage(page);
+        if (ocr == null) continue;
+        final rows = [
+          for (final f in ocr.fragments)
+            (
+              text: ocr.fullText.substring(f.index, f.index + f.length),
+              // PDF uzayı (y yukarı) → görünen sayfa (sol-üst).
+              rect: Rect.fromLTRB(f.bounds.left, page.height - f.bounds.top,
+                  f.bounds.right, page.height - f.bounds.bottom),
+            ),
+        ];
+        if (rows.isNotEmpty) out[i] = rows;
+      }
+    } finally {
+      await doc.dispose();
+    }
+    return out;
+  }
 
   // ── 8. Sayfa ızgarası işlemleri ──────────────────────────────────────────
 

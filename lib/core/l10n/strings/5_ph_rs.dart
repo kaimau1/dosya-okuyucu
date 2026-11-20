@@ -204,6 +204,12 @@ const Map<String, (String, String, String)> _t5 = {
   'pf.page': ('Sayfa {n}', 'Page {n}', 'الصفحة {n}'),
   'pf.other_fields': ('Diğer alanlar', 'Other fields', 'حقول أخرى'),
   'pf.read_only': ('salt okunur', 'read-only', 'للقراءة فقط'),
+  'pf.sign_tap': ('İmzalamak için dokunun', 'Tap to sign', 'انقر للتوقيع'),
+  'pf.signed': (
+    'İmzalandı — kaydedince alana basılır',
+    'Signed — stamped into the field on save',
+    'تم التوقيع — يُختم في الحقل عند الحفظ',
+  ),
   'pf.flatten': (
     'Doldurduktan sonra kilitle',
     'Lock after filling',
