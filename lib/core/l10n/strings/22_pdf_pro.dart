@@ -281,6 +281,9 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.field_text': ('Metin alanı', 'Text field', 'حقل نص'),
   'pp.field_checkbox': ('Onay kutusu', 'Checkbox', 'مربع اختيار'),
   'pp.field_signature': ('İmza alanı', 'Signature field', 'حقل توقيع'),
+  'pp.field_detect': ('Doldurulacak yerleri bul', 'Find fill-in spots', 'العثور على أماكن التعبئة'),
+  'pp.field_detect_sub': ('Çizgi, nokta ve kutuları alana çevirir', 'Turns blanks, dots and boxes into fields', 'يحوّل الفراغات والنقاط والمربعات إلى حقول'),
+  'pp.field_detect_none': ('Doldurulacak yer bulunamadı', 'No fill-in spots found', 'لم يُعثر على أماكن للتعبئة'),
   // ── Dönüştürmeler ──
   'pp.images_to_pdf': ('Görsellerden PDF', 'PDF from images', 'PDF من الصور'),
   'pp.images_to_pdf_sub': ('Çok görsel seç → tek PDF', 'Pick many images → one PDF', 'اختر صورًا متعددة ← ملف PDF واحد'),

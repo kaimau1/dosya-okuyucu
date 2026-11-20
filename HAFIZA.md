@@ -463,3 +463,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Biçim varsayımı (Java Swing):** `Alignment` 0 sol/1 orta/2 sağ/3 iki yana, ölçüler punto (×20 twip), `foreground` işaretli ARGB, `paperOrientation="0"` yatay; tablo `<table columnSpans><row><cell><paragraph>`; resim boyu `width/height` yoksa PNG/JPEG başlığından. Gerçek örnekle doğrulanmadı → CIHAZ_TESTI B5. Çevrilmeyenler (bilinçli): madde imi/numara, üst/alt bilgi (gövdeye akar), hücre birleştirme.
 - **Hata:** ZIP değil / `content.xml` yok / kök `template` değil → "bozuk, yeniden indirin"; ZIP yerel başlık bayrağı bit 0 → "şifreli, UYAP'ta şifresiz kaydedin ya da PDF alın" (`udf.corrupt` / `udf.encrypted`). Test sentetik fikstürle (`test/udf_reader_test.dart`, KVKK: gerçek belge yok).
 - Akıllı düzen metin çıkarımına `udf` eklendi ("resmî/mahkeme" sınıflaması AI'ın; ayrı kural yok). Yeni bağımlılık yok (`archive` + `xml`).
+
+## 2026-11-20 — B4 P18 düz PDF alan algılama (dal faz-oto-B4-pdfpro; yazıldı, cihazda doğrulanmadı)
+- `PdfFormPro.detectFields` (izolatta): Syncfusion metin glifleri → `___`(≥3) / `.....`(≥5, `…`=3) dizisi metin alanı, `☐□❏❑▢` onay kutusu; alan adı = satırda diziden önceki etiket (otomatik doldurma `matchKey` bunu tanır). Var olan alanla çakışan ve döndürülmüş sayfa atlanır. Sözcük arası boşluk glif değil — etiket boşluğu glif aralığından geri kurulur.
+- Sınır (bilerek): çizgi/kutu VEKTÖRLERİ okunmaz (çizgili/taranmış form bulunmaz) → sonra `pdf_objects` yol sezgisi. Arayüz: "Form alanı ekle" levhasında "Doldurulacak yerleri bul" → `PdfRegionScreen(initial:)` gözden geçirme.
+- Form otomatik doldurma (profil), form oluşturma (`_createForm` + alan kipi) ZATEN vardı (Faz 39 m.9) — yeniden yazılmadı.

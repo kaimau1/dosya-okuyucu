@@ -1507,6 +1507,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Stüdyo → sayfa seç → alt çubuk "Seçilenleri yeni PDF'e çıkar": özgünün yanına `-sayfalar.pdf` (sıra/döndürme stüdyodaki gibi), özgün değişmiyor; "Seçilen sayfalardan böl": `-bolum1..n.pdf`, yalnız ilk sayfa seçiliyse uyarı.
 - [ ] Üst çubuk "Sayfa ekle" menüsü: görselden (A4) ve taramadan sayfa son seçilenin ardına geliyor; yüklenirken ince ilerleme çubuğu.
 - [ ] 100+ sayfada sayfayı basılı tutup ızgaranın alt/üst kenarına sürükle: kendiliğinden kayıyor, bırakınca duruyor; kayarken takılma (p99) gözle.
+## B4 PDF Pro dilim 6 (2026-11-20, dal faz-oto-B4-pdfpro) — yazıldı, cihazda doğrulanmadı
+- [ ] Düz (formsuz) bir başvuru PDF'i → PDF araçları → Pro araçlar → "Form alanı ekle" → "Doldurulacak yerleri bul": `____` / `.....` / `☐` yerleri kutulu geliyor, dokununca siliniyor, sürükleyince ekleniyor; Tamam → alanlar doldurulabiliyor, otomatik doldurma "Ad Soyad" gibi etiketli alanı tanıyor. Formsuz/yeri olmayan PDF'te "bulunamadı" uyarısı.
 ## B15 Akıllı bütünlük dilim 1 (2026-11-19, dal faz-oto-B15-akilli) — yazıldı, cihazda doğrulanmadı
 - [ ] Alt gezinmede sekme "Akıllı"; Akıllı dosya asistanında 4 sekme (Analiz · Türler · Öneriler · Rapor), ⋮ menüsünde "Sohbet" yok; Analiz'deki sayı kartları doğru sekmeyi açıyor.
 - [ ] Dosya ⋮: en üstte "Akıllı ikinci ad" (AI simgesi), "AI ile özetle / hızlı kontrol / kontrol listesi" yok; görselde "Görselde ne var?" AI simgesiyle. Çoklu seçim "Daha fazla": "Akıllı ikinci ad" + "Kategori ekle" aynı sırada; toplu kontrol/kontrol listesi yok.
