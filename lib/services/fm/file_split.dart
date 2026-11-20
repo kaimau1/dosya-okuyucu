@@ -81,19 +81,23 @@ abstract final class FileSplit {
       sink = null;
     }
 
+    void dropWritten() {
+      for (final part in written) {
+        try {
+          File(part).deleteSync();
+        } catch (_) {
+          // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+        }
+      }
+    }
+
     try {
       await for (final chunk in source.openRead()) {
         var offset = 0;
         while (offset < chunk.length) {
           if (isCancelled?.call() ?? false) {
             await closePart();
-            for (final part in written) {
-              try {
-                File(part).deleteSync();
-              } catch (_) {
-                // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
-              }
-            }
+            dropWritten();
             return const [];
           }
           if (sink == null) {
@@ -115,8 +119,34 @@ abstract final class FileSplit {
           if (inPart >= partBytes) await closePart();
         }
       }
+    } catch (_) {
+      // Yarım bölme (disk doldu, izin yok…) yerinde bırakılmaz: yarım parça
+      // seti birleştirilince sessizce bozuk dosya üretirdi (2026-11-20).
+      try {
+        await closePart();
+      } catch (_) {
+        // Bilinçli: kapanış hatası asıl hatanın önüne geçmesin.
+      }
+      sink = null;
+      dropWritten();
+      rethrow;
     } finally {
       await closePart();
+    }
+    // **Eski parça artığı** (2026-11-20): aynı dosya önce daha küçük parça
+    // boyutuyla bölünmüşse `.005`, `.006` gibi fazladan eski parçalar kalır
+    // ve birleştirme onları da ekleyip bozuk dosya üretirdi. Yeni setin
+    // ardındaki aynı adlı parçalar silinir (öncekiler zaten üzerine yazıldı).
+    try {
+      for (final entity in Directory(dir).listSync(followLinks: false)) {
+        if (entity is! File) continue;
+        final m = RegExp(r'^(.*)\.(\d{3,})$')
+            .firstMatch(p.basename(entity.path));
+        if (m == null || m.group(1) != baseName) continue;
+        if (int.parse(m.group(2)!) > written.length) entity.deleteSync();
+      }
+    } catch (_) {
+      // Bilinçli: klasör okunamazsa yeni set yine doğru; artık temizlenemedi.
     }
     FsEvents.changed();
     return written;
@@ -188,6 +218,22 @@ abstract final class FileSplit {
           onProgress?.call(done, total);
         }
       }
+    } catch (_) {
+      // Yarım birleşmiş dosya bırakılmaz (2026-11-20).
+      if (!closed) {
+        closed = true;
+        try {
+          await sink.close();
+        } catch (_) {
+          // Bilinçli: kapanış hatası asıl hatanın önüne geçmesin.
+        }
+      }
+      try {
+        File(target).deleteSync();
+      } catch (_) {
+        // Bilinçli: temizlik.
+      }
+      rethrow;
     } finally {
       if (!closed) {
         await sink.flush();

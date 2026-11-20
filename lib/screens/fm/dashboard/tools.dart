@@ -25,30 +25,9 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         onDismiss: () => unawaited(CrashLog.markSeen()),
       ));
     }
-    // **Akıllı düzen sonucu da bu kartta** (U3 m.4, 2026-11-20, kullanıcı:
-    // "üstteki iş bildirimi ile altındaki Akıllı düzen şeridi görsel olarak
-    // farklı → tek dil"): eski ayrı `SmartBatchStrip` kalktı.
-    final batch = SmartSort.lastBatch.value;
-    if (batch != null) {
-      void open() {
-        SmartSort.lastBatch.value = null;
-        unawaited(SmartSortScreen.open(context));
-      }
-
-      out.add(InboxEvent(
-        id: 'smart_batch_${batch.at.millisecondsSinceEpoch}',
-        icon: AppIcons.ai,
-        title: context.t('sm.batch_title', {'n': batch.paths.length}),
-        subtitle: (batch.byCategory.entries.toList()
-              ..sort((a, b) => b.value.compareTo(a.value)))
-            .take(3)
-            .map((e) => '${e.value} ${SmartCatStyle.label(context, e.key)}')
-            .join(', '),
-        actionLabel: context.t('jp.show'),
-        onTap: open,
-        onDismiss: () => SmartSort.lastBatch.value = null,
-      ));
-    }
+    // Akıllı düzen sonucu bu kartta DEĞİL (2026-11-20, kullanıcı: "sürekli
+    // bildirim geliyor, butonlar bir alta bir yukarı kayıyor"): Akıllı düzen
+    // kutusunun alt yazısında "+N yeni" olarak durur (bkz. sections.dart).
     if (_proCard) {
       out.add(InboxEvent(
         id: 'pro_card',
@@ -200,6 +179,47 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         subtitle: '',
         onTap: () => _push(const VaultScreen()),
       ),
+      // **Yeni araçlar** (2026-11-20, kullanıcı: "araçlar alanı hakkında
+      // beyin fırtınası lazım, yeni işe yarar butonlar"): Yakındaki
+      // cihazlar (telefon↔telefon/PC gönder-al), Ağ depolama (NAS/SMB/FTP),
+      // Yer aç (temizlik önerileri) ve AI Merkezi (dosyalarına sor, akıllı
+      // klasörler, faturalar). Hepsi zaten vardı ama derinde kalıyordu.
+      FmTileData(
+        icon: AppIcons.nearMe,
+        color: AppHues.teal,
+        id: 'nearby',
+        feature: Feature.transfer,
+        label: context.t('ui.tool_nearby'),
+        subtitle: '',
+        onTap: () => _push(const NearbyScreen()),
+      ),
+      FmTileData(
+        icon: AppIcons.cloud,
+        color: AppHues.navy,
+        id: 'remote',
+        feature: Feature.remote,
+        label: context.t('ui.tool_remote'),
+        subtitle: '',
+        onTap: () => _push(const RemoteConnectionsScreen()),
+      ),
+      FmTileData(
+        icon: AppIcons.cleanEmpty,
+        color: AppHues.cyan,
+        id: 'free_space',
+        feature: Feature.cleanup,
+        label: context.t('dock.free_space'),
+        subtitle: '',
+        onTap: () => OperationsScreen.open(context, tab: OpsTab.cleanup),
+      ),
+      FmTileData(
+        icon: AppIcons.ai,
+        color: AppHues.violet,
+        id: 'ai_hub',
+        feature: Feature.ai,
+        label: context.t('ui.tool_ai'),
+        subtitle: '',
+        onTap: () => _push(const AiHubScreen()),
+      ),
       // (Faturalar ve Akıllı klasörler 2026-10-21'de AI Merkezi'ne indi —
       // K8: "ayrı pano kutusu değil, AI Merkezi'nin alt bölümü".)
       // (Sohbet medyası ve Benzer görseller 2026-10-21'de Depolama
@@ -229,10 +249,14 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
     // 2026-11-18: iki satır — Harici bellek (sabit, başta) + yedi araç.
     const order = [
       'jobs',
+      'free_space',
       'produced',
       'vault',
       'new_document',
+      'nearby',
+      'ai_hub',
       'ftp',
+      'remote',
     ];
     int rank(FmTileData t) {
       final i = order.indexOf(t.id);

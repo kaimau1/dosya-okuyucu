@@ -677,19 +677,21 @@ class _StyledHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (filled) ...[
-                Row(children: [
-                  Expanded(child: Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: volumeLink)),
-                  Icon(AppIcons.chevron, color: fg),
-                ]),
-                const SizedBox(height: Gap.xs),
+                // Tek satır (2026-11-20, kullanıcı: "yukarıdaki alanlar daha
+                // da daraltılabilir, çok yer kaplıyorlar"): büyük "199 GB boş"
+                // solda, birim adı + doluluk sağda iki küçük satır.
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(child: free),
-                    const SizedBox(width: Gap.xs),
-                    Flexible(child: used),
+                    const SizedBox(width: Gap.sm),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [volumeLink, used],
+                      ),
+                    ),
+                    Icon(AppIcons.chevron, color: fg),
                   ],
                 ),
               ] else ...[

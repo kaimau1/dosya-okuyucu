@@ -533,3 +533,13 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak:** BrowserScreen altındaki İLK `Scrollable` yatay yol şeridi — `scrollUntilVisible` onu kaydırıp "Bad state: No element" verir; dikey (`AxisDirection.down`) olanı seç. Python heredoc'ta Dart `'
 '` yazarken kaçış gerçek satır sonu üretir (derleme kırılır, betik sessizce eski senaryoya düşer: "güncel senaryoyla derlenmedi").
 
+
+## 2026-11-20 — Kullanıcı toplu UI isteği (dal claude/ui-layout-functionality-improvements-wk9wdr; yazıldı, cihazda doğrulanmadı)
+- **Çöp:** çöpteki dosya tam görüntüleyicide değil `TrashPreviewScreen`'de açılır (yalnız Geri yükle / Kalıcı sil, yana kaydırma). Çöpte depolanan yol uzantısız (`files/<id>`) → tür `item.name`'den.
+- **Akıllı düzen bildirimi:** "N yeni dosya düzenlendi" artık SmartInbox satırı DEĞİL (panoyu zıplatıyordu, her seferinde kapatılıyordu) → Akıllı düzen kutusunun alt yazısı "+N yeni · T düzenli" + `pulse`; kutuya dokununca `lastBatch` temizlenir. Kutu boyu değişmez.
+- **Akıllı düzen ekranı:** üst durum kartı tek satır şeride indi, ayrıntı/düğme en alta; Ödemesi geçmiş/Süresi dolmuş/Tutar/Ayıkla akıllı klasör ızgarasında KUTU (`_ExtraTile`).
+- **Araçlar:** 4 sütun ızgara yerine `FmToolPills` (Wrap hap); yeni araçlar Yakındakiler, Ağ depolama, Yer aç, AI Merkezi. `FmToolGrid` yalnız ToolsScreen/testte.
+- **Seçim:** çoklu "Daha fazla" levhasında önizleme şeridi (`SelectionPreviewStrip`, levha seçimin KOPYASIYLA çalışır, ✕ `onDeselect` ile ekranın seçimini de günceller) + Taşı/Kopyala/Paylaş/Sil grubu; Sıkıştır hedefsiz listelerde ilk öğenin klasörüne.
+- **Böl/sıkıştır kökleri:** (1) bölme hata verince yarım parçalar kalıyordu; (2) aynı dosya küçük parçayla bölünüp sonra büyükle yeniden bölününce eski `.00N` artıkları birleştirmeye girip BOZUK dosya üretiyordu → yeni setin ötesindeki aynı adlı parçalar silinir; (3) birleştirme/sıkıştırma hatasında yarım çıktı kalıyordu; (4) `splitEntry` hatayı yakalamıyordu; (5) tek klasör sıkıştırınca "Rapor.v2" → "Rapor" adı.
+- **Akıllı kategori:** yeni `event` (davetiye/etkinlik/afiş/bilet) — davetiyeler "kutlama" sanılıp Ayıkla'ya (silme önerisi) düşüyordu; greeting tanımına "invitation değil" eklendi. Alt türler: vaccination, appointment, petition, bank_app, doc_page.
+- Alt panel: `new_files` (Yeniler), `opened` (Açılanlar); pano kutusu `history` (varsayılan gizli). Belgeler (CategoryScreen) ⋮ = genişletilmiş "Analiz ve diğer" levhası (Dosyalarıma sor, Akıllı düzen, Tara, Yeni belge, Tümünü seç, Görünenleri paylaş/sıkıştır).

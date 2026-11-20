@@ -68,6 +68,12 @@ abstract final class SmartTaxonomy {
         'material.',
     'email': 'A printed or saved e-mail message or newsletter (for example a '
         'mail printed to PDF from Gmail or Outlook), or a saved web page.',
+    // 2026-11-20: davetiye / etkinlik duyurusu eskiden "kutlama" (Ayıkla
+    // = silme önerisi) ya da "diğer"e düşüyordu.
+    'event': 'An invitation (wedding, engagement, ceremony, reception, '
+        'opening, graduation), an event poster or public announcement '
+        '(concert, conference, course, blood donation call, charity), or a '
+        'concert, cinema, theatre, match or museum ticket.',
     'note': 'A handwritten note, whiteboard, sticky note or a photo of a '
         'paper that fits none of the other document categories.',
   };
@@ -80,7 +86,8 @@ abstract final class SmartTaxonomy {
         'website, map, settings, game.',
     'greeting': 'A greeting or celebration image card: good morning / good '
         'night, religious or national holiday wishes, Friday blessing, '
-        'birthday or anniversary card, inspirational quote image.',
+        'birthday or anniversary card, inspirational quote image. NOT an '
+        'invitation, event poster or announcement.',
     'meme': 'A meme, joke image, cartoon, sticker-like image or viral picture.',
     'photo_people': 'A personal camera photo in which people are the main '
         'subject.',
@@ -185,6 +192,8 @@ abstract final class SmartTaxonomy {
       'civil_registry': 'A civil registry, population or residence '
           'certificate.',
       'military': 'A military service document.',
+      'petition': 'A petition or formal application letter to an '
+          'institution.',
       'other': 'Another official document.',
     },
     'health': {
@@ -194,6 +203,8 @@ abstract final class SmartTaxonomy {
       'imaging': 'A radiology / imaging report or image (X-ray, MRI, CT, '
           'ultrasound).',
       'discharge': 'A hospital discharge summary or epicrisis.',
+      'vaccination': 'A vaccination card or vaccination record.',
+      'appointment': 'A hospital or doctor appointment slip or reminder.',
       'other': 'Another medical document.',
     },
     'id': {
@@ -252,7 +263,19 @@ abstract final class SmartTaxonomy {
       'settings': 'A screenshot of phone or app settings.',
       'game': 'A screenshot of a game.',
       'ticket_qr': 'A screenshot of a ticket, QR code, pass or booking.',
+      'bank_app': 'A screenshot of a banking, payment or wallet app '
+          '(balance, transfer, card).',
+      'doc_page': 'A screenshot of a document, PDF, article or text page.',
       'other': 'Another kind of screenshot.',
+    },
+    'event': {
+      'wedding': 'A wedding, engagement or henna night invitation.',
+      'ceremony': 'An invitation to a ceremony, reception, opening, '
+          'graduation or meeting.',
+      'announcement': 'An event poster or public announcement (concert, '
+          'conference, course, blood donation call, charity).',
+      'event_ticket': 'A concert, cinema, theatre, match or museum ticket.',
+      'other': 'Another kind of event material.',
     },
     'photo_other': {
       'food': 'A photo of food or drink.',
@@ -318,6 +341,7 @@ abstract final class SmartTaxonomy {
     'education': 'school or education material',
     'work': 'work material',
     'manual': 'a manual, guide or warranty',
+    'event': 'an invitation, event announcement or event ticket',
     'screenshot': 'a screenshot (not of a chat)',
     'photo_other': 'a personal photo without people or documents',
   };
@@ -728,6 +752,7 @@ abstract final class SmartTaxonomy {
     'reading': ['kitap', 'makale', 'book', 'article', 'كتاب'],
     'email': ['e-posta', 'eposta', 'mail', 'gmail', 'email', 'bülten', 'newsletter', 'بريد'],
     'note': ['not', 'tahta', 'whiteboard', 'note', 'ملاحظة'],
+    'event': ['davetiye', 'davet', 'düğün', 'nişan', 'tören', 'etkinlik', 'afiş', 'duyuru', 'konser', 'invitation', 'event', 'دعوة'],
     'screenshot_chat': ['ekran görüntüsü', 'sohbet', 'screenshot', 'chat', 'whatsapp'],
     'screenshot': ['ekran görüntüsü', 'screenshot', 'لقطة شاشة'],
     'greeting': ['günaydın', 'iyi geceler', 'bayram', 'kandil', 'cuma', 'kutlama', 'greeting', 'تهنئة'],

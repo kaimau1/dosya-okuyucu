@@ -1,28 +1,6 @@
 part of '../dashboard_screen.dart';
 
 extension _DashboardScreenSectionsPart on _DashboardScreenState {
-  /// Araç ızgarasının hafif çerçevesi: kartsız simgeler kağıt zeminde
-  /// yüzüyordu, dokunma alanının nerede bittiği belirsizdi. Çerçeve kategori
-  /// kutularından DAHA HAFİF (bir ton açık zemin + ince kenarlık) — ağırlık
-  /// hiyerarşisi korunuyor, araçlar içerik kutularının önüne geçmiyor.
-  Widget _toolFrame(Widget child) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: Gap.xs, horizontal: Gap.sm),
-      decoration: BoxDecoration(
-        // Kağıt tokenlarından (elle hex yazılmıyor — 2026-08-17'de kağıt
-        // beyazlatılınca bu iki hex geride kalıp kutuyu sararmış gösterdi).
-        color: isDark ? scheme.surfaceContainerLow : Paper.card,
-        borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(
-          color: isDark ? scheme.outlineVariant : Paper.rule,
-        ),
-      ),
-      child: child,
-    );
-  }
-
   Widget _permissionCard() => Card(
         child: Padding(
           // Dikeyde 16 → 12: kart zaten çember + iki satır + çubuk taşıyor,
@@ -225,7 +203,7 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
                         top: Gap.sm, bottom: Gap.xs)),
                 _homeStyle == HomeStyle.band
                     ? HomeBandList(tiles: shown)
-                    : _toolFrame(FmToolGrid(tools: shown)),
+                    : FmToolPills(tools: shown),
               ],
             );
           },
@@ -393,13 +371,32 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         icon: AppIcons.ai,
         color: AppHues.violet,
         label: context.t('sm.tile'),
-        subtitle: SmartSort.enabled
-            ? context.t('sm.tile_on', {'n': SmartSort.records.length})
-            : context.t('sm.tile_off'),
+        // Yeni düzenlenen dosyalar artık üstte bildirim satırı DEĞİL, bu
+        // kutunun alt yazısı + nefes alan simge (kullanıcı 2026-11-20:
+        // "sürekli bildirim geliyor, kapatmak gerekiyor, butonlar bir alta
+        // bir yukarı kayıyor"). Kutu boyu değişmez → pano zıplamaz.
+        subtitle: !SmartSort.enabled
+            ? context.t('sm.tile_off')
+            : (SmartSort.lastBatch.value != null
+                ? context.t('ui.smart_new', {
+                    'n': SmartSort.lastBatch.value!.paths.length,
+                    't': SmartSort.records.length,
+                  })
+                : context.t('sm.tile_on', {'n': SmartSort.records.length})),
+        pulse: SmartSort.lastBatch.value != null,
         onTap: () async {
+          SmartSort.lastBatch.value = null;
           await SmartSortScreen.open(context);
           if (mounted) _partSetState(() {});
         },
+      ),
+      FmTileData(
+        id: 'history',
+        icon: AppIcons.history,
+        color: AppHues.royal,
+        label: context.t('ui.history'),
+        subtitle: context.t('ui.history_sub'),
+        onTap: () => _push(const OpenHistoryScreen()),
       ),
       // (Geçmiş kutusu 2026-11-18'de KALKTI — kullanıcı: "Geçmiş kartını
       // kaldıralım, üretilenleri aşağıdaki araçlara koyalım". Açılan dosyalar

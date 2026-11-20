@@ -711,20 +711,32 @@ Future<bool> splitEntry(BuildContext context, FsEntry entry) async {
     showSnackOn(messenger, strings.t('split.too_small'));
     return false;
   }
-  final parts = await showFmProgress<List<String>>(
-    context,
-    title: strings.t('split.working'),
-    describe: (value) => value.total > 0
-        ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'
-        : '',
-    task: (report, isCancelled) => FileSplit.split(
-      entry.path,
-      partBytes: size,
-      isCancelled: isCancelled,
-      onProgress: (done, total) =>
-          report(FmProgress(done, total, p.basename(entry.path))),
-    ),
-  );
+  final List<String> parts;
+  try {
+    parts = await showFmProgress<List<String>>(
+      context,
+      title: strings.t('split.working'),
+      describe: (value) => value.total > 0
+          ? '${FsPaths.humanSize(value.done)} / ${FsPaths.humanSize(value.total)}'
+          : '',
+      task: (report, isCancelled) => FileSplit.split(
+        entry.path,
+        partBytes: size,
+        isCancelled: isCancelled,
+        onProgress: (done, total) =>
+            report(FmProgress(done, total, p.basename(entry.path))),
+      ),
+    );
+  } catch (e) {
+    // Eskiden yakalanmıyordu: disk dolu / yazma izni yok → sessiz çökme.
+    showSnackBarReplacing(
+      messenger,
+      SnackBar(
+          content: Text(
+              strings.t('ui.split_failed', {'error': userErrorText(e)}))),
+    );
+    return false;
+  }
   showSnackBarReplacing(
     messenger,
     SnackBar(

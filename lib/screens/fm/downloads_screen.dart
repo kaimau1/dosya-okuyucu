@@ -425,6 +425,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                     ),
                   ),
                   FmSelectionBar(
+                    onDeselect: (e) => setState(() => _selected.remove(e.path)),
                     selected: _selectedEntries,
                     allowReveal: true,
                     onReveal: (path) => Navigator.of(context).push(

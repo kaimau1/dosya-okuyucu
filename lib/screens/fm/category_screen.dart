@@ -684,6 +684,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
+                onDeselect: (e) => setState(() => _selected.remove(e.path)),
                 selected: selectedEntries,
                 allowReveal: true,
                 onReveal: _reveal,

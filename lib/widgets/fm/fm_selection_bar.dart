@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
@@ -13,6 +14,7 @@ import '../../screens/fm/resize_actions.dart';
 import '../../screens/fm/swipe_pager.dart';
 import '../app_action_sheet.dart';
 import 'batch_rename_sheet.dart';
+import 'selection_preview_strip.dart';
 import 'tag_picker_sheet.dart';
 import '../../core/snack.dart';
 
@@ -48,6 +50,9 @@ class FmSelectionBar extends StatelessWidget {
   final bool allowReveal;
   final void Function(String path)? onReveal;
 
+  /// Önizleme şeridindeki ✕ — ekranın seçiminden çıkarır (2026-11-20).
+  final void Function(FsEntry entry)? onDeselect;
+
   const FmSelectionBar({
     super.key,
     required this.selected,
@@ -55,6 +60,7 @@ class FmSelectionBar extends StatelessWidget {
     this.zipDestDir,
     this.allowReveal = false,
     this.onReveal,
+    this.onDeselect,
   });
 
   List<String> get _paths => selected.map((e) => e.path).toList();
@@ -197,11 +203,39 @@ class FmSelectionBar extends StatelessWidget {
             }
             return;
           }
+          // Levha seçimin KOPYASIYLA çalışır: önizleme şeridindeki ✕
+          // buradan çıkarır, eylemler kalanlara uygulanır.
+          final working = List<FsEntry>.of(selected);
           final v = await showAppActionSheet<String>(
             context,
-            title: context.t('sel.sheet_title', {'n': n}),
-            subtitle: n == 1 ? selected.first.name : null,
+            headerExtra: (_) => SelectionPreviewStrip(
+              entries: working,
+              onRemove: onDeselect,
+            ),
             groups: [
+              // **Taşı ve kopyala levhada da** (kullanıcı 2026-11-20: "iki
+              // öğeyi birlikte taşıma yok, birlikte taşıyabilmeliyim") —
+              // alttaki çubuk levhanın arkasında kalıyordu.
+              AppActionGroup(title: context.t('ui.sel_group_move'), actions: [
+                AppAction(
+                    value: 'move',
+                    icon: AppIcons.move,
+                    label: context.t('fm.move')),
+                AppAction(
+                    value: 'copy',
+                    icon: AppIcons.copy,
+                    label: context.t('fm.copy')),
+                if (!_anyDir)
+                  AppAction(
+                      value: 'share',
+                      icon: AppIcons.share,
+                      label: context.t('common.share')),
+                AppAction(
+                    value: 'delete',
+                    icon: AppIcons.delete,
+                    destructive: true,
+                    label: context.t('common.delete')),
+              ]),
               // **İkinci ad ve kategori en üstte** (2026-11-19, kullanıcı:
               // seçip toplu AI ile ikinci ad; eski "AI ile etiketle" kalktı —
               // yeni model hem ad hem kategori/etiket veriyor).
@@ -239,8 +273,7 @@ class FmSelectionBar extends StatelessWidget {
                       value: 'batch_rename',
                       icon: AppIcons.rename,
                       label: context.t('fm.batch_rename')),
-                if (zipDestDir != null)
-                  AppAction(
+                AppAction(
                       value: 'zip',
                       icon: AppIcons.compress,
                       label: context.t('fm.compress')),
@@ -282,34 +315,52 @@ class FmSelectionBar extends StatelessWidget {
               ]),
             ],
           );
-          if (v != null && context.mounted) await _run(context, v);
+          if (v != null && context.mounted && working.isNotEmpty) {
+            await _run(context, v, working);
+          }
         },
       );
 
-  Future<void> _run(BuildContext context, String value) async {
+  Future<void> _run(
+      BuildContext context, String value, List<FsEntry> selected) async {
+    final paths = [for (final e in selected) e.path];
     final appState = context.read<AppState>();
     final messenger = ScaffoldMessenger.of(context);
     // Asenkron boşluktan sonra `context` kullanılamaz → metinler şimdi alınır.
     final clipCopied = context.t('fm.clipboard_copied');
     final clipCut = context.t('fm.clipboard_cut');
     switch (value) {
+      case 'move':
+        if (await moveOrCopyEntries(context, paths, move: true)) {
+          await onChanged();
+        }
+      case 'copy':
+        if (await moveOrCopyEntries(context, paths, move: false)) {
+          await onChanged();
+        }
+      case 'share':
+        await shareEntriesFrom(context, paths);
+      case 'delete':
+        if (await deleteEntries(context, selected)) await onChanged();
       case 'important':
-        if (await copyToImportant(context, _paths)) await onChanged();
+        if (await copyToImportant(context, paths)) await onChanged();
       case 'shared':
         // Çoklu seçimde de var: kullanıcı PC'ye birden çok dosya
         // göndermek isterse tek tek ⋮ açması saçma olurdu.
-        if (await copyToShared(context, _paths)) await onChanged();
+        if (await copyToShared(context, paths)) await onChanged();
       case 'clip_copy':
-        appState.setClipboard(_paths, cut: false);
+        appState.setClipboard(paths, cut: false);
         showSnackOn(messenger, clipCopied);
         await onChanged();
       case 'clip_cut':
-        appState.setClipboard(_paths, cut: true);
+        appState.setClipboard(paths, cut: true);
         showSnackOn(messenger, clipCut);
         await onChanged();
       case 'zip':
-        final dest = zipDestDir;
-        if (dest != null && await zipEntries(context, _paths, dest)) {
+        // Hedef klasörü olmayan listelerde (kategori, arama) arşiv ilk
+        // seçilenin klasörüne yazılır.
+        final dest = zipDestDir ?? p.dirname(selected.first.path);
+        if (await zipEntries(context, paths, dest)) {
           await onChanged();
         }
       case 'rename':
@@ -325,7 +376,7 @@ class FmSelectionBar extends StatelessWidget {
         // İş kuyruğa gider; liste tazelemeyi FsEvents üstleniyor.
         await startResizeJob(context, selected);
       case 'tag':
-        if (await showTagPicker(context, _paths)) await onChanged();
+        if (await showTagPicker(context, paths)) await onChanged();
       case 'ai_alias':
         // İş kuyruğa gider; satırlar ikinci adı kendileri dinliyor.
         await giveAiAliasBatch(context, selected);
@@ -339,7 +390,7 @@ class FmSelectionBar extends StatelessWidget {
           await onChanged();
         }
       case 'hide':
-        if (await hideEntries(context, _paths)) await onChanged();
+        if (await hideEntries(context, paths)) await onChanged();
       case 'properties':
         if (selected.length == 1 && context.mounted) {
           await showProperties(context, selected.first);
@@ -350,7 +401,7 @@ class FmSelectionBar extends StatelessWidget {
         // aynı mı, yoksa biri güncel mi — kullanıcının bunu anlamasının
         // hiçbir yolu yoktu; boyut eşitliği yeterli değil.
         if (selected.length == 2 && context.mounted) {
-          await compareTwoFiles(context, _paths);
+          await compareTwoFiles(context, paths);
         }
     }
   }

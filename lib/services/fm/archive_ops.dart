@@ -320,6 +320,28 @@ abstract final class ArchiveOps {
   /// saf Dart ve CPU-yoğun; ana izlekte koşarsa büyük dosyada uygulama kilitlenir
   /// ve ilerleme penceresi bile dönmez. Şifreli/7z yolu (`_compressSync`) zaten
   /// isolate'teydi; parolasız .zip — yani EN SIK kullanılan yol — atlanmıştı.
+  /// Varsayılan arşiv adı: tek dosyada uzantısız ad, tek KLASÖRDE adın
+  /// tamamı ("Rapor.v2" klasörü "Rapor" olmasın — 2026-11-20), çoklu seçimde
+  /// "arsiv".
+  static String _defaultBase(List<String> paths) {
+    if (paths.length != 1) return 'arsiv';
+    final only = paths.first;
+    return FileSystemEntity.isDirectorySync(only)
+        ? p.basename(only)
+        : p.basenameWithoutExtension(only);
+  }
+
+  /// Hata ya da iptalde yarım arşiv yerinde bırakılmaz (açılmayan bozuk
+  /// dosya "tamamlandı" sanılırdı — 2026-11-20).
+  static void _dropPartial(String target) {
+    try {
+      final f = File(target);
+      if (f.existsSync()) f.deleteSync();
+    } catch (_) {
+      // Bilinçli: temizlik — silinemezse asıl hata yine bildirilir.
+    }
+  }
+
   static Future<String> zip(
     List<String> paths,
     String destDir, {
@@ -329,9 +351,7 @@ abstract final class ArchiveOps {
     if (paths.isEmpty) throw const FileSystemException('sıkıştırılacak öğe yok');
     final base = archiveName != null && archiveName.trim().isNotEmpty
         ? FileOps.sanitizeName(archiveName)
-        : (paths.length == 1
-            ? p.basenameWithoutExtension(paths.first)
-            : 'arsiv');
+        : _defaultBase(paths);
     final target = FileOps.uniquePath(p.join(destDir, '$base.zip'));
 
     final port = ReceivePort();
@@ -342,6 +362,9 @@ abstract final class ArchiveOps {
     });
     try {
       await _runZip(paths, target, port.sendPort);
+    } catch (_) {
+      _dropPartial(target);
+      rethrow;
     } finally {
       await sub.cancel();
       port.close();
@@ -370,9 +393,7 @@ abstract final class ArchiveOps {
 
     final base = archiveName != null && archiveName.trim().isNotEmpty
         ? FileOps.sanitizeName(archiveName)
-        : (paths.length == 1
-            ? p.basenameWithoutExtension(paths.first)
-            : 'arsiv');
+        : _defaultBase(paths);
     final ext = format == CompressFormat.sevenZip ? '7z' : 'zip';
     final target = FileOps.uniquePath(p.join(destDir, '$base.$ext'));
 
@@ -391,6 +412,9 @@ abstract final class ArchiveOps {
         hideNames,
         port.sendPort,
       );
+    } catch (_) {
+      _dropPartial(target);
+      rethrow;
     } finally {
       await sub.cancel();
       port.close();

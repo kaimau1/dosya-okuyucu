@@ -351,6 +351,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
+                onDeselect: (e) => setState(() => _selected.remove(e.path)),
                 selected: _selectedEntries,
                 zipDestDir: widget.path,
                 onChanged: () async {

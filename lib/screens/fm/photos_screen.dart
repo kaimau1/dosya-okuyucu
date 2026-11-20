@@ -467,6 +467,7 @@ class _PhotosScreenState extends State<PhotosScreen>
                 right: 0,
                 bottom: 0,
                 child: FmSelectionBar(
+                  onDeselect: (e) => setState(() => _selected.remove(e.path)),
                   selected: selectedEntries,
                   onChanged: () async {
                     // "Arka plana al" ile ekran kapanmış olabilir:

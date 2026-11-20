@@ -54,6 +54,7 @@ Future<T?> showAppActionSheet<T>(
   String? title,
   String? subtitle,
   required List<AppActionGroup<T>> groups,
+  Widget Function(BuildContext context)? headerExtra,
 }) {
   final visible = [
     for (final g in groups)
@@ -65,7 +66,7 @@ Future<T?> showAppActionSheet<T>(
     builder: (ctx) {
       final theme = Theme.of(ctx);
       final maxHeight = MediaQuery.sizeOf(ctx).height * 0.75;
-      final header = title == null && subtitle == null
+      final header = title == null && subtitle == null && headerExtra == null
           ? null
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,6 +87,7 @@ Future<T?> showAppActionSheet<T>(
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: Paper.faint(ctx))),
                   ),
+                if (headerExtra != null) headerExtra(ctx),
               ],
             );
       return ConstrainedBox(

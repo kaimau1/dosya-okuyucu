@@ -48,6 +48,7 @@ part 'strings/42_smart_user_cats.dart';
 part 'strings/43_smart_bench.dart';
 part 'strings/44_checklist.dart';
 part 'strings/45_decision_uses.dart';
+part 'strings/46_ui_toplu.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -195,4 +196,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t43,
   ..._t44,
   ..._t45,
+  ..._t46,
 };

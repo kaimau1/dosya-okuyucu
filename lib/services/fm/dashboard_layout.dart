@@ -51,6 +51,10 @@ class DashboardLayout extends ChangeNotifier {
     // 'archive' 2026-11-10'da 'apk' kutusuna katıldı (APK ve Arşivler).
     'apk',
     'new',
+    // **Geçmiş kutusu geri** (2026-11-20, kullanıcı: "ana ekrandaki kart
+    // olarak da eklenebilir olmalı eskisi gibi") — yeni kimlik `history`,
+    // varsayılan GİZLİ: düzenleyiciden açılır.
+    'history',
     // **Akıllı Düzen** (2026-11-18): yeni kutu, görünür doğar.
     'smart',
     // 'recent' (Geçmiş kutusu) 2026-11-18'de kalktı: Geçmiş = üstteki şerit,
@@ -91,6 +95,7 @@ class DashboardLayout extends ChangeNotifier {
           'important_gallery',
           'media',
           'new',
+          'history',
           'drive',
         ]
       : tiles;
@@ -116,7 +121,7 @@ class DashboardLayout extends ChangeNotifier {
   /// kartını gizle varsayılan olarak"*): Drive artık alt çubuğun hızlı
   /// sırasında; kutu gizli doğar ve MEVCUT kurulumda da bir kez gizlenir
   /// ([_kDriveMoved] bayrağı — kullanıcı sonra açarsa dokunulmaz).
-  static const defaultHiddenTiles = {'media', 'drive'};
+  static const defaultHiddenTiles = {'media', 'drive', 'history'};
 
   static const _kDriveMoved = 'dash_drive_moved_v1';
 

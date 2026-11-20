@@ -353,6 +353,7 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
               right: 0,
               bottom: 0,
               child: FmSelectionBar(
+                onDeselect: (e) => setState(() => _selected.remove(e.path)),
                 selected: selectedEntries,
                 onChanged: () async {
                   if (!mounted) return;

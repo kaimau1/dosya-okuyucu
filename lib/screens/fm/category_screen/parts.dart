@@ -50,6 +50,14 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
             if (picked != null) _setLayout(picked);
           },
         ),
+        // ⋮ (2026-11-20, kullanıcı: "Belgeler sayfasında bir menü olsun"):
+        // "Analiz ve diğer" levhasının aynısı + liste/belge eylemleri.
+        IconButton(
+          key: const ValueKey('cat-more'),
+          tooltip: context.t('fm.more'),
+          icon: const Icon(AppIcons.more),
+          onPressed: () => unawaited(_openTools()),
+        ),
       ],
     );
   }
@@ -79,6 +87,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
         context,
         title: widget.title,
         visible: _sorted,
+        onSelectAll: () => _toggleSelectAll(_sorted),
         onChanged: () async {
           if (mounted) _update(() => _sortedCache = null);
         },

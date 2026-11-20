@@ -22,7 +22,14 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/tag_picker_sheet.dart';
 import '../../widgets/tracked_busy.dart';
+import '../../services/fm/fm_env.dart';
+import '../../widgets/new_document_sheet.dart';
+import '../../widgets/scan_flow.dart';
 import 'ai_actions.dart' show giveAiAliasBatch;
+import 'ai_hub_screen.dart';
+import 'downloads_screen.dart' show downloadsPathIn;
+import 'entry_actions.dart' show shareEntriesFrom, zipEntries;
+import 'smart_sort_screen.dart';
 import 'category_screen.dart';
 
 /// **"Analiz ve düzenle"** — kategori / hızlı klasör ekranlarının ayar menüsü
@@ -40,8 +47,14 @@ Future<void> showCategoryTools(
   required String title,
   required List<FsEntry> visible,
   required Future<void> Function() onChanged,
+  VoidCallback? onSelectAll,
 }) async {
   final n = visible.where((e) => !e.isDir).length;
+  // **Belge grubu** (2026-11-20, kullanıcı: "Belgeler sayfasında bir menü
+  // olsun, içinde güzel özellikler; AI modeliyle ilgili ve tüm belgelerle
+  // ilgili genel düğmeler"): liste belge ağırlıklıysa görünür.
+  final docs = visible.where((e) => e.category == FmCategory.document).length;
+  final isDocs = docs > 0 && docs * 2 >= n;
   final v = await showAppActionSheet<String>(
     context,
     title: context.t('ct.title'),
@@ -64,6 +77,44 @@ Future<void> showCategoryTools(
             accent: true,
             label: context.t('ct.ai_analysis'),
             hint: context.t('ct.ai_analysis_hint')),
+      ]),
+      if (isDocs)
+        AppActionGroup(title: context.t('ui.ct_docs'), actions: [
+          AppAction(
+              value: 'ask',
+              icon: AppIcons.ai,
+              accent: true,
+              label: context.t('ui.ct_ask'),
+              hint: context.t('ui.ct_ask_hint')),
+          AppAction(
+              value: 'smart',
+              icon: AppIcons.ai,
+              label: context.t('sm.tile'),
+              hint: context.t('ui.ct_smart_hint')),
+          AppAction(
+              value: 'scan',
+              icon: AppIcons.ocr,
+              label: context.t('fm.scan_document')),
+          AppAction(
+              value: 'new_doc',
+              icon: AppIcons.noteAdd,
+              label: context.t('home.new_document_title')),
+        ]),
+      AppActionGroup(title: context.t('ui.ct_list'), actions: [
+        if (onSelectAll != null)
+          AppAction(
+              value: 'select_all',
+              icon: AppIcons.selectAll,
+              label: context.t('ui.ct_select_all')),
+        AppAction(
+            value: 'share_all',
+            icon: AppIcons.share,
+            label: context.t('ui.ct_share_all', {'n': n})),
+        AppAction(
+            value: 'zip_all',
+            icon: AppIcons.compress,
+            label: context.t('ui.ct_zip_all', {'n': n}),
+            hint: context.t('ui.ct_zip_hint')),
       ]),
       AppActionGroup(title: context.t('ct.group_tags'), actions: [
         // 2026-11-19 (B15): eski "AI ile etiketle" yerine Akıllı ikinci ad —
@@ -107,6 +158,27 @@ Future<void> showCategoryTools(
       }
     case 'manage_tags':
       if (await showTagManager(context)) await onChanged();
+    case 'ask':
+      await Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => const AiHubScreen()));
+    case 'smart':
+      await SmartSortScreen.open(context);
+    case 'scan':
+      await ScanFlow.run(context);
+    case 'new_doc':
+      await showNewDocumentSheet(context);
+    case 'select_all':
+      onSelectAll?.call();
+    case 'share_all':
+      if (files.isEmpty) return;
+      await shareEntriesFrom(context, [for (final e in files) e.path]);
+    case 'zip_all':
+      if (files.isEmpty) return;
+      // Arşiv İndirilenler'e yazılır (kategori listesinin tek klasörü yok).
+      final dest = downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot;
+      if (await zipEntries(context, [for (final e in files) e.path], dest)) {
+        await onChanged();
+      }
   }
 }
 

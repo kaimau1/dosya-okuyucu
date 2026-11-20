@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/entry_opener.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 
 import '../../core/app_icons.dart';
@@ -17,6 +16,7 @@ import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../settings_screen.dart';
+import 'trash_preview_screen.dart';
 import '../../core/snack.dart';
 import '../../widgets/motion.dart';
 import '../../core/user_error.dart';
@@ -127,20 +127,23 @@ class _TrashScreenState extends State<TrashScreen> {
     });
   }
 
-  Future<void> _restore(TrashItem item) async {
+  Future<bool> _restore(TrashItem item) async {
     try {
       final target = await FmEnv.trash.restore(item);
-      if (!mounted) return;
+      if (!mounted) return true;
       _snack(context.t('tr.restored',
           {'name': item.name, 'folder': target.split('/').last}));
       _dropLocal(item);
+      return true;
     } catch (e) {
+      if (!mounted) return false;
       _snack(context.t('trash.restore_failed', {'error': userErrorText(e)}));
       _load();
+      return false;
     }
   }
 
-  Future<void> _delete(TrashItem item) async {
+  Future<bool> _delete(TrashItem item) async {
     final ok = await showAppConfirm(
         context,
         title: context.t('fm.delete_permanent_title'),
@@ -148,17 +151,34 @@ class _TrashScreenState extends State<TrashScreen> {
         confirmLabel: context.t('common.delete'),
         destructive: true,
     );
-    if (ok != true) return;
+    if (ok != true) return false;
     try {
       await FmEnv.trash.deleteForever(item);
     } catch (e) {
       _snack(userErrorText(e));
       _load();
-      return;
+      return false;
     }
-    if (!mounted) return;
+    if (!mounted) return true;
     _snack(context.t('trash.deleted_one', {'name': item.name}));
     _dropLocal(item);
+    return true;
+  }
+
+  /// Çöpteki dosya tam görüntüleyicide DEĞİL, yalnız "Geri yükle / Kalıcı
+  /// sil" sunan önizlemede açılır (kullanıcı 2026-11-20).
+  void _preview(List<TrashItem> shown, TrashItem item) {
+    final files = [for (final t in shown) if (!t.isDir) t];
+    final i = files.indexOf(item);
+    if (i < 0) return;
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => TrashPreviewScreen(
+        items: files,
+        initial: i,
+        onRestore: _restore,
+        onDelete: _delete,
+      ),
+    ));
   }
 
   /// Çöp kutusunu boşaltır — **ilerleme penceresiyle**.
@@ -344,9 +364,9 @@ class _TrashScreenState extends State<TrashScreen> {
                             selecting: false,
                             subtitle: '${FsPaths.humanDate(item.deletedAtMs)} · '
                                 '${item.originalPath}',
-                            onTap: () => item.isDir
-                                ? null
-                                : EntryOpener.open(context, item.storedPath),
+                            onTap: () {
+                              if (!item.isDir) _preview(shown, item);
+                            },
                             badge: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

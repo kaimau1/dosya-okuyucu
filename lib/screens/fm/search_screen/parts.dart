@@ -41,6 +41,7 @@ extension _SearchScreenStateParts on _SearchScreenState {
             right: 0,
             bottom: 0,
             child: FmSelectionBar(
+              onDeselect: (e) => _update(() => _selected.remove(e.path)),
               selected: selected,
               allowReveal: true,
               onReveal: _reveal,

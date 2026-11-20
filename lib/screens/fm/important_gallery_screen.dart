@@ -199,6 +199,7 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
           Expanded(child: _grid(context, shown, paths)),
           if (_selecting)
             FmSelectionBar(
+              onDeselect: (e) => setState(() => _selected.remove(e.path)),
               selected: selectedEntries,
               onChanged: () async {
                 if (!mounted) return;

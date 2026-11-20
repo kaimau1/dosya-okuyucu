@@ -16,6 +16,8 @@ import '../../screens/fm/drive_screen.dart';
 import '../../screens/fm/history_screen.dart';
 import '../../screens/fm/installed_apps_screen.dart';
 import '../../screens/fm/library_screen.dart';
+import '../../screens/fm/new_files_screen.dart';
+import '../../screens/fm/open_history_screen.dart';
 import '../../screens/fm/operations_screen.dart';
 import '../../screens/fm/transfer_screen.dart';
 import '../../screens/fm/trash_screen.dart';
@@ -364,6 +366,8 @@ abstract final class DockExtras {
     'vault',
     'library',
     'history',
+    'new_files',
+    'opened',
     'downloads',
     'apps',
     'ai',
@@ -467,6 +471,14 @@ abstract final class DockExtras {
             (c) => _push(c, const LibraryScreen())),
         'history' => DockExtraSpec(AppIcons.history,
             context.t('dock.history'), AppHues.indigo, HistoryScreen.open),
+        // Kullanıcı 2026-11-20: "alt panele yeni dosyalar ve geçmiş de
+        // eklenebilir olmalı".
+        'new_files' => DockExtraSpec(AppIcons.moveToInbox,
+            context.t('ui.dock_new'), AppHues.tangerine,
+            (c) => _push(c, const NewFilesScreen())),
+        'opened' => DockExtraSpec(AppIcons.history,
+            context.t('ui.dock_opened'), AppHues.royal,
+            (c) => _push(c, const OpenHistoryScreen())),
         'downloads' => DockExtraSpec(
             AppIcons.download, context.t('dock.downloads'), AppHues.blue,
             _g(Feature.fileManager, (c) {

@@ -530,6 +530,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             right: 0,
             bottom: 0,
             child: FmSelectionBar(
+              onDeselect: (e) => setState(() => _selected.remove(e.path)),
               selected: _selectedEntries(visible),
               allowReveal: true,
               onReveal: (path) => Navigator.of(context).push(
