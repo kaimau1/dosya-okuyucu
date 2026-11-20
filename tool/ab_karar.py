@@ -130,7 +130,14 @@ def yaz(satirlar, karar, sayi, cikti, a_adi, b_adi, isi=()):
 
 
 def dugme(xml_yolu):
-    """MIUI kurulum penceresi: önce işaretsiz 'Tercihimi hatırla', sonra 'Yükle'."""
+    """Kurulum penceresinde dokunulacak düğme(ler).
+
+    MIUI: önce işaretsiz 'Tercihimi hatırla', sonra 'Yükle'. Huawei
+    packageinstaller (T1, 2026-11-20): "Bilinmeyen kaynaklar" uyarısında
+    'DEVAM ET', tarama sonrası 'YÜKLE', sonda 'BİTTİ' — her dökümde tek ekran
+    olduğundan ilk eşleşen düğme yeter. Başka düğmeye (Ayarlar, İptal, Aç)
+    dokunulmaz.
+    """
     with open(xml_yolu, encoding='utf-8', errors='replace') as fh:
         metin = fh.read()
     metin = metin[metin.find('<?xml'):] if '<?xml' in metin else metin
@@ -146,7 +153,8 @@ def dugme(xml_yolu):
         # Her düğümde checked="false" yazar → yalnız işaretlenebilir kutu.
         if n.get('checkable') == 'true' and n.get('checked') == 'false':
             kutu.append((x, y))
-        elif re.fullmatch(r'Yükle|Install|Kur', t, re.I):
+        elif re.fullmatch(r'Yükle|YÜKLE|Install|Kur|Devam et|DEVAM ET|Continue'
+                          r'|Bitti|BİTTİ|Done', t, re.I):
             yukle.append((x, y))
     return (kutu[:1] if hatirla else []) + yukle[:1]
 
@@ -190,6 +198,12 @@ def deneme():
         '<node text="" checkable="true" checked="false" bounds="[60,1800][600,1860]"/>'
         '</hierarchy>')
     assert dugme(x) == [(330, 1830), (310, 2040)], dugme(x)
+    for metin, beklenen in [('DEVAM ET', [(150, 50)]), ('BİTTİ', [(150, 50)]),
+                            ('AYARLAR', [])]:
+        open(x, 'w', encoding='utf-8').write(
+            '<?xml version="1.0"?><hierarchy><node text="İPTAL" bounds="[0,0][90,90]"/>'
+            f'<node text="{metin}" bounds="[100,0][200,100]"/></hierarchy>')
+        assert dugme(x) == beklenen, (metin, dugme(x))
     print('ab_karar deneme: tamam')
 
 
