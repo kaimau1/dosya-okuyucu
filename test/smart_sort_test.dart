@@ -120,6 +120,14 @@ void main() {
         reason: 'gizliler sayılmaz');
     expect(SmartSort.clutter().map((r) => r.path), ['/x/h.jpg']);
     expect(SmartSort.clutter().single.clutterReason, 'blurry');
+    // U4 dilim 2: bulanık belge fotoğrafı (fiş, kimlik) Ayıkla'ya önerilmez;
+    // fotoğraf belgeye düzeltilince de çıkar.
+    const shot = SmartRecord(
+        path: '/x/r.jpg', size: 1, modifiedMs: 1, cat: 'receipt', blurry: true,
+        accidental: true);
+    expect(shot.clutter, isFalse);
+    expect(shot.clutterReason, isNull);
+    expect(shot.copyWith(cat: 'photo_other').clutterReason, 'accidental');
 
     FmFilter.smartCatOf = SmartSort.categoryOf;
     addTearDown(() => FmFilter.smartCatOf = null);

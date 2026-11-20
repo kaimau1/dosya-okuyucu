@@ -135,11 +135,18 @@ class SmartRecord {
 
   /// Gereksiz mi (Ayıkla)? Görsellerde ve videoda (yanlışlıkla çekilmiş,
   /// çok kısa, karanlık) anlamlı.
+  ///
+  /// U4 dilim 2 kökü: bulanık/yanlışlıkla işareti kategoriden bağımsız
+  /// sayılıyordu → bulanık çekilmiş kimlik, fiş, dekont fotoğrafı silinmeye
+  /// önerildi; kullanıcı "Kategori yanlış mı?" ile belgeye çevirdiğinde de
+  /// Ayıkla'da kalıyordu. Belge kategorisinde bu işaretler sayılmaz (kayıt
+  /// değişmez, yalnız yorum — eski kayıtlar da düzelir).
   bool get clutter =>
       SmartTaxonomy.clutterCategories.contains(cat) ||
-      blurry ||
-      accidental ||
+      _junkShot ||
       oldScreenshot;
+
+  bool get _junkShot => (blurry || accidental) && !SmartTaxonomy.isDoc(cat);
 
   /// Ekran görüntüsü yaşı (B2 dilim 2, PLAN §1.2 Ayıkla 2): bu kadar günden
   /// eski ekran görüntüsü Ayıkla'ya önerilir (silinmez, kullanıcı seçer).
@@ -155,9 +162,9 @@ class SmartRecord {
   /// bulanık → eski ekran görüntüsü).
   String? get clutterReason => SmartTaxonomy.clutterCategories.contains(cat)
       ? cat
-      : (accidental
-          ? 'accidental'
-          : (blurry ? 'blurry' : (oldScreenshot ? 'old_shot' : null)));
+      : (_junkShot
+          ? (accidental ? 'accidental' : 'blurry')
+          : (oldScreenshot ? 'old_shot' : null));
 
   /// Baskın kullanıcı kategorisi: en yüksek eşleşme, yerleşik kategorinin
   /// güveninden yüksekse ya da yerleşik ikinci ad boş kalacaksa ([builtinEmpty]).
