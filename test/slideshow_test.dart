@@ -4,10 +4,22 @@ import 'package:dosya_okuyucu/widgets/slide_canvas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xml/xml.dart';
 
 import 'support/rebuild_probe.dart';
 
 const _slide = SlideVM(widthPt: 960, heightPt: 540, shapes: []);
+
+ShapeVM _named(String name, double x) => ShapeVM(
+      x: x,
+      y: 10,
+      w: 100,
+      h: 50,
+      fill: const Color(0xFF2266AA),
+      element: XmlDocument.parse(
+              '<p:sp xmlns:p="urn:p"><p:nvSpPr><p:cNvPr id="2" name="$name"/></p:nvSpPr></p:sp>')
+          .rootElement,
+    );
 
 void main() {
   testWidgets('sunum modu sağ/sol dokunuşla slayt değiştirir', (t) async {
@@ -83,6 +95,44 @@ void main() {
     expect(r.of(SlideCanvas), 0);
     expect(r.total, lessThan(40));
     await t.pumpAndSettle();
+  });
+
+  test('B11 m.3: Biçim değiştir şekilleri adla eşler', () {
+    final a = _named('Kutu', 10);
+    final b = _named('Kutu', 500);
+    final yeni = _named('Yeni', 0);
+    final m = slideMorphFrom(
+      SlideVM(widthPt: 960, heightPt: 540, shapes: [a]),
+      SlideVM(widthPt: 960, heightPt: 540, shapes: [b, yeni]),
+    );
+    expect(m.length, 1);
+    expect(m[b], const Rect.fromLTWH(10, 10, 100, 50));
+  });
+
+  testWidgets('B11 m.3: Biçim değiştir oynar, slayt yeniden kurulmaz', (t) async {
+    final from = SlideVM(widthPt: 960, heightPt: 540, shapes: [_named('Kutu', 10)]);
+    final to = SlideVM(
+        widthPt: 960,
+        heightPt: 540,
+        shapes: [_named('Kutu', 500)],
+        transition: 'morph');
+    await t.pumpWidget(MaterialApp(home: SlideshowScreen(slides: [from, to])));
+    await t.pump();
+    await t.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 16));
+    expect(find.byKey(const ValueKey('ss-morph')), findsOneWidget);
+    final r = await countRebuilds(t, () async {
+      for (var i = 0; i < 3; i++) {
+        await t.pump(const Duration(milliseconds: 16));
+      }
+    });
+    // ignore: avoid_print
+    print('PERF slideshow_morph_rebuilds=${r.total} top=${r.top()}');
+    expect(r.of(SlideCanvas), 0);
+    expect(r.total, lessThan(40));
+    await t.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
   });
 
   testWidgets('Faz 38: klavye/kumanda ile ilerler; kalem, lazer, zamanlayıcı', (t) async {

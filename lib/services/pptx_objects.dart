@@ -51,7 +51,8 @@ const kSlideShapeLibrary = <String, List<String>>{
 const kPptxDefaultTableStyle = '{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}';
 
 /// Slayt geçişi türleri.
-enum PptxTransition { none, fade, push, wipe }
+/// Slayt geçişi; `morph` = "Biçim değiştir" (B11 m.3).
+enum PptxTransition { none, fade, push, wipe, zoom, morph }
 
 /// Düzen galerisi öğesi.
 class PptxLayoutInfo {
@@ -455,7 +456,10 @@ extension PptxObjects on PptxEditor {
   }
 
   PptxTransition transitionOf(PptxSlide slide) {
-    final t = PptxEditor._firstOrNull(slide.doc.rootElement.findElements('p:transition'));
+    // PowerPoint yeni geçişleri `mc:AlternateContent` içine sarar (ilk
+    // bulunan = mc:Choice, asıl tür).
+    final t = PptxEditor._firstOrNull(
+        slide.doc.rootElement.findAllElements('p:transition'));
     if (t == null) return PptxTransition.none;
     for (final k in t.childElements) {
       switch (k.name.local) {
@@ -465,6 +469,10 @@ extension PptxObjects on PptxEditor {
           return PptxTransition.push;
         case 'wipe':
           return PptxTransition.wipe;
+        case 'zoom':
+          return PptxTransition.zoom;
+        case 'morph':
+          return PptxTransition.morph;
       }
     }
     return PptxTransition.none;
@@ -473,17 +481,28 @@ extension PptxObjects on PptxEditor {
   /// Geçiş yazar (`p:transition`; sıra: cSld, clrMapOvr, transition, timing).
   bool setTransition(PptxSlide slide, PptxTransition kind) {
     final root = slide.doc.rootElement;
-    root.children.removeWhere(
-        (n) => n is XmlElement && n.name.qualified == 'p:transition');
+    root.children.removeWhere((n) =>
+        n is XmlElement &&
+        (n.name.qualified == 'p:transition' ||
+            (n.name.qualified == 'mc:AlternateContent' &&
+                n.findAllElements('p:transition').isNotEmpty)));
     if (kind != PptxTransition.none) {
       final inner = switch (kind) {
         PptxTransition.fade => '<p:fade/>',
         PptxTransition.push => '<p:push dir="l"/>',
+        PptxTransition.zoom => '<p:zoom/>',
         _ => '<p:wipe dir="l"/>',
       };
-      final t = XmlDocument.parse('<p:transition $_pNs spd="med">$inner</p:transition>')
-          .rootElement
-          .copy();
+      // Biçim değiştir PowerPoint 2019+ öğesi: eski okuyucular için soldurma
+      // yedeğiyle `mc:AlternateContent` (PowerPoint'in yazdığı biçim).
+      final xml = kind == PptxTransition.morph
+          ? '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
+              '<mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" Requires="p159">'
+              '<p:transition $_pNs spd="slow"><p159:morph option="byObject"/></p:transition></mc:Choice>'
+              '<mc:Fallback><p:transition $_pNs spd="slow"><p:fade/></p:transition></mc:Fallback>'
+              '</mc:AlternateContent>'
+          : '<p:transition $_pNs spd="med">$inner</p:transition>';
+      final t = XmlDocument.parse(xml).rootElement.copy();
       PptxEditor._insertBefore(root, t, const {'p:timing', 'p:extLst'});
     }
     _rerender(slide); // sunum geçişi çizim modelinden okur

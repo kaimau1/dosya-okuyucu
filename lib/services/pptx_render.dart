@@ -42,8 +42,9 @@ class SlideVM {
   /// Boşsa slaytta animasyon yoktur, her şey baştan görünür.
   final List<List<AnimTarget>> steps;
 
-  /// Slayta girerken oynayan geçiş (`p:transition`): `fade`, `push`, `wipe`;
-  /// null = geçiş yok. Tanımadığımız türler `fade`e yaklaşıklanır.
+  /// Slayta girerken oynayan geçiş (`p:transition`): `fade`, `push`, `wipe`,
+  /// `zoom`, `morph` (Biçim değiştir); null = geçiş yok (`cut` dahil).
+  /// Tanımadığımız türler `fade`e yaklaşıklanır.
   final String? transition;
 
   /// Geçişin itme/silme yönü (`dir`: `l`, `r`, `u`, `d`).
@@ -61,27 +62,84 @@ class SlideVM {
     this.transitionDir = 'l',
   });
 
-  /// Verilen şekil/paragraf hangi tıklamada belirir? 0 = baştan görünür.
+  /// Verilen şekil/paragraf hangi tıklamada belirir (giriş efekti)?
+  /// 0 = baştan görünür.
   int stepFor(int shapeId, int paragraphIndex) {
     for (var i = 0; i < steps.length; i++) {
       for (final t in steps[i]) {
-        if (t.shapeId != shapeId) continue;
-        if (t.paraFrom == null) return i + 1;
-        if (paragraphIndex >= t.paraFrom! && paragraphIndex <= t.paraTo!) {
+        if (t.hits(shapeId, paragraphIndex) && t.kind == AnimKind.entrance) {
           return i + 1;
         }
       }
     }
     return 0;
   }
+
+  /// [step] tıklamasından sonra görünür mü: girişi geldiyse (ya da yoksa)
+  /// ve çıkışı henüz gelmediyse (B11 m.3).
+  bool visibleAt(int shapeId, int paragraphIndex, int step) {
+    final enter = stepFor(shapeId, paragraphIndex);
+    if (enter > step) return false;
+    for (var i = enter; i < steps.length && i < step; i++) {
+      for (final t in steps[i]) {
+        if (t.hits(shapeId, paragraphIndex) && t.kind == AnimKind.exit) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /// [step]'e kadar bu şekle uygulanan son efekt (oynayacak efektin türü) ve
+  /// o ana dek kaç dönme vurgusu oynadı. Efekt yoksa (null, 0).
+  (AnimTarget?, int) effectAt(int shapeId, int paragraphIndex, int step) {
+    AnimTarget? last;
+    var spins = 0;
+    for (var i = 0; i < steps.length && i < step; i++) {
+      for (final t in steps[i]) {
+        if (!t.hits(shapeId, paragraphIndex)) continue;
+        last = t;
+        if (t.effect == 'spin') spins++;
+      }
+    }
+    // Henüz efekt oynamadıysa gelecek ilk efekt: gizli duruş (ör. uçacağı
+    // yön) ona göre olmalı, yoksa kayma yanlış yerden başlar.
+    if (last == null) {
+      for (final s in steps) {
+        for (final t in s) {
+          if (t.hits(shapeId, paragraphIndex)) return (t, 0);
+        }
+      }
+    }
+    return (last, spins);
+  }
 }
+
+/// Animasyon sınıfı (`p:cTn@presetClass`).
+enum AnimKind { entrance, exit, emphasis }
 
 /// Bir animasyon adımının hedefi: şekil (ve istenirse paragraf aralığı).
 class AnimTarget {
   final int shapeId;
   final int? paraFrom;
   final int? paraTo;
-  const AnimTarget(this.shapeId, [this.paraFrom, this.paraTo]);
+
+  /// B11 m.3 — efekt türü: `appear`, `fade`, `fly`, `zoom`, `wipe`, `spin`
+  /// (vurgu), `other`; [dir] uçuş yönü (`l`/`r`/`u`/`d` = nereden gelir).
+  final AnimKind kind;
+  final String effect;
+  final String dir;
+  const AnimTarget(this.shapeId,
+      [this.paraFrom,
+      this.paraTo,
+      this.kind = AnimKind.entrance,
+      this.effect = 'fade',
+      this.dir = 'd']);
+
+  bool hits(int shape, int paragraphIndex) =>
+      shapeId == shape &&
+      (paraFrom == null ||
+          (paragraphIndex >= paraFrom! && paragraphIndex <= paraTo!));
 
   @override
   bool operator ==(Object other) =>
@@ -160,6 +218,10 @@ class ShapeVM {
   final EdgeInsets inset;
   final double fontScale;
 
+  /// Dikey metin (`a:bodyPr@vert`): 1 = saat yönünde çeyrek tur (`vert`,
+  /// `eaVert`), 3 = ters (`vert270`); 0 = yatay (B11 m.1).
+  final int textQuarterTurns;
+
   /// `a:normAutofit` var mı: PowerPoint bu kutuda yazıyı KUTUYA SIĞDIRIR.
   /// Canvas bunu görünce kendi ölçümüyle ek küçültme uygular (font farkını da kapatır).
   final bool autofit;
@@ -221,6 +283,7 @@ class ShapeVM {
     this.vAnchor = 't',
     this.inset = const EdgeInsets.fromLTRB(7.2, 3.6, 7.2, 3.6),
     this.fontScale = 1,
+    this.textQuarterTurns = 0,
     this.autofit = false,
     this.growFit = false,
     this.lnSpcReduction = 0,
@@ -515,16 +578,24 @@ class PptxRender {
         .firstOrNull;
     if (k == null) return null;
     final kind = switch (k.name.local) {
-      'push' || 'cover' || 'pull' => 'push',
-      'wipe' || 'split' || 'strips' || 'wedge' || 'wheel' => 'wipe',
+      'cut' => null,
+      'morph' => 'morph',
+      'push' || 'cover' || 'pull' || 'pan' || 'conveyor' => 'push',
+      'wipe' || 'split' || 'strips' || 'wedge' || 'wheel' || 'randomBar' ||
+      'blinds' || 'checker' || 'circle' || 'diamond' || 'plus' => 'wipe',
+      'zoom' || 'newsflash' || 'warp' || 'flythrough' || 'vortex' ||
+      'ripple' || 'glitter' => 'zoom',
       _ => 'fade',
     };
+    if (kind == null) return null;
     return (kind, k.getAttribute('dir') ?? 'l');
   }
 
-  /// `p:timing` içindeki ana diziden tıklama adımlarını çıkarır.
-  // ponytail: efekt türü/süresi okunmaz — sadece "hangi tıklamada ne belirir".
-  // Çıkış (transition="out") animasyonları da giriş sayılır; nadir ve zararsız.
+  /// `p:timing` içindeki ana diziden tıklama adımlarını çıkarır; her hedef
+  /// efektin sınıfını/türünü taşır (B11 m.3: görün, soldur, kay, yaklaş, sil,
+  /// dön; çıkış efekti şekli gizler).
+  // ponytail: süre/gecikme okunmaz (sabit kısa süre); hareket yolu ve
+  // tanınmayan vurgular görünürlüğü değiştirmez.
   List<List<AnimTarget>> _timing(XmlDocument doc) {
     final timing = _first(doc.rootElement, 'p:timing');
     if (timing == null) return const [];
@@ -558,14 +629,49 @@ class PptxRender {
         final rg = _firstDeep(tgt, 'p:pRg') ?? _firstDeep(tgt, 'a:pRg');
         final from = int.tryParse(rg?.getAttribute('st') ?? '');
         final to = int.tryParse(rg?.getAttribute('end') ?? '') ?? from;
-        final t = from == null
-            ? AnimTarget(spid)
-            : AnimTarget(spid, from, to);
+        final (kind, effect, dir) = _effectOf(tgt);
+        final t = AnimTarget(spid, from, from == null ? null : to, kind,
+            effect, dir);
         if (!targets.contains(t)) targets.add(t);
       }
       if (targets.isNotEmpty) steps.add(targets);
     }
     return steps;
+  }
+
+  /// Hedefin bağlı olduğu efekt düğümü (`p:cTn@presetClass`) → (sınıf,
+  /// tür, yön). PowerPoint ön ayar kimlikleri: giriş 1 görün, 2 uç, 10
+  /// soldur, 22 sil, 23/53 yaklaş; vurgu 8 dön.
+  static (AnimKind, String, String) _effectOf(XmlElement tgt) {
+    XmlElement? ctn;
+    for (var n = tgt.parentElement; n != null; n = n.parentElement) {
+      final c = n.getElement('p:cTn') ?? (n.name.qualified == 'p:cTn' ? n : null);
+      if (c?.getAttribute('presetClass') != null) {
+        ctn = c;
+        break;
+      }
+    }
+    final cls = ctn?.getAttribute('presetClass');
+    final id = int.tryParse(ctn?.getAttribute('presetID') ?? '') ?? 0;
+    final sub = int.tryParse(ctn?.getAttribute('presetSubtype') ?? '') ?? 0;
+    switch (cls) {
+      case 'exit':
+        return (AnimKind.exit, id == 1 ? 'appear' : 'fade', 'd');
+      case 'emph':
+        return (AnimKind.emphasis, id == 8 ? 'spin' : 'other', 'd');
+      case 'path' || 'verb' || 'mediacall':
+        return (AnimKind.emphasis, 'other', 'd');
+    }
+    final effect = switch (id) {
+      1 => 'appear',
+      2 || 3 || 12 || 47 => 'fly',
+      22 => 'wipe',
+      23 || 53 => 'zoom',
+      _ => 'fade',
+    };
+    // Uçuş alt türü: 1 üstten, 2 sağdan, 4 alttan, 8 soldan.
+    final dir = switch (sub) { 1 => 'u', 2 => 'r', 8 => 'l', _ => 'd' };
+    return (AnimKind.entrance, effect, dir);
   }
 
   // --------------------------------------------------------------- toplama
@@ -1071,6 +1177,11 @@ class PptxRender {
         _pt(bodyPr?.getAttribute('bIns')) ?? 3.6,
       ),
       fontScale: _fontScale(bodyPr),
+      textQuarterTurns: switch (bodyPr?.getAttribute('vert')) {
+        'vert' || 'eaVert' || 'mongolianVert' => 1,
+        'vert270' => 3,
+        _ => 0,
+      },
       autofit: bodyPr != null && _first(bodyPr, 'a:normAutofit') != null,
       growFit: bodyPr != null && _first(bodyPr, 'a:spAutoFit') != null,
       lnSpcReduction: _lnSpcReduction(bodyPr),

@@ -86,6 +86,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   /// Giriş geçişinin ilerleyişi (1 = bitti; açılışta da 1).
   late final AnimationController _enter;
 
+  /// B11 m.3 — "Biçim değiştir" geçişinde yeni slayt şekli → eski çerçevesi.
+  /// Boşsa (eşleşen ad yok) geçiş soldurmaya düşer.
+  Map<ShapeVM, Rect>? _morphFrom;
+
   late final PageController _pages =
       PageController(initialPage: widget.initialIndex);
   final TransformationController _zoom = TransformationController();
@@ -241,6 +245,10 @@ class _SlideshowScreenState extends State<SlideshowScreen>
         widget.slides[next].transition != null &&
         !Motion.reduced(context)) {
       // Geçişli slayt: sayfa kaydırması yerine yerinde giriş efekti.
+      // Biçim değiştir: aynı adlı şekiller önceki slayttaki yerinden kayar.
+      _morphFrom = widget.slides[next].transition == 'morph' && delta == 1
+          ? slideMorphFrom(widget.slides[_index], widget.slides[next])
+          : null;
       _pages.jumpToPage(next);
       _enter.forward(from: 0);
       return;
@@ -778,6 +786,13 @@ class _SlideshowScreenState extends State<SlideshowScreen>
         child: RepaintBoundary(
           child: i != _index || slide.transition == null
               ? SlideCanvas(slide: slide, step: i == _index ? _step : 0)
+              : slide.transition == 'morph' && (_morphFrom?.isNotEmpty ?? false)
+              ? SlideCanvas(
+                  key: const ValueKey('ss-morph'),
+                  slide: slide,
+                  step: _step,
+                  morph: _enter,
+                  morphFrom: _morphFrom)
               : AnimatedBuilder(
                   animation: _enter,
                   child: SlideCanvas(slide: slide, step: _step),
@@ -794,42 +809,8 @@ class _SlideshowScreenState extends State<SlideshowScreen>
   }
 
   /// Slaytın giriş efekti ([t] 0→1).
-  static Widget _transition(SlideVM slide, double t, Widget child) {
-    final rest = 1 - Curves.easeOutCubic.transform(t);
-    final dir = slide.transitionDir;
-    switch (slide.transition) {
-      case 'push':
-        return FractionalTranslation(
-          translation: switch (dir) {
-            'r' => Offset(-rest, 0),
-            'u' => Offset(0, rest),
-            'd' => Offset(0, -rest),
-            _ => Offset(rest, 0),
-          },
-          child: child,
-        );
-      case 'wipe':
-        final f = (1 - rest).clamp(0.001, 1.0);
-        final vertical = dir == 'u' || dir == 'd';
-        // Silme yönü SLAYTIN kendi yönüdür (`p:wipe@dir`), arayüz dilinin
-        // değil: Arapça arayüzde de aynalanmaz — bu yüzden fiziksel hiza.
-        return ClipRect(
-          child: Align(
-            alignment: switch (dir) {
-              'r' => const Alignment(-1, 0),
-              'u' => Alignment.bottomCenter,
-              'd' => Alignment.topCenter,
-              _ => const Alignment(1, 0),
-            },
-            widthFactor: vertical ? 1 : f,
-            heightFactor: vertical ? f : 1,
-            child: child,
-          ),
-        );
-      default:
-        return Opacity(opacity: (1 - rest).clamp(0.0, 1.0), child: child);
-    }
-  }
+  static Widget _transition(SlideVM slide, double t, Widget child) =>
+      slideTransitionFx(slide, t, child);
 
   void _partSetState(VoidCallback f) {
     if (mounted) setState(f);

@@ -142,6 +142,8 @@ const Map<String, (String, String, String)> _t25 = {
   'sp.fx_fade': ('Soldur', 'Fade', 'تلاشي'),
   'sp.fx_wipe': ('Sil', 'Wipe', 'مسح'),
   'sp.fx_zoom': ('Yakınlaştır', 'Zoom', 'تكبير'),
+  'sp.fx_fly': ('Kay', 'Fly in', 'طيران للداخل'),
+  'sp.fx_spin': ('Dön', 'Spin', 'دوران'),
   'sp.fx_entr': ('Giriş', 'Entrance', 'دخول'),
   'sp.fx_exit': ('Çıkış', 'Exit', 'خروج'),
   'sp.fx_emph': ('Vurgu', 'Emphasis', 'تأكيد'),

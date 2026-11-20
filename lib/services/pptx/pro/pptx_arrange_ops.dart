@@ -28,8 +28,9 @@ class SlideAnimStep {
 
 enum SlideAlign { left, hcenter, right, top, vcenter, bottom }
 
-/// Eklenebilir giriş efektleri (PowerPoint önayar kimlikleri).
-enum SlideEntrance { appear, fade, wipe, zoom }
+/// Eklenebilir efektler (PowerPoint önayar kimlikleri). `fly` = alttan kay;
+/// `spin` giriş değil VURGU efektidir (şekil baştan görünür, tıklamada döner).
+enum SlideEntrance { appear, fade, wipe, zoom, fly, spin }
 
 /// **Faz 38 / madde 6 — hizala/dağıt, katman paneli, animasyon sırası.**
 abstract final class PptxArrangeOps {
@@ -274,12 +275,23 @@ abstract final class PptxArrangeOps {
           list = _mainList(d)!;
         }
         final tgt = '<p:tgtEl><p:spTgt spid="$shapeId"/></p:tgtEl>';
+        final spin = effect == SlideEntrance.spin;
         const cond0 = '<p:stCondLst><p:cond delay="0"/></p:stCondLst>';
         final set = '<p:set><p:cBhvr><p:cTn id="0" dur="1" fill="hold">$cond0</p:cTn>$tgt'
             '<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr>'
             '<p:to><p:strVal val="visible"/></p:to></p:set>';
+        String anim(String attr, String from, String to) =>
+            '<p:anim calcmode="lin" valueType="num"><p:cBhvr additive="base"><p:cTn id="0" dur="500" fill="hold"/>$tgt'
+            '<p:attrNameLst><p:attrName>$attr</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst>'
+            '<p:tav tm="0"><p:val><p:strVal val="$from"/></p:val></p:tav>'
+            '<p:tav tm="100000"><p:val><p:strVal val="$to"/></p:val></p:tav></p:tavLst></p:anim>';
         final (preset, sub, extra) = switch (effect) {
           SlideEntrance.appear => (1, 0, ''),
+          SlideEntrance.fly => (2, 4,
+              anim('ppt_x', '#ppt_x', '#ppt_x') + anim('ppt_y', '1+#ppt_h/2', '#ppt_y')),
+          SlideEntrance.spin => (8, 0,
+              '<p:animRot by="21600000"><p:cBhvr><p:cTn id="0" dur="1000" fill="hold"/>$tgt'
+                  '<p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr></p:animRot>'),
           SlideEntrance.fade => (10, 0,
               '<p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="0" dur="500"/>$tgt</p:cBhvr></p:animEffect>'),
           SlideEntrance.wipe => (22, 4,
@@ -298,8 +310,8 @@ abstract final class PptxArrangeOps {
         list.children.add(PptxPackage.frag('<p:par><p:cTn id="0" fill="hold">'
             '<p:stCondLst><p:cond delay="indefinite"/></p:stCondLst><p:childTnLst>'
             '<p:par><p:cTn id="0" fill="hold">$cond0<p:childTnLst>'
-            '<p:par><p:cTn id="0" presetID="$preset" presetClass="entr" presetSubtype="$sub" fill="hold" nodeType="clickEffect">'
-            '$cond0<p:childTnLst>$set$extra</p:childTnLst></p:cTn></p:par>'
+            '<p:par><p:cTn id="0" presetID="$preset" presetClass="${spin ? 'emph' : 'entr'}" presetSubtype="$sub" fill="hold" nodeType="clickEffect">'
+            '$cond0<p:childTnLst>${spin ? '' : set}$extra</p:childTnLst></p:cTn></p:par>'
             '</p:childTnLst></p:cTn></p:par>'
             '</p:childTnLst></p:cTn></p:par>'));
         _renumber(d);
