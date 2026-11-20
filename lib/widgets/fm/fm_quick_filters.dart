@@ -401,7 +401,7 @@ class FmQuickFilters extends StatefulWidget {
   State<FmQuickFilters> createState() => _FmQuickFiltersState();
 }
 
-/// Bir çizim için hesaplanmış çip sayıları.
+/// Kaynak levhasının sayıları ("dokunursam kaç dosya kalır").
 class _Counts {
   final List<(MediaBucket, int)> buckets;
   final int untouched;
@@ -412,15 +412,8 @@ class _Counts {
   /// "Ana bellek" tek başına hiçbir şey süzmez, yalnız yer kaplardı.
   final List<(StorageVolume, int)> volumes;
 
-  /// Listede etiketli dosya var mı (her çizimde 20 bin dosyayı yeniden
-  /// gezmemek için sayımla birlikte önbellekte).
-  final bool anyTagged;
-
-  /// AI kategorileri (Akıllı düzen): (kimlik, listede kaç dosya), çoktan aza.
-  final List<(String, int)> smart;
-
   const _Counts(this.buckets, this.untouched, this.openedWithin, this.large,
-      this.volumes, this.anyTagged, this.smart);
+      this.volumes);
 }
 
 /// [probe] ölçütü eklenmiş süzgeçten kaç dosya geçer?
@@ -474,21 +467,15 @@ _Counts _computeCounts(
   final volCounts =
       hasMultiVols ? List<int>.filled(volProbes.length, 0) : const <int>[];
 
-  final smartOf = FmFilter.smartCatOf;
-  final userCatsOf = FmFilter.smartUserCatsOf;
-  final smartCounts = <String, int>{};
-
   var untouched = 0;
   var openedWithin = 0;
   var large = 0;
-  var anyTagged = false;
 
   for (final e in source) {
     if (e.isDir) continue;
     final path = e.path;
     final openedAt = OpenHistory.forPath(path);
     final tags = FileTags.forPath(path);
-    if (!anyTagged && tags.isNotEmpty) anyTagged = true;
     int? openedAtOf(String _) => openedAt;
     Set<String> tagsOf(String _) => tags;
 
@@ -517,18 +504,6 @@ _Counts _computeCounts(
         }
       }
     }
-    if (smartOf != null) {
-      final c = smartOf(path);
-      if (c != null && c != 'other') {
-        smartCounts[c] = (smartCounts[c] ?? 0) + 1;
-      }
-      final mine = userCatsOf?.call(path);
-      if (mine != null) {
-        for (final u in mine) {
-          smartCounts[u] = (smartCounts[u] ?? 0) + 1;
-        }
-      }
-    }
   }
 
   final buckets = <(MediaBucket, int)>[
@@ -540,26 +515,96 @@ _Counts _computeCounts(
       if (volCounts[i] > 0 || volProbes[i].$2) (volProbes[i].$1, volCounts[i]),
   ];
 
-  final List<(String, int)> smart;
-  if (smartOf == null) {
-    smart = const [];
-  } else {
-    for (final c in f.smartCats) {
-      smartCounts.putIfAbsent(c, () => 0);
-    }
-    smart = smartCounts.entries.map((e) => (e.key, e.value)).toList()
-      ..sort((a, b) => b.$2.compareTo(a.$2));
-  }
-
   return _Counts(
     buckets,
     untouched,
     openedWithin,
     large,
     volumes,
-    anyTagged,
-    smart,
   );
+}
+
+/// AI kategorileri (Akıllı düzen): (kimlik, listede kaç dosya), çoktan aza.
+/// Akıllı düzen kapalıysa boş. Yalnız eşlem bakışı — ucuz.
+List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
+  final smartOf = FmFilter.smartCatOf;
+  if (smartOf == null) return const [];
+  final userCatsOf = FmFilter.smartUserCatsOf;
+  final counts = <String, int>{};
+  for (final e in source) {
+    if (e.isDir) continue;
+    final c = smartOf(e.path);
+    if (c != null && c != 'other') counts[c] = (counts[c] ?? 0) + 1;
+    final mine = userCatsOf?.call(e.path);
+    if (mine != null) {
+      for (final u in mine) {
+        counts[u] = (counts[u] ?? 0) + 1;
+      }
+    }
+  }
+  for (final c in f.smartCats) {
+    counts.putIfAbsent(c, () => 0);
+  }
+  return counts.entries.map((e) => (e.key, e.value)).toList()
+    ..sort((a, b) => b.$2.compareTo(a.$2));
+}
+
+/// Şerit yalnız **var mı** sorar: kaynak hapı (etiket, kaynak, birim, zaman,
+/// boyut ölçütlerinden biri) ve AI kategori hapı gösterilsin mi.
+///
+/// **Niye sayım değil (G1b, 2026-11-20):** tam sayım ([_computeCounts]) her
+/// dosyada ~10 süzgeç denemesi yapar; 5.300 fotoğrafta 155–170 ms. Galerinin
+/// yüzen başlığı ilk savurmada yeniden kurulunca bu tek kareye biniyordu.
+/// Sayılar yalnız levhada gerekir (levha kendisi sayar); burada ilk eşleşmede
+/// durulur — tipik listede ilk dosyada.
+({bool source, bool smart}) _presence(
+    List<FsEntry> source, FmFilter f, int untouchedDays, bool showBuckets) {
+  final untouchedProbe =
+      f.untouchedDays == null ? f.withUntouchedDays(untouchedDays) : f;
+  final openedWithinProbe = f.openedWithinDays == null
+      ? f.withOpenedWithinDays(untouchedDays)
+      : f;
+  final largeProbe = f.sizeRange == FmSizeRange.large
+      ? f
+      : f.withSizeRange(FmSizeRange.large);
+  final vols = FmEnv.volumes;
+  final volProbes = vols.length > 1
+      ? [
+          for (final v in vols)
+            f.volumeRoots.contains(v.path) ? f : f.toggleVolumeRoot(v.path),
+        ]
+      : const <FmFilter>[];
+  final smartOf = FmFilter.smartCatOf;
+  final userCatsOf = FmFilter.smartUserCatsOf;
+  // Seçili birim sayısı 0 olsa da çipi görünür ([_computeCounts] ile aynı).
+  var src = volProbes.isNotEmpty &&
+      vols.any((v) => f.volumeRoots.contains(v.path));
+  var smart = smartOf == null || f.smartCats.isNotEmpty;
+  for (final e in source) {
+    if (src && smart) break;
+    if (e.isDir) continue;
+    final path = e.path;
+    if (!src) {
+      final openedAt = OpenHistory.forPath(path);
+      final tags = FileTags.forPath(path);
+      int? openedAtOf(String _) => openedAt;
+      Set<String> tagsOf(String _) => tags;
+      bool m(FmFilter p) =>
+          p.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf);
+      src = tags.isNotEmpty ||
+          (showBuckets && bucketForPath(path) != MediaBucket.other) ||
+          m(untouchedProbe) ||
+          m(openedWithinProbe) ||
+          m(largeProbe) ||
+          volProbes.any(m);
+    }
+    if (!smart) {
+      final c = smartOf?.call(path);
+      smart = (c != null && c != 'other') ||
+          (userCatsOf?.call(path).isNotEmpty ?? false);
+    }
+  }
+  return (source: src, smart: smartOf != null && smart);
 }
 
 /// **AI kategori levhası** (Akıllı düzen, 2026-11-18): listedeki dosyaların
@@ -839,7 +884,7 @@ Color _bucketColor(MediaBucket b, ColorScheme scheme) => switch (b) {
     };
 
 class _FmQuickFiltersState extends State<FmQuickFilters> {
-  _Counts? _cache;
+  ({bool source, bool smart})? _cache;
   String? _cacheKey;
 
   /// Sayım anahtarı: liste ya da süzgeç değişmedikçe yeniden sayılmaz.
@@ -854,7 +899,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       '${FmEnv.volumes.map((v) => v.path).join(',')}|'
       '${OpenHistory.revision}|${FileTags.revision}|${SmartSort.revision.value}';
 
-  _Counts get _counts {
+  ({bool source, bool smart}) get _counts {
     final key = _key;
     final cached = _cache;
     if (cached != null && _cacheKey == key) return cached;
@@ -864,22 +909,18 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
     return computed;
   }
 
-  _Counts _compute() => _computeCounts(
+  ({bool source, bool smart}) _compute() => _presence(
       widget.source, widget.filter, widget.untouchedDays, widget.showBuckets);
 
   @override
   Widget build(BuildContext context) {
     final counts = _counts;
     final f = widget.filter;
-    // Etiketli dosya varsa levha (ve içindeki Etiketler bölümü) hep açılabilir.
-    final tagged = f.tags.isNotEmpty || counts.anyTagged;
+    // Etiketli dosya ya da herhangi bir kaynak/zaman/boyut ölçütü varsa
+    // levha (ve içindeki Etiketler bölümü) açılabilir.
+    final tagged = f.tags.isNotEmpty || counts.source;
     if (!tagged &&
-        counts.smart.isEmpty &&
-        counts.buckets.isEmpty &&
-        counts.volumes.isEmpty &&
-        counts.untouched == 0 &&
-        counts.openedWithin == 0 &&
-        counts.large == 0 &&
+        !counts.smart &&
         widget.leading.isEmpty &&
         widget.trailing.isEmpty) {
       return const SizedBox.shrink();
@@ -887,13 +928,7 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
 
     // Tüm kaynak/zaman/boyut süzgeçleri TEK hapta; dokununca kart levhası.
     final active = _sourceActive(f);
-    final hasAny = tagged ||
-        counts.buckets.isNotEmpty ||
-        counts.volumes.isNotEmpty ||
-        counts.untouched > 0 ||
-        counts.openedWithin > 0 ||
-        counts.large > 0 ||
-        active > 0;
+    final hasAny = tagged || active > 0;
     return FmFilterBar(
       children: [
         ...widget.leading,
@@ -918,13 +953,13 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
             ),
           ),
         // AI kategorisi (Akıllı düzen): yalnız listede kategorili dosya varsa.
-        if (counts.smart.isNotEmpty)
+        if (counts.smart)
           InkWell(
             key: const ValueKey('smartcat-pill'),
             borderRadius: BorderRadius.circular(12),
             onTap: () => showSmartCatSheet(
               context,
-              cats: counts.smart,
+              cats: _smartCounts(widget.source, widget.filter),
               filter: widget.filter,
               onChanged: widget.onChanged,
             ),
