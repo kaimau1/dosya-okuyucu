@@ -84,6 +84,9 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
         stopHotspot()
         leaveWifi()
         keepAwake(false)
+        try {
+            qrExecutor.shutdownNow()
+        } catch (_: Exception) {}
     }
 
     /** Ekran kapalıyken aktarım sürsün: CPU + Wi-Fi uykuya geçmesin. */
@@ -137,25 +140,37 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
         // 12 MP fotoğrafı tam boy ana iş parçacığında çözer (~100+ ms kare
         // kaybı, galeride kaydırırken kasma). Burada arka planda, uzun kenarı
         // 1600–3200 px'e küçültülerek çözülür.
-        qrExecutor.execute {
-            val bmp = try { loadScaled(path, 1600) } catch (e: Throwable) { null }
-            if (bmp == null) {
-                main.post { result.success(emptyList<String>()) }
-                return@execute
-            }
-            val options = BarcodeScannerOptions.Builder()
-                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                .build()
-            val scanner = BarcodeScanning.getClient(options)
-            scanner.process(InputImage.fromBitmap(bmp, 0))
-                .addOnSuccessListener { codes ->
-                    result.success(codes.mapNotNull { it.rawValue }.distinct())
+        try {
+            qrExecutor.execute {
+                val bmp = try { loadScaled(path, 1600) } catch (_: Throwable) { null }
+                if (bmp == null) {
+                    main.post { result.success(emptyList<String>()) }
+                    return@execute
                 }
-                .addOnFailureListener { result.success(emptyList<String>()) }
-                .addOnCompleteListener {
-                    scanner.close()
+                var scanner: com.google.mlkit.vision.barcode.BarcodeScanner? = null
+                try {
+                    val options = BarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                        .build()
+                    val s = BarcodeScanning.getClient(options)
+                    scanner = s
+                    s.process(InputImage.fromBitmap(bmp, 0))
+                        .addOnSuccessListener { codes ->
+                            result.success(codes.mapNotNull { it.rawValue }.distinct())
+                        }
+                        .addOnFailureListener { result.success(emptyList<String>()) }
+                        .addOnCompleteListener {
+                            try { s.close() } catch (_: Throwable) {}
+                            bmp.recycle()
+                        }
+                } catch (_: Throwable) {
+                    try { scanner?.close() } catch (_: Throwable) {}
                     bmp.recycle()
+                    main.post { result.success(emptyList<String>()) }
                 }
+            }
+        } catch (_: Exception) {
+            result.success(emptyList<String>())
         }
     }
 
@@ -247,44 +262,52 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
             return
         }
         leaveWifi()
-        val spec = WifiNetworkSpecifier.Builder().setSsid(ssid).apply {
-            if (pass.isNotEmpty()) {
-                if (sec == "sae") setWpa3Passphrase(pass) else setWpa2Passphrase(pass)
-            }
-        }.build()
-        val request = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .setNetworkSpecifier(spec)
-            .build()
         var replied = false
         val main = Handler(Looper.getMainLooper())
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                cm.bindProcessToNetwork(network)
-                main.post {
-                    if (!replied) {
-                        replied = true
-                        result.success(true)
-                    }
-                }
-            }
-
-            override fun onUnavailable() {
-                main.post {
-                    if (!replied) {
-                        replied = true
-                        result.success(false)
-                    }
-                }
-            }
-        }
-        joinCallback = callback
         try {
+            val spec = WifiNetworkSpecifier.Builder().setSsid(ssid).apply {
+                if (pass.isNotEmpty()) {
+                    if (sec == "sae") setWpa3Passphrase(pass) else setWpa2Passphrase(pass)
+                }
+            }.build()
+            val request = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .setNetworkSpecifier(spec)
+                .build()
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    cm.bindProcessToNetwork(network)
+                    main.post {
+                        if (!replied) {
+                            replied = true
+                            result.success(true)
+                        }
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    try { cm.bindProcessToNetwork(null) } catch (_: Exception) {}
+                }
+
+                override fun onUnavailable() {
+                    if (joinCallback === this) joinCallback = null
+                    main.post {
+                        if (!replied) {
+                            replied = true
+                            result.success(false)
+                        }
+                    }
+                }
+            }
+            joinCallback = callback
             cm.requestNetwork(request, callback, 60_000)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             joinCallback = null
-            result.success(false)
+            if (!replied) {
+                replied = true
+                result.success(false)
+            }
         }
     }
 

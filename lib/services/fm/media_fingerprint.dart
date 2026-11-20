@@ -79,6 +79,24 @@ abstract final class MediaFingerprint {
     }
   }
 
+  static const _maxCacheEntries = 25000;
+  static const _maxFailedEntries = 10000;
+  static const _maxSharpEntries = 4000;
+
+  static void _putCache(String key, int hash) {
+    if (!_cache.containsKey(key) && _cache.length >= _maxCacheEntries) {
+      _cache.remove(_cache.keys.first);
+    }
+    _cache[key] = hash;
+  }
+
+  static void _markFailed(String path) {
+    if (!_failed.contains(path) && _failed.length >= _maxFailedEntries) {
+      _failed.remove(_failed.first);
+    }
+    _failed.add(path);
+  }
+
   /// [entry] için parmak izi (önbellekten ya da üreterek). Üretilemezse null.
   ///
   /// Videolarda **küçük resim karesi** kullanılır (native
@@ -96,15 +114,15 @@ abstract final class MediaFingerprint {
       source = await ThumbnailCache.forVideo(entry.path, size: 128);
     }
     if (source == null) {
-      _failed.add(entry.path);
+      _markFailed(entry.path);
       return null;
     }
     final hash = await hashImageFile(source);
     if (hash == null) {
-      _failed.add(entry.path);
+      _markFailed(entry.path);
       return null;
     }
-    _cache[key] = hash;
+    _putCache(key, hash);
     _dirty = true;
     return hash;
   }
@@ -132,6 +150,9 @@ abstract final class MediaFingerprint {
     final gray = await _grayOf(entry.path, _sharpSide, _sharpSide);
     if (gray == null) return null;
     final v = laplacianVariance(gray, _sharpSide, _sharpSide);
+    if (!_sharpCache.containsKey(key) && _sharpCache.length >= _maxSharpEntries) {
+      _sharpCache.remove(_sharpCache.keys.first);
+    }
     _sharpCache[key] = v;
     return v;
   }

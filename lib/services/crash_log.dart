@@ -136,8 +136,8 @@ abstract final class CrashLog {
       final dir = await _resolveDir();
       if (dir == null) return;
       final seen = File(p.join(dir, 'exit_seen.txt'));
-      final since = seen.existsSync()
-          ? int.tryParse(seen.readAsStringSync().trim()) ?? 0
+      final since = await seen.exists()
+          ? int.tryParse((await seen.readAsString()).trim()) ?? 0
           : 0;
       final list = await const MethodChannel('dosya/extras')
           .invokeListMethod<Map<Object?, Object?>>('exitReasons', since);
@@ -146,6 +146,8 @@ abstract final class CrashLog {
       for (final e in list.reversed) {
         final time = (e['time'] as num?)?.toInt() ?? 0;
         if (time > newest) newest = time;
+        final exitAt =
+            time > 0 ? DateTime.fromMillisecondsSinceEpoch(time) : null;
         final bg = isBackgroundKill(
             e['reason'] as String?, (e['importance'] as num?)?.toInt());
         await record(
@@ -154,14 +156,15 @@ abstract final class CrashLog {
               .trim(),
           null,
           kind: 'exit',
-          context: '${DateTime.fromMillisecondsSinceEpoch(time)} · '
+          at: exitAt,
+          context: '${exitAt ?? DateTime.fromMillisecondsSinceEpoch(0)} · '
               'pss ${(e['pssKb'] as num? ?? 0) ~/ 1024} MB · '
               'status ${e['status']}',
         );
       }
-      seen.writeAsStringSync('$newest');
+      await seen.writeAsString('$newest', flush: true);
     } catch (_) {
-      // Eski Android / kanal yok (test): sessiz.
+      // Bilinçli: Eski Android / kanal yok (test): sessiz.
     }
   }
 
@@ -181,9 +184,9 @@ abstract final class CrashLog {
 
   static const _bgTag = '(background)';
 
-  /// Panoda uyarı açar mı? (Arka plan kapatması açmaz — [isBackgroundKill].)
+  /// Panoda uyarı açar mı? (Arka plan kapatması ve ele alınmış kayıtlar açmaz.)
   static bool notifies(CrashRecord r) =>
-      !(r.kind == 'exit' && r.error.contains(_bgTag));
+      r.kind != 'handled' && !(r.kind == 'exit' && r.error.contains(_bgTag));
 
   /// Panodaki bildirim kartının kaynağı: görülmemiş kayıt sayısı. Açılışta
   /// çıkış nedenleri içeri alındıktan SONRA bir kez doldurulur
@@ -198,13 +201,13 @@ abstract final class CrashLog {
   /// kendisi hata verirse (disk dolu, izin yok) uygulamayı çökertmek en kötü
   /// sonuç olurdu.
   static Future<void> record(Object error, StackTrace? stack,
-      {String? context, String kind = 'error'}) async {
+      {String? context, String kind = 'error', DateTime? at}) async {
     try {
       final dir = await _resolveDir();
       if (dir == null) return;
       final records = await load();
       final entry = CrashRecord(
-        time: DateTime.now(),
+        time: at ?? DateTime.now(),
         kind: kind,
         // G2.5: sır/kişisel veri DİSKE yazılmadan önce maskelenir.
         error: LogScrub.scrub(_clip(error.toString(), 1000)),
@@ -220,6 +223,9 @@ abstract final class CrashLog {
         records[0] = records.first.repeated(entry.time);
       } else {
         records.insert(0, entry);
+        if (at != null && records.length > 1) {
+          records.sort((a, b) => b.time.compareTo(a.time));
+        }
       }
       final kept = records.take(maxRecords).toList();
       final file = File(p.join(dir, _fileName));
@@ -227,7 +233,7 @@ abstract final class CrashLog {
           jsonEncode(kept.map((r) => r.toJson()).toList()),
           flush: true);
     } catch (_) {
-      // Bilerek yutuluyor (yukarıdaki gerekçe).
+      // Bilinçli: Bilerek yutuluyor (yukarıdaki gerekçe).
     }
   }
 

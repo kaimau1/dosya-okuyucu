@@ -247,9 +247,12 @@ class PdfPendingObjectView extends StatelessWidget {
         );
       case PdfPendingKind.image:
         final data = object.image;
+        final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+        final cw = (object.box.width * scale * dpr).round().clamp(64, 2048);
         return data == null
             ? const SizedBox.shrink()
-            : Image.memory(data, fit: BoxFit.fill, gaplessPlayback: true);
+            : Image.memory(data,
+                fit: BoxFit.fill, gaplessPlayback: true, cacheWidth: cw);
     }
   }
 }

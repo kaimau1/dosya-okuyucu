@@ -4,8 +4,7 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
   /// Üst çubuk: başlık + yalnız `Ara` · `Görünüm` · `⋮` (Faz 6 / U2).
   /// Sıralama ve filtre artık listenin üstündeki araç şeridinde
   /// ([FmListToolbar]); ⋮ menüsü 13 → 8 madde.
-  PreferredSizeWidget _normalBar(BuildContext context) {
-    final appState = context.watch<AppState>();
+  PreferredSizeWidget _normalBar(BuildContext context, AppState appState) {
     final starred = appState.isBookmarked(widget.path);
     return AppBar(
       title: Text(widget.title ?? p.basename(widget.path),

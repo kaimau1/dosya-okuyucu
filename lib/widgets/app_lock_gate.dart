@@ -77,9 +77,10 @@ class _AppLockGateState extends State<AppLockGate> {
   Future<void> _submit(AppState appState) async {
     if (_waitSeconds > 0 || _busy) return;
     final backoff = await PinBackoff.instance();
+    if (!mounted) return;
     final wait = backoff.remaining();
     if (wait > Duration.zero) {
-      if (mounted) _startWait(wait);
+      _startWait(wait);
       return;
     }
     setState(() => _busy = true);
@@ -123,8 +124,9 @@ class _AppLockGateState extends State<AppLockGate> {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    if (_unlocked || !appState.appLock) return widget.child;
+    final appLock = context.select<AppState, bool>((s) => s.appLock);
+    if (_unlocked || !appLock) return widget.child;
+    final appState = context.read<AppState>();
     return SecureScreen(
         child: Scaffold(
       body: Center(

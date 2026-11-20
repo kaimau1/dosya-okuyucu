@@ -78,6 +78,8 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       return;
     }
     final pages = await _pageCount();
+    final fontBytes = await _unicodeFont();
+    if (!mounted) return;
     final request = DigitalSignRequest(
       pageIndex: opts.lastPage ? pages - 1 : 0,
       bounds: null,
@@ -86,7 +88,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       reason: opts.reason,
       location: opts.location,
       signedAt: DateTime.now(),
-      fontBytes: await _unicodeFont(),
+      fontBytes: fontBytes,
     );
     final pw = _password;
     final before = _bytes;
@@ -99,6 +101,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       final path = res?.files.single.path;
       if (path == null || !mounted) return;
       final pfx = await File(path).readAsBytes();
+      if (!mounted) return;
       final pass = await _askPassword(
           _str.t('pp.dsign_pfx'), _str.t('pp.dsign_pfx_password'));
       if (pass == null || !mounted) return;
@@ -210,6 +213,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     );
     if (!ok || !mounted) return;
     final font = await _unicodeFont();
+    if (!mounted) return;
     final before = _bytes;
     final pages = marks.keys.toList()..sort();
     await _apply(_str.t('pp.redact'), (b) async {

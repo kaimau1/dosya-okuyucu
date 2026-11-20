@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../core/private_zone.dart';
 import 'fm_env.dart';
 
 /// **"Kaldığın sayfadan devam et"** — belgelerin bırakıldığı sayfa.
@@ -139,7 +140,13 @@ abstract final class ReadingPositions {
   /// Diske yazma geciktirilir: kullanıcı sayfa çevirdikçe çağrılıyor ve her
   /// çevirmede dosya yazmak boşuna disk aşındırır.
   static void record(String path, int page, int totalPages, {int size = 0}) {
-    if (!enabled || path.isEmpty || totalPages < minPages) return;
+    if (!enabled ||
+        path.isEmpty ||
+        totalPages < minPages ||
+        PrivateZone.active ||
+        PrivateZone.isPrivatePath(path)) {
+      return;
+    }
     // İlk sayfa: kayıt DÜŞER (başa dönen kullanıcı baştan okumaya karar
     // vermiştir; açılış zaten orası). Son sayfa ARTIK kaydedilir.
     if (page <= 1) {
@@ -160,6 +167,21 @@ abstract final class ReadingPositions {
   /// Kaydı siler ("baştan başla" ya da belge silindi).
   static void clear(String path) {
     if (_byPath.remove(path) != null) _scheduleSave();
+  }
+
+  /// Tüm kayıtlı okuma konumlarını siler (PrivacyWipe).
+  static Future<void> clearAll() async {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _byPath.clear();
+    _loaded = true;
+    if (FmEnv.appSupportDir.isEmpty) return;
+    try {
+      final f = File(_path);
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   static void _scheduleSave() {

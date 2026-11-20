@@ -5,9 +5,12 @@ import 'dart:math';
 
 import 'package:path/path.dart' as p;
 
+import '../../../core/private_zone.dart';
 import '../../../models/fs_entry.dart';
+import '../folder_lock.dart';
 import '../fs_scan.dart';
 import '../storage_stats.dart';
+import '../trash_service.dart';
 import 'disk_guard.dart';
 import 'ftp_tree.dart';
 import 'lan_guard.dart';
@@ -263,6 +266,23 @@ class FtpServer {
     }
   }
 
+  /// Paylaşımda hiçbir zaman açılmaması gereken yol mu (şifreli kasa, gizli
+  /// kasa, çöp kutusu, kilitli klasör veya gizli dosyalar kapalıyken nokta
+  /// ile başlayan parça)?
+  bool isBlockedSharePath(String real) {
+    if (PrivateZone.isPrivatePath(real)) return true;
+    final segments = p
+        .relative(real, from: rootDirectory)
+        .split(RegExp(r'[\\/]+'))
+        .where((s) => s.isNotEmpty && s != '.');
+    for (final s in segments) {
+      if (s == TrashService.dirName) return true;
+      if (!showHidden && s.startsWith('.')) return true;
+    }
+    if (FolderLock.isLocked(real, lockedFolders)) return true;
+    return false;
+  }
+
   /// Bir düğümün GERÇEK disk yolu (yoksa null).
   ///
   /// **Kök hapsi burada uygulanıyor** ([resolve]); kategori kutusundaki
@@ -272,14 +292,22 @@ class FtpServer {
   /// `FtpServer`da (oturumda değil): HTTP paylaşımı da aynı ağaçtan aynı
   /// yolları çözüyor ve **aynı hapsi** kullanmak zorunda — iki kopya olsaydı
   /// biri düzeltilip diğeri açık kalabilirdi.
-  String? realPathOf(FtpNode node) => switch (node.kind) {
-        FtpNodeKind.real =>
-          node.relative == null ? null : resolve('/', node.relative!),
-        FtpNodeKind.categoryFile => node.realPath == null
-            ? null
-            : resolve('/', p.relative(node.realPath!, from: rootDirectory)),
-        _ => null,
-      };
+  String? realPathOf(FtpNode node) {
+    final real = switch (node.kind) {
+      FtpNodeKind.real =>
+        node.relative == null ? null : resolve('/', node.relative!),
+      FtpNodeKind.categoryFile => node.realPath == null
+          ? null
+          : resolve('/', p.relative(node.realPath!, from: rootDirectory)),
+      _ => null,
+    };
+    if (real == null) return null;
+    if (isBlockedSharePath(real)) return null;
+    if (node.boxRoot != null && !withinRealRoot(node.boxRoot!, real)) {
+      return null;
+    }
+    return real;
+  }
 
   /// Sanal yolu (`/` kökten) [resolve] için normalize eder.
   static String normalizeVirtual(String cwd, String requested) {
@@ -415,7 +443,7 @@ class _FtpSession {
   String _cwd = '/';
   bool _authed = false;
   String _pendingUser = '';
-  String _renameFrom = '';
+  String? _renameFrom;
 
   /// `REST` ile bildirilen kaldığı yer (bir sonraki aktarımda kullanılır ve
   /// sıfırlanır). Kesilen bir indirmeyi baştan başlatmamak için: 4 GB'lık bir
@@ -492,8 +520,8 @@ class _FtpSession {
 
     try {
       await _dispatch(command, argument);
-    } catch (e) {
-      _send('550 Hata: $e');
+    } catch (_) {
+      _send('550 İşlem başarısız');
     }
   }
 
@@ -603,10 +631,13 @@ class _FtpSession {
       case 'MKD' || 'XMKD':
         await _makeDirectory(argument);
       case 'RNFR':
-        _renameFrom = argument;
-        _send(_realPath(await _node(argument)) == null
-            ? '550 Yol yok'
-            : '350 Yeni ad bekleniyor');
+        if (argument.isEmpty || _realPath(await _node(argument)) == null) {
+          _renameFrom = null;
+          _send('550 Yol yok');
+        } else {
+          _renameFrom = argument;
+          _send('350 Yeni ad bekleniyor');
+        }
       case 'RNTO':
         await _renameTo(argument);
       case 'QUIT':
@@ -819,8 +850,8 @@ class _FtpSession {
       data.add(utf8.encode(buffer.toString()));
       await data.flush();
       _send('226 Liste bitti');
-    } catch (e) {
-      _send('550 Liste alınamadı: $e');
+    } catch (_) {
+      _send('550 Liste alınamadı');
     } finally {
       await _closeData(data);
     }
@@ -854,6 +885,7 @@ class _FtpSession {
     for (final entry in Directory(real).listSync(followLinks: false)) {
       final name = p.basename(entry.path);
       if (!server.showHidden && FtpServer.isHidden(name)) continue;
+      if (server.isBlockedSharePath(entry.path)) continue;
       FileStat stat;
       try {
         stat = entry.statSync();
@@ -890,8 +922,8 @@ class _FtpSession {
       await data.addStream(File(real).openRead(from));
       await data.flush();
       _send('226 Aktarım bitti');
-    } catch (e) {
-      _send('426 Aktarım kesildi: $e');
+    } catch (_) {
+      _send('426 Aktarım kesildi');
     } finally {
       await _closeData(data);
     }
@@ -939,8 +971,8 @@ class _FtpSession {
       await sink.addStream(data);
       await sink.close();
       _send('226 Aktarım bitti');
-    } catch (e) {
-      _send('426 Yazılamadı: $e');
+    } catch (_) {
+      _send('426 Yazılamadı');
     } finally {
       await _closeData(data);
     }
@@ -985,8 +1017,8 @@ class _FtpSession {
       // Kutu içeriği değişti; bir sonraki listede tazelensin.
       server.tree.invalidate();
       _send('250 Silindi');
-    } catch (e) {
-      _send('550 Silinemedi: $e');
+    } catch (_) {
+      _send('550 Silinemedi');
     }
   }
 
@@ -1002,14 +1034,20 @@ class _FtpSession {
     try {
       Directory(real).createSync(recursive: true);
       _send('257 Klasör oluşturuldu');
-    } catch (e) {
-      _send('550 Oluşturulamadı: $e');
+    } catch (_) {
+      _send('550 Oluşturulamadı');
     }
   }
 
   Future<void> _renameTo(String argument) async {
+    final renameFrom = _renameFrom;
+    _renameFrom = null;
     if (!_requireWrite()) return;
-    final from = _realPath(await _node(_renameFrom));
+    if (renameFrom == null || renameFrom.isEmpty) {
+      _send('503 Önce RNFR kullanın');
+      return;
+    }
+    final from = _realPath(await _node(renameFrom));
     final to = _realPath(await _node(argument));
     if (from == null || to == null) {
       _send('550 Geçersiz yol');
@@ -1023,8 +1061,8 @@ class _FtpSession {
       }
       server.tree.invalidate();
       _send('250 Adı değişti');
-    } catch (e) {
-      _send('550 Değiştirilemedi: $e');
+    } catch (_) {
+      _send('550 Değiştirilemedi');
     }
   }
 }

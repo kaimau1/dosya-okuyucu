@@ -64,8 +64,9 @@ class TrustedPeers extends ChangeNotifier {
 
   bool isTrusted(String name, [String id = '', String fp = '']) {
     if (fp.isNotEmpty) return _items.any((t) => t.fp == fp);
-    return _items.any((t) => !t.keyed &&
-        (id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name));
+    return _items.any((t) =>
+        !t.keyed &&
+        (t.id.isNotEmpty ? (id.isNotEmpty && t.id == id) : t.name == name));
   }
 
   /// Parmak iziyle kayıt (yoksa null).
@@ -83,7 +84,8 @@ class TrustedPeers extends ChangeNotifier {
     if (fp.isNotEmpty) {
       // Aynı cihazın eski (anahtarsız) kaydı anahtarlı kayıtla değişir.
       _items.removeWhere((t) =>
-          !t.keyed && (id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name));
+          !t.keyed &&
+          (t.id.isNotEmpty ? (id.isNotEmpty && t.id == id) : t.name == name));
     }
     _items.add(TrustedPeer(name, id, fp));
     notifyListeners();
@@ -94,7 +96,8 @@ class TrustedPeers extends ChangeNotifier {
   /// (yoksa ad) tutuyor ama parmak izi yok. Kullanıcı kabul ederse
   /// [add] anahtarla yeniler.
   bool hasLegacy(String name, [String id = '']) => _items.any((t) =>
-      !t.keyed && (id.isNotEmpty && t.id.isNotEmpty ? t.id == id : t.name == name));
+      !t.keyed &&
+      (t.id.isNotEmpty ? (id.isNotEmpty && t.id == id) : t.name == name));
 
   /// Başka bir motorun (ör. "Dosya al" kutucuğu) yazdığını görmek için.
   Future<void> reload() async {

@@ -194,9 +194,14 @@ class DocxViewState extends State<DocxView> {
           });
           widget.onStatus?.call(false);
         },
-      ))
-      ..loadFlutterAsset('assets/word/viewer.html');
-    _lockWebViewTextSize();
+      ));
+    _initWebView();
+  }
+
+  Future<void> _initWebView() async {
+    await _lockWebViewTextSize();
+    if (!mounted) return;
+    await _controller.loadFlutterAsset('assets/word/viewer.html');
   }
 
   /// Belgedeki dış bağlantı (G6.2): tam adres gösterilir, onaylanırsa
@@ -224,13 +229,13 @@ class DocxViewState extends State<DocxView> {
   /// bambaşka sarıyor ve sayfa sayısı bile tutmuyordu. Flutter tarafındaki
   /// ölçek kilidi (bkz. `DosyaOkuyucuApp.builder`) WebView'a işlemez — ayarı
   /// burada %100'e sabitliyoruz. Android dışında sessizce geçilir.
-  void _lockWebViewTextSize() {
+  Future<void> _lockWebViewTextSize() async {
     final platform = _controller.platform;
     if (platform is AndroidWebViewController) {
-      platform.setTextZoom(100);
+      await platform.setTextZoom(100);
     }
     // G6.3: dosya/içerik erişimi, konum, karışık içerik kapalı.
-    WebViewGuard.harden(_controller);
+    await WebViewGuard.harden(_controller);
   }
 
   void _onKalem(JavaScriptMessage m) {
@@ -427,7 +432,9 @@ class DocxViewState extends State<DocxView> {
       .replaceAll(r'\', r'\\')
       .replaceAll("'", r"\'")
       .replaceAll('\n', r'\n')
-      .replaceAll('\r', '');
+      .replaceAll('\r', '')
+      .replaceAll('\u2028', r'\u2028')
+      .replaceAll('\u2029', r'\u2029');
 
   /// Model paragrafını ortaya kaydırıp kısa süre çerçeveler (düzenlemeden
   /// okumaya dönüş).
@@ -464,8 +471,8 @@ class DocxViewState extends State<DocxView> {
   static const _maxBytes = 12 * 1024 * 1024;
 
   Future<void> _render() async {
+    if (!mounted) return;
     if (widget.bytes.length > _maxBytes) {
-      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = AppStrings.current.t('dv.too_big',
@@ -478,6 +485,7 @@ class DocxViewState extends State<DocxView> {
     // zaten rtl olur, sonradan çevirip yeniden ölçmek gerekmez (fitPage
     // genişliği bir kez ölçüyor).
     await _controller.runJavaScript('setDocDir(${widget.rightToLeft})');
+    if (!mounted) return;
     final b64 = base64Encode(widget.bytes);
     await _controller.runJavaScript("renderDocx('$b64')");
   }

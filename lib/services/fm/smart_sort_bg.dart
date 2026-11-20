@@ -43,8 +43,10 @@ abstract final class SmartSortBg {
       scope: ai.scope,
       scan: 400,
       limit: limit,
-    ).timeout(const Duration(minutes: 8),
-        onTimeout: () => const SmartRunResult(0, 0));
+    ).timeout(const Duration(minutes: 8), onTimeout: () {
+      SmartSort.cancelRun();
+      return const SmartRunResult(0, 0);
+    });
     await SmartSort.flush();
   }
 }

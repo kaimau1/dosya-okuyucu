@@ -360,6 +360,21 @@ abstract final class SmartUserCats {
     await SmartSort.dropUserCat(id);
   }
 
+  /// Tüm kullanıcı kategorilerini siler (PrivacyWipe).
+  static Future<void> clear() async {
+    _stop = true;
+    _cats = const [];
+    _loaded = true;
+    revision.value++;
+    SmartSort.invalidateLabels();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefKey);
+    } catch (_) {
+      // Bilinçli: temizlik — tercih silinemezse bellekteki liste yine sıfırlanır.
+    }
+  }
+
   /// Kaydetme kapısı: deneme bu ad/cümleyle alınmış, ≥ 1 eşleşme var ve
   /// kullanıcı sonuçları onayladı.
   static bool canSave(

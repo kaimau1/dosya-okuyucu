@@ -168,10 +168,12 @@ abstract final class FileSplit {
       total += await File(parts[number]!).length();
     }
     var done = 0;
+    var closed = false;
     try {
       for (final number in numbers) {
         await for (final chunk in File(parts[number]!).openRead()) {
           if (isCancelled?.call() ?? false) {
+            closed = true;
             await sink.flush();
             await sink.close();
             try {
@@ -187,8 +189,10 @@ abstract final class FileSplit {
         }
       }
     } finally {
-      await sink.flush();
-      await sink.close();
+      if (!closed) {
+        await sink.flush();
+        await sink.close();
+      }
     }
     FsEvents.changed();
     return target;

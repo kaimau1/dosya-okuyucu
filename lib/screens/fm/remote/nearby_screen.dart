@@ -386,6 +386,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
     _bleFound = BleNearby.found.listen(_onBle);
     _bleInvite = BleNearby.invites.listen(_onInvite);
     await _startBle();
+    if (!mounted) return;
     if (_selection.isNotEmpty) _scheduleWeb();
     unawaited(_loadBg());
     final invite = widget.invite;
@@ -456,6 +457,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
   Future<void> _startReceiving() async {
     final previous = _receiver;
     if (previous != null) await TransferKeeper.instance.handOff(previous);
+    if (!mounted) return;
     final receiver = PeerReceiver(
       identity: _key,
       onActivity: TransferKeeper.instance.onActivity,

@@ -147,8 +147,11 @@ class DocxEditController extends ChangeNotifier
     _conn = null;
   }
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
     detach();
     super.dispose();
   }
@@ -842,17 +845,20 @@ class DocxEditController extends ChangeNotifier
       richClip = _captureClip();
       await Clipboard.setData(ClipboardData(text: t));
     }
+    if (_disposed) return;
     toolbar = false;
     notifyListeners();
   }
 
   Future<void> cut() async {
     await copy();
+    if (_disposed) return;
     deleteSelection();
   }
 
   Future<void> paste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (_disposed) return;
     final t = data?.text;
     if (t == null || t.isEmpty) return;
     final clip = richClip;

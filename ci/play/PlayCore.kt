@@ -21,20 +21,33 @@ import io.flutter.plugin.common.MethodChannel
  */
 object PlayCore {
     const val CHANNEL = "dosya/play"
-    private const val UPDATE_REQUEST = 7301
+    private const val UPDATE_REQUEST = 7371
 
     private var updates: AppUpdateManager? = null
     private var listener: InstallStateUpdatedListener? = null
 
     @JvmStatic
+    fun detach() {
+        val m = updates
+        val l = listener
+        updates = null
+        listener = null
+        if (m != null && l != null) {
+            try { m.unregisterListener(l) } catch (_: Exception) {}
+        }
+    }
+
+    @JvmStatic
     fun attach(activity: Activity, messenger: BinaryMessenger) {
         val channel = MethodChannel(messenger, CHANNEL)
         val manager = AppUpdateManagerFactory.create(activity)
-        updates?.let { old -> listener?.let { old.unregisterListener(it) } }
+        detach()
         updates = manager
         val l = InstallStateUpdatedListener { state ->
             if (state.installStatus() == InstallStatus.DOWNLOADED) {
-                activity.runOnUiThread { channel.invokeMethod("downloaded", null) }
+                activity.runOnUiThread {
+                    try { channel.invokeMethod("downloaded", null) } catch (_: Exception) {}
+                }
             }
         }
         listener = l
@@ -46,11 +59,15 @@ object PlayCore {
                     "requestReview" -> {
                         val review = ReviewManagerFactory.create(activity)
                         review.requestReviewFlow().addOnCompleteListener { req ->
-                            if (!req.isSuccessful) {
+                            try {
+                                if (!req.isSuccessful) {
+                                    result.success(false)
+                                } else {
+                                    review.launchReviewFlow(activity, req.result)
+                                        .addOnCompleteListener { result.success(true) }
+                                }
+                            } catch (_: Exception) {
                                 result.success(false)
-                            } else {
-                                review.launchReviewFlow(activity, req.result)
-                                    .addOnCompleteListener { result.success(true) }
                             }
                         }
                     }
@@ -77,15 +94,19 @@ object PlayCore {
                             AppUpdateType.IMMEDIATE else AppUpdateType.FLEXIBLE
                         manager.appUpdateInfo
                             .addOnSuccessListener { info ->
-                                if (!info.isUpdateTypeAllowed(type)) {
+                                try {
+                                    if (!info.isUpdateTypeAllowed(type)) {
+                                        result.success(false)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        val ok = manager.startUpdateFlowForResult(
+                                            info, activity,
+                                            AppUpdateOptions.defaultOptions(type), UPDATE_REQUEST
+                                        )
+                                        result.success(ok)
+                                    }
+                                } catch (_: Exception) {
                                     result.success(false)
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    val ok = manager.startUpdateFlowForResult(
-                                        info, activity,
-                                        AppUpdateOptions.defaultOptions(type), UPDATE_REQUEST
-                                    )
-                                    result.success(ok)
                                 }
                             }
                             .addOnFailureListener { result.success(false) }

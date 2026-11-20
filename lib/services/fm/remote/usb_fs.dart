@@ -250,6 +250,7 @@ class UsbFs extends RemoteFs {
     final file = File(localPath);
     await file.parent.create(recursive: true);
     final sink = file.openWrite();
+    var closed = false;
     try {
       final source = UsbEntry(
         name: entry.name,
@@ -264,6 +265,7 @@ class UsbFs extends RemoteFs {
       // `addStream` diske yazma yetişene kadar okumayı bekletir.
       await sink.addStream(fs.openRead(source));
     } on BlockDeviceException catch (e) {
+      closed = true;
       await sink.close();
       // Yarım inen dosyayı BIRAKMA: kullanıcı onu açtığında bozuk sanır.
       try {
@@ -273,8 +275,10 @@ class UsbFs extends RemoteFs {
       }
       throw RemoteException(RemoteError.unreachable, detail: e.message);
     } finally {
-      await sink.flush();
-      await sink.close();
+      if (!closed) {
+        await sink.flush();
+        await sink.close();
+      }
     }
     return file;
   }
@@ -402,16 +406,23 @@ class UsbFs extends RemoteFs {
     }
     try {
       final parent = await _dirHandle(_parentOf(entry.path));
+      final handle = _handles[entry.path] ?? await resolve(entry.path);
+      if (handle == null) {
+        throw const RemoteException(RemoteError.notFound,
+            detail: 'Öğe bulunamadı.');
+      }
       await fs.deleteEntry(
           parent,
           UsbEntry(
             name: entry.name,
             isDir: entry.isDir,
-            id: _handles[entry.path] ?? await resolve(entry.path) ?? 0,
+            id: handle,
             sizeBytes: entry.sizeBytes,
           ));
       _handles.remove(entry.path);
       if (depth == 0) await device.flush();
+    } on RemoteException {
+      rethrow;
     } catch (e) {
       throw _wrap(e);
     }
@@ -435,18 +446,25 @@ class UsbFs extends RemoteFs {
   Future<void> rename(RemoteEntry entry, String newName) async {
     try {
       final parent = await _dirHandle(_parentOf(entry.path));
+      final handle = _handles[entry.path] ?? await resolve(entry.path);
+      if (handle == null) {
+        throw const RemoteException(RemoteError.notFound,
+            detail: 'Öğe bulunamadı.');
+      }
       await fs.renameEntry(
         parent,
         UsbEntry(
           name: entry.name,
           isDir: entry.isDir,
-          id: _handles[entry.path] ?? await resolve(entry.path) ?? 0,
+          id: handle,
           sizeBytes: entry.sizeBytes,
         ),
         newName,
       );
       _handles.remove(entry.path);
       await device.flush();
+    } on RemoteException {
+      rethrow;
     } catch (e) {
       throw _wrap(e);
     }

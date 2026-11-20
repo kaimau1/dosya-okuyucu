@@ -59,7 +59,9 @@ abstract class AjanTemel : AppFunctionService() {
      * @return Up to 10 files, most recent first.
      */
     @AppFunctionDeclaration(isDescribedByKDoc = true)
-    fun recentFiles(): List<AjanDosya> = DosyaArama.son(this).map { AjanDosya(it.ad, it.yol) }
+    suspend fun recentFiles(): List<AjanDosya> = withContext(Dispatchers.IO) {
+        DosyaArama.son(this@AjanTemel).map { AjanDosya(it.ad, it.yol) }
+    }
 
     /**
      * Searches files on the phone by name (documents, PDFs, spreadsheets, images, audio…).
@@ -79,10 +81,16 @@ abstract class AjanTemel : AppFunctionService() {
      * @param path Absolute path from recentFiles or searchFiles.
      */
     @AppFunctionDeclaration(isDescribedByKDoc = true)
-    fun openFile(path: String): AjanAcma {
-        val f = File(path)
-        if (!DosyaArama.izinli(this, f)) throw AppFunctionElementNotFoundException("Dosya bulunamadı: $path")
-        return ac("file:" + f.path, f.name)
+    suspend fun openFile(path: String): AjanAcma = withContext(Dispatchers.IO) {
+        val f = try {
+            File(path).canonicalFile
+        } catch (_: Exception) {
+            throw AppFunctionElementNotFoundException("Dosya bulunamadı: $path")
+        }
+        if (!DosyaArama.izinli(this@AjanTemel, f)) {
+            throw AppFunctionElementNotFoundException("Dosya bulunamadı: $path")
+        }
+        ac("file:" + f.path, f.name)
     }
 
     /**

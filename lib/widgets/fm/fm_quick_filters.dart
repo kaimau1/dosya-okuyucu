@@ -440,78 +440,126 @@ int _countWith(List<FsEntry> source, FmFilter probe) {
 
 _Counts _computeCounts(
     List<FsEntry> source, FmFilter f, int untouchedDays, bool showBuckets) {
-  // Kaynak çipleri: hangi kaynaklar VAR (ham listeden) — çizilip çizilmeyeceği
-  // listenin içeriğine bakar, sayısı ise süzgece ("dokunursam kaç dosya kalır").
-  final present = <MediaBucket>{};
-  if (showBuckets) {
-    for (final e in source) {
-      if (e.isDir) continue;
-      final b = bucketForPath(e.path);
-      if (b == MediaBucket.other) continue;
-      present.add(b);
-    }
-  }
-  final buckets = <(MediaBucket, int)>[];
-  for (final b in present) {
-    final probe = f.buckets.contains(b) ? f : f.toggleBucket(b);
-    buckets.add((b, _countWith(source, probe)));
-  }
-  buckets.sort((a, b) => b.$2.compareTo(a.$2));
+  final untouchedProbe =
+      f.untouchedDays == null ? f.withUntouchedDays(untouchedDays) : f;
+  final openedWithinProbe = f.openedWithinDays == null
+      ? f.withOpenedWithinDays(untouchedDays)
+      : f;
+  final largeProbe = f.sizeRange == FmSizeRange.large
+      ? f
+      : f.withSizeRange(FmSizeRange.large);
 
-  // Birim (SD kart) yalnız BİRDEN ÇOK birim varken; sıfır olan çizilmez ama
-  // seçiliyse kalır (kullanıcı seçtiğini kaybetmesin).
-  final volumes = <(StorageVolume, int)>[];
-  if (FmEnv.volumes.length > 1) {
-    for (final v in FmEnv.volumes) {
-      final selected = f.volumeRoots.contains(v.path);
-      final probe = selected ? f : f.toggleVolumeRoot(v.path);
-      final n = _countWith(source, probe);
-      if (n > 0 || selected) volumes.add((v, n));
+  final present = <MediaBucket>{};
+  final bucketProbes = showBuckets
+      ? <MediaBucket, FmFilter>{
+          for (final b in MediaBucket.values)
+            if (b != MediaBucket.other)
+              b: (f.buckets.contains(b) ? f : f.toggleBucket(b)),
+        }
+      : const <MediaBucket, FmFilter>{};
+  final bucketCounts = <MediaBucket, int>{};
+
+  final vols = FmEnv.volumes;
+  final hasMultiVols = vols.length > 1;
+  final volProbes = hasMultiVols
+      ? [
+          for (final v in vols)
+            (
+              v,
+              f.volumeRoots.contains(v.path),
+              f.volumeRoots.contains(v.path) ? f : f.toggleVolumeRoot(v.path),
+            )
+        ]
+      : const <(StorageVolume, bool, FmFilter)>[];
+  final volCounts =
+      hasMultiVols ? List<int>.filled(volProbes.length, 0) : const <int>[];
+
+  final smartOf = FmFilter.smartCatOf;
+  final userCatsOf = FmFilter.smartUserCatsOf;
+  final smartCounts = <String, int>{};
+
+  var untouched = 0;
+  var openedWithin = 0;
+  var large = 0;
+  var anyTagged = false;
+
+  for (final e in source) {
+    if (e.isDir) continue;
+    final path = e.path;
+    final openedAt = OpenHistory.forPath(path);
+    final tags = FileTags.forPath(path);
+    if (!anyTagged && tags.isNotEmpty) anyTagged = true;
+    int? openedAtOf(String _) => openedAt;
+    Set<String> tagsOf(String _) => tags;
+
+    if (untouchedProbe.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf)) {
+      untouched++;
     }
+    if (openedWithinProbe.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf)) {
+      openedWithin++;
+    }
+    if (largeProbe.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf)) {
+      large++;
+    }
+    if (showBuckets) {
+      final b = bucketForPath(path);
+      if (b != MediaBucket.other) present.add(b);
+      for (final entry in bucketProbes.entries) {
+        if (entry.value.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf)) {
+          bucketCounts[entry.key] = (bucketCounts[entry.key] ?? 0) + 1;
+        }
+      }
+    }
+    if (hasMultiVols) {
+      for (var i = 0; i < volProbes.length; i++) {
+        if (volProbes[i].$3.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf)) {
+          volCounts[i]++;
+        }
+      }
+    }
+    if (smartOf != null) {
+      final c = smartOf(path);
+      if (c != null && c != 'other') {
+        smartCounts[c] = (smartCounts[c] ?? 0) + 1;
+      }
+      final mine = userCatsOf?.call(path);
+      if (mine != null) {
+        for (final u in mine) {
+          smartCounts[u] = (smartCounts[u] ?? 0) + 1;
+        }
+      }
+    }
+  }
+
+  final buckets = <(MediaBucket, int)>[
+    for (final b in present) (b, bucketCounts[b] ?? 0),
+  ]..sort((a, b) => b.$2.compareTo(a.$2));
+
+  final volumes = <(StorageVolume, int)>[
+    for (var i = 0; i < volProbes.length; i++)
+      if (volCounts[i] > 0 || volProbes[i].$2) (volProbes[i].$1, volCounts[i]),
+  ];
+
+  final List<(String, int)> smart;
+  if (smartOf == null) {
+    smart = const [];
+  } else {
+    for (final c in f.smartCats) {
+      smartCounts.putIfAbsent(c, () => 0);
+    }
+    smart = smartCounts.entries.map((e) => (e.key, e.value)).toList()
+      ..sort((a, b) => b.$2.compareTo(a.$2));
   }
 
   return _Counts(
     buckets,
-    _countWith(
-        source,
-        f.untouchedDays == null ? f.withUntouchedDays(untouchedDays) : f),
-    _countWith(
-        source,
-        f.openedWithinDays == null
-            ? f.withOpenedWithinDays(untouchedDays)
-            : f),
-    _countWith(
-        source,
-        f.sizeRange == FmSizeRange.large
-            ? f
-            : f.withSizeRange(FmSizeRange.large)),
+    untouched,
+    openedWithin,
+    large,
     volumes,
-    source.any((e) => !e.isDir && FileTags.forPath(e.path).isNotEmpty),
-    _smartCounts(source, f),
+    anyTagged,
+    smart,
   );
-}
-
-/// Listedeki AI kategorileri ve sayıları (seçili olan 0 olsa da kalır).
-List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
-  final of = FmFilter.smartCatOf;
-  if (of == null) return const [];
-  final counts = <String, int>{};
-  for (final e in source) {
-    if (e.isDir) continue;
-    final c = of(e.path);
-    if (c != null && c != 'other') counts[c] = (counts[c] ?? 0) + 1;
-    // Kullanıcı kategorileri (bir dosya birden çoğunda sayılır).
-    final mine = FmFilter.smartUserCatsOf?.call(e.path);
-    if (mine == null) continue;
-    for (final u in mine) {
-      counts[u] = (counts[u] ?? 0) + 1;
-    }
-  }
-  for (final c in f.smartCats) {
-    counts.putIfAbsent(c, () => 0);
-  }
-  return counts.entries.map((e) => (e.key, e.value)).toList()
-    ..sort((a, b) => b.$2.compareTo(a.$2));
 }
 
 /// **AI kategori levhası** (Akıllı düzen, 2026-11-18): listedeki dosyaların

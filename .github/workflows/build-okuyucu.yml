@@ -63,12 +63,15 @@ jobs:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
         run: |
           set -e
-          DEFINES="--dart-define=DOSYA_OKUYUCU=true"
+          bash ci/play_core.sh
+          MAJOR_MINOR=$(grep -oP "majorMinor\s*=\s*'\K[0-9]+\.[0-9]+" lib/core/app_version.dart)
+          BUILD_NAME="${MAJOR_MINOR}.${{ github.run_number }}"
+          DEFINES="--dart-define=DOSYA_OKUYUCU=true --dart-define=DOSYA_SURUM=lite --dart-define=DOSYA_PLAY=1 --dart-define=APP_VERSION=$BUILD_NAME"
           flutter build apk --release --split-per-abi --obfuscate \
-            --split-debug-info=build/symbols --build-number=${{ github.run_number }} \
+            --split-debug-info=build/symbols --build-name="$BUILD_NAME" --build-number=${{ github.run_number }} \
             --target-platform android-arm64 $DEFINES
           flutter build appbundle --release --obfuscate \
-            --split-debug-info=build/symbols-aab --build-number=${{ github.run_number }} \
+            --split-debug-info=build/symbols-aab --build-name="$BUILD_NAME" --build-number=${{ github.run_number }} \
             --target-platform android-arm,android-arm64,android-x64 $DEFINES
           OKUYUCU_REMOVE=$(grep -oP "^OKUYUCU_REMOVE='\K[^']+" ci/prepare_android.sh)
           DOSYA_PLAY_REMOVE="$OKUYUCU_REMOVE" python3 ci/play_variant.py verify $(find build/app/intermediates \

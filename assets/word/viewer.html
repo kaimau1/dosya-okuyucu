@@ -154,6 +154,9 @@
 
   window.renderDocx = function (b64) {
     try {
+      UNDO = [];
+      REDO = [];
+      HITS = [];
       var bin = atob(b64);
       var buf = new Uint8Array(bin.length);
       for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
@@ -172,11 +175,13 @@
         renderFooters: true,
         renderFootnotes: true,
         renderEndnotes: true,
+        renderAltChunks: false,
         experimental: true,
         useBase64URL: true
       }).then(function () {
         fixSymbolFonts();
         prepareMarkers();
+        postHist();
         fitPage();
         reportPages();
         // Görseller/yerleşim geciken sayfalar için ikinci tur — sayfa sayısı
@@ -1422,6 +1427,7 @@
           low = fold(src);
           count++;
           hitHere = true;
+          if (at === 0) break;
           at = low.lastIndexOf(needle, at - 1);
         }
         if (hitHere) { node.textContent = src; changed = true; }

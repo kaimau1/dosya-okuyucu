@@ -62,6 +62,12 @@ class OleFile {
 
     final sectorShift = data.getUint16(0x1E, Endian.little);
     final miniSectorShift = data.getUint16(0x20, Endian.little);
+    if (sectorShift < 7 ||
+        sectorShift > 16 ||
+        miniSectorShift < 4 ||
+        miniSectorShift >= sectorShift) {
+      throw const FormatException('geçersiz OLE sektör boyu');
+    }
     final sectorSize = 1 << sectorShift; // genelde 512
     final miniSectorSize = 1 << miniSectorShift; // genelde 64
     final numFatSectors = data.getUint32(0x2C, Endian.little);
@@ -97,12 +103,13 @@ class OleFile {
       fatSectorIds.add(v);
     }
     var difatSector = firstDifatSector;
-    var difatGuard = 0;
+    final seenDifat = <int>{};
     while (difatSector != endOfChain &&
         difatSector != freeSect &&
         difatSector != difSect &&
         numDifatSectors > 0 &&
-        difatGuard < 1 << 20) {
+        seenDifat.length < numDifatSectors &&
+        seenDifat.add(difatSector)) {
       final sec = ByteData.sublistView(sectorBytes(difatSector));
       final entries = sectorSize ~/ 4;
       for (var i = 0; i < entries - 1; i++) {
@@ -111,7 +118,6 @@ class OleFile {
         fatSectorIds.add(v);
       }
       difatSector = sec.getUint32((entries - 1) * 4, Endian.little);
-      difatGuard++;
     }
 
     // 2) FAT: birleşik sonraki-sektör tablosu.
@@ -131,13 +137,15 @@ class OleFile {
     Uint8List readChain(int start) {
       final out = BytesBuilder();
       var cur = start;
-      var guard = 0;
+      final seen = <int>{};
       final maxSteps = fat.length + 8;
-      while (cur != endOfChain && cur != freeSect && guard < maxSteps) {
+      while (cur != endOfChain &&
+          cur != freeSect &&
+          seen.length < maxSteps &&
+          seen.add(cur)) {
         if (cur < 0 || cur >= fat.length) break;
         out.add(sectorBytes(cur));
         cur = fat[cur];
-        guard++;
       }
       return out.toBytes();
     }
@@ -186,16 +194,18 @@ class OleFile {
     Uint8List readMiniChain(int start, int size) {
       final out = BytesBuilder();
       var cur = start;
-      var guard = 0;
+      final seen = <int>{};
       final maxSteps = miniFat.length + 8;
-      while (cur != endOfChain && cur != freeSect && guard < maxSteps) {
+      while (cur != endOfChain &&
+          cur != freeSect &&
+          seen.length < maxSteps &&
+          seen.add(cur)) {
         if (cur < 0) break;
         final off = cur * miniSectorSize;
         if (off + miniSectorSize > miniStream.length) break;
         out.add(Uint8List.sublistView(miniStream, off, off + miniSectorSize));
         if (cur >= miniFat.length) break;
         cur = miniFat[cur];
-        guard++;
       }
       final all = out.toBytes();
       return all.length > size ? Uint8List.sublistView(all, 0, size) : all;

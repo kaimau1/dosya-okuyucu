@@ -767,7 +767,7 @@ Map<int, Set<int>> _freshMismatch(
       double pageX(double fx, double fy) => fx * cosA - fy * sinA;
       double pageY(double fx, double fy) => fx * sinA + fy * cosA;
 
-      final order = [...m.remove]..sort();
+      final order = m.remove.toSet().toList()..sort();
       for (final idx in order.reversed) {
         p.FPDFPage_RemoveObject(page, p.FPDFPage_GetObject(page, idx));
       }

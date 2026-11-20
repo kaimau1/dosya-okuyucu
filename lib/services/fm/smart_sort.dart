@@ -565,7 +565,8 @@ abstract final class SmartSort {
         'v': 1,
         'r': [for (final r in _records.values) r.toJson()],
       });
-      final tmp = File('$_path.tmp');
+      final tmp =
+          File('$_path.${pid}_${DateTime.now().microsecondsSinceEpoch}.tmp');
       await tmp.writeAsString(body, flush: true);
       await tmp.rename(_path);
       _diskMs = (await File(_path).lastModified()).millisecondsSinceEpoch;
@@ -1438,8 +1439,36 @@ abstract final class SmartSort {
 
   /// Oturum içi başarısızlık sayacı: yol → (boyut, değişme, deneme).
   static final Map<String, (int, int, int)> _failures = {};
+  static bool _cancelRequested = false;
+
+  /// Süren turu güvenli bir noktada durdurur (arka plan zaman aşımı / temizlik).
+  static void cancelRun() => _cancelRequested = true;
+
+  /// Tüm Akıllı düzen kayıtlarını siler (PrivacyWipe).
+  static Future<void> clear() async {
+    _cancelRequested = true;
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _records.clear();
+    _failures.clear();
+    lastBatch.value = null;
+    lastUsage.value = null;
+    _loaded = true;
+    _changed(save: false);
+    if (FmEnv.appSupportDir.isNotEmpty) {
+      try {
+        final f = File(_path);
+        if (await f.exists()) await f.delete();
+      } catch (_) {
+        // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+      }
+    }
+  }
 
   static void _markFailed(FsEntry e) {
+    if (_failures.length >= 1000 && !_failures.containsKey(e.path)) {
+      _failures.remove(_failures.keys.first);
+    }
     final f = _failures[e.path];
     final same = f != null && f.$1 == e.sizeBytes && f.$2 == e.modifiedMs;
     _failures[e.path] = (e.sizeBytes, e.modifiedMs, same ? f.$3 + 1 : 1);
@@ -1471,6 +1500,7 @@ abstract final class SmartSort {
     final held = await SmartQuota.check();
     if (held != null) return SmartRunResult(0, 0, hold: held);
     if (isRunning) return const SmartRunResult(0, 0);
+    _cancelRequested = false;
     progress.value = const SmartProgress(0, 0);
     var processed = 0;
     var failed = 0;
@@ -1495,7 +1525,10 @@ abstract final class SmartSort {
       final docHint = SmartLearn.hint(image: false);
       final queue = [...todo];
       Future<void> worker() async {
-        while (queue.isNotEmpty && stoppedBy == null && hold == null) {
+        while (queue.isNotEmpty &&
+            stoppedBy == null &&
+            hold == null &&
+            !_cancelRequested) {
           // Günlük sınır: hak yoksa dosya sorulmaz (sonraki gün sırada).
           if (SmartQuota.remaining <= 0) {
             hold = SmartHold.cap;

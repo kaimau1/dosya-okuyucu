@@ -13,6 +13,9 @@ abstract final class PrivateZone {
   /// `SecureVault.folderName` ile aynı (test denetler; çekirdek fm'e bağlanmasın).
   static const vaultFolder = '.DosyaOkuyucuKasa';
 
+  /// `HiddenVault.folderName` ile aynı.
+  static const hiddenFolder = '.DosyaOkuyucuGizli';
+
   /// `SecureVault._tempDir` alt klasör adı.
   static const vaultTemp = 'vault_open';
 
@@ -21,10 +24,13 @@ abstract final class PrivateZone {
   /// Kasa ekranından açılmış bir görüntüleyici ekranda mı?
   static bool get active => _depth > 0;
 
-  /// [path] kasanın şifreli klasöründe ya da düz açma önbelleğinde mi?
+  /// [path] kasanın şifreli/gizli klasöründe ya da düz açma önbelleğinde mi?
   static bool isPrivatePath(String path) {
     for (final s in p.split(path)) {
-      if (s == vaultTemp || s.toLowerCase() == vaultFolder.toLowerCase()) {
+      final low = s.toLowerCase();
+      if (s == vaultTemp ||
+          low == vaultFolder.toLowerCase() ||
+          low == hiddenFolder.toLowerCase()) {
         return true;
       }
     }

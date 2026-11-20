@@ -89,18 +89,23 @@ class ExfatFileSystem extends UsbFileSystem {
 
   /// FAT'taki ardıl küme; zincir sonunda null.
   Future<int?> nextCluster(int cluster) async {
+    if (cluster < 2 || cluster >= clusterCount + 2) return null;
     final offset = cluster * 4;
     final sector = fatOffset + offset ~/ bytesPerSector;
     final data = await device.readBlocks(sector, 1);
     final value = ByteData.sublistView(data)
         .getUint32(offset % bytesPerSector, Endian.little);
-    if (value < 2 || value >= 0xFFFFFFF7) return null;
+    if (value < 2 || value >= 0xFFFFFFF7 || value >= clusterCount + 2) {
+      return null;
+    }
     return value;
   }
 
   /// Bir yerin kümeleri. Bitişik dosyada FAT HİÇ okunmaz.
   Future<List<int>> clustersOf(ExfatLocation loc, {int? byteLength}) async {
-    if (loc.firstCluster < 2) return const [];
+    if (loc.firstCluster < 2 || loc.firstCluster >= clusterCount + 2) {
+      return const [];
+    }
     final length = byteLength ?? loc.sizeBytes;
     if (loc.noFatChain) {
       final needed = length <= 0
@@ -116,7 +121,7 @@ class ExfatFileSystem extends UsbFileSystem {
     final out = <int>[];
     final seen = <int>{};
     int? c = loc.firstCluster;
-    while (c != null && c >= 2) {
+    while (c != null && c >= 2 && c < clusterCount + 2) {
       if (!seen.add(c)) break; // bozuk zincir — sonsuz döngüye girme
       out.add(c);
       if (length > 0 && out.length * clusterSize >= length) break;
@@ -437,16 +442,25 @@ class ExfatFileSystem extends UsbFileSystem {
     if (clash.any((e) => e.isDir)) {
       throw const UsbFsException('Aynı adlı bir klasör var');
     }
-    for (final e in clash) {
-      await deleteEntry(dir, e);
-    }
 
     final needed = (totalLength + clusterSize - 1) ~/ clusterSize;
-    final chain = await _allocateClusters(needed);
+    List<int> chain;
+    var deletedBeforeWrite = false;
+    try {
+      chain = await _allocateClusters(needed);
+    } on UsbFsException {
+      if (clash.isEmpty) rethrow;
+      for (final e in clash) {
+        await deleteEntry(dir, e);
+      }
+      deletedBeforeWrite = true;
+      chain = await _allocateClusters(needed);
+    }
     var index = 0;
     var filled = 0;
     var written = 0;
     var buffer = Uint8List(clusterSize);
+    final int first;
     try {
       await for (final chunk in data) {
         var offset = 0;
@@ -475,15 +489,20 @@ class ExfatFileSystem extends UsbFileSystem {
         await _writeCluster(
             chain[index], Uint8List.sublistView(buffer, 0, filled));
       }
+      if (!deletedBeforeWrite) {
+        for (final e in clash) {
+          await deleteEntry(dir, e);
+        }
+      }
+      first = chain.isEmpty ? 0 : chain.first;
+      await _addEntrySet(dir, name,
+          isDir: false, firstCluster: first, size: written);
     } catch (e) {
       // Yarım kalan yazma geri alınıyor: adı olmayan ama yer kaplayan küme
       // bırakmak, bellekte sessiz bir sızıntıdır.
       await _freeClusters(chain);
       rethrow;
     }
-    final first = chain.isEmpty ? 0 : chain.first;
-    await _addEntrySet(dir, name,
-        isDir: false, firstCluster: first, size: written);
     return UsbEntry(
       name: name,
       isDir: false,

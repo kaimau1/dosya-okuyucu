@@ -48,6 +48,19 @@ abstract final class SettingsBackup {
     'pin_fail_',
     'account_',
     'firebase_',
+    // Kimlik anahtarları, şifreli paylaşım sırları, kişisel form bilgileri,
+    // güven çapaları ve güvenlik kilitleri yedeğe girmez / yedekten ezilmez.
+    'aktar_kimlik',
+    'aktar_baglanti',
+    'pdf_autofill',
+    'near_trusted',
+    'sftp_known_hosts',
+    'ftps_known_certs',
+    'smb1_allowed_hosts',
+    'fm_app_lock',
+    'fm_locked_folders',
+    'ai_pii_mask',
+    'ai_send_consent',
   ];
 
   static bool isSecret(String key) =>

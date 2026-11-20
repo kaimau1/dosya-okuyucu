@@ -53,21 +53,23 @@ object MediaTranscodeBridge {
     private var channel: MethodChannel? = null
     private var transformer: Transformer? = null
     private val main = Handler(Looper.getMainLooper())
+    private val ioPool = java.util.concurrent.Executors.newFixedThreadPool(2)
 
     fun configure(messenger: BinaryMessenger, context: Context) {
         val ch = MethodChannel(messenger, "dosya_okuyucu/transcode")
         channel = ch
         val app = context.applicationContext
         ch.setMethodCallHandler { call, result ->
+            val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
             when (call.method) {
                 "probe" -> {
                     val path = call.argument<String>("path")
                     if (path == null) result.success(null) else {
                         // Disk okuması ana izleği tutmasın.
-                        Thread {
+                        ioPool.execute {
                             val info = probe(path)
                             main.post { result.success(info) }
-                        }.start()
+                        }
                     }
                 }
                 // HDR (HDR10/HDR10+/HLG/Dolby Vision) mi? Oynatıcı bunu doku
@@ -75,36 +77,34 @@ object MediaTranscodeBridge {
                 "hdr" -> {
                     val path = call.argument<String>("path")
                     if (path == null) result.success(false) else {
-                        Thread {
+                        ioPool.execute {
                             val v = isHdr(path)
                             main.post { result.success(v) }
-                        }.start()
+                        }
                     }
                 }
-                "start" -> result.success(start(app, call.arguments as Map<*, *>))
+                "start" -> result.success(start(app, args))
                 // Video kesme (Ferrari H8, 2026-11-14): aralık dışı atılır,
                 // özgün korunur; mümkünse yeniden kodlamasız (trim optimizasyonu).
-                "trim" -> result.success(trim(app, call.arguments as Map<*, *>))
+                "trim" -> result.success(trim(app, args))
                 // Video düzenleme (2026-11-14): çok parçalı kesim + ses bölgeleri.
-                "edit" -> result.success(edit(app, call.arguments as Map<*, *>))
+                "edit" -> result.success(edit(app, args))
                 // Kes ekranının kare şeridi: eşit aralıklı N kare → JPEG yolları.
                 "frames" -> {
-                    val a = call.arguments as Map<*, *>
-                    Thread {
-                        val out = frames(a)
+                    ioPool.execute {
+                        val out = frames(args)
                         main.post { result.success(out) }
-                    }.start()
+                    }
                 }
                 // Kareyi fotoğraf kaydet (Ferrari H8.5): tek kare → JPEG.
                 "frame" -> {
-                    val a = call.arguments as Map<*, *>
-                    Thread {
-                        val ok = frame(a)
+                    ioPool.execute {
+                        val ok = frame(args)
                         main.post { result.success(ok) }
-                    }.start()
+                    }
                 }
                 // Sesli kitap (2026-10-22): üretilen WAV → AAC/M4A (~10 kat küçük).
-                "startAudio" -> result.success(startAudio(app, call.arguments as Map<*, *>))
+                "startAudio" -> result.success(startAudio(app, args))
                 "cancel" -> {
                     transformer?.cancel()
                     transformer = null
@@ -499,7 +499,7 @@ object MediaTranscodeBridge {
                     val tmp = File(dir, f.name + ".tmp")
                     tmp.outputStream().use { scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it) }
                     if (scaled !== bmp) scaled.recycle()
-                    if (tmp.renameTo(f)) out.add(f.path)
+                    if (tmp.renameTo(f)) out.add(f.path) else tmp.delete()
                 } finally {
                     bmp.recycle()
                 }

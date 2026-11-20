@@ -20,9 +20,10 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       try {
         await PdfTools.pageCount(bytes);
       } catch (_) {
+        if (!mounted) return;
         final pw = await _askPassword(
             _str.t('pt.locked_title'), _str.t('pt.enter_password'));
-        if (pw == null) {
+        if (pw == null || !mounted) {
           if (mounted) popOwnPage(context);
           return;
         }
@@ -99,6 +100,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     final pages = _selected.isEmpty
         ? List.generate(await _pageCount(), (i) => i)
         : _selected.toList();
+    if (!mounted) return;
     final pw = _password;
     await _apply(
       _str.t('pt.op_rotate'),
@@ -109,9 +111,10 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
 
   Future<void> _deleteSelected() async {
     if (_selected.length >= await _pageCount()) {
-      _snack(_str.t('pt.cannot_delete_all'));
+      if (mounted) _snack(_str.t('pt.cannot_delete_all'));
       return;
     }
+    if (!mounted) return;
     final pages = _selected.toList();
     final pw = _password;
     await _apply(_str.t('pt.op_delete'),
@@ -130,7 +133,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       isScrollControlled: true,
       builder: (_) => const _PageNumberSheet(),
     );
-    if (options == null) return;
+    if (options == null || !mounted) return;
     final pw = _password;
     await _apply(
       _str.t('pt.op_page_numbers'),
@@ -155,7 +158,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
   Future<void> _addWatermark() async {
     final text = await _askText(
         _str.t('pt.watermark'), _str.t('pt.watermark_hint'));
-    if (text == null || text.trim().isEmpty) return;
+    if (text == null || text.trim().isEmpty || !mounted) return;
     List<int>? fontBytes;
     try {
       final data = await rootBundle.load('assets/fonts/Carlito-Bold.ttf');
@@ -163,6 +166,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     } catch (_) {
       fontBytes = null;
     }
+    if (!mounted) return;
     final pw = _password;
     await _apply(
       _str.t('pt.op_watermark'),
@@ -186,6 +190,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     final bytes = _bytes;
     if (bytes == null || _busy) return;
     final total = await _pageCount();
+    if (!mounted) return;
     final pages = _selected.isEmpty
         ? List.generate(total, (i) => i)
         : (_selected.toList()..sort());

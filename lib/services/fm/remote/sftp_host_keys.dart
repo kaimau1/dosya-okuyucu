@@ -67,10 +67,16 @@ abstract final class SftpHostKeys {
     }
   }
 
+  static String formatFingerprint(Uint8List fp) {
+    final printable = fp.isNotEmpty && fp.every((b) => b >= 0x21 && b <= 0x7e);
+    if (printable) return ascii.decode(fp);
+    return fp.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
+  }
+
   /// `dartssh2` `onVerifyHostKey` için doğrulayıcı.
   static Future<bool> Function(String type, Uint8List fingerprint) verifier(
           String host, int port) =>
-      (type, fp) => verify(host, port, type, utf8.decode(fp, allowMalformed: true));
+      (type, fp) => verify(host, port, type, formatFingerprint(fp));
 
   static Future<bool> verify(
       String host, int port, String type, String fingerprint) async {

@@ -127,6 +127,19 @@ object Extras {
     const val EXTRA_SIG = "dosya_sig"
     private const val LINK_KEY_FILE = "link_key"
 
+    @Volatile
+    private var cachedLinkKey: ByteArray? = null
+
+    @Volatile
+    var activityVisible: Boolean = false
+
+    @Volatile
+    internal var activeSmartJob: SmartBgJob? = null
+
+    fun stopSmartJobIfRunning() {
+        activeSmartJob?.stopFromForeground()
+    }
+
     /**
      * Bağlantı imza anahtarı: ilk kullanımda 32 rastgele bayt, `filesDir/link_key`.
      * Kalıcı (sabitlenmiş kısayol/widget uygulama kapanıp açılınca da geçerli kalsın);
@@ -134,16 +147,29 @@ object Extras {
      */
     @Synchronized
     fun linkKey(ctx: Context): ByteArray {
+        cachedLinkKey?.let { return it }
         val f = File(ctx.filesDir, LINK_KEY_FILE)
         try {
-            if (f.isFile && f.length() == 32L) return f.readBytes()
+            if (f.isFile && f.length() == 32L) {
+                val read = f.readBytes()
+                if (read.size == 32) {
+                    cachedLinkKey = read
+                    return read
+                }
+            }
         } catch (_: Exception) {
         }
         val key = ByteArray(32).also { SecureRandom().nextBytes(it) }
         try {
-            f.writeBytes(key)
+            val tmp = File(ctx.filesDir, "$LINK_KEY_FILE.tmp")
+            tmp.writeBytes(key)
+            if (!tmp.renameTo(f)) {
+                tmp.delete()
+                f.writeBytes(key)
+            }
         } catch (_: Exception) {
         }
+        cachedLinkKey = key
         return key
     }
 
@@ -165,25 +191,55 @@ object Extras {
     }
 
     /**
-     * Dışarıdan gelebilecek [EXTRA_LINK]'i süz. İmzalı → kabul. İmzasız → yalnız
-     * `app:` (salt gezinme; başlatıcı kısayolları XML'den sabit gelir, imzalanamaz).
+     * Yolun özel uygulama dizinlerine (`/data/`, `/data_mirror/`), sistem
+     * dizinlerine (`/proc/`, `/sys/`, `/etc/`), `Android/data` / `Android/obb`
+     * veya kasa dizinlerine işaret etmediğini kanonik yolla doğrular.
+     */
+    fun isSafeExternalPath(path: String?): Boolean {
+        if (path.isNullOrEmpty() || !path.startsWith("/") || path.indexOf('\u0000') >= 0) return false
+        if (path.split('/').contains("..")) return false
+        val c = try { File(path).canonicalPath } catch (_: Exception) { return false }
+        for (p in listOf(path, c)) {
+            if (p.startsWith("/data/") || p == "/data" ||
+                p.startsWith("/data_mirror/") || p == "/data_mirror" ||
+                p.startsWith("/proc/") || p == "/proc" ||
+                p.startsWith("/sys/") || p == "/sys" ||
+                p.startsWith("/etc/") || p == "/etc"
+            ) return false
+            if (p.contains("/Android/data/") || p.endsWith("/Android/data") ||
+                p.contains("/Android/obb/") || p.endsWith("/Android/obb")
+            ) return false
+            if (p.split('/').any {
+                    it.equals(".DosyaOkuyucuKasa", ignoreCase = true) ||
+                        it.equals(".DosyaOkuyucuGizli", ignoreCase = true) ||
+                        it == "vault_open"
+                }) return false
+        }
+        return true
+    }
+
+    /**
+     * Dışarıdan gelebilecek [EXTRA_LINK]'i süz. İmzalı → kabul (`file:` ise
+     * ayrıca yol güvenli olmalı). İmzasız → yalnız `app:` (salt gezinme;
+     * başlatıcı kısayolları XML'den sabit gelir, imzalanamaz).
      * `file:`, `davet:` vb. imzasızsa YOK SAYILIR.
      */
     fun linkAccepted(link: String?, sig: String?, key: ByteArray): Boolean {
         if (link.isNullOrEmpty()) return false
+        if (link.startsWith("file:") && !isSafeExternalPath(link.removePrefix("file:"))) {
+            return false
+        }
         if (sigOk(key, link, sig)) return true
         return link.startsWith("app:")
     }
 
     /**
-     * Kısayol yolunu süz. İmzalı → kabul. İmzasız (bu sürümden önce sabitlenmiş
-     * ana ekran kısayolları imzasızdır; kırılmasın) → yalnız özel uygulama
-     * dizinleri dışındaki mutlak yol. Asıl beyaz liste Dart'ta (`isSafeLinkPath`).
+     * Kısayol yolunu süz. İmzalı → kabul (güvenli dış yol ise). İmzasız (bu
+     * sürümden önce sabitlenmiş ana ekran kısayolları imzasızdır; kırılmasın)
+     * → yalnız özel uygulama dizinleri dışındaki mutlak yol.
      * G1 artığı (2026-11-14): [ownShortcuts] verilirse (API 26+, sistemin bildiği
      * kendi sabitli/dinamik kısayollarımızın yolları) imzasız yol YALNIZ bu
-     * kümedeyse geçer — başka uygulama rastgele yol gönderemez, eski sabitli
-     * kısayol çalışmaya devam eder. null = sayılamıyor (Android 7, eski başlatıcı
-     * yayını) → eski kol.
+     * kümedeyse geçer.
      */
     fun pathAccepted(
         path: String?,
@@ -191,13 +247,10 @@ object Extras {
         key: ByteArray,
         ownShortcuts: Set<String>? = null,
     ): Boolean {
-        if (path.isNullOrEmpty()) return false
-        if (sigOk(key, path, sig)) return true
+        if (!isSafeExternalPath(path)) return false
+        if (sigOk(key, path!!, sig)) return true
         if (ownShortcuts != null && path !in ownShortcuts) return false
-        if (!path.startsWith("/") || path.split('/').contains("..")) return false
-        val c = try { File(path).canonicalPath } catch (_: Exception) { return false }
-        return !c.startsWith("/data/") && !c.contains("/Android/data/") &&
-            !c.contains("/Android/obb/")
+        return true
     }
     const val JOB_ID = 0x5E01
     private const val PREFS = "dosya_extras"
@@ -429,6 +482,13 @@ object Extras {
 
     fun canAuthenticate(ctx: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val bm = ctx.getSystemService(android.hardware.biometrics.BiometricManager::class.java)
+                ?: return false
+            return bm.canAuthenticate(
+                android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG
+            ) == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val bm = ctx.getSystemService(android.hardware.biometrics.BiometricManager::class.java)
                 ?: return false
@@ -450,28 +510,35 @@ object Extras {
             return
         }
         val executor = activity.mainExecutor
+        var answered = false
+        fun answer(ok: Boolean) {
+            if (!answered) {
+                answered = true
+                done(ok)
+            }
+        }
         val builder = android.hardware.biometrics.BiometricPrompt.Builder(activity)
             .setTitle(title)
-            .setNegativeButton(cancel, executor) { _, _ -> done(false) }
+            .setNegativeButton(cancel, executor) { _, _ -> answer(false) }
         if (subtitle.isNotEmpty()) builder.setSubtitle(subtitle)
         val prompt = builder.build()
-        var answered = false
         prompt.authenticate(
             CancellationSignal(), executor,
             object : android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(
                     result: android.hardware.biometrics.BiometricPrompt.AuthenticationResult?
                 ) {
-                    if (!answered) { answered = true; done(true) }
+                    answer(true)
                 }
 
                 override fun onAuthenticationError(code: Int, msg: CharSequence?) {
-                    if (!answered) { answered = true; done(false) }
+                    answer(false)
                 }
             }
         )
     }
 
+    @Synchronized
     private fun vaultKey(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (ks.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
@@ -509,12 +576,14 @@ object Extras {
         val main = Handler(Looper.getMainLooper())
         Thread {
             val out = runCatching {
-                val spec = PBEKeySpec(pin.toCharArray(), salt, iter, 256)
+                val chars = pin.toCharArray()
+                val spec = PBEKeySpec(chars, salt, iter, 256)
                 try {
                     SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
                         .generateSecret(spec).encoded
                 } finally {
                     spec.clearPassword()
+                    chars.fill('\u0000')
                 }
             }.getOrNull()
             main.post { done(out) }
@@ -589,6 +658,7 @@ object Extras {
         )
     }
 
+    @Synchronized
     private fun bioKey(create: Boolean): SecretKey? {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (ks.getKey(BIO_ALIAS, null) as? SecretKey)?.let { return it }
@@ -638,16 +708,30 @@ object Extras {
 
 /** ~12 saatte bir: hatırlatmalar + haftalık temizlik. */
 class DailyJob : JobService() {
+    @Volatile
+    private var worker: Thread? = null
+
     override fun onStartJob(params: JobParameters?): Boolean {
-        Thread {
-            runCatching { Extras.runDaily(applicationContext) }
-            runCatching { Extras.updateWidgets(applicationContext) }
+        val t = Thread {
+            if (!Thread.currentThread().isInterrupted) {
+                runCatching { Extras.runDaily(applicationContext) }
+            }
+            if (!Thread.currentThread().isInterrupted) {
+                runCatching { Extras.updateWidgets(applicationContext) }
+            }
+            worker = null
             jobFinished(params, false)
-        }.start()
+        }
+        worker = t
+        t.start()
         return true
     }
 
-    override fun onStopJob(params: JobParameters?): Boolean = true
+    override fun onStopJob(params: JobParameters?): Boolean {
+        worker?.interrupt()
+        worker = null
+        return true
+    }
 }
 
 /**
@@ -666,72 +750,99 @@ class SmartBgJob : JobService() {
     override fun onStartJob(p: JobParameters?): Boolean {
         if (appVisible()) return false
         params = p
+        Extras.activeSmartJob = this
         return runCatching {
             startEngine()
             // Güvenlik: Dart hiç "bitti" demezse sistem sınırından önce kapat.
             main.postDelayed({ finish() }, TimeUnit.MINUTES.toMillis(9))
             true
         }.getOrElse {
+            if (Extras.activeSmartJob === this) Extras.activeSmartJob = null
             params = null
+            engine?.destroy()
+            engine = null
             false
         }
     }
 
-    private fun appVisible(): Boolean {
-        val info = ActivityManager.RunningAppProcessInfo()
-        ActivityManager.getMyMemoryState(info)
-        return info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
+    private fun appVisible(): Boolean = Extras.activityVisible
+
+    internal fun stopFromForeground() {
+        main.post { finish() }
     }
 
     private fun startEngine() {
+        engine?.destroy()
+        engine = null
         val loader = io.flutter.FlutterInjector.instance().flutterLoader()
         loader.startInitialization(applicationContext)
         loader.ensureInitializationComplete(applicationContext, null)
         val e = io.flutter.embedding.engine.FlutterEngine(applicationContext)
-        io.flutter.plugin.common.MethodChannel(e.dartExecutor.binaryMessenger, Extras.CHANNEL)
-            .setMethodCallHandler { call, result ->
-                val ctx = applicationContext
-                when (call.method) {
-                    "isMetered" -> result.success(
-                        (ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
-                            as android.net.ConnectivityManager).isActiveNetworkMetered
-                    )
-                    "isCharging" -> result.success(Extras.isCharging(ctx))
-                    "unwrapKey" -> result.success(
-                        (call.arguments as? ByteArray)?.let { Extras.unwrap(it) }
-                    )
-                    "smartBgDone" -> {
-                        result.success(true)
-                        main.post { finish() }
+        try {
+            io.flutter.plugin.common.MethodChannel(e.dartExecutor.binaryMessenger, Extras.CHANNEL)
+                .setMethodCallHandler { call, result ->
+                    val ctx = applicationContext
+                    when (call.method) {
+                        "isMetered" -> result.success(
+                            (ctx.getSystemService(Context.CONNECTIVITY_SERVICE)
+                                as android.net.ConnectivityManager).isActiveNetworkMetered
+                        )
+                        "isCharging" -> result.success(Extras.isCharging(ctx))
+                        "unwrapKey" -> result.success(
+                            (call.arguments as? ByteArray)?.let { Extras.unwrap(it) }
+                        )
+                        "smartBg" -> result.success(
+                            Extras.scheduleSmartBg(ctx, call.arguments as? Boolean ?: false)
+                        )
+                        "smartBgDone" -> {
+                            result.success(true)
+                            main.post { finish() }
+                        }
+                        else -> result.notImplemented()
                     }
-                    else -> result.notImplemented()
                 }
-            }
-        e.dartExecutor.executeDartEntrypoint(
-            io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint(
-                loader.findAppBundlePath(),
-                "package:dosya_okuyucu/services/fm/smart_sort_bg.dart",
-                "akilliDuzenArkaPlan"
+            e.dartExecutor.executeDartEntrypoint(
+                io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint(
+                    loader.findAppBundlePath(),
+                    "package:dosya_okuyucu/services/fm/smart_sort_bg.dart",
+                    "akilliDuzenArkaPlan"
+                )
             )
-        )
-        engine = e
+            engine = e
+        } catch (t: Throwable) {
+            e.destroy()
+            throw t
+        }
     }
 
     private fun finish() {
-        val p = params ?: return
+        if (Extras.activeSmartJob === this) Extras.activeSmartJob = null
+        val p = params
         params = null
         main.removeCallbacksAndMessages(null)
         engine?.destroy()
         engine = null
-        jobFinished(p, false)
+        if (p != null) {
+            runCatching { jobFinished(p, false) }
+        }
     }
 
     override fun onStopJob(p: JobParameters?): Boolean {
+        if (Extras.activeSmartJob === this) Extras.activeSmartJob = null
         params = null
         main.removeCallbacksAndMessages(null)
         engine?.destroy()
         engine = null
         return true
+    }
+
+    override fun onDestroy() {
+        if (Extras.activeSmartJob === this) Extras.activeSmartJob = null
+        params = null
+        main.removeCallbacksAndMessages(null)
+        engine?.destroy()
+        engine = null
+        super.onDestroy()
     }
 }
 

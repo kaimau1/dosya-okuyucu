@@ -15,9 +15,6 @@ void main() {
     // Süzgeç önizlemeleri izolatta `longEdge`e küçültülmüş bayt
     // (ScanEnhance.previews) — kaynakta tavanlı.
     'lib/screens/scan_result/widgets.dart': 1,
-    // PDF nesne katmanı: PDF kabuğu sıcak yolu (ÖLÇÜM KAPISI) — cihaz A/B
-    // ile C2'de; bulutta dokunulmaz.
-    'lib/widgets/pdf_object_layer.dart': 1,
   };
 
   /// [open] konumundaki `(`'in kapanışına kadar olan argüman metni.

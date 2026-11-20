@@ -136,9 +136,10 @@ class _PinDialogState extends State<_PinDialog> {
     if (_busy) return;
     final strings = AppStrings.of(context);
     final backoff = await PinBackoff.instance();
+    if (!mounted) return;
     final wait = backoff.remaining();
     if (wait > Duration.zero) {
-      if (mounted) setState(() => _error = pinWaitText(strings, wait));
+      setState(() => _error = pinWaitText(strings, wait));
       return;
     }
     setState(() => _busy = true);
@@ -207,7 +208,7 @@ class _PinDialogState extends State<_PinDialog> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(context),
               child: Text(context.t('common.cancel'))),
           FilledButton(
               onPressed: _submit, child: Text(context.t('common.ok'))),

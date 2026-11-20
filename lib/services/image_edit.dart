@@ -675,29 +675,33 @@ void paintMarks(Canvas canvas, List<ImageMark> marks, Rect box,
             : canvas.drawOval(r, stroke);
       case MarkKind.text:
         final tp = markTextPainter(m, unit);
-        final c = at(m.points.first);
-        canvas.save();
-        canvas.translate(c.dx, c.dy);
-        if (m.rotation != 0) canvas.rotate(m.rotation);
-        if (m.background) {
-          final pad = tp.height * 0.25;
-          final light = m.color.computeLuminance() > 0.5;
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              Rect.fromCenter(
-                  center: Offset.zero,
-                  width: tp.width + 2 * pad,
-                  height: tp.height + 2 * pad),
-              Radius.circular(pad),
-            ),
-            Paint()
-              ..color = light
-                  ? Color.fromRGBO(0, 0, 0, 0.6 * m.opacity)
-                  : Color.fromRGBO(255, 255, 255, 0.85 * m.opacity),
-          );
+        try {
+          final c = at(m.points.first);
+          canvas.save();
+          canvas.translate(c.dx, c.dy);
+          if (m.rotation != 0) canvas.rotate(m.rotation);
+          if (m.background) {
+            final pad = tp.height * 0.25;
+            final light = m.color.computeLuminance() > 0.5;
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromCenter(
+                    center: Offset.zero,
+                    width: tp.width + 2 * pad,
+                    height: tp.height + 2 * pad),
+                Radius.circular(pad),
+              ),
+              Paint()
+                ..color = light
+                    ? Color.fromRGBO(0, 0, 0, 0.6 * m.opacity)
+                    : Color.fromRGBO(255, 255, 255, 0.85 * m.opacity),
+            );
+          }
+          tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+          canvas.restore();
+        } finally {
+          tp.dispose();
         }
-        tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
-        canvas.restore();
     }
   }
 }
@@ -719,7 +723,12 @@ Future<ui.Image?> previewProxy(ui.Image src, {int maxSide = 2048}) async {
     Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
     Paint()..filterQuality = FilterQuality.medium,
   );
-  return rec.endRecording().toImage(w, h);
+  final pic = rec.endRecording();
+  try {
+    return await pic.toImage(w, h);
+  } finally {
+    pic.dispose();
+  }
 }
 
 /// Keskinleştirilmiş kopya (3×3 keskin olmayan maske, isolate'te). Önizlemede
@@ -729,12 +738,20 @@ Future<ui.Image> sharpened(ui.Image src, double amount) async {
   final out = await compute(
       _sharpen, (raw.buffer.asUint8List(), src.width, src.height, amount));
   final buffer = await ui.ImmutableBuffer.fromUint8List(out);
-  final desc = ui.ImageDescriptor.raw(buffer,
-      width: src.width,
-      height: src.height,
-      pixelFormat: ui.PixelFormat.rgba8888);
-  final codec = await desc.instantiateCodec();
-  return (await codec.getNextFrame()).image;
+  ui.ImageDescriptor? desc;
+  ui.Codec? codec;
+  try {
+    desc = ui.ImageDescriptor.raw(buffer,
+        width: src.width,
+        height: src.height,
+        pixelFormat: ui.PixelFormat.rgba8888);
+    codec = await desc.instantiateCodec();
+    return (await codec.getNextFrame()).image;
+  } finally {
+    codec?.dispose();
+    desc?.dispose();
+    buffer.dispose();
+  }
 }
 
 Uint8List _sharpen((Uint8List, int, int, double) a) {
@@ -794,7 +811,12 @@ Future<ui.Image> renderEdits(ui.Image src, ImageEdits e) async {
     Rect.fromLTWH(-c.left * full.width, -c.top * full.height, full.width,
         full.height),
   );
-  return rec.endRecording().toImage(out.width.toInt(), out.height.toInt());
+  final pic = rec.endRecording();
+  try {
+    return await pic.toImage(out.width.toInt(), out.height.toInt());
+  } finally {
+    pic.dispose();
+  }
 }
 
 /// Düzenleyicinin yazabildiği biçimler; diğerleri (HEIC, WebP…) JPEG kopya.
@@ -837,13 +859,21 @@ Uint8List _encode((Uint8List, int, int, bool) a) {
 Future<ui.Image> loadEditableImage(String path) async {
   final bytes = await File(path).readAsBytes();
   final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-  final desc = await ui.ImageDescriptor.encoded(buffer);
-  const maxSide = 8192;
-  final longest = math.max(desc.width, desc.height);
-  final scale = longest > maxSide ? maxSide / longest : 1.0;
-  final codec = await desc.instantiateCodec(
-    targetWidth: (desc.width * scale).round(),
-    targetHeight: (desc.height * scale).round(),
-  );
-  return (await codec.getNextFrame()).image;
+  ui.ImageDescriptor? desc;
+  ui.Codec? codec;
+  try {
+    desc = await ui.ImageDescriptor.encoded(buffer);
+    const maxSide = 8192;
+    final longest = math.max(desc.width, desc.height);
+    final scale = longest > maxSide ? maxSide / longest : 1.0;
+    codec = await desc.instantiateCodec(
+      targetWidth: (desc.width * scale).round(),
+      targetHeight: (desc.height * scale).round(),
+    );
+    return (await codec.getNextFrame()).image;
+  } finally {
+    codec?.dispose();
+    desc?.dispose();
+    buffer.dispose();
+  }
 }

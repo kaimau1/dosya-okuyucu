@@ -90,23 +90,27 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   }
 
   Future<void> _open() async {
-    final password = widget.password;
-    final doc = await PdfDocument.openData(
-      widget.bytes,
-      passwordProvider: password == null ? null : () async => password,
-    );
-    if (!mounted) {
-      await doc.dispose();
-      return;
+    try {
+      final password = widget.password;
+      final doc = await PdfDocument.openData(
+        widget.bytes,
+        passwordProvider: password == null ? null : () async => password,
+      );
+      if (!mounted) {
+        await doc.dispose();
+        return;
+      }
+      setState(() {
+        _doc = doc;
+        _items = [
+          for (var i = 0; i < doc.pages.length; i++)
+            (id: i, page: i, turns: 0),
+        ];
+        _nextId = doc.pages.length;
+      });
+    } catch (_) {
+      if (mounted) Navigator.of(context).maybePop();
     }
-    setState(() {
-      _doc = doc;
-      _items = [
-        for (var i = 0; i < doc.pages.length; i++)
-          (id: i, page: i, turns: 0),
-      ];
-      _nextId = doc.pages.length;
-    });
   }
 
   @override

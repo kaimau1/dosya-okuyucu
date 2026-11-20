@@ -67,9 +67,9 @@ notuyla işaretlenir.
 
 ## RECORD_AUDIO (isteğe bağlı)
 
-- **Neden:** Slayt sunumunda anlatım kaydı (Faz 38). İzin yalnız kullanıcı
-  "Anlatım kaydet"e bastığında istenir; ses slayt dosyasına gömülür, hiçbir
-  yere gönderilmez. Reddedilirse yalnız anlatım kaydı kapanır.
+- **Neden:** Slayt sunumunda anlatım kaydı (Faz 38) ve editörlerde sesle yazma / dikte. İzin yalnız kullanıcı
+  "Anlatım kaydet" veya mikrofonla dikte düğmesine bastığında istenir; ses hiçbir
+  sunucumuza gönderilmez. Reddedilirse yalnız anlatım kaydı ve dikte kapanır.
 
 ## POST_NOTIFICATIONS
 
@@ -79,7 +79,7 @@ notuyla işaretlenir.
 ## INTERNET
 
 - Kullanıcının başlattığı işler: Gemini AI (kendi anahtarı), Google Drive,
-  ağ depolama, indirme yöneticisi, ML Kit dil modeli ve yapay zekâ sesi
+  ağ depolama, indirme yöneticisi, OpenSubtitles altyazı araması, ML Kit dil modeli ve yapay zekâ sesi
   indirmeleri. Analitik/reklam YOK.
 
 ## QUERY_ALL_PACKAGES · REQUEST_DELETE_PACKAGES (eklentiden: `installed_apps`)

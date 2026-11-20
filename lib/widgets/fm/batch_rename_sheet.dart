@@ -45,6 +45,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
   final _patternController = TextEditingController(text: '{ad}');
   final _findController = TextEditingController();
   final _replaceController = TextEditingController();
+  final _startAtController = TextEditingController(text: '1');
   int _startAt = 1;
   bool _running = false;
 
@@ -82,6 +83,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
     _patternController.dispose();
     _findController.dispose();
     _replaceController.dispose();
+    _startAtController.dispose();
     super.dispose();
   }
 
@@ -245,8 +247,7 @@ class _BatchRenameSheetState extends State<_BatchRenameSheet> {
                               isDense: true,
                             ),
                             keyboardType: TextInputType.number,
-                            controller:
-                                TextEditingController(text: '$_startAt'),
+                            controller: _startAtController,
                             onChanged: (v) => setState(
                                 () => _startAt = int.tryParse(v) ?? 1),
                           ),

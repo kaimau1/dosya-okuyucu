@@ -583,7 +583,7 @@ class _VideoSideBySide extends StatelessWidget {
                         builder: (_, snap) => snap.data == null
                             ? const SizedBox.shrink()
                             : Image(
-                                image: FmFileImage(snap.data!),
+                                image: FmFileImage(snap.data!, cacheWidth: 480),
                                 fit: BoxFit.cover),
                       ),
                     Center(

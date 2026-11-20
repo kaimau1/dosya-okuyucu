@@ -217,8 +217,9 @@ class ExtFileSystem extends UsbFileSystem {
   // ── Grup tanımlayıcıları ve düğümler ───────────────────────────────────
 
   static bool _isPowerOf(int n, int base) {
+    if (n < 1 || base <= 1) return n == 1;
     var v = 1;
-    while (v < n) {
+    while (v <= n ~/ base) {
       v *= base;
     }
     return v == n;

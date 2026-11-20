@@ -14,8 +14,8 @@ void main() {
     await t.add('Fatih telefon', 'id-1');
     expect(t.isTrusted('Fatih telefon', 'id-1'), isTrue);
     expect(t.isTrusted('Fatih telefon', 'id-2'), isFalse);
-    expect(t.isTrusted('Fatih telefon'), isTrue,
-        reason: 'kimlik göndermeyen (bilgisayar) adla eşleşir');
+    expect(t.isTrusted('Fatih telefon'), isFalse,
+        reason: 'kimlikle güvenilen cihaz kimliksiz sahte teklifle eşleşmez');
   });
 
   test('adla güvenilen bilgisayar; kalıcı; kaldırılınca sorulur', () async {

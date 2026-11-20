@@ -23,6 +23,7 @@ enum Edition {
   kisisel;
 
   static const _raw = String.fromEnvironment('DOSYA_SURUM');
+  static const _play = String.fromEnvironment('DOSYA_PLAY');
 
   /// Bu derlemenin sürümü (derleme anı sabiti).
   static const Edition current = _raw == 'lite'
@@ -33,7 +34,9 @@ enum Edition {
               ? Edition.kisisel
               : (bool.fromEnvironment('DOSYA_OKUYUCU')
                   ? Edition.lite
-                  : Edition.kisisel);
+                  : ((_play == '1' || _play == 'true')
+                      ? Edition.pro
+                      : Edition.kisisel));
 
   /// Metinden sürüm (CI betikleri, testler); tanınmayan → null.
   static Edition? parse(String value) {

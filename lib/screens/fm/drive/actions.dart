@@ -135,7 +135,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
       title: context.t('drive.new_folder'),
       initial: context.t('drive.new_folder_default'),
     );
-    if (name == null || name.isEmpty) return;
+    if (name == null || name.isEmpty || !mounted) return;
     _partSetState(() => _busy = true);
     try {
       await _drive.createFolder(name, parentId: _current.$1);
@@ -152,7 +152,7 @@ extension _DriveScreenActionsPart on _DriveScreenState {
       title: context.t('drive.rename'),
       initial: file.name,
     );
-    if (name == null || name.isEmpty || name == file.name) return;
+    if (name == null || name.isEmpty || name == file.name || !mounted) return;
     _partSetState(() => _busy = true);
     try {
       await _drive.rename(file.id, name);

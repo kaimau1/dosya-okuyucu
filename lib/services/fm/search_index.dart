@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart'
     show ValueNotifier, compute, visibleForTesting;
 import 'package:path/path.dart' as p;
 
+import '../../core/private_zone.dart';
 import '../../core/text_search.dart';
 import '../../models/fs_entry.dart';
 import 'ai_index.dart';
@@ -345,6 +346,7 @@ abstract final class SearchIndex {
     final seen = {for (final e in names) e.path};
     final out = [...names];
     for (final r in AiIndex.aliasMatches(q, limit: limit - names.length)) {
+      if (PrivateZone.isPrivatePath(r.path)) continue;
       if (!seen.add(r.path)) continue;
       if (root != null && !p.isWithin(root, r.path)) continue;
       final e = FsEntry(
@@ -359,6 +361,7 @@ abstract final class SearchIndex {
     // **Akıllı düzen** (2026-11-18): AI kategorisi/ikinci adı, üç dilde.
     await SmartSort.ensureLoaded();
     for (final r in SmartSort.matches(q, limit: limit - out.length)) {
+      if (PrivateZone.isPrivatePath(r.path)) continue;
       if (!seen.add(r.path)) continue;
       if (root != null && !p.isWithin(root, r.path)) continue;
       if (r.hidden) continue;
@@ -407,7 +410,9 @@ abstract final class SearchIndex {
           : await compute(_querySync, args);
       // Dizin bayat olabilir: diskte kalmayanları düşür (en çok `limit`
       // kadar stat çağrısı — göz açıp kapayıncaya kadar).
-      return rows.where((e) => e.exists).toList();
+      return rows
+          .where((e) => !PrivateZone.isPrivatePath(e.path) && e.exists)
+          .toList();
     } catch (_) {
       final hits = await _searchRoots(_rootsOf(root), q, limit);
       return _postFilter(hits, category, includeDirs);
@@ -442,6 +447,7 @@ abstract final class SearchIndex {
     bool includeDirs,
   ) =>
       hits
+          .where((e) => !PrivateZone.isPrivatePath(e.path))
           .where((e) => includeDirs || !e.isDir)
           .where((e) => category == null || e.category == category)
           .toList();
@@ -526,6 +532,7 @@ class _Matcher {
 
   /// [folded] yalnız ad karşılaştırması gerektiğinde çağrılır.
   bool test(FsEntry e, String Function() folded) {
+    if (PrivateZone.isPrivatePath(e.path)) return false;
     if (!includeDirs && e.isDir) return false;
     if (rootPrefix != null && !FsPaths.isInside(rootPrefix!, e.path)) {
       return false;

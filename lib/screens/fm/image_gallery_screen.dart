@@ -635,7 +635,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       });
       return;
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   Future<void> _pickSlideshow() async {

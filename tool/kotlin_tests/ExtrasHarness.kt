@@ -52,5 +52,7 @@ fun main() {
     check("imzasız kayıtlı kısayol kabul", Extras.pathAccepted("/storage/emulated/0/Download/a.pdf", null, key, own))
     check("imzasız kayıtsız yol red (API 26+)", !Extras.pathAccepted("/storage/emulated/0/Download/b.pdf", null, key, own))
     check("imzalı kayıtsız yol kabul", Extras.pathAccepted("/storage/emulated/0/Download/b.pdf", Extras.hmacHex(key, "/storage/emulated/0/Download/b.pdf"), key, own))
+    check("imzalı /data_mirror/ red", !Extras.pathAccepted("/data_mirror/data_ce/null/0/com.x/a", Extras.hmacHex(key, "/data_mirror/data_ce/null/0/com.x/a"), key, own))
+    check("imzalı file:/data_mirror/ red", !Extras.linkAccepted("file:/data_mirror/data_ce/null/0/com.x/a", Extras.hmacHex(key, "file:/data_mirror/data_ce/null/0/com.x/a"), key))
     println("Extras denemesi temiz.")
 }

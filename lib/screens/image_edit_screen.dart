@@ -490,7 +490,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   Future<void> _addText(Offset local) async {
     final text = await _askText('');
-    if (text == null) return;
+    if (text == null || !mounted) return;
     _push(_e.copyWith(marks: [
       ..._e.marks,
       ImageMark(
@@ -509,7 +509,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     final m = _selected;
     if (m == null || m.kind != MarkKind.text) return;
     final text = await _askText(m.text);
-    if (text == null || _selected != m) return;
+    if (text == null || !mounted || _selected != m) return;
     _updateSelected(m.copyWith(text: text));
   }
 

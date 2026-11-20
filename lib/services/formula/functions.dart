@@ -877,7 +877,9 @@ extension _ParserFunctionsPart on _Parser {
     final start = _optNum(args, 2, 1);
     final step = _optNum(args, 3, 1);
     if (rows < 1 || cols < 1) return const FormulaError('#HESAP!');
-    if (rows * cols > _maxCells) return const FormulaError('#SAYI!');
+    if (rows > _maxCells || cols > _maxCells || rows * cols > _maxCells) {
+      return const FormulaError('#SAYI!');
+    }
     var v = start;
     return FormulaArray([
       for (var r = 0; r < rows; r++)

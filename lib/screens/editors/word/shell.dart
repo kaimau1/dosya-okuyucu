@@ -52,6 +52,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                   label: context.t('word.page_view'),
                   onTap: () async {
                     if (_dirty) await _save();
+                    if (!mounted) return;
                     // Yedek editördeki değişiklikler görünüme taşınsın.
                     _partSetState(() {
                       _viewBytes = _editor?.viewBytes();

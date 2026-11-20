@@ -121,9 +121,11 @@ class DriveFile {
   /// uzantısı YOKTUR ("Bütçe" gibi) — dışa aktarım uzantısı eklenir, yoksa
   /// telefonda hiçbir uygulama açamaz.
   String localName() {
+    var clean = name.replaceAll(RegExp(r'[/\\\x00]'), '_').trim();
+    if (clean.isEmpty || clean == '.' || clean == '..') clean = 'dosya';
     final export = exportAs;
-    if (export == null) return name;
+    if (export == null) return clean;
     final ext = export.$2;
-    return name.toLowerCase().endsWith('.$ext') ? name : '$name.$ext';
+    return clean.toLowerCase().endsWith('.$ext') ? clean : '$clean.$ext';
   }
 }

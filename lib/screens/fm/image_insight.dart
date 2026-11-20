@@ -217,6 +217,9 @@ class _ImageInsightSheetState extends State<ImageInsightSheet> {
       );
       final insight = ImageInsight.parse(raw);
       if (insight == null) throw const FormatException('empty');
+      if (!_cache.containsKey(key) && _cache.length >= 128) {
+        _cache.remove(_cache.keys.first);
+      }
       _cache[key] = insight;
       if (mounted) {
         setState(() {

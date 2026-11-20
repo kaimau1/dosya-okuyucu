@@ -76,6 +76,13 @@ class UsbMass(private val context: Context) {
     val isOpen: Boolean get() = connection != null
 
     private var permissionCallback: ((Boolean) -> Unit)? = null
+    private var permissionReceiver: BroadcastReceiver? = null
+
+    private fun clearPermissionReceiver() {
+        val r = permissionReceiver ?: return
+        permissionReceiver = null
+        try { context.unregisterReceiver(r) } catch (e: Exception) {}
+    }
 
     private fun log(line: String) {
         steps.add(line)
@@ -94,6 +101,7 @@ class UsbMass(private val context: Context) {
             onResult(true)
             return
         }
+        clearPermissionReceiver()
         permissionCallback = onResult
         val rec = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
@@ -101,6 +109,7 @@ class UsbMass(private val context: Context) {
                 val granted = intent.getBooleanExtra(
                     UsbManager.EXTRA_PERMISSION_GRANTED, false
                 )
+                if (permissionReceiver === this) permissionReceiver = null
                 try { context.unregisterReceiver(this) } catch (e: Exception) {}
                 val cb = permissionCallback
                 permissionCallback = null
@@ -108,6 +117,7 @@ class UsbMass(private val context: Context) {
                 cb?.invoke(granted)
             }
         }
+        permissionReceiver = rec
         val filter = IntentFilter(ACTION_PERMISSION)
         if (Build.VERSION.SDK_INT >= 33) {
             context.registerReceiver(rec, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -136,6 +146,7 @@ class UsbMass(private val context: Context) {
      * bir bellek ilk komuta **"Unit Attention"** (birim değişti) diye
      * CHECK CONDITION döner ve bunu ancak REQUEST SENSE temizler.
      */
+    @Synchronized
     fun open(device: UsbDevice): Boolean {
         close()
         steps.clear()
@@ -285,6 +296,8 @@ class UsbMass(private val context: Context) {
 
     @Synchronized
     fun close() {
+        clearPermissionReceiver()
+        permissionCallback = null
         try {
             if (unsynced) flush()
         } catch (e: Exception) {
@@ -314,7 +327,7 @@ class UsbMass(private val context: Context) {
      * adres SARAR — okuma yanlış yerden gelir, yazma diskin başını ezer.
      */
     private fun rwCdb(op10: Int, op16: Int, lba: Long, count: Int): ByteArray {
-        if (lba + count > 0xFFFFFFFFL) {
+        if (lba > 0xFFFFFFFFL - count.toLong()) {
             val cdb = ByteArray(16)
             cdb[0] = op16.toByte()
             for (i in 0..7) {
@@ -341,8 +354,10 @@ class UsbMass(private val context: Context) {
     @Synchronized
     fun read(lba: Long, count: Int): ByteArray? {
         if (!isOpen || blockSize == 0) return null
-        if (lba < 0 || count <= 0 || count > 0xFFFF || lba + count > blockCount) return null
-        val length = count * blockSize
+        if (lba < 0 || count <= 0 || count > 0xFFFF || lba > blockCount - count.toLong()) return null
+        val lengthLong = count.toLong() * blockSize.toLong()
+        if (lengthLong <= 0L || lengthLong > 16L * 1024L * 1024L) return null
+        val length = lengthLong.toInt()
         val cdb = rwCdb(0x28, 0x88, lba, count)
         val out = ByteArray(length)
         var status = transfer(cdb, out, length, dataIn = true)
@@ -378,7 +393,7 @@ class UsbMass(private val context: Context) {
         if (data.isEmpty() || data.size % blockSize != 0) return false
         val count = data.size / blockSize
         // Birimin dışına yazma isteği hiçbir koşulda aygıta gitmez.
-        if (lba < 0 || count > 0xFFFF || lba + count > blockCount) return false
+        if (lba < 0 || count <= 0 || count > 0xFFFF || lba > blockCount - count.toLong()) return false
         val cdb = rwCdb(0x2A, 0x8A, lba, count)
         unsynced = true
         var status = transfer(cdb, data, data.size, dataIn = false)
@@ -674,9 +689,9 @@ class UsbMass(private val context: Context) {
         val cswBuf = ByteBuffer.wrap(csw).order(ByteOrder.LITTLE_ENDIAN)
         if (cswBuf.int != 0x53425355) return STATUS_PHASE // 'USBS' değil
         if (cswBuf.int != thisTag) return STATUS_PHASE
-        cswBuf.int // residue — okumada ilgilenmiyoruz
+        val residue = cswBuf.int
         return when (cswBuf.get().toInt()) {
-            0 -> if (moved < length) STATUS_FAILED else STATUS_OK
+            0 -> if (moved < length || (!dataIn && residue != 0)) STATUS_FAILED else STATUS_OK
             1 -> STATUS_FAILED
             else -> STATUS_PHASE
         }

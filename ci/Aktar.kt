@@ -35,10 +35,15 @@ object AktarAead {
                         return@setMethodCallHandler
                     }
                 }
+                var key: ByteArray? = null
                 try {
-                    val key = call.argument<ByteArray>("k")!!
-                    val nonce = call.argument<ByteArray>("n")!!
-                    val data = call.argument<ByteArray>("d")!!
+                    key = call.argument<ByteArray>("k")
+                    val nonce = call.argument<ByteArray>("n")
+                    val data = call.argument<ByteArray>("d")
+                    if (key == null || nonce == null || data == null) {
+                        result.error("args", null, null)
+                        return@setMethodCallHandler
+                    }
                     val aad = call.argument<ByteArray>("a") ?: ByteArray(0)
                     val cipher = Cipher.getInstance("AES/GCM/NoPadding")
                     cipher.init(mode, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
@@ -48,6 +53,8 @@ object AktarAead {
                     result.error("etiket", null, null)
                 } catch (e: Exception) {
                     result.error("yerel", e.javaClass.simpleName, null)
+                } finally {
+                    key?.fill(0)
                 }
             }
     }
@@ -86,17 +93,21 @@ class AktarAlServisi : android.app.Service() {
         }
 
         fun stop(ctx: android.content.Context) {
-            ctx.stopService(android.content.Intent(ctx, AktarAlServisi::class.java))
+            try {
+                ctx.stopService(android.content.Intent(ctx, AktarAlServisi::class.java))
+            } catch (_: Exception) {
+            }
         }
 
         /** Ana motorun kanalı: durum, durdur, bildirim metinleri (dil tablosundan). */
         fun attachMain(ctx: android.content.Context, messenger: BinaryMessenger) {
+            val app = ctx.applicationContext
             MethodChannel(messenger, CHANNEL).setMethodCallHandler { call, result ->
                 when (call.method) {
                     "running" -> result.success(running != null)
-                    "stop" -> { stop(ctx); result.success(true) }
+                    "stop" -> { stop(app); result.success(true) }
                     "texts" -> {
-                        val e = prefs(ctx).edit()
+                        val e = prefs(app).edit()
                         (call.arguments as? Map<*, *>)?.forEach { (k, v) ->
                             if (k is String && v is String) e.putString(k, v)
                         }
@@ -117,14 +128,26 @@ class AktarAlServisi : android.app.Service() {
 
     override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "stop") {
+            if (running == null) foreground()
             stopSelf()
             return START_NOT_STICKY
         }
-        foreground()
-        if (engine == null) startEngine()
+        if (!foreground()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (engine == null && !startEngine()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         running = this
         refreshTile()
         return START_NOT_STICKY
+    }
+
+    /** Android 15+ (targetSdk 36): dataSync ön plan servisi süre sınırına ulaşınca kendini kapatmalı. */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        stopSelf()
     }
 
     private fun manager() =
@@ -151,7 +174,7 @@ class AktarAlServisi : android.app.Service() {
         )
     }
 
-    private fun foreground() {
+    private fun foreground(): Boolean = try {
         channel()
         val stopPi = android.app.PendingIntent.getService(
             this, 1, android.content.Intent(this, AktarAlServisi::class.java).setAction("stop"),
@@ -169,6 +192,9 @@ class AktarAlServisi : android.app.Service() {
         } else {
             startForeground(NOTIF_ID, b.build())
         }
+        true
+    } catch (_: Exception) {
+        false
     }
 
     private fun info(title: String, body: String) {
@@ -182,36 +208,49 @@ class AktarAlServisi : android.app.Service() {
         }
     }
 
-    private fun startEngine() {
-        val loader = io.flutter.FlutterInjector.instance().flutterLoader()
-        loader.startInitialization(applicationContext)
-        loader.ensureInitializationComplete(applicationContext, null)
-        val e = io.flutter.embedding.engine.FlutterEngine(applicationContext)
-        AktarAead.attach(e.dartExecutor.binaryMessenger)
-        MethodChannel(e.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "received" -> {
-                    info(text("got", "Dosya alındı"), "${call.argument<String>("name")} · ${call.argument<String>("from")}")
-                    result.success(null)
+    private fun startEngine(): Boolean {
+        return try {
+            val loader = io.flutter.FlutterInjector.instance().flutterLoader()
+            loader.startInitialization(applicationContext)
+            loader.ensureInitializationComplete(applicationContext, null)
+            val e = io.flutter.embedding.engine.FlutterEngine(applicationContext)
+            try {
+                AktarAead.attach(e.dartExecutor.binaryMessenger)
+                MethodChannel(e.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+                    when (call.method) {
+                        "received" -> {
+                            val name = call.argument<String>("name") ?: ""
+                            val from = call.argument<String>("from") ?: "?"
+                            info(text("got", "Dosya alındı"), "$name · $from")
+                            result.success(null)
+                        }
+                        "asked" -> {
+                            val from = call.argument<String>("from") ?: "?"
+                            info(text("refused", "Güvenilmeyen cihazdan istek reddedildi"),
+                                "$from · ${text("open", "Almak için Aktar'ı aç")}")
+                            result.success(null)
+                        }
+                        "stop" -> { stopSelf(); result.success(null) }
+                        "running" -> result.success(true)
+                        else -> result.notImplemented()
+                    }
                 }
-                "asked" -> {
-                    info(text("refused", "Güvenilmeyen cihazdan istek reddedildi"),
-                        "${call.argument<String>("from")} · ${text("open", "Almak için Aktar'ı aç")}")
-                    result.success(null)
-                }
-                "stop" -> { stopSelf(); result.success(null) }
-                "running" -> result.success(true)
-                else -> result.notImplemented()
+                e.dartExecutor.executeDartEntrypoint(
+                    io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint(
+                        loader.findAppBundlePath(),
+                        "package:dosya_okuyucu/services/fm/remote/tile_receiver.dart",
+                        "aktarKutucukAlici"
+                    )
+                )
+                engine = e
+                true
+            } catch (t: Throwable) {
+                e.destroy()
+                false
             }
+        } catch (_: Throwable) {
+            false
         }
-        e.dartExecutor.executeDartEntrypoint(
-            io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint(
-                loader.findAppBundlePath(),
-                "package:dosya_okuyucu/services/fm/remote/tile_receiver.dart",
-                "aktarKutucukAlici"
-            )
-        )
-        engine = e
     }
 
     override fun onDestroy() {

@@ -152,7 +152,7 @@ abstract final class SafWrite {
   }
 
   static Future<bool> _copyInto(String parentUri, String src) async {
-    final type = await FileSystemEntity.type(src);
+    final type = await FileSystemEntity.type(src, followLinks: false);
     final name = p.basename(src);
     if (type == FileSystemEntityType.directory) {
       final dir = await _childDir(parentUri, name);

@@ -352,6 +352,7 @@ class DriveService {
   /// Oturum yoksa ya da Drive hata döndürürse fırlatır; çağıranlar mesajı
   /// kullanıcıya gösteriyor (sessiz boş liste "bozuk" sanılır).
   Future<Map<String, String>> _requireHeaders() async {
+    NetGuard.allow('drive', host: 'www.googleapis.com');
     final headers = await _headers();
     if (headers == null || headers.isEmpty) {
       throw const DriveException(DriveError.notSignedIn);
@@ -420,7 +421,7 @@ class DriveService {
       metadataUri(id, addParents: toParentId, removeParents: fromParentId),
       headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
       body: '{}',
-    );
+    ).timeout(_timeout);
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
@@ -445,7 +446,7 @@ class DriveService {
       metadataUri(id),
       headers: {...headers, 'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode(body),
-    );
+    ).timeout(_timeout);
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
@@ -602,7 +603,7 @@ class DriveService {
       updateUri(id),
       headers: {...headers, 'Content-Type': mime},
       body: await local.readAsBytes(),
-    );
+    ).timeout(_uploadTimeout);
     _check(res.statusCode, res.body);
     return DriveFile.fromJson(
         (jsonDecode(res.body) as Map).cast<String, dynamic>());
@@ -637,12 +638,16 @@ class DriveService {
         .timeout(_timeout);
     _check(start.statusCode, start.body);
     final location = start.headers['location'];
-    if (location == null || location.isEmpty) {
+    final locUri = location == null ? null : Uri.tryParse(location);
+    if (locUri == null ||
+        locUri.scheme != 'https' ||
+        !(locUri.host == 'googleapis.com' ||
+            locUri.host.endsWith('.googleapis.com'))) {
       throw const DriveException(DriveError.unknown);
     }
     final client = http.Client();
     try {
-      final req = http.StreamedRequest('PUT', Uri.parse(location))
+      final req = http.StreamedRequest('PUT', locUri)
         ..contentLength = length
         ..headers.addAll({...headers, 'Content-Type': mimeType});
       final sending = client.send(req);
@@ -687,6 +692,7 @@ class DriveService {
   /// kullanıcının kendi oturumu), değilse [publicDownloadUri].
   Future<http.StreamedResponse> openMedia(String id,
       {required bool signedIn, required http.Client client}) async {
+    NetGuard.allow('drive', host: 'www.googleapis.com');
     final c = client;
     final req = signedIn
         ? (http.Request('GET', Uri.parse('$_api/files/$id')
@@ -702,7 +708,7 @@ class DriveService {
 
   Future<void> delete(String id) async {
     final headers = await _requireHeaders();
-    final res = await http.delete(deleteUri(id), headers: headers);
+    final res = await http.delete(deleteUri(id), headers: headers).timeout(_timeout);
     // Drive silmede 204 döner.
     if (res.statusCode == 204) return;
     _check(res.statusCode, res.body);

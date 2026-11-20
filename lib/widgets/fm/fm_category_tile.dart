@@ -154,39 +154,39 @@ class _GradientGlyphPainter extends CustomPainter {
 
   _GradientGlyphPainter(this.icon, this.color, this.extent, this.direction);
 
-  late final TextPainter _text = TextPainter(
-    textDirection: direction,
-    text: TextSpan(
-      text: String.fromCharCode(icon.codePoint),
-      style: TextStyle(
-        inherit: false,
-        fontSize: extent,
-        fontFamily: icon.fontFamily,
-        package: icon.fontPackage,
-        fontFamilyFallback: icon.fontFamilyFallback,
-        height: 1.0,
-        leadingDistribution: TextLeadingDistribution.even,
-        foreground: Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.lerp(color, AppColors.mixLight, 0.28)!,
-              color,
-              Color.lerp(color, AppColors.mixDark, 0.18)!,
-            ],
-            stops: const [0, 0.5, 1],
-          ).createShader(Rect.fromLTWH(0, 0, extent, extent)),
-      ),
-    ),
-  )..layout();
-
   @override
   void paint(Canvas canvas, Size size) {
-    _text.paint(
+    final tp = TextPainter(
+      textDirection: direction,
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          inherit: false,
+          fontSize: extent,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontFamilyFallback: icon.fontFamilyFallback,
+          height: 1.0,
+          leadingDistribution: TextLeadingDistribution.even,
+          foreground: Paint()
+            ..shader = LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color.lerp(color, AppColors.mixLight, 0.28)!,
+                color,
+                Color.lerp(color, AppColors.mixDark, 0.18)!,
+              ],
+              stops: const [0, 0.5, 1],
+            ).createShader(Rect.fromLTWH(0, 0, extent, extent)),
+        ),
+      ),
+    )..layout();
+    tp.paint(
       canvas,
-      Offset((size.width - _text.width) / 2, (size.height - _text.height) / 2),
+      Offset((size.width - tp.width) / 2, (size.height - tp.height) / 2),
     );
+    tp.dispose();
   }
 
   @override

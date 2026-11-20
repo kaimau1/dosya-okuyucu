@@ -164,6 +164,8 @@ abstract final class FmColors {
   // kutucukları ve süzgeç çipleri hâlâ düz glif kullanıyor — orada bir kağıt
   // çizimi değil, kategori işareti gerekiyor.
 
+  static final _alnumExt = RegExp(r'^[a-z0-9]+$');
+
   /// Uzantıdan **şerit yazısı**: `PDF`, `DOCX`, `ZIP`…
   ///
   /// Boş dönerse şerit hiç çizilmez (kağıdın ortasına glif konur). Uzun ya da
@@ -172,7 +174,7 @@ abstract final class FmColors {
   static String labelForExtension(String ext) {
     final e = ext.trim().toLowerCase();
     if (e.isEmpty || e.length > 8) return '';
-    if (!RegExp(r'^[a-z0-9]+$').hasMatch(e)) return '';
+    if (!_alnumExt.hasMatch(e)) return '';
     return (e.length <= 4 ? e : e.substring(0, 3)).toUpperCase();
   }
 

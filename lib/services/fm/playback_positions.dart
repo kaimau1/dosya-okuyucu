@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/private_zone.dart';
 import 'fm_env.dart';
 
 /// **"Kaldığın yerden devam et"** — video/ses dosyalarının bırakılma konumu.
@@ -97,7 +98,12 @@ abstract final class PlaybackPositions {
   /// Diske yazma **geciktirilir**: konum saniyede bir güncelleniyor ve her
   /// seferinde dosya yazmak boşuna disk aşındırır.
   static void record(String path, Duration position, Duration duration) {
-    if (!enabled || path.isEmpty) return;
+    if (!enabled ||
+        path.isEmpty ||
+        PrivateZone.active ||
+        PrivateZone.isPrivatePath(path)) {
+      return;
+    }
     if (duration <= const Duration(minutes: 1)) return;
     if (position < minPosition) {
       // Başa sarıldıysa eski kaydı DÜŞÜR: kullanıcı baştan izlemeye karar
@@ -120,6 +126,20 @@ abstract final class PlaybackPositions {
   /// Kaydı siler (dosya bitirildi ya da kullanıcı "baştan başlat" dedi).
   static void clear(String path) {
     if (_byPath.remove(path) != null) _scheduleSave();
+  }
+
+  /// Tüm kayıtlı oynatma konumlarını siler (PrivacyWipe).
+  static Future<void> clearAll() async {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _byPath.clear();
+    if (FmEnv.appSupportDir.isEmpty) return;
+    try {
+      final f = File(_path);
+      if (await f.exists()) await f.delete();
+    } catch (_) {
+      // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
+    }
   }
 
   /// **Kısma, erteleme DEĞİL** (2026-09-23 denetimi). Eskiden her kayıtta

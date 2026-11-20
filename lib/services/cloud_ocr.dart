@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/l10n/app_strings.dart';
+import '../core/private_zone.dart';
 import 'ai_pool.dart';
 import 'gemini_decisions.dart';
 import 'gemini_service.dart';
@@ -74,8 +75,9 @@ abstract final class CloudOcr {
   static List<String> get _keys =>
       credentials?.call().normalized.keys ?? const [];
 
-  /// Anahtar var ve çevrimdışı kip kapalı.
-  static bool get available => _keys.isNotEmpty && !OfflineMode.enabled;
+  /// Anahtar var, çevrimdışı kip ve gizli kasa kapalı.
+  static bool get available =>
+      _keys.isNotEmpty && !OfflineMode.enabled && !PrivateZone.active;
 
   /// Cihazdaki sonuç "zayıf" mı: Arapça bir sayfada Latin modeli ya hiçbir
   /// şey ya da birkaç anlamsız harf döndürür. Saf → birim testli.
@@ -86,6 +88,7 @@ abstract final class CloudOcr {
 
   /// Decisions API: görselde Latin dışı alfabeyle yazı var mı?
   static Future<bool> hasNonLatinScript(String path) async {
+    if (PrivateZone.active || PrivateZone.isPrivatePath(path)) return false;
     try {
       final block = await GeminiDecisions.fileBlock(path);
       final r = await GeminiDecisions.ask(
@@ -141,6 +144,10 @@ abstract final class CloudOcr {
 
   /// Görseldeki satırlar, resim pikseli koordinatında.
   static Future<List<OcrLine>> lines(String path) async {
+    if (PrivateZone.active || PrivateZone.isPrivatePath(path)) {
+      throw GeminiException('Gizli kasa dosyaları yapay zekâya gönderilemez.',
+          statusCode: -1);
+    }
     if (_keys.isEmpty) {
       throw GeminiException(AppStrings.current.t('ocr.cloud_need_key'),
           statusCode: -1);
@@ -162,15 +169,18 @@ abstract final class CloudOcr {
 
   static Future<({double width, double height})> _imageSize(
       List<int> bytes) async {
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? desc;
     try {
-      final buffer =
+      buffer =
           await ui.ImmutableBuffer.fromUint8List(Uint8List.fromList(bytes));
-      final desc = await ui.ImageDescriptor.encoded(buffer);
-      final out = (width: desc.width.toDouble(), height: desc.height.toDouble());
-      desc.dispose();
-      return out;
+      desc = await ui.ImageDescriptor.encoded(buffer);
+      return (width: desc.width.toDouble(), height: desc.height.toDouble());
     } catch (_) {
       return (width: 1000.0, height: 1000.0);
+    } finally {
+      desc?.dispose();
+      buffer?.dispose();
     }
   }
 

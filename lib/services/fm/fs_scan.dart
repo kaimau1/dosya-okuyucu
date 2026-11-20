@@ -26,6 +26,9 @@ abstract final class FsScan {
   /// `Android/obb` zaten okunamaz (SAF gerekir), denemek yalnız yavaşlatır.
   static const skipDirNames = {
     '.dosya-okuyucu-cop',
+    '.DosyaOkuyucuKasa',
+    '.DosyaOkuyucuGizli',
+    'vault_open',
     '.thumbnails',
     '.trashed',
     'lost+found',

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../core/l10n/app_strings.dart';
 import '../core/pii.dart';
+import '../core/private_zone.dart';
 import 'offline_mode.dart';
 
 class ChatTurn {
@@ -60,12 +61,30 @@ class GeminiService {
 
   GeminiService({required this.apiKey, required this.model});
 
-  /// Çevrimdışı kipte istek hiç kurulmaz; kalıcı hata (-1) — toplu kuyruk
-  /// "ağ hatası" (0) sanıp yeniden denemesin.
-  static void _offlineGuard() {
+  /// Çevrimdışı kipte veya gizli kasa açıkken istek hiç kurulmaz; kalıcı
+  /// hata (-1) — toplu kuyruk "ağ hatası" (0) sanıp yeniden denemesin.
+  static void _offlineGuard([String? path]) {
     if (OfflineMode.enabled) {
       throw GeminiException(const OfflineException().message, statusCode: -1);
     }
+    if (PrivateZone.active ||
+        (path != null && PrivateZone.isPrivatePath(path))) {
+      throw GeminiException('Gizli kasa açıkken yapay zekâ kullanılamaz.',
+          statusCode: -1);
+    }
+  }
+
+  static Map<String, dynamic> _decodeMap(http.Response resp) {
+    try {
+      final decoded =
+          jsonDecode(utf8.decode(resp.bodyBytes, allowMalformed: true));
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return decoded.cast<String, dynamic>();
+    } catch (_) {
+      // Bilinçli: bozuk JSON gövdesi aşağıda GeminiException olarak bildirilir.
+    }
+    throw GeminiException('Model yanıtı okunamadı.',
+        statusCode: resp.statusCode);
   }
 
   static const _base = 'https://generativelanguage.googleapis.com/v1beta';
@@ -157,7 +176,7 @@ class GeminiService {
   /// çağıran sıradaki anahtarı dener).
   static Future<({String name, String uri})> uploadFile(
       String key, String path, String mime) async {
-    _offlineGuard();
+    _offlineGuard(path);
     final file = File(path);
     final size = await file.length();
     // 1) Sürdürülebilir yükleme oturumu.
@@ -177,11 +196,15 @@ class GeminiService {
           statusCode: start.statusCode);
     }
     final url = start.headers['x-goog-upload-url'];
-    if (url == null || url.isEmpty) {
+    final uploadUri = url == null ? null : Uri.tryParse(url);
+    if (uploadUri == null ||
+        uploadUri.scheme != 'https' ||
+        !(uploadUri.host == 'googleapis.com' ||
+            uploadUri.host.endsWith('.googleapis.com'))) {
       throw GeminiException('Yükleme adresi gelmedi.', statusCode: -1);
     }
     // 2) Baytlar akışla, tek parça + bitir.
-    final req = _FileUpload(Uri.parse(url), file)
+    final req = _FileUpload(uploadUri, file)
       ..headers.addAll({
         'x-goog-api-key': key.trim(),
         'X-Goog-Upload-Offset': '0',
@@ -199,7 +222,7 @@ class GeminiService {
     if (up.statusCode != 200) {
       throw GeminiException(_readErrorStatic(up), statusCode: up.statusCode);
     }
-    var info = _fileInfo(up.body);
+    var info = _fileInfo(utf8.decode(up.bodyBytes, allowMalformed: true));
     // 3) Video (ve bazen ses) önce işlenir; ACTIVE olmadan kullanılamaz.
     for (var i = 0; info.state == 'PROCESSING' && i < _filePollMax; i++) {
       await Future<void>.delayed(filePollInterval);
@@ -208,7 +231,7 @@ class GeminiService {
       if (r.statusCode != 200) {
         throw GeminiException(_readErrorStatic(r), statusCode: r.statusCode);
       }
-      info = _fileInfo(r.body);
+      info = _fileInfo(utf8.decode(r.bodyBytes, allowMalformed: true));
     }
     if (info.state == 'PROCESSING' || info.state == 'FAILED') {
       unawaited(deleteFile(key, info.name));
@@ -322,7 +345,7 @@ class GeminiService {
       throw GeminiException(_readError(resp), statusCode: resp.statusCode);
     }
 
-    final map = jsonDecode(resp.body) as Map<String, dynamic>;
+    final map = _decodeMap(resp);
     final candidates = map['candidates'] as List?;
     if (candidates == null || candidates.isEmpty) {
       final block = map['promptFeedback']?['blockReason'];
@@ -405,7 +428,7 @@ class GeminiService {
       throw GeminiException(_readError(resp), statusCode: resp.statusCode);
     }
 
-    final map = jsonDecode(resp.body) as Map<String, dynamic>;
+    final map = _decodeMap(resp);
     final candidates = map['candidates'] as List?;
     if (candidates == null || candidates.isEmpty) {
       final block = map['promptFeedback']?['blockReason'];
@@ -468,7 +491,7 @@ class GeminiService {
     if (resp.statusCode != 200) {
       throw GeminiException(_readError(resp), statusCode: resp.statusCode);
     }
-    final map = jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+    final map = _decodeMap(resp);
     final candidates = map['candidates'] as List?;
     if (candidates == null || candidates.isEmpty) {
       throw GeminiException('Model boş yanıt döndürdü.');
@@ -505,7 +528,7 @@ class GeminiService {
     if (resp.statusCode != 200) {
       throw GeminiException(_readErrorStatic(resp), statusCode: resp.statusCode);
     }
-    final map = jsonDecode(resp.body) as Map<String, dynamic>;
+    final map = _decodeMap(resp);
     final list = (map['models'] as List?) ?? const [];
     final names = <String>[];
     for (final m in list) {

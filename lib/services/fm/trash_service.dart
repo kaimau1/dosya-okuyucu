@@ -230,8 +230,11 @@ class TrashService {
         if (!moved) {
           final r = await FileOps.moveAll([path], filesDir.path);
           if (r.hasError) throw FileSystemException(r.errors.first);
-          // moveAll adı korur; id'ye çevir ki kayıt tutarlı olsun.
-          final landed = p.join(filesDir.path, name);
+          // moveAll adı korur (çakışmada ' (1)' ekleyebilir); gerçek varış
+          // yolundan id'ye çevir ki kayıt tutarlı olsun.
+          final landed = r.transfers.isNotEmpty
+              ? r.transfers.first.dest
+              : p.join(filesDir.path, name);
           try {
             if (File(landed).existsSync()) {
               await File(landed).rename(stored);
@@ -372,13 +375,17 @@ class TrashService {
       // **id'li adıyla** ("1753...-0-rapor.pdf") indiriyor, oysa bu metot
       // çağırana `target`ı (eski adı) döndürüyordu — kullanıcıya "eski yerine
       // döndü" denip dosya bambaşka bir adla duruyordu. Son adımı biz atıyoruz.
-      final landed = p.join(p.dirname(target), p.basename(item.storedPath));
-      if (File(landed).existsSync()) {
-        await File(landed).rename(target);
-        await PathSideIndex.moved(landed, target);
-      } else if (Directory(landed).existsSync()) {
-        await Directory(landed).rename(target);
-        await PathSideIndex.moved(landed, target);
+      final landed = r.transfers.isNotEmpty
+          ? r.transfers.first.dest
+          : p.join(p.dirname(target), p.basename(item.storedPath));
+      if (p.normalize(landed) != p.normalize(target)) {
+        if (File(landed).existsSync()) {
+          await File(landed).rename(target);
+          await PathSideIndex.moved(landed, target);
+        } else if (Directory(landed).existsSync()) {
+          await Directory(landed).rename(target);
+          await PathSideIndex.moved(landed, target);
+        }
       }
     }
     // Etiket/açılma geçmişi dosyayla birlikte eski yoluna döner.
@@ -422,15 +429,26 @@ class TrashService {
 
   /// Dosyanın kendisini siler (kayda dokunmaz). Hata YUKARI çıkar.
   Future<void> _deleteStored(TrashItem item) async {
+    final filesRoot = p.normalize(p.join(item.trashDir, 'files'));
+    final stored = p.normalize(item.storedPath);
+    if (!p.isWithin(filesRoot, stored)) {
+      throw FileSystemException('çöp kapsamı dışında yol', item.storedPath);
+    }
+    final type = FileSystemEntity.typeSync(stored, followLinks: false);
+    if (type == FileSystemEntityType.notFound) return;
+    if (type == FileSystemEntityType.link) {
+      await Link(stored).delete();
+      return;
+    }
     final entity = item.isDir
-        ? Directory(item.storedPath) as FileSystemEntity
-        : File(item.storedPath);
+        ? Directory(stored) as FileSystemEntity
+        : File(stored);
     if (entity.existsSync()) {
       // Hata bilinçli olarak YUKARI çıkar; `empty()` onu sayar ve yazar.
       if (item.isDir) {
-        await Directory(item.storedPath).delete(recursive: true);
+        await Directory(stored).delete(recursive: true);
       } else {
-        await File(item.storedPath).delete();
+        await File(stored).delete();
       }
       // Gerçekten gitti mi? Bazı kurulumlarda `delete` sessizce başarısız olur.
       if (entity.existsSync()) {

@@ -172,6 +172,7 @@ class SecureVault extends ChangeNotifier {
       final meta = jsonDecode(await _meta.readAsString()) as Map;
       final salt = base64Decode(meta['salt'] as String);
       final iter = (meta['iter'] as num).toInt();
+      if (iter < 1000 || iter > 2000000) return false;
       final kek = await PinKdf.derive(pin, salt, iter);
       final master =
           VaultCrypto.open(kek, base64Decode(meta['key'] as String));
@@ -595,8 +596,9 @@ class SecureVault extends ChangeNotifier {
     final epoch = _epoch;
     try {
       final tmp = await _tempDir();
-      await tmp.create(recursive: true);
-      final out = p.join(tmp.path, item.name);
+      final itemDir = Directory(p.join(tmp.path, item.id));
+      await itemDir.create(recursive: true);
+      final out = p.join(itemDir.path, p.basename(item.name));
       if (!File(out).existsSync()) {
         final src = p.join(dir, '${item.id}.dvk');
         await Isolate.run(() => VaultCrypto.decryptFile(src, out, master));

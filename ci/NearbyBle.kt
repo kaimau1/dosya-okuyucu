@@ -62,7 +62,8 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
         /** Kimlik (8 onaltılık) + ad → tarama yanıtı verisi. */
         fun encodeIdentity(id: String, name: String): ByteArray {
             val out = ByteArrayOutputStream()
-            val clean = id.filter { it.isLetterOrDigit() }.padEnd(8, '0').take(8)
+            val clean = id.filter { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+                .padEnd(8, '0').take(8)
             for (i in 0 until 4) {
                 out.write(clean.substring(i * 2, i * 2 + 2).toInt(16))
             }
@@ -92,7 +93,7 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
     private var channel: MethodChannel? = null
     private val beacon = BleBeacon(activity.applicationContext) { address, bytes -> deliver(address, bytes) }
     private var scanning: ScanCallback? = null
-    private val lastSeen = HashMap<String, Long>()
+    private val lastSeen = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     private val manager get() =
         activity.applicationContext.getSystemService(Context.BLUETOOTH_SERVICE)
@@ -195,6 +196,7 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
             result.success(true)
         } catch (e: Exception) {
             halt()
+            nearbyBackground?.resume()
             result.error("failed", e.message, null)
         }
     }
@@ -267,14 +269,13 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
             return
         }
         val bytes = payload.toByteArray(Charsets.UTF_8)
-        var replied = false
-        var discovering = false
+        val replied = java.util.concurrent.atomic.AtomicBoolean(false)
+        val discovering = java.util.concurrent.atomic.AtomicBoolean(false)
         var gattRef: BluetoothGatt? = null
 
         fun finish(ok: Boolean) {
             main.post {
-                if (replied) return@post
-                replied = true
+                if (!replied.compareAndSet(false, true)) return@post
                 result.success(ok)
                 try {
                     gattRef?.disconnect()
@@ -289,12 +290,10 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
                     // Büyük MTU: davet tek yazmada gitsin. Bazı cihazlar
                     // onMtuChanged çağırmıyor — kısa süre sonra yine de keşfet.
                     if (!gatt.requestMtu(517)) {
-                        discovering = true
-                        gatt.discoverServices()
+                        if (discovering.compareAndSet(false, true)) gatt.discoverServices()
                     } else {
                         main.postDelayed({
-                            if (!discovering && !replied) {
-                                discovering = true
+                            if (!replied.get() && discovering.compareAndSet(false, true)) {
                                 gatt.discoverServices()
                             }
                         }, 1500)
@@ -305,8 +304,7 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
             }
 
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-                if (discovering) return
-                discovering = true
+                if (!discovering.compareAndSet(false, true)) return
                 gatt.discoverServices()
             }
 
@@ -339,10 +337,11 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
         }
         try {
             val device = a.getRemoteDevice(address)
+            val appCtx = activity.applicationContext
             gattRef = if (Build.VERSION.SDK_INT >= 23) {
-                device.connectGatt(activity, false, callback, BluetoothDevice.TRANSPORT_LE)
+                device.connectGatt(appCtx, false, callback, BluetoothDevice.TRANSPORT_LE)
             } else {
-                device.connectGatt(activity, false, callback)
+                device.connectGatt(appCtx, false, callback)
             }
             main.postDelayed({ finish(false) }, 25_000)
         } catch (e: Exception) {
@@ -423,6 +422,12 @@ class BleBeacon(
     private fun openServer() {
         val m = manager ?: return
         val callback = object : BluetoothGattServerCallback() {
+            override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
+                if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                    synchronized(prepared) { prepared.remove(device.address) }
+                }
+            }
+
             override fun onCharacteristicWriteRequest(
                 device: BluetoothDevice,
                 requestId: Int,
@@ -434,9 +439,36 @@ class BleBeacon(
             ) {
                 val bytes = value ?: ByteArray(0)
                 if (characteristic.uuid == NearbyBle.INVITE) {
+                    if (bytes.size > 4096) {
+                        synchronized(prepared) { prepared.remove(device.address) }
+                        if (responseNeeded) {
+                            server?.sendResponse(
+                                device, requestId, BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH, offset, null
+                            )
+                        }
+                        return
+                    }
                     if (preparedWrite) {
+                        var overflow = false
                         synchronized(prepared) {
-                            prepared.getOrPut(device.address) { ByteArrayOutputStream() }.write(bytes)
+                            if (!prepared.containsKey(device.address) && prepared.size >= 8) {
+                                prepared.keys.firstOrNull()?.let { prepared.remove(it) }
+                            }
+                            val buf = prepared.getOrPut(device.address) { ByteArrayOutputStream() }
+                            if (buf.size() + bytes.size > 4096) {
+                                prepared.remove(device.address)
+                                overflow = true
+                            } else {
+                                buf.write(bytes)
+                            }
+                        }
+                        if (overflow) {
+                            if (responseNeeded) {
+                                server?.sendResponse(
+                                    device, requestId, BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH, offset, null
+                                )
+                            }
+                            return
                         }
                     } else {
                         onInvite(device.address, bytes)

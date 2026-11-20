@@ -49,7 +49,7 @@ class Dikte(private val activity: Activity) : MethodChannel.MethodCallHandler {
         try {
             pending = result
             activity.startActivityForResult(intent, REQ_DICTATE)
-        } catch (e: ActivityNotFoundException) {
+        } catch (e: Exception) {
             pending = null
             result.error("unavailable", e.message, null)
         }

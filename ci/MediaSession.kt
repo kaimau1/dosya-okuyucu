@@ -76,6 +76,16 @@ object MediaBridge {
     /** Uygulamayı açan intent'e konan yük (MainActivity okur). */
     const val EXTRA_PAYLOAD = "media_payload"
 
+    /** Dış uygulamaların sahte [EXTRA_PAYLOAD] göndermesini önleyen süreç içi belirteç. */
+    const val EXTRA_TOKEN = "media_token"
+    private val token: String = java.util.UUID.randomUUID().toString()
+
+    fun verifyToken(value: String?): Boolean = !value.isNullOrEmpty() && value == token
+
+    internal fun onServiceStopped() {
+        serviceStarted = false
+    }
+
     // ── Dart'tan gelen durum ──────────────────────────────────────────────
     private var title: String = ""
     private var subtitle: String = ""
@@ -416,6 +426,7 @@ object MediaBridge {
             ?: Intent(Intent.ACTION_MAIN).setPackage(context.packageName)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         intent.putExtra(EXTRA_PAYLOAD, payload)
+        intent.putExtra(EXTRA_TOKEN, token)
         var flags = PendingIntent.FLAG_UPDATE_CURRENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags = flags or PendingIntent.FLAG_IMMUTABLE
@@ -565,7 +576,16 @@ class MediaService : Service() {
         val action = intent?.action
         if (action == MediaBridge.INTENT_PREFIX + "detach") {
             stopForegroundCompat()
+            MediaBridge.onServiceStopped()
             MediaBridge.notify(this)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (action == MediaBridge.INTENT_PREFIX + MediaBridge.ACTION_STOP) {
+            MediaBridge.dispatchIntent(action)
+            stopForegroundCompat()
+            MediaBridge.onServiceStopped()
+            stopSelf()
             return START_NOT_STICKY
         }
         try {
@@ -582,6 +602,7 @@ class MediaService : Service() {
         } catch (e: Exception) {
             // Ön plana geçilemediyse servis kendini kapatır; bildirim düz
             // bildirim olarak yine gösteriliyor.
+            MediaBridge.onServiceStopped()
             stopSelf()
         }
         MediaBridge.dispatchIntent(action)
@@ -589,6 +610,7 @@ class MediaService : Service() {
     }
 
     override fun onDestroy() {
+        MediaBridge.onServiceStopped()
         stopForegroundCompat()
         super.onDestroy()
     }

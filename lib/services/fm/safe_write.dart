@@ -38,6 +38,17 @@ abstract final class SafeWrite {
     return p.join(dir, '.${p.basename(target)}$marker-$stamp');
   }
 
+  static bool _canFallbackToDirectWrite(Object e) {
+    // Yalnız klasörde yeni geçici dosya açma İZNİ yoksa (EACCES=13, EPERM=1)
+    // doğrudan hedefi açmayı dene. Disk dolu (ENOSPC=28), kota (EDQUOT=122),
+    // dosya çok büyük (EFBIG=27), G/Ç hatası (EIO=5) veya salt okunur dosya
+    // sistemi (EROFS=30) durumunda doğrudan yazmak eldeki sağlam hedefi 0 bayta
+    // sıfırlayıp yine başarısız olurdu.
+    if (e is! FileSystemException) return false;
+    final code = e.osError?.errorCode;
+    return code == 1 || code == 13;
+  }
+
   /// [bytes]ı [target]a bölünmez biçimde yazar.
   static Future<void> bytes(String target, List<int> bytes) async {
     final temp = File(_tempFor(target));
@@ -45,9 +56,7 @@ abstract final class SafeWrite {
       await temp.writeAsBytes(bytes, flush: true);
     } catch (e) {
       await _deleteQuietly(temp);
-      // Disk doluysa doğrudan yazmak da başarısız olur — üstelik önce eldeki
-      // SAĞLAM dosyayı sıfırlar. Eskisi kalsın, hata yukarı çıksın.
-      if (e is FileSystemException && e.osError?.errorCode == 28) rethrow;
+      if (!_canFallbackToDirectWrite(e)) rethrow;
       // Klasöre yeni dosya açılamıyor: tek yol doğrudan yazmak.
       await File(target).writeAsBytes(bytes, flush: true);
       return;
@@ -61,8 +70,9 @@ abstract final class SafeWrite {
     final temp = File(_tempFor(target));
     try {
       await File(source).copy(temp.path);
-    } catch (_) {
+    } catch (e) {
       await _deleteQuietly(temp);
+      if (!_canFallbackToDirectWrite(e)) rethrow;
       await File(source).copy(target);
       return;
     }
@@ -76,12 +86,13 @@ abstract final class SafeWrite {
     final temp = File(_tempFor(target));
     try {
       File(source).copySync(temp.path);
-    } catch (_) {
+    } catch (e) {
       try {
         if (temp.existsSync()) temp.deleteSync();
       } catch (_) {
         // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
       }
+      if (!_canFallbackToDirectWrite(e)) rethrow;
       File(source).copySync(target);
       return;
     }

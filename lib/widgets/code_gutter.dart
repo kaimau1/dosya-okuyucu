@@ -19,7 +19,9 @@ double codeGutterWidth(int lines, double fontSize) {
         style: editorTextStyle(fontSize, family: 'monospace')),
     textDirection: TextDirection.ltr,
   )..layout();
-  return tp.width + 12 + 10 + 12 + 1;
+  final w = tp.width + 12 + 10 + 12 + 1;
+  tp.dispose();
+  return w;
 }
 
 /// Her mantıksal satırın üst konumu (px). [wrap] kapalıyken satır sarılmaz →

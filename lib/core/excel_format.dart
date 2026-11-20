@@ -36,10 +36,17 @@ class ExcelNumberFormat {
 
   ExcelNumberFormat._(this.code, this._sections);
 
+  static const _maxCacheEntries = 512;
   static final Map<String, ExcelNumberFormat> _cache = {};
 
-  static ExcelNumberFormat parse(String code) =>
-      _cache.putIfAbsent(code, () => ExcelNumberFormat._(code, _split(code)));
+  static ExcelNumberFormat parse(String code) {
+    final existing = _cache[code];
+    if (existing != null) return existing;
+    if (_cache.length >= _maxCacheEntries) {
+      _cache.remove(_cache.keys.first);
+    }
+    return _cache[code] = ExcelNumberFormat._(code, _split(code));
+  }
 
   /// Bu biçim bir tarih/saat biçimi mi (ilk sayısal bölüme bakılır)?
   bool get isDate => _sections.any((s) => s.isDate);
