@@ -17,8 +17,9 @@ ShapeVM _named(String name, double x) => ShapeVM(
       h: 50,
       fill: const Color(0xFF2266AA),
       element: XmlDocument.parse(
-              '<p:sp xmlns:p="urn:p"><p:nvSpPr><p:cNvPr id="2" name="$name"/></p:nvSpPr></p:sp>')
-          .rootElement,
+              '<p:spTree xmlns:p="urn:p"><p:sp><p:nvSpPr><p:cNvPr id="2" name="$name"/></p:nvSpPr></p:sp></p:spTree>')
+          .rootElement
+          .firstElementChild,
     );
 
 void main() {
