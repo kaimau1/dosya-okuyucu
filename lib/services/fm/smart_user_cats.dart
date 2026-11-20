@@ -7,7 +7,6 @@ import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
 import '../ai_pool.dart';
 import '../gemini_decisions.dart';
-import '../gemini_service.dart';
 import '../offline_mode.dart';
 import 'ai_scope.dart';
 import 'fs_scan.dart';
@@ -482,14 +481,11 @@ abstract final class SmartUserCats {
           } else {
             hits.add(SmartTrialHit(e, yes));
           }
-        } on GeminiException catch (err) {
+        } catch (err) {
+          // Kota/yetki/bağlantı → dur (Akıllı düzenle ortak kural); öteki
+          // hatada okunamayan dosya denemeden düşer, sayılır.
           failed++;
-          if (const {401, 403, 429}.contains(err.statusCode)) {
-            stoppedBy = SmartSort.stopText(err);
-          }
-        } catch (_) {
-          // Bilinçli: okunamayan dosya denemeden düşer, sayılır.
-          failed++;
+          if (SmartSort.stopsRun(err)) stoppedBy = SmartSort.stopText(err);
         }
         done++;
         onProgress?.call(done, files.length);
@@ -566,14 +562,11 @@ abstract final class SmartUserCats {
               if (yes >= threshold) matched++;
               SmartSort.setUserAnswers(e.path, {id: yes}, notify: false);
             }
-          } on GeminiException catch (err) {
+          } catch (err) {
+            // Kota/yetki/bağlantı → dur (ortak kural); öteki hatada
+            // okunamayan dosya atlanır, sayılır.
             failed++;
-            if (const {401, 403, 429}.contains(err.statusCode)) {
-              stoppedBy = SmartSort.stopText(err);
-            }
-          } catch (_) {
-            // Bilinçli: okunamayan dosya atlanır, sayılır.
-            failed++;
+            if (SmartSort.stopsRun(err)) stoppedBy = SmartSort.stopText(err);
           }
           applying.value =
               SmartApplyProgress(id, asked + failed, todo.length, matched);

@@ -278,6 +278,37 @@ void main() {
     expect(t.failed, lessThanOrEqualTo(2), reason: 'iki işçi, ilk hatada durur');
   });
 
+  test('Dene: ağ kopunca (kod 0) durur; ortak durma kuralı (U4 dilim 2)', () async {
+    SmartUserCats.candidates =
+        (_) async => [for (var i = 0; i < 8; i++) entry('/d/f$i.pdf')];
+    SmartUserCats.prepare = (e, keys) async => SmartPrepared(const {}, keys);
+    var asked = 0;
+    SmartUserCats.ask = (keys, input, qs) async {
+      asked++;
+      throw GeminiException('Ağ hatası: x');
+    };
+    final t = await SmartUserCats.trial(
+        name: 'Kira', about: 'x', credentials: creds, scope: scope);
+    expect(t.stoppedBy, AppStrings.current.t('uerr.offline'));
+    expect(asked, lessThanOrEqualTo(2), reason: 'iki işçi, ilk hatada durur');
+
+    // Kural: ağ/kota/yetki durdurur; sunucu hatası ve okunamayan yanıt
+    // (dosyaya özgü) durdurmaz.
+    expect(SmartSort.stopsRun(const SocketException('x')), isTrue);
+    expect(SmartSort.stopsRun(GeminiException('x', statusCode: 403)), isTrue);
+    expect(SmartSort.stopsRun(GeminiException('x', statusCode: 500)), isFalse);
+    expect(SmartSort.stopsRun(GeminiException('x', statusCode: 400)), isFalse);
+    Object? parse;
+    try {
+      DecisionResult.parse('bozuk', const []);
+    } catch (e) {
+      parse = e;
+    }
+    expect(parse, isA<GeminiException>());
+    expect(SmartSort.stopsRun(parse!), isFalse,
+        reason: 'yanıt geldi ama okunamadı — bağlantı yok değil');
+  });
+
   test('Dene: anahtar yoksa nedeni söylenir, istek atılmaz (U4)', () async {
     var asked = 0;
     SmartUserCats.candidates = (_) async => [entry('/d/f0.pdf')];

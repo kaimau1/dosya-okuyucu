@@ -1594,19 +1594,23 @@ abstract final class SmartSort {
                   : 'sm.fail_empty');
             }
           } on GeminiException catch (err) {
-            failed++;
             if (err.statusCode == 429) SmartQuota.noteLimited();
-            if (const {401, 403, 429}.contains(err.statusCode) ||
-                OfflineMode.enabled) {
+            if (stopsRun(err)) {
+              // Dosyanın suçu değil: başarısız sayılmaz, sonraki turda sorulur.
               stoppedBy = stopText(err);
             } else {
+              failed++;
               _markFailed(e);
               lastError = err.message;
             }
           } catch (err) {
-            failed++;
-            _markFailed(e);
-            lastError = UserError.from(err).message;
+            if (stopsRun(err)) {
+              stoppedBy = stopText(err);
+            } else {
+              failed++;
+              _markFailed(e);
+              lastError = UserError.from(err).message;
+            }
           }
           progress.value = SmartProgress(processed + failed, todo.length);
           if ((processed + failed) % 10 == 0) _changed();
@@ -1640,6 +1644,18 @@ abstract final class SmartSort {
   /// API iletisi de "Durdu: …" diye gösteriliyordu). Akıllı düzen, Kategorilerim
   /// denemesi ve geriye dönük uygulama aynı metni kullanır.
   static String stopText(Object err) => UserError.from(err).message;
+
+  /// Turu durduran hata mı: yetki/kota (401/403/429), çevrimdışı kip ya da
+  /// bağlantı kopması. U4 dilim 2 kökü: ağ tur ortasında kopunca kalan
+  /// yüzlerce dosya tek tek "Ağ hatası" alıyor, başarısız sayılıp oturumda
+  /// bir daha sorulmuyor ve günlük hak harcanıyordu (ağ hatası kodu 0'dı,
+  /// listede yoktu). Tur, Kategorilerim denemesi, geriye dönük uygulama ve
+  /// doğruluk tezgâhı AYNI kuralı kullanır.
+  static bool stopsRun(Object err) =>
+      OfflineMode.enabled ||
+      UserError.classify(err) == UserErrorKind.offline ||
+      (err is GeminiException &&
+          const {401, 403, 429}.contains(err.statusCode));
 
   /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
   @visibleForTesting
