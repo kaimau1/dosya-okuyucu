@@ -311,9 +311,13 @@ class DecisionResult {
     try {
       data = jsonDecode(raw);
     } on FormatException {
-      throw GeminiException('Model yanıtı okunamadı.');
+      // -1, 0 değil: 0 "sunucuya ulaşılamadı" demek (kullanıcıya "Bağlantı
+      // yok" denir, Akıllı düzen turu durur) — bu yanıt geldi, okunamadı.
+      throw GeminiException('Model yanıtı okunamadı.', statusCode: -1);
     }
-    if (data is! Map) throw GeminiException('Model yanıtı okunamadı.');
+    if (data is! Map) {
+      throw GeminiException('Model yanıtı okunamadı.', statusCode: -1);
+    }
     final feedback = data['prompt_feedback'] ?? data['promptFeedback'];
     final block = feedback is Map
         ? (feedback['block_reason'] ?? feedback['blockReason'])

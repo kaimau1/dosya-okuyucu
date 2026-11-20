@@ -9,8 +9,8 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
       builder: (_) => SimilarScreen(
         scopeId: 'tum-medya',
         files: [
-          ...widget.index.files(FmCategory.image),
-          ...widget.index.files(FmCategory.video),
+          ..._index.files(FmCategory.image),
+          ..._index.files(FmCategory.video),
         ],
         loadAll: () async => [
           ...await MediaLibrary.categoryFiles(FmCategory.image,
@@ -95,7 +95,7 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
         title: context.t(category.labelKey),
         // Anında görünen kırpık liste: bu kategorinin en büyükleri (zaten
         // boyuta göre sıralı, yani ilk kare de doğru sırada).
-        files: _largest[category] ?? widget.index.files(category),
+        files: _largest[category] ?? _index.files(category),
         loadAll: () =>
             MediaLibrary.categoryFiles(category, lockedFolders: locked),
         initialSort: FmSort.size,
@@ -115,7 +115,7 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
   /// Ana belleğin kapasitesi (klasör haritasındaki yüzdelerin paydası).
   /// Okunamıyorsa 0 → harita kendi toplamına göre yüzde yazar.
   int get _primaryCapacity {
-    for (final v in widget.volumes) {
+    for (final v in _volumes) {
       if (v.isPrimary && v.hasStats) return v.capacityBytes;
     }
     return 0;
