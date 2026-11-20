@@ -215,7 +215,8 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
             // Hız: tutamaçlı çubuk, 0,05 adım (U3 m.2) — ortak levha.
             SpeedButton(
-              speed: _speed,
+              // Uzun basış 2× geçici — hap kalıcı ayarı gösterir.
+              speed: _speedBeforeBoost ?? _speed,
               tooltip: context.t('mp.play_speed'),
               color: AppColors.onMedia,
               onOpen: () {
