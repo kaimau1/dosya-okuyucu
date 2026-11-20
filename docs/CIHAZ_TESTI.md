@@ -1566,3 +1566,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Uygulamayı son uygulamalardan kaydırıp kapat (MIUI bellek temizliği de olur) → yeniden aç: ana ekranda "Uygulama hata verdi" satırı ÇIKMIYOR (kayıt Ayarlar › Hata kayıtları'nda "(background)" ile duruyor).
 - [ ] Gerçek bir hata kaydı varken açılış: satır en üstteki bildirim kartında (ayrı kırmızı şerit yok), "Aç" raporu açıyor; ✕ ile kapatınca bir daha (yeni hataya dek) gelmiyor.
 - [ ] Ölçüm (C2): ana ekran açılışı, taban önceki [apk] `.r8test`.
+
+## U4.3 Bellek Analizi silme sonrası yenilenir (2026-11-20, dal faz-oto-U4-akilli-3) — yazıldı, cihazda doğrulanmadı
+- [ ] Bellek Analizi → en büyük dosyalardan birkaç video seç → sil: "Türlere göre" Videolar çubuğu/sayısı ve ana bellek dilimleri birkaç saniye içinde küçülür, "boş" manşeti artar (ekrandan çıkıp girmeden).
+- [ ] Analiz'den "Yer aç"/Kopyalar ekranına gir, orada sil, geri dön: çubuklar güncel.
+- [ ] SD kart/USB analizi açıkken silme: ekran bozulmaz (bu analizde yenileme yok, eski davranış).

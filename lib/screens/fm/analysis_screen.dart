@@ -56,10 +56,16 @@ class AnalysisScreen extends StatefulWidget {
   final StorageIndex index;
   final List<StorageVolume> volumes;
 
+  /// Dosya silinince/taşınınca yeni indeksi verir (varsayılan: arama
+  /// dizininden, bkz. [_AnalysisScreenState._reload]). Testte elle verilir.
+  @visibleForTesting
+  final Future<StorageIndex?> Function()? reloadIndex;
+
   const AnalysisScreen({
     super.key,
     required this.index,
     required this.volumes,
+    this.reloadIndex,
   });
 
   @override
@@ -67,17 +73,33 @@ class AnalysisScreen extends StatefulWidget {
 }
 
 class _AnalysisScreenState extends State<AnalysisScreen> {
+  /// **Ekranın güncel indeksi** (U4 g). Eskiden `widget.index` açılıştaki
+  /// taramaydı ve hiç değişmiyordu: silme sonrası en büyükler listesi
+  /// budanıyor ama tür çubukları, doluluk dilimleri ve sayılar eski kalıyordu.
+  /// Silme/taşıma arama dizinini günceller ([SearchIndex.revision]); ana
+  /// birimin analizi buna abone olup indeksi dizinden yeniden kurar.
+  late StorageIndex _index = widget.index;
+  late List<StorageVolume> _volumes = widget.volumes;
+
+  /// Harici birim analizi ayrı bir taramayla açılıyor — arama dizini onu
+  /// temsil etmez, orada yenileme yok.
+  bool get _followsIndex => _volumes.any((v) => v.isPrimary);
+
+  bool _reloading = false;
+  bool _reloadAgain = false;
+
   /// Kategori → o kategorinin en büyükleri; `null` anahtarı genel liste.
   ///
   /// Taramadan gelen listeler kopyalanır çünkü silme sonrası
   /// ([_refreshAlive]) budanıyorlar. `StorageIndex`in listeleri değişmez
   /// (`List.unmodifiable`) — doğrudan yazmaya kalkmak çalışma anında patlardı.
-  late final Map<FmCategory?, List<FsEntry>> _largest = {
-    null: [...widget.index.largest],
-    for (final c in FmCategory.values)
-      if (widget.index.largestOf(c).isNotEmpty)
-        c: [...widget.index.largestOf(c)],
-  };
+  late final Map<FmCategory?, List<FsEntry>> _largest = _largestOf(_index);
+
+  static Map<FmCategory?, List<FsEntry>> _largestOf(StorageIndex index) => {
+        null: [...index.largest],
+        for (final c in FmCategory.values)
+          if (index.largestOf(c).isNotEmpty) c: [...index.largestOf(c)],
+      };
 
   final _searchController = TextEditingController();
   Timer? _debounce;
@@ -125,6 +147,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     _countClutter();
     _loadTrend();
     _loadApps();
+    if (_followsIndex) SearchIndex.revision.addListener(_onIndexChanged);
     // Süzgeç sayfasındaki "açılmış/açılmamış" ölçütleri için.
     OpenHistory.ensureLoaded().then((_) {
       if (mounted) setState(() {});
@@ -133,6 +156,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   @override
   void dispose() {
+    SearchIndex.revision.removeListener(_onIndexChanged);
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
@@ -140,7 +164,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final index = widget.index;
+    final index = _index;
     final categories = FmCategory.values
         .where((c) => c != FmCategory.folder && index.stat(c).bytes > 0)
         .toList()
@@ -210,7 +234,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                 ],
                 const SizedBox(height: Gap.md),
                 if (!_isSearch) ...[
-                  for (final v in widget.volumes) ...[
+                  for (final v in _volumes) ...[
                     _VolumeCard(
                       volume: v,
                       // Dilimler yalnız TARANAN birimde çizilir: SD kartın
@@ -247,7 +271,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           note: context.t('ana.free_space_note'),
                           onTap: () =>
                               Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => CleanupScreen(index: widget.index),
+                            builder: (_) => CleanupScreen(index: _index),
                           )),
                         ),
                         const Divider(height: 1),
@@ -579,7 +603,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// "Diğer" dilimi olarak, taranan dilimlerden sonra çiziliyor; toplamı
   /// kullanılan alana eşitlemek için uydurulmuş bir sayı DEĞİL, gerçek artık.
   List<_Slice> _slices(List<FmCategory> categories) {
-    final index = widget.index;
+    final index = _index;
     var scanned = 0;
     final out = <_Slice>[];
     for (final c in categories) {
@@ -601,7 +625,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
     if (out.isEmpty) return const [];
     // Kalan kullanılan alan (ölçülemeyen): nötr ton.
-    for (final v in widget.volumes) {
+    for (final v in _volumes) {
       if (!v.isPrimary || !v.hasStats) continue;
       final rest = v.usedBytes - scanned;
       if (rest > 0) {
@@ -636,6 +660,54 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         onChanged: _onQueryChanged,
         onSubmitted: _run,
       );
+
+  /// Dizin değişti: yeniden kurulurken (dosya yarım yazılı) bekle — bitince
+  /// [SearchIndex.revision] yine artar. Üst üste gelen olaylar tek okumada
+  /// birleşir.
+  void _onIndexChanged() {
+    if (widget.reloadIndex == null && SearchIndex.isBuilding) return;
+    if (_reloading) {
+      _reloadAgain = true;
+      return;
+    }
+    unawaited(_reload());
+  }
+
+  Future<void> _reload() async {
+    _reloading = true;
+    try {
+      do {
+        _reloadAgain = false;
+        final fresh = await (widget.reloadIndex?.call() ??
+            (SearchIndex.isReady
+                ? FsScan.indexFromRows(SearchIndex.indexPath)
+                : Future<StorageIndex?>.value()));
+        if (!mounted) return;
+        if (fresh != null) {
+          setState(() {
+            _index = fresh;
+            _largest
+              ..clear()
+              ..addAll(_largestOf(fresh));
+            _results = _results.where((e) => e.exists).toList();
+          });
+        }
+      } while (_reloadAgain);
+      // Boş yer de değişti (doluluk kartı). Okunamazsa eski değer kalır.
+      final vols = <StorageVolume>[];
+      for (final v in _volumes) {
+        final usage = await StorageStats.usageOf(v.path);
+        vols.add(usage == null
+            ? v
+            : v.copyWith(totalBytes: usage.$1, freeBytes: usage.$2));
+      }
+      if (mounted) setState(() => _volumes = vols);
+    } catch (_) {
+      // Bilinçli: yenilenemezse ekran eldeki indeksle kalır (eski davranış).
+    } finally {
+      _reloading = false;
+    }
+  }
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
