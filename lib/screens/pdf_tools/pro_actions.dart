@@ -600,18 +600,22 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   /// kalır; sıralama/çoğaltma kopyalar → önce kayıp uyarısı.
   Future<void> _reorderPages() async {
     final bytes = _bytes!;
-    final plan = await PdfPageStudioScreen.open(context,
+    final res = await PdfPageStudioScreen.open(context,
         bytes: bytes, password: _password);
-    if (plan == null || !mounted) return;
-    final keeps =
-        PdfTools.studioKeepsAnnotations([for (final (i, _) in plan) i]);
+    if (res == null || !mounted) return;
+    final plan = res.plan;
+    final extra = res.extra;
+    final keeps = PdfTools.studioKeepsAnnotations(
+        [for (final (i, _) in plan) i],
+        pageCount: res.pageCount);
     if (!keeps && (!await _confirmAnnotationLoss(_str.t('pp.studio')) ||
         !mounted)) {
       return;
     }
     final pw = _password;
     await _apply(_str.t('pp.studio'),
-        (b) => PdfTools.applyPageStudioInBackground(b, plan, password: pw));
+        (b) => PdfTools.applyPageStudioInBackground(b, plan,
+            password: pw, extra: extra));
   }
 
   /// Boş sayfaları bulur (küçük gri çizim), seçer ve silmeyi önerir.

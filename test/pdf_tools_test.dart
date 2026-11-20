@@ -444,6 +444,38 @@ void main() {
       expect(await rotations(out), [0, 3, 0]);
     });
 
+    test('araya boş sayfa: yerinde yolda vurgu kalır, sıra doğru', () async {
+      const b = PdfTools.studioBlank;
+      final src = await _withHighlightOnSecondPage(await _makePdf([100, 200]));
+      final out = await PdfTools.applyPageStudio(src, [(0, 0), (b, 0), (1, 1)]);
+      final w = await _widths(out);
+      expect(w.length, 3);
+      expect([w[0], w[1], w[2]], [100, 100, 200]); // boş = komşu ölçüsü
+      expect(await rotations(out), [0, 0, 1]);
+      expect(await PdfTools.annotationCount(out), 1);
+      expect(PdfTools.studioKeepsAnnotations([0, b, 1]), isTrue);
+      // Kopya yolunda da boş sayfa yerine girer.
+      final moved = await PdfTools.applyPageStudio(src, [(1, 0), (b, 0), (0, 0)]);
+      expect(await _widths(moved), [200, 200, 100]);
+      await expectLater(
+          PdfTools.applyPageStudio(src, [(b, 0)]), throwsArgumentError);
+    });
+
+    test('dosyadan sayfa ekle: sanal indeks ek belgeye gider', () async {
+      final src = await _makePdf([100, 200]);
+      final other = await _makePdf([300, 400]);
+      final out = await PdfTools.applyPageStudio(
+          src, [(0, 0), (3, 1), (2, 0), (1, 0)],
+          extra: [other]);
+      expect(await _widths(out), [100, 400, 300, 200]);
+      expect(await rotations(out), [0, 1, 0, 0]);
+      expect(PdfTools.studioKeepsAnnotations([0, 2], pageCount: 2), isFalse);
+      expect(PdfTools.studioKeepsAnnotations([0, 1], pageCount: 2), isTrue);
+      await expectLater(
+          PdfTools.applyPageStudio(src, [(0, 0), (4, 0)], extra: [other]),
+          throwsRangeError);
+    });
+
     test('yerinde yol karar kuralı ve boş plan', () async {
       expect(PdfTools.studioKeepsAnnotations([0, 2, 5]), isTrue);
       expect(PdfTools.studioKeepsAnnotations([0, 0]), isFalse);
