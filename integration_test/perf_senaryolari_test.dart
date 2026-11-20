@@ -5,6 +5,8 @@ import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:dosya_okuyucu/core/app_navigator.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/main.dart' as app;
+import 'package:dosya_okuyucu/screens/editors/slides_editor_screen.dart';
+import 'package:dosya_okuyucu/screens/editors/word_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/editors/word_mobile_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
@@ -13,6 +15,7 @@ import 'package:dosya_okuyucu/screens/fm/smart_sort_screen.dart';
 import 'package:dosya_okuyucu/services/file_service.dart';
 import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
+import 'package:dosya_okuyucu/widgets/state_views.dart';
 import 'package:dosya_okuyucu/widgets/side_menu_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -380,6 +383,70 @@ void main() {
       }
     });
     await prefs.remove('slides_pro_v1');
+
+    // B13 m.1: dosya satırına dokunuştan (kullanıcının yolu, `EntryOpener`)
+    // ilk okunur kareye süre + açılış/kapanış geçişinin kareleri. Süre
+    // logcat'e `OFIS_PERF faz=acilis_gecis_<tür>`. "Okunur": Excel hücresi ya
+    // da ilk sayfa önizlemesi · Slayt önizleme/iskelet bitti · Word iskelet
+    // bitti (WebView içi çizim görülemez) · PDF denetleyicisi hazır.
+    await bolum(tester, 'acilis_gecis', () async {
+      await ac(tester, const BrowserScreen(path: _veri));
+      final liste = find.descendant(
+          of: find.byType(BrowserScreen), matching: find.byType(Scrollable));
+      bool iskeletYok() => find.byType(AppSkeleton).evaluate().isEmpty;
+      final turler = <String, (String, bool Function())>{
+        'xlsx': (
+          'tablo_10k_x20',
+          () =>
+              find.byType(SheetCell).evaluate().isNotEmpty ||
+              find.byType(OfficeLoadingPreview).evaluate().isNotEmpty
+        ),
+        'pptx': (
+          'slayt_300',
+          () =>
+              find.byType(SlidesEditorScreen).evaluate().isNotEmpty &&
+              iskeletYok()
+        ),
+        'docx': (
+          'word_300',
+          () =>
+              find.byType(WordEditorScreen).evaluate().isNotEmpty &&
+              iskeletYok()
+        ),
+        'pdf': (
+          'belge_100',
+          () {
+            final v = find.byType(PdfViewer);
+            return v.evaluate().isNotEmpty &&
+                (tester.widget<PdfViewer>(v.first).controller?.isReady ??
+                    false);
+          }
+        ),
+      };
+      for (final MapEntry(key: tur, value: (ad, okunur)) in turler.entries) {
+        final satir = find.textContaining(ad);
+        if (satir.evaluate().isEmpty && liste.evaluate().isNotEmpty) {
+          await tester.scrollUntilVisible(satir, 300,
+              scrollable: liste.first, maxScrolls: 10);
+        }
+        await bekle(tester, 400);
+        final sw = Stopwatch();
+        await binding.traceAction(() async {
+          sw.start();
+          await tester.tap(satir.first);
+          while (!okunur() && sw.elapsed < const Duration(seconds: 40)) {
+            await bekle(tester, 16);
+          }
+          sw.stop();
+          await bekle(tester, 600);
+        }, reportKey: 'gecis_${tur}_acilis');
+        // ignore: avoid_print
+        print('OFIS_PERF faz=acilis_gecis_$tur ms=${sw.elapsedMilliseconds}');
+        await binding.traceAction(() => kapat(tester),
+            reportKey: 'gecis_${tur}_kapanis');
+      }
+      await kapat(tester);
+    });
 
     // B3.3b: aynı kaydırmalar anlamsal ağaç KAPALI (cihazda erişilebilirlik
     // hizmeti açıksa motor yine açar — o koşu `_sk`yi açık ölçer).
