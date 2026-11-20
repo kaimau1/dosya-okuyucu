@@ -99,6 +99,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// zoom yapılabilmeli"). İki parmak inince sarma/ses/parlaklık sürüklemeleri
   /// kapanır (yoksa çimdik onlara kaptırılır — galerideki dersin aynısı).
   int _pointers = 0;
+  final Map<int, Offset> _pts = {};
   bool get _pinching => _pointers >= 2;
   double _vZoom = 1;
   double _vZoomBase = 1;
@@ -346,35 +347,14 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       // kontroller açılıp kapandıkça body'nin yüksekliği değişir, ortalanmış
       // video her dokunuşta küçülüp kayardı. Bar da alt kontroller gibi
       // Stack'te videonun üstünde yüzer → görüntü hiç oynamaz.
+      // Çimdik elle hesaplanır: aynı GestureDetector'da yatay + dikey
+      // sürükleme varken ölçek tanıyıcısı YASAK (Flutter onaylamaz).
       body: Listener(
-        onPointerDown: (_) => _countPointer(1),
-        onPointerUp: (_) => _countPointer(-1),
-        onPointerCancel: (_) => _countPointer(-1),
+        onPointerDown: _pinchDown,
+        onPointerMove: _pinchMove,
+        onPointerUp: (e) => _pinchUp(e.pointer),
+        onPointerCancel: (e) => _pinchUp(e.pointer),
         child: GestureDetector(
-        onScaleStart: _locked || _isAudio
-            ? null
-            : (_) => _vZoomBase = _vZoom,
-        onScaleUpdate: _locked || _isAudio
-            ? null
-            : (d) {
-                if (d.pointerCount < 2) return;
-                setState(() {
-                  _vZoom = (_vZoomBase * d.scale).clamp(1.0, 5.0);
-                  final size = MediaQuery.sizeOf(context);
-                  final mx = size.width * (_vZoom - 1) / 2;
-                  final my = size.height * (_vZoom - 1) / 2;
-                  final next = _vPan + d.focalPointDelta;
-                  _vPan = Offset(next.dx.clamp(-mx, mx), next.dy.clamp(-my, my));
-                });
-              },
-        onScaleEnd: (_) {
-          if (_vZoom < 1.05) {
-            setState(() {
-              _vZoom = 1;
-              _vPan = Offset.zero;
-            });
-          }
-        },
         // Videonun yanındaki siyah boşluklarda da dokunma çalışsın diye
         // opaque: varsayılan `deferToChild` ile yalnız görüntünün kendisi
         // dokunmayı yakalıyordu.
@@ -511,10 +491,59 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     );
   }
 
-  void _countPointer(int delta) {
+  void _pinchDown(PointerDownEvent e) {
     final before = _pinching;
-    _pointers = (_pointers + delta).clamp(0, 10);
+    _pts[e.pointer] = e.localPosition;
+    _pointers = _pts.length;
+    if (_pinching) _pinchStart();
     if (before != _pinching) setState(() {});
+  }
+
+  /// İlk iki parmağın aralığı ve orta noktası.
+  (double, Offset) _span() {
+    final v = _pts.values.take(2).toList();
+    return ((v[0] - v[1]).distance, (v[0] + v[1]) / 2);
+  }
+
+  double _spanStart = 1;
+  Offset _focalLast = Offset.zero;
+
+  void _pinchStart() {
+    final (span, focal) = _span();
+    _spanStart = span <= 0 ? 1 : span;
+    _focalLast = focal;
+    _vZoomBase = _vZoom;
+  }
+
+  void _pinchMove(PointerMoveEvent e) {
+    if (!_pts.containsKey(e.pointer)) return;
+    _pts[e.pointer] = e.localPosition;
+    if (!_pinching || _locked || _isAudio) return;
+    final (span, focal) = _span();
+    setState(() {
+      _vZoom = (_vZoomBase * span / _spanStart).clamp(1.0, 5.0);
+      final size = MediaQuery.sizeOf(context);
+      final mx = size.width * (_vZoom - 1) / 2;
+      final my = size.height * (_vZoom - 1) / 2;
+      final next = _vZoom <= 1.0 ? Offset.zero : _vPan + (focal - _focalLast);
+      _vPan = Offset(next.dx.clamp(-mx, mx), next.dy.clamp(-my, my));
+    });
+    _focalLast = focal;
+  }
+
+  void _pinchUp(int pointer) {
+    final before = _pinching;
+    _pts.remove(pointer);
+    _pointers = _pts.length;
+    if (_pinching) _pinchStart();
+    if (before != _pinching || _vZoom < 1.05) {
+      setState(() {
+        if (_vZoom < 1.05) {
+          _vZoom = 1;
+          _vPan = Offset.zero;
+        }
+      });
+    }
   }
 
 
