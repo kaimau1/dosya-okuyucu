@@ -93,9 +93,9 @@ void main() {
         final u = req.url.toString();
         if (u.endsWith('/upload/v1beta/files')) {
           return http.Response('{}', 200,
-              headers: {'x-goog-upload-url': 'https://up.test/s1'});
+              headers: {'x-goog-upload-url': 'https://generativelanguage.googleapis.com/upload/s1'});
         }
-        if (u == 'https://up.test/s1') {
+        if (u == 'https://generativelanguage.googleapis.com/upload/s1') {
           return http.Response(
               jsonEncode({
                 'file': {
@@ -178,7 +178,7 @@ void main() {
             return http.Response('{"error":{"message":"quota"}}', 429);
           }
           return http.Response('{}', 200,
-              headers: {'x-goog-upload-url': 'https://up.test/s2'});
+              headers: {'x-goog-upload-url': 'https://generativelanguage.googleapis.com/upload/s2'});
         }
         return http.Response(
             jsonEncode({
@@ -202,7 +202,7 @@ void main() {
         methods.add(req.method);
         if (req.url.toString().endsWith('/upload/v1beta/files')) {
           return http.Response('{}', 200,
-              headers: {'x-goog-upload-url': 'https://up.test/s3'});
+              headers: {'x-goog-upload-url': 'https://generativelanguage.googleapis.com/upload/s3'});
         }
         if (req.method == 'DELETE') return http.Response('{}', 200);
         return http.Response(
@@ -273,7 +273,7 @@ void main() {
         if (u.endsWith('/upload/v1beta/files')) {
           uploads.add(u);
           return http.Response('{}', 200,
-              headers: {'x-goog-upload-url': 'https://up.test/s9'});
+              headers: {'x-goog-upload-url': 'https://generativelanguage.googleapis.com/upload/s9'});
         }
         return http.Response(
             jsonEncode({

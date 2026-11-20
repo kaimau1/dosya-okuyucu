@@ -80,9 +80,9 @@ void main() {
       final u = req.url;
       if (req.method == 'POST' && u.queryParameters['uploadType'] == 'resumable') {
         expect(req.headers['X-Upload-Content-Length'], isNotNull);
-        return http.Response('', 200, headers: {'location': 'https://upload.test/oturum'});
+        return http.Response('', 200, headers: {'location': 'https://upload.googleapis.com/oturum'});
       }
-      if (req.method == 'PUT' && u.host == 'upload.test') {
+      if (req.method == 'PUT' && u.host == 'upload.googleapis.com') {
         store['dosya12345678'] = req.bodyBytes;
         return http.Response(jsonEncode({'id': 'dosya12345678', 'name': 'x.dok', 'mimeType': 'application/octet-stream'}), 200);
       }
@@ -128,6 +128,6 @@ void main() {
       expect(store, isEmpty);
       expect(share.items, isEmpty);
     }, () => client);
-    expect(calls.any((c) => c.startsWith('PUT upload.test')), isTrue);
+    expect(calls.any((c) => c.startsWith('PUT upload.googleapis.com')), isTrue);
   });
 }
