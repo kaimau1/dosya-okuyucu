@@ -423,6 +423,21 @@ class _Counts {
       this.volumes, this.anyTagged, this.smart);
 }
 
+/// [probe] ölçütü eklenmiş süzgeçten kaç dosya geçer?
+int _countWith(List<FsEntry> source, FmFilter probe) {
+  var n = 0;
+  for (final e in source) {
+    if (e.isDir) continue;
+    // Etiket çözücüsü ŞART: verilmezse etiket süzgeci her dosyayı "etiketsiz"
+    // sayar ve sayılar 0 çıkar (bkz. photos/toolbar `_cleanDuplicates`).
+    if (probe.matches(e,
+        openedAtOf: OpenHistory.forPath, tagsOf: FileTags.forPath)) {
+      n++;
+    }
+  }
+  return n;
+}
+
 _Counts _computeCounts(
     List<FsEntry> source, FmFilter f, int untouchedDays, bool showBuckets) {
   final untouchedProbe =
@@ -474,8 +489,8 @@ _Counts _computeCounts(
     final openedAt = OpenHistory.forPath(path);
     final tags = FileTags.forPath(path);
     if (!anyTagged && tags.isNotEmpty) anyTagged = true;
-    DateTime? openedAtOf(String _) => openedAt;
-    Set<FmTag> tagsOf(String _) => tags;
+    int? openedAtOf(String _) => openedAt;
+    Set<String> tagsOf(String _) => tags;
 
     if (untouchedProbe.matches(e, openedAtOf: openedAtOf, tagsOf: tagsOf)) {
       untouched++;

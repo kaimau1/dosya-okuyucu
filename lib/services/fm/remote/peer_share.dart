@@ -12,6 +12,7 @@ import '../archive_ops.dart';
 import '../file_ops.dart';
 import '../fs_events.dart';
 import '../../offline_mode.dart';
+import 'disk_guard.dart';
 import 'lan_guard.dart';
 import 'peer_crypto.dart';
 import 'transfer_keeper.dart';
@@ -753,7 +754,7 @@ class PeerReceiver implements KeepableServer {
       if (!ok) return await _deny(response, 'red');
     }
     final needBytes = total > offset ? total - offset : 0;
-    if (!await DiskGuard.hasRoom(saveDir, needBytes)) {
+    if (!await DiskGuard.hasRoom(saveDir, incoming: needBytes)) {
       response.statusCode = HttpStatus.insufficientStorage;
       await response.close();
       return;

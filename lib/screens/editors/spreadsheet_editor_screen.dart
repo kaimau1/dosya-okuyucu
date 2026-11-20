@@ -410,7 +410,6 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     _barFocus.dispose();
     _findField.dispose();
     _replaceField.dispose();
-    _zoomCtl.dispose();
     _hBody.dispose();
     _hTop.dispose();
     _vBody.dispose();

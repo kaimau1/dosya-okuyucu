@@ -45,6 +45,7 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
     Map<int, (double, double)?>? plan) {
   final page = p.FPDF_LoadPage(doc, pageIndex);
   if (page == nullptr) return ('Sayfa açılamadı.', null);
+  final removed = <pdfium_bindings.FPDF_PAGEOBJECT>[];
   try {
     return using((arena) {
       final count = p.FPDFPage_CountObjects(page);
@@ -59,7 +60,6 @@ String? _mutate(pdfium_bindings.PDFium p, int docAddr, PdfMutation m) {
         }
       }
       final created = <pdfium_bindings.FPDF_PAGEOBJECT>[];
-      final removed = <pdfium_bindings.FPDF_PAGEOBJECT>[];
       var flatten = false;
       void color(pdfium_bindings.FPDF_PAGEOBJECT o, int argb, bool stroke) {
         final r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
