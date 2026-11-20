@@ -525,3 +525,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Düzeltme:** şerit yalnız "hap görünsün mü" sorar (`_presence`, ilk eşleşmede durur); sayılar yalnız levhada (kaynak levhası zaten kendisi sayıyordu; AI kategori sayıları levha açılırken). A/B (MatePad, `.r8test`, 4+5 koşu): 154–182 → ≤ 24 ms. Bekçi `test/perf/filter_perf_test.dart`.
 - **Tuzak:** yüzen/sabit başlık (SliverAppBar, SliverPersistentHeader) içindeki widget KAYDIRMA SIRASINDA yerleşimde yeniden kurulur — build'inde liste boyu iş yapan (sayım, süzme) bileşen oraya konmaz ya da önbelleği her anahtar değişiminde ilk karede ödenir.
 - **Ölçüm yöntemi:** profil derlemesinde `ext.flutter.profileWidgetBuilds` (VM servis uzantısı, kod değişikliği gerekmez) açılınca zaman çizelgesinde widget adlı BUILD olayları çıkar → uzun BUILD'in hangi widget'ın öz süresi olduğu doğrudan görülür.
+
+## 2026-11-20 — B13 m.1 Office/PDF açılış geçişi: tablette A/B KALDI, uygulanmadı (dal faz-oto-B13-acilis)
+- **Denenen:** `SmoothOpenRoute(origin:)` — son parmak basışı (`GestureBinding.pointerRouter` genel rota, < 1 sn) satır şeridi (64 dp) → tam ekran `ClipRect` (opaklık yok, bitince `Clip.none`), alttaki geçiş/öngörülü geri `kAlwaysCompleteAnimation` ile korunarak. Kod 659158e1 (dalda değil; yeniden denemek için oradan).
+- **Sonuç (Huawei MatePad, `.r8test`, ABBA AB 3+3, °C eşit):** Slayt dokunuş→okunur 314→354 ms, Excel 293→342 ms (iki B koşusunda), Slayt açılış build p99 20,2→34,1 ms; PDF 135→119, Word 757→739 (değişmedi). Kural gereği uygulanmadı.
+- **Kalan araç:** `integration_test` `acilis_gecis` grubu (BrowserScreen'den satıra dokunarak Word/Excel/Slayt/PDF, `OFIS_PERF faz=acilis_gecis_<tür>`): `AB_SENARYO=acilis_gecis bash tool/ab_olcum.sh A B` (~45 dk 3+3).
+- **Tuzak:** BrowserScreen altındaki İLK `Scrollable` yatay yol şeridi — `scrollUntilVisible` onu kaydırıp "Bad state: No element" verir; dikey (`AxisDirection.down`) olanı seç. Python heredoc'ta Dart `'
+'` yazarken kaçış gerçek satır sonu üretir (derleme kırılır, betik sessizce eski senaryoya düşer: "güncel senaryoyla derlenmedi").
+
