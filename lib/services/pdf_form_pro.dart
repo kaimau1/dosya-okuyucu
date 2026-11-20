@@ -215,6 +215,130 @@ abstract final class PdfFormPro {
     }
   }
 
+  // ── Düz PDF'te alan algılama (P18) ──────────────────────────────────────
+
+  static const _boxGlyphs = {'☐', '□', '❏', '❑', '▢'};
+
+  /// Düz (formsuz) PDF'te doldurulacak yerleri bulur: `____` ve `.....`
+  /// dizileri → metin alanı, `☐`/`□` → onay kutusu. Alan adı satırda diziden
+  /// önceki etikettir ("Adı Soyadı: ____" → "Adı Soyadı"; otomatik doldurma
+  /// eşlemesi bunu kullanır). Var olan form alanıyla çakışan atlanır.
+  /// Koordinatlar ham sayfa puntosu (sol-üst).
+  ///
+  /// ponytail: yalnız metin katmanı; çizgi/kutu VEKTÖRLERİ okunmaz ve
+  /// döndürülmüş sayfa atlanır — çizgili form için sonra yol nesnesi
+  /// (pdf_objects) okuyan sezgi eklenir.
+  static List<NewFormField> detectFields(List<int> bytes, {String? password}) {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final taken = <int, List<Rect>>{};
+      for (var i = 0; i < doc.form.fields.count; i++) {
+        final f = doc.form.fields[i];
+        final pg = f.page;
+        if (pg == null) continue;
+        (taken[doc.pages.indexOf(pg)] ??= []).add(f.bounds);
+      }
+      final extractor = PdfTextExtractor(doc);
+      final out = <NewFormField>[];
+      for (var i = 0; i < doc.pages.count; i++) {
+        if (doc.pages[i].rotation.index % 4 != 0) continue;
+        final busy = taken[i] ?? const <Rect>[];
+        for (final line
+            in extractor.extractTextLines(startPageIndex: i, endPageIndex: i)) {
+          final glyphs = [for (final w in line.wordCollection) ...w.glyphs];
+          for (final f in fieldsInLine(i, glyphs)) {
+            if (busy.any((b) => b.overlaps(f.bounds))) continue;
+            out.add(f);
+          }
+        }
+      }
+      return out;
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// Tek satırın glifleri → alanlar (saf; [detectFields] çağırır).
+  static List<NewFormField> fieldsInLine(int page, List<TextGlyph> glyphs) {
+    final out = <NewFormField>[];
+    final label = StringBuffer();
+    var g = 0;
+    while (g < glyphs.length) {
+      final t = glyphs[g].text;
+      if (_boxGlyphs.contains(t)) {
+        final b = glyphs[g].bounds;
+        final side = b.height.clamp(8.0, 24.0).toDouble();
+        out.add(NewFormField(
+            page,
+            Rect.fromCenter(center: b.center, width: side, height: side),
+            NewFieldKind.checkbox,
+            _labelOf(label)));
+        label.clear();
+        g++;
+        continue;
+      }
+      if (t != '_' && t != '.' && t != '…') {
+        // Sözcük arası boşluk glif değildir; aralıktan geri kur.
+        if (g > 0 &&
+            glyphs[g].bounds.left - glyphs[g - 1].bounds.right >
+                glyphs[g].bounds.height * 0.15) {
+          label.write(' ');
+        }
+        label.write(t);
+        g++;
+        continue;
+      }
+      // Dolgu dizisi: araya glif boyundan geniş boşluk girerse kopar.
+      final under = t == '_';
+      var end = g;
+      var weight = 0;
+      while (end < glyphs.length) {
+        final c = glyphs[end].text;
+        if (under ? c != '_' : (c != '.' && c != '…')) break;
+        if (end > g) {
+          final gap = glyphs[end].bounds.left - glyphs[end - 1].bounds.right;
+          if (gap > glyphs[end].bounds.height) break;
+        }
+        weight += c == '…' ? 3 : 1;
+        end++;
+      }
+      if (weight >= (under ? 3 : 5)) {
+        final first = glyphs[g].bounds;
+        final last = glyphs[end - 1].bounds;
+        final h = first.height.clamp(12.0, 28.0).toDouble();
+        out.add(NewFormField(
+            page,
+            Rect.fromLTRB(
+                first.left, first.bottom - h, last.right, first.bottom),
+            NewFieldKind.text,
+            _labelOf(label)));
+        label.clear();
+      } else {
+        for (var k = g; k < end; k++) {
+          label.write(glyphs[k].text);
+        }
+      }
+      g = end;
+    }
+    return out;
+  }
+
+  static String _labelOf(StringBuffer b) {
+    var s = b.toString().replaceAll(RegExp(r'[\s:.\-–]+$'), '').trim();
+    if (s.length > 40) s = s.substring(s.length - 40).trim();
+    return s;
+  }
+
+  static Future<List<NewFormField>> detectFieldsInBackground(List<int> bytes,
+          {String? password}) =>
+      Isolate.run(() {
+        try {
+          return detectFields(bytes, password: password);
+        } catch (e) {
+          throw PdfToolsException('$e');
+        }
+      });
+
   static Future<List<int>> addFieldsInBackground(
           List<int> bytes, List<NewFormField> fields,
           {List<int>? fontBytes, String? password}) =>

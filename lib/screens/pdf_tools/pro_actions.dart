@@ -702,12 +702,18 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   // ── 9. Form oluşturma ────────────────────────────────────────────────────
 
   Future<void> _createForm() async {
-    final kind = await showAppSheet<NewFieldKind>(
+    final kind = await showAppSheet<Object>(
       context,
       title: context.t('pp.form_create'),
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          ListTile(
+            leading: const Icon(AppIcons.search),
+            title: Text(ctx.t('pp.field_detect')),
+            subtitle: Text(ctx.t('pp.field_detect_sub')),
+            onTap: () => Navigator.pop(ctx, 'detect'),
+          ),
           for (final k in NewFieldKind.values)
             ListTile(
               leading: Icon(switch (k) {
@@ -721,7 +727,8 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         ],
       ),
     );
-    if (kind == null || !mounted) return;
+    if (kind == 'detect') return _detectFields();
+    if (kind is! NewFieldKind || !mounted) return;
     final pw = _password;
     final marks = await PdfRegionScreen.open(
       context,
@@ -737,6 +744,52 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       for (final e in marks.entries)
         for (final r in e.value) NewFormField(e.key, r, kind, '$base${++n}'),
     ];
+    final font = await _unicodeFont();
+    await _apply(
+      _str.t('pp.form_create'),
+      (b) => PdfFormPro.addFieldsInBackground(b, fields,
+          fontBytes: font, password: pw),
+    );
+  }
+
+  /// P18: düz PDF'teki `____` / `.....` / `☐` yerlerini bulur, kullanıcı
+  /// işaretleme ekranında gözden geçirir (dokun = sil, sürükle = ekle),
+  /// onaylayınca doldurulabilir alan olur.
+  Future<void> _detectFields() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final label = _str.t('pp.field_detect');
+    var found = const <NewFormField>[];
+    await _produce(label, () async {
+      found = await PdfFormPro.detectFieldsInBackground(bytes, password: pw);
+      if (found.isEmpty) _snack(_str.t('pp.field_detect_none'));
+    });
+    if (found.isEmpty || !mounted) return;
+    final initial = <int, List<Rect>>{};
+    for (final f in found) {
+      (initial[f.page] ??= []).add(f.bounds);
+    }
+    final marks = await PdfRegionScreen.open(
+      context,
+      bytes: bytes,
+      mode: PdfRegionMode.field,
+      password: pw,
+      initial: initial,
+      title: label,
+    );
+    if (marks == null || marks.isEmpty || !mounted) return;
+    final base = _str.t('pp.field_text');
+    var n = 0;
+    final fields = <NewFormField>[];
+    for (final e in marks.entries) {
+      for (final r in e.value) {
+        final hit =
+            found.where((f) => f.page == e.key && f.bounds == r).firstOrNull;
+        final name = hit == null || hit.name.isEmpty ? '$base${++n}' : hit.name;
+        fields.add(
+            NewFormField(e.key, r, hit?.kind ?? NewFieldKind.text, name));
+      }
+    }
     final font = await _unicodeFont();
     await _apply(
       _str.t('pp.form_create'),

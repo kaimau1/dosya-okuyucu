@@ -36,6 +36,33 @@ void main() {
     expect(s, {'f1': 'Ayşe Yılmaz', 'f3': '05.11.2026'});
   });
 
+  test('alan algılama: ____ ve ..... dizileri etiketli metin alanı olur',
+      () async {
+    final doc = PdfDocument();
+    final g = doc.pages.add().graphics;
+    final font = PdfStandardFont(PdfFontFamily.helvetica, 12);
+    g.drawString('Ad Soyad: ______________', font,
+        bounds: const Rect.fromLTWH(40, 40, 400, 20));
+    g.drawString('E-posta ..................', font,
+        bounds: const Rect.fromLTWH(40, 80, 400, 20));
+    g.drawString('Sadece metin. Bitti.', font,
+        bounds: const Rect.fromLTWH(40, 120, 400, 20));
+    final bytes = await doc.save();
+    doc.dispose();
+
+    final found = PdfFormPro.detectFields(bytes);
+    expect(found.map((f) => f.kind).toSet(), {NewFieldKind.text});
+    expect(found.map((f) => f.name).toList(), ['Ad Soyad', 'E-posta']);
+    final first = found.first.bounds;
+    expect(first.left, greaterThan(80)); // etiketten sonra başlar
+    expect(first.top, inInclusiveRange(30, 60));
+    expect(first.width, greaterThan(40));
+
+    // Alan eklenince ikinci taramada aynı yer yeniden önerilmez.
+    final withFields = await PdfFormPro.addFields(bytes, found);
+    expect(PdfFormPro.detectFields(withFields), isEmpty);
+  });
+
   test('form oluşturma: metin, onay, imza alanları okunur', () async {
     final doc = PdfDocument()..pages.add();
     final bytes = await doc.save();
