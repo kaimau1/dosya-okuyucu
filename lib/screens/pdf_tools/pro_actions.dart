@@ -605,6 +605,21 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     if (res == null || !mounted) return;
     final plan = res.plan;
     final extra = res.extra;
+    final pw = _password;
+    if (res.newFiles.isNotEmpty) {
+      // Çıkar/böl: belge değişmez, her parça yanına yeni PDF.
+      final parts = res.newFiles;
+      await _produce(_str.t('pp.studio'), () async {
+        for (var k = 0; k < parts.length; k++) {
+          final out = await PdfTools.applyPageStudioInBackground(
+              bytes, parts[k],
+              password: pw, extra: extra);
+          await _saveSibling(
+              out, parts.length == 1 ? '-sayfalar' : '-bolum${k + 1}', 'pdf');
+        }
+      });
+      return;
+    }
     final keeps = PdfTools.studioKeepsAnnotations(
         [for (final (i, _) in plan) i],
         pageCount: res.pageCount);
@@ -612,7 +627,6 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         !mounted)) {
       return;
     }
-    final pw = _password;
     await _apply(_str.t('pp.studio'),
         (b) => PdfTools.applyPageStudioInBackground(b, plan,
             password: pw, extra: extra));

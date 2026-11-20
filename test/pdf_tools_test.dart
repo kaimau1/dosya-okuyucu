@@ -486,6 +486,20 @@ void main() {
       await expectLater(
           PdfTools.applyPageStudio(src, [(0, 0), (4, 0)]), throwsRangeError);
     });
+
+    test('studioSplit seçilen konumdan önce keser, boş parçayı atar', () {
+      const b = PdfTools.studioBlank;
+      final plan = [(0, 0), (1, 1), (b, 0), (2, 0), (3, 0)];
+      expect(PdfTools.studioSplit(plan, {0, 3}), [
+        [(0, 0), (1, 1), (b, 0)],
+        [(2, 0), (3, 0)],
+      ]);
+      expect(PdfTools.studioSplit(plan, {2, 3}), [
+        [(0, 0), (1, 1)],
+        [(2, 0), (3, 0)],
+      ]);
+      expect(PdfTools.studioSplit(plan, const {}), [plan]);
+    });
   });
 }
 

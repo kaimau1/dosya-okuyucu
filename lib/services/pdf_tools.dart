@@ -799,6 +799,22 @@ class PdfTools {
   /// Stüdyo planında "araya boş sayfa" öğesinin indeksi.
   static const studioBlank = -1;
 
+  /// Stüdyoda "böl": [plan] her [cutBefore] konumundan (0 hariç) önce
+  /// kesilir; yalnız boş sayfadan oluşan parça atılır (tek başına PDF
+  /// olamaz, bkz. [applyPageStudio]).
+  static List<List<(int, int)>> studioSplit(
+      List<(int, int)> plan, Set<int> cutBefore) {
+    final parts = <List<(int, int)>>[[]];
+    for (var k = 0; k < plan.length; k++) {
+      if (k > 0 && cutBefore.contains(k)) parts.add([]);
+      parts.last.add(plan[k]);
+    }
+    return [
+      for (final p in parts)
+        if (p.any((e) => e.$1 != studioBlank)) p,
+    ];
+  }
+
   /// [applyPageStudio] — arka plan isolate'inde.
   static Future<List<int>> applyPageStudioInBackground(
     List<int> bytes,
