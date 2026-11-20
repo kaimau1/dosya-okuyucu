@@ -9,13 +9,16 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../services/pdf_tools.dart';
 
 /// Stüdyodaki bir sayfa: [id] çoğaltılan kopyaları ayırır (anahtar),
-/// [page] özgün 0-tabanlı indeks, [turns] eklenecek çeyrek tur.
+/// [page] özgün 0-tabanlı indeks ([PdfTools.studioBlank] = boş sayfa),
+/// [turns] eklenecek çeyrek tur.
 typedef _Item = ({int id, int page, int turns});
 
 /// **Sayfa stüdyosu** (B4/P20, PDF_PRO Faz 63 m.1) — küçük resim ızgarası:
-/// dokun = seç, basılı tut + sürükle = taşı; seçilenleri döndür, sil, çoğalt;
+/// dokun = seç, basılı tut + sürükle = taşı; seçilenleri döndür, sil, çoğalt,
+/// ardına boş sayfa ekle;
 /// her adım geri alınabilir. Sonuç `PdfTools.applyPageStudio` planıdır
 /// (çıktı sırası: özgün indeks + çeyrek tur) ya da vazgeçilirse `null`.
 ///
@@ -109,20 +112,28 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
     ]);
   }
 
-  void _duplicate() {
+  /// Seçilen her sayfanın ardına [make] ile üretilen öğeyi koyar
+  /// (çoğalt = aynı sayfa, boş ekle = [PdfTools.studioBlank]).
+  void _insertAfterSelected(_Item Function(_Item) make) {
     AppHaptics.step();
     final next = <_Item>[];
     for (final e in _items) {
       next.add(e);
-      if (_selected.contains(e.id)) {
-        next.add((id: _nextId++, page: e.page, turns: e.turns));
-      }
+      if (_selected.contains(e.id)) next.add(make(e));
     }
     _commit(next);
   }
 
+  void _duplicate() => _insertAfterSelected(
+      (e) => (id: _nextId++, page: e.page, turns: e.turns));
+
+  void _insertBlank() => _insertAfterSelected(
+      (_) => (id: _nextId++, page: PdfTools.studioBlank, turns: 0));
+
   void _delete() {
-    if (_selected.length >= _items.length) {
+    // En az bir özgün sayfa kalmalı (yalnız boş sayfalı belge anlamsız).
+    if (!_items.any((e) =>
+        !_selected.contains(e.id) && e.page != PdfTools.studioBlank)) {
       showSnack(context, context.t('pt.cannot_delete_all'));
       return;
     }
@@ -204,6 +215,11 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
                     onPressed: _duplicate,
                   ),
                   IconButton(
+                    tooltip: context.t('pt.op_insert_blank'),
+                    icon: const Icon(AppIcons.addFile),
+                    onPressed: _insertBlank,
+                  ),
+                  IconButton(
                     tooltip: context.t('common.delete'),
                     icon: const Icon(AppIcons.delete),
                     onPressed: _delete,
@@ -248,12 +264,14 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
     final thumb = RepaintBoundary(
       child: RotatedBox(
         quarterTurns: item.turns,
-        child: PdfPageView(
-          document: doc,
-          pageNumber: item.page + 1,
-          maximumDpi: 72,
-          decoration: const BoxDecoration(color: AppColors.page),
-        ),
+        child: item.page == PdfTools.studioBlank
+            ? const ColoredBox(color: AppColors.page, child: SizedBox.expand())
+            : PdfPageView(
+                document: doc,
+                pageNumber: item.page + 1,
+                maximumDpi: 72,
+                decoration: const BoxDecoration(color: AppColors.page),
+              ),
       ),
     );
     final tile = DecoratedBox(

@@ -136,18 +136,22 @@ class PdfTools {
   }) async {
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
-      final count = doc.pages.count;
-      final at = index.clamp(0, count);
-      final reference = doc.pages[at > 0 ? at - 1 : 0];
-      final size = reference.size;
-      if (at >= count) {
-        doc.pages.add();
-      } else {
-        doc.pages.insert(at, size);
-      }
+      _insertBlank(doc, index);
       return await doc.save();
     } finally {
       doc.dispose();
+    }
+  }
+
+  /// Açık belgeye [index]'e komşu ölçüsünde boş sayfa sokar.
+  static void _insertBlank(PdfDocument doc, int index) {
+    final count = doc.pages.count;
+    final at = index.clamp(0, count);
+    final size = doc.pages[at > 0 ? at - 1 : 0].size;
+    if (at >= count) {
+      doc.pages.add();
+    } else {
+      doc.pages.insert(at, size);
     }
   }
 
@@ -713,7 +717,7 @@ class PdfTools {
 
   /// **Sayfa stüdyosu planını uygular** (B4/P20). [pages] çıktı sırasıdır;
   /// her öğe (özgün 0-tabanlı indeks, eklenecek çeyrek tur, 1 = 90° saat
-  /// yönü). Sıra korunuyorsa (yalnız sil/döndür — [studioKeepsAnnotations])
+  /// yönü; indeks [studioBlank] = araya boş sayfa). Sıra korunuyorsa (yalnız sil/döndür — [studioKeepsAnnotations])
   /// belge YERİNDE değişir, vurgular kalır; sıralama/çoğaltma [selectPages]
   /// ile kopyalar (oradaki KAYIP UYARISI geçerli).
   static Future<List<int>> applyPageStudio(
@@ -722,7 +726,8 @@ class PdfTools {
     String? password,
   }) async {
     if (pages.isEmpty) throw ArgumentError('En az bir sayfa kalmalı');
-    final order = [for (final (i, _) in pages) i];
+    final order = [for (final (i, _) in pages) if (i != studioBlank) i];
+    if (order.isEmpty) throw ArgumentError('En az bir özgün sayfa kalmalı');
     final inPlace = studioKeepsAnnotations(order);
     final base = inPlace ? bytes : await selectPages(bytes, order, password: password);
     final doc = PdfDocument(
@@ -733,9 +738,13 @@ class PdfTools {
         for (var i = doc.pages.count - 1; i >= 0; i--) {
           if (!keep.contains(i)) doc.pages.removeAt(i);
         }
-        if (doc.pages.count != pages.length) {
+        if (doc.pages.count != order.length) {
           throw RangeError('Sayfa yok (belge ${doc.pages.count} sayfa)');
         }
+      }
+      // Boşlar artan çıktı sırasıyla: her ekleme öncekileri yerinde bırakır.
+      for (var k = 0; k < pages.length; k++) {
+        if (pages[k].$1 == studioBlank) _insertBlank(doc, k);
       }
       for (var k = 0; k < pages.length; k++) {
         final turns = pages[k].$2 % 4;
@@ -752,12 +761,19 @@ class PdfTools {
 
   /// [order] kesin artan mı (tekrar/yer değiştirme yok) — öyleyse
   /// [applyPageStudio] yerinde çalışır ve açıklamalar korunur.
+  /// Boş sayfa ([studioBlank]) yeri bozmaz, atlanır.
   static bool studioKeepsAnnotations(List<int> order) {
-    for (var i = 1; i < order.length; i++) {
-      if (order[i] <= order[i - 1]) return false;
+    var prev = -1;
+    for (final i in order) {
+      if (i == studioBlank) continue;
+      if (i <= prev) return false;
+      prev = i;
     }
     return true;
   }
+
+  /// Stüdyo planında "araya boş sayfa" öğesinin indeksi.
+  static const studioBlank = -1;
 
   /// [applyPageStudio] — arka plan isolate'inde.
   static Future<List<int>> applyPageStudioInBackground(
