@@ -162,10 +162,13 @@ Future<T?> showAppSheet<T>(
   required WidgetBuilder builder,
   bool scrollable = true,
   Color? backgroundColor,
+  /// Saydam verilirse arka plan kararmaz (canlı izlenen paneller: hız).
+  Color? barrierColor,
 }) {
   return showModalBottomSheet<T>(
     context: context,
     backgroundColor: backgroundColor,
+    barrierColor: barrierColor,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (ctx) {

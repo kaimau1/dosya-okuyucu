@@ -368,10 +368,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                 });
               },
         onScaleEnd: (_) {
-          if (_vZoom < 1.05) setState(() {
-            _vZoom = 1;
-            _vPan = Offset.zero;
-          });
+          if (_vZoom < 1.05) {
+            setState(() {
+              _vZoom = 1;
+              _vPan = Offset.zero;
+            });
+          }
         },
         // Videonun yanındaki siyah boşluklarda da dokunma çalışsın diye
         // opaque: varsayılan `deferToChild` ile yalnız görüntünün kendisi

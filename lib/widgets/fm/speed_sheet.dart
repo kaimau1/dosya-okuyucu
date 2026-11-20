@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../app_dialog.dart';
 
 /// Ses ve video oynatıcılarının **ortak oynatma hızı** levhası (U3 m.2,
 /// 2026-11-20, kullanıcı: "6 sabit seçenek yerine tutamaçlı çubuk, 0,05
@@ -38,17 +40,10 @@ Future<void> showSpeedSheet(
   required double current,
   required ValueChanged<double> onChanged,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
+  return showAppSheet<void>(
+    context,
     barrierColor: Colors.transparent,
-    backgroundColor:
-        Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
-    useSafeArea: true,
-    showDragHandle: false,
-    builder: (_) => SafeArea(
-      top: false,
-      child: _SpeedBody(current: current, onChanged: onChanged),
-    ),
+    builder: (_) => _SpeedBody(current: current, onChanged: onChanged),
   );
 }
 
@@ -88,7 +83,7 @@ class SpeedButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Material(
         key: const ValueKey('mp-speed'),
-        color: (fg ?? Colors.white).withValues(alpha: 0.16),
+        color: (fg ?? AppColors.onMedia).withValues(alpha: 0.16),
         shape: const StadiumBorder(),
         clipBehavior: Clip.antiAlias,
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -97,8 +92,8 @@ class SpeedButton extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 4, 8),
               child: Text(PlaybackSpeed.label(speed),
-                  style: TextStyle(
-                      color: fg, fontWeight: FontWeight.w700, fontSize: 14)),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: fg, fontWeight: FontWeight.w700)),
             ),
           ),
           InkWell(
