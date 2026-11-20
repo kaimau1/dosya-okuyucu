@@ -152,6 +152,23 @@ void main() {
     expect(rect().fill!.a, 1);
   });
 
+  test('B11 m.3: Biçim değiştir ve yakınlaş yazılır, geri okunur', () {
+    final e = _open();
+    final s = e.slides.first;
+    e.setTransition(s, PptxTransition.morph);
+    expect(e.transitionOf(s), PptxTransition.morph);
+    expect(s.view!.transition, 'morph');
+    final again = PptxEditor.parse(e.save());
+    expect(again.transitionOf(again.slides.first), PptxTransition.morph);
+    expect(again.slides.first.view!.transition, 'morph');
+    // Başka geçiş seçilince AlternateContent sarmalı da kalkar (tek geçiş).
+    e.setTransition(s, PptxTransition.zoom);
+    expect(s.view!.transition, 'zoom');
+    expect(s.doc.rootElement.findAllElements('p:transition'), hasLength(1));
+    e.setTransition(s, PptxTransition.none);
+    expect(s.doc.rootElement.findAllElements('p:transition'), isEmpty);
+  });
+
   test('geçiş çizim modeline girer (sunumda oynar)', () {
     final e = _open();
     final s = e.slides.first;

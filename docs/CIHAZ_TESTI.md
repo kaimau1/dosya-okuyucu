@@ -1479,6 +1479,13 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Çok şekilli/görselli slaytta bir şekli seç ve sürükle: diğer şekiller titremeden/yanıp sönmeden yerinde kalıyor mu? Seçince ya da seçimi bırakınca görseller bir an kayboluyor mu (olmamalı)?
 - Sürükleme ve geçişli slayt A/B (C2): şekil sürüklemede kare p99 önceki [apk] ile kıyas.
 
+## B11 Slayt 2.0 dilim 3 (2026-11-20, dal faz-oto-B11-slayt3) — yazıldı, cihazda doğrulanmadı
+- [ ] PowerPoint'te Biçim değiştir (Morph) geçişli, aynı adlı şekli iki slaytta farklı yerde olan deste: sunumda ileri → şekil yerinden kayıp büyüyor/küçülüyor mu, takılma var mı?
+- [ ] Kay/Yakınlaş/Dön/çıkış animasyonlu deste: her tıklamada efekt dosyadaki gibi mi (kay doğru yönden, dönen şekil baştan görünür, çıkan şekil tıklamada kaybolur)? "Kes" geçişli slayt efektsiz geliyor mu?
+- [ ] Düzenleyici → Tasarım → Geçiş: Yakınlaş / Biçim değiştir seç → altta önizleme oynuyor mu, dokununca yeniden? Kaydet → PowerPoint'te geçiş Biçim değiştir görünüyor mu?
+- [ ] Dikey yazılı metin kutusu (PowerPoint "Metin yönü: 270°") dikey çiziliyor mu?
+- [ ] A/B (C2): Biçim değiştir ve efektli tıklamada kare p99.
+
 ## B2 dilim 5 — galeride hassas kategori PIN'i (2026-11-19, yazıldı, cihazda doğrulanmadı)
 - [ ] PIN kurulu, uygulama kilidi kapalı: Fotoğraflar → AI kategori hapı → Kimlik/Sağlık/Banka/Vergi seçince PIN sorulur; yanlış/iptal → seçilmez; doğru → süzülür, oturumda bir daha sorulmaz (Akıllı düzen listelerinde de sorulmaz). Seçimi kaldırmak PIN istemez. PIN yoksa hiç sorulmaz.
 
