@@ -6,6 +6,25 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
   /// eşik basamağını taşır: kapatılan uyarı durum kötüleşince yeniden gelir.
   List<InboxEvent> _inboxEvents(List<StorageVolume> volumes) {
     final out = <InboxEvent>[];
+    // **Çökme uyarısı da bu kartta, en üstte** (P29, 2026-11-20; kullanıcı:
+    // "tüm bildirimler görsel birlik"): eski ayrı kırmızı `CrashNoticeBanner`
+    // kalktı. Arka plan kapatmaları sayılmaz (`CrashLog.isBackgroundKill`).
+    final crashes = CrashLog.unseen.value;
+    if (crashes > 0) {
+      out.add(InboxEvent(
+        id: 'crash',
+        icon: AppIcons.bugReport,
+        warning: true,
+        title: context.t('crash.notice', {'n': crashes}),
+        subtitle: context.t('crash.notice_hint'),
+        actionLabel: context.t('inbox.open'),
+        onTap: () {
+          unawaited(CrashLog.markSeen());
+          _push(const CrashLogScreen());
+        },
+        onDismiss: () => unawaited(CrashLog.markSeen()),
+      ));
+    }
     // **Akıllı düzen sonucu da bu kartta** (U3 m.4, 2026-11-20, kullanıcı:
     // "üstteki iş bildirimi ile altındaki Akıllı düzen şeridi görsel olarak
     // farklı → tek dil"): eski ayrı `SmartBatchStrip` kalktı.

@@ -41,7 +41,8 @@ import '../../services/fm/usb/usb_host.dart';
 import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
 import 'usb_diagnostics_screen.dart';
-import '../../widgets/crash_notice.dart';
+import '../../services/crash_log.dart';
+import '../settings/crash_log_screen.dart';
 import '../../widgets/update_banner.dart';
 import '../../widgets/fm/fm_category_tile.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
@@ -145,7 +146,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// Bildirim kartının kaynakları — her build'de yeni birleşik dinleyici
   /// kurulmasın (kasma-kontrol m.2).
   static final Listenable _inboxSources =
-      Listenable.merge([FtpService.instance, SmartSort.lastBatch]);
+      Listenable.merge(
+          [FtpService.instance, SmartSort.lastBatch, CrashLog.unseen]);
 
   /// Yan menü kaynağı TEK nesne: uzantı yöntemi koparmaları her seferinde yeni
   /// kapanış üretir, `unregister` eşleşsin diye bir kez tutulur.
@@ -529,11 +531,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           padding: withNavInset(
               context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
           children: [
-            // Çökme uyarısı EN ÜSTTE ve yalnız çökme olduysa (kendini gizler):
-            // hata kaydını Ayarlar'da bırakmak kimsenin bakmayacağı bir yere
-            // koymak olurdu — geri bildirim döngüsü ancak kullanıcı olayı
-            // gördüğünde kuruluyor (bkz. widgets/crash_notice.dart).
-            const CrashNoticeBanner(),
             // Yeni sürüm uyarısı (kalıcı; dokununca indir + kur).
             const UpdateBanner(),
             // **Paylaşım açıkken panonun en üstünde bir şerit** (kullanıcı

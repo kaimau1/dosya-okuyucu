@@ -1555,3 +1555,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Bozuk .udf (ör. yarım indirilmiş) → "bozuk ya da eksik… yeniden indirin" metni; uygulama çökmüyor.
 - [ ] Gerçek UYAP belgesinde eksik kalan (madde imi, numara, üst/alt bilgi, birleşik hücre) var mı → not al (çevrilmiyor, bilinçli).
 - [ ] Ölçüm (C2): .udf açılış süresi (çevrim izolatta), kasma yok mu.
+
+## B3 P29 — çökme uyarısı bildirim kartında (dal faz-oto-B3-hiz, 2026-11-20; yazıldı, cihazda doğrulanmadı)
+- [ ] Uygulamayı son uygulamalardan kaydırıp kapat (MIUI bellek temizliği de olur) → yeniden aç: ana ekranda "Uygulama hata verdi" satırı ÇIKMIYOR (kayıt Ayarlar › Hata kayıtları'nda "(background)" ile duruyor).
+- [ ] Gerçek bir hata kaydı varken açılış: satır en üstteki bildirim kartında (ayrı kırmızı şerit yok), "Aç" raporu açıyor; ✕ ile kapatınca bir daha (yeni hataya dek) gelmiyor.
+- [ ] Ölçüm (C2): ana ekran açılışı, taban önceki [apk] `.r8test`.
