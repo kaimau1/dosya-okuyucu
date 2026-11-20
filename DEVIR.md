@@ -1,13 +1,15 @@
 # DEVIR — B4 PDF Pro (dal faz-oto-B4-pdfpro)
-Dilim 1–6 main'de (P21 meta + P17 XFDF, R6 kilit açma, P20 sayfa stüdyosu, P18 metin tabanlı alan algılama).
-Dilim 7 (dalda, 2026-11-20):
-- P18 çizgi/kutu sezgisi: `PdfFormPro.fieldsFromShapes` (services/pdf_form_pro.dart; PdfEditBridge.content yol
-  nesneleri) + `pro_actions._shapeFields` → `detectFieldsInBackground(shapes:)`. Test: test/pdf_form_pro_test.dart "çizgi/kutu sezgisi".
-- Akıllı karartma önerisi = Faz 65 (AI) → iptal (B15), PLAN'da düşüldü.
-Atlanan: P21 "bu kipte yazdır" — viewer/doc_actions.dart _print (kabuk; anlam belirsiz) → sabah bakılacak.
+Dilim 1–6 main'de; dilim 7 (0317efd5, çizgi/kutu sezgisi) ve dilim 8 dalda.
+Dilim 8 (2026-11-20):
+- P18 form+imza tek ekran ÇEKİRDEĞİ (25bf5b28): pdf_form_screen imza alanını imzalar (kayıtlı imza/pano),
+  kayıtta fill → `PdfTools.stampStrokes(rawSpace: true)` alan kutusuna. Test: test/pdf_form_screen_test.dart.
+- P19 m.1 (ed191849): `PdfTools.addTextLayer(+InBackground)` + Pro araç `ocr_layer` (pro_actions `_ocrLayer/_ocrLines`).
+  Test: test/pdf_tools_test.dart "addTextLayer".
+Atlanan: P21 "bu kipte yazdır" — anlam belirsiz → sabah bakılacak. P16/P17 — editör yüzeyi sıcak yola yakın, bayrak + A/B.
 Kalan (öneri sırası):
-1. P18 form+imza tek yüzey (pdf_form_screen + pdf_sign_screen birleşimi, Faz 61 m.6 — editör yüzeyi, büyük iş).
-2. P16/P17 düzenleyici işleri (lib/screens/pdf_editor/layer*.dart) — sıcak yola yakın; bayrakla.
-3. P19 OCR görünmez katman (services/pdf/ocr_page_text.dart, pdf_ocr_text.dart incele).
-4. P22/P22b — P22b görüntüleyici kabuğu (sıcak yol) → ayrı bayrak + A/B; PdfEditorScreen emekliliği (P21) en son.
-Doğrulama: yalnız CI (gh run list -b faz-oto-B4-pdfpro -L 1). Cihaz: docs/CIHAZ_TESTI.md "B4 PDF Pro dilim 1–7".
+1. P18: serbest imza yerleştirmeyi (PdfSignScreen._pageArea) form ekranına sekme/kip olarak taşı; pdf_selection
+   `_signPdf` → form ekranı; PdfSignScreen emekli (pro_actions:1032 de çağırıyor).
+2. P19: döndürülmüş sayfada katman (stampTransform ile), renkli zeminde satır düzenleme (m.2), m.3.
+3. P16/P17 (lib/screens/pdf_editor/layer*.dart) — bayrakla.
+4. P22/P22b, PdfEditorScreen emekliliği (P21) en son.
+Doğrulama: yalnız CI (gh run list -b faz-oto-B4-pdfpro -L 1). Cihaz: docs/CIHAZ_TESTI.md "B4 PDF Pro dilim 1–8".
