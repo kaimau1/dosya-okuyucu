@@ -140,8 +140,8 @@ yukarı kaydırarak açılır. **Telefon aynı anda TEK ajanda / tek işte.** Di
 
 - Kurulum `com.android.packageinstaller`: "Bilinmeyen kaynaklardan…" uyarısı **DEVAM ET** →
   tarama ("Hiçbir tehdit bulunmadı") **YÜKLE** → **BİTTİ**. `tool/ab_olcum.sh` bekçisi bunları
-  `uiautomator dump` metninden bulur (`ab_karar.py --dugme`, koordinat sabit değil). Kullanıcı
-  izni YALNIZ kendi `.r8test` APK'mızın bu düğmeleri için; başka izin/ayar ekranına dokunma, PIN girme.
+  `uiautomator dump` metninden bulur (`ab_karar.py --dugme`, koordinat sabit değil). Kullanıcı izni (2026-11-19, yeniden 2026-11-21) nightly dahil HER kendi APK kurulumumuz için: istem "kabul etme" dese de BEKLEME, bas (bkz. PLAN §1 CİHAZ KURULUM KURALI).
+  — yalnız bu üç düğme; başka izin/ayar ekranına dokunma, PIN girme.
 - Kilit: `adb shell wm dismiss-keyguard` (kaydırma koordinatı tablette farklı; ekran 1600×2560).
 - Boşta senaryoda (`pano_bosta`) kare çıkmayabilir → sürücü "kare yok, atlandı" yazar (çökme
   değil); bir senaryo grubu hata verirse (`bolum`) kalanlar sürer.
