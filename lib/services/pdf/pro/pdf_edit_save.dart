@@ -129,7 +129,9 @@ class PdfEditSaver {
   /// parçacığını tutardı (30 sn'lik geçici kayıt yazarken takılma) → ayrı
   /// izolatta.
   static Future<Uint8List> _trimmed(Uint8List base, Uint8List saved) =>
-      Isolate.run(() => PdfIncrementalTrim.trim(base, saved));
+      Isolate.run(() => PdfLinkDests.resolve(
+          PdfIncrementalTrim.trim(base, saved),
+          from: base.length));
 
   /// Özgüne artımlı yazar; yazılamıyorsa Belgeler'e kopya.
   Future<PdfEditSaveResult> save() async {

@@ -246,11 +246,78 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             await pro.reshape(pageIndex, block,
                 color: c, label: 'pse.step_format');
           }
+        case 'link':
+          await _proLink(pro, pageIndex, block);
       }
       _pdfText = '';
     } catch (e) {
       _proRefused(e);
     }
+  }
+
+  /// Metne bağlantı ekle/düzenle/kaldır (Faz 58 / 7): web adresi ya da bu
+  /// belgedeki bir sayfa.
+  Future<void> _proLink(
+      PdfProEditController pro, int pageIndex, PdfTextBlock block) async {
+    final old = PdfProEditController.linkOver(
+        block, await pro.linksOf(pageIndex));
+    if (!mounted || _pro != pro) return;
+    final bad = context.t('pse.link_bad');
+    final pick = await showAppActionSheet<String>(
+      context,
+      title: context.t('pse.link'),
+      subtitle: old == null
+          ? null
+          : old.destPage >= 0
+              ? context.t('pse.link_to_page', {'n': '${old.destPage + 1}'})
+              : old.uri,
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+              value: 'web',
+              icon: AppIcons.link,
+              label: context.t('pse.link_web')),
+          AppAction(
+              value: 'page',
+              icon: AppIcons.thumbnails,
+              label: context.t('pse.link_page')),
+          if (old != null)
+            AppAction(
+                value: 'remove',
+                icon: AppIcons.linkOff,
+                label: context.t('pse.link_remove'),
+                destructive: true),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted || _pro != pro) return;
+    String? uri;
+    if (pick == 'web') {
+      final text = await showAppPrompt(context,
+          title: context.t('pse.link_web'),
+          label: context.t('pse.link_web_hint'),
+          initial: old != null && old.destPage < 0 ? old.uri : 'https://');
+      if (text == null || !mounted || _pro != pro) return;
+      uri = PdfLinkTarget.web(text);
+    } else if (pick == 'page') {
+      final count = _pdfCount;
+      final text = await showAppPrompt(context,
+          title: context.t('pse.link_page'),
+          label: context.t('pse.link_page_hint', {'n': '$count'}),
+          initial: old != null && old.destPage >= 0
+              ? '${old.destPage + 1}'
+              : '');
+      if (text == null || !mounted || _pro != pro) return;
+      final n = int.tryParse(text);
+      uri = n != null && n >= 1 && n <= count
+          ? PdfLinkTarget.page(n - 1)
+          : null;
+    }
+    if (pick != 'remove' && uri == null) {
+      _snack(bad);
+      return;
+    }
+    await pro.setBlockLink(pageIndex, block, uri, label: 'pse.step_link');
   }
 
   /// Kopyalanan bloğu görünen sayfaya yapıştırır (sayfalar arası taşıma).
@@ -760,6 +827,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             act(AppIcons.formatAlignJustify, t('pse.al_justify'), 'justify'),
             act(AppIcons.formatListBulleted, t('pse.list_bullets'), 'bullets'),
             act(AppIcons.formatListNumbered, t('pse.list_numbers'), 'numbers'),
+            act(AppIcons.link, t('pse.link'), 'link',
+                key: const ValueKey('pse-chip-link')),
             act(AppIcons.formatPaint, t('pse.style_copy'), 'stylecopy'),
             if (pro.styleClip != null)
               act(AppIcons.style, t('pse.style_paste'), 'stylepaste'),

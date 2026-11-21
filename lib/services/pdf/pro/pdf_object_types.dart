@@ -186,7 +186,7 @@ class PdfMutAction {
 abstract final class PdfAnnotType {
   static const text = 1, freeText = 3, line = 4, square = 5, circle = 6;
   static const highlight = 9, underline = 10, squiggly = 11, strikeout = 12;
-  static const stamp = 13, ink = 15, widget = 20;
+  static const link = 2, stamp = 13, ink = 15, widget = 20;
   static bool isMarkup(int t) => t >= highlight && t <= strikeout;
 }
 
@@ -198,6 +198,10 @@ class PdfAnnotInfo {
   final String contents, author, modified, state;
   final List<List<double>> quads;
   final List<List<double>> ink;
+
+  /// Bağlantı (Faz 58 / 7): web adresi ya da sayfa içi hedef (0 tabanlı, -1 yok).
+  final String uri;
+  final int destPage;
   const PdfAnnotInfo({
     required this.pageIndex,
     required this.index,
@@ -213,7 +217,45 @@ class PdfAnnotInfo {
     this.state = '',
     this.quads = const [],
     this.ink = const [],
+    this.uri = '',
+    this.destPage = -1,
   });
+}
+
+/// **Metin bağlantısı hedefi** (Faz 58 / 7). Sayfa içi hedef PDFium'da
+/// yazılamıyor (`FPDFAnnot_SetURI` yalnız URI): oturumda `#page=N` URI'si
+/// olarak durur, kayıtta [PdfLinkDests] onu gerçek `/Dest`'e çevirir.
+abstract final class PdfLinkTarget {
+  static String page(int pageIndex) => '#page=${pageIndex + 1}';
+
+  /// `#page=N` → 0 tabanlı sayfa; değilse null.
+  static int? pageOf(String uri) {
+    final m = RegExp(r'^#page=(\d+)$').firstMatch(uri);
+    return m == null ? null : int.parse(m.group(1)!) - 1;
+  }
+
+  /// Kullanıcının yazdığı adres → URI (yalnız http/https/mailto — G7.6;
+  /// şemasız `ornek.com` https, `@`'li olan mailto). Geçersizse null.
+  static String? web(String input) {
+    var t = input.trim();
+    if (t.isEmpty || t.contains(RegExp(r'\s'))) return null;
+    if (!t.contains(':')) {
+      if (t.contains('@')) {
+        t = 'mailto:$t';
+      } else if (t.contains('.')) {
+        t = 'https://$t';
+      }
+    }
+    final u = Uri.tryParse(t);
+    // PDFium URI'yi 7 bit ASCII ister (Türkçe alan adı punycode'suz yazılamaz).
+    if (u == null || u.toString().codeUnits.any((c) => c > 127)) return null;
+    final scheme = u.scheme.toLowerCase();
+    if (scheme == 'mailto') return u.path.contains('@') ? u.toString() : null;
+    if ((scheme == 'http' || scheme == 'https') && u.host.contains('.')) {
+      return u.toString();
+    }
+    return null;
+  }
 }
 
 /// Açıklama değişikliği. [kind]: `add` · `remove` · `update`.
@@ -238,6 +280,9 @@ class PdfAnnotChange {
   final double width;
   final String? contents, author, state;
 
+  /// Bağlantının URI'si (7 bit ASCII; sayfa içi hedef [PdfLinkTarget.page]).
+  final String? uri;
+
   const PdfAnnotChange._({
     required this.pageIndex,
     required this.kind,
@@ -251,7 +296,20 @@ class PdfAnnotChange {
     this.contents,
     this.author,
     this.state,
+    this.uri,
   });
+
+  /// Metne bağlantı (Faz 58 / 7): görünmez kenarlıklı Link açıklaması.
+  const PdfAnnotChange.link(int pageIndex,
+      {required List<double> rect, required String uri})
+      : this._(
+            pageIndex: pageIndex,
+            kind: 'add',
+            subtype: PdfAnnotType.link,
+            rect: rect,
+            color: 0,
+            width: 0,
+            uri: uri);
 
   const PdfAnnotChange.add(
     int pageIndex,
@@ -279,14 +337,15 @@ class PdfAnnotChange {
       : this._(pageIndex: pageIndex, kind: 'remove', index: index);
 
   const PdfAnnotChange.update(int pageIndex, int index,
-      {String? contents, int color = 0, String? state})
+      {String? contents, int color = 0, String? state, String? uri})
       : this._(
             pageIndex: pageIndex,
             kind: 'update',
             index: index,
             contents: contents,
             color: color,
-            state: state);
+            state: state,
+            uri: uri);
 
   Map<String, Object?> toJson() => {
         'page': pageIndex,
@@ -301,6 +360,7 @@ class PdfAnnotChange {
         if (contents != null) 'text': contents,
         if (author != null) 'by': author,
         if (state != null) 'st': state,
+        if (uri != null) 'uri': uri,
       };
 
   static List<List<double>> _lists(Object? v) => [
@@ -329,6 +389,7 @@ class PdfAnnotChange {
       contents: j['text'] as String?,
       author: j['by'] as String?,
       state: j['st'] as String?,
+      uri: j['uri'] as String?,
     );
   }
 }

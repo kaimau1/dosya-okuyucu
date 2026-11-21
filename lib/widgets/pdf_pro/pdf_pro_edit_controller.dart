@@ -1308,6 +1308,46 @@ class PdfProEditController extends ChangeNotifier {
         _invalidate(change.pageIndex);
       });
 
+  /// Sayfanın bağlantıları (Faz 58 / 7).
+  Future<List<PdfAnnotInfo>> linksOf(int pageIndex) =>
+      PdfEditBridge.links(document, pageIndex);
+
+  /// [block]'un üstündeki bağlantı (kutusuyla en çok örtüşen); yoksa null.
+  static PdfAnnotInfo? linkOver(PdfTextBlock block, List<PdfAnnotInfo> links) {
+    PdfAnnotInfo? best;
+    var area = 0.0;
+    for (final l in links) {
+      final w = math.min(l.right, block.right) - math.max(l.left, block.left);
+      final h = math.min(l.top, block.top) - math.max(l.bottom, block.bottom);
+      if (w > 0 && h > 0 && w * h > area) {
+        area = w * h;
+        best = l;
+      }
+    }
+    return best;
+  }
+
+  /// Bloğa bağlantı koyar ya da var olanın hedefini değiştirir ([uri]:
+  /// web adresi ya da [PdfLinkTarget.page]); [uri] null = kaldır. Tek
+  /// geri alınabilir adım.
+  Future<void> setBlockLink(int pageIndex, PdfTextBlock block, String? uri,
+      {required String label}) async {
+    final old = linkOver(block, await linksOf(pageIndex));
+    if (uri == null) {
+      if (old == null) return;
+      return annotate(PdfAnnotChange.remove(pageIndex, old.index),
+          label: label, detail: _excerpt(block.text));
+    }
+    await annotate(
+        old == null
+            ? PdfAnnotChange.link(pageIndex,
+                rect: [block.left, block.bottom, block.right, block.top],
+                uri: uri)
+            : PdfAnnotChange.update(pageIndex, old.index, uri: uri),
+        label: label,
+        detail: _excerpt(block.text));
+  }
+
   /// Belgenin bütün açıklamaları (yorum paneli).
   Future<List<PdfAnnotInfo>> allAnnotations() async {
     final out = <PdfAnnotInfo>[];

@@ -349,3 +349,59 @@ class _P {
     return b.toString();
   }
 }
+
+/// **Sayfa içi bağlantıların kaydı** (Faz 58 / 7): PDFium bağlantıya yalnız
+/// URI yazabiliyor; oturumda sayfa hedefi `#page=N` URI'si olarak durur
+/// (`PdfLinkTarget`). Kayıtta bu bağlantılar gerçek `/Dest [sayfa /Fit]`
+/// olur (her okuyucuda çalışsın). Yalnız [from]'dan sonraki ekte aranır
+/// (her geçici kayıtta tüm dosya taranmaz); anlaşılmayan durumda baytlar aynen.
+abstract final class PdfLinkDests {
+  static final _action =
+      RegExp(r'/A\s*<<[^<>]*/URI\s*\(#page=(\d+)\)[^<>]*>>');
+  static final _needle = latin1.encode('(#page=');
+
+  static Uint8List resolve(Uint8List bytes, {int from = 0}) {
+    try {
+      return _resolve(bytes, from) ?? bytes;
+    } catch (_) {
+      return bytes;
+    }
+  }
+
+  static bool _has(Uint8List b, int from) {
+    final n = _needle;
+    for (var i = from < 0 ? 0 : from; i + n.length <= b.length; i++) {
+      var k = 0;
+      while (k < n.length && b[i + k] == n[k]) {
+        k++;
+      }
+      if (k == n.length) return true;
+    }
+    return false;
+  }
+
+  static Uint8List? _resolve(Uint8List bytes, int from) {
+    if (!_has(bytes, from)) return null;
+    final f = PdfFile.parse(bytes);
+    if (f.isEncrypted) return null;
+    final pages = f.pages;
+    final out = <({int number, int generation, List<int> body})>[];
+    for (final o in f.objects.values) {
+      if (o.isStream || !o.dict.contains('(#page=')) continue;
+      final m = _action.firstMatch(o.dict);
+      if (m == null) continue;
+      final i = int.parse(m.group(1)!) - 1;
+      if (i < 0 || i >= pages.length) continue;
+      final pg = pages[i];
+      final dict = o.dict.replaceRange(
+          m.start, m.end, '/Dest [${pg.number} ${pg.generation} R /Fit]');
+      out.add((
+        number: o.number,
+        generation: o.generation,
+        body: latin1.encode(
+            '${o.number} ${o.generation} obj\n${dict.trim()}\nendobj'),
+      ));
+    }
+    return out.isEmpty ? null : Uint8List.fromList(f.appendRawObjects(out));
+  }
+}

@@ -293,6 +293,13 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
     final url = link.url;
     if (url == null) return;
+    // PDF Pro oturumunda eklenen sayfa bağlantısı (kayda dek `#page=N`).
+    final inner = PdfLinkTarget.pageOf(url.toString());
+    if (inner != null) {
+      _pdfJumpTarget = inner + 1;
+      await _pdfController.goToPage(pageNumber: inner + 1);
+      return;
+    }
     // G7.6: PDF'teki bağlantı yalnız http/https/mailto (file:, intent:,
     // javascript:, content: hiç açılmaz).
     if (!const {'http', 'https', 'mailto'}.contains(url.scheme.toLowerCase())) {

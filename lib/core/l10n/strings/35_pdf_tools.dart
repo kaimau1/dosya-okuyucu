@@ -349,6 +349,51 @@ const Map<String, (String, String, String)> _t35 = {
     'Font in the app',
     'خط في التطبيق',
   ),
+  'pse.link': (
+    'Bağlantı',
+    'Link',
+    'رابط',
+  ),
+  'pse.link_web': (
+    'Web adresine bağla',
+    'Link to a web address',
+    'ربط بعنوان ويب',
+  ),
+  'pse.link_web_hint': (
+    'Adres ya da e-posta',
+    'Address or email',
+    'العنوان أو البريد الإلكتروني',
+  ),
+  'pse.link_page': (
+    'Bu belgedeki bir sayfaya bağla',
+    'Link to a page in this document',
+    'ربط بصفحة في هذا المستند',
+  ),
+  'pse.link_page_hint': (
+    'Sayfa numarası (1–{n})',
+    'Page number (1–{n})',
+    'رقم الصفحة (1–{n})',
+  ),
+  'pse.link_to_page': (
+    'Şu an {n}. sayfaya gidiyor',
+    'Now goes to page {n}',
+    'ينتقل الآن إلى الصفحة {n}',
+  ),
+  'pse.link_remove': (
+    'Bağlantıyı kaldır',
+    'Remove link',
+    'إزالة الرابط',
+  ),
+  'pse.link_bad': (
+    'Bu adres ya da sayfa kullanılamıyor.',
+    'This address or page can\'t be used.',
+    'لا يمكن استخدام هذا العنوان أو الصفحة.',
+  ),
+  'pse.step_link': (
+    'Bağlantı değişti',
+    'Link changed',
+    'تغيّر الرابط',
+  ),
   'pse.font_pick': (
     'Yazı tipi',
     'Font',
