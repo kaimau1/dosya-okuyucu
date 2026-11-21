@@ -420,6 +420,8 @@ extension _FormulaDisplayPart on _Parser {
       'PERCENTILE': 'YÜZDEBİRLİK',
       'QUARTILE': 'DÖRTTEBİRLİK',
       'PERCENTRANK': 'YÜZDERANK',
+      'TEXTBEFORE': 'ÖNCEKİMETİN',
+      'TEXTAFTER': 'SONRAKİMETİN',
     });
     return out;
   }();

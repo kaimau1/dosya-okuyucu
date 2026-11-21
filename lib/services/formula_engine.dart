@@ -926,8 +926,7 @@ class _Parser {
     'SIRALA': 'SORT',
     'BENZERSİZ': 'UNIQUE',
     'SIRALI': 'SEQUENCE',
-    // B10 m.2 (2026-11-19) — Türkçe Excel adları; LAMBDA ailesinin Türkçe
-    // adı doğrulanmadı (sabah bakılacak): İngilizce adla tamamlamaya girer.
+    // B10 m.2 (2026-11-19) — Türkçe Excel adları.
     'METİNBÖL': 'TEXTSPLIT',
     'DÜŞEYYIĞ': 'VSTACK',
     'YATAYYIĞ': 'HSTACK',
@@ -949,6 +948,12 @@ class _Parser {
     'İŞGÜNÜ.ULUSL': 'WORKDAY.INTL',
     'LET': 'LET',
     'LAMBDA': 'LAMBDA',
+    // LAMBDA ailesi (KARAR 2026-11-21): Microsoft tr-TR "Excel işlevleri
+    // (alfabetik)" listesinde MAP = HARİTA, MAKEARRAY = DİZİOLUŞTUR;
+    // REDUCE/SCAN/BYROW/BYCOL/LAMBDA/LET Türkçe Excel'de de İngilizce adlı.
+    // İngilizce adlar da çalışır (aşağıdaki özdeş satırlar).
+    'HARİTA': 'MAP',
+    'DİZİOLUŞTUR': 'MAKEARRAY',
     'MAP': 'MAP',
     'REDUCE': 'REDUCE',
     'SCAN': 'SCAN',
@@ -983,6 +988,9 @@ class _Parser {
 
     // ── metin ──
     'METİNÖNCE': 'TEXTBEFORE',
+    // Microsoft tr-TR listesindeki resmî adlar (gösterimde bunlar yazılır).
+    'ÖNCEKİMETİN': 'TEXTBEFORE',
+    'SONRAKİMETİN': 'TEXTAFTER',
     'METİNSONRA': 'TEXTAFTER',
     'SAYIDEĞERİ': 'NUMBERVALUE',
     'SAYIDÜZENLE': 'FIXED',
