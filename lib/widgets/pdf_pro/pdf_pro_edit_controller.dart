@@ -120,6 +120,8 @@ class PdfLiveEdit {
   int fallbackChars = 0;
   final PdfTypesetFonts fonts = PdfTypesetFonts();
 
+  /// Font seçici satırları (yazma boyunca bir kez kurulur).
+  List<PdfFontChoice>? fontMenu;
   final String _origText;
   final List<PdfStyleSpan> _origSpans;
   final PdfBlockAlign _origAlign;
@@ -252,6 +254,18 @@ class PdfLiveEdit {
       spans = [...spans, p.shifted(pre, pre + newMid)];
     }
     text = next;
+  }
+
+  /// [i]. karakterin (imleç solundakinin) seçilmiş yazı tipi; yoksa null.
+  String? fontAt(int i) {
+    final p = pending?.font;
+    if (p != null && selStart == selEnd) return p;
+    final at = math.max(0, (selStart == selEnd ? i - 1 : i));
+    String? v;
+    for (final s in spans) {
+      if (at >= s.start && at < s.end) v = s.font ?? v;
+    }
+    return v;
   }
 
   /// [start]–[end] aralığında bir biçim özelliği etkin mi (tümünde).
@@ -735,13 +749,58 @@ class PdfProEditController extends ChangeNotifier {
           strike: add.strike ?? p?.strike,
           size: add.size ?? p?.size,
           color: add.color ?? p?.color,
-          highlight: add.highlight ?? p?.highlight);
+          highlight: add.highlight ?? p?.highlight,
+          font: add.font ?? p?.font);
       _notify();
       return;
     }
     live.spans = [...live.spans, make(a, b)];
     _scheduleLive();
     _notify();
+  }
+
+  /// Yazı tipi seçimi: seçili aralığa; seçim yoksa bütün bloğa ve sonra
+  /// yazılacak metne (Faz 56 / 7).
+  void liveFont(String id) {
+    final live = _live;
+    if (live == null) return;
+    var a = math.min(live.selStart, live.selEnd);
+    var b = math.max(live.selStart, live.selEnd);
+    if (a == b) {
+      a = 0;
+      b = live.length;
+      final p = live.pending;
+      live.pending = PdfStyleSpan(0, 0,
+          bold: p?.bold,
+          italic: p?.italic,
+          underline: p?.underline,
+          strike: p?.strike,
+          size: p?.size,
+          color: p?.color,
+          highlight: p?.highlight,
+          font: id);
+    }
+    if (b > a) live.spans = [...live.spans, PdfStyleSpan(a, b, font: id)];
+    _scheduleLive();
+    _notify();
+  }
+
+  /// Yazılan bloğun font seçici satırları (Faz 56 / 7): sayfanın fontları →
+  /// eşleşen aile → paket. Sayfa içeriği yazma başlarken okunmuştur.
+  List<PdfFontChoice> fontChoices() {
+    final live = _live;
+    if (live == null) return const [];
+    final texts = _content[live.pageIndex]?.texts ?? const [];
+    var own = live.block?.lines.first.objects.first.fontName ?? '';
+    if (live.block == null) {
+      for (final t in texts) {
+        if (t.index == live._boxSource) own = t.fontName;
+      }
+    }
+    return live.fontMenu ??= PdfFallbackFonts.choices([
+      for (final t in texts)
+        if (!t.invisible && t.text.trim().isNotEmpty) t.fontName
+    ], own);
   }
 
   /// Paragraf düzeyi biçim: hizalama, punto, renk, satır aralığı.

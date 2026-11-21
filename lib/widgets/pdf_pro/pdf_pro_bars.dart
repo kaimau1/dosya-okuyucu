@@ -114,12 +114,16 @@ class PdfProFormatBar extends StatelessWidget {
     required this.onPickColor,
     required this.onPickHighlight,
     required this.input,
+    this.onPickFont,
   });
 
   final PdfProEditController controller;
   final PdfProFormatLabels labels;
   final VoidCallback onDone, onCancel;
   final VoidCallback onPickColor, onPickHighlight;
+
+  /// Yazı tipi rozetine dokunuş (Faz 56 / 7 font seçici).
+  final VoidCallback? onPickFont;
 
   /// Gizli giriş alanının denetleyicisi (pano işlemleri için).
   final TextEditingController input;
@@ -181,6 +185,15 @@ class PdfProFormatBar extends StatelessWidget {
         }
 
         final err = live.error;
+        final pick = live.fontAt(a);
+        String? pickName;
+        if (pick != null) {
+          for (final c in controller.fontChoices()) {
+            if (c.id == pick) pickName = c.name;
+          }
+        }
+        final badge = pickName ??
+            (live.fallbackChars > 0 ? labels.fallbackFont : labels.docFont);
         return Material(
           color: scheme.surfaceContainerHigh,
           elevation: 3,
@@ -226,29 +239,28 @@ class PdfProFormatBar extends StatelessWidget {
                           // Yazı tipi rozeti: belgenin fontu mu, yedek mi.
                           Center(
                             child: Tooltip(
-                              message: live.fallbackChars > 0
-                                  ? labels.fallbackFont
-                                  : labels.docFont,
-                              child: Container(
+                              message: badge,
+                              child: InkWell(
+                                borderRadius:
+                                    BorderRadius.circular(Radii.control),
+                                onTap: onPickFont,
+                                child: Container(
                                 key: const ValueKey('pse-font-badge'),
                                 margin: const EdgeInsetsDirectional.only(
                                     end: Gap.sm),
                                 padding: const EdgeInsetsDirectional.symmetric(
                                     horizontal: Gap.sm, vertical: Gap.xs),
                                 decoration: BoxDecoration(
-                                  color: live.fallbackChars > 0
+                                  color: live.fallbackChars > 0 &&
+                                          pick == null
                                       ? PdfEditTokens.pending(dark)
                                           .withValues(alpha: 0.18)
                                       : scheme.primaryContainer,
                                   borderRadius:
                                       BorderRadius.circular(Radii.control),
                                 ),
-                                child: Text(
-                                  live.fallbackChars > 0
-                                      ? labels.fallbackFont
-                                      : labels.docFont,
-                                  style: context.type.small,
-                                ),
+                                child: Text(badge, style: context.type.small),
+                              ),
                               ),
                             ),
                           ),

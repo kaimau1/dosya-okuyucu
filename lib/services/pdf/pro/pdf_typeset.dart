@@ -207,6 +207,7 @@ class _Ch {
   double size; // görünen punto
   int color; // ARGB
   int? highlight;
+  String? pick; // yazı tipi seçimi (PdfStyleSpan.font)
   // Seçilen font ve ölçüler.
   pdfium_bindings.FPDF_FONT font = nullptr;
   int fbKey = -1; // ≥ 0: yedek font anahtarı
@@ -446,6 +447,7 @@ Map<int, Set<int>> _freshMismatch(
           if (s.size != null) c.size = s.size!;
           if (s.color != null) c.color = s.color!;
           if (s.highlight != null) c.highlight = s.highlight;
+          if (s.font != null) c.pick = s.font;
         }
       }
       // Baskın aile (yedek aile eşlemesi için).
@@ -509,21 +511,31 @@ Map<int, Set<int>> _freshMismatch(
       var glyphMissing = false;
       var fallbackChars = 0;
       // Biçim grubu → karakter dizinleri.
-      final groups = <(int, bool, bool), List<int>>{};
+      final groups = <(int, bool, bool, String?), List<int>>{};
       for (var i = 0; i < chars.length; i++) {
         final c = chars[i];
         if (c.code == 0x0A) continue;
-        (groups[(c.src?.font.address ?? 0, c.bold, c.italic)] ??= []).add(i);
+        (groups[(c.src?.font.address ?? 0, c.bold, c.italic, c.pick)] ??= [])
+            .add(i);
       }
       for (final e in groups.entries) {
         final first = chars[e.value.first];
         final src = first.src;
-        final bold = e.key.$2, italic = e.key.$3;
+        final bold = e.key.$2, italic = e.key.$3, pick = e.key.$4;
         final cands = <pdfium_bindings.FPDF_FONT>[];
-        if (src != null && src.bold == bold && src.italic == italic) {
+        if (pick == null &&
+            src != null &&
+            src.bold == bold &&
+            src.italic == italic) {
           cands.add(src.font);
         }
-        final fam = src?.family ?? family;
+        // Seçilen belge fontu: sayfadaki o ailenin kesimleri; paket fontu
+        // seçildiyse belge fontu yok, hepsi yedeğe (Faz 56 / 7).
+        final fam = pick == null
+            ? src?.family ?? family
+            : pick.startsWith('doc:')
+                ? pick.substring(4)
+                : null;
         for (final f in siblings[(fam, bold, italic)] ?? const []) {
           if (!cands.any((x) => x.address == f.address)) cands.add(f);
         }
@@ -555,7 +567,9 @@ Map<int, Set<int>> _freshMismatch(
         }
         pending = solid;
         if (pending.isEmpty) continue;
-        final key = (bold ? 1 : 0) | (italic ? 2 : 0);
+        final key = (bold ? 1 : 0) |
+            (italic ? 2 : 0) |
+            PdfFallbackFonts.keyBits(pick);
         final fb = fallbackFont(key);
         final known = m.fallbackCodes[key] ?? const <int>[];
         final fresh = [

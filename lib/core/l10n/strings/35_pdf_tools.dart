@@ -344,6 +344,31 @@ const Map<String, (String, String, String)> _t35 = {
     'fallback',
     'بديل',
   ),
+  'pse.font_kind_pkg': (
+    'Uygulamadaki yazı tipi',
+    'Font in the app',
+    'خط في التطبيق',
+  ),
+  'pse.font_pick': (
+    'Yazı tipi',
+    'Font',
+    'الخط',
+  ),
+  'pse.font_kind_doc': (
+    'Belgedeki yazı tipi',
+    'Font in this document',
+    'خط في هذا المستند',
+  ),
+  'pse.font_kind_match': (
+    'Belgenin yazı tipine en yakın',
+    'Closest to the document font',
+    'الأقرب إلى خط المستند',
+  ),
+  'pse.font_kind_pkg': (
+    'Uygulamadaki yazı tipi',
+    'Font in the app',
+    'خط في التطبيق',
+  ),
   'pse.image_exported': (
     'Görsel Belgeler\'e kaydedildi: {name}',
     'Image saved to Documents: {name}',

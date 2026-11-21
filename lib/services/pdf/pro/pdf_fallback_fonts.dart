@@ -30,6 +30,62 @@ abstract final class PdfFallbackFonts {
   /// Bellekteki font dosyalarını bırakır (düzenleme oturumu kapanınca).
   static void clear() => _cache.clear();
 
+  /// APK'daki aileler; yedek anahtarının 2. bitinden sonrası bu listede
+  /// 1 tabanlı sıra (0 = bloğun ailesine göre eşle).
+  static const packages = ['Carlito', 'Tinos', 'Arimo', 'JetBrainsMono'];
+
+  /// Flutter önizleme ailesi (pubspec adları).
+  static String previewOf(String package) =>
+      package == 'JetBrainsMono' ? 'JetBrains Mono' : package;
+
+  /// [PdfStyleSpan.font] seçiminin yedek anahtar bitleri (kalın/italik
+  /// bitlerinin üstü): `pkg:` o paket, `doc:` ailesinin eşleşeni, null = 0.
+  static int keyBits(String? pick) {
+    if (pick == null) return 0;
+    final pkg = pick.startsWith('pkg:')
+        ? pick.substring(4)
+        : familyFor(pick.substring(4));
+    final i = packages.indexOf(pkg);
+    return i < 0 ? 0 : (i + 1) << 2;
+  }
+
+  /// Font seçicinin satırları (Faz 56 / 7): belgenin fontları (sayfada
+  /// kullanılanlar, çoktan aza) → bloğun ailesiyle eşleşen paket ailesi →
+  /// öbür paket aileleri. [fontNames] sayfadaki metin nesnelerinin font adları
+  /// (tekrarlı — sıklık sayılır), [blockFamily] bloğun font adı.
+  static List<PdfFontChoice> choices(
+      Iterable<String> fontNames, String blockFamily) {
+    final freq = <String, int>{}, names = <String, String>{};
+    for (final n in fontNames) {
+      final fam = pdfFontAlias(pdfFontFamily(n));
+      if (fam.isEmpty) continue;
+      freq[fam] = (freq[fam] ?? 0) + 1;
+      names[fam] ??= _display(n);
+    }
+    final docs = freq.keys.toList()
+      ..sort((a, b) => freq[b]!.compareTo(freq[a]!));
+    final matched = familyFor(blockFamily);
+    return [
+      for (final f in docs)
+        PdfFontChoice('doc:$f', names[f]!, previewOf(familyFor(f)),
+            PdfFontChoiceKind.document),
+      PdfFontChoice('pkg:$matched', matched, previewOf(matched),
+          PdfFontChoiceKind.matched),
+      for (final f in packages)
+        if (f != matched)
+          PdfFontChoice('pkg:$f', f, previewOf(f), PdfFontChoiceKind.package),
+    ];
+  }
+
+  /// "ABCDEF+Calibri-Bold" → "Calibri".
+  static String _display(String baseName) {
+    var n = baseName;
+    final plus = n.indexOf('+');
+    if (plus >= 0 && plus <= 7) n = n.substring(plus + 1);
+    final cut = n.indexOf(RegExp(r'[-,]'));
+    return cut > 0 ? n.substring(0, cut) : n;
+  }
+
   /// Belge ailesi → APK'daki metrik uyumlu aile.
   static String familyFor(String family) {
     final f = pdfFontAlias(pdfFontFamily(family));
@@ -53,10 +109,16 @@ abstract final class PdfFallbackFonts {
     return 'Carlito';
   }
 
+  /// Yedek anahtarının ailesi: seçilmiş paket ([keyBits]) ya da eşleşen.
+  static String packageFor(String family, int key) {
+    final i = (key >> 2) - 1;
+    return i >= 0 && i < packages.length ? packages[i] : familyFor(family);
+  }
+
   /// (varlık yolu, yapay bayrakları: 1 kalın | 2 italik).
   static (String, int) assetFor(String family, int key) {
     final bold = key & 1 != 0, italic = key & 2 != 0;
-    switch (familyFor(family)) {
+    switch (packageFor(family, key)) {
       case 'Tinos':
         return (
           'assets/fonts/Tinos-${bold ? 'Bold' : ''}${italic ? 'Italic' : ''}'
@@ -93,7 +155,7 @@ abstract final class PdfFallbackFonts {
       final bytes = _cache[asset] ??= await loader(asset);
       if (_cache.length > 6) _cache.remove(_cache.keys.first);
       final out = TtfSubset.build(bytes, codes,
-          family: familyFor(family),
+          family: packageFor(family, key),
           style: switch (key & 3) {
             1 => 'Bold',
             2 => 'Italic',

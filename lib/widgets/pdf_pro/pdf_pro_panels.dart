@@ -376,6 +376,34 @@ class _CommentsBodyState extends State<_CommentsBody> {
   }
 }
 
+/// **Yazı tipi seçici** (Faz 56 / 7): belgenin fontları → eşleşen aile →
+/// paket fontları; her satır kendi ailesiyle önizlenir (belge fontu gömülü
+/// olduğundan metrik eşleşeniyle). Dönen: [PdfFontChoice.id].
+Future<String?> showPdfFontSheet(BuildContext context,
+        {required List<PdfFontChoice> choices, String? selected}) =>
+    showAppSheet<String>(
+      context,
+      title: context.t('pse.font_pick'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final c in choices)
+            ListTile(
+              key: ValueKey('pse-font-${c.id}'),
+              title: Text(c.name,
+                  style: context.type.body.copyWith(fontFamily: c.preview)),
+              subtitle: Text(context.t(switch (c.kind) {
+                PdfFontChoiceKind.document => 'pse.font_kind_doc',
+                PdfFontChoiceKind.matched => 'pse.font_kind_match',
+                PdfFontChoiceKind.package => 'pse.font_kind_pkg',
+              })),
+              trailing: c.id == selected ? const Icon(AppIcons.check) : null,
+              onTap: () => Navigator.of(ctx).pop(c.id),
+            ),
+        ],
+      ),
+    );
+
 /// Renk seçme levhası; seçilen ARGB ya da null.
 Future<int?> showPdfColorSheet(BuildContext context,
         {required String title, required List<int> colors, int? selected}) =>

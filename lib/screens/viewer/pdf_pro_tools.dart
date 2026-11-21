@@ -565,6 +565,19 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     _proFocus.requestFocus();
   }
 
+  /// Yazı tipi seçici (Faz 56 / 7): belge fontları → eşleşen aile → paket.
+  Future<void> _proPickFont() async {
+    final pro = _pro;
+    final live = pro?.live;
+    if (pro == null || live == null) return;
+    final id = await showPdfFontSheet(context,
+        choices: pro.fontChoices(),
+        selected: live.fontAt(math.min(live.selStart, live.selEnd)));
+    if (id == null || _pro != pro || pro.live == null) return;
+    pro.liveFont(id);
+    _proFocus.requestFocus();
+  }
+
   // ── AI (Faz 65) ──────────────────────────────────────────────────────────
   /// Seçili paragrafı AI ile yerinde yeniden yazar: sonuç önce öneri olarak
   /// gösterilir (eski ↔ yeni), kabul = tek geri alınabilir adım. Blok seçili
@@ -880,6 +893,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onCancel: _proCancel,
         onPickColor: () => _proPickTextColor(highlight: false),
         onPickHighlight: () => _proPickTextColor(highlight: true),
+        onPickFont: _proPickFont,
       );
       return [
         PositionedDirectional(
