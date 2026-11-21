@@ -1606,3 +1606,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Boş paragrafta "- " → madde, "1. " → numaralı liste; hemen geri al "- " metnini geri getiriyor mu; belgenin İLK paragrafında madde başında geri silme listeyi kaldırıyor mu?
 - [ ] Ayarlar > Belgeler > "Word: yazarken otomatik biçim" kapalıyken hiçbiri olmuyor mu? İmleç büyüteci ve seçim tutamakları eskisi gibi (değişmedi).
 - [ ] A/B (C2): yazma kare süresi önceki `[apk]`'ya göre (ölçülmedi).
+
+## U7 Tablet tek menü + pano (2026-11-21) — yazıldı, cihazda doğrulanmadı (Huawei DBY-W09)
+- Yatay ve dikey: ana ekranda solda kalıcı menü sütunu YOK; ☰ düğmesi / soldan çekme ile telefondaki yan menü açılır, en altında "Konumlar" (Dahili bellek, takılıysa SD/USB) → dokununca gezgin açılır.
+- Dikey tablette: Son dosyalar şeridi üstte tam genişlik, altında solda bellek kartı (gerilmeden, ~360 dp), sağda kategori kutuları + araçlar; yatayda aynı düzen, sağ sütun geniş.
+- Döndürünce açık sekme/ekran kaybolmamalı; telefonda ana ekran eskisi gibi tek sütun.
