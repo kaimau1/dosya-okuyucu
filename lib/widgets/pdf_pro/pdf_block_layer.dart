@@ -214,7 +214,7 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     if (e.pointer != _drawPointer) return;
     setState(() {
       _markTo = e.localPosition;
-      if (c.markup == PdfMarkupKind.ink) _stroke.add(e.localPosition);
+      if (_freehand) _stroke.add(e.localPosition);
     });
   }
 
@@ -342,6 +342,17 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   }
 
   // ── işaretleme ─────────────────────────────────────────────────────────
+  bool get _freehand =>
+      c.markup == PdfMarkupKind.ink || c.markup == PdfMarkupKind.marker;
+
+  /// Fosforlu kalem: geniş, yarı saydam (alttaki yazı okunur — eski kalem
+  /// ekranının fosforlusu gibi: A4'te ≈ 12 pt).
+  double _inkWidth(PdfMarkupKind kind) =>
+      kind == PdfMarkupKind.marker ? 12 : c.markupWidth;
+  int _inkColor(PdfMarkupKind kind) => kind == PdfMarkupKind.marker
+      ? (c.markupColor & 0xFFFFFF) | 0x66000000
+      : c.markupColor | 0xFF000000;
+
   bool get _textMarkup => const {
         PdfMarkupKind.highlight,
         PdfMarkupKind.underline,
@@ -395,7 +406,7 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
       _stroke.clear();
     });
     try {
-      if (kind == PdfMarkupKind.ink) {
+      if (kind == PdfMarkupKind.ink || kind == PdfMarkupKind.marker) {
         if (stroke.length < 2) return;
         final pts = <double>[];
         var l = double.infinity, b = double.infinity;
@@ -410,13 +421,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           b = math.min(b, p.y);
           t = math.max(t, p.y);
         }
-        final pad = c.markupWidth;
+        final width = _inkWidth(kind);
         await c.annotate(
             PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
-                rect: [l - pad, b - pad, r + pad, t + pad],
+                rect: [l - width, b - width, r + width, t + width],
                 ink: [pts],
-                color: c.markupColor | 0xFF000000,
-                width: c.markupWidth),
+                color: _inkColor(kind),
+                width: width),
             label: 'pse.step_ink');
         return;
       }
@@ -681,8 +692,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               ? accent
               : c.markup == PdfMarkupKind.redact
                   ? scheme.onSurface
-                  : Color(c.markupColor | 0xFF000000),
-          strokeWidth: c.armLasso ? 1.5 * px : c.markupWidth * _unit,
+                  : Color(_inkColor(c.markup)),
+          strokeWidth: c.armLasso ? 1.5 * px : _inkWidth(c.markup) * _unit,
           markFrom: _markFrom,
           markTo: _markTo,
           markRects: _markFrom != null && _markTo != null && _textMarkup

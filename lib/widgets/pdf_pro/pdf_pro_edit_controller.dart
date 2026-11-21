@@ -15,8 +15,9 @@ import '../../services/pdf/pro/pdf_sensitive.dart';
 /// Alt araç çubuğunun araçları (etkileşim sözleşmesi §5).
 enum PdfProTool { text, image, markup, sign, form, pages, more }
 
-/// İşaretleme aracının kipi (Faz 60).
-enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact }
+/// İşaretleme aracının kipi (Faz 60). [marker] = serbest fosforlu kalem
+/// (eski kalem ekranının fosforlusu, yarı saydam mürekkep).
+enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact, marker }
 
 /// Belge geneli aramada bir eşleşme.
 class PdfFindHit {
@@ -403,6 +404,16 @@ class PdfProEditController extends ChangeNotifier {
   PdfMarkupKind get markup => _markup;
   set markup(PdfMarkupKind k) {
     _markup = _markup == k ? PdfMarkupKind.none : k;
+    _notify();
+  }
+
+  /// İşaretleme stüdyosunu [kind] kurulu açar (çip gibi aç/kapa DEĞİL).
+  /// Görüntüleyicinin "Kalem" düğmesi ve dışarıdan "işaretle" isteği
+  /// (ANNOTATE) buradan gelir — ayrı kalem ekranı yok (Faz 60 m.5).
+  void armMarkup(PdfMarkupKind kind) {
+    tool = PdfProTool.markup;
+    if (_markup == kind) return;
+    _markup = kind;
     _notify();
   }
 

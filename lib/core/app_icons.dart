@@ -123,6 +123,8 @@ abstract final class AppIcons {
   static const IconData settings = Icons.settings_rounded;
   static const IconData send = Icons.send_rounded;
   static const IconData textFields = Icons.text_fields_rounded;
+  static const IconData brush = Icons.brush_rounded;
+  static const IconData stamp = Icons.approval_rounded;
   static const IconData hotspot = Icons.wifi_tethering_rounded;
   static const IconData textSnippet = Icons.text_snippet_rounded;
   static const IconData error = Icons.error_outline_rounded;

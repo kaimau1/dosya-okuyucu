@@ -578,8 +578,10 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   Future<void> _proMarkupColor() async {
     final pro = _pro;
     if (pro == null) return;
+    // Kalem ve şekiller yazı renkleri; vurgu ve fosforlu işaretleyici renkleri.
     final ink = pro.markup == PdfMarkupKind.ink ||
-        pro.markup.index >= PdfMarkupKind.rect.index;
+        (pro.markup.index >= PdfMarkupKind.rect.index &&
+            pro.markup != PdfMarkupKind.marker);
     final c = await showPdfColorSheet(context,
         title: context.t('pse.fmt_color'),
         colors: ink ? PdfProSwatches.text : PdfProSwatches.marker,
@@ -979,6 +981,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           kind(PdfMarkupKind.squiggly, AppIcons.gesture, 'pse.mk_squiggly'),
           kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
+          kind(PdfMarkupKind.marker, AppIcons.brush, 'pse.mk_marker'),
           kind(PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),
           kind(PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
           kind(PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),

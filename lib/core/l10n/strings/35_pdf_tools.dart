@@ -546,6 +546,66 @@ const Map<String, (String, String, String)> _t35 = {
     'Pen',
     'قلم',
   ),
+  'pse.mk_marker': (
+    'Fosforlu',
+    'Marker',
+    'قلم تمييز',
+  ),
+  'pse.mk_cloud': (
+    'Bulut',
+    'Cloud',
+    'سحابة',
+  ),
+  'pse.mk_stamp': (
+    'Damga',
+    'Stamp',
+    'ختم',
+  ),
+  'pse.mk_freetext': (
+    'Serbest metin',
+    'Free text',
+    'نص حر',
+  ),
+  'pse.stamp_approved': (
+    'ONAYLANDI',
+    'APPROVED',
+    'APPROVED',
+  ),
+  'pse.stamp_rejected': (
+    'REDDEDİLDİ',
+    'REJECTED',
+    'REJECTED',
+  ),
+  'pse.stamp_confidential': (
+    'GİZLİ',
+    'CONFIDENTIAL',
+    'CONFIDENTIAL',
+  ),
+  'pse.stamp_date': (
+    'Tarih ve saat',
+    'Date and time',
+    'التاريخ والوقت',
+  ),
+  'pse.stamp_custom': (
+    'Kendi damgam…',
+    'Custom stamp…',
+    'ختم مخصص…',
+  ),
+  'pse.step_stamp': (
+    'Damga eklendi',
+    'Stamp added',
+    'تمت إضافة ختم',
+  ),
+  'pse.step_freetext': (
+    'Metin eklendi',
+    'Text added',
+    'تمت إضافة نص',
+  ),
+  'pse.step_cloud': (
+    'Bulut eklendi',
+    'Cloud added',
+    'تمت إضافة سحابة',
+  ),
   'pse.mk_line': (
     'Çizgi',
     'Line',
