@@ -205,7 +205,7 @@ abstract final class DocxPdf {
       if (foot.isEmpty) return text ?? pw.SizedBox();
       return pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [...foot, if (text != null) text]);
+          children: [...foot, ?text]);
     }
     // Sayfa sonu atomlarına göre bölümler: her bölüm yeni sayfada başlar.
     var first = true;
