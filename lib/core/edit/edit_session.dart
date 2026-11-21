@@ -34,6 +34,10 @@ class EditPrefs {
   /// büyük harf (Faz 21 / W8, varsayılan AÇIK).
   static bool wordSpellcheck = true;
 
+  /// B9 m.7: Word yazarken otomatik biçim — cümle başı büyük harf, `--` → `—`,
+  /// çift boşluk, `- ` / `1. ` ile liste (varsayılan AÇIK).
+  static bool wordAutoFormat = true;
+
   /// Excel: Türkçe arayüzde de formülleri İngilizce ad + `,` ile göster
   /// (Faz 25 / K22, varsayılan KAPALI).
   static bool formulaEnglish = false;

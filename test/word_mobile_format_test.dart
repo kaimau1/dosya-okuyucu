@@ -121,6 +121,12 @@ void main() {
     await t.tap(find.byKey(const ValueKey('word-acc-bold')));
     await t.pump();
     expect(c.isBold, isTrue);
+    // B9 m.7 bağlamsal: seçim varken harf biçimi, paragraf düğmeleri yok.
+    expect(find.byKey(const ValueKey('word-acc-strike')), findsOneWidget);
+    expect(find.byKey(const ValueKey('word-acc-bullets')), findsNothing);
+    c.select(DocPos(i, 2), DocPos(i, 2));
+    await t.pump();
+    expect(find.byKey(const ValueKey('word-acc-strike')), findsNothing);
     await t.tap(find.byKey(const ValueKey('word-acc-bullets')));
     await t.pump();
     expect(c.listKind, 'bullet');

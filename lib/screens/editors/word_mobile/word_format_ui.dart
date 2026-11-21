@@ -7,8 +7,9 @@
 ///   hizalama ×4, satır aralığı, sağdan sola) · Stiller galerisi.
 /// * **Görünüm** (Mobil görünüm ↔ Sayfa düzeni, yakınlaştır, gezinti) ve
 ///   **Gözden Geçir** (sözcük sayısı, çeviri).
-/// * **Klavye üstü çubuk** (yazarken şerit gizli): ↶ K T A • 1. ⇤ ⇥ hizalama
-///   renk + Aa ⌄.
+/// * **Klavye üstü çubuk** (yazarken şerit gizli), bağlamsal (B9 m.7):
+///   seçim yokken ↶ • 1. ⇤ ⇥ hizalama K T A; seçim varken ↶ K T A S renk
+///   vurgu temizle; sağda Aa ⌄.
 /// * **Aa paneli** klavyenin yerinde: Yazı · Paragraf · Stiller.
 ///
 /// Her düğme seçimin durumunu yansıtır; karışık seçimde punto "—".
@@ -175,12 +176,20 @@ class WordFormatUi {
 
   // ── klavye üstü çubuk ────────────────────────────────────────────────────
 
-  List<AccessoryItem> accessory() => [
-        AccessoryItem(
-            key: const ValueKey('word-acc-undo'),
-            icon: OfficeIcons.undo,
-            tooltip: _t('word.undo'),
-            onPressed: c.canUndo ? c.undo : null),
+  /// B9 m.7: bağlamsal — seçim varken harf biçimi (K T A S, renk, vurgu,
+  /// temizle), yokken paragraf (madde, numara, girinti, hizalama) + K T A
+  /// (sıradaki yazının biçimi). Geri al her iki kipte başta.
+  List<AccessoryItem> accessory() => c.collapsed
+      ? [_undoItem(), ..._paraItems(), ..._charItems()]
+      : [_undoItem(), ..._charItems(), ..._selectionItems()];
+
+  AccessoryItem _undoItem() => AccessoryItem(
+      key: const ValueKey('word-acc-undo'),
+      icon: OfficeIcons.undo,
+      tooltip: _t('word.undo'),
+      onPressed: c.canUndo ? c.undo : null);
+
+  List<AccessoryItem> _charItems() => [
         AccessoryItem(
             key: const ValueKey('word-acc-bold'),
             icon: OfficeIcons.bold,
@@ -188,15 +197,44 @@ class WordFormatUi {
             selected: c.isBold,
             onPressed: c.toggleBold),
         AccessoryItem(
+            key: const ValueKey('word-acc-italic'),
             icon: OfficeIcons.italic,
             tooltip: _t('common.italic'),
             selected: c.isItalic,
             onPressed: c.toggleItalic),
         AccessoryItem(
+            key: const ValueKey('word-acc-underline'),
             icon: OfficeIcons.underline,
             tooltip: _t('common.underline'),
             selected: c.isUnderline,
             onPressed: c.toggleUnderline),
+      ];
+
+  List<AccessoryItem> _selectionItems() => [
+        AccessoryItem(
+            key: const ValueKey('word-acc-strike'),
+            icon: OfficeIcons.strike,
+            tooltip: _t('common.strike'),
+            selected: c.isStrike,
+            onPressed: c.toggleStrike),
+        AccessoryItem(
+            key: const ValueKey('word-acc-color'),
+            icon: OfficeIcons.textColor,
+            tooltip: _t('word.text_color'),
+            onPressed: () => c.setColor(lastColor)),
+        AccessoryItem(
+            key: const ValueKey('word-acc-highlight'),
+            icon: OfficeIcons.highlight,
+            tooltip: _t('word.highlight'),
+            onPressed: () => c.setHighlight('yellow')),
+        AccessoryItem(
+            key: const ValueKey('word-acc-clear'),
+            icon: OfficeIcons.clearFormat,
+            tooltip: _t('word.clear_format'),
+            onPressed: c.clearFormatting),
+      ];
+
+  List<AccessoryItem> _paraItems() => [
         AccessoryItem(
             key: const ValueKey('word-acc-bullets'),
             icon: OfficeIcons.bullets,
@@ -204,6 +242,7 @@ class WordFormatUi {
             selected: c.listKind == 'bullet',
             onPressed: () => c.toggleList('bullet')),
         AccessoryItem(
+            key: const ValueKey('word-acc-numbering'),
             icon: OfficeIcons.numbering,
             tooltip: _t('word.numbering'),
             selected: c.listKind == 'number',
@@ -221,10 +260,6 @@ class WordFormatUi {
             icon: alignIcon,
             tooltip: _t('word.align_cycle'),
             onPressed: c.cycleAlign),
-        AccessoryItem(
-            icon: OfficeIcons.textColor,
-            tooltip: _t('word.text_color'),
-            onPressed: () => c.setColor(lastColor)),
       ];
 
   // ── şerit ────────────────────────────────────────────────────────────────

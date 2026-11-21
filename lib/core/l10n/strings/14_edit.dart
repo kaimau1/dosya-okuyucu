@@ -78,6 +78,16 @@ const Map<String, (String, String, String)> _t14 = {
     'Red squiggles, keyboard suggestions, sentence capitalisation',
     'خط متعرج أحمر واقتراحات لوحة المفاتيح وأحرف كبيرة في بداية الجملة',
   ),
+  'word.autoformat': (
+    'Word: yazarken otomatik biçim',
+    'Word: AutoFormat as you type',
+    'Word: التنسيق التلقائي أثناء الكتابة',
+  ),
+  'word.autoformat_sub': (
+    'Cümle başı büyük harf, -- → —, çift boşluk teke, "- " ya da "1. " ile liste',
+    'Capitalise sentences, -- → —, double space to single, "- " or "1. " starts a list',
+    'أحرف كبيرة في بداية الجملة، -- ← —، مسافة واحدة بدل اثنتين، قائمة عند كتابة "- " أو "1. "',
+  ),
   'word.align_cycle': ('Hizalama', 'Alignment', 'المحاذاة'),
   'common.paste': ('Yapıştır', 'Paste', 'لصق'),
   // ── Excel veri girişi (Faz 25) ──────────────────────────────────────────

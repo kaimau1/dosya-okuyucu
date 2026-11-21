@@ -23,6 +23,7 @@ import '../../core/edit/edit_history.dart';
 import '../../core/text_replace.dart';
 import '../../services/docx/docx_document.dart';
 import '../../services/docx/docx_styles.dart';
+import 'docx_auto_format.dart';
 
 part 'docx_edit_insert.dart';
 part 'docx_edit_keys.dart';
@@ -76,6 +77,11 @@ class DocxEditController extends ChangeNotifier
   DateTime _lastPush = DateTime.fromMillisecondsSinceEpoch(0);
   bool _lastTyping = false;
 
+  /// B9 m.7: yazarken otomatik biçim ([DocxAutoFormat]; Ayarlar'dan kapanır)
+  /// ve cümle başı büyük harfin dili (Türkçe `i → İ`).
+  bool autoFormat = false;
+  bool turkish = true;
+
   /// Seçim araç çubuğu görünsün mü (uzun bas / çift dokun / tutamak sonrası).
   bool toolbar = false;
 
@@ -123,7 +129,10 @@ class DocxEditController extends ChangeNotifier
 
   /// IME'ye bağlanır ve klavyeyi açar (yazım denetimi klavyenin kendi
   /// önerileriyle; `autocorrect` + `enableSuggestions` açık).
-  void attach({bool autocorrect = true}) {
+  void attach(
+      {bool autocorrect = true, bool autoFormat = false, bool turkish = true}) {
+    this.autoFormat = autoFormat;
+    this.turkish = turkish;
     if (paras[extent.para].opaque) return;
     if (!attached) {
       _conn = TextInput.attach(
@@ -189,6 +198,7 @@ class DocxEditController extends ChangeNotifier
     for (final d in deltas) {
       resync |= _applyDelta(d);
     }
+    if (autoFormat && deltas.isNotEmpty) resync |= _autoFormat(deltas.last);
     _changed(notify: true);
     if (resync) _syncIme();
   }
@@ -244,6 +254,47 @@ class DocxEditController extends ChangeNotifier
         return s.baseOffset == 0 || s.extentOffset == 0;
     }
     return false;
+  }
+
+  /// B9 m.7: tek harflik yazımdan sonra otomatik biçim (ayrı geri al adımı).
+  bool _autoFormat(TextEditingDelta d) {
+    final ins = switch (d) {
+      // Yapıştırma (çok harf) düzeltilmez; yalnız tek tuş.
+      TextEditingDeltaInsertion(:final textInserted)
+          when textInserted.length == 1 =>
+        textInserted,
+      TextEditingDeltaReplacement(:final replacementText) => replacementText,
+      _ => '',
+    };
+    if (ins.isEmpty || ins.contains('\n') || !collapsed) return false;
+    if (composing.isValid && !composing.isCollapsed) return false;
+    final i = extent.para, at = extent.offset;
+    final p = paras[i];
+    if (p.opaque) return false;
+    if (p.look.numId == null) {
+      final list = DocxAutoFormat.listTrigger(p.text, at);
+      if (list != null) {
+        _record(typing: false);
+        final prev = i > 0 && identical(paras[i - 1].container, p.container)
+            ? paras[i - 1]
+            : null;
+        final bare = doc.editText(p, 0, list.$2, '', p.typingStyleAt(0));
+        doc.paras[i] = doc.setList(bare, list.$1, prev: prev);
+        base = extent = DocPos(i, 0);
+        composing = TextRange.empty;
+        return true;
+      }
+    }
+    final e = DocxAutoFormat.afterInsert(p.text, at, turkish: turkish);
+    if (e == null) return false;
+    _record(typing: false);
+    doc.paras[i] =
+        doc.editText(p, e.from, e.to, e.text, p.typingStyleAt(e.from + 1));
+    final shift = e.text.length - (e.to - e.from);
+    base = extent = DocPos(i, at + shift);
+    composing = TextRange.empty;
+    if (_pending != null) _pendingAt = extent;
+    return true;
   }
 
   void _setComposing(TextRange r) {
@@ -341,19 +392,23 @@ class DocxEditController extends ChangeNotifier
   /// Paragraf başında geri silme: öncekine katılır (aynı kapsayıcıdaysa).
   void mergeWithPrevious(int i, {bool notify = true}) {
     composing = TextRange.empty;
+    // Liste öğesinin başında geri silme önce listeden çıkarır (Word) — belgenin
+    // İLK paragrafında da (B9 m.7: "- " ile kurulan ilk madde geri alınamıyordu).
+    if (i >= 0 && i < paras.length) {
+      final cur = paras[i];
+      if (cur.look.numId != null && !cur.opaque) {
+        _record(typing: false);
+        doc.paras[i] = doc.withoutList(cur);
+        base = extent = DocPos(i, 0);
+        _changed(notify: notify);
+        return;
+      }
+    }
     if (i <= 0 || i >= paras.length) {
       base = extent = DocPos(i.clamp(0, paras.length - 1), 0);
       return;
     }
     final prev = paras[i - 1], cur = paras[i];
-    // Liste öğesinin başında geri silme önce listeden çıkarır (Word).
-    if (cur.look.numId != null && !cur.opaque) {
-      _record(typing: false);
-      doc.paras[i] = doc.withoutList(cur);
-      base = extent = DocPos(i, 0);
-      _changed(notify: notify);
-      return;
-    }
     if (prev.opaque || cur.opaque || !identical(prev.container, cur.container)) {
       base = extent = DocPos(i, 0);
       return;

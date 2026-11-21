@@ -9,6 +9,7 @@ import 'package:dosya_okuyucu/services/blank_docs.dart';
 import 'package:dosya_okuyucu/services/docx/docx_document.dart';
 import 'package:dosya_okuyucu/services/docx/pro/docx_export_formats.dart';
 import 'package:dosya_okuyucu/services/docx/pro/docx_paginator.dart';
+import 'package:dosya_okuyucu/widgets/docx_editor/docx_auto_format.dart';
 import 'package:dosya_okuyucu/widgets/docx_editor/docx_edit_controller.dart';
 import 'package:dosya_okuyucu/widgets/docx_editor/docx_editor_view.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +44,23 @@ Uint8List _docx(int paras) {
 }
 
 void main() {
+  // B9 m.7 — yazarken otomatik biçim her tuşta koşar: kural yalnız imlecin
+  // gerisindeki sözcüğe bakar, paragraf boyuyla büyümez (mandal, yalnız düşer).
+  test('B9 m.7: otomatik biçim kuralı tuş başına ≤ 0,2 ms (4000 harf)', () {
+    final text = List.filled(400, 'bu bir cümle. ve  a-- ').join();
+    final sw = Stopwatch()..start();
+    var hits = 0;
+    for (var at = 1; at <= text.length; at++) {
+      if (DocxAutoFormat.afterInsert(text, at, turkish: true) != null) hits++;
+    }
+    sw.stop();
+    final perKey = sw.elapsedMicroseconds / text.length / 1000;
+    // ignore: avoid_print
+    print('PERF word_autoformat_key_ms=${perKey.toStringAsFixed(4)}');
+    expect(hits, greaterThan(0));
+    expect(perKey, lessThan(0.2));
+  });
+
   test('3000 paragraf (~300 sayfa): ayrıştır ≤ 4,5 sn', () {
     final bytes = _docx(3000);
     final sw = Stopwatch()..start();
