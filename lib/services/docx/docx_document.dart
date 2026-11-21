@@ -582,22 +582,21 @@ class DocxDocument {
 
   void _readTable(XmlElement tbl, List<DocxPara> out) {
     var r = 0;
-    for (final tr in tbl.childElements) {
-      if (tr.name.local != 'tr') continue;
+    for (final (tr, rowRo) in _sdtFlat(tbl, 'tr')) {
       var c = 0;
-      for (final tc in tr.childElements) {
-        if (tc.name.local != 'tc') continue;
+      for (final (tc, ro) in _sdtFlat(tr, 'tc', locked: rowRo)) {
         final tcPr = _child(tc, 'tcPr');
         final span = int.tryParse(_attr(_child(tcPr, 'gridSpan'), 'val') ?? '') ?? 1;
         final ref = DocxCellRef(tbl, tc, r, c, span);
         var any = false;
         for (final e in tc.childElements) {
           if (e.name.local == 'p') {
-            out.add(_track(_readPara(e, tc, ref)));
+            final p = _readPara(e, tc, ref);
+            out.add(ro ? _frozen(p) : _track(p));
             any = true;
           } else if (e.name.local == 'sdt') {
             final n = out.length;
-            _readSdt(e, ref, out);
+            _readSdt(e, ref, out, locked: ro);
             if (out.length > n) any = true;
           } else if (e.name.local != 'tcPr') {
             final t = _textOf(e);
@@ -611,6 +610,24 @@ class DocxDocument {
         c += span;
       }
       r++;
+    }
+  }
+
+  /// [parent]'ın [local] (`tr`/`tc`) çocukları; satır/hücre düzeyi içerik
+  /// denetimi (`w:sdt` > `w:sdtContent` > `w:tr|w:tc`) açılarak — eskiden bu
+  /// satır/hücreler hiç okunmuyordu (görünmez). İkinci değer: kilitli / veri
+  /// bağlı bir denetimin içinde mi (içerik düzenlenmez).
+  static Iterable<(XmlElement, bool)> _sdtFlat(XmlElement parent, String local,
+      {bool locked = false}) sync* {
+    for (final e in parent.childElements) {
+      if (e.name.local == local) {
+        yield (e, locked);
+      } else if (e.name.local == 'sdt') {
+        final content = _child(e, 'sdtContent');
+        if (content == null) continue;
+        yield* _sdtFlat(content, local,
+            locked: locked || _sdtLocked(_child(e, 'sdtPr')));
+      }
     }
   }
 
