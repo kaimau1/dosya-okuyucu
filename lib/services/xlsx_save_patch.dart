@@ -7,6 +7,7 @@ import 'package:xml/xml.dart';
 import '../core/excel_format.dart' show builtinNumberFormats;
 import 'xlsx_reader.dart' show XlsxDataValidation, XlsxRange;
 import 'office_zip_guard.dart';
+import 'xlsx/auto_filter.dart' show kFillArgbAttr;
 
 /// Bir sayfa için kaydetme sonrası düzeltilecek nitelikler.
 ///
@@ -583,7 +584,7 @@ class XlsxSavePatch {
     if (_applyHiddenCols(root, patch.hiddenCols)) changed = true;
     if (_applyRows(root, patch)) changed = true;
     if (_applyAutoFilter(root, patch.autoFilterRef, patch.autoFilterInner,
-        patch.autoFilterTouched)) {
+        patch.autoFilterTouched, styles)) {
       changed = true;
     }
     // Sıra önemli: önce biçim YAPIŞTIRMA (hedefin taban stili kaynağınki olur),
@@ -1246,7 +1247,7 @@ class XlsxSavePatch {
 
   /// `<autoFilter ref="A1:D20"/>` — `sheetData`dan SONRA gelir.
   static bool _applyAutoFilter(XmlElement root, String? ref,
-      [String? inner, Set<int> touched = const {}]) {
+      [String? inner, Set<int> touched = const {}, _StyleTable? styles]) {
     var existing = _firstChild(root, 'autoFilter');
     if (ref == null || ref.isEmpty) {
       if (existing == null) return false;
@@ -1284,8 +1285,8 @@ class XlsxSavePatch {
             ];
       final cols = [
         ...kept,
-        ...fresh.whereType<XmlElement>()
-            .where((e) => e.name.local == 'filterColumn'),
+        for (final e in fresh.whereType<XmlElement>())
+          if (e.name.local == 'filterColumn' && _colorFilterDxf(e, styles)) e,
       ]..sort((a, b) => (int.tryParse(a.getAttribute('colId') ?? '') ?? 0)
           .compareTo(int.tryParse(b.getAttribute('colId') ?? '') ?? 0));
       existing.children
@@ -1295,6 +1296,20 @@ class XlsxSavePatch {
       changed = true;
     }
     return changed;
+  }
+
+  /// Renk süzgecinin yer tutucu dolgusunu `styles.xml`e `<dxf>` olarak
+  /// ekleyip `dxfId`yi koyar (B10 m.5). Stil tablosu yoksa sütun yazılmaz.
+  static bool _colorFilterDxf(XmlElement fc, _StyleTable? styles) {
+    for (final cf in fc.childElements) {
+      final hex = cf.getAttribute(kFillArgbAttr);
+      if (cf.name.local != 'colorFilter' || hex == null) continue;
+      final argb = int.tryParse(hex, radix: 16);
+      if (styles == null || argb == null) return false;
+      cf.removeAttribute(kFillArgbAttr);
+      cf.setAttribute('dxfId', '${styles.addDxf(argb, null)}');
+    }
+    return true;
   }
 
   /// Gizli sütunlar. Var olan `<col>` aralığı indeksi kapsıyorsa aralık
