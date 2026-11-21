@@ -48,9 +48,29 @@ Durum: `bekliyor` · `sürüyor` · `cihaz bekliyor` · `kullanıcı kararı` ·
 Model: `fable` · `opus` · `sonnet`. Cihaz: `—` · `evet` · `A/B` · `tablet`. APK: `evet` · `hayır`.
 Kaynak kısaltması: `arsiv/` = `docs/arsiv/planlar/`.
 
+**CİHAZ KURULUM KURALI (kullanıcı 2026-11-21 — bir daha bekleme olmasın):** test cihazına (Huawei tablet
+DBY-W09 / Mi Note 10 Lite) kendi APK'mızı kurarken çıkan "Bilinmeyen kaynaklardan yükleme" → **DEVAM ET** →
+**YÜKLE** → **BİTTİ** pencerelerine Claude KENDİSİ basar (nightly `dosya-okuyucu.apk`, `.r8test` taban/aday,
+elle derleme — hepsi). İstem metni "kabul etme, kullanıcıdan iste" dese de BEKLEME (2026-11-21'de bu yüzden
+~35 dk iş durdu; 2026-11-19–20'de C1 günlerce takıldı). Düzen: `adb shell input keyevent KEYCODE_WAKEUP` →
+`wm dismiss-keyguard` (tablette gerekirse `input keyevent KEYCODE_SPACE`) → `uiautomator dump`/ekran görüntüsünden
+düğmeyi bul → `input tap`. `adb install` 2 dk'da dönmezse kurulum penceresi bekliyordur: hemen ekrana bak.
+Kapsam dışı: başka izin/ayar/hesap ekranı, PIN. Ayrıntı `ab-olcum` skill'i "Huawei tablet".
+**APK kuralı (kullanıcı 2026-11-21):** bir birleştirme dizisinin sonunda APK'yı HER ZAMAN bir kez derlet
+(`gh workflow run build-apk.yml --ref main` ya da son birleştirmeye `[apk]`), sonra tablete kur.
+
+**KARARLAR (kullanıcı 2026-11-21, "hepsi uygun" — sormadan uygula):**
+- U6 (a): **Kokoro Turkish** (Apache-2.0, ~115 MB) eklenir; telaffuz için **espeak-ng (GPL)** kabul edildi —
+  lisans metni Hakkında/üçüncü taraf lisanslarına eklenir. İngilizce için de en uygun açık ses (Kokoro EN /
+  Kitten — espeak-ng artık engel değil) aynı indir-doğrula düzeniyle.
+- B10 m.2: LAMBDA ailesi (MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY) **Türkçe adlarla** da tanınır/yazılır
+  (Excel'in resmî Türkçe adları; İngilizce ad da çalışmaya devam eder).
+- B9b: Word yorum balonu **tablette sağ kenar sütununda** (telefonda paragraf altında kalır).
+- B4: eski PDF düzenleyici de **yeni PDF Pro motorunu** kullanır (`pdf_pro_engine ?? true` — 2026-11-21 main'de).
+
 **SIRA (2026-11-18, kullanıcı: "özellikleri geliştirmeye devam — Word, PDF, Excel, slayt; performans,
 hızlandırma, akıcılık, kullanıcı deneyimi hissi"):**
-- **Kod (bulut ya da yerel):** B1 → B9 → B13 → B10 → B4 → B11 → B2 → B5 → B6 → B7.
+- **Kod (bulut ya da yerel; 2026-11-21 güncel):** U6 (dal faz-oto-U6-kalan, DEVIR) → B10 (LAMBDA Türkçe + kalanlar) → B9b → B4 (§1.4 dilim sırası) → B13 → B11 → B2 → B5 → B6 → B7.
 - **Telefonla (yerel, paralel; boşaldıkça):** C1 → C2 → B3 → C3. **En son:** B8.
 
 Ferrari kuralı (§0): B3'teki hız işleri (P06, P12b, P29) bitmeden büyük yeni özellik **varsayılan
@@ -70,15 +90,16 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | U4 | **Akıllı klasörler + Analiz + Akıllı ayarlar (beyin fırtınası, nokta atışı):** §1.14 m.7, m.9, m.10 + B15 m.4 kategorizasyonu mükemmelleştirme. **Bitti (dilim 1, 7 madde; HAFIZA 2026-11-20 U4):** durma/başlamama iletileri gerçek neden · hayalet kayıt budama · kayıtlı aramalar Akıllı düzeni arar + "Akıllı aramalar" adı + PIN · "Diğer" klasörü · Yapay zekâ ayar sayfası baştan (Hafıza kalktı) · Analiz "Tümünü seç" 200 sınırı · Analiz Kopyalar/Ayıkla. **Bitti (dilim 2, 3 madde; HAFIZA 2026-11-20 U4 dilim 2):** ağ kopunca tur durur (ortak durma kuralı, tezgâh dahil) · bulanık belge fotoğrafı Ayıkla'ya önerilmez (e) · öğrenilen kategori alt türünü/kurumunu korur. **Kalan adaylar (seçilmedi):** (a) klasör kutusunda "+n yeni" rozeti; (b) kutuda ilk dosyanın küçük resmi (ızgara, ölçümle); (c) klasörü ızgaradan gizle; (d) yeni yerleşik kategoriler (ev/tapu/aidat, çocuk/okul, tarif — önce C2 tezgâh ölçümü); (f) Kategorilerim ızgarada klasör (görünüş, kullanıcı kararı); (h) Analiz'de Akıllı kategoriye göre yer ("Faturalar 1,2 GB"); (j) eski Akıllı dosya asistanı (AiIndex analizi) ile Akıllı düzen ikiliği (budama kullanıcı kararı) | opus (xhigh) | §1.14 | A/B | evet | dilim 1 main'de; dilim 2 main'de (cihaz turu CIHAZ_TESTI U4.2); dilim 3 (g) Analiz silme sonrası yenilenir main'de (cihaz turu CIHAZ_TESTI U4.3); sabah bakılacak: kayıtlı aramaların adı "Akıllı aramalar" (geri alınabilir, yalnız metin) |
 | U3 | **Ana ekran + bildirim bütünlüğü:** §1.14 m.2 (hız çubuğu 0,05), m.3 (son dosyalar tek akıllı liste + varsayılan kip + hız), m.4/m.11 (bildirim/tost/hata tek dil, kullanıcıyı bilgilendir), m.5 (tek düzenle düğmesi), m.6 (Bağlantıdan indir kalk, Kopyalar → Analiz), m.8 (Başarım seçimi görünür) | opus | §1.14 | A/B | evet | main'de (7 madde HAFIZA 2026-11-20 U3; cihaz turu CIHAZ_TESTI U3, ölçüm C2 — ölçülmedi); sabah bakılacak: hız aralığı 0,5–2,0 (güvenli seçim; 0,25–3,0 istenirse `PlaybackSpeed.min/max`) |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | sürüyor — dal faz-oto-B3-hiz: P29 kod bitti (main'e birleştirilmedi; büyük başlık H4.2 2026-11-14 kullanıcı kararıyla zaten kalkmıştı — iş yok; hata şeridi kök neden arka plan kapatması, şerit ortak bildirim kartına katıldı; HAFIZA 2026-11-20 B3; cihaz turu CIHAZ_TESTI B3, ölçüm C2 — ölçülmedi); P12b'nin cihazsız kod artığı yok; kalan P12b ölçümü, P06 (plan evresi + cihaz) |
-| B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | sürüyor — dal faz-oto-B4-pdfpro: bitti P21 meta veri (Belge bilgileri) + P17 XFDF dışa/içe (main'de) + P21 R6 kilit açma/R6 koruma (dilim 2, main'de) + P20 sayfa stüdyosu m.1 çekirdeği (ızgara, seç/döndür/sil/çoğalt/sürükle, geri al; dilim 3, main'de) + stüdyoda boş sayfa / dosyadan sayfa ekle (dilim 4, main'de) + stüdyoda çıkar/böl, görselden/taramadan ekle, kenar kaydırma (dilim 5, main'de; kırpma/boyut/Bates/filigran/yer imi Pro araçlarda zaten var) + P18 düz PDF'te alan algılama (`____`/`.....`/`☐` → etiketli alan; form oluşturma + otomatik doldurma zaten vardı; dilim 6, main'de) + P18 çizilmiş çizgi/kutu/kare sezgisi (dilim 7) + P18 form ekranında imza alanı imzalama + P19 m.1 "Aranabilir yap (OCR)" görünmez katman (dilim 8, dalda); akıllı karartma önerisi iptal (B15: AI aracı eklenmez); kalan P16, P17 (kılavuz/çoklu seçim/OCG/kalem), P18 (serbest imza yerleştirme form ekranına, PdfSignScreen emekliliği), P19 (renkli zeminde satır düzenleme, döndürülmüş sayfa katmanı), P21 (bu kipte yazdır, PdfEditorScreen emekliliği), P22/P22b; DEVIR.md'den sür |
+| B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — dilim 1–8 main'de (dal silindi); **TÜM PDF kalanları §1.4 envanterinde (2026-11-21)** — sırayla dilim dilim, her dilim ayrı dal `faz-oto-B4-<ad>` |
 | B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | sürüyor — dal faz-oto-B5-udf: P23 kod bitti (main'e birleştirilmedi; cihaz turu CIHAZ_TESTI B5, ölçüm C2 — ölçülmedi); kalan P24, P25 (K17 onayı) |
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
 | B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
+| B9b | **Word yorum kenar sütunu (tablet):** yorum balonu tablette sağ kenar sütununda, metin akışı daralır; telefonda paragraf altı kalır (KARAR 2026-11-21). Önce bak: `docx_media.dart` balonu (B9 m.4, 2026-11-21) | opus | §1.9 m.4 | A/B | evet | bekliyor |
 | B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | dal faz-oto-B10-excel2: bitti m.2 (çekirdek + `_xlpm.` + TOCOL/TOROW/WRAPROWS/WRAPCOLS) + m.3 veri doğrulama + m.4 doldurma/Hızlı doldurma + m.6 sadakat bekçisi; dilim main'e gitti (2026-11-21); dal faz-oto-B10-excel3: m.1 çekirdek türler (alan, XY, halka, radar, yığılmış/%100) + yaklaşık rozeti bitti; kalan m.1 chartex (şelale/histogram/kutu), m.2 Türkçe LAMBDA adları (karar bekliyor), m.5, m.7–8 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | sürüyor — dilim 1+2 main'de (m.1 tablo stilleri, m.4 imleç, m.6 prova, m.7 sadakat bekçisi, m.8 sürükleme/geçiş bütçesi); dilim 3 dal faz-oto-B11-slayt3 (m.3 geçiş türleri + efektli animasyon + Biçim değiştir + önizleme, m.1 dikey metin; A/B C2'de); m.5 AI tasarımcı İPTAL (B15 kararı 2026-11-19, AI budandı); m.2 grafik türleri dal faz-oto-B11-slayt4 (yazıldı, cihazda doğrulanmadı); kalan m.1 piksel altın (kullanıcı izniyle yerelde) + yansıma, m.4 klavye kayması cihazda |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | cihaz bekliyor — dilim 1+2 main'de (2026-11-19): m.4 Excel/Slayt aşamalı açılış + m.7 Word çimdik yapıldı (A/B C2'de); m.1 açılış geçişi (Office/PDF) 2026-11-20 tablette A/B KALDI (satırdan büyüyen kırpma: Slayt/Excel açılışı +%13/+%17, Slayt açılış p99 20→34 ms) → uygulanmadı, sabah bakılacak (bkz. §1.13 m.1 notu) |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
-| C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | P08+P28 birleştirildi (kullanıcı kararı 2026-11-21, dal faz-oto-ACIK-birlesim), A/B cihaz turunda; P07 zaten main'de |
+| C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | cihaz bekliyor — P08 + P28 main'de (2026-11-21, kullanıcı kararıyla birleşti, 1.3.73 tablette); kalan yalnız A/B ölçümü (kurulum onayı artık Claude'da — CİHAZ KURULUM KURALI) |
 | C2 | **Cihaz: perf A/B artıkları:** B2 Akıllı düzen 2.0 dilim 1–5 (CIHAZ_TESTI B2) — ölçüldü: geçti (2026-11-20), P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış) — ölçüldü: kaldı (2026-11-20; klasor_5000 build p99 20,6→46,1 ve 17,8→26,2; soğuk açılış geçti), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü + galeri açılış geçişi — ölçüldü: geçti (2026-11-20) (A/B bekliyor, main d7e9765e) + U2 ana ekran tek akıllı şerit (yazıldı, cihazda doğrulanmadı; dal faz-oto-U2-tek-serit) + B11 dilim 1–2 slayt düzenleme A/B (tablo stili çizimi, imleç dokunulan yerde, şekil sürükleme katmanları, prova; dal faz-oto-B11-slayt2) + B11 dilim 3 geçiş/animasyon/Biçim değiştir — ölçüldü: kaldı (2026-11-20; slayt_300_acilis_pro0 build p99 30,9→45,5 ve 30,0→47,6) (ölçülmedi; sunumda Biçim değiştir ve efektli tıklama animasyonu kare p99, taban önceki [apk] `.r8test`; dal faz-oto-B11-slayt3) + B4 dilim 1–8 PDF Pro (meta veri/XFDF, R6 kilit açma, sayfa stüdyosu ızgarası ve sayfa ekle/çıkar/böl/kaydır, form alanı algılama metin ve çizgi/kutu, form ekranında imza alanı, OCR aranabilir katman; işlev turu, izolatta; 300 sayfada p99 ≤ 16 ms hedefi; ölçülmedi; sıcak yola dokunmuyor; dal faz-oto-B4-pdfpro) + R6 kilit açma + boş/dosyadan/görselden/taramadan sayfa ekle + çıkar/böl + B15 dilim 1 AI budama + Akıllı adlandırma (ölçülmedi; görüntüleyici/editör alt çubuğundan bir düğme kalktı, ana ekran sekme adı değişti; dal faz-oto-B15-akilli) + U3 ana ekran — ölçüldü: kısmen (2026-11-20; sol menü geçti, ana sekmeler yalnız adayda 24 ms altı, ana ekran kaydırma senaryosu yok) (ölçülmedi; Son dosyalar sekmeleri + karışık sıra + Geçmiş bellek önbelleği, Akıllı düzen şeridi bildirim kartına katıldı, tek Düzenle düğmesi, araçlar 8→5, yan menü şeridi; taban önceki [apk] `.r8test`, ana ekran açılış + şerit sekme geçişi + yan menü açılışı; dal faz-oto-U3-ana-ekran) + U4 Akıllı klasörler/Analiz/ayarlar (ölçülmedi; Akıllı düzen ızgarasına "Diğer" kutusu + altına "Akıllı aramalar" kartı, Analiz araçlarına bir satır; sıcak liste yoluna dokunmuyor; dal faz-oto-U4-akilli-klasor) + B5 P23 UDF açılışı (ölçülmedi; .udf → .docx çevrimi izolatta, Word okuyucusu aynı; 1–5 sayfalık örnekte açılış süresi; dal faz-oto-B5-udf) + B3 P29 çökme uyarısı bildirim kartında (ölçülmedi; ana ekran üstündeki ayrı kırmızı şerit kalktı, kart kaynağına bir sayaç eklendi; taban önceki [apk] `.r8test`, ana ekran açılışı; dal faz-oto-B3-hiz) + U4 dilim 2 Akıllı düzen durma kuralı, Ayıkla yorumu ve öğrenilen alt tür (ölçüm gerekmez: görünür alan yok, liste/ızgara yoluna dokunmuyor; yalnız işlev turu CIHAZ_TESTI U4.2; dal faz-oto-U4-akilli-2) + U4 dilim 3 Bellek Analizi silme sonrası yenilenir (ölçüm gerekmez: görünür alan yok, pano ve liste yoluna dokunmuyor, yenileme izolatta; yalnız işlev turu CIHAZ_TESTI U4.3; dal faz-oto-U4-akilli-3) | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor; A/B U3/U4/B15 denendi 2026-11-20: YETERSİZ, ölçülmedi (sürücü boş kareyle çöktü, senaryo eksik; docs/perf/2026-11-20-C2-U3.md) |
 | C3 | **Cihaz: genel tur:** P11 `CIHAZ_TESTI.md` baştan sona (Faz 34–42, Güvenlik, 360×800 + 2× yazı, 2026-11-18 AI maddeleri) + §3 "Telefonda sen bak" (K20–K28); kırmızı → ilgili pakete madde | sonnet | CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
 
@@ -155,19 +176,53 @@ kullanıcı kendi kategorisini ekler ve **eklemeden önce doğru çalıştığı
 - **P06:** PDF kaydırma H2.1–H2.6: önbellek tavanı ölç, bulanık yer tutucu, komşu sayfa ön çizimi, hızlı
   tutamaç önizlemesi, yakınlaştırma netleşmesi, USB okuma hızı — ölç → değiştir → ölç.
 
-### 1.4) B4 ayrıntısı — PDF Pro (arsiv/PDF_PRO_PLANI)
+### 1.4) B4 ayrıntısı — PDF'in TÜM kalanları (envanter 2026-11-21; kaynak arsiv/PDF_PRO_PLANI Faz 56–68, arsiv/FERRARI_PLANI H0–H3)
 
-- **P16** metin: taşma/çakışma uyarısı (punto küçült · it · genişlet), font seçici (belge → aile → paket), metne bağlantı (56–58).
-- **P17** nesne/işaret: hizalama kılavuzu + tutunma, çoklu seçim/grup, katmanlar (OCG), kamera; serbest metin/bulut/damga, basınçlı kalem + avuç reddi, XFDF (59–60).
-- **P18** form + imza tek yüzey, form oluşturma, düz PDF'te alan algılama; form otomatik doldurma + ~~akıllı karartma önerisi~~ iptal (B15: yeni AI aracı yok) (61, 65/3).
-- **P19** OCR Pro: görünmez katman, renkli arka planda satır düzenleme (62) — Arapça için `CloudOcr` yolu hazır.
-- **P20** sayfa stüdyosu (küçük resim ızgarası, geri alınabilir sayfa komutları) (63).
-- **P21** parola/izin, meta veri, optimize, PDF/A, bu kipte yazdır; AES-256 (R6) kilit açma; `PdfEditorScreen` emekliliği (64).
-- **P22b okuma deneyimi (kullanıcı 2026-11-18):** hızlı kaydırma tutamacında sayfa no + küçük önizleme
-  balonu (FERRARI H2.4; `PdfViewerScrollThumb`, `viewer/body.dart`), bağlantı/içindekilerden atlayınca
-  "← geri dön" hapı (sayfa geçmişi), belge başına yakınlaştırma/görünüm kipini hatırla, çift dokunuşla metin
-  sütununa sığdır, seçim tutamaçlarında büyüteç. Önce bak: hangisi zaten var (grep); olanı geliştir.
-- **P22** kalite: başarı %94 → %98 (Type3 aralık, `/Rotate`, açılı metin), 50 sayfa artımlı kayıt, büyük belge/pil, görsel cila + tablet (54, 66–68) — C1'deki P08 birleşince.
+**Main'de olanlar (tekrar yapma):** P21 meta veri + R6 kilit aç/koru · P17 XFDF dışa/içe · P20 sayfa stüdyosu
+(ızgara, seç/döndür/sil/çoğalt/sürükle, geri al, boş/dosyadan/görselden/taramadan sayfa ekle, çıkar/böl, kenar
+kaydırma) · kırpma/boyut/Bates/filigran/yer imi Pro araçlarda · P18 düz PDF'te alan algılama (`____`/`....`/`☐`,
+çizgi/kutu sezgisi) + form oluşturma + otomatik doldurma + form ekranında imza alanı imzalama · P19 m.1
+"Aranabilir yap (OCR)" görünmez katman · P08 yerinde yazma bitişi belleği · P28 kabuk (durum çubuğu anahtarı,
+rozet, komşu sayfa) · eski düzenleyici yeni motorda (2026-11-21). **Kural:** her madde için önce `grep` — arşiv
+planlarındaki `[ ]` kutularının bir kısmı eskidir; var olanı geliştir, yoksa yaz. Her dilim CI + `pdf_pro_*`
+testleri; PDF kabuğu sıcak yoluna (`viewer/body.dart`, kaydırma) dokunan madde **bayrak + A/B** (§0 k.9).
+
+Dilim sırası (her biri ayrı oturum/dal `faz-oto-B4-<ad>`; biten madde buradan SİLİNİR):
+1. **P16 metin** (Faz 56 m.7, Faz 58 m.7, Faz 57 m.10): font seçici sırası belge fontları → eşleşen aile →
+   cihaz/paket; metne bağlantı ekle/düzenle/kaldır (URI + sayfa içi hedef); taşma/çakışma uyarısı (punto küçült ·
+   it · genişlet); bütçe dokun→imleç ≤ 120 ms testi.
+2. **P17 nesne** (Faz 59 m.4–6): hizalama kılavuzları + tutunma (kenar/orta/sayfa boşluğu), çoklu seçim (kement +
+   uzun bas) + grup taşıma + hizala/dağıt, katmanlar (OCG) göster/gizle; kamera ile görsel ekle.
+3. **P17 işaretleme stüdyosu** (Faz 60 m.5): ayrı Kalem/Vurgu yolları tek stüdyoya (tek yol), serbest
+   metin/bulut/damga, basınçlı kalem + avuç reddi.
+4. **P18 form + imza tek yüzey** (Faz 61 m.1, m.4–6): tüm AcroForm türleri doldurma denetimi (metin, çok satır,
+   onay, radyo, liste, açılır, tarih), imza çiz/yaz/görsel + kayıtlı imza + baş harf + tarih damgası, serbest imza
+   yerleştirme form ekranına; `pdf_form_screen` + `pdf_sign_screen` tek yüzey, **PdfSignScreen emekli**;
+   dijital imza (PAdES, `pdf_digital_sign` üstüne: sertifika içe aktar, görünür imza, doğrula).
+5. **P19 OCR Pro** (Faz 62 m.2–4): taranmış satır düzenleme örneklenen arka plan rengiyle (beyaz değil),
+   döndürülmüş sayfada katman, "Bu sayfayı düzenlenebilir yap" (OCR blokları → gerçek metin bloğu), düşük güvenli
+   sözcük işareti (AI düzeltme YOK — B15). Arapça `CloudOcr` yolu hazır.
+6. **P21 güvenlik + çıktı** (Faz 64 m.3–5): parola + izinler (aç/düzenle/yazdır/kopyala) ekranı, meta temizle,
+   optimize/sıkıştır (görsel yeniden örnekleme, yinelenen font/görsel birleştirme, nesne akışları), PDF/A dışa
+   aktar, bu kipte yazdır + paylaş + e-posta kısayolu; **PdfEditorScreen emekliliği** (eski düzenleyici yolları
+   yeni motora taşındıktan sonra menüdeki "Eski düzenleyici" kalkar — önce kullanımı grep).
+7. **P20 kalan** (Faz 63 m.5): `pdf_tools_screen`/`pdf_reorder_screen` işleri stüdyoya taşınır, araçlar ekranı
+   kısayol kalır; üst/alt bilgi + sayfa numarası ekle/düzenle/kaldır (Bates/filigran var — grep).
+8. **P22b okuma deneyimi** (FERRARI H2.4 + kullanıcı 2026-11-18): hızlı kaydırma tutamacında sayfa no + küçük
+   önizleme balonu (`PdfViewerScrollThumb`, `viewer/body.dart`), bağlantı/içindekilerden atlayınca "← geri dön"
+   hapı, belge başına yakınlaştırma/görünüm kipini hatırla, çift dokunuşla sütuna sığdır, seçim tutamaçlarında
+   büyüteç — sıcak yol: bayrak + A/B.
+9. **P06 PDF kaydırma hızı** (FERRARI H2.1–H2.6; B3 satırında, plan evresi fable): önbellek tavanı ölç
+   (`pdfImageCacheBytes` 64 MB), bulanık yer tutucu (≤ 48 dpi), komşu sayfa ön çizimi (+2), yakınlaştırma
+   netleşmesi, USB okuma hızı → ölç → değiştir → ölç (cihaz).
+10. **H1.5 PDF açılış geçişi** (B13 m.1): 2026-11-20 A/B KALDI (satırdan büyüyen kırpma) — farklı yöntemle
+    (ör. yalnız opaklık + ölçek, ilk kare hazır olunca) yeniden dene; A/B geçmezse iptal.
+11. **P22 kalite + büyük belge** (Faz 66–67 + PDF_PRO 54, 66–68): başarı %94 → %98 (Type3 aralık, `/Rotate`,
+    açılı metin), 50 sayfa artımlı kayıt, 500+ sayfa / 200 MB tembel çözümleme, pil/ısı (10 dk düzenleme CPU;
+    boşta 0 kare), tablet yatay düzen (sağ panel), TalkBack/200% yazı/RTL, ilk kullanım ipuçları, ayarlar
+    (kaydetme kipi, sürüm geçmişi süresi, font paketleri).
+12. **Ölçüm/kapı (cihaz):** C1 P08 + P28 A/B; H0.1 10 işlem tablosu, H0.4 231 MB USB PDF (B8'de); Faz 68
+    rakip karşılaştırma (Acrobat/PDFelement/Xodo, 10 belge × 15 görev — B8 ile).
 
 ### 1.5) B5 ayrıntısı — Biçim + bakım + levha birliği
 
