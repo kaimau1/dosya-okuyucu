@@ -1587,3 +1587,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Video: iki parmakla yakınlaştır/kaydır (sarma ya da ses değişmemeli); hız simgesi → ekran kararmadan küçük panel, sürüklerken hız anında değişmeli; 1,7× iken üstte "1.7× ✕" hapı, ✕ ile 1×. Ses oynatıcıda da aynı hap.
 - Yer aç: öneri kartında "Bir daha önerme" ve dosya listesinde göz simgesi; yeniden analizde gelmemeli; en altta "Gizlenen n öneriyi geri getir". Akıllı düzen açıksa en üstte "Ayıkla · n gereksiz" kartı.
 - Ayarlar → Yapay zekâ → Görev başına model: en üstte "Akıllı kararlar — gemini-decision-1".
+
+## U7 Tablet tek menü + pano (2026-11-21) — yazıldı, cihazda doğrulanmadı (Huawei DBY-W09)
+- Yatay ve dikey: ana ekranda solda kalıcı menü sütunu YOK; ☰ düğmesi / soldan çekme ile telefondaki yan menü açılır, en altında "Konumlar" (Dahili bellek, takılıysa SD/USB) → dokununca gezgin açılır.
+- Dikey tablette: Son dosyalar şeridi üstte tam genişlik, altında solda bellek kartı (gerilmeden, ~360 dp), sağda kategori kutuları + araçlar; yatayda aynı düzen, sağ sütun geniş.
+- Döndürünce açık sekme/ekran kaybolmamalı; telefonda ana ekran eskisi gibi tek sütun.

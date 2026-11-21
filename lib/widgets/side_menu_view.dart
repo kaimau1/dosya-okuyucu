@@ -10,10 +10,13 @@ import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
+import '../screens/fm/browser_screen.dart';
 import '../screens/fm/new_files_screen.dart';
 import '../screens/fm/open_history_screen.dart';
 import '../screens/settings_screen.dart';
 import '../services/fm/entry_opener.dart';
+import '../services/fm/fm_env.dart';
+import '../services/fm/storage_stats.dart' show StorageKind;
 import '../services/side_menu.dart';
 import 'app_dialog.dart';
 import 'fm/fm_category_tile.dart';
@@ -295,6 +298,38 @@ class _SideMenuPanel extends StatelessWidget {
                             context,
                             (root) =>
                                 Navigator.of(root).popUntil((r) => r.isFirst)),
+                      ),
+                      // **Konumlar** (U7, 2026-11-21): tabletin kaldırılan
+                      // gezinme sütunundan alındı — bellekler (dahili / SD /
+                      // USB) menüden tek dokunuşla gezginde açılır.
+                      footer: FmEnv.volumes.isEmpty ? null : Column(
+                        key: const ValueKey('side-menu-places'),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsetsDirectional.fromSTEB(
+                                Gap.sm, Gap.md, Gap.sm, Gap.xs),
+                            child: Text(context.t('pane.places'),
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                    color: scheme.onSurfaceVariant)),
+                          ),
+                          for (final v in FmEnv.volumes)
+                            _MenuRow(
+                              icon: switch (v.kind) {
+                                StorageKind.usb => AppIcons.external,
+                                StorageKind.sdCard => AppIcons.sdCard,
+                                _ => AppIcons.device,
+                              },
+                              color: scheme.primary,
+                              label: v.displayLabel(context.t),
+                              onTap: () => _run(
+                                  context,
+                                  (root) => Navigator.of(root).push(
+                                      browserRoute(BrowserScreen(
+                                          path: v.path,
+                                          title: v.displayLabel(root.t))))),
+                            ),
+                        ],
                       ),
                       itemCount: tiles.length,
                       onReorderItem: (from, to) =>

@@ -121,6 +121,15 @@ class DashboardScreen extends StatefulWidget {
 
   /// Panonun son taramasındaki bir kategorinin dosyaları (alt çubuğa konan
   /// kategori sekmeleri ANINDA dolsun diye; tarama yoksa boş).
+  /// Pano iki sütunlu mu? ≥ 840 dp, yatay ≥ 600 dp ya da **tablet dikey**
+  /// (kısa kenar ≥ 600; U7 2026-11-21 — 800 dp dikey tablette telefon düzeni
+  /// gerilip bellek kartı/son dosyalar ekran boyu uzuyordu). Telefon dikeyde
+  /// (kısa kenar < 600) hep tek sütun.
+  static bool twoColumns(Size size) =>
+      size.width >= 840 ||
+      (size.width >= 600 &&
+          (size.width > size.height || size.shortestSide >= 600));
+
   static List<FsEntry> cachedFiles(FmCategory category) =>
       _DashboardScreenState._cachedIndex?.files(category) ?? const [];
 
@@ -398,10 +407,16 @@ class _DashboardScreenState extends State<DashboardScreen>
         if (layout.sectionVisible(id)) id,
     ];
     final size = MediaQuery.sizeOf(context);
-    final wide = size.width >= 840 ||
-        (size.width >= 600 && size.width > size.height);
+    final wide = DashboardScreen.twoColumns(size);
     const rightIds = {'categories', 'tools'};
-    final left = [for (final id in ids) if (!rightIds.contains(id)) id];
+    // Son dosyalar şeridi iki sütunun ÜSTÜNDE tam genişlik (U7): yatay şerit
+    // dar sol sütunda 2–3 öğeye sıkışıyor, bellek kartının altında sütunu
+    // uzatıp sağda boşluk bırakıyordu.
+    final top = ids.contains('recent');
+    final left = [
+      for (final id in ids)
+        if (!rightIds.contains(id) && id != 'recent') id
+    ];
     final right = [for (final id in ids) if (rightIds.contains(id)) id];
     if (!wide || left.isEmpty || right.isEmpty) {
       return [for (final id in ids) ..._dashSection(id, volumes, appState)];
@@ -419,6 +434,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     // 2000 dp'lik bir tabloda kartlar bir uçtan bir uca gerilmesin.
     final leftWidth = (size.width * 0.34).clamp(360.0, 440.0);
     return [
+      if (top) ..._dashSection('recent', volumes, appState),
       Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1480),

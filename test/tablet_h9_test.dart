@@ -4,11 +4,10 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/core/tablet.dart';
 import 'package:dosya_okuyucu/screens/fm/browser_screen.dart';
+import 'package:dosya_okuyucu/screens/fm/dashboard_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/dual_pane_screen.dart';
-import 'package:dosya_okuyucu/screens/fm/open_history_screen.dart';
 import 'package:dosya_okuyucu/screens/home_screen.dart';
 import 'package:dosya_okuyucu/services/large_text.dart';
-import 'package:dosya_okuyucu/widgets/fm/home_nav_column.dart';
 import 'package:dosya_okuyucu/widgets/large_text_view.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_file_list_view.dart';
 import 'package:flutter/material.dart';
@@ -120,58 +119,34 @@ void main() {
     });
   });
 
-  group('H9.1 gezinme sütunu', () {
+  test('U7 pano: telefon dikeyde tek sütun, tablette iki sütun', () {
+    for (final phone in const [Size(360, 800), Size(393, 852), Size(412, 915)]) {
+      expect(DashboardScreen.twoColumns(phone), isFalse, reason: '$phone');
+    }
+    expect(DashboardScreen.twoColumns(_tabletLand), isTrue);
+    expect(DashboardScreen.twoColumns(_tabletPort), isTrue,
+        reason: 'dikey tablette telefon düzeni gerilmesin');
+    expect(DashboardScreen.twoColumns(const Size(870, 392)), isTrue,
+        reason: 'telefon yatay: eski davranış');
+  });
+
+  group('U7 tek menü', () {
     setUp(HomeScreen.debugResetStartFolder);
     tearDown(HomeScreen.debugResetStartFolder);
-    final column = find.byKey(const ValueKey('home-nav-column'));
 
-    testWidgets('telefonda sütun KURULMAZ', (tester) async {
-      final state = await appState(tester);
-      addTearDown(tester.view.reset);
-      // Varsayılan test görünümü (800 × 600 dp — dar sayılır); 360 dp'lik
-      // telefonda pano karoları test yazı tipiyle (Ahem) taşıyor, konu dışı.
-      // Telefon boyları `isTabletWide` birim testinde.
-      expect(
-          isTabletWide(
-              tester.view.physicalSize / tester.view.devicePixelRatio),
-          isFalse);
-      await tester.pumpWidget(app(state, const HomeScreen()));
-      await tester.pump();
-      expect(find.byType(HomeNavColumn), findsNothing);
-    });
-
-    testWidgets('tablette sütun: seç → sağda açılır, daralt, döndür',
-        (tester) async {
-      final state = await appState(tester);
-      setSize(tester, _tabletLand);
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(app(state, const HomeScreen()));
-      await tester.pump();
-      expect(column, findsOneWidget);
-      expect(tester.getSize(column).width, HomeNavColumn.expandedWidth);
-
-      await tester.tap(find.descendant(
-          of: column, matching: find.text('Geçmiş')));
-      await tester.pump();
-      expect(find.byType(OpenHistoryScreen), findsOneWidget);
-      expect(column, findsOneWidget, reason: 'sütun yerinde kalır');
-
-      await tester.tap(find.byKey(const ValueKey('home-nav-toggle')));
-      await tester.pump();
-      expect(tester.getSize(column).width, HomeNavColumn.collapsedWidth);
-
-      // Dikeye dön: sütun kalkar, açık sekme ve durumu korunur.
-      final before = tester.state(find.byType(OpenHistoryScreen));
-      setSize(tester, _tabletPort);
-      await tester.pump();
-      expect(column, findsNothing);
-      expect(tester.state(find.byType(OpenHistoryScreen)), same(before),
-          reason: 'döndürünce sekme yeniden kurulmamalı');
-      setSize(tester, _tabletLand);
-      await tester.pump();
-      expect(column, findsOneWidget);
-      expect(tester.state(find.byType(OpenHistoryScreen)), same(before));
-    });
+    for (final size in const [_tabletLand, _tabletPort]) {
+      testWidgets('tablette solda ikinci menü yok ($size)', (tester) async {
+        final state = await appState(tester);
+        setSize(tester, size);
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(app(state, const HomeScreen()));
+        await tester.pump();
+        expect(find.byKey(const ValueKey('home-nav-column')), findsNothing);
+        expect(find.byType(NavigationRail), findsNothing);
+        expect(find.byType(VerticalDivider), findsNothing);
+        expect(find.byKey(const ValueKey('dash-two-columns')), findsOneWidget);
+      });
+    }
   });
 
   group('H9.4 satır sınırı', () {
