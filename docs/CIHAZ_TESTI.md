@@ -1656,3 +1656,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Bağlantı: metin bloğunda "Bağlantı" çipi → web adresi (ör. ornek.com) → kaydet → başka okuyucuda tıklayınca açılır. Sayfa hedefi → kaydet → başka okuyucuda o sayfaya atlar. Düzenle/Kaldır, geri al ile geri gelir.
 - [ ] Taşma: paragrafı alttaki bloğa binecek kadar uzat → çubukta uyarı satırı (Küçült · İt · Genişlet). "İt" seçili bitir → alttakiler uzama kadar iner, geri al ayrı adım. Uyarı satırı belirip kaybolurken sayfa kaymamalı.
 - [ ] Dokun → imleç: düzenleme kipinde metne dokununca imleç gecikmesiz gelmeli (hedef ≤ 120 ms).
+
+## B4-P17n PDF Pro nesne araçları (2026-11-21, dal faz-oto-B4-nesne) — yazıldı, cihazda doğrulanmadı
+- [ ] Tutunma: Görsel aracında bir görseli/şekli tutamaçtan sürükle → sayfa ortasına, kenarına, 2,5 cm kenar boşluğuna ve başka nesnenin kenarına yaklaşınca yapışır, ince kılavuz çizgisi görünür, hafif titreşim. Metin bloğu taşırken de aynı.
+- [ ] Sürükleme akıcı mı (hedef 60 fps, kare p99 ≤ 24 ms): kalabalık sayfada blok/görsel sürüklerken takılma yok. A/B C2'de.
+- [ ] Çoklu seçim: nesneye uzun bas → seçime eklenir (kesik çerçeve); bir daha uzun bas → çıkar. "Kementle seç" yongası → parmakla dikdörtgen çiz → içindekiler seçilir, kement kapanır, sayfa yine tek parmakla kayar.
+- [ ] Grup: tek tutamaçla hepsi birlikte taşınır; Sola / Yatay ortala / Sağa / Üste / Dikey ortala / Alta hizala, (3+ nesnede) Yatay / Dikey dağıt, Sil — her biri tek geri alma adımı, sonrasında seçim kalır.
+- [ ] Katmanlar: katmanlı bir PDF'te Araçlar → Pro araçlar → Katmanlar → bir katmanı kapat → Tamam → o katmanın çizimi görünmez; yeniden aç → geri gelir; başka okuyucuda (Acrobat/Chrome) da gizli açılır. Katmansız PDF'te "Bu belgede katman yok".
+- [ ] Kamera: Düzenle → Görsel → Görsel ekle → "Kameradan çek" → tarayıcı açılır, çek → görsel sayfanın ortasına gelir. Vazgeçince hiçbir şey eklenmez.
