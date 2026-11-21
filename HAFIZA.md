@@ -635,3 +635,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Düzeltme:** tavan < 100 bin hücrede (`_lazyMaxCells`) zip girdisi blok blok açılır (ham deflate → dart:io `ZLibCodec(raw: true)`), tavan dolunca akış durur; dizeler tembel (`_Shared`, olay yığını başına liste). Üstünde eski yol (önce aç, sonra oku).
 - **Ölçüm (CI large_file_test PERF, 100 bin satır):** önce (44895645942) baş 445 / tam 1669 / 300k 1640 ms → sonra (44917945129) baş 38 / tam 887 / 300k 926 ms. Test tavanı 3000 → 500 ms.
 - **Yanlış çıkan yol:** yeni yolu tam okumada da kullanmak: dize başına duraklat/sürdür ile tam 10331 ms, yığın listesiyle bile 3924 ms (zlib akışı + tembel dize zinciri olay başına pahalı, kök ölçülmedi). Tam okuma bu yüzden eski yolda.
+## 2026-11-21 — B5 P24 bağımlılık bakımı (dal faz-oto-B5-bakim)
+- **Yukarı akış (pub.dev 2026-11-21):** webdav_client 1.2.2 → xml ^6.2.2; smb_connect 0.0.9 → pointycastle ^3.9.1; ftpconnect 3.0.0 → dartssh2 ^3.3.1. Hiçbiri yeni sürüm çıkarmadı.
+- **Kaldırılan:** `dependency_overrides: dartssh2` — ftpconnect zaten `third_party/ftpconnect` yamalı kopya; kısıt orada `^4.1.0` yapıldı (YAMA.md "Yama 2"). Çözüm aynı (4.1.0, "direct main") → `pubspec.lock` değişmedi, yerel pub get gerekmedi.
+- **Kalan:** `xml: ^7.1.0` (webdav_client), `pointycastle: ^4.0.0` (smb_connect; dartssh2 4 ister), path override'ları pdfrx/pdfrx_engine/ftpconnect (yama). `shared_preferences_android` 2.4.28 sabit. Küçük sürüm yükseltmesi yapılmadı (lock yalnız yerel Flutter'la güncellenir, sessiz yükseltme tuzağı — 2026-11 A3.5).
