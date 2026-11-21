@@ -1637,3 +1637,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Değişiklikleri izle açık: Enter ve paragraf başında geri silme → kaydet → Word'de "paragraf işareti eklendi/silindi" görünür; seçimi kalın yap → Word'de "Biçimlendirilmiş" + Reddet eski hâle döner.
 - [ ] Form şablonu (satırları içerik denetimli tablo): tüm satırlar görünür, yazılır, Word'de denetim kutusu durur.
 - [ ] Dipnotlu belgeyi PDF'e aktar: her dipnot başvurusunun sayfasının altında, sonnotlar en sonda.
+
+## 2026-11-21 — B9b Word yorum kenar sütunu (dal faz-oto-B9b-yorum; yazıldı, cihazda doğrulanmadı)
+- [ ] Tablette (yatay ve dikey) yorumlu Word belgesi: metin daralır, sarı balonlar sağda kenar sütununda yorumlu paragrafın hizasında; dokununca yorum levhası açılır. Yorumsuz belgede metin tam genişlik.
+- [ ] Telefonda balon eskisi gibi paragraf altında; tablette ilk yorumu ekleyince sütun açılır, yazarken takılma yok.
+- [ ] A/B (C2): tablette yorumlu belgede yazma/kaydırma karesi (ölçülmedi).

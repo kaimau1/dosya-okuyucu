@@ -622,6 +622,15 @@ extension DocxMedia on DocxDocument {
     return id;
   }
 
+  /// B9b: belgede en az bir yorum var mı (tablette kenar sütunu açılır).
+  /// Yalnız yorum parçasına bakar, gövde TARANMAZ; ilk yorumda durur.
+  bool get hasComments =>
+      _commentsIfAny()
+          ?.rootElement
+          .childElements
+          .any((e) => e.name.local == 'comment') ??
+      false;
+
   /// Kenar balonu (B9 m.4): [id]'li yorum + yanıt sayısı. Gövde TARANMAZ
   /// (yorumlu paragraf her çizildiğinde çağrılır; maliyet yorum sayısı
   /// kadar). Yanıtsa (balonu kökündedir) ya da yoksa null.
