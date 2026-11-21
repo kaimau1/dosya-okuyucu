@@ -137,9 +137,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// TETİKLENMEZ, sayı bir kez hesaplanır (her tuşta değil).
   int _clutter = 0;
 
-  void _countClutter() => _clutter = SmartSort.isLoaded && SmartSort.enabled
-      ? SmartSort.clutter().length
-      : 0;
+  /// Ayıkla bulgularının nedene göre dökümü (U6 c, 2026-11-21: bulanık /
+  /// eski ekran görüntüsü / WhatsApp kopyası…) — çoktan aza; yeni AI isteği
+  /// yok, Akıllı düzenin mevcut kayıtları.
+  List<MapEntry<String, int>> _clutterBy = const [];
+
+  void _countClutter() {
+    final list = SmartSort.isLoaded && SmartSort.enabled
+        ? SmartSort.clutter()
+        : const <SmartRecord>[];
+    final by = <String, int>{};
+    for (final r in list) {
+      final k = SmartSort.reasonOf(r);
+      if (k != null) by[k] = (by[k] ?? 0) + 1;
+    }
+    _clutter = list.length;
+    _clutterBy = by.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+  }
 
   @override
   void initState() {
@@ -334,7 +349,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             icon: AppIcons.cleanEmpty,
                             color: AppHues.violet,
                             title: context.t('sm.clutter_title', {'n': _clutter}),
-                            note: context.t('sm.clutter_sub'),
+                            note: _clutterBy.isEmpty
+                                ? context.t('sm.clutter_sub')
+                                : _clutterBy
+                                    .take(3)
+                                    .map((e) =>
+                                        '${context.t('sm.r_${e.key}')} ${e.value}')
+                                    .join(' · '),
                             onTap: () async {
                               await SmartClutterScreen.open(context);
                               if (mounted) _partSetState(_countClutter);
