@@ -96,6 +96,8 @@ varsayılan (`pdf_pro_engine`), eski düzenleyici ⋮ menüsünde. **Hiçbiri ci
       **A/B (2026-11-13, Mi Note 10 Lite, 50 sayfa, TOTAL PSS):** normal 400 / 337 MB · kayıt kapalı 368 / 363 MB →
       fark yok (gürültü); geçici kayıt suçlu DEĞİL. Öneri: kurtarma davranışı DEĞİŞMESİN; bütçe aşımı için sıradaki aday
       adım başına sayfa anlık görüntüsü + yedek font (PSS mutlak; tek-oturum taban farkı hâlâ ölçülmedi).
+      **P08 (2026-11-14):** `commitLive` yerinde yazmadan sonra hep yeniden oynatma açıyordu (ikinci tam belge her geçici
+      kayıt/Kaydet'te) → kapatıldı (dal `faz-oto-P08-bellek`); **cihazda A/B bekliyor** (düzenleme sonu + Kaydet sonrası PSS).
 - [x] 📱 **§6 gecikme bütçeleri (2026-11-13 cihazda ölçüldü, hepsi bütçe içinde — `docs/perf/2026-11-pdfpro-54-oturum.md`):** `PDFPRO_PERF` logu eklendi (638e5f75 — kipe_gecis, uygula, geri_al,
       yinele, kaydet, tus; biçim `docs/perf/2026-11-pdfpro-55-65.md`). Kalan: `.r8test` profil APK'sıyla
       cihazda topla, p50/p95'i tabloya yaz (dokun→imleç ayrı ölçülmüyor).

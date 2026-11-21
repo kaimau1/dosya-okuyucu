@@ -112,7 +112,9 @@ void main() {
     expect(after.length, before.length + 5,
         reason: 'gizlenen özgün nesneler belgede kalmadı');
 
-    // Kayıt (özgünün üstünde yeniden oynatma) aynı metni verir.
+    // KÖK NEDEN (P08): yerinde yazma yeniden oynatmayı açıyordu → her geçici
+    // kayıt/Kaydet'te ikinci tam belge. Kayıt canlı belgeden, aynı metni verir.
+    expect(c.session.needsReplay, isFalse);
     final r = await c.save();
     expect(r.overwritten, isTrue);
     final re = await PdfDocument.openFile(path);

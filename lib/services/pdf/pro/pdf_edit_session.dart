@@ -432,9 +432,13 @@ class PdfEditSession extends ChangeNotifier {
         return job();
       });
 
-  /// Yazmayı tek adım olarak bitirir. Ara yazımlar belgede fazladan nesne
-  /// bırakmış olabilir → kayıt özgünün üstünde [op] yeniden oynatılarak
-  /// üretilir ([needsReplay]).
+  /// Yazmayı tek adım olarak bitirir. Sayfa nesnesi DEĞİŞMEZ (anlık görüntü
+  /// geri konmaz; gizlenen özgünleri bitiş yazımı kaldırır, ara yazımların
+  /// erişilemez artıklarını kayıt kırpar) → kayıt canlı belgeden.
+  ///
+  /// KÖK NEDEN (bellek, P08): burada [needsReplay] açılıyordu → her yerinde
+  /// yazmadan sonra 30 sn'lik geçici kayıt ve Kaydet açılış baytlarından
+  /// İKİNCİ tam PDFium belgesi açıp komutları yeniden oynatıyordu.
   Future<void> commitLive(
           {required String label, String detail = '', PdfEditOp? op}) =>
       _serial(() async {
@@ -448,7 +452,6 @@ class PdfEditSession extends ChangeNotifier {
         _done.add(PdfEditStep._(_nextId++, page, label, detail, op, _liveBefore));
         _liveBefore = 0;
         _livePage = null;
-        _restored = true;
         _notify();
       });
 
