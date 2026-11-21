@@ -5,6 +5,27 @@ part of '../app_strings.dart';
 /// Yeniler/Açılanlar, seçim önizleme şeridi, Belgeler menüsü, yeni akıllı
 /// kategori "Davet / etkinlik".
 const Map<String, (String, String, String)> _t46 = {
+  'apps.tip_unused': (
+    'Öneri: {name} {n} gündür açılmadı, {size} yer kaplıyor',
+    'Tip: {name} has not been opened for {n} days and takes {size}',
+    'اقتراح: لم يُفتح {name} منذ {n} يومًا ويشغل {size}'
+  ),
+  'apps.tip_unused_long': (
+    'Öneri: {name} uzun süredir açılmadı, {size} yer kaplıyor',
+    'Tip: {name} has not been opened for a long time and takes {size}',
+    'اقتراح: لم يُفتح {name} منذ مدة طويلة ويشغل {size}'
+  ),
+  'apps.tip_cache': (
+    'Öneri: {name} önbelleği {size} — temizlenebilir',
+    'Tip: {name} cache is {size} and can be cleared',
+    'اقتراح: ذاكرة {name} المؤقتة {size} ويمكن مسحها'
+  ),
+  'apps.tip_clear_cache': ('Önbelleği temizle', 'Clear cache', 'مسح الذاكرة المؤقتة'),
+  'apps.tip_restore': (
+    'Gizlenen {n} öneriyi geri getir',
+    'Restore {n} hidden tips',
+    'استعادة {n} اقتراحات مخفية'
+  ),
   'ui.clutter_tile': ('Ayıkla', 'Declutter', 'تنظيف'),
   'ui.smart_new': (
     '+{n} yeni · {t} düzenli',

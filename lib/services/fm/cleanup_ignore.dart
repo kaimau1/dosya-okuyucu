@@ -15,11 +15,18 @@ class CleanupIgnore {
 
   static const _kIds = 'cleanup_ignore_ids';
   static const _kPaths = 'cleanup_ignore_paths';
+  static const _kApps = 'cleanup_ignore_apps';
 
   final changes = ValueNotifier<int>(0);
   Set<String> _ids = {};
   Set<String> _paths = {};
+
+  /// Uygulamalar ekranının önerisinde "Bir daha önerme" denen paketler (U6 b).
+  /// Yer aç sayacına girmez; Uygulamalar ekranından geri getirilir.
+  Set<String> _apps = {};
   bool _loaded = false;
+
+  Set<String> get ignoredApps => _apps;
 
   int get count => _ids.length + _paths.length;
 
@@ -28,6 +35,7 @@ class CleanupIgnore {
     final p = await SharedPreferences.getInstance();
     _ids = (p.getStringList(_kIds) ?? const []).toSet();
     _paths = (p.getStringList(_kPaths) ?? const []).toSet();
+    _apps = (p.getStringList(_kApps) ?? const []).toSet();
     _loaded = true;
     changes.value++;
   }
@@ -36,6 +44,7 @@ class CleanupIgnore {
     final p = await SharedPreferences.getInstance();
     await p.setStringList(_kIds, _ids.toList());
     await p.setStringList(_kPaths, _paths.toList());
+    await p.setStringList(_kApps, _apps.toList());
     changes.value++;
   }
 
@@ -46,6 +55,16 @@ class CleanupIgnore {
 
   Future<void> ignoreFile(String path) async {
     _paths.add(path);
+    await _save();
+  }
+
+  Future<void> ignoreApp(String packageName) async {
+    _apps.add(packageName);
+    await _save();
+  }
+
+  Future<void> clearApps() async {
+    _apps.clear();
     await _save();
   }
 

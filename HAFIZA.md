@@ -607,3 +607,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - `read()`: `barDir` × `grouping` → 6 çubuk türü; area/doughnut/scatter (`xVal`/`yVal`)/radar ayrı; bubble→dağılım, stock→çizgi, ofPie→pasta. Tür seçici `ChartKindChips` (+ `chartKindOptions`) Excel ekle penceresiyle ortak; eski `sp.chart_column/bar/line/pie` anahtarları silindi.
 ## 2026-11-21 — B11 renk: slayt grafiği yeniden tema renkli (dal faz-oto-B11-renk)
 - **Kök:** B11 m.2de ortak `XlsxChartWriter.chartXml` sabit `srgbClr` paleti yazıyordu. **Düzeltme:** `chartXml(spec, {themeColors})` — slayt `true` geçer, seri/dilim/çizgi/işaretçi/eğilim `schemeClr accentN` (eski slayt yazıcısıyla aynı); Excel varsayılanı (`false`) sabit RGB kalır. Testler: slides_chart_kinds (schemeClr var, palet RGB yok), xlsx_chart_kinds (RGB var, schemeClr yok).
+## 2026-11-21 — U6 kalan: Uygulamalar öneri kartı + Analiz Ayıkla dökümü + ses araştırması (dal faz-oto-U6-kalan; yazıldı, cihazda doğrulanmadı)
+- **Karar (b):** öneri yerel kural (`appTipFor`: ≥30 gün kullanılmayan × ≥50 MB önce, yoksa ≥300 MB önbellek); Decisions/model kullanılmadı — girdi yalnız ad/boyut/son kullanım, model bilgi katmaz. Gizleme `CleanupIgnore` `cleanup_ignore_apps`.
+- **Karar (a), en güvenli:** yeni ses EKLENMEDİ. Piper tr dfki / MMS / Breeze NC, 99eren99 lisanssız, VITS-OpenBible CC-BY-SA ~1 GB, kokoro-turkish Apache ama g2p espeak-ng (GPL-3) ister; İngilizce Pocket ~200 MB, Supertonic OpenRAIL. Antalia/EMA Space'leri sabit commit'te güncel. Tekrar araştırma: lisans + g2p bağımlılığına önce bak.
+- **Kural:** test telefonu Gemini'nin başka projesiyle ortak — aynı anda kullanılmaz (biri test ederken öbürü kod).
+

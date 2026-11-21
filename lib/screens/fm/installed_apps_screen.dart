@@ -11,6 +11,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
 import '../../core/theme.dart';
 import '../../services/fm/apk_export.dart';
+import '../../services/fm/cleanup_ignore.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/app_storage_service.dart';
@@ -84,6 +85,10 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _load();
+    // "Bir daha önerme" listesi (öneri satırı için; küçük, bir kerelik okuma).
+    unawaited(CleanupIgnore.instance.load().then((_) {
+      if (mounted) setState(() {});
+    }));
   }
 
   @override
@@ -256,6 +261,11 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
     for (final a in apps) {
       if (a.totalBytes > maxBytes) maxBytes = a.totalBytes;
     }
+    final ignoredApps = CleanupIgnore.instance.ignoredApps;
+    final tip = _usageKnown
+        ? appTipFor(_apps, now,
+            ignored: ignoredApps, unusedDays: _unusedDays)
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -282,6 +292,9 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
                 case 'system':
                   _showSystem = !_showSystem;
                   await _load();
+                case 'tips':
+                  await CleanupIgnore.instance.clearApps();
+                  if (mounted) setState(() {});
               }
             },
             // Seçili ölçüt İŞARETLİ: eskiden menü hangi sıralamanın açık
@@ -309,6 +322,12 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
                 checked: _showSystem,
                 child: Text(context.t('apps.show_system')),
               ),
+              if (ignoredApps.isNotEmpty)
+                PopupMenuItem(
+                  value: 'tips',
+                  child: Text(context.t('apps.tip_restore',
+                      {'n': ignoredApps.length})),
+                ),
             ],
           ),
         ],
@@ -328,6 +347,7 @@ class _InstalledAppsScreenState extends State<InstalledAppsScreen>
                           _permissionCard()
                         else
                           _summaryCard(now),
+                        if (tip != null) _tipCard(tip, now),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(
                               Gap.md, Gap.sm, Gap.md, 0),

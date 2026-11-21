@@ -1,6 +1,8 @@
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/cleanup_advisor.dart';
+import 'package:dosya_okuyucu/services/fm/app_storage_service.dart';
 import 'package:dosya_okuyucu/services/fm/cleanup_ignore.dart';
+import 'package:dosya_okuyucu/services/fm/installed_apps_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// 2026-11-20: Yer aç "Bir daha önerme" — tür ve tek dosya düzeyinde.
@@ -38,5 +40,47 @@ void main() {
     final out = CleanupIgnore.applyTo(list,
         ids: {}, paths: {'/a/1.apk', '/a/2.apk'});
     expect(out.map((s) => s.id), ['trash']);
+  });
+
+  group('appTipFor (Uygulamalar öneri kartı)', () {
+    const day = 86400000;
+    const now = 100 * day;
+    const mb = 1 << 20;
+    InstalledAppEntry app(String pkg,
+            {int lastUsed = now, int total = 0, int cache = 0, bool known = true}) =>
+        InstalledAppEntry(
+          name: pkg,
+          packageName: pkg,
+          versionName: '1',
+          icon: null,
+          installedAtMs: 0,
+          lastUsedMs: lastUsed,
+          usageKnown: known,
+          size: AppStorageSize(appBytes: total, dataBytes: 0, cacheBytes: cache),
+        );
+
+    final apps = [
+      app('eski.buyuk', lastUsed: now - 40 * day, total: 200 * mb),
+      app('eski.kucuk', lastUsed: now - 40 * day, total: 10 * mb),
+      app('yeni.onbellek', total: 900 * mb, cache: 400 * mb),
+    ];
+
+    test('kullanılmayan büyük uygulama önbellekten önce gelir', () {
+      final t = appTipFor(apps, now)!;
+      expect(t.app.packageName, 'eski.buyuk');
+      expect(t.kind, AppTipKind.uninstall);
+    });
+
+    test('gizlenen atlanır, sıradaki öneri gelir', () {
+      final t = appTipFor(apps, now, ignored: {'eski.buyuk'})!;
+      expect(t.app.packageName, 'yeni.onbellek');
+      expect(t.kind, AppTipKind.clearCache);
+      expect(t.bytes, 400 * mb);
+    });
+
+    test('kullanım bilinmiyorsa öneri yok', () {
+      final unknown = [app('x', lastUsed: 0, total: 900 * mb, cache: 900 * mb, known: false)];
+      expect(appTipFor(unknown, now), isNull);
+    });
   });
 }
