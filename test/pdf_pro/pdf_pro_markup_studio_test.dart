@@ -132,10 +132,15 @@ void main() {
     h.c.armMarkup(PdfMarkupKind.marker);
     await tester.pump();
     final g = await tester.startGesture(const Offset(100, 200));
+    await tester.pump();
+    // Kasma bekçisi: çizerken yalnız vuruşun boyayıcısı yeniden çizilir.
+    final builds = PdfProBlockLayer.debugBuilds;
     for (var i = 0; i < 6; i++) {
       await g.moveBy(const Offset(20, 0));
       await tester.pump();
     }
+    expect(PdfProBlockLayer.debugBuilds, builds,
+        reason: 'çizerken katman yeniden kuruldu (kasma)');
     await g.up();
     await tester.pump();
     await until(tester, () => h.c.session.steps.length == 1 && !h.c.busy);

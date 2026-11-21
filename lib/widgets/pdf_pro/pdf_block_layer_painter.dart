@@ -19,22 +19,15 @@ class _LayerPainter extends CustomPainter {
     required this.live,
     required this.toWidget,
     required this.caretOn,
-    required this.stroke,
-    required this.strokeColor,
-    required this.strokeWidth,
-    required this.markFrom,
-    required this.markTo,
-    required this.markRects,
-    required this.shape,
   }) : super(repaint: caretOn);
 
   final List<Rect> rects;
   final List<bool> locked;
   final int? selected;
-  final Color accent, pending, strokeColor, onAccent;
+  final Color accent, pending, onAccent;
   final Offset? itemGrip;
   final bool movable;
-  final double px, strokeWidth;
+  final double px;
   final Rect? itemRect, annotRect;
 
   /// Çoklu seçimin üyeleri (Faz 59 m.5); boşsa tekli seçim.
@@ -42,10 +35,6 @@ class _LayerPainter extends CustomPainter {
   final PdfLiveEdit? live;
   final Offset Function(double x, double y) toWidget;
   final ValueNotifier<bool> caretOn;
-  final List<Offset> stroke;
-  final Offset? markFrom, markTo;
-  final List<Rect> markRects;
-  final PdfMarkupKind? shape;
 
   void _dashed(Canvas canvas, Rect r, Paint paint) {
     final dash = 5 * px, gap = 3 * px;
@@ -130,46 +119,6 @@ class _LayerPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = PdfEditTokens.frameActiveWidth * px
             ..color = accent);
-    }
-
-    // İşaretleme önizlemesi.
-    if (markRects.isNotEmpty) {
-      final p = Paint()..color = strokeColor.withValues(alpha: 0.35);
-      for (final r in markRects) {
-        canvas.drawRect(r, p);
-      }
-    }
-    if (stroke.length > 1) {
-      final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
-      for (final o in stroke.skip(1)) {
-        path.lineTo(o.dx, o.dy);
-      }
-      canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeCap = StrokeCap.round
-            ..strokeJoin = StrokeJoin.round
-            ..strokeWidth = strokeWidth
-            ..color = strokeColor);
-    }
-    final a = markFrom, b = markTo;
-    if (shape != null && a != null && b != null) {
-      final p = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..color = strokeColor;
-      switch (shape!) {
-        case PdfMarkupKind.ellipse:
-          canvas.drawOval(Rect.fromPoints(a, b), p);
-        case PdfMarkupKind.line || PdfMarkupKind.arrow:
-          canvas.drawLine(a, b, p);
-        case PdfMarkupKind.redact:
-          canvas.drawRect(Rect.fromPoints(a, b),
-              Paint()..color = strokeColor.withValues(alpha: 0.6));
-        default:
-          canvas.drawRect(Rect.fromPoints(a, b), p);
-      }
     }
 
     // Yazma kipi: seçim, bileşim alt çizgisi, imleç.
@@ -365,4 +314,110 @@ class _DragPainter extends CustomPainter {
   @override
   bool shouldRepaint(_DragPainter old) =>
       old.preview != preview || old.accent != accent || old.px != px;
+}
+
+/// Çizim önizlemesi (vurgu sürüklemesi, kalem, şekil, kement). **Kasma
+/// kuralı:** çizerken yalnız [_MarkPainter] yeniden boyanır — katman
+/// kurulmaz, sayfanın öteki kılavuzları boyanmaz.
+class _MarkPreview extends ChangeNotifier {
+  Offset? from, to;
+
+  /// Serbest çizimin noktaları (katman pikseli).
+  final List<Offset> points = [];
+
+  void begin(Offset at) {
+    from = at;
+    to = at;
+    points
+      ..clear()
+      ..add(at);
+    notifyListeners();
+  }
+
+  void extend(Offset at, {required bool keep}) {
+    to = at;
+    if (keep) points.add(at);
+    notifyListeners();
+  }
+
+  void clear() {
+    if (from == null && points.isEmpty) return;
+    from = null;
+    to = null;
+    points.clear();
+    notifyListeners();
+  }
+}
+
+class _MarkPainter extends CustomPainter {
+  _MarkPainter(this.preview,
+      {required this.color,
+      required this.width,
+      required this.shape,
+      required this.textRects})
+      : super(repaint: preview);
+
+  final _MarkPreview preview;
+  final Color color;
+  final double width;
+  final PdfMarkupKind? shape;
+
+  /// Metin üstü işaretlemede sürüklenen aralığın satır kutuları.
+  final List<Rect> Function(Offset from, Offset to)? textRects;
+
+  @override
+  bool hitTest(Offset position) => false;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final a = preview.from, b = preview.to;
+    if (a == null || b == null) return;
+    final rects = textRects;
+    if (rects != null) {
+      final p = Paint()..color = color.withValues(alpha: 0.35);
+      for (final r in rects(a, b)) {
+        canvas.drawRect(r, p);
+      }
+    }
+    final pts = preview.points;
+    if (pts.length > 1) {
+      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (final o in pts.skip(1)) {
+        path.lineTo(o.dx, o.dy);
+      }
+      canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..strokeWidth = width
+            ..color = color);
+    }
+    final s = shape;
+    if (s == null) return;
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..color = color;
+    switch (s) {
+      case PdfMarkupKind.ellipse:
+        canvas.drawOval(Rect.fromPoints(a, b), p);
+      case PdfMarkupKind.line || PdfMarkupKind.arrow:
+        canvas.drawLine(a, b, p);
+      case PdfMarkupKind.redact:
+        canvas.drawRect(
+            Rect.fromPoints(a, b), Paint()..color = color.withValues(alpha: 0.6));
+      default:
+        canvas.drawRect(Rect.fromPoints(a, b), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MarkPainter old) =>
+      old.preview != preview ||
+      old.color != color ||
+      old.width != width ||
+      old.shape != shape ||
+      (old.textRects == null) != (textRects == null);
 }
