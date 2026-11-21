@@ -139,16 +139,45 @@ abstract final class DocxPdf {
   }
 
   /// [compress] yalnız testte kapatılır (sayfa nesneleri metinde sayılsın).
+  /// [notePages]: (testte) dipnot anahtarı → altına yazıldığı sayfa.
+  ///
+  /// Dipnot sayfa ALTINDA: `pdf` paketinde alt bilgi sayfa içeriğinden önce
+  /// kurulur, hangi notun o sayfaya düştüğü bilinmez. Bu yüzden geçişli:
+  /// her geçişte not başvurusu çizildiği sayfayı kaydeder ([_PageProbe]),
+  /// sonraki geçiş notu o sayfanın altına koyar; yerleşim değişmeyince durur.
+  /// Notsuz belgede tek geçiş. Sonnotlar belge sonunda kalır.
   static Future<Uint8List> render(Uint8List docx,
       {required DocxPdfFonts fonts,
       bool pageNumbers = true,
-      bool compress = true}) async {
+      bool compress = true,
+      Map<String, int>? notePages}) async {
     final doc = DocxDocument.parse(docx);
     final pkg = DocxPackage.open(docx);
     final page = DocxPdfPage.of(pkg);
-    final r = _Renderer(doc, fonts);
     final header = headerFooterText(pkg, 'headerReference');
     final footer = headerFooterText(pkg, 'footerReference');
+    // ponytail: en çok 3 geçiş; yine oynarsa not, başvurusunun bir önceki
+    // geçişteki sayfasının altında kalır (bir sayfa kayabilir).
+    var placed = <String, int>{};
+    for (var pass = 0;; pass++) {
+      final r = _Renderer(doc, fonts)..footPage = placed;
+      final bytes = await _renderPass(r, page, header, footer,
+          pageNumbers: pageNumbers, compress: compress);
+      final seen = r.refPage;
+      if (pass == 2 || seen.isEmpty || _samePlaces(seen, placed)) {
+        notePages?.addAll(placed);
+        return bytes;
+      }
+      placed = seen;
+    }
+  }
+
+  static bool _samePlaces(Map<String, int> a, Map<String, int> b) =>
+      a.length == b.length && a.entries.every((e) => b[e.key] == e.value);
+
+  static Future<Uint8List> _renderPass(_Renderer r, DocxPdfPage page,
+      String? header, String? footer,
+      {required bool pageNumbers, required bool compress}) {
     String fill(String t, pw.Context ctx) => t
         .replaceAll('{p}', '${ctx.pageNumber}')
         .replaceAll('{n}', '${ctx.pagesCount}');
@@ -159,10 +188,25 @@ abstract final class DocxPdf {
         marginLeft: page.left,
         marginRight: page.right);
     final body = r.build(format.availableWidth);
-    // Dipnot/sonnotlar belge sonunda numaralı liste (sayfa altına yerleşim
-    // `pdf` paketinin MultiPage'inde sayfa içeriği bilinmeden kurulamıyor).
+    // Sonnotlar (ve henüz sayfası bilinmeyen dipnotlar) belge sonunda liste.
     final notes = r.notesSection(format.availableWidth);
     if (notes.isNotEmpty) body.last.addAll(notes);
+    pw.Widget pageFooter(pw.Context ctx) {
+      final text = footer == null && !pageNumbers ||
+              (page.titlePage && ctx.pageNumber == 1)
+          ? null
+          : pw.Container(
+              alignment: pw.Alignment.center,
+              margin: const pw.EdgeInsets.only(top: 8),
+              child: pw.Text(
+                  footer == null ? '${ctx.pageNumber}' : fill(footer, ctx),
+                  style: r.small));
+      final foot = r.footNotes(ctx.pageNumber, format.availableWidth);
+      if (foot.isEmpty) return text ?? pw.SizedBox();
+      return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [...foot, if (text != null) text]);
+    }
     // Sayfa sonu atomlarına göre bölümler: her bölüm yeni sayfada başlar.
     var first = true;
     for (final chunk in body) {
@@ -178,16 +222,9 @@ abstract final class DocxPdf {
                     alignment: pw.Alignment.center,
                     margin: const pw.EdgeInsets.only(bottom: 8),
                     child: pw.Text(fill(header, ctx), style: r.small)),
-        footer: footer == null && !pageNumbers
+        footer: footer == null && !pageNumbers && r.footPage.isEmpty
             ? null
-            : (ctx) => (page.titlePage && ctx.pageNumber == 1)
-                ? pw.SizedBox()
-                : pw.Container(
-                    alignment: pw.Alignment.center,
-                    margin: const pw.EdgeInsets.only(top: 8),
-                    child: pw.Text(
-                        footer == null ? '${ctx.pageNumber}' : fill(footer, ctx),
-                        style: r.small)),
+            : pageFooter,
         // Çok sütunlu bölüm PDF'te tek sütun akar (pdf paketinde gazete
         // sütunu yok); sütun ayarı belgede korunur.
         build: (_) => chunk,
@@ -271,18 +308,42 @@ class _Renderer {
   /// Çizilen notlar (anahtar → numara), belge sırasıyla.
   final Map<String, String> _notesSeen = {};
 
+  /// Önceki geçişte dipnot başvurusunun düştüğü sayfa (anahtar → sayfa):
+  /// bu geçişte not o sayfanın altına yazılır.
+  Map<String, int> footPage = const {};
+
+  /// Bu geçişte başvurunun çizildiği sayfa (çizimde dolar).
+  final Map<String, int> refPage = {};
+
+  /// Not anahtarı → numara (çizilen başvurular).
+  final Map<String, String> _noteNo = {};
+
+  /// [page]. sayfanın altına: ayırıcı + o sayfadaki dipnotlar.
+  List<pw.Widget> footNotes(int page, double width) {
+    final here = {
+      for (final e in footPage.entries)
+        if (e.value == page) e.key: _noteNo[e.key] ?? '',
+    };
+    return here.isEmpty ? const [] : _noteLines(here, width, top: 6);
+  }
+
   /// Belge sonuna: ayırıcı çizgi + "numara  metin" satırları.
   List<pw.Widget> notesSection(double width) {
     if (_notesSeen.isEmpty) return const [];
+    return _noteLines(_notesSeen, width, top: 18);
+  }
+
+  List<pw.Widget> _noteLines(Map<String, String> notes, double width,
+      {required double top}) {
     final st = small.copyWith(color: PdfColors.black);
     return [
       pw.Container(
         width: width / 3,
-        margin: const pw.EdgeInsets.only(top: 18, bottom: 6),
+        margin: pw.EdgeInsets.only(top: top, bottom: 6),
         decoration: const pw.BoxDecoration(
             border: pw.Border(top: pw.BorderSide(width: 0.5))),
       ),
-      for (final e in _notesSeen.entries)
+      for (final e in notes.entries)
         pw.Padding(
           padding: const pw.EdgeInsets.only(bottom: 3),
           child: pw.RichText(
@@ -430,9 +491,15 @@ class _Renderer {
           case DocxAtomKind.note:
             final no = _noteNos[a] ?? a.display;
             if (no.isNotEmpty) {
-              _notesSeen[doc.noteKey(a)] = no;
+              final key = doc.noteKey(a);
+              _noteNo[key] = no;
+              if (!footPage.containsKey(key)) _notesSeen[key] = no;
               spans.add(pw.TextSpan(
                   text: no, style: _style(l, sup: true), baseline: 4));
+              if (!key.startsWith(kDocxEndnoteKey)) {
+                spans.add(pw.WidgetSpan(
+                    child: _PageProbe((p) => refPage[key] ??= p)));
+              }
             }
           default:
             if (a.display.isNotEmpty) {
@@ -528,5 +595,24 @@ class _Renderer {
         ],
       ),
     );
+  }
+}
+
+/// Görünmez, boyutsuz: çizildiği sayfanın numarasını bildirir (dipnot
+/// başvurusunun hangi sayfaya düştüğünü öğrenmek için).
+class _PageProbe extends pw.Widget {
+  _PageProbe(this.mark);
+  final void Function(int page) mark;
+
+  @override
+  void layout(pw.Context context, pw.BoxConstraints constraints,
+      {bool parentUsesSize = false}) {
+    box = PdfRect.zero;
+  }
+
+  @override
+  void paint(pw.Context context) {
+    super.paint(context);
+    mark(context.pageNumber);
   }
 }
