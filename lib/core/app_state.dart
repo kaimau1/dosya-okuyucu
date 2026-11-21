@@ -196,7 +196,7 @@ class AppState extends ChangeNotifier {
   String _accent = 'default';
 
   /// Menü görünümü (2026-11-15): varsayılan sekmeli.
-  MenuLook _menuLook = MenuLook.tabbed;
+  MenuLook _menuLook = MenuLook.bento;
   AppLanguage _language = AppLanguage.system;
 
   /// Arayüz yazı tipi. Varsayılan `AppTheme.uiFontDefault` = tasarımın kendi
