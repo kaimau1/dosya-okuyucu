@@ -117,6 +117,49 @@ AppIdleLevel idleLevelFor(int? idleDays, {required bool usageKnown}) {
   return AppIdleLevel.forgotten;
 }
 
+/// Uygulamalar ekranının tek satırlık önerisi (U6 b, 2026-11-21).
+enum AppTipKind { uninstall, clearCache }
+
+class AppTip {
+  final InstalledAppEntry app;
+  final AppTipKind kind;
+
+  /// Kazanılacak yer: kaldırmada tümü, önbellekte önbellek.
+  final int bytes;
+  const AppTip(this.app, this.kind, this.bytes);
+}
+
+/// **Akıllı öneri — yerel kural** (U6 b): girdi yalnız ad/boyut/son kullanım;
+/// bir model buna bilgi katmaz, istek de atmaya değmez. Önce 30+ gündür
+/// açılmayan ve en az [minUnusedBytes] kaplayan EN BÜYÜK uygulama (kaldır);
+/// yoksa önbelleği [minCacheBytes]'ı geçen en büyük önbellek (temizle).
+/// [ignored] = "Bir daha önerme" denen paketler. Saf (birim testli).
+AppTip? appTipFor(
+  List<InstalledAppEntry> apps,
+  int nowMs, {
+  Set<String> ignored = const {},
+  int unusedDays = 30,
+  int minUnusedBytes = 50 << 20,
+  int minCacheBytes = 300 << 20,
+}) {
+  AppTip? unused;
+  AppTip? cache;
+  for (final a in apps) {
+    if (!a.usageKnown || ignored.contains(a.packageName)) continue;
+    final idle = a.idleDays(nowMs);
+    if ((idle == null || idle >= unusedDays) &&
+        a.totalBytes >= minUnusedBytes &&
+        a.totalBytes > (unused?.bytes ?? 0)) {
+      unused = AppTip(a, AppTipKind.uninstall, a.totalBytes);
+    }
+    final c = a.size?.cacheBytes ?? 0;
+    if (c >= minCacheBytes && c > (cache?.bytes ?? 0)) {
+      cache = AppTip(a, AppTipKind.clearCache, c);
+    }
+  }
+  return unused ?? cache;
+}
+
 /// Telefonda yüklü uygulamaları ve son kullanım zamanlarını okur.
 ///
 /// **İki ayrı kaynak:** uygulama listesi `installed_apps` (PackageManager),

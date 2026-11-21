@@ -63,6 +63,71 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
     );
   }
 
+  /// **Akıllı öneri** (U6 b): yerel kuralla tek satır — en büyük
+  /// kullanılmayan uygulama ya da şişkin önbellek; "Bir daha önerme" paketi
+  /// kalıcı gizler ([CleanupIgnore], menüden geri getirilir).
+  Widget _tipCard(AppTip tip, int now) {
+    final app = tip.app;
+    final size = FsPaths.humanSize(tip.bytes);
+    final idle = app.idleDays(now);
+    final text = switch (tip.kind) {
+      AppTipKind.uninstall => idle == null
+          ? context.t('apps.tip_unused_long', {'name': app.name, 'size': size})
+          : context.t('apps.tip_unused',
+              {'name': app.name, 'n': idle, 'size': size}),
+      AppTipKind.clearCache =>
+        context.t('apps.tip_cache', {'name': app.name, 'size': size}),
+    };
+    return Padding(
+      key: ValueKey('apps-tip-${app.packageName}'),
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.xs),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  _AppIcon(app: app),
+                  const SizedBox(width: Gap.md),
+                  Expanded(child: Text(text, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+              Wrap(
+                alignment: WrapAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () async {
+                      await CleanupIgnore.instance.ignoreApp(app.packageName);
+                      if (mounted) _partSetState(() {});
+                    },
+                    icon: const Icon(AppIcons.hiddenOff, size: 18),
+                    label: Text(context.t('clean.never_suggest')),
+                  ),
+                  if (tip.kind == AppTipKind.uninstall)
+                    TextButton(
+                      onPressed: () async {
+                        _pendingUninstall = app.packageName;
+                        await InstalledAppsService.uninstall(app.packageName);
+                      },
+                      child: Text(context.t('apps.uninstall')),
+                    )
+                  else
+                    TextButton(
+                      onPressed: () => AppStorageService.openAppStorageSettings(
+                          app.packageName),
+                      child: Text(context.t('apps.tip_clear_cache')),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _permissionCard() => Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
         child: Card(
