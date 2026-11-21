@@ -26,6 +26,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       'permissions' => _permissions(),
       'outline' => _editOutline(),
       'meta' => _editMeta(),
+      'layers' => _editLayers(),
       'xfdf_out' => _exportXfdf(),
       'xfdf_in' => _importXfdf(),
       'stamp' => _stamp(),
@@ -444,6 +445,39 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     if (edited == null || edited == current || !mounted) return;
     await _apply(_str.t('pp.meta'),
         (b) => PdfDocPro.writeMetaInBackground(b, edited, password: pw));
+  }
+
+  /// Katmanları (OCG) göster/gizle — Faz 59 m.6. Çizim silinmez; yalnız
+  /// belgenin varsayılan görünümü değişir (geri alınabilir).
+  Future<void> _editLayers() async {
+    final bytes = _bytes!;
+    final pw = _password;
+    final List<PdfLayerInfo> layers;
+    try {
+      layers = await PdfDocPro.readLayersInBackground(bytes, password: pw);
+    } catch (_) {
+      _snack(_str.t('pp.layers_failed'));
+      return;
+    }
+    if (!mounted) return;
+    if (layers.isEmpty) {
+      _snack(_str.t('pp.layers_none'));
+      return;
+    }
+    final next = await showAppSheet<List<bool>>(
+      context,
+      title: context.t('pp.layers'),
+      // Liste kendi kayar (uzun katman listesinde düğme görünür kalır).
+      scrollable: false,
+      builder: (_) => _LayersSheet(layers: layers),
+    );
+    if (next == null ||
+        !mounted ||
+        listEquals(next, [for (final l in layers) l.visible])) {
+      return;
+    }
+    await _apply(_str.t('pp.layers'),
+        (b) => PdfDocPro.writeLayersInBackground(b, next, password: pw));
   }
 
   Future<void> _exportXfdf() async {

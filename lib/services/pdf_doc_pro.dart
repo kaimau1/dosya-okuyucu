@@ -47,6 +47,9 @@ enum PdfAllow { print, copy, edit, annotate, fillForms, assemble }
 /// Belge bilgisi (Info sözlüğü) — B4/P21 meta veri.
 typedef PdfMeta = ({String title, String author, String subject, String keywords});
 
+/// Belgedeki bir katman (OCG) — B4/P17, Faz 59 m.6.
+typedef PdfLayerInfo = ({String name, bool visible});
+
 /// Hazır damga şablonları.
 enum PdfStampKind {
   approved,
@@ -253,6 +256,61 @@ abstract final class PdfDocPro {
   static Future<List<int>> writeMetaInBackground(List<int> bytes, PdfMeta meta,
           {String? password}) =>
       _bg(() => writeMeta(bytes, meta, password: password));
+
+  // ── Katmanlar / OCG (B4/P17, Faz 59 m.6) ─────────────────────────────────
+
+  /// İç içe katmanlar dahil tümü, belge sırasıyla, her biri bir kez
+  /// (alt katmanlar üst listede de bulunabilir — kimlikle tekilleştirilir).
+  static List<PdfLayer> _allLayers(PdfDocument doc) {
+    final seen = Set<PdfLayer>.identity();
+    final out = <PdfLayer>[];
+    void walk(PdfLayerCollection c) {
+      for (var i = 0; i < c.count; i++) {
+        final l = c[i];
+        if (seen.add(l)) out.add(l);
+        walk(l.layers);
+      }
+    }
+
+    walk(doc.layers);
+    return out;
+  }
+
+  static List<PdfLayerInfo> readLayers(List<int> bytes, {String? password}) {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      return [
+        for (final l in _allLayers(doc)) (name: l.name ?? '', visible: l.visible)
+      ];
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  /// Katmanları göster/gizle: belgenin varsayılan görünümü (`/D /ON /OFF`)
+  /// yazılır — çizimler silinmez, gizli katman yeniden açılabilir.
+  /// [visible] [readLayers] sırasıyla.
+  static Future<List<int>> writeLayers(List<int> bytes, List<bool> visible,
+      {String? password}) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      final all = _allLayers(doc);
+      for (var i = 0; i < all.length && i < visible.length; i++) {
+        if (all[i].visible != visible[i]) all[i].visible = visible[i];
+      }
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static Future<List<PdfLayerInfo>> readLayersInBackground(List<int> bytes,
+          {String? password}) =>
+      Isolate.run(() => readLayers(bytes, password: password));
+
+  static Future<List<int>> writeLayersInBackground(
+          List<int> bytes, List<bool> visible, {String? password}) =>
+      _bg(() => writeLayers(bytes, visible, password: password));
 
   // ── XFDF (B4/P17) ────────────────────────────────────────────────────────
 
