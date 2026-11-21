@@ -62,6 +62,9 @@ class XlsxStreamRequest {
 }
 
 abstract final class XlsxStream {
+  /// Bu tavanın altında blok blok açma (erken durur); üstünde eski yol.
+  static const _lazyMaxCells = 100000;
+
   /// İzolat giriş noktası (`compute`/`Isolate.run`).
   static Future<XlsxStreamResult> readInBackground(XlsxStreamRequest r) => read(
       r.path,
@@ -76,6 +79,11 @@ abstract final class XlsxStream {
     int maxSharedChars = 24 << 20,
   }) async {
     final input = InputFileStream(path);
+    // ponytail: blok blok açma yalnız küçük tavanda (baş okuması, akıllı
+    // sıralama). Tam okumada olay başına duraklat/sürdür zinciri (zlib akışı +
+    // tembel dizeler) eski yoldan 2,3 kat yavaştı (CI 44898521629: 100 bin
+    // satır 3924 ms, önce 1669) — tam okuma eski yolda: önce aç, sonra oku.
+    final lazy = maxCells < _lazyMaxCells;
     _Shared? shared;
     final work = Directory(p.join(tempDir,
         'xlsx_stream_${DateTime.now().microsecondsSinceEpoch}'))
@@ -100,7 +108,9 @@ abstract final class XlsxStream {
       final ss = entry('xl/sharedStrings.xml');
       shared = _Shared(ss == null
           ? null
-          : _readShared(_bytes(ss, work, 'shared.xml'), maxSharedChars));
+          : _readShared(
+              _bytes(ss, work, 'shared.xml', lazy), maxSharedChars));
+      if (!lazy) await shared.more(1 << 62);
 
       final out = <XlsxStreamSheet>[];
       var total = 0;
@@ -114,8 +124,10 @@ abstract final class XlsxStream {
         }
         final f = entry(target);
         if (f == null) continue;
-        final cut = await _readSheet(_bytes(f, work, 'sheet_${out.length}.xml'),
-            sheet, shared, maxCells - total);
+        final tmpName = 'sheet_${out.length}.xml';
+        final cut = await _readSheet(
+            _bytes(f, work, tmpName, lazy), sheet, shared, maxCells - total);
+        if (!lazy) File(p.join(work.path, tmpName)).deleteSync();
         total += sheet.cellCount;
         truncated |= cut;
       }
@@ -135,9 +147,10 @@ abstract final class XlsxStream {
   /// Zip girdisinin açılmış baytları, blok blok. Dinleyici iptal edince
   /// (hücre tavanı) okuma ve açma orada durur. Şifreli ya da deflate/store
   /// dışı girdide eski yol: geçici dosyaya toptan açılır.
-  static Stream<List<int>> _bytes(ArchiveFile f, Directory work, String name) {
+  static Stream<List<int>> _bytes(
+      ArchiveFile f, Directory work, String name, bool lazy) {
     final z = f.rawContent;
-    if (z is ZipFile && z.flags & 1 == 0) {
+    if (lazy && z is ZipFile && z.flags & 1 == 0) {
       if (z.compressionMethod == CompressionType.deflate) {
         return _raw(z).transform(ZLibCodec(raw: true).decoder);
       }
