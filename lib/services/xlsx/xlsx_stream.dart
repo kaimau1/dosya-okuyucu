@@ -210,11 +210,11 @@ abstract final class XlsxStream {
     return out;
   }
 
-  static Stream<XmlEvent> _events(Stream<List<int>> bytes) => bytes
-      .transform(utf8.decoder)
-      .toXmlEvents()
-      .normalizeEvents()
-      .flatten();
+  static Stream<XmlEvent> _events(Stream<List<int>> bytes) =>
+      _batches(bytes).flatten();
+
+  static Stream<List<XmlEvent>> _batches(Stream<List<int>> bytes) =>
+      bytes.transform(utf8.decoder).toXmlEvents().normalizeEvents();
 
   static String _local(String name) {
     final i = name.indexOf(':');
@@ -222,47 +222,53 @@ abstract final class XlsxStream {
   }
 
   /// `<si>` başına bir dize; fonetik (`rPh`) metni atlanır. Karakter tavanı
-  /// aşılınca kalan dizeler `null` (boş tutulur, dizin kaymasın).
-  static Stream<String?> _readShared(
+  /// aşılınca kalan dizeler `null` (boş tutulur, dizin kaymasın). Olay
+  /// yığını başına BİR liste verilir: dize başına duraklat/sürdür zinciri
+  /// (zlib → utf8 → xml) tam okumayı 6 kat yavaşlatıyordu (CI 2026-11-21).
+  static Stream<List<String?>> _readShared(
       Stream<List<int>> bytes, int maxChars) async* {
     var chars = 0;
     StringBuffer? si;
     var inT = false, inPh = false;
-    await for (final e in _events(bytes)) {
-      if (e is XmlStartElementEvent) {
-        final n = _local(e.name);
-        if (n == 'si') {
-          si = StringBuffer();
-          if (e.isSelfClosing) {
-            yield '';
+    await for (final batch in _batches(bytes)) {
+      final got = <String?>[];
+      for (final e in batch) {
+        if (e is XmlStartElementEvent) {
+          final n = _local(e.name);
+          if (n == 'si') {
+            si = StringBuffer();
+            if (e.isSelfClosing) {
+              got.add('');
+              si = null;
+            }
+          } else if (n == 't') {
+            inT = !e.isSelfClosing;
+          } else if (n == 'rPh') {
+            inPh = !e.isSelfClosing;
+          }
+        } else if (e is XmlEndElementEvent) {
+          final n = _local(e.name);
+          if (n == 'si' && si != null) {
+            final s = si.toString();
+            if (chars + s.length > maxChars) {
+              got.add(null);
+            } else {
+              chars += s.length;
+              got.add(s);
+            }
             si = null;
+          } else if (n == 't') {
+            inT = false;
+          } else if (n == 'rPh') {
+            inPh = false;
           }
-        } else if (n == 't') {
-          inT = !e.isSelfClosing;
-        } else if (n == 'rPh') {
-          inPh = !e.isSelfClosing;
-        }
-      } else if (e is XmlEndElementEvent) {
-        final n = _local(e.name);
-        if (n == 'si' && si != null) {
-          final s = si.toString();
-          if (chars + s.length > maxChars) {
-            yield null;
-          } else {
-            chars += s.length;
-            yield s;
+        } else if (e is XmlTextEvent || e is XmlCDATAEvent) {
+          if (si != null && inT && !inPh) {
+            si.write(e is XmlTextEvent ? e.value : (e as XmlCDATAEvent).value);
           }
-          si = null;
-        } else if (n == 't') {
-          inT = false;
-        } else if (n == 'rPh') {
-          inPh = false;
-        }
-      } else if (e is XmlTextEvent || e is XmlCDATAEvent) {
-        if (si != null && inT && !inPh) {
-          si.write(e is XmlTextEvent ? e.value : (e as XmlCDATAEvent).value);
         }
       }
+      if (got.isNotEmpty) yield got;
     }
   }
 
@@ -308,7 +314,8 @@ abstract final class XlsxStream {
             if (v == null || row < 0 || col < 0) break;
             final raw = v.toString();
             final text = type == 's'
-                ? await shared.at(int.tryParse(raw.trim()) ?? -1)
+                ? (shared.now(int.tryParse(raw.trim()) ?? -1) ??
+                    await shared.more(int.tryParse(raw.trim()) ?? -1))
                 : _cellText(type, raw);
             if (text.isEmpty) break;
             (sheet.cells[row] ??= {})[col] = text;
@@ -359,28 +366,35 @@ abstract final class XlsxStream {
 /// Paylaşılan dizeler, TEMBEL: bir hücre `i` indeksini isteyince akış o
 /// indekse kadar okunur (baş okuması tüm sharedStrings'i açmaz — B10 m.8).
 class _Shared {
-  final StreamIterator<String?>? _it;
+  final StreamIterator<List<String?>>? _it;
   final _list = <String>[];
   var _done = false;
 
   /// Karakter tavanına takılan (boş verilen) dize OKUNDU.
   var cut = false;
 
-  _Shared(Stream<String?>? src) : _it = src == null ? null : StreamIterator(src);
+  _Shared(Stream<List<String?>>? src)
+      : _it = src == null ? null : StreamIterator(src);
 
-  Future<String> at(int i) async {
-    if (i < 0) return '';
+  /// Okunmuşsa hemen (await yok — hücre başına mikro görev de pahalı);
+  /// akış daha o indekse gelmediyse null.
+  String? now(int i) => i >= 0 && i < _list.length
+      ? _list[i]
+      : (i < 0 || _done || _it == null ? '' : null);
+
+  Future<String> more(int i) async {
     final it = _it;
     while (i >= _list.length && !_done && it != null) {
       if (!await it.moveNext()) {
         _done = true;
         break;
       }
-      final s = it.current;
-      if (s == null) cut = true;
-      _list.add(s ?? '');
+      for (final s in it.current) {
+        if (s == null) cut = true;
+        _list.add(s ?? '');
+      }
     }
-    return i < _list.length ? _list[i] : '';
+    return now(i) ?? '';
   }
 
   Future<void> close() async => _it?.cancel();
