@@ -336,7 +336,9 @@ class ChartPainter extends CustomPainter {
           final yb = stack == null ? baseline : yFor(b);
           final top = math.min(yv, yb), bot = math.max(yv, yb);
           canvas.drawRect(Rect.fromLTWH(x, top, barW * 0.88, bot - top),
-              Paint()..color = barSeries[si].color);
+              // Nokta rengi (`c:dPt`, şelale artış/azalış) seri rengini ezer.
+              Paint()
+                ..color = barSeries[si].pointColors[c] ?? barSeries[si].color);
         }
       }
     }

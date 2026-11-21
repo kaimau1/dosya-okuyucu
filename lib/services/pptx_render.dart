@@ -8,6 +8,7 @@ import 'package:flutter/painting.dart';
 import 'package:xml/xml.dart';
 
 import '../core/symbol_fonts.dart';
+import 'chartex_reader.dart';
 import 'pptx_geometry.dart';
 
 export 'pptx_geometry.dart'
@@ -1611,6 +1612,10 @@ class PptxRender {
   ChartVM? _parseChart(String chartFile, Map<String, Color> theme,
       Map<String, String> clrMap) {
     final doc = _xml(chartFile);
+    // B10 m.1: Office 2016 chartex (şelale/histogram/kutu…) ayrı biçim.
+    if (doc != null && ChartExReader.isChartEx(doc)) {
+      return ChartExReader.parse(doc);
+    }
     final root = doc == null ? null : _firstDeep(doc.rootElement, 'c:chart');
     final plotArea = root == null ? null : _first(root, 'c:plotArea');
     if (plotArea == null) return null;
