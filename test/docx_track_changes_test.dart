@@ -227,6 +227,96 @@ void main() {
     expect(_doc(d.save()), _doc(bytes));
   });
 
+  // Kanıt (B9 kalan): paragraf bölme/birleştirme izlenmiyordu — Enter iz
+  // bırakmıyor, geri silme paragrafları sessizce birleştiriyordu.
+  List<XmlElement> markOf(String xml, String local) => [
+        for (final rPr in _all(xml, 'rPr'))
+          if ((rPr.parent as XmlElement).name.local == 'pPr')
+            ...rPr.childElements.where((e) => e.name.local == local),
+      ];
+
+  test('izle açık: Enter sol paragrafın işaretini w:ins yapar', () {
+    final c = _open(synthP('abcdef'));
+    _caret(c, 0, 3);
+    c.enter();
+    expect(c.paras.map((p) => p.text), ['abc', 'def']);
+    final x = _doc(c.doc.save());
+    final ins = markOf(x, 'ins');
+    expect(ins, hasLength(1));
+    expect(ins.single.getAttribute('w:author'), 'Ayşe');
+    // İşaret "abc"nin paragrafında.
+    final p = ins.single.parent!.parent!.parent! as XmlElement;
+    expect(_textIn(p, 't'), 'abc');
+  });
+
+  test('izle açık: paragraf başında geri silme öncekinin işaretini w:del yapar', () {
+    final c = _open(synthP('abc') + synthP('def'));
+    _caret(c, 1, 0);
+    c.deleteBackward();
+    expect(c.paras.map((p) => p.text), ['abc', 'def']);
+    expect(c.extent, const DocPos(0, 3));
+    final x = _doc(c.doc.save());
+    expect(markOf(x, 'del'), hasLength(1));
+    expect(_all(x, 'p'), hasLength(2));
+    // Kabul: işaret düşer (paragraflar Word'de birleşir; burada ayrı kalır).
+    c.doc.resolveTrackedChanges(accept: true);
+    expect(markOf(_doc(c.doc.save()), 'del'), isEmpty);
+  });
+
+  test('kendi Enter\'ını geri silmek iz bırakmadan birleştirir', () {
+    final c = _open(synthP('abcdef'));
+    _caret(c, 0, 3);
+    c.enter();
+    c.deleteBackward();
+    expect(c.paras.map((p) => p.text), ['abcdef']);
+    final x = _doc(c.doc.save());
+    expect(markOf(x, 'ins'), isEmpty);
+    expect(markOf(x, 'del'), isEmpty);
+  });
+
+  test('izle kapalı: Enter ve birleştirme iz bırakmaz', () {
+    final c = _open(synthP('abcdef'), track: false);
+    _caret(c, 0, 3);
+    c.enter();
+    final x = _doc(c.doc.save());
+    expect(markOf(x, 'ins'), isEmpty);
+    c.deleteBackward();
+    expect(c.paras.map((p) => p.text), ['abcdef']);
+  });
+
+  // Kanıt (B9 kalan): izle açıkken kalın yapmak iz bırakmıyordu.
+  test('izle açık: kalın yapmak w:rPrChange (eski biçimle) yazar; reddet geri alır', () {
+    final c = _open(synthP('Bir iki üç'));
+    c.select(const DocPos(0, 4), const DocPos(0, 7));
+    c.toggleBold();
+    final x = _doc(c.doc.save());
+    final ch = _all(x, 'rPrChange');
+    expect(ch, hasLength(1));
+    expect(ch.single.getAttribute('w:author'), 'Ayşe');
+    final run = ch.single.parent!.parent! as XmlElement;
+    expect(_textIn(run, 't'), 'iki');
+    expect(run.descendantElements.where((e) => e.name.local == 'b'), hasLength(1));
+    // Eski biçim kalınsız.
+    expect(ch.single.descendantElements.where((e) => e.name.local == 'b'), isEmpty);
+    c.doc.resolveTrackedChanges(accept: false);
+    final y = _doc(c.doc.save());
+    expect(_all(y, 'rPrChange'), isEmpty);
+    expect(_all(y, 'b'), isEmpty);
+  });
+
+  test('izle açık: kendi yazdığını kalın yapmak rPrChange üretmez; kapalıyken hiç', () {
+    final c = _open(synthP('abc'));
+    _caret(c, 0, 3);
+    c.insertText('xyz');
+    c.select(const DocPos(0, 3), const DocPos(0, 6));
+    c.toggleBold();
+    expect(_all(_doc(c.doc.save()), 'rPrChange'), isEmpty);
+    final off = _open(synthP('abc'), track: false);
+    off.select(const DocPos(0, 0), const DocPos(0, 3));
+    off.toggleBold();
+    expect(_all(_doc(off.doc.save()), 'rPrChange'), isEmpty);
+  });
+
   test('geri al izlenen silmeyi geri getirir', () {
     final c = _open(synthP('abc'));
     c.select(const DocPos(0, 0), const DocPos(0, 3));

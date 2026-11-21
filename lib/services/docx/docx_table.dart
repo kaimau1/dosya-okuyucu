@@ -7,9 +7,42 @@ part of 'docx_document.dart';
 /// geri al/yinele ek iş gerektirmez.
 
 /// Tablonun bir satırının satır-düğümü.
+/// Hücre düzeyi içerik denetimi (`w:sdt` > `w:sdtContent` > `w:tc`) arada
+/// olabilir: ilk `w:tr` atası.
 XmlElement? _rowOf(DocxCellRef c) {
-  final p = c.cell.parent;
+  var p = c.cell.parent;
+  while (p is XmlElement && p.name.local != 'tr') {
+    p = p.parent;
+  }
   return p is XmlElement ? p : null;
+}
+
+/// Satır/hücre düzeyi içerik denetimlerini açar (içerikleri kabın yerine
+/// konur; düğüm kimlikleri — hücre başvuruları — korunur). Yapı işlemi
+/// (`_reconcileTable`) `w:tr`/`w:tc`yi doğrudan tablo/satır çocuğu sayar.
+// ponytail: yalnız satır/sütun ekle-sil gibi yapı işleminde, o tabloda; kap
+// gider ama içerik kalır. Kabı korumak gerekirse reconcile sdt'yi bilmeli.
+void _unwrapRowSdt(XmlElement parent, String local) {
+  for (final sdt in parent.childElements
+      .where((e) => e.name.local == 'sdt')
+      .toList()) {
+    final content = DocxDocument._child(sdt, 'sdtContent');
+    final kids = content?.children.toList() ?? const <XmlNode>[];
+    for (final k in kids) {
+      k.remove();
+    }
+    final at = parent.children.indexOf(sdt);
+    sdt.remove();
+    parent.children.insertAll(at, kids);
+  }
+  if (parent.childElements.any((e) => e.name.local == 'sdt')) {
+    _unwrapRowSdt(parent, local);
+  }
+  if (local == 'tr') {
+    for (final tr in parent.childElements.where((e) => e.name.local == 'tr')) {
+      _unwrapRowSdt(tr, 'tc');
+    }
+  }
 }
 
 extension DocxTableOps on DocxDocument {
@@ -36,6 +69,7 @@ extension DocxTableOps on DocxDocument {
 
   void _manage(XmlElement tbl) {
     if (!_newTables.any((t) => identical(t, tbl))) _newTables.add(tbl);
+    _unwrapRowSdt(tbl, 'tr');
   }
 
   /// Hücre başvurularının satır/sütun numaralarını belge sırasına göre yeniler.

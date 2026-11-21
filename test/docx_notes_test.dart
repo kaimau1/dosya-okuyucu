@@ -132,4 +132,29 @@ void main() {
     expect(String.fromCharCodes(b.take(5)), '%PDF-');
     expect(b.length, greaterThan(a.length));
   });
+
+  test('PDF: dipnot başvurusunun sayfasının altında, sonnot belge sonunda', () async {
+    // Kanıt: eskiden tüm dipnotlar belge sonunda listeydi (sayfa yok).
+    final paged = synthDocx(
+      '<w:p><w:r><w:t>Birinci</w:t></w:r>${_ref('footnote', 5)}</w:p>'
+      '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+      '<w:p><w:r><w:t>İkinci</w:t></w:r>${_ref('footnote', 2)}'
+      '<w:r><w:t xml:space="preserve"> son</w:t></w:r>${_ref('endnote', 3)}</w:p>',
+      parts: {
+        'word/footnotes.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<w:footnotes $_w>${_sep('footnote')}'
+            '${_note('footnote', 2, 'iki')}${_note('footnote', 5, 'beş')}</w:footnotes>',
+        'word/endnotes.xml': '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<w:endnotes $_w>${_sep('endnote')}${_note('endnote', 3, 'üç')}</w:endnotes>',
+      },
+      rels: '<Relationship Id="rId8" Type="$_rel/footnotes" Target="footnotes.xml"/>'
+          '<Relationship Id="rId9" Type="$_rel/endnotes" Target="endnotes.xml"/>',
+      types: '<Override PartName="/word/footnotes.xml" ContentType="$_ct.footnotes+xml"/>'
+          '<Override PartName="/word/endnotes.xml" ContentType="$_ct.endnotes+xml"/>',
+    );
+    final at = <String, int>{};
+    final pdf = await DocxPdf.render(paged, fonts: testFonts(), compress: false, notePages: at);
+    expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
+    expect(at, {'5': 1, '2': 2});
+  });
 }

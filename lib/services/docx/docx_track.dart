@@ -9,8 +9,12 @@ part of 'docx_document.dart';
 /// Kendi eklemesini silmek iz bırakmaz (Word gibi). Bayrak `settings.xml`
 /// `w:trackRevisions`'tan okunur ve oraya yazılır.
 ///
-/// Bilinçli sınırlar: paragraf bölme/birleştirme (paragraf işareti) ve biçim
-/// değişikliği (`w:rPrChange`) izlenmez.
+/// Paragraf işareti de izlenir: Enter sol parçanın işaretini eklenmiş
+/// (`w:pPr/w:rPr/w:ins`), paragraf birleştirme öncekinin işaretini silinmiş
+/// (`w:pPr/w:rPr/w:del`) yazar — paragraflar ayrı kalır, kabulde Word
+/// birleştirir. Kendi eklediği işareti silmek gerçekten birleştirir.
+/// Biçim değişikliği (kalın, renk, biçimi temizle, biçim boyacısı) harfe
+/// [DocxFmtRev] olarak girer, kayıtta `w:rPrChange` (eski biçimle) olur.
 
 const _settingsRel =
     'http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings';
@@ -249,6 +253,97 @@ extension DocxTrack on DocxDocument {
 
   /// Bu oturumda izlenerek yazıldı/silindi mi (henüz kaydedilmemiş olabilir).
   bool get hasLiveRevisions => _liveTracked;
+
+  // ── biçim değişikliği ───────────────────────────────────────────────────
+
+  /// İzle açıkken [before] → [after] biçim değişikliğinde değişen harfler
+  /// [DocxFmtRev] alır (kayıtta `w:rPrChange` + eski `w:rPr`). Kendi
+  /// eklememizdeki harf işaretlenmez (Word gibi); zaten işaretliyse ilk eski
+  /// biçim korunur.
+  DocxPara trackFormat(DocxPara before, DocxPara after) {
+    if (!trackChanges || identical(before, after)) return after;
+    final rev = _currentRev();
+    final st = [...after.styles];
+    final fmts = Map<DocxCharStyle, DocxFmtRev>.identity();
+    final made = Map<DocxFmtRev, Map<DocxCharStyle, DocxCharStyle>>.identity();
+    var any = false;
+    for (var k = 0; k < st.length && k < before.styles.length; k++) {
+      final b = before.styles[k];
+      if (identical(b, st[k]) || after.atoms[k] != null) continue;
+      if (b.rev != null && b.rev!.author == rev.author) continue;
+      final f = b.fmt ?? (fmts[b] ??= DocxFmtRev(rev, _oldRPr(b)));
+      st[k] = (made[f] ??= Map.identity())[st[k]] ??= st[k].withFmt(f);
+      any = true;
+    }
+    if (!any) return after;
+    _liveTracked = true;
+    return after.copyWith(styles: st);
+  }
+
+  /// Harfin değişiklikten önce yazılacak `w:rPr`'si. Dosyada zaten izlenen
+  /// biçim değişikliği varsa onun eski hâli (ilk durum).
+  static XmlElement _oldRPr(DocxCharStyle s) {
+    final prev = DocxDocument._child(DocxDocument._child(s.rPr, 'rPrChange'), 'rPr');
+    if (prev != null) return prev.copy();
+    return DocxDocument._child(DocxDocument._newRun(s, ''), 'rPr') ??
+        XmlElement(const XmlName.qualified('w:rPr'));
+  }
+
+  // ── paragraf işareti ────────────────────────────────────────────────────
+
+  /// Paragraf işaretinin izleme öğesi (`w:pPr/w:rPr/w:ins|del`), yoksa null.
+  static XmlElement? _paraMark(XmlElement? pPr, String local) =>
+      DocxDocument._child(DocxDocument._child(pPr, 'rPr'), local);
+
+  /// [pPr]'nin kopyası, işaretine [mark] eklenmiş (`w:ins` başa, `w:del`
+  /// varsa `w:ins`ten sonra — CT_ParaRPr sırası).
+  static XmlElement _withParaMark(XmlElement? pPr, XmlElement mark) {
+    final out = pPr?.copy() ?? XmlElement(const XmlName.qualified('w:pPr'));
+    var rPr = DocxDocument._child(out, 'rPr');
+    if (rPr == null) {
+      rPr = XmlElement(const XmlName.qualified('w:rPr'));
+      // pPr şemasında rPr'den sonra yalnız sectPr ve pPrChange gelir.
+      final at = out.children.indexWhere((n) =>
+          n is XmlElement && const {'sectPr', 'pPrChange'}.contains(n.name.local));
+      out.children.insert(at < 0 ? out.children.length : at, rPr);
+    }
+    final ins = DocxDocument._child(rPr, 'ins');
+    rPr.children.insert(
+        mark.name.local == 'del' && ins != null ? rPr.children.indexOf(ins) + 1 : 0,
+        mark);
+    return out;
+  }
+
+  /// İzle açıkken Enter: sol parçanın paragraf işareti eklenmiştir.
+  DocxPara markParaInserted(DocxPara p) {
+    if (!trackChanges || _paraMark(p.pPr, 'ins') != null) return p;
+    _liveTracked = true;
+    return p.copyWith(pPr: _withParaMark(p.pPr, _insElement(_currentRev())));
+  }
+
+  /// İzle açıkken [p] ile sonrakinin birleştirilmesi: [p]'nin işareti
+  /// silinmiş işaretlenir (paragraflar ayrı kalır). İşareti bu yazarın
+  /// eklemesiyse null — çağıran gerçekten birleştirir ([withoutParaIns]).
+  DocxPara? markParaDeleted(DocxPara p) {
+    final ins = _paraMark(p.pPr, 'ins');
+    if (ins != null && DocxDocument._attr(ins, 'author') == _currentRev().author) {
+      return null;
+    }
+    if (_paraMark(p.pPr, 'del') != null) return p;
+    _liveTracked = true;
+    return p.copyWith(
+        pPr: _withParaMark(p.pPr, _delBox(_currentRev().author)));
+  }
+
+  /// İşaretin eklenme izi kalkmış [p] (kendi eklememiz geri silindi).
+  DocxPara withoutParaIns(DocxPara p) {
+    if (_paraMark(p.pPr, 'ins') == null) return p;
+    final pPr = p.pPr!.copy();
+    final rPr = DocxDocument._child(pPr, 'rPr')!;
+    rPr.children.removeWhere((n) => n is XmlElement && n.name.local == 'ins');
+    if (rPr.children.whereType<XmlElement>().isEmpty) pPr.children.remove(rPr);
+    return p.copyWith(pPr: pPr);
+  }
 }
 
 /// `w:ins` yalnız düz metin run'larından mı oluşuyor.

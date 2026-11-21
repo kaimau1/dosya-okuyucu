@@ -622,6 +622,50 @@ extension DocxMedia on DocxDocument {
     return id;
   }
 
+  /// Kenar balonu (B9 m.4): [id]'li yorum + yanıt sayısı. Gövde TARANMAZ
+  /// (yorumlu paragraf her çizildiğinde çağrılır; maliyet yorum sayısı
+  /// kadar). Yanıtsa (balonu kökündedir) ya da yoksa null.
+  (DocxComment, int)? commentBalloon(String id) {
+    final x = _commentsIfAny();
+    if (x == null) return null;
+    XmlElement? c;
+    for (final e in x.rootElement.childElements) {
+      if (e.name.local == 'comment' && e.getAttribute('w:id') == id) {
+        c = e;
+        break;
+      }
+    }
+    if (c == null) return null;
+    String? pid;
+    final ps = c.childElements.where((e) => e.name.local == 'p');
+    if (ps.isNotEmpty) {
+      for (final a in ps.last.attributes) {
+        if (a.name.local == 'paraId') pid = a.value;
+      }
+    }
+    var done = false, replies = 0;
+    final ex = _commentsExtIfAny();
+    if (ex != null && pid != null) {
+      for (final e in ex.rootElement.childElements) {
+        String? me, parent;
+        for (final a in e.attributes) {
+          if (a.name.local == 'paraId') me = a.value;
+          if (a.name.local == 'paraIdParent') parent = a.value;
+        }
+        if (me == pid) {
+          if (parent != null) return null;
+          done = e.attributes.any((a) => a.name.local == 'done' && a.value == '1');
+        }
+        if (parent == pid) replies++;
+      }
+    }
+    return (
+      DocxComment(id, c.getAttribute('w:author') ?? '',
+          c.getAttribute('w:date') ?? '', DocxDocument._textOf(c).trim(), done, null),
+      replies,
+    );
+  }
+
   /// Belgedeki (başvurusu olan) yorumlar.
   List<DocxComment> comments() {
     final x = _commentsIfAny();

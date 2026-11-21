@@ -25,7 +25,7 @@ import '../../core/image_budget.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
-import '../../core/theme.dart' show Radii;
+import '../../core/theme.dart' show AppTypeContext, Gap, Radii;
 import '../../services/docx/docx_document.dart';
 import '../../services/docx/docx_styles.dart';
 import 'docx_edit_controller.dart';
@@ -751,6 +751,14 @@ class DocxEditorViewState extends State<DocxEditorView>
         ],
       );
     }
+    final notes = _balloons(p);
+    if (notes != null) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [body, ...notes],
+      );
+    }
     return Padding(
       padding: EdgeInsetsDirectional.only(
         start: look.bidi ? 0 : indent,
@@ -759,6 +767,77 @@ class DocxEditorViewState extends State<DocxEditorView>
         bottom: math.min(14, look.spaceAfterPt * s * 0.6),
       ),
       child: body,
+    );
+  }
+
+  /// B9 m.4 — yorum balonu: paragraftaki her kök yorumun yazarı + metni
+  /// paragrafın altında (en çok 2 satır); dokununca yorumlar açılır.
+  /// Yorumsuz paragrafta maliyet tek `indexOf`.
+  // ponytail: telefonda da tablette de paragraf altı (metin yeniden akmaz);
+  // tablette sağ kenar sütunu istenirse metin genişliği tüm belgede daralmalı.
+  List<Widget>? _balloons(DocxPara p) {
+    List<Widget>? out;
+    var k = p.text.indexOf(kDocxAtom);
+    while (k >= 0 && k < p.atoms.length) {
+      final a = p.atoms[k];
+      if (a != null && a.kind == DocxAtomKind.comment) {
+        final b = c.doc.commentBalloon(a.display);
+        if (b != null) (out ??= []).add(_balloon(b.$1, b.$2));
+      }
+      k = p.text.indexOf(kDocxAtom, k + 1);
+    }
+    return out;
+  }
+
+  Widget _balloon(DocxComment m, int replies) {
+    final open = widget.actions.openComment;
+    final ink = m.done
+        ? AppColors.pageInk.withValues(alpha: 0.5)
+        : AppColors.pageInk;
+    return Semantics(
+      button: true,
+      label: context.t('wp.review_comment'),
+      child: GestureDetector(
+        key: ValueKey('docx-balloon-${m.id}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: open == null ? null : () => open(m.id),
+        child: Container(
+          margin: const EdgeInsets.only(top: Gap.xs),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Gap.sm, vertical: Gap.xs),
+          decoration: BoxDecoration(
+            color: AppHues.amber.withValues(alpha: 0.12),
+            border: const BorderDirectional(
+                start: BorderSide(color: AppHues.amber, width: 3)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(m.done ? AppIcons.checkCircle : AppIcons.comment,
+                  size: 14, color: AppHues.amber),
+              const SizedBox(width: Gap.xs),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(children: [
+                    if (m.author.isNotEmpty)
+                      TextSpan(
+                          text: '${m.author}: ',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                    TextSpan(text: m.text),
+                    if (replies > 0)
+                      TextSpan(
+                          text:
+                              '  · ${context.t('word.comment_replies', {'n': replies})}'),
+                  ]),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.small.copyWith(color: ink),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
