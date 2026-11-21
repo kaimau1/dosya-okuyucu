@@ -175,19 +175,21 @@ class FlashFill {
           best[p + v.length]
               .add(_Prog([...prog.parts, atom], prog.cost + atom.cost));
         }
-        // Sabit karakter: önceki sabite eklenir. Harf başına 0,5 — sözcük
-        // parçası (~1) üç harfli bir sabitten bile ucuz kalsın; yoksa
-        // "Ali Yılmaz" örneğinde "Yılmaz" sütun yerine sabit seçilirdi.
+        // Sabit karakter: önceki sabite eklenir. Ayraç başına 0,5 (yeni sabit
+        // 2,1). Harf/rakam sabiti 3 — kaynaktan gelebilecek harfi sabit
+        // saymak tahmindir: "A.Y." örneğinde "Y" sabit seçilip her satıra
+        // aynı baş harf yazılıyordu (ya da tümü sabit → null).
         final ch = target[p];
+        final alnum = _wordRe.hasMatch(ch);
         final last = prog.parts.isEmpty ? null : prog.parts.last;
         if (last != null && last.text != null) {
           best[p + 1].add(_Prog([
             ...prog.parts.sublist(0, prog.parts.length - 1),
             _Part.constant(last.text! + ch),
-          ], prog.cost + 0.5));
+          ], prog.cost + (alnum ? 3 : 0.5)));
         } else {
-          best[p + 1].add(_Prog(
-              [...prog.parts, _Part.constant(ch)], prog.cost + 2.1));
+          best[p + 1].add(_Prog([...prog.parts, _Part.constant(ch)],
+              prog.cost + (alnum ? 3 : 2.1)));
         }
       }
     }
