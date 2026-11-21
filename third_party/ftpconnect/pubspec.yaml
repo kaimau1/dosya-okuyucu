@@ -12,7 +12,8 @@ environment:
 dependencies:
   path: ^1.9.1
   intl: ^0.20.3
-  dartssh2: ^3.3.1
+  # Yama 2 (P24, 2026-11-21): yukarı akış ^3.3.1; kullanılan türler 4.x'te aynı.
+  dartssh2: ^4.1.0
 
 dev_dependencies:
   test: ^1.31.2
@@ -25,4 +26,4 @@ topics:
   - ftp
   - ftpes
   - ftps
-  - ftp-client
+  - ftp-client

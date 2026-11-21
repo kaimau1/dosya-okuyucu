@@ -353,13 +353,11 @@ dependency_overrides:
   # Faz 45: webdav_client 1.2.2 (son sürüm) xml ^6'ya kilitli; yalnız
   # findAllElements(namespace:'*') + .text kullanıyor, 7'de ikisi de duruyor
   # (test/…webdav…). Paket xml 7'yi açınca bu satır silinir.
+  # P24 (2026-11-21): webdav_client hâlâ 1.2.2 / xml ^6.2.2 — kalıyor.
   xml: ^7.1.0
   # Faz 45: smb_connect 0.0.9 (son sürüm, 2025-01) pointycastle ^3'e kilitli;
   # 4.0'ın tek kırılımı generateKeyPair jenerikleri — smb_connect kullanmıyor.
   # dartssh2 4 pointycastle ^4 istediği için zorunlu. smb_connect açınca silinir.
+  # P24 (2026-11-21): smb_connect hâlâ 0.0.9 / pointycastle ^3.9.1 — kalıyor.
+  # (dartssh2 override'ı P24'te silindi: third_party/ftpconnect kendi kısıtını ^4.1.0 yaptı.)
   pointycastle: ^4.0.0
-  # Faz 47: ftpconnect 3.0.0 (tek yayımlı 3.x; FTPS 425 düzeltmeleri) kendi
-  # SFTPConnect'i için dartssh2 ^3.3.1 ister. Kullandığı türlerin hepsi 4.x'te
-  # aynı (SSHClient/SftpClient/SftpFileAttrs…); biz SFTP'yi doğrudan dartssh2
-  # ile yapıyoruz. ftpconnect dartssh2 4'ü açınca silinir.
-  dartssh2: ^4.1.0
