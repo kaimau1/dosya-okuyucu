@@ -1504,6 +1504,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Dikey yazılı metin kutusu (PowerPoint "Metin yönü: 270°") dikey çiziliyor mu?
 - [ ] A/B (C2): Biçim değiştir ve efektli tıklamada kare p99.
 
+## B11 m.2 — slayt grafik türleri (2026-11-21, dal faz-oto-B11-slayt4) — yazıldı, cihazda doğrulanmadı
+- [ ] Slayt düzenleyici → Ekle → Grafik ekle → veri sayfasında 12 tür çipi (Excel'deki gibi) görünüyor, alt satıra sarıyor mu? Alan / halka / radar / dağılım / yığılmış / %100 yığılmış seçip Uygula → slaytta doğru çiziliyor mu?
+- [ ] Var olan grafikte "Grafik verisini düzenle" → tür değiştir → Uygula → yeni tür; kaydet → PowerPoint/Google Slaytlar onarım uyarısız açıyor mu, "Verileri düzenle" çalışıyor mu?
+
 ## B2 dilim 5 — galeride hassas kategori PIN'i (2026-11-19, yazıldı, cihazda doğrulanmadı)
 - [ ] PIN kurulu, uygulama kilidi kapalı: Fotoğraflar → AI kategori hapı → Kimlik/Sağlık/Banka/Vergi seçince PIN sorulur; yanlış/iptal → seçilmez; doğru → süzülür, oturumda bir daha sorulmaz (Akıllı düzen listelerinde de sorulmaz). Seçimi kaldırmak PIN istemez. PIN yoksa hiç sorulmaz.
 

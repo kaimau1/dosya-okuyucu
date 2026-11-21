@@ -4,6 +4,7 @@ import '../../../core/app_icons.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/theme.dart';
 import '../../../services/pptx/pro/pptx_chart_ops.dart';
+import '../../../widgets/chart_insert_dialog.dart' show ChartKindChips;
 
 /// **Faz 38 / madde 3 — grafik veri düzenleyicisi.** Kategoriler satır,
 /// seriler sütun; tür ve başlık. "Uygula" verinin son hâlini döndürür.
@@ -121,16 +122,9 @@ class _SlideChartPageState extends State<SlideChartPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          SegmentedButton<SlideChartKind>(
-            segments: [
-              for (final k in SlideChartKind.values)
-                ButtonSegment(
-                  value: k,
-                  label: Text(context.t('sp.chart_${k.name}')),
-                ),
-            ],
-            selected: {_kind},
-            onSelectionChanged: (s) => setState(() => _kind = s.first),
+          ChartKindChips(
+            selected: _kind,
+            onSelected: (k) => setState(() => _kind = k),
           ),
           const SizedBox(height: 12),
           TextField(
