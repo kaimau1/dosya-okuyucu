@@ -92,6 +92,7 @@ class AppState extends ChangeNotifier {
   static const _kAudioBackground = 'audio_background';
   static const _kAutoSave = 'doc_auto_save';
   static const _kWordSpell = 'word_spellcheck';
+  static const _kWordAutoFormat = 'word_autoformat';
   static const _kLabWord = 'lab_word_editor';
   static const _kFormulaEn = 'excel_formula_english';
   static const _kFmFolderSizes = 'fm_folder_sizes';
@@ -519,6 +520,7 @@ class AppState extends ChangeNotifier {
   bool _audioBackground = false;
   bool _autoSave = true;
   bool _wordSpell = true;
+  bool _wordAutoFormat = true;
   bool _labWord = false;
   bool _formulaEn = false;
   bool _fmFolderSizes = false;
@@ -638,6 +640,16 @@ class AppState extends ChangeNotifier {
     _wordSpell = value;
     EditPrefs.wordSpellcheck = value;
     await _prefs.setBool(_kWordSpell, value);
+    notifyListeners();
+  }
+
+  /// Belgeler > Word yazarken otomatik biçim (B9 m.7, varsayılan AÇIK).
+  bool get wordAutoFormat => _wordAutoFormat;
+
+  Future<void> setWordAutoFormat(bool value) async {
+    _wordAutoFormat = value;
+    EditPrefs.wordAutoFormat = value;
+    await _prefs.setBool(_kWordAutoFormat, value);
     notifyListeners();
   }
 
@@ -1015,6 +1027,8 @@ class AppState extends ChangeNotifier {
     EditPrefs.autoSave = _autoSave;
     _wordSpell = _prefs.getBool(_kWordSpell) ?? true;
     EditPrefs.wordSpellcheck = _wordSpell;
+    _wordAutoFormat = _prefs.getBool(_kWordAutoFormat) ?? true;
+    EditPrefs.wordAutoFormat = _wordAutoFormat;
     _labWord = _prefs.getBool(_kLabWord) ?? false;
     _formulaEn = _prefs.getBool(_kFormulaEn) ?? false;
     EditPrefs.formulaEnglish = _formulaEn;

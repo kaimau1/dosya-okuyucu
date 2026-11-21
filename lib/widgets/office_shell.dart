@@ -156,6 +156,11 @@ class ReadingFloat extends StatelessWidget {
   final double gap;
   final double? start;
   final double? end;
+
+  /// Çubuklar görünürken [end] yerine bu (aradaki geçiş [ReadingChrome.shown]
+  /// ile). Sayfa rozeti yapay zekâ düğmesinin soluna kayar — düğme çubuklarla
+  /// birlikte görünür, altında kalıyordu (P28 / H3.7).
+  final double? endShown;
   final Widget child;
 
   const ReadingFloat({
@@ -163,6 +168,7 @@ class ReadingFloat extends StatelessWidget {
     this.gap = 16,
     this.start = 0,
     this.end = 0,
+    this.endShown,
     required this.child,
   });
 
@@ -179,7 +185,9 @@ class ReadingFloat extends StatelessWidget {
       child: child,
       builder: (context, child) => PositionedDirectional(
         start: start,
-        end: end,
+        end: end == null || endShown == null
+            ? end
+            : end! + (endShown! - end!) * c.shown.value,
         // Çekikken sistem gezinme çubuğunun üstünde kalır.
         bottom: gap + nav + (c.bottom - nav) * c.shown.value,
         child: child!,

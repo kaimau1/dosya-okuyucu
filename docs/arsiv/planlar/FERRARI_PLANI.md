@@ -184,6 +184,8 @@ PDF'te çift dokunma **yok gibi — doğrula**), `lib/widgets/pdf_page_navigator
       (`SystemUiMode.manual` + alt), gizliyken içerik payı eski boyda tutulur — PDF sayfa başına atlamaz.)*
 - [x] H3.7 Sayfa rozeti (N / toplam): yalnız kaydırma sırasında görünür, 1,5 sn sonra solar. *(`Motion.badgeLinger`; sayfaya git ⋮ menüsünde.)*
 
+**P28 (2026-11-14, P09 kırmızıları):** [x] H3.6 anahtar metin levhasındaydı (PDF açmaz) → PDF Aa levhası · [x] H3.7 rozet çubuklar görünürken AI düğmesinin soluna (`ReadingFloat.endShown`) · [x] H3.5 kipte sayfa aralığı `PdfPagedTurn.gap` (A4 dikey telefonda alt/üst boşluktan komşu sayfa görünüyordu). Cihazda doğrulanmadı.
+
 **Durum (2026-11-14):** H3.1–H3.7 kodda bitti (dal `faz-H3`, her madde ayrı commit). 📱 cihaz turu `CIHAZ_TESTI.md` "Ferrari H3".
 
 ---

@@ -8,7 +8,7 @@
 library;
 
 import 'dart:math' as math;
-import 'dart:ui' show Offset;
+import 'dart:ui' show Offset, Size;
 
 import 'package:pdfrx/pdfrx.dart' show PdfRect;
 
@@ -160,6 +160,22 @@ abstract final class PdfPagedTurn {
   static const minSwipe = 48.0;
   static const longSwipe = 120.0;
   static const quickSwipe = Motion.quickSwipe;
+
+  /// Sayfalar arası dikey boşluk (belge birimi): sayfa [view]'a sığdırılıp
+  /// ortalanınca ([pad] kenar payıyla) önceki/sonraki sayfa görünmesin.
+  /// P28 (P09 cihaz turu): dikey telefonda A4 genişliğe sığınca altta ve
+  /// üstte ~150 dp boşluk kalıyor, komşu sayfalar oradan görünüyordu.
+  static double gap(Iterable<Size> pages, Size view, {double pad = 0}) {
+    var g = 0.0;
+    for (final p in pages) {
+      if (p.width <= 0 || p.height <= 0) continue;
+      final z = math.min((view.width - 2 * pad) / p.width,
+          (view.height - 2 * pad) / p.height);
+      if (z <= 0) continue;
+      g = math.max(g, (view.height / z - p.height) / 2 + pad / z);
+    }
+    return g;
+  }
 
   /// [x] konumu [width] genişlikte: sağ kenar +1, sol kenar -1, orta 0.
   static int edgeSide(double x, double width) {

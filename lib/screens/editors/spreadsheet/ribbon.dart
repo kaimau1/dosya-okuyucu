@@ -237,6 +237,8 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-dedup'), onTap: _removeDuplicates),
           RibbonButton(AppIcons.viewColumn, context.t('excel.split_title'),
               key: const ValueKey('xl-split'), onTap: _splitTextToColumns),
+          RibbonButton(AppIcons.bolt, context.t('excel.flash_fill'),
+              key: const ValueKey('xl-flash-fill'), onTap: _flashFill),
           if (_excelPro) ...[
           RibbonButton(AppIcons.pdfTable, context.t('xp.pivot'),
               key: const ValueKey('xl-pivot'), onTap: _createPivot),

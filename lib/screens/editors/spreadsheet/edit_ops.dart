@@ -950,8 +950,12 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final horizontal = toCol < src.left || toCol > src.right;
     if (!vertical && !horizontal) return;
 
-    final values = fillDiagonal(src, toRow, toCol, sheet.rawAt);
-    _editCells('excel.undo_fill', values);
+    // B10 m.4: tarih/saat biçimi seriyi gün/saat adımıyla ilerletir ve
+    // biçim doldurulan hücrelere taşınır (yoksa tarih seri no görünürdü).
+    final values = fillDiagonal(src, toRow, toCol, sheet.rawAt,
+        kindAt: (r, c) => fillKindOf(sheet.numFmtCode(r, c)));
+    _editCells('excel.undo_fill', values,
+        formatSources: fillFormatSources(src, toRow, toCol));
     // Doldurulan alan Excel'de seçili kalır.
     _partSetState(() {
       if (vertical) {

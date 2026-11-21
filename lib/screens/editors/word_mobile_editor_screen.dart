@@ -389,6 +389,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           scale: _baseScale * zoom,
           physics: physics,
           spellcheck: EditPrefs.wordSpellcheck,
+          autoFormat: EditPrefs.wordAutoFormat,
           actions: DocxEditorActions(
               translate: _translate,
               aiFix: _aiFix,

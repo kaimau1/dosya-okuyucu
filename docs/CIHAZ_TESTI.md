@@ -397,6 +397,12 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
       Uygulamada "Özel formül" (`=UZUNLUK(A1)<=3`) ve `=Liste!A1:A9` kaynaklı liste kur → kaydet →
       masaüstü Excel'de aynı kural, uyarı türü, giriş iletisi korunuyor; kuralı kaldırınca Excel'de
       eski x14 kural kalmıyor. Uygulamada yazılan `LET`/`LAMBDA` formülü masaüstü Excel'de `#AD?` yok.
+- [ ] **Doldurma + Hızlı doldurma (B10 dilim 3, bulut 2026-11-19 — yazıldı, cihazda doğrulanmadı):**
+      tarih hücresini (`19.11.2026`) tutamakla aşağı çek → 20.11, 21.11 TARİH olarak (seri no değil);
+      15.01 + 15.02 seçip çek → 15.03, 15.04; `09:00` çek → 10:00, 11:00; Pzt/Ocak/`=A1*2` eskisi gibi;
+      dolgu rengi/kalın da doldurulan hücrelere geçiyor, Geri al hepsini geri alıyor. A sütunu
+      "Ad Soyad" listesi, B2'ye "Ali" yaz → Veri → Hızlı doldurma → B'nin kalanı adlarla doluyor;
+      C2'ye soyad, D2'ye "Yılmaz, Ali" ile aynı. `=SATIRSAR({1;2;3;4};2)` 2×2 taşıyor.
 - [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
       kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
 - [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;
@@ -1197,6 +1203,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] **H8.5 döndür:** Videoyu düzenle → beşinci araç "Döndür": önizleme saat yönünde 90° dönüyor, dördüncü dokunuşta başa? Kaydet → çıktı önizlemedekiyle AYNI yöne mi dönmüş (Media3 derece yönü koddan doğrulanmadı — ters dönüyorsa `ci/MediaTranscode.kt` `360 - rotation` → `rotation`)? Dikey telefon videosunda da doğru mu? Beş araç dar telefonda sığıyor mu?
 - [ ] **H8.5 kareyi kaydet:** üst çubuk fotoğraf makinesi → `<ad>_kare_<dk-sn>.jpg` videonun yanında, tam çözünürlük, dikey videoda dik; döndürme seçiliyken fotoğraf da dönmüş mü? Bildirim "Fotoğraf kaydedildi: …"; galeride görünüyor mu?
 
+## P28 — PDF kabuğu P09 kırmızıları (2026-11-14, dal faz-oto-P28-pdf-kabuk — yazıldı, cihazda doğrulanmadı)
+- 2026-11-15 · Mi Note 10 Lite · A/B hız yarım (tek koşu/taraf, belirgin gerileme yok); aşağıdaki 3 madde gözle DENENMEDİ (kullanıcı ölçümü kesti).
+- [ ] H3.6: PDF › Aa levhasında "Okurken durum çubuğunu da gizle" var; açınca kaydırırken çubuklarla durum çubuğu da gizleniyor, sayfa yerinden zıplamıyor.
+- [ ] H3.7: kaydırırken "N / toplam" rozeti çubuklar görünürken yapay zekâ düğmesinin solunda, çubuklar çekikken sağ altta (tutamacın solunda); hiçbir anda örtülmüyor.
+- [ ] H3.5: "Sayfa sayfa çevir" açık → ekranda yalnız okunan sayfa (altta/üstte komşu sayfa yok); kenar dokunuşu / kaydırma sonraki sayfayı yine ortalıyor; iki parmakla yakınlaşınca serbest gezinme çalışıyor; kip kapanınca belge eski düzenine dönüyor.
+
 ## Ferrari H10/H11 — Durumlar ve görüntüleyici kabuğu (2026-11-14, dal faz-oto-P04-kabuk)
 - [ ] Video: oynarken 3 sn dokunma → üst çubuk, alt denetimler, kilit/döndür bir anda değil yumuşakça soluyor; solarken ekrana dokun → geri geliyor (kaybolmuyor). "Animasyonları kaldır" açıkken doğrudan gizleniyor. Solma sırasında video yerinden oynamıyor.
 - [ ] Video jestleri (var olan, doğrula): kenarda çift dokunuş ±10 sn · yatay sürükleme sarma balonu · sağda dikey ses, solda dikey parlaklık · uzun basış 2×.
@@ -1587,3 +1599,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Video: iki parmakla yakınlaştır/kaydır (sarma ya da ses değişmemeli); hız simgesi → ekran kararmadan küçük panel, sürüklerken hız anında değişmeli; 1,7× iken üstte "1.7× ✕" hapı, ✕ ile 1×. Ses oynatıcıda da aynı hap.
 - Yer aç: öneri kartında "Bir daha önerme" ve dosya listesinde göz simgesi; yeniden analizde gelmemeli; en altta "Gizlenen n öneriyi geri getir". Akıllı düzen açıksa en üstte "Ayıkla · n gereksiz" kartı.
 - Ayarlar → Yapay zekâ → Görev başına model: en üstte "Akıllı kararlar — gemini-decision-1".
+## 2026-11-19 — Word 2.0 m.7 Yazma hissi (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
+- [ ] Klavye açıkken üstteki çubuk: imleç yalnızken madde/numara/girinti/hizalama + K T A; bir sözcük seçince K T A S, renk, vurgu (sarı), biçimi temizle görünüyor mu? Seçim kalkınca çubuk zıplamadan geri dönüyor mu?
+- [ ] Gboard (Türkçe): "işte geldi. ılık" yaz → "İşte geldi. Ilık"; "3. sınıf", "vb. gibi", "www.ornek.com" küçük kalıyor mu? İngilizce arayüzde "i" → "I" mi?
+- [ ] "a--b" → "a—b"; sözcükten sonra iki boşluk tek kalıyor mu? Gboard "çift boşlukta nokta" açıkken nokta hâlâ geliyor mu (bozulmamalı)?
+- [ ] Boş paragrafta "- " → madde, "1. " → numaralı liste; hemen geri al "- " metnini geri getiriyor mu; belgenin İLK paragrafında madde başında geri silme listeyi kaldırıyor mu?
+- [ ] Ayarlar > Belgeler > "Word: yazarken otomatik biçim" kapalıyken hiçbiri olmuyor mu? İmleç büyüteci ve seçim tutamakları eskisi gibi (değişmedi).
+- [ ] A/B (C2): yazma kare süresi önceki `[apk]`'ya göre (ölçülmedi).

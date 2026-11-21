@@ -177,6 +177,85 @@ extension _SpreadsheetEditorScreenDataPart on _SpreadsheetEditorScreenState {
     _snack(context.t('excel.split_done', {'n': widest}));
   }
 
+  // ── hızlı doldurma (B10 m.4) ───────────────────────────────────────────
+
+  /// Excel'in "Hızlı doldurma"sı: seçili hücrenin sütununa yazılmış
+  /// örneklerden (ör. "Ali Veli" → "Ali") komşu sütunlara bakarak desen
+  /// çıkarır ve aynı bloktaki BOŞ hücreleri doldurur. Desen bulunamazsa
+  /// hiçbir şey yazılmaz; kullanıcı bir örnek daha yazıp yeniden dener.
+  void _flashFill() {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    _endEdit();
+    final col = _selCol;
+    final lastRow = math.max(0, sheet.maxRows - 1);
+    final lastCol = _colCount(sheet) - 1;
+    bool filled(int r, int c) =>
+        c >= 0 && c <= lastCol && sheet.rawAt(r, c).trim().isNotEmpty;
+    bool neighbour(int r) => filled(r, col - 1) || filled(r, col + 1);
+    if (!neighbour(_selRow)) {
+      _snack(context.t('excel.flash_need_data'));
+      return;
+    }
+    var top = _selRow, bottom = _selRow;
+    while (top > 0 && neighbour(top - 1)) {
+      top--;
+    }
+    while (bottom < lastRow && neighbour(bottom + 1)) {
+      bottom++;
+    }
+    // Kaynak: hedefin iki yanındaki bitişik dolu sütunlar (en çok 6'şar).
+    bool colHasData(int c) {
+      for (var r = top; r <= bottom; r++) {
+        if (filled(r, c)) return true;
+      }
+      return false;
+    }
+
+    final sources = <int>[];
+    for (var c = col - 1; c >= 0 && col - c <= 6 && colHasData(c); c--) {
+      sources.insert(0, c);
+    }
+    for (var c = col + 1; c <= lastCol && c - col <= 6 && colHasData(c); c++) {
+      sources.add(c);
+    }
+    final engine = _engineFor(sheet);
+    String shown(int r, int c) {
+      final raw = sheet.rawAt(r, c);
+      return raw.startsWith('=') ? engine.displayValue(r, c) : raw;
+    }
+
+    final rows = [
+      for (var r = top; r <= bottom; r++) [for (final c in sources) shown(r, c)],
+    ];
+    final examples = <int, String>{};
+    for (var r = top; r <= bottom; r++) {
+      final raw = sheet.rawAt(r, col);
+      if (raw.trim().isNotEmpty && !raw.startsWith('=')) examples[r - top] = raw;
+    }
+    if (examples.isEmpty) {
+      _snack(context.t('excel.flash_need_example'));
+      return;
+    }
+    var found = FlashFill.infer(rows, examples);
+    // Üst satır başlık olabilir ("Ad Soyad" → "Ad"): onsuz bir kez daha dene.
+    if (found == null && examples.containsKey(0) && examples.length > 1) {
+      found = FlashFill.infer(rows, {...examples}..remove(0));
+      found?.remove(0);
+    }
+    final values = <CellRef, String>{
+      for (final e in (found ?? const <int, String>{}).entries)
+        if (sheet.rawAt(top + e.key, col).trim().isEmpty)
+          CellRef(top + e.key, col): e.value,
+    };
+    if (values.isEmpty) {
+      _snack(context.t('excel.flash_none'));
+      return;
+    }
+    _editCells('excel.flash_fill', values);
+    _snack(context.t('excel.flash_done', {'n': values.length}));
+  }
+
   // ── bölmeleri dondur ───────────────────────────────────────────────────
 
   /// [mode]: `cell` (seçili hücrenin üstü/solu), `row` (ilk satır),
