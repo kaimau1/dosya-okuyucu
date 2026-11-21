@@ -178,6 +178,33 @@ void main() {
         '<filterColumn colId="0"><filters blank="1"><filter val="a"/></filters></filterColumn>');
   });
 
+  test('B10 m.5 artık: dosyadaki ölçüt okunur, renk süzgeci dxf ile yazılır',
+      () {
+    final ed = _open();
+    final s = ed.sheets.first;
+    ed.setAutoFilter(s.name, 'A1:D5');
+    final v = s.rawAt(2, 0);
+    s.setRowHidden(2, true);
+    s.filterHidden[0] = {2};
+    s.setFilterCriterion(0, ColumnFilter(hiddenValues: {v}));
+    s.setFilterCriterion(1, const ColumnFilter(fillArgb: 0xFFFFFF00));
+    final out = ed.save();
+    final xml = _part(out, 'xl/worksheets/sheet1.xml')!;
+    expect(xml, contains('<colorFilter dxfId="'));
+    expect(xml, isNot(contains('fillArgb')));
+    expect(_part(out, 'xl/styles.xml')!, contains('FFFFFF00'));
+    final ed2 = _open(out);
+    final s2 = ed2.sheets.first;
+    expect(s2.filterCriteria[0]?.hiddenValues, {v});
+    expect(s2.filterHidden[0], contains(2));
+    expect(s2.isColFiltered(0), isTrue);
+    // Okunan ölçüt dokunulmadan yeniden yazılmaz (dosyadaki öğe aynen kalır).
+    s2.setFilterCriterion(2, const ColumnFilter(top: 1));
+    final xml2 = _part(ed2.save(), 'xl/worksheets/sheet1.xml')!;
+    expect('colId="0"'.allMatches(xml2).length, 1);
+    expect(xml2, contains('<top10 val="1"/>'));
+  });
+
   test('sekme rengi, gizle, çoğalt', () {
     final ed = _open();
     final s = ed.sheets.first;

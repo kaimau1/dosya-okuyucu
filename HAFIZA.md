@@ -630,3 +630,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 
 ## 2026-11-21 — Menü görünümü varsayılanı Bento (kullanıcı)
 - **Karar:** kayıt yoksa `MenuLook.bento` (`byName`, AppState, AppearanceState). Elle "Sekmeli" seçenin ayarı korunur (prefs `menu_look=tabbed`). Sağlayıcısız ağaç (test/bağımsız levha) `MenuKit.lookOf` hâlâ sekmeli — testler tab çiplerine dayanıyor; uygulamada her zaman AppearanceState var.
+## 2026-11-21 — B10 m.8 Excel açılış (dal faz-oto-B10-acilis; CI ölçümü, cihazda doğrulanmadı)
+- **Bug kökü:** `XlsxStream.read` tavan 800 hücre iken de sayfa XML'ini + sharedStrings'i önce TAMAMEN geçici dosyaya açıyordu (`_unpack`) → baş okuması dosya boyuyla büyüyordu.
+- **Düzeltme:** tavan < 100 bin hücrede (`_lazyMaxCells`) zip girdisi blok blok açılır (ham deflate → dart:io `ZLibCodec(raw: true)`), tavan dolunca akış durur; dizeler tembel (`_Shared`, olay yığını başına liste). Üstünde eski yol (önce aç, sonra oku).
+- **Ölçüm (CI large_file_test PERF, 100 bin satır):** önce (44895645942) baş 445 / tam 1669 / 300k 1640 ms → sonra (44917945129) baş 38 / tam 887 / 300k 926 ms. Test tavanı 3000 → 500 ms.
+- **Yanlış çıkan yol:** yeni yolu tam okumada da kullanmak: dize başına duraklat/sürdür ile tam 10331 ms, yığın listesiyle bile 3924 ms (zlib akışı + tembel dize zinciri olay başına pahalı, kök ölçülmedi). Tam okuma bu yüzden eski yolda.

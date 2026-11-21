@@ -4,6 +4,10 @@
 ///
 /// Bir sütunda tek ölçüt türü (Excel'deki gibi): [top] > [contains] >
 /// [fillArgb] > değer listesi ([hiddenValues]).
+library;
+
+import 'package:xml/xml.dart';
+
 class ColumnFilter {
   /// İşaretsiz (gizlenen) ham değerler; değer listesi süzgeci.
   final Set<String> hiddenValues;
@@ -70,9 +74,8 @@ class ColumnFilter {
   }
 
   /// `<filterColumn>` (colId = süzgeç aralığında 0 tabanlı sütun). Renk
-  /// süzgeci `dxfId` ister (biçim tablosu) — yazılmaz, gizli satırlar
-  /// kalır. ponytail: renk süzgeci dosyada yalnız gizli satır; dxf yazımı
-  /// gerekirse styles yamasına eklenir.
+  /// süzgeci `dxfId` ister: burada [kFillArgbAttr] yer tutucusu yazılır,
+  /// kaydetme yaması `styles.xml`e `<dxf>` ekleyip gerçek `dxfId` koyar.
   String? toXml(int colId, List<String> allValues) {
     if (isEmpty) return null;
     final String inner;
@@ -82,7 +85,8 @@ class ColumnFilter {
       inner = '<customFilters><customFilter val="*${_esc(contains!)}*"/>'
           '</customFilters>';
     } else if (fillArgb != null) {
-      return null;
+      final hex = (fillArgb! & 0xFFFFFFFF).toRadixString(16).padLeft(8, '0');
+      inner = '<colorFilter dxfId="0" $kFillArgbAttr="${hex.toUpperCase()}"/>';
     } else {
       final shown = [
         for (final v in allValues)
@@ -94,6 +98,68 @@ class ColumnFilter {
           '${shown.map((v) => '<filter val="${_esc(v)}"/>').join()}</filters>';
     }
     return '<filterColumn colId="$colId">$inner</filterColumn>';
+  }
+}
+
+/// Renk süzgecinin kaydetmeye kadar taşıdığı dolgu (dosyaya YAZILMAZ;
+/// `xlsx_save_patch` `dxfId`ye çevirip siler).
+const kFillArgbAttr = 'fillArgb';
+
+/// Dosyadaki `<filterColumn>` ölçütü (B10 m.5). Değer listesi Excel'de
+/// GÖSTERİLEN değerlerdir; gizlenenler sayfadaki gizli satırlardan bulunur
+/// ([resolve]). Renk süzgeci (`colorFilter` → dxf) ve "içerir" dışındaki
+/// özel ölçütler okunmaz — dosyada korunur. ponytail: Excel değerleri
+/// biçimli metin yazar (`1.234,50`); ham değerle eşleşmeyen sayı gizli
+/// satırdaysa yine gizli sayılır, görünür satıra etkisi yok.
+class FileFilter {
+  final ColumnFilter base;
+  final Set<String>? shown;
+  final bool blank;
+  const FileFilter(this.base, {this.shown, this.blank = false});
+
+  static FileFilter? parse(XmlElement fc) {
+    for (final e in fc.childElements) {
+      switch (e.name.local) {
+        case 'filters':
+          return FileFilter(const ColumnFilter(),
+              shown: {
+                for (final f in e.childElements)
+                  if (f.name.local == 'filter') f.getAttribute('val') ?? '',
+              },
+              blank: e.getAttribute('blank') == '1' ||
+                  e.getAttribute('blank') == 'true');
+        case 'top10':
+          final n = int.tryParse(e.getAttribute('val') ?? '');
+          if (n == null || e.getAttribute('percent') == '1') return null;
+          final top = e.getAttribute('top');
+          return FileFilter(
+              ColumnFilter(top: n, bottom: top == '0' || top == 'false'));
+        case 'customFilters':
+          final cs = e.childElements
+              .where((c) => c.name.local == 'customFilter')
+              .toList();
+          if (cs.length != 1 || cs.first.getAttribute('operator') != null) {
+            return null;
+          }
+          final v = cs.first.getAttribute('val') ?? '';
+          if (v.length < 3 || !v.startsWith('*') || !v.endsWith('*')) {
+            return null;
+          }
+          return FileFilter(
+              ColumnFilter(contains: v.substring(1, v.length - 1)));
+      }
+    }
+    return null;
+  }
+
+  /// [hiddenValues]: süzgeç aralığında GİZLİ satırların değerleri.
+  ColumnFilter resolve(Iterable<String> hiddenValues) {
+    final s = shown;
+    if (s == null) return base;
+    return ColumnFilter(hiddenValues: {
+      for (final v in hiddenValues)
+        if (v.isEmpty ? !blank : !s.contains(v)) v,
+    });
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:xml/xml.dart';
 
 import '../core/excel_format.dart';
 import 'office_zip_guard.dart';
+import 'xlsx/auto_filter.dart';
 
 /// .xlsx dosyasının **görünüm** tarafını ham OOXML'den okur.
 ///
@@ -702,6 +703,12 @@ class XlsxReader {
           }
         case 'autoFilter':
           layout.autoFilterRef = el.getAttribute('ref');
+          for (final fc in el.childElements) {
+            if (fc.name.local != 'filterColumn') continue;
+            final id = int.tryParse(fc.getAttribute('colId') ?? '');
+            final f = FileFilter.parse(fc);
+            if (id != null && f != null) layout.fileFilters[id] = f;
+          }
         case 'sheetProtection':
           final on = el.getAttribute('sheet');
           layout.protected = on == '1' || on == 'true';
@@ -2123,6 +2130,10 @@ class XlsxSheetLayout {
   final Map<int, int> rowStyles = {};
   final Set<int> hiddenCols = {};
   final Set<int> hiddenRows = {};
+
+  /// Dosyadaki süzgeç ölçütleri (`filterColumn`), süzgeç aralığında
+  /// 0 tabanlı sütun → ölçüt (B10 m.5).
+  final Map<int, FileFilter> fileFilters = {};
   final List<XlsxRange> merges = [];
   final Map<int, XlsxCell> cells = {};
   final List<XlsxCondRule> condFormats = [];

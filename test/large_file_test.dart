@@ -104,10 +104,10 @@ void main() {
 
   // B10 m.8 — açılışta görünen ilk pencere (aşamalı açılış başı, ekrandaki
   // `kXlsxHeadCells` = 800 hücre, paylaşılan dize tavanı 1 MB) 100 bin
-  // satırda bütçe içinde. Kök (2026-11-21, koddan): `XlsxStream.read` hücre
-  // tavanı küçük olsa da sayfa XML'ini ve sharedStrings'i ÖNCE TAMAMEN geçici
-  // dosyaya açıyor (`_unpack`) → baş okuması dosya boyuyla büyür. Bu test
-  // ölçer (PERF satırı CI özetinde); erken duran açma bir sonraki adım.
+  // satırda bütçe içinde. Kök (2026-11-21): `XlsxStream.read` sayfa XML'ini ve
+  // sharedStrings'i önce TAMAMEN açıyordu (önce: baş 445 ms, tam 1669 ms).
+  // Düzeltme: küçük tavanda blok blok açma, tavan dolunca durur; dizeler
+  // tembel. Tam okuma eski yolda (yeni yol orada 2,3 kat yavaştı).
   test('ilk pencere: 100 bin satırda baş okuması bütçede', () async {
     final f = writeXlsx(100000, 2);
     final sw = Stopwatch()..start();
@@ -126,8 +126,8 @@ void main() {
     expect(head.cellCount, 800);
     expect(head.sheets.first.cells[0]![1], 'Satır 1');
     expect(full.cellCount, 200000);
-    // Gevşek tavan (CI gürültüsü); ölçüm sonrası daraltılır, yalnız düşer.
-    expect(headMs, lessThan(3000));
+    // CI 44917945129: baş 38 ms (önce 445). Tavan CI gürültü payıyla; yalnız düşer.
+    expect(headMs, lessThan(500));
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   test('bütçeler profile bağlı ve sıralı (anayasa k.3)', () {

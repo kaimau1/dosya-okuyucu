@@ -207,7 +207,37 @@ class XlsxSheet {
     required this.layout,
     required this.styles,
     this.date1904 = false,
-  });
+  }) {
+    _loadFileFilters();
+  }
+
+  /// B10 m.5: dosyadaki süzgeç ölçütleri ekrandaki süzgece taşınır (simge,
+  /// süzgeç levhasının ilk durumu, süzgeci kaldırınca geri gelen satırlar).
+  /// Dokunulmadıkça dosyaya yeniden YAZILMAZ — dosyadaki öğe aynen kalır.
+  void _loadFileFilters() {
+    if (layout.fileFilters.isEmpty) return;
+    final f = XlsxRange.parse(layout.autoFilterRef);
+    if (f == null) return;
+    final last = f.r2 > f.r1 ? f.r2 : maxRows - 1;
+    final hidden = [
+      for (final r in layout.hiddenRows)
+        if (r > f.r1 && r <= last) r,
+    ];
+    for (final MapEntry(key: id, value: ff) in layout.fileFilters.entries) {
+      final c = f.c1 + id;
+      if (c > f.c2) continue;
+      final crit = ff.resolve([for (final r in hidden) rawAt(r, c)]);
+      if (crit.isEmpty) continue;
+      filterCriteria[c] = crit;
+      final rows = crit
+          .hiddenRows(f.r1 + 1, last,
+              raw: (r) => rawAt(r, c),
+              number: (r) => double.tryParse(rawAt(r, c)))
+          .where(layout.hiddenRows.contains)
+          .toSet();
+      if (rows.isNotEmpty) filterHidden[c] = rows;
+    }
+  }
 
   int get maxCols {
     final fromCells = layout.colCount;
@@ -373,7 +403,10 @@ class XlsxSheet {
       c1: f.c1,
       r2: last,
       c2: f.c2,
-      filters: filterCriteria,
+      // Yalnız dokunulan sütunlar: dosyadan okunan ölçüt dosyada zaten var.
+      filters: {
+        for (final c in filterTouched) c: ?filterCriteria[c],
+      },
       sort: filterSort,
       valuesOf: (c) => {
         for (var r = f.r1 + 1; r <= last; r++) rawAt(r, c),

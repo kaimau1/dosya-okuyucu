@@ -94,7 +94,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | sürüyor — dal faz-oto-B5-udf: P23 kod bitti (main'e birleştirilmedi; cihaz turu CIHAZ_TESTI B5, ölçüm C2 — ölçülmedi); kalan P24, P25 (K17 onayı) |
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
 | B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
-| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | sürüyor (yerel, 2026-11-21) — dal faz-oto-B10-acilis: m.8 baş 445→61 ms ama tam okuma 1669→10331 ms GERİLEDİ, düzeltme ölçülmedi — DEVIR.md'den sür; m.1/m.2/m.5/m.7 main'de; m.5 artık (filterColumn okuma, renk dxf) |
+| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | kod bitti — dal faz-oto-B10-acilis (m.8 erken duran açma + m.5 artık), CI yeşil, birleşmeyi bekliyor; kalan m.3 giriş iletisi gösterimi; A/B → C2 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | sürüyor — dilim 1+2 main'de (m.1 tablo stilleri, m.4 imleç, m.6 prova, m.7 sadakat bekçisi, m.8 sürükleme/geçiş bütçesi); dilim 3 dal faz-oto-B11-slayt3 (m.3 geçiş türleri + efektli animasyon + Biçim değiştir + önizleme, m.1 dikey metin; A/B C2'de); m.5 AI tasarımcı İPTAL (B15 kararı 2026-11-19, AI budandı); m.2 grafik türleri dal faz-oto-B11-slayt4 (yazıldı, cihazda doğrulanmadı); kalan m.1 piksel altın (kullanıcı izniyle yerelde) + yansıma, m.4 klavye kayması cihazda |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | cihaz bekliyor — dilim 1+2 main'de (2026-11-19): m.4 Excel/Slayt aşamalı açılış + m.7 Word çimdik yapıldı (A/B C2'de); m.1 açılış geçişi (Office/PDF) 2026-11-20 tablette A/B KALDI (satırdan büyüyen kırpma: Slayt/Excel açılışı +%13/+%17, Slayt açılış p99 20→34 ms) → uygulanmadı, sabah bakılacak (bkz. §1.13 m.1 notu) |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
@@ -296,8 +296,8 @@ _Bitti (bulut 2026-11-19, dal faz-oto-B9-word2; HAFIZA 2026-11-19 B9): m.1 içer
    "Hızlı doldurma" + Ctrl+E; `test/sheet_fill_series_test.dart`, `test/flash_fill_test.dart`). Cihaz turu
    `docs/CIHAZ_TESTI.md` §9.
 5. ~~**Süzgeç/sıralama 2**~~ — yapıldı 2026-11-21 (dal faz-oto-B10-excel4): içerir / ilk-son 10 /
-   renge göre; ölçüt + sıralama `autoFilter` içine (`filterColumn` + `sortState`). Kalan: dosyadaki
-   süzgeç ölçütünü OKUMA (bugün yalnız korunur), renk süzgecini `dxf` ile yazma.
+   renge göre; ölçüt + sıralama `autoFilter` içine (`filterColumn` + `sortState`). Artık da yapıldı
+   2026-11-21 (dal faz-oto-B10-acilis): dosyadaki süzgeç ölçütü okunur, renk süzgeci `dxf` ile yazılır.
 7. ~~**Hücre düzenleme hissi**~~ — 2026-11-21 önce-bak: Enter/Tab/Tab-dönüşü, sayısal tuş takımı,
    dokun-seç/ikinci dokunuş-düzenle, yalnız değer/biçim/devrik zaten vardı; `readAsBytesSync`
    izolatta (`_readAndParse`, B12). Eklenen: "Yalnız formülleri yapıştır".
@@ -305,8 +305,9 @@ _Bitti (bulut 2026-11-19, dal faz-oto-B9-word2; HAFIZA 2026-11-19 B9): m.1 içer
    `large_file_test` "ilk pencere" (perf kapısı, PERF `xlsx_head_100k_ms`). **Kök (koddan):**
    `XlsxStream.read` hücre tavanı 800 iken de sayfa XML'ini + sharedStrings'i önce TAMAMEN geçici
    dosyaya açıyor (`_unpack`) → baş okuması dosya boyuyla büyür (CI 2026-11-21: 100 bin satır baş 445 ms,
-   tam 1669 ms). Sıradaki: CI ölçümüne göre erken
-   duran açma (`Inflate.lazy` blok blok, tavan dolunca dur) → aynı test yeniden; A/B → C2.
+   tam 1669 ms). **Yapıldı 2026-11-21** (dal faz-oto-B10-acilis): tavan < 100 bin hücrede blok blok
+   açma (dart:io zlib, tavan dolunca durur) + tembel dizeler → baş 38 ms; tam okuma eski yolda
+   (887 ms, 300 bin 926 ms — CI 44917945129). Cihaz A/B → C2 ("büyük xlsx ilk pencere").
 
 **Bitti:** 1–8 testli, `excel_roundtrip_test` yeşil, C2'ye "Excel A/B".
 

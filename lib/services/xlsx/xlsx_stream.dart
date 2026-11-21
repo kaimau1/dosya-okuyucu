@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
@@ -15,8 +17,10 @@ import '../office_zip_guard.dart';
 /// telefonda bellek öldürmesiyle biter. Bu okuyucu:
 /// - zip'i `InputFileStream` ile açar (yalnız dizin okunur, dosya belleğe
 ///   alınmaz);
-/// - paylaşılan dizeleri ve sayfaları GEÇİCİ dosyaya açar (`writeContent`),
-///   sonra XML **olay akışıyla** satır satır okur;
+/// - sayfaları ve paylaşılan dizeleri **blok blok açarak** XML olay
+///   akışıyla okur (B10 m.8): hücre tavanı dolunca açma DURUR, dizeler yalnız
+///   bir hücre isteyince ve o indekse kadar okunur — baş okuması dosya boyuyla
+///   büyümez (şifreli/alışılmadık sıkıştırmada eski yol: geçici dosyaya aç);
 /// - en çok [maxCells] hücre tutar (bellek tavanı, `PerfBudget`), aşınca
 ///   akışı keser ve [XlsxStreamResult.truncated] işaretler.
 ///
@@ -58,6 +62,9 @@ class XlsxStreamRequest {
 }
 
 abstract final class XlsxStream {
+  /// Bu tavanın altında blok blok açma (erken durur); üstünde eski yol.
+  static const _lazyMaxCells = 100000;
+
   /// İzolat giriş noktası (`compute`/`Isolate.run`).
   static Future<XlsxStreamResult> readInBackground(XlsxStreamRequest r) => read(
       r.path,
@@ -72,6 +79,12 @@ abstract final class XlsxStream {
     int maxSharedChars = 24 << 20,
   }) async {
     final input = InputFileStream(path);
+    // ponytail: blok blok açma yalnız küçük tavanda (baş okuması, akıllı
+    // sıralama). Tam okumada olay başına duraklat/sürdür zinciri (zlib akışı +
+    // tembel dizeler) eski yoldan 2,3 kat yavaştı (CI 44898521629: 100 bin
+    // satır 3924 ms, önce 1669) — tam okuma eski yolda: önce aç, sonra oku.
+    final lazy = maxCells < _lazyMaxCells;
+    _Shared? shared;
     final work = Directory(p.join(tempDir,
         'xlsx_stream_${DateTime.now().microsecondsSinceEpoch}'))
       ..createSync(recursive: true);
@@ -92,17 +105,16 @@ abstract final class XlsxStream {
         throw const FormatException('xlsx: sayfa bulunamadı');
       }
 
-      final shared = <String>[];
-      var sharedTruncated = false;
       final ss = entry('xl/sharedStrings.xml');
-      if (ss != null) {
-        sharedTruncated = await _readShared(
-            _unpack(ss, work, 'shared.xml'), shared, maxSharedChars);
-      }
+      shared = _Shared(ss == null
+          ? null
+          : _readShared(
+              _bytes(ss, work, 'shared.xml', lazy), maxSharedChars));
+      if (!lazy) await shared.more(1 << 62);
 
       final out = <XlsxStreamSheet>[];
       var total = 0;
-      var truncated = sharedTruncated;
+      var truncated = false;
       for (final (name, target) in sheetsMeta) {
         final sheet = XlsxStreamSheet(name);
         out.add(sheet);
@@ -112,20 +124,51 @@ abstract final class XlsxStream {
         }
         final f = entry(target);
         if (f == null) continue;
-        final file = _unpack(f, work, 'sheet_${out.length}.xml');
-        final cut = await _readSheet(file, sheet, shared, maxCells - total);
-        file.deleteSync();
+        final tmpName = 'sheet_${out.length}.xml';
+        final cut = await _readSheet(
+            _bytes(f, work, tmpName, lazy), sheet, shared, maxCells - total);
+        if (!lazy) File(p.join(work.path, tmpName)).deleteSync();
         total += sheet.cellCount;
         truncated |= cut;
       }
+      truncated |= shared.cut;
       return XlsxStreamResult(out, truncated: truncated, cellCount: total);
     } finally {
+      await shared?.close();
       input.closeSync();
       try {
         work.deleteSync(recursive: true);
       } catch (_) {
         // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
       }
+    }
+  }
+
+  /// Zip girdisinin açılmış baytları, blok blok. Dinleyici iptal edince
+  /// (hücre tavanı) okuma ve açma orada durur. Şifreli ya da deflate/store
+  /// dışı girdide eski yol: geçici dosyaya toptan açılır.
+  static Stream<List<int>> _bytes(
+      ArchiveFile f, Directory work, String name, bool lazy) {
+    final z = f.rawContent;
+    if (lazy && z is ZipFile && z.flags & 1 == 0) {
+      if (z.compressionMethod == CompressionType.deflate) {
+        return _raw(z).transform(ZLibCodec(raw: true).decoder);
+      }
+      if (z.compressionMethod == CompressionType.none) return _raw(z);
+    }
+    return _unpack(f, work, name).openRead();
+  }
+
+  /// Sıkıştırılmış ham baytlar, 64 KB'lık bloklar.
+  static Stream<List<int>> _raw(ZipFile z) async* {
+    final raw = z.getStream(decompress: false);
+    final start = raw.position;
+    try {
+      while (!raw.isEOS) {
+        yield raw.readBytes(math.min(1 << 16, raw.length)).toUint8List();
+      }
+    } finally {
+      raw.setPosition(start);
     }
   }
 
@@ -180,12 +223,11 @@ abstract final class XlsxStream {
     return out;
   }
 
-  static Stream<XmlEvent> _events(File f) => f
-      .openRead()
-      .transform(utf8.decoder)
-      .toXmlEvents()
-      .normalizeEvents()
-      .flatten();
+  static Stream<XmlEvent> _events(Stream<List<int>> bytes) =>
+      _batches(bytes).flatten();
+
+  static Stream<List<XmlEvent>> _batches(Stream<List<int>> bytes) =>
+      bytes.transform(utf8.decoder).toXmlEvents().normalizeEvents();
 
   static String _local(String name) {
     final i = name.indexOf(':');
@@ -193,62 +235,65 @@ abstract final class XlsxStream {
   }
 
   /// `<si>` başına bir dize; fonetik (`rPh`) metni atlanır. Karakter tavanı
-  /// aşılınca kalan dizeler boş tutulur (dizin kaymasın). Kesildiyse true.
-  static Future<bool> _readShared(
-      File f, List<String> out, int maxChars) async {
+  /// aşılınca kalan dizeler `null` (boş tutulur, dizin kaymasın). Olay
+  /// yığını başına BİR liste verilir: dize başına duraklat/sürdür zinciri
+  /// (zlib → utf8 → xml) tam okumayı 6 kat yavaşlatıyordu (CI 2026-11-21).
+  static Stream<List<String?>> _readShared(
+      Stream<List<int>> bytes, int maxChars) async* {
     var chars = 0;
-    var cut = false;
     StringBuffer? si;
     var inT = false, inPh = false;
-    await for (final e in _events(f)) {
-      if (e is XmlStartElementEvent) {
-        final n = _local(e.name);
-        if (n == 'si') {
-          si = StringBuffer();
-          if (e.isSelfClosing) {
-            out.add('');
+    await for (final batch in _batches(bytes)) {
+      final got = <String?>[];
+      for (final e in batch) {
+        if (e is XmlStartElementEvent) {
+          final n = _local(e.name);
+          if (n == 'si') {
+            si = StringBuffer();
+            if (e.isSelfClosing) {
+              got.add('');
+              si = null;
+            }
+          } else if (n == 't') {
+            inT = !e.isSelfClosing;
+          } else if (n == 'rPh') {
+            inPh = !e.isSelfClosing;
+          }
+        } else if (e is XmlEndElementEvent) {
+          final n = _local(e.name);
+          if (n == 'si' && si != null) {
+            final s = si.toString();
+            if (chars + s.length > maxChars) {
+              got.add(null);
+            } else {
+              chars += s.length;
+              got.add(s);
+            }
             si = null;
+          } else if (n == 't') {
+            inT = false;
+          } else if (n == 'rPh') {
+            inPh = false;
           }
-        } else if (n == 't') {
-          inT = !e.isSelfClosing;
-        } else if (n == 'rPh') {
-          inPh = !e.isSelfClosing;
-        }
-      } else if (e is XmlEndElementEvent) {
-        final n = _local(e.name);
-        if (n == 'si' && si != null) {
-          final s = si.toString();
-          if (chars + s.length > maxChars) {
-            cut = true;
-            out.add('');
-          } else {
-            chars += s.length;
-            out.add(s);
+        } else if (e is XmlTextEvent || e is XmlCDATAEvent) {
+          if (si != null && inT && !inPh) {
+            si.write(e is XmlTextEvent ? e.value : (e as XmlCDATAEvent).value);
           }
-          si = null;
-        } else if (n == 't') {
-          inT = false;
-        } else if (n == 'rPh') {
-          inPh = false;
-        }
-      } else if (e is XmlTextEvent || e is XmlCDATAEvent) {
-        if (si != null && inT && !inPh) {
-          si.write(e is XmlTextEvent ? e.value : (e as XmlCDATAEvent).value);
         }
       }
+      if (got.isNotEmpty) yield got;
     }
-    return cut;
   }
 
   /// Sayfa XML'ini olay akışıyla okur; [budget] hücreye ulaşınca keser.
-  static Future<bool> _readSheet(File f, XlsxStreamSheet sheet,
-      List<String> shared, int budget) async {
+  static Future<bool> _readSheet(Stream<List<int>> bytes,
+      XlsxStreamSheet sheet, _Shared shared, int budget) async {
     var count = 0;
     var row = -1, col = -1;
     String? type;
     StringBuffer? value; // <v> ya da satır içi <is><t>
     var inV = false, inIsT = false, inIs = false;
-    await for (final e in _events(f)) {
+    await for (final e in _events(bytes)) {
       if (e is XmlStartElementEvent) {
         switch (_local(e.name)) {
           case 'row':
@@ -280,7 +325,11 @@ abstract final class XlsxStream {
             final v = value;
             value = null;
             if (v == null || row < 0 || col < 0) break;
-            final text = _cellText(type, v.toString(), shared);
+            final raw = v.toString();
+            final text = type == 's'
+                ? (shared.now(int.tryParse(raw.trim()) ?? -1) ??
+                    await shared.more(int.tryParse(raw.trim()) ?? -1))
+                : _cellText(type, raw);
             if (text.isEmpty) break;
             (sheet.cells[row] ??= {})[col] = text;
             if (row > sheet.maxRow) sheet.maxRow = row;
@@ -301,11 +350,8 @@ abstract final class XlsxStream {
     return null;
   }
 
-  static String _cellText(String? type, String raw, List<String> shared) {
+  static String _cellText(String? type, String raw) {
     switch (type) {
-      case 's':
-        final i = int.tryParse(raw.trim());
-        return (i != null && i >= 0 && i < shared.length) ? shared[i] : '';
       case 'b':
         return raw.trim() == '1' ? 'TRUE' : 'FALSE';
       default:
@@ -328,4 +374,41 @@ abstract final class XlsxStream {
     }
     return n == 0 ? null : c - 1;
   }
+}
+
+/// Paylaşılan dizeler, TEMBEL: bir hücre `i` indeksini isteyince akış o
+/// indekse kadar okunur (baş okuması tüm sharedStrings'i açmaz — B10 m.8).
+class _Shared {
+  final StreamIterator<List<String?>>? _it;
+  final _list = <String>[];
+  var _done = false;
+
+  /// Karakter tavanına takılan (boş verilen) dize OKUNDU.
+  var cut = false;
+
+  _Shared(Stream<List<String?>>? src)
+      : _it = src == null ? null : StreamIterator(src);
+
+  /// Okunmuşsa hemen (await yok — hücre başına mikro görev de pahalı);
+  /// akış daha o indekse gelmediyse null.
+  String? now(int i) => i >= 0 && i < _list.length
+      ? _list[i]
+      : (i < 0 || _done || _it == null ? '' : null);
+
+  Future<String> more(int i) async {
+    final it = _it;
+    while (i >= _list.length && !_done && it != null) {
+      if (!await it.moveNext()) {
+        _done = true;
+        break;
+      }
+      for (final s in it.current) {
+        if (s == null) cut = true;
+        _list.add(s ?? '');
+      }
+    }
+    return now(i) ?? '';
+  }
+
+  Future<void> close() async => _it?.cancel();
 }
