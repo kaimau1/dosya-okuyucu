@@ -17,8 +17,8 @@ enum PdfProTool { text, image, markup, sign, form, pages, more }
 
 /// İşaretleme aracının kipi (Faz 60). [marker] = serbest fosforlu kalem
 /// (eski kalem ekranının fosforlusu, yarı saydam mürekkep); [cloud] tırtıklı
-/// çerçeve.
-enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact, marker, cloud }
+/// çerçeve; [stamp] damga ve [freeText] serbest metin dokunulan yere konur.
+enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact, marker, cloud, stamp, freeText }
 
 /// Belge geneli aramada bir eşleşme.
 class PdfFindHit {
@@ -427,6 +427,8 @@ class PdfProEditController extends ChangeNotifier {
           (_tool == PdfProTool.markup &&
               _markup != PdfMarkupKind.none &&
               _markup != PdfMarkupKind.note &&
+              _markup != PdfMarkupKind.stamp &&
+              _markup != PdfMarkupKind.freeText &&
               _markup != PdfMarkupKind.eraser));
 
   /// **Kalem kipi / avuç reddi** (Faz 60 m.2; eski kalem ekranının H9.3

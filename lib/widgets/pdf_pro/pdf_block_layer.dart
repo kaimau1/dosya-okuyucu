@@ -97,7 +97,12 @@ class PdfProLayerEvents {
     required this.onNote,
     required this.onAnnotTap,
     required this.onTextBox,
+    this.onPlace,
   });
+
+  /// Damga / serbest metin konacak nokta (sayfa uzayı, sol üst köşe).
+  final void Function(int pageIndex, double x, double y, PdfMarkupKind kind)?
+      onPlace;
 
   /// Bloğu yazmaya aç (imleç [offset]'te; çift dokunuşta sözcük seçili).
   final void Function(int pageIndex, PdfTextBlock block,
@@ -1009,9 +1014,14 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         }
       case PdfProTool.markup:
         final a = _annotAt(local);
+        final place = c.markup == PdfMarkupKind.stamp ||
+            c.markup == PdfMarkupKind.freeText;
         if (c.markup == PdfMarkupKind.note && a == null) {
           final p = _p(local);
           widget.events.onNote(pageIndex, p.x, p.y);
+        } else if (place && a == null) {
+          final p = _p(local);
+          widget.events.onPlace?.call(pageIndex, p.x, p.y, c.markup);
         } else if (a != null) {
           AppHaptics.selection();
           if (c.markup == PdfMarkupKind.eraser) {

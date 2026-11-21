@@ -206,6 +206,7 @@ String pdfAnnotTypeLabel(BuildContext context, int subtype) =>
       PdfAnnotType.squiggly => 'pse.mk_squiggly',
       PdfAnnotType.ink => 'pse.mk_ink',
       PdfAnnotType.text => 'pse.mk_note',
+      PdfAnnotType.stamp => 'pse.mk_stamp',
       _ => 'pse.mk_other',
     });
 

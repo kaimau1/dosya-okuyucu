@@ -285,6 +285,14 @@ class PdfAnnotChange {
   /// Bağlantının URI'si (7 bit ASCII; sayfa içi hedef [PdfLinkTarget.page]).
   final String? uri;
 
+  /// Damga / serbest metin (Faz 60 m.2): yazı boyu (pt) ve çerçeve.
+  final double fontSize;
+  final bool boxed;
+
+  /// Yazının alt küme fontu — GÜNLÜĞE YAZILMAZ; `PdfEditBridge.annotate`
+  /// uygulamadan hemen önce kurar (yeniden oynatmada da).
+  final Uint8List? font;
+
   const PdfAnnotChange._({
     required this.pageIndex,
     required this.kind,
@@ -299,7 +307,56 @@ class PdfAnnotChange {
     this.author,
     this.state,
     this.uri,
+    this.fontSize = 0,
+    this.boxed = false,
+    this.font,
   });
+
+  /// **Damga / serbest metin** (Faz 60 m.2): [text] satırları gerçek Stamp
+  /// açıklamasının görünüşüne yazılır (PDFium görünüş akışını üretir — her
+  /// okuyucuda aynı). Sol üst köşe ([x], [y]) sabit; kutu yazıya göre
+  /// köprüde ölçülür. [boxed] = damga çerçevesi.
+  const PdfAnnotChange.stamp(int pageIndex,
+      {required double x,
+      required double y,
+      required String text,
+      required int color,
+      double size = 14,
+      bool boxed = false,
+      String? author})
+      : this._(
+            pageIndex: pageIndex,
+            kind: 'add',
+            subtype: PdfAnnotType.stamp,
+            rect: [x, y, x, y],
+            color: color,
+            width: 0,
+            contents: text,
+            author: author,
+            fontSize: size,
+            boxed: boxed);
+
+  /// Yazısı olan damga mı (font gerekir).
+  bool get hasText =>
+      kind == 'add' && subtype == PdfAnnotType.stamp && fontSize > 0;
+
+  PdfAnnotChange withFont(Uint8List bytes) => PdfAnnotChange._(
+      pageIndex: pageIndex,
+      kind: kind,
+      index: index,
+      subtype: subtype,
+      rect: rect,
+      quads: quads,
+      ink: ink,
+      color: color,
+      width: width,
+      contents: contents,
+      author: author,
+      state: state,
+      uri: uri,
+      fontSize: fontSize,
+      boxed: boxed,
+      font: bytes);
 
   /// Metne bağlantı (Faz 58 / 7): görünmez kenarlıklı Link açıklaması.
   const PdfAnnotChange.link(int pageIndex,
@@ -363,6 +420,8 @@ class PdfAnnotChange {
         if (author != null) 'by': author,
         if (state != null) 'st': state,
         if (uri != null) 'uri': uri,
+        if (fontSize > 0) 'fs': fontSize,
+        if (boxed) 'bx': true,
       };
 
   static List<List<double>> _lists(Object? v) => [
@@ -392,6 +451,8 @@ class PdfAnnotChange {
       author: j['by'] as String?,
       state: j['st'] as String?,
       uri: j['uri'] as String?,
+      fontSize: (j['fs'] as num?)?.toDouble() ?? 0,
+      boxed: j['bx'] == true,
     );
   }
 }

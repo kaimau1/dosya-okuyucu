@@ -2,6 +2,7 @@
 // Kalem/fosforlu, kasma bekçisi (çizerken katman yeniden KURULMAZ), avuç
 // reddi + basınç, bulut, damga ve serbest metin. CI: PDFIUM_PATH.
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
@@ -106,6 +107,7 @@ void main() {
                 onNote: (_, _, _) {},
                 onAnnotTap: (_, _) {},
                 onTextBox: (_, _, _) {},
+                onPlace: (_, x, y, k) => h.placed.add((x, y, k)),
               ),
             ),
           ),
@@ -187,6 +189,88 @@ void main() {
         .toList();
     expect(ink, hasLength(1));
     expect(ink.single.ink.single.length, greaterThan(40));
+  });
+
+  testWidgets('damga / serbest metin kipinde dokunuş yer bildirir',
+      (tester) async {
+    final h = await open(tester);
+    h.c.armMarkup(PdfMarkupKind.stamp);
+    expect(h.c.drawing, isFalse, reason: 'damga dokunuşla konur');
+    await tester.pump();
+    await tester.tapAt(const Offset(120, 140));
+    await tester.pump(const Duration(milliseconds: 400));
+    h.c.armMarkup(PdfMarkupKind.freeText);
+    await tester.pump();
+    await tester.tapAt(const Offset(200, 300));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect([for (final e in h.placed) e.$3],
+        [PdfMarkupKind.stamp, PdfMarkupKind.freeText]);
+    final page = h.doc.pages[0];
+    expect(h.placed.first.$1, closeTo(120, 1));
+    expect(h.placed.first.$2, closeTo(page.height - 140, 1));
+  });
+
+  test('damga ve serbest metin gerçek Stamp açıklaması; kayıttan sonra da '
+      'görünüşüyle durur; fontta olmayan harf açıkça reddedilir', () async {
+    final bytes = File('test/fixtures/pdf_corpus/rl_paragraflar.pdf')
+        .readAsBytesSync();
+    final doc = await PdfDocument.openData(bytes);
+    addTearDown(doc.dispose);
+    await PdfEditBridge.annotate(
+        doc,
+        const PdfAnnotChange.stamp(0,
+            x: 100, y: 700, text: 'REDDEDİLDİ', color: 0xFFC62828, size: 18,
+            boxed: true));
+    await PdfEditBridge.annotate(
+        doc,
+        const PdfAnnotChange.stamp(0,
+            x: 100, y: 500, text: 'Şu satır\nikinci satır', color: 0xFF111111));
+    final stamps = (await PdfEditBridge.annotations(doc, 0))
+        .where((a) => a.subtype == PdfAnnotType.stamp)
+        .toList();
+    expect(stamps.map((a) => a.contents),
+        ['REDDEDİLDİ', 'Şu satır\nikinci satır']);
+    final s = stamps.first;
+    expect(s.left, closeTo(100, 0.5));
+    expect(s.top, closeTo(700, 0.5));
+    expect(s.right - s.left, greaterThan(60), reason: 'kutu yazıya göre');
+    expect(stamps.last.top - stamps.last.bottom, greaterThan(30),
+        reason: 'iki satır');
+
+    final out = await PdfEditBridge.saveIncremental(doc, original: bytes);
+    final tail = String.fromCharCodes(out.sublist(bytes.length));
+    expect(tail, contains('/Stamp'));
+    expect(tail, contains('/AP'));
+    final re = await PdfDocument.openData(out);
+    addTearDown(re.dispose);
+    expect(
+        (await PdfEditBridge.annotations(re, 0))
+            .where((a) => a.subtype == PdfAnnotType.stamp),
+        hasLength(2));
+
+    await expectLater(
+        PdfEditBridge.annotate(
+            doc,
+            const PdfAnnotChange.stamp(0,
+                x: 100, y: 300, text: 'مرحبا', color: 0xFF111111)),
+        throwsA(isA<PdfEditBridgeRefused>()
+            .having((e) => e.glyph, 'glyph', isTrue)));
+  });
+
+  test('damga günlüğü: boy ve çerçeve yazılır, font yazılmaz', () {
+    final ch = const PdfAnnotChange.stamp(2,
+            x: 10, y: 20, text: 'GİZLİ', color: 0xFFC62828, size: 18,
+            boxed: true)
+        .withFont(Uint8List.fromList([1, 2, 3]));
+    final j = ch.toJson();
+    expect(j['fs'], 18);
+    expect(j['bx'], isTrue);
+    expect(j.values.whereType<Uint8List>(), isEmpty);
+    final back = PdfAnnotChange.fromJson(j)!;
+    expect(back.hasText, isTrue);
+    expect(back.boxed, isTrue);
+    expect(back.font, isNull);
+    expect(back.contents, 'GİZLİ');
   });
 
   test('basınç: kalemde 0–1, parmakta bilgi yok; kalınlık çarpanı', () {

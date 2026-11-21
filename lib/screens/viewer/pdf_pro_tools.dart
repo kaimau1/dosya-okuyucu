@@ -13,6 +13,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onNote: _proAddNote,
         onAnnotTap: _proAnnotTap,
         onTextBox: _proTextBox,
+        onPlace: _proPlace,
       );
 
   void _proRefused(Object e) {
@@ -520,6 +521,81 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     }
   }
 
+  /// Damga ya da serbest metin (Faz 60 m.2): gerçek Stamp açıklaması,
+  /// dokunulan nokta sol üst köşesi.
+  Future<void> _proPlace(
+      int pageIndex, double x, double y, PdfMarkupKind kind) async {
+    final pro = _pro;
+    if (pro == null || pro.busy) return;
+    String? text;
+    var color = pro.markupColor | 0xFF000000;
+    final stamp = kind == PdfMarkupKind.stamp;
+    if (stamp) {
+      final pick = await showAppActionSheet<String>(
+        context,
+        title: context.t('pse.mk_stamp'),
+        groups: [
+          AppActionGroup(actions: [
+            for (final k in const [
+              'approved',
+              'rejected',
+              'confidential',
+              'date',
+              'custom'
+            ])
+              AppAction(
+                  value: k,
+                  icon: k == 'date'
+                      ? AppIcons.schedule
+                      : k == 'custom'
+                          ? AppIcons.editNote
+                          : AppIcons.stamp,
+                  label: context.t('pse.stamp_$k')),
+          ]),
+        ],
+      );
+      if (pick == null || !mounted || _pro != pro) return;
+      final now = DateTime.now();
+      String two(int v) => v.toString().padLeft(2, '0');
+      switch (pick) {
+        case 'approved':
+          text = context.t('pse.stamp_approved');
+          color = 0xFF2E7D32;
+        case 'rejected':
+          text = context.t('pse.stamp_rejected');
+          color = 0xFFC62828;
+        case 'confidential':
+          text = context.t('pse.stamp_confidential');
+          color = 0xFFC62828;
+        case 'date':
+          text = '${two(now.day)}.${two(now.month)}.${now.year} '
+              '${two(now.hour)}:${two(now.minute)}';
+          color = 0xFF1565C0;
+        default:
+          text = await showAppPrompt(context,
+              title: context.t('pse.stamp_custom'));
+      }
+    } else {
+      text = await showAppPrompt(context,
+          title: context.t('pse.mk_freetext'), multiline: true);
+    }
+    if (text == null || text.trim().isEmpty || !mounted || _pro != pro) return;
+    try {
+      await pro.annotate(
+          PdfAnnotChange.stamp(pageIndex,
+              x: x,
+              y: y,
+              text: stamp ? text.trim() : text.trimRight(),
+              color: color,
+              size: stamp ? 18 : 14,
+              boxed: stamp),
+          label: stamp ? 'pse.step_stamp' : 'pse.step_freetext',
+          detail: text.trim());
+    } catch (e) {
+      _proRefused(e);
+    }
+  }
+
   Future<void> _proAnnotTap(int pageIndex, PdfAnnotInfo annot) async {
     final pro = _pro;
     if (pro == null || pro.busy) return;
@@ -980,6 +1056,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
               'pse.mk_strikeout'),
           kind(PdfMarkupKind.squiggly, AppIcons.gesture, 'pse.mk_squiggly'),
           kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
+          kind(PdfMarkupKind.freeText, AppIcons.textFields, 'pse.mk_freetext'),
+          kind(PdfMarkupKind.stamp, AppIcons.stamp, 'pse.mk_stamp'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
           kind(PdfMarkupKind.marker, AppIcons.brush, 'pse.mk_marker'),
           kind(PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),

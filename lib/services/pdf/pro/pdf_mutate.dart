@@ -722,6 +722,78 @@ List<PdfAnnotInfo> _links(
   }
 }
 
+/// Damga / serbest metin görünüşü (Faz 60 m.2): yazı satırları (ve damgada
+/// çerçeve) Stamp açıklamasına nesne olarak eklenir — PDFium görünüş
+/// akışını kaynaklarıyla üretir. Kutu yazının ölçüsüne göre kurulur; sol
+/// üst köşe `c.rect[0], c.rect[3]`. null = başarılı.
+String? _stampLook(pdfium_bindings.PDFium p, pdfium_bindings.FPDF_DOCUMENT doc,
+    Arena arena, pdfium_bindings.FPDF_ANNOTATION a, PdfAnnotChange c) {
+  final bytes = c.font!;
+  final buf = arena<Uint8>(bytes.length);
+  buf.asTypedList(bytes.length).setAll(0, bytes);
+  // 2 = FPDF_FONT_TRUETYPE, cid = 1 (Identity-H + ToUnicode).
+  final font = p.FPDFText_LoadFont(doc, buf, bytes.length, 2, 1);
+  if (font == nullptr) return 'Yazı tipi yüklenemedi.';
+  try {
+    final size = c.fontSize;
+    final lead = size * 1.25;
+    final pad = c.boxed ? size * 0.5 : size * 0.2;
+    final x0 = c.rect[0], top = c.rect[3];
+    final cr = (c.color >> 16) & 0xFF, cg = (c.color >> 8) & 0xFF,
+        cb = c.color & 0xFF;
+    final l = arena<Float>(), b = arena<Float>(), r = arena<Float>(),
+        t = arena<Float>();
+    final lines = (c.contents ?? '').split('\n');
+    final objs = <pdfium_bindings.FPDF_PAGEOBJECT>[];
+    var w = 0.0;
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i].trim().isEmpty) continue;
+      final o = p.FPDFPageObj_CreateTextObj(doc, font, size);
+      if (o == nullptr) continue;
+      p.FPDFText_SetText(o, lines[i].toNativeUtf16(allocator: arena).cast());
+      p.FPDFPageObj_SetFillColor(o, cr, cg, cb, 255);
+      p.FPDFPageObj_Transform(
+          o, 1, 0, 0, 1, x0 + pad, top - pad - size * 0.8 - i * lead);
+      if (p.FPDFPageObj_GetBounds(o, l, b, r, t) != 0) {
+        w = math.max(w, r.value - (x0 + pad));
+      }
+      objs.add(o);
+    }
+    if (objs.isEmpty) return 'Yazı boş.';
+    final h = pad * 2 + size * 1.05 + (lines.length - 1) * lead;
+    final box = arena<pdfium_bindings.FS_RECTF>();
+    box.ref
+      ..left = x0
+      ..bottom = top - h
+      ..right = x0 + w + pad * 2
+      ..top = top;
+    p.FPDFAnnot_SetRect(a, box);
+    if (c.boxed) {
+      final lw = math.max(1.5, size * 0.12);
+      final frame = p.FPDFPageObj_CreateNewRect(
+          x0 + lw / 2, top - h + lw / 2, w + pad * 2 - lw, h - lw);
+      if (frame != nullptr) {
+        p.FPDFPageObj_SetStrokeColor(frame, cr, cg, cb, 255);
+        p.FPDFPageObj_SetStrokeWidth(frame, lw);
+        p.FPDFPath_SetDrawMode(frame, 0, 1);
+        objs.insert(0, frame);
+      }
+    }
+    for (var i = 0; i < objs.length; i++) {
+      if (p.FPDFAnnot_AppendObject(a, objs[i]) == 0) {
+        // Eklenemeyenler açıklamanın değil bizim: bırakılmaz.
+        for (final o in objs.skip(i)) {
+          p.FPDFPageObj_Destroy(o);
+        }
+        return 'Damga yazılamadı.';
+      }
+    }
+    return null;
+  } finally {
+    p.FPDFFont_Close(font);
+  }
+}
+
 /// null = başarılı.
 String? _annotate(pdfium_bindings.PDFium p, int docAddr, PdfAnnotChange c) {
   final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
@@ -780,6 +852,13 @@ String? _annotate(pdfium_bindings.PDFium p, int docAddr, PdfAnnotChange c) {
               ..right = c.rect[2]
               ..top = c.rect[3];
             p.FPDFAnnot_SetRect(a, rect);
+            if (c.hasText) {
+              final err = _stampLook(p, doc, arena, a, c);
+              if (err != null) {
+                p.FPDFPage_RemoveAnnot(page, p.FPDFPage_GetAnnotIndex(page, a));
+                return err;
+              }
+            }
             for (final q in c.quads) {
               if (q.length != 8) continue;
               final quad = arena<pdfium_bindings.FS_QUADPOINTSF>();
