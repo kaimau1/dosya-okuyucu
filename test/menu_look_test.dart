@@ -46,9 +46,10 @@ void _noop() {}
 void main() {
   const tr = AppStrings(AppLanguage.tr);
 
-  test('kayıt yoksa sekmeli; tanınmayan ad da sekmeli', () {
-    expect(MenuLook.byName(null), MenuLook.tabbed);
-    expect(MenuLook.byName('yok'), MenuLook.tabbed);
+  test('kayıt yoksa Bento (2026-11-21); tanınmayan ad da Bento', () {
+    expect(MenuLook.byName(null), MenuLook.bento);
+    expect(MenuLook.byName('yok'), MenuLook.bento);
+    expect(MenuLook.byName('tabbed'), MenuLook.tabbed);
     expect(MenuLook.byName('bento'), MenuLook.bento);
   });
 
@@ -147,17 +148,17 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final state = AppState();
     await state.init();
-    expect(state.menuLook, MenuLook.tabbed);
-    expect(state.appearance.menuLook, MenuLook.tabbed);
-
-    await state.setMenuLook(MenuLook.bento);
+    expect(state.menuLook, MenuLook.bento);
     expect(state.appearance.menuLook, MenuLook.bento);
+
+    await state.setMenuLook(MenuLook.tabbed);
+    expect(state.appearance.menuLook, MenuLook.tabbed);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('menu_look'), 'bento');
+    expect(prefs.getString('menu_look'), 'tabbed');
 
     final again = AppState();
     await again.init();
-    expect(again.menuLook, MenuLook.bento);
-    expect(again.appearance.menuLook, MenuLook.bento);
+    expect(again.menuLook, MenuLook.tabbed);
+    expect(again.appearance.menuLook, MenuLook.tabbed);
   });
 }

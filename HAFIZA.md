@@ -627,3 +627,6 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yanlış çıkan yol:** `phonemizer` npm (yalnız 8 ses, Türkçe yok).
 ## 2026-11-21 — B9b Word yorum kenar sütunu (dal faz-oto-B9b-yorum; yazıldı, cihazda doğrulanmadı)
 - **Karar (kullanıcı 2026-11-21):** tablette (`DashboardScreen.twoColumns` — yeni eşik yok) VE belgede yorum varsa (`DocxDocument.hasComments`: yalnız yorum parçası, gövde taranmaz) her üst düzey paragraf `Row[Expanded(metin), boşluk, SizedBox(rail)]` — ağaç şekli tüm paragraflarda aynı; metin genişliği `rail = min(260, genişlik×0,3)` kadar daralır. Telefonda ve tablo hücresinde balon paragraf altında kalır. Sütun `end` tarafında (RTL'de solda). Test `docx_comment_rail_test`.
+
+## 2026-11-21 — Menü görünümü varsayılanı Bento (kullanıcı)
+- **Karar:** kayıt yoksa `MenuLook.bento` (`byName`, AppState, AppearanceState). Elle "Sekmeli" seçenin ayarı korunur (prefs `menu_look=tabbed`). Sağlayıcısız ağaç (test/bağımsız levha) `MenuKit.lookOf` hâlâ sekmeli — testler tab çiplerine dayanıyor; uygulamada her zaman AppearanceState var.

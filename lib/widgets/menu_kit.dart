@@ -34,7 +34,8 @@ abstract final class MenuKit {
   /// **Seçili menü görünümü** (Ayarlar › Görünüm › Menü görünümü).
   ///
   /// [MenuSections] kendisi okur; çağıranlar dallanmaz — görsel birlik bu
-  /// yüzden tek yerde. Sağlayıcısız ağaçta (test, bağımsız levha) sekmeli.
+  /// yüzden tek yerde. Sağlayıcısız ağaçta (test, bağımsız levha) sekmeli —
+  /// uygulamada her zaman AppearanceState var (varsayılan Bento, 2026-11-21).
   static MenuLook lookOf(BuildContext context, {bool listen = false}) =>
       Provider.of<AppearanceState?>(context, listen: listen)?.menuLook ??
       MenuLook.tabbed;

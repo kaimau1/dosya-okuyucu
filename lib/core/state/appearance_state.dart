@@ -21,7 +21,7 @@ class AppearanceState extends ChangeNotifier {
   String _uiFont = AppTheme.uiFontDefault;
   double _uiTextScale = 1.0;
   String _accent = 'default';
-  MenuLook _menuLook = MenuLook.tabbed;
+  MenuLook _menuLook = MenuLook.bento;
 
   ThemeMode get themeMode => _themeMode;
   AppSkin get skin => _skin;
@@ -44,7 +44,7 @@ class AppearanceState extends ChangeNotifier {
     required String uiFont,
     required double uiTextScale,
     String accent = 'default',
-    MenuLook menuLook = MenuLook.tabbed,
+    MenuLook menuLook = MenuLook.bento,
   }) {
     if (themeMode == _themeMode &&
         skin == _skin &&
