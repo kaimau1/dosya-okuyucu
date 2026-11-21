@@ -12,3 +12,8 @@ sunucunun yerine geçip parolayı alabilirdi. Uygulama tarafı `lib/services/fm/
 
 **Yükseltmede:** yeni sürümde sertifika doğrulama kancası varsa kopyayı sil, `FtpFs.connect`'te
 o kancayı kullan. Kopyada yalnız `lib/`, `pubspec.yaml`, `LICENSE`, `README.md`, `CHANGELOG.md` var.
+
+**Yama 2 (P24 bağımlılık bakımı, 2026-11-21):** `pubspec.yaml`'da `dartssh2: ^3.3.1` → `^4.1.0`.
+Kökteki `dependency_overrides: dartssh2` bunun için vardı (Faz 47); kopya kendi kısıtını taşıyınca
+override silindi, çözüm aynı (dartssh2 4.1.0). Kullanılan türler (SSHClient/SftpClient/SftpFileAttrs…)
+4.x'te aynı. Yükseltmede yukarı akış dartssh2 4'ü açtıysa bu satır kendiliğinden düşer.
