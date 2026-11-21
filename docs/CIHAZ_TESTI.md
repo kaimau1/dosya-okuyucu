@@ -1646,3 +1646,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Tablette (yatay ve dikey) yorumlu Word belgesi: metin daralır, sarı balonlar sağda kenar sütununda yorumlu paragrafın hizasında; dokununca yorum levhası açılır. Yorumsuz belgede metin tam genişlik.
 - [ ] Telefonda balon eskisi gibi paragraf altında; tablette ilk yorumu ekleyince sütun açılır, yazarken takılma yok.
 - [ ] A/B (C2): tablette yorumlu belgede yazma/kaydırma karesi (ölçülmedi).
+
+## B4-P16 PDF Pro metin araçları (2026-11-21, dal faz-oto-B4-metin) — yazıldı, cihazda doğrulanmadı
+- [ ] Yazı tipi: yazarken biçim çubuğundaki yazı tipi rozetine dokun → levhada önce belgenin fontları, sonra eşleşen aile, sonra paket fontları; seçince metin o aileyle yazılır, kaydedip açınca aynı kalır.
+- [ ] Bağlantı: metin bloğunda "Bağlantı" çipi → web adresi (ör. ornek.com) → kaydet → başka okuyucuda tıklayınca açılır. Sayfa hedefi → kaydet → başka okuyucuda o sayfaya atlar. Düzenle/Kaldır, geri al ile geri gelir.
+- [ ] Taşma: paragrafı alttaki bloğa binecek kadar uzat → çubukta uyarı satırı (Küçült · İt · Genişlet). "İt" seçili bitir → alttakiler uzama kadar iner, geri al ayrı adım. Uyarı satırı belirip kaybolurken sayfa kaymamalı.
+- [ ] Dokun → imleç: düzenleme kipinde metne dokununca imleç gecikmesiz gelmeli (hedef ≤ 120 ms).

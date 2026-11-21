@@ -367,7 +367,12 @@ class PdfFile {
       if (!seen.add(ref) || found.length > 20000) return;
       final node = objects[ref];
       if (node == null) return;
-      if (pdfName(node.dict, 'Type') == 'Page') {
+      // KÖK (CI 2026-11-21): satır içi açıklamalı sayfada (`/Annots[<</Type
+      // /Annot … /A<</Type/Action…>>>>]/Type/Page`) ilk `/Type` iç sözlüğün
+      // → sayfa atlanıyordu. Ağaçta `/Kids`'siz düğüm yapraktır (sayfa).
+      final type = pdfName(node.dict, 'Type');
+      if (type == 'Page' ||
+          (type != 'Pages' && !RegExp(r'/Kids\b').hasMatch(node.dict))) {
         found.add(node);
         return;
       }

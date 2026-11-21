@@ -627,3 +627,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Yanlış çıkan yol:** `phonemizer` npm (yalnız 8 ses, Türkçe yok).
 ## 2026-11-21 — B9b Word yorum kenar sütunu (dal faz-oto-B9b-yorum; yazıldı, cihazda doğrulanmadı)
 - **Karar (kullanıcı 2026-11-21):** tablette (`DashboardScreen.twoColumns` — yeni eşik yok) VE belgede yorum varsa (`DocxDocument.hasComments`: yalnız yorum parçası, gövde taranmaz) her üst düzey paragraf `Row[Expanded(metin), boşluk, SizedBox(rail)]` — ağaç şekli tüm paragraflarda aynı; metin genişliği `rail = min(260, genişlik×0,3)` kadar daralır. Telefonda ve tablo hücresinde balon paragraf altında kalır. Sütun `end` tarafında (RTL'de solda). Test `docx_comment_rail_test`.
+
+## 2026-11-21 — B4 dilim 1 P16 metin: font seçici, metne bağlantı, taşma uyarısı (dal faz-oto-B4-metin; yazıldı, cihazda doğrulanmadı)
+- **Karar:** font seçici sırası belge fontları (sıklık) → eşleşen aile → paket; seçim `PdfStyleSpan.font` = `doc:<ad>`/`pkg:<aile>`. Cihaz fontları (/system/fonts) ve başka sayfanın belge fontu YOK (yalnız aynı sayfa).
+- **KÖK (bağlantı):** PDFium bağlantıya yalnız URI yazabiliyor → oturumda sayfa hedefi `#page=N` URI'si, kayıtta `PdfLinkDests` onu `/Dest [sayfa /Fit]`'e çevirir (`pdf_incremental_trim.dart`). URI yalnız http/https/mailto, 7 bit ASCII; denetim HAM girdide (`Uri.toString()` ASCII dışını %-kodlayıp gizliyordu).
+- **KÖK (sayfa ağacı, genel):** PDFium açıklamaları sayfa sözlüğüne SATIR İÇİ yazar (`/Annots[<</Type/Annot…/A<</Type/Action…>>>>]/Type/Page`); `pdfName(dict,'Type')` ilk `/Type`'ı alır → `PdfFile._walkPages` o sayfayı atlıyordu (bağlantı yanlış sayfaya gitti). Düzeltme: `/Kids`'siz düğüm sayfa sayılır. Tuzak: `pdfName` iç içe sözlükte güvenilmez.
+- **KÖK (itme):** `_pushBelow` blokları yazımdan SONRA çıkarır; uzayan blok alttakiyle tek blok olur → birleşik bloğun eski alt kenar altındaki yabancı metin nesneleri de iner.

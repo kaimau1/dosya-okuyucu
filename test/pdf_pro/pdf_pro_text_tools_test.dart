@@ -2,7 +2,6 @@
 // bağlantı (Faz 58 / 7), taşma/çakışma seçenekleri (Faz 57 / 3) ve dokun →
 // imleç bütçesi (Faz 57 / 10) — gerçek PDFium (CI: PDFIUM_PATH).
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
@@ -176,12 +175,9 @@ void main() {
       final re = await PdfDocument.openFile(path);
       addTearDown(re.dispose);
       final saved = await re.pages[0].loadLinks(enableAutoLinkDetection: false);
-      final raw = latin1.decode(File(path).readAsBytesSync());
-      final tail = raw.substring(raw.length > 3000 ? raw.length - 3000 : 0);
       expect(saved.where((l) => l.dest?.pageNumber == 2), hasLength(1),
           reason: 'sayfa hedefi kayıtta /Dest — bağlantılar: '
-              '${saved.map((l) => '${l.url} ${l.dest?.pageNumber}').toList()} '
-              '· dosya sonu: ${tail.replaceAll(RegExp(r'[^\x20-\x7e]'), '.')}');
+              '${saved.map((l) => '${l.url} ${l.dest?.pageNumber}').toList()}');
       expect(saved.where((l) => l.url.toString() == 'https://ornek.org'),
           hasLength(1));
 
