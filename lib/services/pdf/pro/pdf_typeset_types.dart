@@ -13,6 +13,10 @@ class PdfStyleSpan {
   final bool? bold, italic, underline, strike;
   final double? size;
   final int? color, highlight;
+
+  /// Yazı tipi seçimi (Faz 56 / 7): `doc:<aile>` = sayfadaki belge fontu,
+  /// `pkg:<aile>` = uygulamanın paket fontu ([PdfFontChoice]).
+  final String? font;
   const PdfStyleSpan(
     this.start,
     this.end, {
@@ -23,6 +27,7 @@ class PdfStyleSpan {
     this.size,
     this.color,
     this.highlight,
+    this.font,
   });
 
   Map<String, Object?> toJson() => {
@@ -35,6 +40,7 @@ class PdfStyleSpan {
         if (size != null) 'z': size,
         if (color != null) 'c': color,
         if (highlight != null) 'h': highlight,
+        if (font != null) 'f': font,
       };
 
   static PdfStyleSpan? fromJson(Object? j) {
@@ -51,6 +57,7 @@ class PdfStyleSpan {
       size: (j['z'] as num?)?.toDouble(),
       color: j['c'] as int?,
       highlight: j['h'] as int?,
+      font: j['f'] as String?,
     );
   }
 
@@ -61,8 +68,26 @@ class PdfStyleSpan {
       strike: strike,
       size: size,
       color: color,
-      highlight: highlight);
+      highlight: highlight,
+      font: font);
 }
+
+/// Yazı tipi seçicinin bir satırı (Faz 56 / 7). Sıra: belgenin fontları →
+/// eşleşen aile → paket fontları.
+class PdfFontChoice {
+  /// [PdfStyleSpan.font] değeri.
+  final String id;
+
+  /// Görünen ad ("Calibri", "Tinos").
+  final String name;
+
+  /// Önizlemenin Flutter yazı tipi ailesi (pubspec).
+  final String preview;
+  final PdfFontChoiceKind kind;
+  const PdfFontChoice(this.id, this.name, this.preview, this.kind);
+}
+
+enum PdfFontChoiceKind { document, matched, package }
 
 /// Bir bloğun yazım isteği. Çerçeve koordinatları için bkz. `pdf_text_blocks`.
 class PdfTypesetRequest {

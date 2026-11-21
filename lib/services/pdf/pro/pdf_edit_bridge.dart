@@ -189,6 +189,11 @@ abstract final class PdfEditBridge {
           PdfDocument doc, int pageIndex, int objectIndex) =>
       doc.computeOnIdleDocument(_imagePixels, (pageIndex, objectIndex));
 
+  /// Sayfanın bağlantıları (Faz 58 / 7) — [PdfAnnotInfo.uri] /
+  /// [PdfAnnotInfo.destPage].
+  static Future<List<PdfAnnotInfo>> links(PdfDocument doc, int pageIndex) =>
+      doc.computeOnIdleDocument(_links, pageIndex);
+
   /// Sayfanın açıklamaları (yorumlar, vurgular, çizimler — bağlantı ve form
   /// alanları hariç).
   static Future<List<PdfAnnotInfo>> annotations(

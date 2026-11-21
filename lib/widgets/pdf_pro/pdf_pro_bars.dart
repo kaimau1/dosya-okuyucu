@@ -95,10 +95,17 @@ class PdfProFormatLabels {
     required this.glyphError,
     required this.error,
     required this.size,
+    this.overflow = '',
+    this.shrink = '',
+    this.push = '',
+    this.widen = '',
   });
   final String done, cancel, bold, italic, underline, strike, color, highlight;
   final String align, smaller, larger, selectAll, copy, cut, paste;
   final String docFont, fallbackFont, glyphError, error, size;
+
+  /// Taşma uyarısı ve seçenekleri (Faz 57 / 3).
+  final String overflow, shrink, push, widen;
 }
 
 /// **Klavye üstü biçim çubuğu** (etkileşim §5): ✓/✕, yazı tipi rozeti
@@ -114,12 +121,16 @@ class PdfProFormatBar extends StatelessWidget {
     required this.onPickColor,
     required this.onPickHighlight,
     required this.input,
+    this.onPickFont,
   });
 
   final PdfProEditController controller;
   final PdfProFormatLabels labels;
   final VoidCallback onDone, onCancel;
   final VoidCallback onPickColor, onPickHighlight;
+
+  /// Yazı tipi rozetine dokunuş (Faz 56 / 7 font seçici).
+  final VoidCallback? onPickFont;
 
   /// Gizli giriş alanının denetleyicisi (pano işlemleri için).
   final TextEditingController input;
@@ -181,6 +192,15 @@ class PdfProFormatBar extends StatelessWidget {
         }
 
         final err = live.error;
+        final pick = live.fontAt(a);
+        String? pickName;
+        if (pick != null) {
+          for (final c in controller.fontChoices()) {
+            if (c.id == pick) pickName = c.name;
+          }
+        }
+        final badge = pickName ??
+            (live.fallbackChars > 0 ? labels.fallbackFont : labels.docFont);
         return Material(
           color: scheme.surfaceContainerHigh,
           elevation: 3,
@@ -209,6 +229,46 @@ class PdfProFormatBar extends StatelessWidget {
                     ],
                   ),
                 ),
+              if (err == null && live.collision != null)
+                Container(
+                  key: const ValueKey('pse-overflow'),
+                  color: PdfEditTokens.pending(dark).withValues(alpha: 0.16),
+                  padding: const EdgeInsetsDirectional.only(
+                      start: Gap.md, end: Gap.xs),
+                  child: Row(
+                    children: [
+                      Icon(AppIcons.warning,
+                          size: AppIcons.small,
+                          color: PdfEditTokens.pending(dark)),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(labels.overflow,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.type.caption),
+                      ),
+                      TextButton(
+                        key: const ValueKey('pse-overflow-shrink'),
+                        onPressed: () => controller.liveOverflow('shrink'),
+                        child: Text(labels.shrink),
+                      ),
+                      TextButton.icon(
+                        key: const ValueKey('pse-overflow-push'),
+                        icon: live.pushBelow
+                            ? const Icon(AppIcons.check, size: AppIcons.small)
+                            : const SizedBox.shrink(),
+                        onPressed: () => controller.liveOverflow('push'),
+                        label: Text(labels.push),
+                      ),
+                      if (controller.widenTo(live) != null)
+                        TextButton(
+                          key: const ValueKey('pse-overflow-widen'),
+                          onPressed: () => controller.liveOverflow('widen'),
+                          child: Text(labels.widen),
+                        ),
+                    ],
+                  ),
+                ),
               SizedBox(
                 height: PdfEditTokens.formatBar,
                 child: Row(
@@ -226,29 +286,28 @@ class PdfProFormatBar extends StatelessWidget {
                           // Yazı tipi rozeti: belgenin fontu mu, yedek mi.
                           Center(
                             child: Tooltip(
-                              message: live.fallbackChars > 0
-                                  ? labels.fallbackFont
-                                  : labels.docFont,
-                              child: Container(
+                              message: badge,
+                              child: InkWell(
+                                borderRadius:
+                                    BorderRadius.circular(Radii.control),
+                                onTap: onPickFont,
+                                child: Container(
                                 key: const ValueKey('pse-font-badge'),
                                 margin: const EdgeInsetsDirectional.only(
                                     end: Gap.sm),
                                 padding: const EdgeInsetsDirectional.symmetric(
                                     horizontal: Gap.sm, vertical: Gap.xs),
                                 decoration: BoxDecoration(
-                                  color: live.fallbackChars > 0
+                                  color: live.fallbackChars > 0 &&
+                                          pick == null
                                       ? PdfEditTokens.pending(dark)
                                           .withValues(alpha: 0.18)
                                       : scheme.primaryContainer,
                                   borderRadius:
                                       BorderRadius.circular(Radii.control),
                                 ),
-                                child: Text(
-                                  live.fallbackChars > 0
-                                      ? labels.fallbackFont
-                                      : labels.docFont,
-                                  style: context.type.small,
-                                ),
+                                child: Text(badge, style: context.type.small),
+                              ),
                               ),
                             ),
                           ),

@@ -662,6 +662,66 @@ List<PdfAnnotInfo> _annotations(
   }
 }
 
+/// Sayfanın bağlantıları (Faz 58 / 7): URI ya da sayfa hedefi.
+List<PdfAnnotInfo> _links(
+    pdfium_bindings.PDFium p, int docAddr, int pageIndex) {
+  final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
+  final page = p.FPDF_LoadPage(doc, pageIndex);
+  if (page == nullptr) return const [];
+  try {
+    return using((arena) {
+      final out = <PdfAnnotInfo>[];
+      final rect = arena<pdfium_bindings.FS_RECTF>();
+      final n = p.FPDFPage_GetAnnotCount(page);
+      for (var i = 0; i < n; i++) {
+        final a = p.FPDFPage_GetAnnot(page, i);
+        if (a == nullptr) continue;
+        try {
+          if (p.FPDFAnnot_GetSubtype(a) != PdfAnnotType.link) continue;
+          p.FPDFAnnot_GetRect(a, rect);
+          final link = p.FPDFAnnot_GetLink(a);
+          var dest = -1;
+          var uri = '';
+          if (link != nullptr) {
+            final d = p.FPDFLink_GetDest(doc, link);
+            if (d != nullptr) dest = p.FPDFDest_GetDestPageIndex(doc, d);
+            final act = p.FPDFLink_GetAction(link);
+            if (act != nullptr) {
+              if (dest < 0) {
+                final ad = p.FPDFAction_GetDest(doc, act);
+                if (ad != nullptr) dest = p.FPDFDest_GetDestPageIndex(doc, ad);
+              }
+              final len = p.FPDFAction_GetURIPath(doc, act, nullptr, 0);
+              if (len > 1) {
+                final buf = arena<Uint8>(len);
+                p.FPDFAction_GetURIPath(doc, act, buf.cast(), len);
+                uri = String.fromCharCodes(buf.asTypedList(len - 1));
+              }
+            }
+          }
+          dest = PdfLinkTarget.pageOf(uri) ?? dest;
+          out.add(PdfAnnotInfo(
+            pageIndex: pageIndex,
+            index: i,
+            subtype: PdfAnnotType.link,
+            left: math.min(rect.ref.left, rect.ref.right),
+            bottom: math.min(rect.ref.bottom, rect.ref.top),
+            right: math.max(rect.ref.left, rect.ref.right),
+            top: math.max(rect.ref.bottom, rect.ref.top),
+            uri: PdfLinkTarget.pageOf(uri) == null ? uri : '',
+            destPage: dest,
+          ));
+        } finally {
+          p.FPDFPage_CloseAnnot(a);
+        }
+      }
+      return out;
+    });
+  } finally {
+    p.FPDF_ClosePage(page);
+  }
+}
+
 /// null = başarılı.
 String? _annotate(pdfium_bindings.PDFium p, int docAddr, PdfAnnotChange c) {
   final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddr);
@@ -696,6 +756,12 @@ String? _annotate(pdfium_bindings.PDFium p, int docAddr, PdfAnnotChange c) {
             }
             if (c.state != null) _setAnnotString(p, arena, a, 'DOState', c.state!);
             if (c.color != 0) setColor(a, c.color);
+            if (c.uri != null &&
+                p.FPDFAnnot_SetURI(
+                        a, c.uri!.toNativeUtf8(allocator: arena).cast()) ==
+                    0) {
+              return 'Bağlantı yazılamadı.';
+            }
           } finally {
             p.FPDFPage_CloseAnnot(a);
           }
@@ -740,6 +806,16 @@ String? _annotate(pdfium_bindings.PDFium p, int docAddr, PdfAnnotChange c) {
               p.FPDFAnnot_AddInkStroke(a, pts, n);
             }
             if (c.color != 0) setColor(a, c.color);
+            if (c.subtype == PdfAnnotType.link) {
+              // Kenarlıksız: metnin görünüşü değişmez.
+              p.FPDFAnnot_SetBorder(a, 0, 0, 0);
+              if (c.uri == null ||
+                  p.FPDFAnnot_SetURI(
+                          a, c.uri!.toNativeUtf8(allocator: arena).cast()) ==
+                      0) {
+                return 'Bağlantı yazılamadı.';
+              }
+            }
             if (c.subtype == PdfAnnotType.ink ||
                 c.subtype == PdfAnnotType.square ||
                 c.subtype == PdfAnnotType.circle ||

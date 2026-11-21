@@ -344,6 +344,96 @@ const Map<String, (String, String, String)> _t35 = {
     'fallback',
     'بديل',
   ),
+  'pse.overflow': (
+    'Metin alttaki yazının üstüne biniyor.',
+    'The text runs into the text below.',
+    'النص يتداخل مع النص الذي تحته.',
+  ),
+  'pse.overflow_shrink': (
+    'Küçült',
+    'Shrink',
+    'تصغير',
+  ),
+  'pse.overflow_push': (
+    'Alttakini it',
+    'Push down',
+    'دفع لأسفل',
+  ),
+  'pse.overflow_widen': (
+    'Genişlet',
+    'Widen',
+    'توسيع',
+  ),
+  'pse.step_push': (
+    'Alttaki yazı aşağı itildi',
+    'Text below pushed down',
+    'دُفع النص السفلي لأسفل',
+  ),
+  'pse.link': (
+    'Bağlantı',
+    'Link',
+    'رابط',
+  ),
+  'pse.link_web': (
+    'Web adresine bağla',
+    'Link to a web address',
+    'ربط بعنوان ويب',
+  ),
+  'pse.link_web_hint': (
+    'Adres ya da e-posta',
+    'Address or email',
+    'العنوان أو البريد الإلكتروني',
+  ),
+  'pse.link_page': (
+    'Bu belgedeki bir sayfaya bağla',
+    'Link to a page in this document',
+    'ربط بصفحة في هذا المستند',
+  ),
+  'pse.link_page_hint': (
+    'Sayfa numarası (1–{n})',
+    'Page number (1–{n})',
+    'رقم الصفحة (1–{n})',
+  ),
+  'pse.link_to_page': (
+    'Şu an {n}. sayfaya gidiyor',
+    'Now goes to page {n}',
+    'ينتقل الآن إلى الصفحة {n}',
+  ),
+  'pse.link_remove': (
+    'Bağlantıyı kaldır',
+    'Remove link',
+    'إزالة الرابط',
+  ),
+  'pse.link_bad': (
+    'Bu adres ya da sayfa kullanılamıyor.',
+    'This address or page can\'t be used.',
+    'لا يمكن استخدام هذا العنوان أو الصفحة.',
+  ),
+  'pse.step_link': (
+    'Bağlantı değişti',
+    'Link changed',
+    'تغيّر الرابط',
+  ),
+  'pse.font_pick': (
+    'Yazı tipi',
+    'Font',
+    'الخط',
+  ),
+  'pse.font_kind_doc': (
+    'Belgedeki yazı tipi',
+    'Font in this document',
+    'خط في هذا المستند',
+  ),
+  'pse.font_kind_match': (
+    'Belgenin yazı tipine en yakın',
+    'Closest to the document font',
+    'الأقرب إلى خط المستند',
+  ),
+  'pse.font_kind_pkg': (
+    'Uygulamadaki yazı tipi',
+    'Font in the app',
+    'خط في التطبيق',
+  ),
   'pse.image_exported': (
     'Görsel Belgeler\'e kaydedildi: {name}',
     'Image saved to Documents: {name}',

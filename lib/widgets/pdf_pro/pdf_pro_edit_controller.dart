@@ -120,6 +120,36 @@ class PdfLiveEdit {
   int fallbackChars = 0;
   final PdfTypesetFonts fonts = PdfTypesetFonts();
 
+  /// Font seçici satırları (yazma boyunca bir kez kurulur).
+  List<PdfFontChoice>? fontMenu;
+
+  /// **Taşma/çakışma** (Faz 57 / 3): yazdıkça uzayan blok altındaki bloğa
+  /// biniyorsa o blok; null = sığıyor.
+  PdfTextBlock? collision;
+
+  /// "Alttakileri aşağı it" seçildi: bitişte alttaki bloklar blok uzadığı
+  /// kadar iner.
+  bool pushBelow = false;
+
+  /// Bloğun taban çizgisi + inişe göre alt kenarı (yaklaşık; yalnız fark
+  /// için kullanılır).
+  static double bottomOf(PdfBlockTextMap m) => m.bases.isEmpty
+      ? 0
+      : m.bases.last - (m.sizes.isEmpty ? 12.0 : m.sizes.last) * 0.25;
+
+  /// Yazmadan önceki alt kenar (yeni kutuda ilk satır).
+  double get origBottom =>
+      block?.bottom ??
+      base.base - (map.sizes.isEmpty ? 12.0 : map.sizes.first) * 0.25;
+
+  /// Blok kaç birim aşağı uzadı (yazmadan önceki hâline göre).
+  double get growth =>
+      (block == null
+          ? base.base -
+              (map.sizes.isEmpty ? 12.0 : map.sizes.first) * 0.25
+          : bottomOf(block!.map)) -
+      bottomOf(map);
+
   final String _origText;
   final List<PdfStyleSpan> _origSpans;
   final PdfBlockAlign _origAlign;
@@ -252,6 +282,18 @@ class PdfLiveEdit {
       spans = [...spans, p.shifted(pre, pre + newMid)];
     }
     text = next;
+  }
+
+  /// [i]. karakterin (imleç solundakinin) seçilmiş yazı tipi; yoksa null.
+  String? fontAt(int i) {
+    final p = pending?.font;
+    if (p != null && selStart == selEnd) return p;
+    final at = math.max(0, (selStart == selEnd ? i - 1 : i));
+    String? v;
+    for (final s in spans) {
+      if (at >= s.start && at < s.end) v = s.font ?? v;
+    }
+    return v;
   }
 
   /// [start]–[end] aralığında bir biçim özelliği etkin mi (tümünde).
@@ -593,6 +635,8 @@ class PdfProEditController extends ChangeNotifier {
   Future<bool> beginEdit(int pageIndex, PdfTextBlock block,
       {int? offset, (int, int)? selection}) async {
     if (_live != null || _busy || !block.editable) return false;
+    // Bütçe (Faz 57 / 10): dokun → imleç ≤ 120 ms.
+    final sw = PdfProPerf.start();
     final content = await _contentNow(pageIndex);
     final base = PdfBlockRequest.of(pageIndex, block, content: content);
     final map = block.map;
@@ -620,6 +664,7 @@ class PdfProEditController extends ChangeNotifier {
     selectedPage = pageIndex;
     selectedBlock = list?.indexOf(block);
     _notify();
+    PdfProPerf.end('dokun_imlec', sw);
     return true;
   }
 
@@ -735,13 +780,58 @@ class PdfProEditController extends ChangeNotifier {
           strike: add.strike ?? p?.strike,
           size: add.size ?? p?.size,
           color: add.color ?? p?.color,
-          highlight: add.highlight ?? p?.highlight);
+          highlight: add.highlight ?? p?.highlight,
+          font: add.font ?? p?.font);
       _notify();
       return;
     }
     live.spans = [...live.spans, make(a, b)];
     _scheduleLive();
     _notify();
+  }
+
+  /// Yazı tipi seçimi: seçili aralığa; seçim yoksa bütün bloğa ve sonra
+  /// yazılacak metne (Faz 56 / 7).
+  void liveFont(String id) {
+    final live = _live;
+    if (live == null) return;
+    var a = math.min(live.selStart, live.selEnd);
+    var b = math.max(live.selStart, live.selEnd);
+    if (a == b) {
+      a = 0;
+      b = live.length;
+      final p = live.pending;
+      live.pending = PdfStyleSpan(0, 0,
+          bold: p?.bold,
+          italic: p?.italic,
+          underline: p?.underline,
+          strike: p?.strike,
+          size: p?.size,
+          color: p?.color,
+          highlight: p?.highlight,
+          font: id);
+    }
+    if (b > a) live.spans = [...live.spans, PdfStyleSpan(a, b, font: id)];
+    _scheduleLive();
+    _notify();
+  }
+
+  /// Yazılan bloğun font seçici satırları (Faz 56 / 7): sayfanın fontları →
+  /// eşleşen aile → paket. Sayfa içeriği yazma başlarken okunmuştur.
+  List<PdfFontChoice> fontChoices() {
+    final live = _live;
+    if (live == null) return const [];
+    final texts = _content[live.pageIndex]?.texts ?? const [];
+    var own = live.block?.lines.first.objects.first.fontName ?? '';
+    if (live.block == null) {
+      for (final t in texts) {
+        if (t.index == live._boxSource) own = t.fontName;
+      }
+    }
+    return live.fontMenu ??= PdfFallbackFonts.choices([
+      for (final t in texts)
+        if (!t.invisible && t.text.trim().isNotEmpty) t.fontName
+    ], own);
   }
 
   /// Paragraf düzeyi biçim: hizalama, punto, renk, satır aralığı.
@@ -784,6 +874,7 @@ class PdfProEditController extends ChangeNotifier {
           PdfProPerf.end('tus', sw);
           if (r.ok) {
             live._took(r, first: first);
+            live.collision = _collision(live);
           } else {
             live
               ..error = r.error
@@ -800,6 +891,103 @@ class PdfProEditController extends ChangeNotifier {
       _liveIdle?.complete();
       _liveIdle = null;
     }
+  }
+
+  /// Uzayan bloğun bindiği ilk (en üstteki) alt blok: yatayda örtüşen,
+  /// yazmadan önce bloğun altında duran ve şimdi alt kenarı onun üstüne inen.
+  PdfTextBlock? _collision(PdfLiveEdit live) {
+    if (live.base.angle != 0 || live.growth <= 0.5) return null;
+    final blocks = _blocks[live.pageIndex] ?? const <PdfTextBlock>[];
+    final left = math.min(live.base.firstX, live.base.bodyX) + live.dx;
+    final right = left + (live.width ?? live.base.width);
+    final was = live.origBottom + live.dy;
+    final now = was - live.growth;
+    PdfTextBlock? hit;
+    for (final b in blocks) {
+      if (identical(b, live.block) || b.angle != 0) continue;
+      if (math.min(b.right, right) - math.max(b.left, left) <= 0) continue;
+      if (b.top > was + 0.5 || b.top <= now + 0.5) continue;
+      if (hit == null || b.top > hit.top) hit = b;
+    }
+    return hit;
+  }
+
+  /// Taşma seçenekleri (Faz 57 / 3): punto küçült · alttakileri it · kutuyu
+  /// sayfa kenar boşluğuna dek genişlet. Genişletilemiyorsa false.
+  bool liveOverflow(String option) {
+    final live = _live;
+    if (live == null) return false;
+    switch (option) {
+      case 'shrink':
+        final s = live.size ??
+            (live.map.sizes.isEmpty ? 12.0 : live.map.sizes.first);
+        if (s <= 4) return false;
+        liveParagraph(size: (s - 1).roundToDouble());
+      case 'push':
+        live.pushBelow = !live.pushBelow;
+        _notify();
+      case 'widen':
+        final w = widenTo(live);
+        if (w == null) return false;
+        live.width = w;
+        _scheduleLive();
+        _notify();
+    }
+    return true;
+  }
+
+  /// Genişletilebilecek en büyük genişlik (sağ kenar boşluğu 36 pt);
+  /// kazanç yoksa null.
+  double? widenTo(PdfLiveEdit live) {
+    final page = _content[live.pageIndex]?.width ?? 0;
+    if (page <= 0 || live.base.angle != 0) return null;
+    final left = math.min(live.base.firstX, live.base.bodyX) + live.dx;
+    final now = live.width ?? live.base.width;
+    final max = page - 36 - left;
+    return max > now + 4 ? max : null;
+  }
+
+  /// Bitişte "it" seçiliyse: blok altındaki (yatayda örtüşen) bloklar ve
+  /// süs çizgileri blok uzadığı kadar aşağı iner — ayrı geri alınabilir adım.
+  Future<void> _pushBelow(PdfLiveEdit live, List<int> created) async {
+    final grow = live.growth;
+    if (grow <= 0.5 || live.base.angle != 0) return;
+    final page = live.pageIndex;
+    final content = await _contentNow(page);
+    final blocks = await _blocksNow(page);
+    final left = math.min(live.base.firstX, live.base.bodyX) + live.dx;
+    final right = left + (live.width ?? live.base.width);
+    final was = live.origBottom + live.dy;
+    final own = created.toSet();
+    final move = <int>{};
+    final textTop = {for (final t in content.texts) t.index: t.top};
+    for (final b in blocks) {
+      if (b.angle != 0) continue;
+      if (math.min(b.right, right) - math.max(b.left, left) <= 0) continue;
+      if (b.objectIndexes.any(own.contains)) {
+        // KÖK (CI 2026-11-21): bloklar yazımdan SONRA çıkarılır; uzayan blok
+        // alttakine bindiği için ikisi tek blok olur → alttakinin nesneleri
+        // (eski alt kenarın altındakiler) yine de iner.
+        for (final i in b.objectIndexes) {
+          final top = textTop[i];
+          if (!own.contains(i) && top != null && top <= was + 0.5) move.add(i);
+        }
+        continue;
+      }
+      if (b.top > was + 0.5) continue;
+      move.addAll(b.objectIndexes);
+      for (final d in PdfBlockRequest.decorations(b, content)) {
+        move.add(d.index);
+      }
+    }
+    if (move.isEmpty) return;
+    await session.apply(
+        PdfMutateOp(PdfMutation(page, [
+          PdfMutAction.transform(move.toList()..sort(), [1, 0, 0, 1, 0, -grow])
+        ])),
+        label: 'pse.step_push',
+        detail: '');
+    _invalidate(page);
   }
 
   Future<void> _settleLive() async {
@@ -820,27 +1008,16 @@ class PdfProEditController extends ChangeNotifier {
       return true;
     }
     return _guard(() async {
-      if (live.applied) {
-        // Canlı belgeden gizlenen özgün nesneleri kaldır.
-        final r = await session.liveApply(() => PdfEditBridge.typeset(
-            document, live.finishRequest(),
-            fonts: live.fonts));
-        if (!r.ok) {
-          live
-            ..error = r.error
-            ..glyphError = r.glyph;
-          return false;
-        }
-      } else {
-        final r = await session.liveApply(() => PdfEditBridge.typeset(
-            document, live.finalRequest(),
-            fonts: live.fonts));
-        if (!r.ok) {
-          live
-            ..error = r.error
-            ..glyphError = r.glyph;
-          return false;
-        }
+      // Canlı belgeden gizlenen özgün nesneleri kaldır (yazıldıysa).
+      final r = await session.liveApply(() => PdfEditBridge.typeset(
+          document,
+          live.applied ? live.finishRequest() : live.finalRequest(),
+          fonts: live.fonts));
+      if (!r.ok) {
+        live
+          ..error = r.error
+          ..glyphError = r.glyph;
+        return false;
       }
       await session.commitLive(
           label: label,
@@ -848,6 +1025,13 @@ class PdfProEditController extends ChangeNotifier {
           op: PdfTypesetOp(live.finalRequest()));
       _live = null;
       _invalidate(live.pageIndex);
+      if (live.pushBelow) {
+        try {
+          await _pushBelow(live, r.created);
+        } on PdfEditBridgeRefused {
+          // Bilinçli: yazım adımı kaydedildi; itme olmazsa blok yerinde kalır.
+        }
+      }
       return true;
     });
   }
@@ -1248,6 +1432,46 @@ class PdfProEditController extends ChangeNotifier {
         await session.apply(PdfAnnotOp(change), label: label, detail: detail);
         _invalidate(change.pageIndex);
       });
+
+  /// Sayfanın bağlantıları (Faz 58 / 7).
+  Future<List<PdfAnnotInfo>> linksOf(int pageIndex) =>
+      PdfEditBridge.links(document, pageIndex);
+
+  /// [block]'un üstündeki bağlantı (kutusuyla en çok örtüşen); yoksa null.
+  static PdfAnnotInfo? linkOver(PdfTextBlock block, List<PdfAnnotInfo> links) {
+    PdfAnnotInfo? best;
+    var area = 0.0;
+    for (final l in links) {
+      final w = math.min(l.right, block.right) - math.max(l.left, block.left);
+      final h = math.min(l.top, block.top) - math.max(l.bottom, block.bottom);
+      if (w > 0 && h > 0 && w * h > area) {
+        area = w * h;
+        best = l;
+      }
+    }
+    return best;
+  }
+
+  /// Bloğa bağlantı koyar ya da var olanın hedefini değiştirir ([uri]:
+  /// web adresi ya da [PdfLinkTarget.page]); [uri] null = kaldır. Tek
+  /// geri alınabilir adım.
+  Future<void> setBlockLink(int pageIndex, PdfTextBlock block, String? uri,
+      {required String label}) async {
+    final old = linkOver(block, await linksOf(pageIndex));
+    if (uri == null) {
+      if (old == null) return;
+      return annotate(PdfAnnotChange.remove(pageIndex, old.index),
+          label: label, detail: _excerpt(block.text));
+    }
+    await annotate(
+        old == null
+            ? PdfAnnotChange.link(pageIndex,
+                rect: [block.left, block.bottom, block.right, block.top],
+                uri: uri)
+            : PdfAnnotChange.update(pageIndex, old.index, uri: uri),
+        label: label,
+        detail: _excerpt(block.text));
+  }
 
   /// Belgenin bütün açıklamaları (yorum paneli).
   Future<List<PdfAnnotInfo>> allAnnotations() async {
