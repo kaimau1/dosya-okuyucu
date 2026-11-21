@@ -96,8 +96,18 @@ class XlsxSheetPatch {
   /// Süzgeç bu oturumda kuruldu/kaldırıldı — kaldırmak (`null`) da yazılsın.
   final bool autoFilterEdited;
 
+  /// B10 m.5: `<autoFilter>` iç XML'i (`filterColumn` + `sortState`); null =
+  /// dosyadaki içeriğe dokunma, '' = temizle.
+  final String? autoFilterInner;
+
+  /// Bu oturumda süzgeci değişen sütunlar (aralıkta 0 tabanlı `colId`):
+  /// dosyadaki öteki `filterColumn`lar korunur.
+  final Set<int> autoFilterTouched;
+
   const XlsxSheetPatch({
     this.autoFilterEdited = false,
+    this.autoFilterInner,
+    this.autoFilterTouched = const {},
     this.validations = const [],
     this.validationClears = const [],
     this.tabColorEdited = false,
@@ -133,6 +143,7 @@ class XlsxSheetPatch {
       !freezeEdited &&
       showGridLines &&
       autoFilterRef == null &&
+      autoFilterInner == null &&
       numberFormats.isEmpty &&
       styleEdits.isEmpty &&
       styleCopies.isEmpty &&
@@ -571,7 +582,10 @@ class XlsxSavePatch {
     if (_applyView(root, patch)) changed = true;
     if (_applyHiddenCols(root, patch.hiddenCols)) changed = true;
     if (_applyRows(root, patch)) changed = true;
-    if (_applyAutoFilter(root, patch.autoFilterRef)) changed = true;
+    if (_applyAutoFilter(root, patch.autoFilterRef, patch.autoFilterInner,
+        patch.autoFilterTouched)) {
+      changed = true;
+    }
     // Sıra önemli: önce biçim YAPIŞTIRMA (hedefin taban stili kaynağınki olur),
     // sonra kullanıcının açık görünüm değişiklikleri, en sonra sayı biçimi —
     // her adım bir öncekinin bıraktığı `s`yi taban alır, böylece üst üste
@@ -1231,23 +1245,56 @@ class XlsxSavePatch {
   }
 
   /// `<autoFilter ref="A1:D20"/>` — `sheetData`dan SONRA gelir.
-  static bool _applyAutoFilter(XmlElement root, String? ref) {
-    final existing = _firstChild(root, 'autoFilter');
+  static bool _applyAutoFilter(XmlElement root, String? ref,
+      [String? inner, Set<int> touched = const {}]) {
+    var existing = _firstChild(root, 'autoFilter');
     if (ref == null || ref.isEmpty) {
       if (existing == null) return false;
       root.children.remove(existing);
       return true;
     }
+    var changed = false;
     if (existing != null) {
-      if (existing.getAttribute('ref') == ref) return false;
-      existing.setAttribute('ref', ref);
-      return true;
+      if (existing.getAttribute('ref') != ref) {
+        existing.setAttribute('ref', ref);
+        changed = true;
+      }
+    } else {
+      existing = XmlElement(const XmlName.qualified('autoFilter'),
+          [XmlAttribute(const XmlName.qualified('ref'), ref)]);
+      _insertOrdered(root, existing);
+      changed = true;
     }
-    _insertOrdered(
-      root,
-      XmlElement(const XmlName.qualified('autoFilter'), [XmlAttribute(const XmlName.qualified('ref'), ref)]),
-    );
-    return true;
+    if (inner != null) {
+      // Sayfa düzeyindeki eski `sortState` de kalkar (yenisi süzgecin içinde).
+      _firstChild(root, 'sortState')?.remove();
+      // Dokunulmayan sütunların dosyadaki süzgeci kalır.
+      final kept = [
+        for (final e in existing.childElements)
+          if (e.name.local == 'filterColumn' &&
+              !touched.contains(int.tryParse(e.getAttribute('colId') ?? '')))
+            e.copy(),
+      ];
+      existing.children.clear();
+      final fresh = inner.isEmpty
+          ? const <XmlNode>[]
+          : [
+              for (final n in XmlDocumentFragment.parse(inner).children)
+                n.copy(),
+            ];
+      final cols = [
+        ...kept,
+        ...fresh.whereType<XmlElement>()
+            .where((e) => e.name.local == 'filterColumn'),
+      ]..sort((a, b) => (int.tryParse(a.getAttribute('colId') ?? '') ?? 0)
+          .compareTo(int.tryParse(b.getAttribute('colId') ?? '') ?? 0));
+      existing.children
+        ..addAll(cols)
+        ..addAll(fresh.whereType<XmlElement>()
+            .where((e) => e.name.local == 'sortState'));
+      changed = true;
+    }
+    return changed;
   }
 
   /// Gizli sütunlar. Var olan `<col>` aralığı indeksi kapsıyorsa aralık

@@ -62,6 +62,9 @@ extension XlsxSheetOps on XlsxEditor {
         s.layout.hiddenRows.removeAll(rows);
       }
       s.filterHidden.clear();
+      s.filterCriteria.clear();
+      s.filterTouched.clear();
+      s.filterSort = const [];
     }
     return before;
   }

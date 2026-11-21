@@ -90,7 +90,8 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     return XlsxRange.parse(ref);
   }
 
-  /// Süzgeç oku menüsü: A→Z / Z→A sırala + değere göre süz.
+  /// Süzgeç oku menüsü: A→Z / Z→A sırala + değer / içerir / ilk-son 10 /
+  /// renge göre süz (B10 m.5).
   Future<void> _showColumnFilter(XlsxSheet sheet, int c) async {
     _endEdit();
     final range = _filterRange(sheet);
@@ -100,26 +101,31 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     final lastData = math.max(firstData, sheet.maxRows - 1);
 
     final values = <String>{};
+    final fills = <int>{};
     for (var r = firstData; r <= lastData; r++) {
       values.add(sheet.rawAt(r, c));
+      final f = sheet.styleAt(r, c)?.background?.toARGB32();
+      if (f != null && fills.length < 12) fills.add(f);
     }
     final sorted = values.toList()..sort(compareCellText);
-    final hidden = {...(sheet.filterHidden[c] ?? const <int>{})};
-    // Gizli satırların değerleri "işaretsiz" gelmeli.
-    final unchecked = <String>{
-      for (final r in hidden)
-        if (r >= firstData && r <= lastData) sheet.rawAt(r, c),
-    };
+    final hidden = sheet.filterHidden[c] ?? const <int>{};
+    final initial = sheet.filterCriteria[c] ??
+        ColumnFilter(hiddenValues: {
+          for (final r in hidden)
+            if (r >= firstData && r <= lastData) sheet.rawAt(r, c),
+        });
+    final fillList = fills.toList();
 
     if (!mounted) return;
-    final result = await showModalBottomSheet<Set<String>>(
+    final result = await showModalBottomSheet<ColumnFilter>(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => _ColumnFilterSheet(
         title: context.t('excel.filter_column',
             {'col': XlsxRange.colName(c)}),
         values: sorted,
-        unchecked: unchecked,
+        initial: initial,
+        fills: fillList,
         onSort: (asc) {
           Navigator.pop(ctx);
           _sortByColumn(sheet, c, firstData, lastData, asc);
@@ -130,15 +136,23 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     _applyColumnFilter(sheet, c, firstData, lastData, result);
   }
 
-  /// Seçilmeyen değerlere sahip satırları gizler (geri alınabilir).
+  /// Ölçüte uymayan satırları gizler (geri alınabilir); ölçüt dosyaya yazılır.
   void _applyColumnFilter(XlsxSheet sheet, int c, int firstData, int lastData,
-      Set<String> unchecked) {
+      ColumnFilter filter) {
     final before = {...(sheet.filterHidden[c] ?? const <int>{})};
-    final after = <int>{
-      for (var r = firstData; r <= lastData; r++)
-        if (unchecked.contains(sheet.rawAt(r, c))) r,
-    };
-    void write(Set<int> rows) {
+    final criterionBefore = sheet.filterCriteria[c];
+    final engine = _engineFor(sheet);
+    String shown(int r) => sheet.rawAt(r, c).startsWith('=')
+        ? engine.displayValue(r, c)
+        : sheet.rawAt(r, c);
+    final after = filter.hiddenRows(
+      firstData,
+      lastData,
+      raw: (r) => filter.hiddenValues.isNotEmpty ? sheet.rawAt(r, c) : shown(r),
+      number: (r) => double.tryParse(shown(r).replaceAll(',', '.')),
+      fill: (r) => sheet.styleAt(r, c)?.background?.toARGB32(),
+    );
+    void write(Set<int> rows, ColumnFilter? criterion) {
       // Önce bu sütunun eski gizlemeleri kaldırılır: başka bir sütunun
       // süzgeci ya da kullanıcının elle gizlediği satır ETKİLENMEMELİ.
       for (final r in sheet.filterHidden[c] ?? const <int>{}) {
@@ -148,10 +162,12 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
       }
       sheet.filterHidden[c] = {...rows};
       sheet.layout.hiddenRows.addAll(rows);
+      sheet.setFilterCriterion(c, criterion);
     }
 
-    write(after);
-    _recordStep('excel.undo_filter', () => write(after), () => write(before));
+    write(after, filter);
+    _recordStep('excel.undo_filter', () => write(after, filter),
+        () => write(before, criterionBefore));
     _session.changed();
     _gridVersion++;
     _partSetState(() {});
@@ -185,14 +201,19 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     final after = [
       for (final r in order) before[r - firstData],
     ];
-    void write(List<SheetLineSnapshot> rows) {
+    // B10 m.5: süzgeç aralığının sıralaması dosyaya `sortState` olarak yazılır.
+    final sortBefore = sheet.filterSort;
+    final sortAfter = [(col: c, descending: !ascending)];
+    void write(List<SheetLineSnapshot> rows, List<SortLevelRef> sort) {
       for (var i = 0; i < rows.length; i++) {
         editor.restoreRow(name, firstData + i, rows[i]);
       }
+      sheet.setFilterSort(sort);
     }
 
-    write(after);
-    _recordStep('excel.undo_sort', () => write(after), () => write(before));
+    write(after, sortAfter);
+    _recordStep('excel.undo_sort', () => write(after, sortAfter),
+        () => write(before, sortBefore));
     _session.changed();
     _gridVersion++;
     _partSetState(() {});

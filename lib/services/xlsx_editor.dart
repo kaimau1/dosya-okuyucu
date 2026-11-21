@@ -8,6 +8,7 @@ import 'xlsx_file_charts.dart';
 import 'xlsx_package.dart';
 import 'xlsx_reader.dart';
 import 'xlsx_save_patch.dart';
+import 'xlsx/auto_filter.dart';
 import 'xlsx/notes_writer.dart';
 import 'xlsx/table_reader.dart';
 import 'xlsx/print_area_writer.dart';
@@ -26,6 +27,7 @@ export 'xlsx_reader.dart';
 export 'xlsx/table_reader.dart' show XlsxFileTable;
 export 'xlsx_chart.dart';
 export 'sheet_structure.dart' show SheetShift;
+export 'xlsx/auto_filter.dart';
 
 part 'xlsx/structure_edit.dart';
 part 'xlsx/sheet_ops.dart';
@@ -336,6 +338,48 @@ class XlsxSheet {
   final Map<int, Set<int>> filterHidden = {};
 
   bool isColFiltered(int c) => (filterHidden[c] ?? const {}).isNotEmpty;
+
+  /// B10 m.5: sütun süzgeci ölçütleri ve süzgeç aralığının son sıralaması —
+  /// kaydette `<autoFilter>` içine (`filterColumn` + `sortState`) yazılır.
+  final Map<int, ColumnFilter> filterCriteria = {};
+  final Set<int> filterTouched = {};
+  List<SortLevelRef> filterSort = const [];
+  bool filterCriteriaEdited = false;
+
+  /// Süzgeç ölçütünü kurar (boşsa kaldırır); gizlenecek satırları ÇAĞIRAN
+  /// hesaplar ([filterHidden]).
+  void setFilterCriterion(int c, ColumnFilter? f) {
+    if (f == null || f.isEmpty) {
+      filterCriteria.remove(c);
+    } else {
+      filterCriteria[c] = f;
+    }
+    filterTouched.add(c);
+    filterCriteriaEdited = true;
+  }
+
+  void setFilterSort(List<SortLevelRef> levels) {
+    filterSort = List.unmodifiable(levels);
+    filterCriteriaEdited = true;
+  }
+
+  String? _autoFilterInner() {
+    if (!filterCriteriaEdited) return null;
+    final f = XlsxRange.parse(layout.autoFilterRef);
+    if (f == null) return null;
+    final last = f.r2 > f.r1 ? f.r2 : maxRows - 1;
+    return autoFilterInnerXml(
+      r1: f.r1,
+      c1: f.c1,
+      r2: last,
+      c2: f.c2,
+      filters: filterCriteria,
+      sort: filterSort,
+      valuesOf: (c) => {
+        for (var r = f.r1 + 1; r <= last; r++) rawAt(r, c),
+      }.toList(),
+    );
+  }
 
   /// Hücrenin notu (Excel'de "Açıklama") — yoksa null.
   XlsxComment? commentAt(int r, int c) => layout.comments[cellKey(r, c)];
@@ -1844,6 +1888,11 @@ class XlsxEditor {
           validationClears: s.validationClears,
           tabColorEdited: s.tabColorEdited,
           autoFilterEdited: s.autoFilterEdited,
+          autoFilterInner: s._autoFilterInner(),
+          autoFilterTouched: {
+            if (XlsxRange.parse(s.layout.autoFilterRef) case final f?)
+              for (final c in s.filterTouched) c - f.c1,
+          },
           tabColorArgb: s.layout.tabColorArgb,
         ),
     ];
