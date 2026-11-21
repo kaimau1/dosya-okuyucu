@@ -501,7 +501,10 @@ abstract final class XlsxChartWriter {
     return b.toString().split('').reversed.join();
   }
 
-  static String chartXml(XlsxChartSpec s) {
+  /// [themeColors]: seri rengi sunum temasından (`schemeClr accentN`) —
+  /// slayt grafiği tema değişince renk değiştirsin (B11 renk). Excel sabit
+  /// RGB yazmaya devam eder (LibreOffice dolgusuz çizim sorunu — [palette]).
+  static String chartXml(XlsxChartSpec s, {bool themeColors = false}) {
     final b = StringBuffer(
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
@@ -529,7 +532,7 @@ abstract final class XlsxChartWriter {
         b.write('<c:barChart><c:barDir val="'
             '${s.kind.horizontal ? 'bar' : 'col'}"/>'
             '<c:grouping val="$grouping"/><c:varyColors val="0"/>');
-        _series(b, s, line: false, until: combo ? last : null);
+        _series(b, s, themeColors, line: false, until: combo ? last : null);
         b.write('<c:gapWidth val="150"/>'
             '${grouping == 'clustered' ? '' : '<c:overlap val="100"/>'}'
             '<c:axId val="5000001"/><c:axId val="5000002"/></c:barChart>');
@@ -537,7 +540,7 @@ abstract final class XlsxChartWriter {
           // Kombinasyon: son seri çizgi; ikincil eksende ise kendi eksen çifti.
           final sec = s.secondaryAxis;
           b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
-          _series(b, s, line: true, from: last);
+          _series(b, s, themeColors, line: true, from: last);
           b.write('<c:marker val="1"/>'
               '<c:axId val="${sec ? 5000003 : 5000001}"/>'
               '<c:axId val="${sec ? 5000004 : 5000002}"/></c:lineChart>');
@@ -546,33 +549,33 @@ abstract final class XlsxChartWriter {
         if (combo && s.secondaryAxis) _secondaryAxes(b);
       case XlsxChartKind.line:
         b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
-        _series(b, s, line: true);
+        _series(b, s, themeColors, line: true);
         b.write('<c:marker val="1"/><c:axId val="5000001"/>'
             '<c:axId val="5000002"/></c:lineChart>');
         _axes(b, horizontal: false);
       case XlsxChartKind.area:
         b.write('<c:areaChart><c:grouping val="standard"/><c:varyColors val="0"/>');
-        _series(b, s, line: false);
+        _series(b, s, themeColors, line: false);
         b.write('<c:axId val="5000001"/><c:axId val="5000002"/></c:areaChart>');
         _axes(b, horizontal: false);
       case XlsxChartKind.pie:
         b.write('<c:pieChart><c:varyColors val="1"/>');
-        _series(b, s, line: false);
+        _series(b, s, themeColors, line: false);
         b.write('<c:firstSliceAng val="0"/></c:pieChart>');
       case XlsxChartKind.doughnut:
         b.write('<c:doughnutChart><c:varyColors val="1"/>');
-        _series(b, s, line: false);
+        _series(b, s, themeColors, line: false);
         b.write('<c:firstSliceAng val="0"/><c:holeSize val="50"/></c:doughnutChart>');
       case XlsxChartKind.scatter:
         // Excel'in "yalnız işaretçi" dağılımı: lineMarker + çizgi noFill.
         b.write('<c:scatterChart><c:scatterStyle val="lineMarker"/>'
             '<c:varyColors val="0"/>');
-        _series(b, s, line: false);
+        _series(b, s, themeColors, line: false);
         b.write('<c:axId val="5000001"/><c:axId val="5000002"/></c:scatterChart>');
         _xyAxes(b);
       case XlsxChartKind.radar:
         b.write('<c:radarChart><c:radarStyle val="marker"/><c:varyColors val="0"/>');
-        _series(b, s, line: true);
+        _series(b, s, themeColors, line: true);
         b.write('<c:axId val="5000001"/><c:axId val="5000002"/></c:radarChart>');
         _axes(b, horizontal: false);
     }
@@ -605,40 +608,43 @@ abstract final class XlsxChartWriter {
   static String _fill(String hex) =>
       '<a:solidFill><a:srgbClr val="$hex"/></a:solidFill>';
 
-  static void _series(StringBuffer b, XlsxChartSpec s,
+  static void _series(StringBuffer b, XlsxChartSpec s, bool theme,
       {required bool line, int from = 0, int? until}) {
     final r1 = s.top + 1, r2 = s.bottom;
+    String fillOf(int i) => theme
+        ? '<a:solidFill><a:schemeClr val="accent${i % 6 + 1}"/></a:solidFill>'
+        : _fill(s.colorOf(i));
     for (var i = from; i < (until ?? s.series.length); i++) {
       final ser = s.series[i];
-      final color = s.colorOf(i);
+      final color = fillOf(i); // dolgu XML parçası
       b.write('<c:ser><c:idx val="$i"/><c:order val="$i"/>'
           '<c:tx><c:strRef><c:f>${_esc(ref(s.sheetName, s.top, ser.col))}</c:f>'
           '<c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${_esc(ser.name)}'
           '</c:v></c:pt></c:strCache></c:strRef></c:tx>');
       if (line) {
-        b.write('<c:spPr><a:ln w="28575" cap="rnd">${_fill(color)}'
+        b.write('<c:spPr><a:ln w="28575" cap="rnd">$color'
             '<a:round/></a:ln></c:spPr>'
             '<c:marker><c:symbol val="circle"/><c:size val="5"/>'
-            '<c:spPr>${_fill(color)}</c:spPr></c:marker>');
+            '<c:spPr>$color</c:spPr></c:marker>');
       } else if (s.kind.isPie) {
         b.write('<c:spPr><a:ln><a:solidFill><a:srgbClr val="FFFFFF"/>'
             '</a:solidFill></a:ln></c:spPr>');
         for (var k = 0; k < ser.values.length; k++) {
           b.write('<c:dPt><c:idx val="$k"/><c:bubble3D val="0"/><c:spPr>'
-              '${_fill(s.colorOf(k))}</c:spPr></c:dPt>');
+              '${fillOf(k)}</c:spPr></c:dPt>');
         }
       } else if (s.kind == XlsxChartKind.scatter) {
         b.write('<c:spPr><a:ln w="25400"><a:noFill/></a:ln></c:spPr>'
             '<c:marker><c:symbol val="circle"/><c:size val="6"/>'
-            '<c:spPr>${_fill(color)}</c:spPr></c:marker>');
+            '<c:spPr>$color</c:spPr></c:marker>');
       } else {
-        b.write('<c:spPr>${_fill(color)}</c:spPr>'
+        b.write('<c:spPr>$color</c:spPr>'
             '${s.kind.isBar ? '<c:invertIfNegative val="0"/>' : ''}');
       }
       // Eğilim çizgisi: şemada spPr/marker/dPt'den sonra, cat'ten önce.
       if (s.trendline && s.kind.allowsTrend) {
         b.write('<c:trendline><c:spPr><a:ln w="19050" cap="rnd">'
-            '${_fill(color)}<a:prstDash val="sysDot"/></a:ln></c:spPr>'
+            '$color<a:prstDash val="sysDot"/></a:ln></c:spPr>'
             '<c:trendlineType val="linear"/><c:dispRSqr val="0"/>'
             '<c:dispEq val="0"/></c:trendline>');
       }

@@ -48,6 +48,9 @@ void main() {
       final xml = XlsxChartWriter.chartXml(spec);
       expect(xml, contains('<$tag>'));
       expect(() => XmlDocument.parse(xml), returnsNormally);
+      // Excel sabit RGB yazar (tema rengi yalnız slayt bağlamında).
+      expect(xml, contains('<a:srgbClr val="${XlsxChartWriter.palette[0]}"/>'));
+      expect(xml, isNot(contains('schemeClr')));
       if (grouping == ChartGrouping.percent) {
         expect(xml, contains('<c:grouping val="percentStacked"/>'));
         expect(xml, contains('<c:overlap val="100"/>'));

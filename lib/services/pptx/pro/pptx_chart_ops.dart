@@ -136,7 +136,7 @@ abstract final class PptxChartOps {
         '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1400"/></a:pPr><a:endParaRPr lang="tr-TR"/></a:p></c:txPr>'
         '${workbookRid == null ? '' : '<c:externalData r:id="$workbookRid"><c:autoUpdate val="0"/></c:externalData>'}'
         '</c:chartSpace>';
-    return XlsxChartWriter.chartXml(spec).replaceFirst('</c:chartSpace>', tail);
+    return XlsxChartWriter.chartXml(spec, themeColors: true).replaceFirst('</c:chartSpace>', tail);
   }
 
   static Uint8List _workbook(SlideChartData d) {
