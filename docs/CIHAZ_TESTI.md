@@ -1611,3 +1611,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Yatay ve dikey: ana ekranda solda kalıcı menü sütunu YOK; ☰ düğmesi / soldan çekme ile telefondaki yan menü açılır, en altında "Konumlar" (Dahili bellek, takılıysa SD/USB) → dokununca gezgin açılır.
 - Dikey tablette: Son dosyalar şeridi üstte tam genişlik, altında solda bellek kartı (gerilmeden, ~360 dp), sağda kategori kutuları + araçlar; yatayda aynı düzen, sağ sütun geniş.
 - Döndürünce açık sekme/ekran kaybolmamalı; telefonda ana ekran eskisi gibi tek sütun.
+
+## 2026-11-21 — Word 3: yorum balonu, izlenen Enter/biçim, tablo denetimi, PDF dipnot (yerel, dal faz-oto-B9-word3; yazıldı, cihazda doğrulanmadı)
+- [ ] Yorumlu Word belgesi: yorumlu paragrafın altında sarı balon (yazar: metin, yanıt sayısı); dokununca yorum levhası o yorumda açılır; çözüldü olan soluk.
+- [ ] Değişiklikleri izle açık: Enter ve paragraf başında geri silme → kaydet → Word'de "paragraf işareti eklendi/silindi" görünür; seçimi kalın yap → Word'de "Biçimlendirilmiş" + Reddet eski hâle döner.
+- [ ] Form şablonu (satırları içerik denetimli tablo): tüm satırlar görünür, yazılır, Word'de denetim kutusu durur.
+- [ ] Dipnotlu belgeyi PDF'e aktar: her dipnot başvurusunun sayfasının altında, sonnotlar en sonda.
