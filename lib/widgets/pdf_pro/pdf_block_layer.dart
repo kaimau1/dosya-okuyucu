@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -28,6 +29,31 @@ int? hitPdfBlock(List<Rect> rects, Offset point, {double slop = 6}) {
     }
   }
   return best;
+}
+
+/// Kalem basıncı 0–1; basınç bilgisi yoksa (parmak, fare, basınçsız kalem:
+/// `pressureMin == pressureMax`) -1.
+double pdfPressureOf(PointerEvent e) {
+  final stylus = e.kind == PointerDeviceKind.stylus ||
+      e.kind == PointerDeviceKind.invertedStylus;
+  final span = e.pressureMax - e.pressureMin;
+  if (!stylus || span <= 0) return -1;
+  return ((e.pressure - e.pressureMin) / span).clamp(0.0, 1.0);
+}
+
+/// **Basınçlı kalem** (Faz 60 m.2): vuruşun ortalama basıncından kalınlık
+/// çarpanı (0,4–1,6×; hafif basış ince, sert basış kalın). Basınç bilgisi
+/// yoksa 1.
+// ponytail: PDF mürekkep açıklamasının kalınlığı tek; vuruş içinde değişen
+// kalınlık gerekirse vuruşu basınç dilimlerine bölüp ayrı yollar yaz.
+double pdfPressureFactor(Iterable<double> pressures) {
+  var sum = 0.0, n = 0;
+  for (final p in pressures) {
+    if (p < 0) continue;
+    sum += p;
+    n++;
+  }
+  return n == 0 ? 1 : 0.4 + 1.2 * (sum / n);
 }
 
 /// Sayfa katmanının ekrana (görüntüleyici) bildirdiği olaylar.
@@ -178,8 +204,9 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   /// verir): tutamaç ve çizgi kalınlığı yakınlaştırmadan bağımsız sabittir.
   double get _px => 1;
 
-  // Çizim (İşaretle) ve seçim uzatma: ham işaretçi izleme.
-  int _drawPointers = 0;
+  // Çizim (İşaretle) ve seçim uzatma: ham işaretçi izleme. Avuç reddinde
+  // sayılmayan dokunuşlar kümeye girmez.
+  final Set<int> _drawPointers = {};
   int? _drawPointer;
   bool _extending = false;
 
@@ -192,23 +219,28 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   }
 
   void _drawDown(PointerDownEvent e) {
-    _drawPointers++;
+    final stylus = e.kind == PointerDeviceKind.stylus ||
+        e.kind == PointerDeviceKind.invertedStylus;
+    if (stylus) c.stylusSeen = true;
+    // Avuç reddi: kalem kipinde parmak/avuç hiç sayılmaz.
+    if (c.stylusSeen && !stylus) return;
+    _drawPointers.add(e.pointer);
     // İkinci parmak = yakınlaştırma: başlamış çizgi bırakılır.
-    if (_drawPointers > 1) {
+    if (_drawPointers.length > 1) {
       _drawReset();
       return;
     }
     _drawPointer = e.pointer;
-    _mark.begin(e.localPosition);
+    _mark.begin(e.localPosition, pdfPressureOf(e));
   }
 
   void _drawMove(PointerMoveEvent e) {
     if (e.pointer != _drawPointer) return;
-    _mark.extend(e.localPosition, keep: _freehand);
+    _mark.extend(e.localPosition, pdfPressureOf(e), keep: _freehand);
   }
 
   void _drawUp(PointerEvent e, {bool cancel = false}) {
-    _drawPointers = math.max(0, _drawPointers - 1);
+    _drawPointers.remove(e.pointer);
     if (e.pointer != _drawPointer) return;
     _drawPointer = null;
     if (cancel) {
@@ -385,6 +417,7 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     final from = _mark.from, to = _mark.to;
     final kind = c.markup;
     final stroke = List<Offset>.of(_mark.points);
+    final pressure = _mark.factor;
     _mark.clear();
     try {
       if (kind == PdfMarkupKind.ink || kind == PdfMarkupKind.marker) {
@@ -402,7 +435,7 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           b = math.min(b, p.y);
           t = math.max(t, p.y);
         }
-        final width = _inkWidth(kind);
+        final width = _inkWidth(kind) * pressure;
         await c.annotate(
             PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
                 rect: [l - width, b - width, r + width, t + width],

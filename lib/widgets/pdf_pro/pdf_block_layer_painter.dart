@@ -325,18 +325,28 @@ class _MarkPreview extends ChangeNotifier {
   /// Serbest çizimin noktaları (katman pikseli).
   final List<Offset> points = [];
 
-  void begin(Offset at) {
+  /// Noktaların kalem basıncı ([pdfPressureOf]; -1 = bilgi yok).
+  final List<double> pressures = [];
+  double get factor => pdfPressureFactor(pressures);
+
+  void begin(Offset at, double pressure) {
     from = at;
     to = at;
     points
       ..clear()
       ..add(at);
+    pressures
+      ..clear()
+      ..add(pressure);
     notifyListeners();
   }
 
-  void extend(Offset at, {required bool keep}) {
+  void extend(Offset at, double pressure, {required bool keep}) {
     to = at;
-    if (keep) points.add(at);
+    if (keep) {
+      points.add(at);
+      pressures.add(pressure);
+    }
     notifyListeners();
   }
 
@@ -345,6 +355,7 @@ class _MarkPreview extends ChangeNotifier {
     from = null;
     to = null;
     points.clear();
+    pressures.clear();
     notifyListeners();
   }
 }
@@ -391,7 +402,7 @@ class _MarkPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeCap = StrokeCap.round
             ..strokeJoin = StrokeJoin.round
-            ..strokeWidth = width
+            ..strokeWidth = width * preview.factor
             ..color = color);
     }
     final s = shape;

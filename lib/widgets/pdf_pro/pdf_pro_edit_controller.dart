@@ -428,6 +428,12 @@ class PdfProEditController extends ChangeNotifier {
               _markup != PdfMarkupKind.note &&
               _markup != PdfMarkupKind.eraser));
 
+  /// **Kalem kipi / avuç reddi** (Faz 60 m.2; eski kalem ekranının H9.3
+  /// kuralı): bir kez kalem (stylus) dokunduysa bu oturumda YALNIZ kalem
+  /// çizer; parmak ve avuç çizmez, kalem çizerken gelen dokunuş çizgiyi
+  /// bozmaz. Kalemsiz cihazda hiç açılmaz.
+  bool stylusSeen = false;
+
   /// İşaretleme rengi (ARGB) ve çizgi kalınlığı.
   int markupColor = 0xFFFFD54F;
   double markupWidth = 2;

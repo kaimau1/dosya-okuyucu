@@ -9,7 +9,7 @@ import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_recovery.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_version_history.dart';
 import 'package:dosya_okuyucu/widgets/pdf_pro/pdf_block_layer.dart';
 import 'package:dosya_okuyucu/widgets/pdf_pro/pdf_pro_edit_controller.dart';
-import 'package:flutter/gestures.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -150,6 +150,72 @@ void main() {
     expect(ink, hasLength(1));
     expect(ink.single.color >>> 24, lessThan(0xFF),
         reason: 'fosforlu opak yazıldı (alttaki yazı örtülür)');
+    expect(tester.takeException(), isNull);
+  });
+
+  test('basınç: kalemde 0–1, parmakta bilgi yok; kalınlık çarpanı', () {
+    expect(
+        pdfPressureOf(const PointerDownEvent(
+            kind: PointerDeviceKind.stylus,
+            pressure: 0.5,
+            pressureMin: 0,
+            pressureMax: 1)),
+        0.5);
+    expect(
+        pdfPressureOf(const PointerDownEvent(
+            kind: PointerDeviceKind.touch,
+            pressure: 0.5,
+            pressureMin: 0,
+            pressureMax: 1)),
+        -1);
+    // Basınçsız kalem (min == max).
+    expect(pdfPressureOf(const PointerDownEvent(kind: PointerDeviceKind.stylus)),
+        -1);
+    expect(pdfPressureFactor(const [-1, -1]), 1);
+    expect(pdfPressureFactor(const [0]), closeTo(0.4, 1e-9));
+    expect(pdfPressureFactor(const [1, 1]), closeTo(1.6, 1e-9));
+    expect(pdfPressureFactor(const [0.5, -1]), closeTo(1.0, 1e-9));
+  });
+
+  testWidgets('avuç reddi: kalem çizerken avuç çizgiyi bozmaz; kalem '
+      'kipinde parmak çizmez', (tester) async {
+    final h = await open(tester);
+    h.c.armMarkup(PdfMarkupKind.ink);
+    await tester.pump();
+    final pen = await tester.createGesture(kind: PointerDeviceKind.stylus);
+    await pen.down(const Offset(100, 300));
+    await tester.pump();
+    await pen.moveBy(const Offset(30, 0));
+    // Avuç ekrana değer (eskiden ikinci parmak sayılıp çizgi silinirdi).
+    final palm = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await palm.down(const Offset(400, 600));
+    await palm.moveBy(const Offset(10, 10));
+    for (var i = 0; i < 4; i++) {
+      await pen.moveBy(const Offset(30, 5));
+      await tester.pump();
+    }
+    await palm.up();
+    await pen.up();
+    await tester.pump();
+    await until(tester, () => h.c.session.steps.length == 1 && !h.c.busy);
+    expect(h.c.stylusSeen, isTrue);
+
+    // Kalem kipinde tek parmak sürüklemesi çizim değildir.
+    final finger = await tester.startGesture(const Offset(100, 500));
+    for (var i = 0; i < 4; i++) {
+      await finger.moveBy(const Offset(30, 0));
+      await tester.pump();
+    }
+    await finger.up();
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 15)));
+      await tester.pump();
+    }
+    expect(h.c.session.steps, hasLength(1));
+    expect(
+        (await annots(tester, h)).where((a) => a.subtype == PdfAnnotType.ink),
+        hasLength(1));
     expect(tester.takeException(), isNull);
   });
 }
