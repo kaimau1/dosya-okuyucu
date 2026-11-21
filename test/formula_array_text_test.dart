@@ -412,6 +412,22 @@ void main() {
           '_xlfn.LET(_xlpm.sum,1,SUM(_xlpm.sum,2))');
       expect(FormulaEngine.toFileFormula('SUM(A1:B2)'), 'SUM(A1:B2)');
     });
+    test('LAMBDA ailesi Türkçe adlar (KARAR 2026-11-21)', () {
+      expect(_one('=HARİTA({1;2};LAMBDA(v;v*3))'), '3');
+      expect(_run('=DİZİOLUŞTUR(2;2;LAMBDA(r;c;r*c))', h: 2, w: 2), [
+        ['1', '2'],
+        ['2', '4'],
+      ]);
+      expect(FormulaEngine.toFileFormula('HARİTA(A1:B2;LAMBDA(v;v*2))'),
+          '_xlfn.MAP(A1:B2,_xlfn.LAMBDA(_xlpm.v,_xlpm.v*2))');
+      expect(FormulaEngine.toTurkishFormula('_xlfn.MAKEARRAY(2,2,1)'),
+          'DİZİOLUŞTUR(2;2;1)');
+      expect(FormulaEngine.toTurkishFormula('_xlfn.TEXTBEFORE(A1,"-")'),
+          'ÖNCEKİMETİN(A1;"-")');
+      // İngilizce adlar da çalışmaya devam eder.
+      expect(_one('=MAP({1;2},LAMBDA(v,v*3))'), '3');
+      expect(_one('=REDUCE(0,{1,2,3},LAMBDA(a,v,a+v))'), '6');
+    });
     test('gidiş-dönüş: önekli dosya yazımı aynı kalır, gösterimde öneksiz', () {
       const file = '_xlfn.LAMBDA(_xlpm.n,_xlpm.n*2)(5)';
       expect(FormulaEngine.toFileFormula(file), file);

@@ -141,6 +141,43 @@ void main() {
     expect(_part(out, 'xl/worksheets/sheet1.xml')!, isNot(contains('<autoFilter')));
   });
 
+  test('B10 m.5: süzgeç ölçütü + sıralama dosyaya yazılır', () {
+    final ed = _open();
+    final s = ed.sheets.first;
+    ed.setAutoFilter(s.name, 'A1:D5');
+    s.setFilterCriterion(1, const ColumnFilter(contains: 'ab'));
+    s.setFilterCriterion(2, const ColumnFilter(top: 3));
+    s.setFilterSort([(col: 1, descending: true)]);
+    final xml = _part(ed.save(), 'xl/worksheets/sheet1.xml')!;
+    expect(xml, contains('<filterColumn colId="1"><customFilters>'
+        '<customFilter val="*ab*"/></customFilters></filterColumn>'));
+    expect(xml, contains('<filterColumn colId="2"><top10 val="3"/></filterColumn>'));
+    expect(xml, contains('<sortState ref="A2:D5">'
+        '<sortCondition descending="1" ref="B2:B5"/></sortState>'));
+    expect(xml.indexOf('<sortState'), greaterThan(xml.indexOf('<filterColumn')));
+    // Bir sütun temizlenince yalnız o kalkar, ötekinin süzgeci korunur.
+    final ed2 = _open(ed.save());
+    final s2 = ed2.sheets.first;
+    s2.setFilterCriterion(1, null);
+    final xml2 = _part(ed2.save(), 'xl/worksheets/sheet1.xml')!;
+    expect(xml2, isNot(contains('colId="1"')));
+    expect(xml2, contains('<top10 val="3"/>'));
+  });
+
+  test('B10 m.5: ölçüte göre gizlenen satırlar', () {
+    final raw = ['', '5', 'abc', '1', 'xab', '9', '3'];
+    double? n(int r) => double.tryParse(raw[r]);
+    Set<int> hide(ColumnFilter f) =>
+        f.hiddenRows(1, 6, raw: (r) => raw[r], number: n, fill: (r) => r.isEven ? 1 : null);
+    expect(hide(const ColumnFilter(contains: 'AB')), {1, 3, 5, 6});
+    expect(hide(const ColumnFilter(top: 2)), {2, 3, 4, 6});
+    expect(hide(const ColumnFilter(top: 2, bottom: true)), {1, 2, 4, 5});
+    expect(hide(const ColumnFilter(hiddenValues: {'5'})), {1});
+    expect(hide(const ColumnFilter(fillArgb: 1)), {1, 3, 5});
+    expect(const ColumnFilter(hiddenValues: {'b'}).toXml(0, ['a', 'b', '']),
+        '<filterColumn colId="0"><filters blank="1"><filter val="a"/></filters></filterColumn>');
+  });
+
   test('sekme rengi, gizle, çoğalt', () {
     final ed = _open();
     final s = ed.sheets.first;

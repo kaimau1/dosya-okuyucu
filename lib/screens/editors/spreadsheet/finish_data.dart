@@ -117,14 +117,25 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
       for (final (c, asc) in levels) SortLevel((r) => key(r, c), ascending: asc),
     ]);
     final after = [for (final r in order) before[r - first]];
-    void write(List<SheetLineSnapshot> rows) {
+    // B10 m.5: süzgeç aralığı içindeki çok düzeyli sıralama dosyaya
+    // `sortState` olarak yazılır (Excel "yeniden uygula"da aynı düzeyler).
+    final f = _filterRange(sheet);
+    final inFilter =
+        f != null && range.left >= f.c1 && range.right <= f.c2 && first == f.r1 + 1;
+    final sortBefore = sheet.filterSort;
+    final sortAfter = inFilter
+        ? [for (final (c, asc) in levels) (col: c, descending: !asc)]
+        : sortBefore;
+    void write(List<SheetLineSnapshot> rows, List<SortLevelRef> sort) {
       for (var i = 0; i < rows.length; i++) {
         editor.restoreRow(name, first + i, rows[i]);
       }
+      if (inFilter) sheet.setFilterSort(sort);
     }
 
-    write(after);
-    _recordStep('excel.undo_sort', () => write(after), () => write(before));
+    write(after, sortAfter);
+    _recordStep('excel.undo_sort', () => write(after, sortAfter),
+        () => write(before, sortBefore));
     _session.changed();
     _gridVersion++;
     _partSetState(() {});

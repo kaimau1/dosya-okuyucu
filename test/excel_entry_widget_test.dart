@@ -175,5 +175,6 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('cellmenu-copy')), findsOneWidget);
     expect(find.byKey(const ValueKey('cellmenu-paste_values')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cellmenu-paste_formulas')), findsOneWidget);
   });
 }

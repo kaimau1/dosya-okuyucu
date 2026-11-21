@@ -408,6 +408,15 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
       önizlemesi doğru; ekle → kaydet → masaüstü Excel'de aynı tür, "onarıldı" uyarısı yok. X/Y iki
       sayı sütunu seçip Dağılım → noktalar X değerlerine göre. Excel'de yapılmış 3B sütun / kabarcık /
       borsa grafiği olan dosya → ızgarada (ve aynı grafik slaytta) çiziliyor, sağ üstte "≈ yaklaşık".
+- [ ] **Excel 4 (B10, 2026-11-21 — yazıldı, cihazda doğrulanmadı):** (1) hücreye
+      `=HARİTA({1;2;3};LAMBDA(v;v*2))` ve `=DİZİOLUŞTUR(2;3;LAMBDA(r;c;r*c))` → taşan sonuç doğru;
+      kaydet → masaüstü Excel'de `MAP`/`MAKEARRAY` olarak açılıyor. (2) Süzgeç oku → arama kutusuna
+      metin → Uygula = "içerir"; İlk 10 / Son 10; renkli hücreli sütunda renk yuvarlağı → yalnız o
+      renk; kaydet → Excel'de süzgeç oku etkin, "Yeniden uygula" aynı sonucu veriyor; sıralama sonrası
+      kaydet → Excel'de sıralama düzeyleri görünüyor. (3) Hücre menüsü → "Yalnız formülleri
+      yapıştır": formül başvurusu kayıyor, hedefin rengi değişmiyor. (4) Excel 2016'da yapılmış
+      şelale / histogram / Pareto / kutu-bıyık grafiği olan dosya → ızgarada çiziliyor (kutu ve
+      huni/ağaç haritası "≈ yaklaşık"). (5) 100 bin satırlık dosya → ilk satırlar hızlı beliriyor.
 - [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
       kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
 - [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;

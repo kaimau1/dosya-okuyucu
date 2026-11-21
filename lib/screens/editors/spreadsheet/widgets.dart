@@ -262,22 +262,29 @@ class _CondStats {
   const _CondStats(this.min, this.max);
 }
 
-/// Sütun süzgeci sayfası: sırala düğmeleri + değer onay listesi.
+//// Sütun süzgeci sayfası: sırala düğmeleri + "içerir" araması + ilk/son 10
+/// + renge göre + değer onay listesi (B10 m.5). Sonuç tek [ColumnFilter];
+/// boş ölçüt = sütun süzgecini kaldır.
 ///
 /// Değer listesi Excel'in süzgeç açılırıyla aynı mantıkta: sütundaki BENZERSİZ
 /// değerler, işaretlenmeyenlerin satırları gizlenir. "Tümü" kutusu üç durumlu
-/// değil iki durumlu — telefonda üçüncü durumu ayırt etmek zor.
+/// değil iki durumlu — telefonda üçüncü durumu ayırt etmek zor. Arama kutusu
+/// listeyi daraltır; doluyken "Uygula" "içerir" süzgecidir (Excel'deki arama).
 class _ColumnFilterSheet extends StatefulWidget {
   const _ColumnFilterSheet({
     required this.title,
     required this.values,
-    required this.unchecked,
+    required this.initial,
+    required this.fills,
     required this.onSort,
   });
 
   final String title;
   final List<String> values;
-  final Set<String> unchecked;
+  final ColumnFilter initial;
+
+  /// Sütundaki farklı dolgu renkleri (ikiden azsa renk seçimi gösterilmez).
+  final List<int> fills;
   final void Function(bool ascending) onSort;
 
   @override
@@ -285,93 +292,171 @@ class _ColumnFilterSheet extends StatefulWidget {
 }
 
 class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
-  late final Set<String> _off = {...widget.unchecked};
+  late final Set<String> _off = {...widget.initial.hiddenValues};
+  late final TextEditingController _search =
+      TextEditingController(text: widget.initial.contains ?? '');
+  late int? _top = widget.initial.top;
+  late bool _bottom = widget.initial.bottom;
+  late int? _fill = widget.initial.fillArgb;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  ColumnFilter _result() {
+    if (_top != null) return ColumnFilter(top: _top, bottom: _bottom);
+    final q = _search.text.trim();
+    if (q.isNotEmpty) return ColumnFilter(contains: q);
+    if (_fill != null) return ColumnFilter(fillArgb: _fill);
+    return ColumnFilter(hiddenValues: _off);
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = AppStrings.of(context);
+    final q = _search.text.trim().toLowerCase();
+    final shown = q.isEmpty
+        ? widget.values
+        : [
+            for (final v in widget.values)
+              if (v.toLowerCase().contains(q)) v,
+          ];
+    Widget topChip(bool bottom, String key) => ChoiceChip(
+          key: ValueKey('xl-filter-${bottom ? 'bottom' : 'top'}10'),
+          label: Text(t.t(key)),
+          selected: _top != null && _bottom == bottom,
+          onSelected: (on) => setState(() {
+            _top = on ? 10 : null;
+            _bottom = bottom;
+          }),
+        );
     return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-            child: Text(widget.title,
-                style: Theme.of(context).textTheme.titleMedium),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => widget.onSort(true),
-                  icon: const Icon(AppIcons.arrowUp, size: 18),
-                  label: Text(t.t('excel.sort_asc')),
-                ),
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () => widget.onSort(false),
-                  icon: const Icon(AppIcons.arrowDown, size: 18),
-                  label: Text(t.t('excel.sort_desc')),
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 1),
-          CheckboxListTile(
-            dense: true,
-            value: _off.isEmpty,
-            title: Text(t.t('excel.filter_all')),
-            onChanged: (v) => setState(() {
-              _off
-                ..clear()
-                ..addAll(v == true ? const <String>[] : widget.values);
-            }),
-          ),
-          const Divider(height: 1),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: widget.values.length,
-              itemBuilder: (_, i) {
-                final v = widget.values[i];
-                return CheckboxListTile(
-                  dense: true,
-                  value: !_off.contains(v),
-                  title: Text(v.isEmpty ? t.t('excel.filter_blank') : v,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  onChanged: (on) => setState(() {
-                    on == true ? _off.remove(v) : _off.add(v);
-                  }),
-                );
-              },
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(20, 16, 20, 4),
+              child: Text(widget.title,
+                  style: Theme.of(context).textTheme.titleMedium),
             ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+            Row(
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, <String>{}),
-                  child: Text(t.t('excel.filter_clear')),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => widget.onSort(true),
+                    icon: const Icon(AppIcons.arrowUp, size: 18),
+                    label: Text(t.t('excel.sort_asc')),
+                  ),
                 ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, _off),
-                  child: Text(t.t('common.apply')),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () => widget.onSort(false),
+                    icon: const Icon(AppIcons.arrowDown, size: 18),
+                    label: Text(t.t('excel.sort_desc')),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 4),
+              child: TextField(
+                key: const ValueKey('xl-filter-search'),
+                controller: _search,
+                decoration: InputDecoration(
+                  isDense: true,
+                  prefixIcon: const Icon(AppIcons.search, size: 18),
+                  hintText: t.t('excel.filter_contains'),
+                ),
+                onChanged: (_) => setState(() => _top = null),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 4),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  topChip(false, 'excel.filter_top10'),
+                  topChip(true, 'excel.filter_bottom10'),
+                  if (widget.fills.length > 1) ...[
+                    Text(t.t('excel.filter_by_color')),
+                    for (final argb in widget.fills)
+                      ChoiceChip(
+                        key: ValueKey('xl-filter-fill-$argb'),
+                        label: const SizedBox(width: 16, height: 16),
+                        avatar: CircleAvatar(backgroundColor: Color(argb)),
+                        selected: _fill == argb,
+                        onSelected: (on) =>
+                            setState(() => _fill = on ? argb : null),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            CheckboxListTile(
+              dense: true,
+              value: _off.isEmpty,
+              title: Text(t.t('excel.filter_all')),
+              onChanged: (v) => setState(() {
+                _off
+                  ..clear()
+                  ..addAll(v == true ? const <String>[] : widget.values);
+              }),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: shown.length,
+                itemBuilder: (_, i) {
+                  final v = shown[i];
+                  return CheckboxListTile(
+                    dense: true,
+                    value: !_off.contains(v),
+                    title: Text(v.isEmpty ? t.t('excel.filter_blank') : v,
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onChanged: (on) => setState(() {
+                      on == true ? _off.remove(v) : _off.add(v);
+                    }),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pop(context, const ColumnFilter()),
+                    child: Text(t.t('excel.filter_clear')),
+                  ),
+                  const Spacer(),
+                  FilledButton(
+                    key: const ValueKey('xl-filter-apply'),
+                    onPressed: () => Navigator.pop(context, _result()),
+                    child: Text(t.t('common.apply')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Hücre notu işareti: sağ üst köşede küçük kırmızı üçgen (Excel'in kendi
+// Hücre notu işareti: sağ üst köşede küçük kırmızı üçgen (Excel'in kendi
 /// göstergesi). `CustomPaint` seçildi çünkü bir `Icon` bu boyutta ne okunur
 /// ne de Excel'e benzer duruyordu.
 class _NoteMarkPainter extends CustomPainter {

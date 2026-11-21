@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
+import 'chartex_reader.dart';
 import 'pptx_render.dart';
 import 'office_zip_guard.dart';
 
@@ -151,6 +152,8 @@ abstract final class XlsxFileCharts {
                 .map((t) => t.innerText)
                 .join()
                 .trim();
+          } else if (chartDoc != null && ChartExReader.isChartEx(chartDoc)) {
+            title = ChartExReader.title(chartDoc);
           }
           out.add(XlsxFileChart(
             sheetName: name,
