@@ -635,6 +635,8 @@ class PdfProEditController extends ChangeNotifier {
   Future<bool> beginEdit(int pageIndex, PdfTextBlock block,
       {int? offset, (int, int)? selection}) async {
     if (_live != null || _busy || !block.editable) return false;
+    // Bütçe (Faz 57 / 10): dokun → imleç ≤ 120 ms.
+    final sw = PdfProPerf.start();
     final content = await _contentNow(pageIndex);
     final base = PdfBlockRequest.of(pageIndex, block, content: content);
     final map = block.map;
@@ -662,6 +664,7 @@ class PdfProEditController extends ChangeNotifier {
     selectedPage = pageIndex;
     selectedBlock = list?.indexOf(block);
     _notify();
+    PdfProPerf.end('dokun_imlec', sw);
     return true;
   }
 

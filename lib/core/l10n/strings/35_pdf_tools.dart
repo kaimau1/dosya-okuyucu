@@ -369,31 +369,6 @@ const Map<String, (String, String, String)> _t35 = {
     'Text below pushed down',
     'دُفع النص السفلي لأسفل',
   ),
-  'pse.overflow': (
-    'Metin alttaki yazının üstüne biniyor.',
-    'The text runs into the text below.',
-    'النص يتداخل مع النص الذي تحته.',
-  ),
-  'pse.overflow_shrink': (
-    'Küçült',
-    'Shrink',
-    'تصغير',
-  ),
-  'pse.overflow_push': (
-    'Alttakini it',
-    'Push down',
-    'دفع لأسفل',
-  ),
-  'pse.overflow_widen': (
-    'Genişlet',
-    'Widen',
-    'توسيع',
-  ),
-  'pse.step_push': (
-    'Alttaki yazı aşağı itildi',
-    'Text below pushed down',
-    'دُفع النص السفلي لأسفل',
-  ),
   'pse.link': (
     'Bağlantı',
     'Link',
