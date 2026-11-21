@@ -1664,3 +1664,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Grup: tek tutamaçla hepsi birlikte taşınır; Sola / Yatay ortala / Sağa / Üste / Dikey ortala / Alta hizala, (3+ nesnede) Yatay / Dikey dağıt, Sil — her biri tek geri alma adımı, sonrasında seçim kalır.
 - [ ] Katmanlar: katmanlı bir PDF'te Araçlar → Pro araçlar → Katmanlar → bir katmanı kapat → Tamam → o katmanın çizimi görünmez; yeniden aç → geri gelir; başka okuyucuda (Acrobat/Chrome) da gizli açılır. Katmansız PDF'te "Bu belgede katman yok".
 - [ ] Kamera: Düzenle → Görsel → Görsel ekle → "Kameradan çek" → tarayıcı açılır, çek → görsel sayfanın ortasına gelir. Vazgeçince hiçbir şey eklenmez.
+
+## B4-P17i PDF işaretleme stüdyosu (2026-11-21, dal faz-oto-B4-isaret) — yazıldı, cihazda doğrulanmadı
+- [ ] Kalem düğmesi: PDF görüntüleyicide Düzenle → Kalem → ayrı ekran AÇILMAZ, düzenleme kipi "İşaretle" aracı Kalem seçili gelir; tek parmakla çiz, iki parmakla yakınlaş. Chrome'un PDF'indeki kalem düğmesiyle (dışarıdan "işaretle") açınca da aynı.
+- [ ] Kalemle çizerken akıcı mı (kare p99 ≤ 24 ms, kalabalık sayfada da); A/B C2'de.
+- [ ] Fosforlu: yarı saydam geniş çizgi, alttaki yazı okunur; kaydedip Chrome/Acrobat'ta aç → aynı görünür.
+- [ ] Bulut: parmakla dikdörtgen sürükle → tırtıklı çerçeve; Silgi dokununca siler; Yorumlar listesinde görünür.
+- [ ] Serbest metin: dokun → yaz (çok satır, Türkçe harfler) → dokunulan yerde yazı; Damga: dokun → Onaylandı / Reddedildi / Gizli / Tarih ve saat / Kendi damgam → çerçeveli renkli damga. Kaydedip başka okuyucuda aç → aynı görünür. Arapça yazınca açık "harf yok" uyarısı.
+- [ ] Kalem (stylus) olan tablette: kalemle çizerken avucunu ekrana koy → çizgi bozulmaz; kalemle bir kez dokunduktan sonra parmak çizmez. Sert basınca çizgi kalın, hafif basınca ince.
+- [ ] Eski motor (pdf_pro_engine kapalı) seçiliyken Kalem eski kalem ekranını açar (geri dönüş yolu).
