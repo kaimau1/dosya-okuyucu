@@ -79,6 +79,46 @@ ChartVM chartPreviewOf(XlsxChartSpec spec) {
     );
 }
 
+/// Tür menüsü (Excel ekle penceresi + slayt grafik verisi ORTAK — B11 m.2).
+const chartKindOptions = [
+  (XlsxChartKind.column, AppIcons.barChart, 'chart.column'),
+  (XlsxChartKind.bar, AppIcons.alignHorizontalLeft, 'chart.bar'),
+  (XlsxChartKind.line, AppIcons.showChart, 'chart.line'),
+  (XlsxChartKind.pie, AppIcons.pieChartOutline, 'chart.pie'),
+  (XlsxChartKind.columnStacked, AppIcons.stackedBarChart, 'chart.columnStacked'),
+  (XlsxChartKind.columnPercent, AppIcons.stackedBarChart, 'chart.columnPercent'),
+  (XlsxChartKind.barStacked, AppIcons.alignHorizontalLeft, 'chart.barStacked'),
+  (XlsxChartKind.barPercent, AppIcons.alignHorizontalLeft, 'chart.barPercent'),
+  (XlsxChartKind.area, AppIcons.areaChart, 'chart.area'),
+  (XlsxChartKind.doughnut, AppIcons.donutLarge, 'chart.doughnut'),
+  (XlsxChartKind.scatter, AppIcons.scatterPlot, 'chart.scatter'),
+  (XlsxChartKind.radar, AppIcons.radar, 'chart.radar'),
+];
+
+/// Grafik türü seçici çipleri ([chartKindOptions]).
+class ChartKindChips extends StatelessWidget {
+  final XlsxChartKind selected;
+  final ValueChanged<XlsxChartKind> onSelected;
+  const ChartKindChips(
+      {super.key, required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final k in chartKindOptions)
+            ChoiceChip(
+              key: ValueKey('chart-kind-${k.$1.name}'),
+              avatar: Icon(k.$2, size: 18),
+              label: Text(context.t(k.$3)),
+              selected: selected == k.$1,
+              onSelected: (_) => onSelected(k.$1),
+            ),
+        ],
+      );
+}
+
 Color _color(String hex) => Color(0xFF000000 | int.parse(hex, radix: 16));
 
 class _ChartInsertDialog extends StatefulWidget {
@@ -99,21 +139,6 @@ class _ChartInsertDialogState extends State<_ChartInsertDialog> {
     super.dispose();
   }
 
-  static const _kinds = [
-    (XlsxChartKind.column, AppIcons.barChart, 'chart.column'),
-    (XlsxChartKind.bar, AppIcons.alignHorizontalLeft, 'chart.bar'),
-    (XlsxChartKind.line, AppIcons.showChart, 'chart.line'),
-    (XlsxChartKind.pie, AppIcons.pieChartOutline, 'chart.pie'),
-    (XlsxChartKind.columnStacked, AppIcons.stackedBarChart, 'chart.columnStacked'),
-    (XlsxChartKind.columnPercent, AppIcons.stackedBarChart, 'chart.columnPercent'),
-    (XlsxChartKind.barStacked, AppIcons.alignHorizontalLeft, 'chart.barStacked'),
-    (XlsxChartKind.barPercent, AppIcons.alignHorizontalLeft, 'chart.barPercent'),
-    (XlsxChartKind.area, AppIcons.areaChart, 'chart.area'),
-    (XlsxChartKind.doughnut, AppIcons.donutLarge, 'chart.doughnut'),
-    (XlsxChartKind.scatter, AppIcons.scatterPlot, 'chart.scatter'),
-    (XlsxChartKind.radar, AppIcons.radar, 'chart.radar'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final spec = widget.build(_kind, _title.text.trim());
@@ -127,18 +152,9 @@ class _ChartInsertDialogState extends State<_ChartInsertDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final k in _kinds)
-                    ChoiceChip(
-                      avatar: Icon(k.$2, size: 18),
-                      label: Text(context.t(k.$3)),
-                      selected: _kind == k.$1,
-                      onSelected: (_) => setState(() => _kind = k.$1),
-                    ),
-                ],
+              ChartKindChips(
+                selected: _kind,
+                onSelected: (k) => setState(() => _kind = k),
               ),
               const SizedBox(height: 12),
               TextField(

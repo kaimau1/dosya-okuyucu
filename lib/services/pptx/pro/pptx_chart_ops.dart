@@ -2,11 +2,13 @@ import 'dart:typed_data';
 
 import 'package:xml/xml.dart';
 
+import '../../xlsx_chart.dart';
 import '../../xlsx_writer.dart';
 import 'pptx_package.dart';
 
-/// Grafik türü (`c:barChart@barDir` col/bar, `c:lineChart`, `c:pieChart`).
-enum SlideChartKind { column, bar, line, pie }
+/// Grafik türü — Excel ile AYNI tür kümesi (B11 m.2: alan, dağılım, halka,
+/// radar, yığılmış / %100 yığılmış sütun-çubuk; yazım `XlsxChartWriter`).
+typedef SlideChartKind = XlsxChartKind;
 
 /// Grafik verisi: kategoriler × seriler (+ başlık).
 class SlideChartData {
@@ -105,90 +107,36 @@ abstract final class PptxChartOps {
 
   // ── Grafik parçası ───────────────────────────────────────────────────────
 
-  static String _strCache(List<String> v) => '<c:strCache><c:ptCount val="${v.length}"/>'
-      '${[for (var i = 0; i < v.length; i++) '<c:pt idx="$i"><c:v>${PptxPackage.esc(v[i])}</c:v></c:pt>'].join()}'
-      '</c:strCache>';
-
-  static String _num(double v) =>
-      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
-
-  static String _numCache(List<double> v) => '<c:numCache><c:formatCode>General</c:formatCode>'
-      '<c:ptCount val="${v.length}"/>'
-      '${[for (var i = 0; i < v.length; i++) '<c:pt idx="$i"><c:v>${_num(v[i])}</c:v></c:pt>'].join()}'
-      '</c:numCache>';
-
-  static String _col(int i) {
-    var n = i + 1, s = '';
-    while (n > 0) {
-      final r = (n - 1) % 26;
-      s = String.fromCharCode(65 + r) + s;
-      n = (n - 1) ~/ 26;
-    }
-    return s;
-  }
-
-  static String _ser(SlideChartData d, int i) {
-    final (name, vals) = d.series[i];
-    final col = _col(i + 1);
-    final n = d.categories.length;
-    final pie = d.kind == SlideChartKind.pie;
-    final fill = pie
-        ? ''
-        : d.kind == SlideChartKind.line
-            ? '<c:spPr><a:ln w="28575"><a:solidFill><a:schemeClr val="accent${i % 6 + 1}"/></a:solidFill></a:ln></c:spPr><c:marker><c:symbol val="none"/></c:marker>'
-            : '<c:spPr><a:solidFill><a:schemeClr val="accent${i % 6 + 1}"/></a:solidFill></c:spPr>';
-    final dPts = pie
-        ? [
-            for (var k = 0; k < n; k++)
-              '<c:dPt><c:idx val="$k"/><c:bubble3D val="0"/><c:spPr><a:solidFill><a:schemeClr val="accent${k % 6 + 1}"/></a:solidFill></c:spPr></c:dPt>'
-          ].join()
-        : '';
-    return '<c:ser><c:idx val="$i"/><c:order val="$i"/>'
-        '<c:tx><c:strRef><c:f>Sheet1!\$$col\$1</c:f>${_strCache([name])}</c:strRef></c:tx>'
-        '$fill$dPts'
-        '<c:cat><c:strRef><c:f>Sheet1!\$A\$2:\$A\$${n + 1}</c:f>${_strCache(d.categories)}</c:strRef></c:cat>'
-        '<c:val><c:numRef><c:f>Sheet1!\$$col\$2:\$$col\$${n + 1}</c:f>${_numCache([
-      for (var k = 0; k < n; k++) k < vals.length ? vals[k] : 0.0
-    ])}</c:numRef></c:val>'
-        '${d.kind == SlideChartKind.line ? '<c:smooth val="0"/>' : ''}'
-        '</c:ser>';
-  }
-
+  /// Grafik parçası — Excel'in yazıcısı ([XlsxChartWriter.chartXml]) ortak;
+  /// veri gömülü kitabın `Sheet1` sayfasında (A: kategoriler, B..: seriler).
+  /// Slayta özgü: 14 pt yazı + gömülü kitap bağı (`externalData`).
   static String chartXml(SlideChartData d, {String? workbookRid}) {
-    final sers = [for (var i = 0; i < d.series.length; i++) _ser(d, i)].join();
-    const ax = '<c:axId val="50010001"/><c:axId val="50010002"/>';
-    final plot = switch (d.kind) {
-      SlideChartKind.pie =>
-        '<c:pieChart><c:varyColors val="1"/>$sers<c:firstSliceAng val="0"/></c:pieChart>',
-      SlideChartKind.line =>
-        '<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>$sers<c:marker val="1"/>$ax</c:lineChart>',
-      _ =>
-        '<c:barChart><c:barDir val="${d.kind == SlideChartKind.bar ? 'bar' : 'col'}"/>'
-            '<c:grouping val="clustered"/><c:varyColors val="0"/>$sers<c:gapWidth val="150"/>$ax</c:barChart>',
-    };
-    final bar = d.kind == SlideChartKind.bar;
-    final axes = d.kind == SlideChartKind.pie
-        ? ''
-        : '<c:catAx><c:axId val="50010001"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-            '<c:delete val="0"/><c:axPos val="${bar ? 'l' : 'b'}"/><c:numFmt formatCode="General" sourceLinked="1"/>'
-            '<c:tickLblPos val="nextTo"/><c:crossAx val="50010002"/><c:crosses val="autoZero"/>'
-            '<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx>'
-            '<c:valAx><c:axId val="50010002"/><c:scaling><c:orientation val="minMax"/></c:scaling>'
-            '<c:delete val="0"/><c:axPos val="${bar ? 'b' : 'l'}"/><c:majorGridlines/>'
-            '<c:numFmt formatCode="General" sourceLinked="1"/><c:tickLblPos val="nextTo"/>'
-            '<c:crossAx val="50010001"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>';
-    final title = d.title.trim().isEmpty
-        ? '<c:autoTitleDeleted val="1"/>'
-        : '<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>${PptxPackage.esc(d.title.trim())}</a:t></a:r></a:p></c:rich></c:tx>'
-            '<c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>';
-    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<c:chartSpace xmlns:c="${PptxPackage.nsC}" xmlns:a="${PptxPackage.nsA}" xmlns:r="${PptxPackage.nsR}">'
-        '<c:roundedCorners val="0"/><c:chart>$title<c:plotArea><c:layout/>$plot$axes</c:plotArea>'
-        '<c:legend><c:legendPos val="${d.kind == SlideChartKind.pie ? 'r' : 'b'}"/><c:overlay val="0"/></c:legend>'
-        '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>'
+    final n = d.categories.length;
+    final spec = XlsxChartSpec(
+      sheetName: 'Sheet1',
+      kind: d.kind,
+      top: 0,
+      left: 0,
+      bottom: n,
+      right: d.series.length,
+      hasCategoryColumn: true,
+      categories: d.categories,
+      series: [
+        for (var i = 0; i < d.series.length; i++)
+          XlsxChartSeries(d.series[i].$1, i + 1, [
+            for (var k = 0; k < n; k++)
+              k < d.series[i].$2.length ? d.series[i].$2[k] : 0.0,
+          ]),
+      ],
+      anchorRow: 0,
+      anchorCol: 0,
+      title: d.title.trim(),
+    );
+    final tail =
         '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1400"/></a:pPr><a:endParaRPr lang="tr-TR"/></a:p></c:txPr>'
         '${workbookRid == null ? '' : '<c:externalData r:id="$workbookRid"><c:autoUpdate val="0"/></c:externalData>'}'
         '</c:chartSpace>';
+    return XlsxChartWriter.chartXml(spec).replaceFirst('</c:chartSpace>', tail);
   }
 
   static Uint8List _workbook(SlideChartData d) {
@@ -273,20 +221,21 @@ abstract final class PptxChartOps {
     XmlElement? node;
     var kind = SlideChartKind.column;
     for (final e in plot.childElements) {
-      switch (e.name.local) {
-        case 'barChart' || 'bar3DChart':
-          node = e;
-          kind = e.getElement('c:barDir')?.getAttribute('val') == 'bar'
-              ? SlideChartKind.bar
-              : SlideChartKind.column;
-        case 'lineChart' || 'line3DChart' || 'areaChart':
-          node = e;
-          kind = SlideChartKind.line;
-        case 'pieChart' || 'pie3DChart' || 'doughnutChart':
-          node = e;
-          kind = SlideChartKind.pie;
+      final k = switch (e.name.local) {
+        'barChart' || 'bar3DChart' => _barKind(e),
+        'lineChart' || 'line3DChart' || 'stockChart' => SlideChartKind.line,
+        'areaChart' || 'area3DChart' => SlideChartKind.area,
+        'pieChart' || 'pie3DChart' || 'ofPieChart' => SlideChartKind.pie,
+        'doughnutChart' => SlideChartKind.doughnut,
+        'scatterChart' || 'bubbleChart' => SlideChartKind.scatter,
+        'radarChart' => SlideChartKind.radar,
+        _ => null,
+      };
+      if (k != null) {
+        node = e;
+        kind = k;
+        break;
       }
-      if (node != null) break;
     }
     if (node == null) return null;
     List<String> pts(XmlElement? cache) {
@@ -305,12 +254,14 @@ abstract final class PptxChartOps {
     for (final s in node.findElements('c:ser')) {
       final name = s.getElement('c:tx')?.findAllElements('c:v').firstOrNull?.innerText ??
           'Seri ${series.length + 1}';
-      final cat = s.getElement('c:cat');
+      final cat = s.getElement('c:cat') ?? s.getElement('c:xVal');
       if (cats.isEmpty && cat != null) {
         cats = pts(cat.findAllElements('c:strCache').firstOrNull ??
             cat.findAllElements('c:numCache').firstOrNull);
       }
-      final vals = pts(s.getElement('c:val')?.findAllElements('c:numCache').firstOrNull);
+      final vals = pts((s.getElement('c:val') ?? s.getElement('c:yVal'))
+          ?.findAllElements('c:numCache')
+          .firstOrNull);
       series.add((name, [for (final v in vals) double.tryParse(v) ?? 0]));
     }
     final title = d!
@@ -323,6 +274,16 @@ abstract final class PptxChartOps {
       cats = [for (var i = 0; i < series.first.$2.length; i++) '${i + 1}'];
     }
     return SlideChartData(kind, cats, series, title: title);
+  }
+
+  /// `c:barChart` → yön (`barDir`) × gruplama (`grouping`).
+  static SlideChartKind _barKind(XmlElement e) {
+    final h = e.getElement('c:barDir')?.getAttribute('val') == 'bar';
+    return switch (e.getElement('c:grouping')?.getAttribute('val')) {
+      'stacked' => h ? SlideChartKind.barStacked : SlideChartKind.columnStacked,
+      'percentStacked' => h ? SlideChartKind.barPercent : SlideChartKind.columnPercent,
+      _ => h ? SlideChartKind.bar : SlideChartKind.column,
+    };
   }
 
   /// Grafiğin verisini/türünü yeniler (grafik parçası yeniden yazılır).
