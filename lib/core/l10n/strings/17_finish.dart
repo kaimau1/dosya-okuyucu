@@ -37,6 +37,7 @@ const Map<String, (String, String, String)> _t17 = {
   'word.comment_text': ('Yorumunuz', 'Your comment', 'تعليقك'),
   'word.comment_post': ('Gönder', 'Post', 'نشر'),
   'word.comment_reply': ('Yanıtla', 'Reply', 'رد'),
+  'word.comment_replies': ('{n} yanıt', '{n} replies', '{n} ردود'),
   'word.comment_resolve': ('Çözüldü', 'Resolve', 'تم الحل'),
   'word.comment_reopen': ('Yeniden aç', 'Reopen', 'إعادة فتح'),
   'word.comment_author': ('Adınız', 'Your name', 'اسمك'),

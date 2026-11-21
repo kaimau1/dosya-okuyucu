@@ -156,6 +156,13 @@ void main() {
       final id = c.comments.single.id;
       expect(c.replyComment(id, 'Cevap', 'B'), isTrue);
       c.setCommentDone(id, true);
+      // B9 m.4 kenar balonu: kökte metin + çözüldü + yanıt sayısı; yanıtın
+      // kendi balonu yok.
+      final balloon = c.doc.commentBalloon(id)!;
+      expect((balloon.$1.text, balloon.$1.author, balloon.$1.done, balloon.$2),
+          ('Soru', 'A', true, 1));
+      final replyId = c.comments.firstWhere((x) => x.parentId != null).id;
+      expect(c.doc.commentBalloon(replyId), isNull);
       var out = c.doc.save();
       final ext = _part(out, 'word/commentsExtended.xml')!;
       expect(ext, contains('paraIdParent'));
