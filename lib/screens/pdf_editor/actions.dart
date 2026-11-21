@@ -22,7 +22,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   Future<void> _prepare() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _proEngine = _proEngine || (prefs.getBool('pdf_pro_engine') ?? false);
+      _proEngine = _proEngine || (prefs.getBool('pdf_pro_engine') ?? true);
       final dir = await Directory.systemTemp.createTemp('pdf_editor');
       final work = p.join(dir.path, p.basename(widget.path));
       // `copy`: dosya Dart belleğine alınmadan kopyalanır (2026-09-23).
