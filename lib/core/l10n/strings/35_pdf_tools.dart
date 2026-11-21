@@ -444,6 +444,8 @@ const Map<String, (String, String, String)> _t35 = {
     'Add image',
     'إضافة صورة',
   ),
+  'pse.img_from_files': ('Galeriden ya da dosyadan', 'From gallery or files', 'من المعرض أو الملفات'),
+  'pse.img_from_camera': ('Kameradan çek', 'Take with camera', 'التقاط بالكاميرا'),
   'pse.obj_lasso': ('Kementle seç', 'Lasso select', 'تحديد بالسحب'),
   'pse.obj_align_left': ('Sola hizala', 'Align left', 'محاذاة لليسار'),
   'pse.obj_align_hcenter': ('Yatay ortala', 'Center horizontally', 'توسيط أفقي'),

@@ -341,9 +341,38 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     final pro = _pro;
     if (pro == null || pro.busy) return;
     final unreadable = context.t('pe.image_unreadable');
-    final picked =
-        await AppFilePicker.pickFiles(type: FileType.image, withData: true);
-    final data = picked?.files.single.bytes;
+    // Kaynak: dosya/galeri ya da kamera (Faz 59 m.2).
+    final source = await showAppSheet<String>(
+      context,
+      title: context.t('pse.img_add'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            key: const ValueKey('pse-img-files'),
+            leading: const Icon(AppIcons.image),
+            title: Text(ctx.t('pse.img_from_files')),
+            onTap: () => Navigator.pop(ctx, 'files'),
+          ),
+          ListTile(
+            key: const ValueKey('pse-img-camera'),
+            leading: const Icon(AppIcons.photoCamera),
+            title: Text(ctx.t('pse.img_from_camera')),
+            onTap: () => Navigator.pop(ctx, 'camera'),
+          ),
+        ],
+      ),
+    );
+    if (source == null || !mounted || _pro != pro) return;
+    final data = source == 'camera'
+        ? await PdfProImages.fromCamera().catchError((Object e) {
+            _proRefused(e);
+            return null;
+          })
+        : (await AppFilePicker.pickFiles(type: FileType.image, withData: true))
+            ?.files
+            .single
+            .bytes;
     if (data == null || !mounted || _pro != pro) return;
     final im = await PdfProImages.prepare(data);
     if (!mounted || _pro != pro) return;
