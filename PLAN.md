@@ -74,7 +74,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
 | B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
 | B9 | **Word 2.0:** içerik denetimleri (`w:sdt` bugün tek düz paragrafa iniyor), İçindekiler, değişiklikleri izle, yorum, dipnot, sadakat bekçisi, yazma hissi, büyük belge açılışı | opus | §1.9 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B9-word2: bitti m.1 (içerik denetimleri + form doldurma), m.2 (İçindekiler), m.3 (değişiklikleri izle), m.5 (dipnot/sonnot), m.6 (sadakat bekçisi), m.8 (büyük belge açılışı), m.7 (yazma hissi: bağlamsal klavye çubuğu, yazarken otomatik biçim `docx_auto_format.dart` — cümle başı büyük harf Türkçe i/İ, `--`→`—`, çift boşluk, `- `/`1. ` liste; Ayarlar `word_autoformat`; büyüteç + tutamaklar zaten vardı), dilim 5 main'e gidiyor; kalan m.4 yorum kenar balonu (yaz/yanıtla/çözüldü var), satır/hücre düzeyi `w:sdt`, izlenen paragraf işareti/biçim değişikliği, PDF'te dipnot sayfa altında |
-| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B10-excel2: bitti m.2 (çekirdek + `_xlpm.` yazımı) + m.3 veri doğrulama + m.6 sadakat bekçisi; dilim 2 main'e gidiyor, kalan m.1, m.2 kalanı (Türkçe LAMBDA adları, TOCOL/TOROW/WRAPROWS), m.4–5, m.7–8 |
+| B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bulutta: sürüyor (2026-11-19) — dal faz-oto-B10-excel2: bitti m.2 (çekirdek + `_xlpm.` + TOCOL/TOROW/WRAPROWS/WRAPCOLS) + m.3 veri doğrulama + m.4 doldurma/Hızlı doldurma + m.6 sadakat bekçisi; dilim 3 main'e gidiyor, kalan m.1, m.2 Türkçe LAMBDA adları (karar bekliyor), m.5, m.7–8 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | sürüyor — dilim 1+2 main'de (m.1 tablo stilleri, m.4 imleç, m.6 prova, m.7 sadakat bekçisi, m.8 sürükleme/geçiş bütçesi); dilim 3 dal faz-oto-B11-slayt3 (m.3 geçiş türleri + efektli animasyon + Biçim değiştir + önizleme, m.1 dikey metin; A/B C2'de); m.5 AI tasarımcı İPTAL (B15 kararı 2026-11-19, AI budandı); kalan m.1 piksel altın (kullanıcı izniyle yerelde) + yansıma, m.2 (B10 m.1 ortak çiziciden sonra), m.4 klavye kayması cihazda |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | cihaz bekliyor — dilim 1+2 main'de (2026-11-19): m.4 Excel/Slayt aşamalı açılış + m.7 Word çimdik yapıldı (A/B C2'de); m.1 açılış geçişi (Office/PDF) 2026-11-20 tablette A/B KALDI (satırdan büyüyen kırpma: Slayt/Excel açılışı +%13/+%17, Slayt açılış p99 20→34 ms) → uygulanmadı, sabah bakılacak (bkz. §1.13 m.1 notu) |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
@@ -229,13 +229,16 @@ _Bitti (bulut 2026-11-19, dal faz-oto-B9-word2; HAFIZA 2026-11-19 B9): m.1 içer
    okuma). Dosyadaki bilinmeyen tür bugün nasıl çiziliyor (önce bak) → en yakın tür + "yaklaşık" rozeti.
    Excel + Slayt ORTAK çizici (B11.2 aynı kodu kullanır). Test: tür başına yaz → oku → çiz.
 2. **Formül kapsamı — kalan (çekirdek + `_xlpm.` yazımı bulutta yapıldı 2026-11-19):** LAMBDA ailesinin
-   Türkçe adları (MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY bugün İngilizce — sabah bakılacak);
-   TOCOL/TOROW/WRAPROWS.
+   Türkçe adları (MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY bugün İngilizce — sabah bakılacak).
+   TOCOL/TOROW/WRAPROWS/WRAPCOLS bulutta yapıldı 2026-11-19 (Türkçe SÜTUNA/SATIRA/SATIRSAR/SÜTUNSAR
+   hipotez — Türkçe Excel'de doğrulanmadı).
 3. ~~**Veri doğrulama**~~ — bulutta yapıldı 2026-11-19 (aralık/ad/x14 liste, özel formül, başvurulu
    sınır, Durdur/Uyarı/Bilgi, öznitelik korunumu; `test/excel_validation_test.dart`). Kalan: giriş
    iletisinin (`prompt`) hücre seçilince gösterimi; cihaz turu `docs/CIHAZ_TESTI.md` §9.
-4. **Otomatik + hızlı doldurma:** tutamaçla seri (1,2,3 · Pzt,Sal · Ocak · tarih +1 · formülde göreli
-   kayma); "Hızlı doldurma" (örnekten desen: ad soyad ayır/birleştir). Önce bak: `autoFill` 4 dosyada.
+4. ~~**Otomatik + hızlı doldurma**~~ — bulutta yapıldı 2026-11-19 (tutamak serisi zaten vardı; eklenen:
+   tarih/saat BİÇİMLİ hücrede gün/saat adımı, aynı günlü tarihte ay adımı, biçimin taşınması; Veri →
+   "Hızlı doldurma" + Ctrl+E; `test/sheet_fill_series_test.dart`, `test/flash_fill_test.dart`). Cihaz turu
+   `docs/CIHAZ_TESTI.md` §9.
 5. **Süzgeç/sıralama 2:** çok düzeyli sıralama, renge göre süzgeç, ilk 10, "içerir"; durum dosyaya
    yazılır (`autoFilter` + `sortState`).
 7. **Hücre düzenleme hissi:** Enter aşağı / Tab sağa / satır sonunda Enter, Tab'la başlanan sütuna döner;

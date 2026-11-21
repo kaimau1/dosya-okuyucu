@@ -397,6 +397,12 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
       Uygulamada "Özel formül" (`=UZUNLUK(A1)<=3`) ve `=Liste!A1:A9` kaynaklı liste kur → kaydet →
       masaüstü Excel'de aynı kural, uyarı türü, giriş iletisi korunuyor; kuralı kaldırınca Excel'de
       eski x14 kural kalmıyor. Uygulamada yazılan `LET`/`LAMBDA` formülü masaüstü Excel'de `#AD?` yok.
+- [ ] **Doldurma + Hızlı doldurma (B10 dilim 3, bulut 2026-11-19 — yazıldı, cihazda doğrulanmadı):**
+      tarih hücresini (`19.11.2026`) tutamakla aşağı çek → 20.11, 21.11 TARİH olarak (seri no değil);
+      15.01 + 15.02 seçip çek → 15.03, 15.04; `09:00` çek → 10:00, 11:00; Pzt/Ocak/`=A1*2` eskisi gibi;
+      dolgu rengi/kalın da doldurulan hücrelere geçiyor, Geri al hepsini geri alıyor. A sütunu
+      "Ad Soyad" listesi, B2'ye "Ali" yaz → Veri → Hızlı doldurma → B'nin kalanı adlarla doluyor;
+      C2'ye soyad, D2'ye "Yılmaz, Ali" ile aynı. `=SATIRSAR({1;2;3;4};2)` 2×2 taşıyor.
 - [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
       kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
 - [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;

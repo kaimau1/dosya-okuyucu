@@ -302,6 +302,7 @@ extension _FormulaLocalePart on _Parser {
     'TEXTSPLIT', 'VSTACK', 'HSTACK', 'TAKE', 'DROP', 'CHOOSECOLS',
     'CHOOSEROWS', 'LAMBDA', 'MAP', 'REDUCE', 'SCAN', 'BYROW', 'BYCOL',
     'MAKEARRAY', 'NETWORKDAYS.INTL', 'WORKDAY.INTL',
+    'TOCOL', 'TOROW', 'WRAPROWS', 'WRAPCOLS',
   };
 }
 

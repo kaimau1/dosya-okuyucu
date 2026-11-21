@@ -336,6 +336,44 @@ String _movedValue(String raw, int dRow, int dCol) =>
 // Doldurma tutamağı (fill handle)
 // ─────────────────────────────────────────────────────────────────────────
 
+/// Doldurulan değerin sayı biçimine göre türü (B10 m.4).
+enum FillValueKind { plain, date, time }
+
+/// Sayı biçim kodundan doldurma türü: gün/yıl harfi → tarih, yalnız saat/
+/// saniye → saat, öteki (General dahil) → düz sayı.
+FillValueKind fillKindOf(String code) {
+  final c = code.trim();
+  if (c.isEmpty || c == 'General' || !_looksLikeDateTimeCode(c)) {
+    return FillValueKind.plain;
+  }
+  return _codeHasLetter(c, 'yd') ? FillValueKind.date : FillValueKind.time;
+}
+
+/// Kodun kalıp bölümünde [letters]'den biri var mı (tırnak/köşeli ayraç/
+/// kaçış atlanır — [_looksLikeDateTimeCode] ile aynı tarama).
+bool _codeHasLetter(String code, String letters) {
+  var i = 0;
+  while (i < code.length) {
+    final ch = code[i];
+    if (ch == '"') {
+      i = _closingQuote(code, i);
+      continue;
+    }
+    if (ch == '[') {
+      final end = code.indexOf(']', i);
+      i = end < 0 ? code.length : end + 1;
+      continue;
+    }
+    if (ch == r'\') {
+      i += 2;
+      continue;
+    }
+    if (letters.contains(ch.toLowerCase())) return true;
+    i++;
+  }
+  return false;
+}
+
 /// Excel'in doldurma tutamağı: kaynak hücrelerden **seri** üretir.
 ///
 /// Sıra (Excel'in davranışı):
@@ -346,6 +384,10 @@ String _movedValue(String raw, int dRow, int dCol) =>
 /// 4. **Ay/gün adı** (TR + EN) → listede döner (Ocak → Şubat…).
 /// 5. **Sonu sayıyla biten metin** (`Ürün 3`) → sayı ilerler; tek hücrede +1.
 /// 6. Hiçbiri değilse kaynak blok **tekrarlanır**.
+///
+/// B10 m.4 (2026-11-19): tarih biçimli sayı (seri no) [FillValueKind.date]
+/// ile tek hücrede +1 gün, saat biçimli +1 saat ilerler; aynı gün numaralı
+/// tarihler (15 Ocak, 15 Şubat) AY adımıyla ilerler (ay sonu kırpılır).
 class FillSeries {
   const FillSeries._();
 
@@ -360,7 +402,9 @@ class FillSeries {
   /// [horizontal] sürükleme ekseni: formül başvuruları satır yerine sütun
   /// yönünde kaydırılır.
   static List<String> extend(List<String> source, int count,
-      {bool backwards = false, bool horizontal = false}) {
+      {bool backwards = false,
+      bool horizontal = false,
+      FillValueKind kind = FillValueKind.plain}) {
     if (count <= 0) return const [];
     if (source.isEmpty) return List.filled(count, '');
     // İç hesap "gidiş yönünde" yapılır: seq[0] sürüklemenin başladığı uçtur.
@@ -368,6 +412,11 @@ class FillSeries {
 
     final formulas = _formulaFill(seq, count, backwards, horizontal);
     if (formulas != null) return _sign(formulas, backwards);
+
+    if (kind != FillValueKind.plain) {
+      final serial = _serialFill(seq, count, kind);
+      if (serial != null) return _sign(serial, backwards);
+    }
 
     final numeric = _numericFill(seq, count);
     if (numeric != null) return _sign(numeric, backwards);
@@ -449,8 +498,15 @@ class FillSeries {
     for (final s in seq) {
       final m = _isoDate.firstMatch(s.trim());
       if (m == null) return null;
-      dates.add(DateTime(
+      dates.add(DateTime.utc(
           int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!)));
+    }
+    final months = _monthStep(dates);
+    if (months != null) {
+      return [
+        for (var i = 0; i < count; i++)
+          _isoOf(_addMonths(dates.last, months * (i + 1))),
+      ];
     }
     // Adım: tek hücrede +1 gün; iki+ hücrede aradaki gün farkı.
     final stepDays = dates.length == 1
@@ -465,6 +521,65 @@ class FillSeries {
       for (var i = 0; i < count; i++)
         _isoOf(dates.last.add(Duration(days: stepDays * (i + 1)))),
     ];
+  }
+
+  /// Tarih/saat biçimli sayı (Excel seri numarası) serisi; sayı değilse null.
+  static List<String>? _serialFill(
+      List<String> seq, int count, FillValueKind kind) {
+    final nums = <double>[];
+    for (final s in seq) {
+      final v = double.tryParse(s.trim());
+      if (v == null) return null;
+      nums.add(v);
+    }
+    if (nums.length == 1) {
+      final step = kind == FillValueKind.date ? 1.0 : 1 / 24;
+      return [for (var i = 0; i < count; i++) _fmt(_round(nums.first + step * (i + 1)))];
+    }
+    if (kind != FillValueKind.date) return null; // sabit fark: sayı dalı
+    final days = [for (final v in nums) v.floorToDouble()];
+    final dates = [for (final d in days) _serialEpoch.add(Duration(days: d.toInt()))];
+    final months = _monthStep(dates);
+    if (months == null) return null;
+    final frac = nums.last - days.last;
+    return [
+      for (var i = 0; i < count; i++)
+        _fmt(_round(_addMonths(dates.last, months * (i + 1))
+                .difference(_serialEpoch)
+                .inDays +
+            frac)),
+    ];
+  }
+
+  /// 1900 tarih sisteminin sıfır günü (Excel'in 1900 artık yıl hatası
+  /// dahil: 1 = 1900-01-01 için taban 1899-12-30).
+  static final _serialEpoch = DateTime.utc(1899, 12, 30);
+
+  /// Kayan nokta artığını (0.1 + 0.2) keser — saat adımı 1/24.
+  static double _round(double v) =>
+      (v * 1e9).roundToDouble() / 1e9;
+
+  /// Tarihler aynı gün numaralı ve aralarında sabit AY farkı varsa o fark
+  /// (Excel: 15 Oca, 15 Şub → 15 Mar); yoksa null. Tek tarihte null.
+  static int? _monthStep(List<DateTime> dates) {
+    if (dates.length < 2) return null;
+    final day = dates.first.day;
+    if (dates.any((d) => d.day != day)) return null;
+    int idx(DateTime d) => d.year * 12 + d.month - 1;
+    final step = idx(dates[1]) - idx(dates[0]);
+    if (step == 0) return null;
+    for (var i = 2; i < dates.length; i++) {
+      if (idx(dates[i]) - idx(dates[i - 1]) != step) return null;
+    }
+    return step;
+  }
+
+  /// [d]'ye [months] ay ekler; gün, hedef ayın son gününe kırpılır (EDATE).
+  static DateTime _addMonths(DateTime d, int months) {
+    final total = d.year * 12 + d.month - 1 + months;
+    final y = total ~/ 12, m = total % 12 + 1;
+    final last = DateTime.utc(y, m + 1, 0).day;
+    return DateTime.utc(y, m, d.day > last ? last : d.day);
   }
 
   static String _isoOf(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
@@ -751,10 +866,20 @@ Map<CellRef, String> fillDiagonal(
   CellRange src,
   int toRow,
   int toCol,
-  String Function(int row, int col) rawAt,
-) {
+  String Function(int row, int col) rawAt, {
+  FillValueKind Function(int row, int col)? kindAt,
+}) {
   final values = <CellRef, String>{};
   String read(int r, int c) => values[CellRef(r, c)] ?? rawAt(r, c);
+  // Satırın/sütunun bütün kaynak hücreleri aynı türdeyse o tür, değilse düz.
+  FillValueKind kindOf(List<CellRef> cells) {
+    if (kindAt == null || cells.isEmpty) return FillValueKind.plain;
+    final k = kindAt(cells.first.row, cells.first.col);
+    for (final at in cells) {
+      if (kindAt(at.row, at.col) != k) return FillValueKind.plain;
+    }
+    return k;
+  }
 
   var block = src;
   if (toRow < src.top || toRow > src.bottom) {
@@ -764,7 +889,11 @@ Map<CellRef, String> fillDiagonal(
       final source = [
         for (var row = src.top; row <= src.bottom; row++) read(row, col),
       ];
-      final out = FillSeries.extend(source, count, backwards: backwards);
+      final out = FillSeries.extend(source, count,
+          backwards: backwards,
+          kind: kindOf([
+            for (var row = src.top; row <= src.bottom; row++) CellRef(row, col),
+          ]));
       for (var i = 0; i < out.length; i++) {
         final row = backwards ? toRow + i : src.bottom + 1 + i;
         values[CellRef(row, col)] = out[i];
@@ -781,7 +910,16 @@ Map<CellRef, String> fillDiagonal(
         for (var col = block.left; col <= block.right; col++) read(row, col),
       ];
       final out = FillSeries.extend(source, count,
-          backwards: backwards, horizontal: true);
+          backwards: backwards,
+          horizontal: true,
+          // Satır uzantısının yeni satırları biçimini henüz almadı: türü
+          // biçimini alacağı kaynak satırdan okunur.
+          kind: kindOf([
+            for (var col = block.left; col <= block.right; col++)
+              // Dart'ta `%` pozitif bölende hep ≥ 0 (yukarı doldurma da olur).
+              CellRef(src.top + (row - src.top) % (src.bottom - src.top + 1),
+                  col),
+          ]));
       for (var i = 0; i < out.length; i++) {
         final col = backwards ? toCol + i : block.right + 1 + i;
         values[CellRef(row, col)] = out[i];
@@ -789,6 +927,26 @@ Map<CellRef, String> fillDiagonal(
     }
   }
   return values;
+}
+
+/// Doldurulan her hücrenin biçimini alacağı kaynak hücre (B10 m.4): Excel
+/// doldururken biçimi de taşır — tarih serisi seri numarası olarak değil
+/// tarih olarak görünür. Desen döngüseldir (2 satırlık kaynak: tek/çift).
+Map<CellRef, CellRef> fillFormatSources(CellRange src, int toRow, int toCol) {
+  final top = math.min(src.top, toRow), bottom = math.max(src.bottom, toRow);
+  final left = math.min(src.left, toCol), right = math.max(src.right, toCol);
+  final h = src.bottom - src.top + 1, w = src.right - src.left + 1;
+  int wrap(int v, int start, int size) =>
+      start + ((v - start) % size + size) % size;
+  final out = <CellRef, CellRef>{};
+  for (var r = top; r <= bottom; r++) {
+    for (var c = left; c <= right; c++) {
+      if (src.contains(r, c)) continue;
+      out[CellRef(r, c)] =
+          CellRef(wrap(r, src.top, h), wrap(c, src.left, w));
+    }
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
