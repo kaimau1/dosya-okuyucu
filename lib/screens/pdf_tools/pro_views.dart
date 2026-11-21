@@ -43,6 +43,7 @@ const _proTools = <List<_ProTool>>[
     _ProTool('permissions', AppIcons.pdfKey, 'pp.permissions', 'pp.permissions_sub'),
     _ProTool('outline', AppIcons.bookmarks, 'pp.outline', 'pp.outline_sub'),
     _ProTool('meta', AppIcons.info, 'pp.meta', 'pp.meta_sub'),
+    _ProTool('layers', AppIcons.layers, 'pp.layers', 'pp.layers_sub'),
     _ProTool('stamp', AppIcons.pdfStamp, 'pp.stamp', 'pp.stamp_sub'),
     _ProTool('numbering', AppIcons.formatListNumbered, 'pp.numbering', 'pp.numbering_sub'),
   ],
@@ -358,6 +359,55 @@ class _MetaSheetState extends State<_MetaSheet> {
             ),
           ],
         ),
+      );
+}
+
+// ── Katmanlar (OCG) ───────────────────────────────────────────────────────
+
+class _LayersSheet extends StatefulWidget {
+  const _LayersSheet({required this.layers});
+
+  final List<PdfLayerInfo> layers;
+
+  @override
+  State<_LayersSheet> createState() => _LayersSheetState();
+}
+
+class _LayersSheetState extends State<_LayersSheet> {
+  late final _visible = [for (final l in widget.layers) l.visible];
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (var i = 0; i < widget.layers.length; i++)
+                  SwitchListTile(
+                    key: ValueKey('pp-layer-$i'),
+                    secondary: const Icon(AppIcons.layers),
+                    title: Text(widget.layers[i].name.isEmpty
+                        ? context.t('pp.layers_unnamed', {'n': '${i + 1}'})
+                        : widget.layers[i].name),
+                    value: _visible[i],
+                    onChanged: (v) => setState(() => _visible[i] = v),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: Gap.md, vertical: Gap.sm),
+            child: FilledButton(
+              onPressed: () =>
+                  Navigator.pop<List<bool>>(context, List.of(_visible)),
+              child: Text(context.t('common.ok')),
+            ),
+          ),
+        ],
       );
 }
 

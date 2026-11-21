@@ -9,6 +9,7 @@ import '../../services/pdf/pro/pdf_edit_recovery.dart';
 import '../../services/pdf/pro/pdf_pro_perf.dart';
 import '../../services/pdf/pro/pdf_edit_save.dart';
 import '../../services/pdf/pro/pdf_edit_session.dart';
+import '../../services/pdf/pro/pdf_object_geometry.dart';
 import '../../services/pdf/pro/pdf_sensitive.dart';
 
 /// Alt araç çubuğunun araçları (etkileşim sözleşmesi §5).
@@ -379,10 +380,22 @@ class PdfProEditController extends ChangeNotifier {
     if (_tool == t) return;
     _tool = t;
     if (t != PdfProTool.markup) _markup = PdfMarkupKind.none;
+    _lasso = false;
     selectedPage = null;
     selectedBlock = null;
     selectedItem = null;
+    selectedItems = const [];
     selectedAnnot = null;
+    _notify();
+  }
+
+  /// Kement kurulu (Görsel aracı, Faz 59 m.5): tek parmak sürüklemesi
+  /// dikdörtgen çizer, içindeki nesneler seçilir; bir kez çalışır.
+  bool get armLasso => _lasso;
+  bool _lasso = false;
+  set armLasso(bool v) {
+    if (_lasso == v) return;
+    _lasso = v;
     _notify();
   }
 
@@ -398,10 +411,11 @@ class PdfProEditController extends ChangeNotifier {
   /// yakınlaştırır.
   bool get drawing =>
       _live == null &&
-      _tool == PdfProTool.markup &&
-      _markup != PdfMarkupKind.none &&
-      _markup != PdfMarkupKind.note &&
-      _markup != PdfMarkupKind.eraser;
+      ((_tool == PdfProTool.image && _lasso) ||
+          (_tool == PdfProTool.markup &&
+              _markup != PdfMarkupKind.none &&
+              _markup != PdfMarkupKind.note &&
+              _markup != PdfMarkupKind.eraser));
 
   /// İşaretleme rengi (ARGB) ve çizgi kalınlığı.
   int markupColor = 0xFFFFD54F;
@@ -439,6 +453,14 @@ class PdfProEditController extends ChangeNotifier {
   PdfPageItem? selectedItem;
   PdfAnnotInfo? selectedAnnot;
 
+  /// Çoklu seçim (en az 2 nesne; o zaman [selectedItem] null) — sayfa
+  /// [selectedPage].
+  List<PdfPageItem> selectedItems = const [];
+
+  /// Grup işleminden sonra sayfa yeniden okununca seçilecek nesne sıraları
+  /// (taşıma/hizalama nesne sırasını değiştirmez).
+  (int, List<int>)? _keep;
+
   /// Yerinde yazma (varsa).
   PdfLiveEdit? get live => _live;
   PdfLiveEdit? _live;
@@ -466,6 +488,18 @@ class PdfProEditController extends ChangeNotifier {
         if (_closed) return;
         _content[pageIndex] = c;
         _blocks[pageIndex] = PdfEditBridge.blocksOf(c, mode: _mode);
+        final keep = _keep;
+        if (keep != null && keep.$1 == pageIndex) {
+          _keep = null;
+          final items = [
+            for (final it in c.items)
+              if (keep.$2.contains(it.index)) it
+          ];
+          if (items.length >= 2 && selectedPage == null) {
+            selectedPage = pageIndex;
+            selectedItems = items;
+          }
+        }
         PdfProPerf.end('kipe_gecis', _enterSw);
         _enterSw = null;
       } catch (_) {
@@ -538,12 +572,14 @@ class PdfProEditController extends ChangeNotifier {
   void select(int pageIndex, int? block) {
     if (selectedPage == pageIndex &&
         selectedBlock == block &&
-        selectedItem == null) {
+        selectedItem == null &&
+        selectedItems.isEmpty) {
       return;
     }
     selectedPage = block == null ? null : pageIndex;
     selectedBlock = block;
     selectedItem = null;
+    selectedItems = const [];
     selectedAnnot = null;
     _notify();
   }
@@ -553,24 +589,53 @@ class PdfProEditController extends ChangeNotifier {
     selectedBlock = null;
     selectedAnnot = null;
     selectedItem = item;
+    selectedItems = const [];
     _notify();
+  }
+
+  /// Çoklu seçim kurar; tek nesne kalırsa tekli seçime döner.
+  void selectItems(int pageIndex, List<PdfPageItem> items) {
+    if (items.length < 2) return selectItem(pageIndex, items.firstOrNull);
+    selectedPage = pageIndex;
+    selectedBlock = null;
+    selectedAnnot = null;
+    selectedItem = null;
+    selectedItems = List.unmodifiable(items);
+    _notify();
+  }
+
+  /// Uzun bas: nesneyi seçime ekler (seçiliyse çıkarır).
+  void toggleItem(int pageIndex, PdfPageItem item) {
+    final current = selectedPage != pageIndex
+        ? const <PdfPageItem>[]
+        : [?selectedItem, ...selectedItems];
+    selectItems(
+        pageIndex,
+        current.any((i) => i.index == item.index)
+            ? [for (final i in current) if (i.index != item.index) i]
+            : [...current, item]);
   }
 
   void selectAnnot(int pageIndex, PdfAnnotInfo? annot) {
     selectedPage = annot == null ? null : pageIndex;
     selectedBlock = null;
     selectedItem = null;
+    selectedItems = const [];
     selectedAnnot = annot;
     _notify();
   }
 
   void clearSelection() {
-    if (selectedBlock == null && selectedItem == null && selectedAnnot == null) {
+    if (selectedBlock == null &&
+        selectedItem == null &&
+        selectedItems.isEmpty &&
+        selectedAnnot == null) {
       return;
     }
     selectedPage = null;
     selectedBlock = null;
     selectedItem = null;
+    selectedItems = const [];
     selectedAnnot = null;
     _notify();
   }
@@ -594,6 +659,7 @@ class PdfProEditController extends ChangeNotifier {
       selectedPage = null;
       selectedBlock = null;
       selectedItem = null;
+      selectedItems = const [];
       selectedAnnot = null;
     }
   }
@@ -1351,13 +1417,46 @@ class PdfProEditController extends ChangeNotifier {
     return null;
   }
 
+  /// [keep]: işlemden sonra yeniden seçilecek nesne sıraları (grup).
   Future<void> mutate(int pageIndex, List<PdfMutAction> actions,
-          {required String label, String detail = ''}) =>
+          {required String label, String detail = '', List<int>? keep}) =>
       _guard(() async {
         await session.apply(PdfMutateOp(PdfMutation(pageIndex, actions)),
             label: label, detail: detail);
         _invalidate(pageIndex);
+        if (keep != null) _keep = (pageIndex, keep);
       });
+
+  /// Çoklu seçimi (sayfa uzayında) [dx], [dy] kadar taşır — tek adım.
+  Future<void> moveItems(
+      int pageIndex, List<PdfPageItem> items, double dx, double dy,
+      {required String label}) {
+    final ids = [for (final i in items) i.index];
+    return mutate(pageIndex, [
+      PdfMutAction.transform(ids, [1, 0, 0, 1, dx, dy])
+    ], label: label, keep: ids);
+  }
+
+  /// Çoklu seçimi bir eksende hizalar ya da eşit aralıkla dağıtır — tek
+  /// adım. [vertical]: sayfa uzayında y yukarı → üst = [PdfAxisAlign.end].
+  Future<void> alignSelected(PdfAxisAlign mode,
+      {required bool vertical, required String label}) async {
+    final p = selectedPage;
+    final items = selectedItems;
+    if (p == null || items.length < 2) return;
+    final d = pdfAlignAxis([
+      for (final i in items) vertical ? (i.bottom, i.top) : (i.left, i.right)
+    ], mode);
+    final actions = [
+      for (var k = 0; k < items.length; k++)
+        if (d[k].abs() > 0.01)
+          PdfMutAction.transform([items[k].index],
+              vertical ? [1, 0, 0, 1, 0, d[k]] : [1, 0, 0, 1, d[k], 0])
+    ];
+    if (actions.isEmpty) return;
+    await mutate(p, actions,
+        label: label, keep: [for (final i in items) i.index]);
+  }
 
   /// Sayfayı 90° saat yönünde döndürür (geri alınabilir).
   Future<void> rotatePage(int pageIndex, {required String label}) =>
@@ -1521,6 +1620,7 @@ class PdfProEditController extends ChangeNotifier {
         selectedPage = null;
         selectedBlock = null;
         selectedItem = null;
+        selectedItems = const [];
         selectedAnnot = null;
         return ok;
       });

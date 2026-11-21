@@ -341,9 +341,38 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     final pro = _pro;
     if (pro == null || pro.busy) return;
     final unreadable = context.t('pe.image_unreadable');
-    final picked =
-        await AppFilePicker.pickFiles(type: FileType.image, withData: true);
-    final data = picked?.files.single.bytes;
+    // Kaynak: dosya/galeri ya da kamera (Faz 59 m.2).
+    final source = await showAppSheet<String>(
+      context,
+      title: context.t('pse.img_add'),
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            key: const ValueKey('pse-img-files'),
+            leading: const Icon(AppIcons.image),
+            title: Text(ctx.t('pse.img_from_files')),
+            onTap: () => Navigator.pop(ctx, 'files'),
+          ),
+          ListTile(
+            key: const ValueKey('pse-img-camera'),
+            leading: const Icon(AppIcons.photoCamera),
+            title: Text(ctx.t('pse.img_from_camera')),
+            onTap: () => Navigator.pop(ctx, 'camera'),
+          ),
+        ],
+      ),
+    );
+    if (source == null || !mounted || _pro != pro) return;
+    final data = source == 'camera'
+        ? await PdfProImages.fromCamera().catchError((Object e) {
+            _proRefused(e);
+            return null;
+          })
+        : (await AppFilePicker.pickFiles(type: FileType.image, withData: true))
+            ?.files
+            .single
+            .bytes;
     if (data == null || !mounted || _pro != pro) return;
     final im = await PdfProImages.prepare(data);
     if (!mounted || _pro != pro) return;
@@ -866,6 +895,47 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         ];
       case PdfProTool.image:
         final item = pro.selectedItem;
+        final group = pro.selectedItems;
+        if (group.length >= 2) {
+          PdfProChip align(IconData i, String key, PdfAxisAlign mode,
+                  {required bool vertical}) =>
+              PdfProChip(i, t(key), () {
+                if (pro.busy) return;
+                pro
+                    .alignSelected(mode,
+                        vertical: vertical, label: 'pse.step_align')
+                    .catchError(_proRefused);
+              }, tapKey: ValueKey('pse-$key'));
+          return [
+            align(AppIcons.alignHorizontalLeft, 'pse.obj_align_left',
+                PdfAxisAlign.start, vertical: false),
+            align(AppIcons.alignHorizontalCenter, 'pse.obj_align_hcenter',
+                PdfAxisAlign.center, vertical: false),
+            align(AppIcons.alignHorizontalRight, 'pse.obj_align_right',
+                PdfAxisAlign.end, vertical: false),
+            align(AppIcons.alignVerticalTop, 'pse.obj_align_top',
+                PdfAxisAlign.end, vertical: true),
+            align(AppIcons.alignVerticalCenter, 'pse.obj_align_vcenter',
+                PdfAxisAlign.center, vertical: true),
+            align(AppIcons.alignVerticalBottom, 'pse.obj_align_bottom',
+                PdfAxisAlign.start, vertical: true),
+            if (group.length >= 3) ...[
+              align(AppIcons.horizontalDistribute, 'pse.obj_distribute_h',
+                  PdfAxisAlign.distribute, vertical: false),
+              align(AppIcons.verticalDistribute, 'pse.obj_distribute_v',
+                  PdfAxisAlign.distribute, vertical: true),
+            ],
+            PdfProChip(AppIcons.delete, t('common.delete'), () {
+              final page = pro.selectedPage;
+              if (page == null || pro.busy) return;
+              pro
+                  .mutate(page,
+                      [PdfMutAction.delete([for (final i in group) i.index])],
+                      label: 'pse.step_delete')
+                  .catchError(_proRefused);
+            }, danger: true),
+          ];
+        }
         if (item != null) {
           return [
             if (item.isImage) ...[
@@ -892,6 +962,9 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         return [
           PdfProChip(AppIcons.addPhoto, t('pse.img_add'), _proInsertImage,
               tapKey: const ValueKey('pse-chip-image')),
+          PdfProChip(AppIcons.lasso, t('pse.obj_lasso'),
+              () => pro.armLasso = !pro.armLasso,
+              active: pro.armLasso, tapKey: const ValueKey('pse-chip-lasso')),
         ];
       case PdfProTool.markup:
         PdfProChip kind(PdfMarkupKind k, IconData i, String key) =>

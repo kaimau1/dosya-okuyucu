@@ -1,3 +1,4 @@
+import 'dart:convert' show latin1;
 import 'dart:ui' show Offset, Rect;
 
 import 'package:dosya_okuyucu/services/pdf_doc_pro.dart';
@@ -156,5 +157,27 @@ void main() {
     } finally {
       doc.dispose();
     }
+  });
+
+  test('B4/P17 m.6: katmanlar (OCG) okunur, gizlenir, yeniden açılır', () async {
+    final src = PdfDocument();
+    final page = src.pages.add();
+    src.layers.add(name: 'Arka plan').createGraphics(page).drawRectangle(
+        brush: PdfBrushes.red, bounds: const Rect.fromLTWH(10, 10, 50, 50));
+    src.layers.add(name: 'Notlar').createGraphics(page).drawString(
+        'gizli', PdfStandardFont(PdfFontFamily.helvetica, 12),
+        bounds: const Rect.fromLTWH(10, 100, 100, 20));
+    final bytes = await src.save();
+    src.dispose();
+
+    expect(PdfDocPro.readLayers(await _doc(1)), isEmpty);
+    expect(PdfDocPro.readLayers(bytes),
+        [(name: 'Arka plan', visible: true), (name: 'Notlar', visible: true)]);
+    final hidden = await PdfDocPro.writeLayers(bytes, [true, false]);
+    expect(PdfDocPro.readLayers(hidden).map((l) => l.visible), [true, false]);
+    expect(latin1.decode(hidden), contains('/OFF'),
+        reason: 'görüntüleyici (PDFium) varsayılan görünümün /OFF dizisine bakar');
+    final shown = await PdfDocPro.writeLayers(hidden, [true, true]);
+    expect(PdfDocPro.readLayers(shown).map((l) => l.visible), [true, true]);
   });
 }

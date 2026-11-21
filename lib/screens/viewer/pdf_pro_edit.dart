@@ -158,10 +158,13 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     }
     if (pro.selectedBlock != null ||
         pro.selectedItem != null ||
+        pro.selectedItems.isNotEmpty ||
+        pro.armLasso ||
         pro.selectedAnnot != null ||
         pro.markup != PdfMarkupKind.none) {
       pro
         ..markup = pro.markup
+        ..armLasso = false
         ..clearSelection();
       return false;
     }

@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../document_scanner.dart';
 import 'pdf_edit_bridge.dart';
 
 class PdfPreparedImage {
@@ -21,6 +22,17 @@ class PdfPreparedImage {
 abstract final class PdfProImages {
   /// Uzun kenar tavanı (piksel).
   static const maxEdge = 2200;
+
+  /// Kameradan görsel (Faz 59 m.2): belge tarayıcı tek kare çeker (kamera
+  /// izni istemez — Play Hizmetleri; yoksa galeriye düşer). Vazgeçilirse
+  /// null. [scan] testte yerine konur.
+  static Future<Uint8List?> fromCamera(
+      {Future<List<String>?> Function()? scan}) async {
+    final pages =
+        await (scan ?? () => DocumentScanner.scanPages(maxPages: 1))();
+    if (pages == null || pages.isEmpty) return null;
+    return File(pages.first).readAsBytes();
+  }
 
   static Future<Directory> _dir() async {
     final d = Directory(p.join(Directory.systemTemp.path, 'pdf_pro_gorsel'));

@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_recovery.dart';
+import 'package:dosya_okuyucu/services/pdf/pro/pdf_object_geometry.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_version_history.dart';
 import 'package:dosya_okuyucu/widgets/pdf_pro/pdf_pro_edit_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -239,5 +240,42 @@ void main() {
       await blocks(c, 0);
     }
     expect(c.contentOf(0)!.items.where((i) => i.mark == pdfShapeMark), isEmpty);
+  });
+
+  test('Faz 59 m.5: çoklu seçim → sola hizala → grup taşı; tek adım, seçim '
+      'korunur', () async {
+    final (_, c) = await open();
+    await blocks(c, 0);
+    await c.mutate(0, [
+      const PdfMutAction.shape(PdfShapeKind.rect, 40, 40, 120, 90,
+          stroke: 0xFFFF0000, strokeWidth: 2),
+      const PdfMutAction.shape(PdfShapeKind.rect, 200, 120, 300, 160,
+          stroke: 0xFF0000FF, strokeWidth: 2),
+    ], label: 'pse.step_shape');
+    await blocks(c, 0);
+    final a = c.shapeAt(0, 41, 60)!, b = c.shapeAt(0, 201, 140)!;
+    c.toggleItem(0, a);
+    expect(c.selectedItem?.index, a.index, reason: 'tek nesne = tekli seçim');
+    c.toggleItem(0, b);
+    expect(c.selectedItem, isNull);
+    expect(c.selectedItems.map((i) => i.index), [a.index, b.index]);
+
+    final steps = c.session.steps.length;
+    await c.alignSelected(PdfAxisAlign.start,
+        vertical: false, label: 'pse.step_align');
+    await blocks(c, 0);
+    expect(c.session.steps.length, steps + 1);
+    expect(c.selectedItems, hasLength(2), reason: 'seçim yeniden kuruldu');
+    final lefts = c.selectedItems.map((i) => i.left).toList();
+    expect(lefts[1], closeTo(lefts[0], 0.5));
+
+    await c.moveItems(0, c.selectedItems, 10, 0, label: 'pse.step_move');
+    await blocks(c, 0);
+    expect(c.session.steps.length, steps + 2);
+    expect(c.selectedItems.map((i) => i.left),
+        everyElement(closeTo(lefts[0] + 10, 0.5)));
+    c.toggleItem(0, c.selectedItems.first);
+    expect(c.selectedItems, isEmpty);
+    expect(c.selectedItem, isNotNull, reason: 'bir nesne kalınca tekli');
   });
 }
