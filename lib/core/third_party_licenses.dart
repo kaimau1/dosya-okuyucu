@@ -32,9 +32,14 @@ Stream<LicenseEntry> _entries() async* {
   yield const LicenseEntryWithLineBreaks(['Google ML Kit'], _mlkit);
   yield const LicenseEntryWithLineBreaks(
       ['media_kit_libs_android_video', 'libmpv', 'FFmpeg'], _mpvFfmpeg);
-  yield const LicenseEntryWithLineBreaks(
-      ['ESRGAN', 'Antalia-2 Mini', 'EMA Lightning', 'ONNX Runtime Web'],
-      _aiModels);
+  yield const LicenseEntryWithLineBreaks([
+    'ESRGAN',
+    'Antalia-2 Mini',
+    'EMA Lightning',
+    'Kokoro',
+    'ONNX Runtime Web',
+  ], _aiModels);
+  yield const LicenseEntryWithLineBreaks(['eSpeak NG'], _espeak);
 }
 
 Future<String> _asset(String path) async {
@@ -69,5 +74,15 @@ const _aiModels = '''İsteğe bağlı indirilen yapay zekâ ve ses modelleri (AP
 - ESRGAN (captain-pool/esrgan-tf2) — Apache License 2.0 (https://tfhub.dev/captain-pool/lite-model/esrgan-tf2/1)
 - Antalia-2 Mini (cloud0day3/antalia-mini) — Apache License 2.0 (https://huggingface.co/cloud0day3/antalia-mini)
 - EMA Lightning (canberk7/ema-lightning) — Apache License 2.0 (https://github.com/canberk7/ema-lightning)
+- Kokoro Türkçe (empiriolabsai/kokoro-turkish, Kokoro-82M ince ayarı) — Apache License 2.0; Copyright 2026 EmpirioLabs.ai LLC (https://huggingface.co/empiriolabsai/kokoro-turkish). Türkçe metin kuralları depodaki g2p_tr.py'den uyarlandı (Apache 2.0).
+- Kokoro-82M v1.0 (hexgrad/Kokoro-82M; ONNX: onnx-community/Kokoro-82M-v1.0-ONNX) — Apache License 2.0 (https://huggingface.co/hexgrad/Kokoro-82M). İngilizce metin kuralları kokoro.js'ten uyarlandı (Apache 2.0).
 - ONNX Runtime Web — MIT License (https://github.com/microsoft/onnxruntime)''';
+
+const _espeak = '''eSpeak NG — GNU General Public License v3.0 veya sonrası (GPL-3.0-or-later).
+Telif hakkı: Jonathan Duddington, Reece H. Dunn ve eSpeak NG katkıda bulunanları.
+
+Kokoro sesleri indirilirken telaffuz (metin → ses birimi) için ayrı bir program olarak indirilir (WebAssembly derlemesi: npm espeak-ng 1.0.2, ianmarmour/espeak-ng.js); APK'ya gömülü değildir ve uygulamanın koduyla birleştirilmez. Bu program HİÇBİR GARANTİ olmaksızın dağıtılır; GPL-3.0 koşullarıyla değiştirip yeniden dağıtabilirsiniz.
+- Kaynak kodu: https://github.com/espeak-ng/espeak-ng
+- WebAssembly derleme betiği: https://github.com/ianmarmour/espeak-ng.js
+- GPL-3.0 metni: https://www.gnu.org/licenses/gpl-3.0.html''';
 

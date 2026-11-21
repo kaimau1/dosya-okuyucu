@@ -41,7 +41,7 @@ class VoicesScreen extends StatelessWidget {
                       state.setTtsPrefs(prefs.voiceName == id
                           ? prefs.copyWith(voiceName: '', voiceLocale: '')
                           : prefs.copyWith(
-                              voiceName: id, voiceLocale: 'tr-TR'));
+                              voiceName: id, voiceLocale: v.locale));
                     },
                   ),
               ],

@@ -292,6 +292,16 @@ const Map<String, (String, String, String)> _t9 = {
     'EMA Lightning · 8.6M parameters · Apache-2.0 · lowest error rate on Turkish benchmarks',
     'EMA Lightning · 8.6 مليون معامل · Apache-2.0 · أدنى معدل خطأ في الاختبارات التركية',
   ),
+  'voice.kokoro_tr_sub': (
+    'Kokoro Türkçe · kadın sesi (Elif) · 82 M parametre · Apache-2.0 · en doğal Türkçe ses; daha büyük, daha yavaş',
+    'Kokoro Turkish · female voice (Elif) · 82M parameters · Apache-2.0 · most natural Turkish voice; larger and slower',
+    'Kokoro Turkish · صوت أنثوي (Elif) · 82 مليون معامل · Apache-2.0 · أكثر الأصوات التركية طبيعية؛ أكبر وأبطأ',
+  ),
+  'voice.kokoro_en_sub': (
+    'Kokoro English · İngilizce kadın sesi (Heart) · 82 M parametre · Apache-2.0 · İngilizce metinler için',
+    'Kokoro English · English female voice (Heart) · 82M parameters · Apache-2.0 · for English text',
+    'Kokoro English · صوت أنثوي إنجليزي (Heart) · 82 مليون معامل · Apache-2.0 · للنصوص الإنجليزية',
+  ),
   'voice.reading_selected': ('Sesli okumada kullanılıyor', 'Used for read aloud', 'مستخدم للقراءة الصوتية'),
   'voice.tap_to_use': ('Sesli okumada kullanmak için dokunun', 'Tap to use for read aloud', 'المس لاستخدامه في القراءة الصوتية'),
   'voice.install': ('İndir ({size})', 'Download ({size})', 'تنزيل ({size})'),

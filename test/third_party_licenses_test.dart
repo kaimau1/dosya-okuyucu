@@ -31,6 +31,8 @@ void main() {
       'ESRGAN',
       'Antalia-2 Mini',
       'EMA Lightning',
+      'Kokoro',
+      'eSpeak NG',
     ]) {
       expect(packages, contains(want));
     }
@@ -38,5 +40,6 @@ void main() {
     expect(all, contains('SIL OPEN FONT LICENSE'));
     expect(all, contains('Community License'));
     expect(all, contains('LGPL'));
+    expect(all, contains('GPL-3.0'));
   });
 }
