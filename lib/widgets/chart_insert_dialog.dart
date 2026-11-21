@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n/app_strings.dart';
-import '../services/pptx_render.dart' show ChartSeries, ChartType, ChartVM;
+import '../services/pptx_render.dart'
+    show ChartGrouping, ChartSeries, ChartType, ChartVM;
 import '../services/xlsx_chart.dart';
 import 'chart_painter.dart';
 import '../core/app_icons.dart';
@@ -23,14 +24,36 @@ Future<XlsxChartSpec?> showChartInsertDialog(
 }
 
 /// Grafik spesifikasyonunun çizilebilir modeli (önizleme ve testler için).
-ChartVM chartPreviewOf(XlsxChartSpec spec) => ChartVM(
+ChartVM chartPreviewOf(XlsxChartSpec spec) {
+  final xy = spec.kind == XlsxChartKind.scatter && spec.hasCategoryColumn;
+  final xs = xy
+      ? [for (final c in spec.categories) double.tryParse(c.trim())]
+      : const <double?>[];
+  final xValues =
+      xy && xs.every((v) => v != null) ? [for (final v in xs) v!] : null;
+  return ChartVM(
       type: switch (spec.kind) {
-        XlsxChartKind.column => ChartType.column,
-        XlsxChartKind.bar => ChartType.bar,
+        XlsxChartKind.column ||
+        XlsxChartKind.columnStacked ||
+        XlsxChartKind.columnPercent =>
+          ChartType.column,
+        XlsxChartKind.bar ||
+        XlsxChartKind.barStacked ||
+        XlsxChartKind.barPercent =>
+          ChartType.bar,
         XlsxChartKind.line => ChartType.line,
-        XlsxChartKind.pie => ChartType.pie,
+        XlsxChartKind.area => ChartType.area,
+        XlsxChartKind.pie || XlsxChartKind.doughnut => ChartType.pie,
+        XlsxChartKind.scatter => ChartType.scatter,
+        XlsxChartKind.radar => ChartType.radar,
       },
-      categories: spec.categories,
+      doughnut: spec.kind == XlsxChartKind.doughnut,
+      grouping: switch (spec.kind.grouping) {
+        'stacked' => ChartGrouping.stacked,
+        'percentStacked' => ChartGrouping.percent,
+        _ => ChartGrouping.standard,
+      },
+      categories: spec.kind == XlsxChartKind.scatter ? const [] : spec.categories,
       showLegend: true,
       series: [
         for (var i = 0; i < spec.series.length; i++)
@@ -38,7 +61,8 @@ ChartVM chartPreviewOf(XlsxChartSpec spec) => ChartVM(
             name: spec.series[i].name,
             color: _color(spec.colorOf(i)),
             values: [for (final v in spec.series[i].values) v ?? 0],
-            pointColors: spec.kind == XlsxChartKind.pie
+            xValues: xValues,
+            pointColors: spec.kind.isPie
                 ? {
                     for (var k = 0; k < spec.series[i].values.length; k++)
                       k: _color(spec.colorOf(k)),
@@ -49,10 +73,11 @@ ChartVM chartPreviewOf(XlsxChartSpec spec) => ChartVM(
             secondary: spec.isCombo &&
                 spec.secondaryAxis &&
                 i == spec.series.length - 1,
-            trend: spec.trendline && spec.kind != XlsxChartKind.pie,
+            trend: spec.trendline && spec.kind.allowsTrend,
           ),
       ],
     );
+}
 
 Color _color(String hex) => Color(0xFF000000 | int.parse(hex, radix: 16));
 
@@ -79,6 +104,14 @@ class _ChartInsertDialogState extends State<_ChartInsertDialog> {
     (XlsxChartKind.bar, AppIcons.alignHorizontalLeft, 'chart.bar'),
     (XlsxChartKind.line, AppIcons.showChart, 'chart.line'),
     (XlsxChartKind.pie, AppIcons.pieChartOutline, 'chart.pie'),
+    (XlsxChartKind.columnStacked, AppIcons.stackedBarChart, 'chart.columnStacked'),
+    (XlsxChartKind.columnPercent, AppIcons.stackedBarChart, 'chart.columnPercent'),
+    (XlsxChartKind.barStacked, AppIcons.alignHorizontalLeft, 'chart.barStacked'),
+    (XlsxChartKind.barPercent, AppIcons.alignHorizontalLeft, 'chart.barPercent'),
+    (XlsxChartKind.area, AppIcons.areaChart, 'chart.area'),
+    (XlsxChartKind.doughnut, AppIcons.donutLarge, 'chart.doughnut'),
+    (XlsxChartKind.scatter, AppIcons.scatterPlot, 'chart.scatter'),
+    (XlsxChartKind.radar, AppIcons.radar, 'chart.radar'),
   ];
 
   @override

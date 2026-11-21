@@ -9,9 +9,63 @@ import 'package:xml/xml.dart';
 import 'xlsx_reader.dart' show XlsxRange;
 import 'office_zip_guard.dart';
 
-/// Eklenebilen grafik türleri (PPTX çizicisinin desteklediklerinin aynısı —
-/// önizleme `ChartPainter` ile çizilir).
-enum XlsxChartKind { column, bar, line, pie }
+/// Eklenebilen grafik türleri (ORTAK çizici `ChartPainter` ile çizilir; B10
+/// m.1: alan, dağılım, halka, radar, yığılmış / %100 yığılmış sütun-çubuk).
+/// Sıra = tür menüsündeki sıra.
+enum XlsxChartKind {
+  column,
+  columnStacked,
+  columnPercent,
+  bar,
+  barStacked,
+  barPercent,
+  line,
+  area,
+  pie,
+  doughnut,
+  scatter,
+  radar,
+}
+
+extension XlsxChartKindX on XlsxChartKind {
+  /// `c:barChart` ailesi (sütun/çubuk, yan yana ya da yığılmış).
+  bool get isBar => const {
+        XlsxChartKind.column,
+        XlsxChartKind.columnStacked,
+        XlsxChartKind.columnPercent,
+        XlsxChartKind.bar,
+        XlsxChartKind.barStacked,
+        XlsxChartKind.barPercent,
+      }.contains(this);
+
+  /// Yatay çubuk (`barDir="bar"`).
+  bool get horizontal => const {
+        XlsxChartKind.bar,
+        XlsxChartKind.barStacked,
+        XlsxChartKind.barPercent,
+      }.contains(this);
+
+  /// Tek serili, dilim renkli (pasta/halka).
+  bool get isPie => this == XlsxChartKind.pie || this == XlsxChartKind.doughnut;
+
+  /// `c:grouping` değeri (çubuk ailesi).
+  String get grouping => switch (this) {
+        XlsxChartKind.columnStacked || XlsxChartKind.barStacked => 'stacked',
+        XlsxChartKind.columnPercent ||
+        XlsxChartKind.barPercent =>
+          'percentStacked',
+        _ => 'clustered',
+      };
+
+  /// Eğilim çizgisi alır mı (Excel: yan yana sütun/çubuk, çizgi, alan, XY).
+  bool get allowsTrend => const {
+        XlsxChartKind.column,
+        XlsxChartKind.bar,
+        XlsxChartKind.line,
+        XlsxChartKind.area,
+        XlsxChartKind.scatter,
+      }.contains(this);
+}
 
 /// Eklenecek bir grafik: hangi sayfaya, hangi veriden, nereye.
 ///
@@ -103,7 +157,7 @@ class XlsxChartSpec {
         categories: categories,
         // Pastaya geçişte tek seri; geri dönüşte veri yeniden okunmalı —
         // çağıran ([fromRange]) bunu bilir, burada eldeki seriler kalır.
-        series: (kind ?? this.kind) == XlsxChartKind.pie && series.isNotEmpty
+        series: (kind ?? this.kind).isPie && series.isNotEmpty
             ? [series.first]
             : series,
         anchorRow: anchorRow ?? this.anchorRow,
@@ -135,7 +189,8 @@ class XlsxChartSpec {
     double? num(String v) =>
         double.tryParse(v.trim().replaceAll(' ', '').replaceAll(',', '.'));
     // İlk sütun kategori mi? Veri satırlarında sayı olmayan bir değer varsa.
-    var catCol = false;
+    // Dağılımda (XY) ilk sütun her zaman X değerleridir.
+    var catCol = kind == XlsxChartKind.scatter && right > left;
     for (var r = top + 1; r <= bottom; r++) {
       final v = display(r, left);
       if (v.trim().isNotEmpty && num(v) == null) {
@@ -170,7 +225,7 @@ class XlsxChartSpec {
       hasCategoryColumn: catCol,
       categories: categories,
       // Pastada tek seri anlamlıdır (Excel de yalnız ilkini çizer).
-      series: kind == XlsxChartKind.pie ? [series.first] : series,
+      series: kind.isPie ? [series.first] : series,
       anchorRow: top,
       anchorCol: right + 2,
       title: title,
@@ -463,15 +518,21 @@ abstract final class XlsxChartWriter {
     b.write('<c:plotArea><c:layout/>');
     switch (s.kind) {
       case XlsxChartKind.column:
+      case XlsxChartKind.columnStacked:
+      case XlsxChartKind.columnPercent:
       case XlsxChartKind.bar:
+      case XlsxChartKind.barStacked:
+      case XlsxChartKind.barPercent:
         final combo = s.isCombo;
         final last = s.series.length - 1;
+        final grouping = s.kind.grouping;
         b.write('<c:barChart><c:barDir val="'
-            '${s.kind == XlsxChartKind.bar ? 'bar' : 'col'}"/>'
-            '<c:grouping val="clustered"/><c:varyColors val="0"/>');
+            '${s.kind.horizontal ? 'bar' : 'col'}"/>'
+            '<c:grouping val="$grouping"/><c:varyColors val="0"/>');
         _series(b, s, line: false, until: combo ? last : null);
-        b.write('<c:gapWidth val="150"/><c:axId val="5000001"/>'
-            '<c:axId val="5000002"/></c:barChart>');
+        b.write('<c:gapWidth val="150"/>'
+            '${grouping == 'clustered' ? '' : '<c:overlap val="100"/>'}'
+            '<c:axId val="5000001"/><c:axId val="5000002"/></c:barChart>');
         if (combo) {
           // Kombinasyon: son seri çizgi; ikincil eksende ise kendi eksen çifti.
           final sec = s.secondaryAxis;
@@ -481,7 +542,7 @@ abstract final class XlsxChartWriter {
               '<c:axId val="${sec ? 5000003 : 5000001}"/>'
               '<c:axId val="${sec ? 5000004 : 5000002}"/></c:lineChart>');
         }
-        _axes(b, horizontal: s.kind == XlsxChartKind.bar);
+        _axes(b, horizontal: s.kind.horizontal);
         if (combo && s.secondaryAxis) _secondaryAxes(b);
       case XlsxChartKind.line:
         b.write('<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>');
@@ -489,13 +550,34 @@ abstract final class XlsxChartWriter {
         b.write('<c:marker val="1"/><c:axId val="5000001"/>'
             '<c:axId val="5000002"/></c:lineChart>');
         _axes(b, horizontal: false);
+      case XlsxChartKind.area:
+        b.write('<c:areaChart><c:grouping val="standard"/><c:varyColors val="0"/>');
+        _series(b, s, line: false);
+        b.write('<c:axId val="5000001"/><c:axId val="5000002"/></c:areaChart>');
+        _axes(b, horizontal: false);
       case XlsxChartKind.pie:
         b.write('<c:pieChart><c:varyColors val="1"/>');
         _series(b, s, line: false);
         b.write('<c:firstSliceAng val="0"/></c:pieChart>');
+      case XlsxChartKind.doughnut:
+        b.write('<c:doughnutChart><c:varyColors val="1"/>');
+        _series(b, s, line: false);
+        b.write('<c:firstSliceAng val="0"/><c:holeSize val="50"/></c:doughnutChart>');
+      case XlsxChartKind.scatter:
+        // Excel'in "yalnız işaretçi" dağılımı: lineMarker + çizgi noFill.
+        b.write('<c:scatterChart><c:scatterStyle val="lineMarker"/>'
+            '<c:varyColors val="0"/>');
+        _series(b, s, line: false);
+        b.write('<c:axId val="5000001"/><c:axId val="5000002"/></c:scatterChart>');
+        _xyAxes(b);
+      case XlsxChartKind.radar:
+        b.write('<c:radarChart><c:radarStyle val="marker"/><c:varyColors val="0"/>');
+        _series(b, s, line: true);
+        b.write('<c:axId val="5000001"/><c:axId val="5000002"/></c:radarChart>');
+        _axes(b, horizontal: false);
     }
     b.write('</c:plotArea>'
-        '<c:legend><c:legendPos val="${s.kind == XlsxChartKind.pie ? 'r' : 'b'}"/>'
+        '<c:legend><c:legendPos val="${s.kind.isPie ? 'r' : 'b'}"/>'
         '<c:overlay val="0"/></c:legend>'
         '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/>'
         '</c:chart></c:chartSpace>');
@@ -538,19 +620,23 @@ abstract final class XlsxChartWriter {
             '<a:round/></a:ln></c:spPr>'
             '<c:marker><c:symbol val="circle"/><c:size val="5"/>'
             '<c:spPr>${_fill(color)}</c:spPr></c:marker>');
-      } else if (s.kind == XlsxChartKind.pie) {
+      } else if (s.kind.isPie) {
         b.write('<c:spPr><a:ln><a:solidFill><a:srgbClr val="FFFFFF"/>'
             '</a:solidFill></a:ln></c:spPr>');
         for (var k = 0; k < ser.values.length; k++) {
           b.write('<c:dPt><c:idx val="$k"/><c:bubble3D val="0"/><c:spPr>'
               '${_fill(s.colorOf(k))}</c:spPr></c:dPt>');
         }
+      } else if (s.kind == XlsxChartKind.scatter) {
+        b.write('<c:spPr><a:ln w="25400"><a:noFill/></a:ln></c:spPr>'
+            '<c:marker><c:symbol val="circle"/><c:size val="6"/>'
+            '<c:spPr>${_fill(color)}</c:spPr></c:marker>');
       } else {
         b.write('<c:spPr>${_fill(color)}</c:spPr>'
-            '<c:invertIfNegative val="0"/>');
+            '${s.kind.isBar ? '<c:invertIfNegative val="0"/>' : ''}');
       }
       // Eğilim çizgisi: şemada spPr/marker/dPt'den sonra, cat'ten önce.
-      if (s.trendline && s.kind != XlsxChartKind.pie) {
+      if (s.trendline && s.kind.allowsTrend) {
         b.write('<c:trendline><c:spPr><a:ln w="19050" cap="rnd">'
             '${_fill(color)}<a:prstDash val="sysDot"/></a:ln></c:spPr>'
             '<c:trendlineType val="linear"/><c:dispRSqr val="0"/>'
@@ -558,29 +644,62 @@ abstract final class XlsxChartWriter {
       }
       // Kategoriler: kategori sütunu yoksa sıra numarası önbelleği (başvuru
       // yok — Excel o zaman 1, 2, 3… yazar).
-      if (s.hasCategoryColumn) {
-        b.write('<c:cat><c:strRef><c:f>'
+      // Dağılımda kategori = X (`xVal`), değer = Y (`yVal`); X sayıysa numRef.
+      final xy = s.kind == XlsxChartKind.scatter;
+      final catTag = xy ? 'c:xVal' : 'c:cat';
+      final xs = [for (final c in s.categories) double.tryParse(c.trim())];
+      if (s.hasCategoryColumn && xy && xs.every((v) => v != null)) {
+        b.write('<$catTag><c:numRef><c:f>'
+            '${_esc(ref(s.sheetName, r1, s.left, r2, s.left))}</c:f>'
+            '<c:numCache><c:formatCode>General</c:formatCode>'
+            '<c:ptCount val="${xs.length}"/>');
+        for (var k = 0; k < xs.length; k++) {
+          b.write('<c:pt idx="$k"><c:v>${_num(xs[k]!)}</c:v></c:pt>');
+        }
+        b.write('</c:numCache></c:numRef></$catTag>');
+      } else if (s.hasCategoryColumn) {
+        b.write('<$catTag><c:strRef><c:f>'
             '${_esc(ref(s.sheetName, r1, s.left, r2, s.left))}</c:f>'
             '<c:strCache><c:ptCount val="${s.categories.length}"/>');
         for (var k = 0; k < s.categories.length; k++) {
           b.write('<c:pt idx="$k"><c:v>${_esc(s.categories[k])}</c:v></c:pt>');
         }
-        b.write('</c:strCache></c:strRef></c:cat>');
+        b.write('</c:strCache></c:strRef></$catTag>');
       }
-      b.write('<c:val><c:numRef><c:f>'
+      b.write('<${xy ? 'c:yVal' : 'c:val'}><c:numRef><c:f>'
           '${_esc(ref(s.sheetName, r1, ser.col, r2, ser.col))}</c:f>'
           '<c:numCache><c:formatCode>General</c:formatCode>'
           '<c:ptCount val="${ser.values.length}"/>');
       for (var k = 0; k < ser.values.length; k++) {
         final v = ser.values[k];
         if (v == null) continue;
-        final t = v == v.roundToDouble() ? v.toInt().toString() : v.toString();
-        b.write('<c:pt idx="$k"><c:v>$t</c:v></c:pt>');
+        b.write('<c:pt idx="$k"><c:v>${_num(v)}</c:v></c:pt>');
       }
-      b.write('</c:numCache></c:numRef></c:val>');
-      if (line) b.write('<c:smooth val="0"/>');
+      b.write('</c:numCache></c:numRef></${xy ? 'c:yVal' : 'c:val'}>');
+      // `smooth` yalnız çizgi ve dağılım serisinde (radar şemasında yok).
+      if ((line && s.kind != XlsxChartKind.radar) || xy) {
+        b.write('<c:smooth val="0"/>');
+      }
       b.write('</c:ser>');
     }
+  }
+
+  static String _num(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+  /// Dağılım: iki DEĞER ekseni (X altta, Y solda).
+  static void _xyAxes(StringBuffer b) {
+    b.write('<c:valAx><c:axId val="5000001"/><c:scaling>'
+        '<c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+        '<c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="1"/>'
+        '<c:tickLblPos val="nextTo"/><c:crossAx val="5000002"/>'
+        '<c:crosses val="autoZero"/><c:crossBetween val="midCat"/></c:valAx>'
+        '<c:valAx><c:axId val="5000002"/><c:scaling>'
+        '<c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+        '<c:axPos val="l"/><c:majorGridlines/>'
+        '<c:numFmt formatCode="General" sourceLinked="1"/>'
+        '<c:tickLblPos val="nextTo"/><c:crossAx val="5000001"/>'
+        '<c:crosses val="autoZero"/><c:crossBetween val="midCat"/></c:valAx>');
   }
 
   static void _axes(StringBuffer b, {required bool horizontal}) {

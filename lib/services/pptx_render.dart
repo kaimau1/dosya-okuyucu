@@ -308,10 +308,14 @@ class ShapeVM {
   bool get isBoxShaped => preset == 'rect';
 }
 
-/// Desteklenen grafik türleri. Bar (yatay çubuk), sütun (dikey çubuk), pasta
-/// (halka dahil), çizgi (alan grafiği çizgiyle yaklaşıklanır). Diğerleri
-/// (dağılım/radar/borsa) çizilmez.
-enum ChartType { bar, column, pie, line }
+/// Çizilen grafik türleri (Excel + Slayt ORTAK çizici, B10 m.1): sütun, çubuk,
+/// pasta (+ halka: [ChartVM.doughnut]), çizgi, alan, dağılım (XY), radar.
+/// Dosyadaki öteki türler (3B, kabarcık, borsa, yüzey, pastanın pastası) en
+/// yakın türle çizilir ve [ChartVM.approx] "yaklaşık" rozeti açar.
+enum ChartType { bar, column, pie, line, area, scatter, radar }
+
+/// `c:grouping`: yan yana / yığılmış / %100 yığılmış (sütun, çubuk, çizgi, alan).
+enum ChartGrouping { standard, stacked, percent }
 
 /// Bir grafik serisi: adı, rengi ve değerleri. Pasta grafikte tek seri olur;
 /// dilim renkleri [pointColors] ile (yoksa paletten) verilir.
@@ -324,9 +328,14 @@ class ChartSeries {
   /// Faz 36 madde 11 (Excel grafikleri): sütun grafiğinde bu seri ÇİZGİ
   /// olarak (kombinasyon), [secondary] ise sağdaki ikincil eksene göre
   /// çizilir; [trend] doğrusal eğilim çizgisi ekler.
+  ///
+  /// Dağılımda [asLine] noktaları çizgiyle birleştirir (`scatterStyle`).
   final bool asLine;
   final bool secondary;
   final bool trend;
+
+  /// Dağılım (XY) grafiğinde X değerleri (`c:xVal`); null → 1, 2, 3…
+  final List<double>? xValues;
   const ChartSeries({
     required this.name,
     required this.color,
@@ -335,6 +344,7 @@ class ChartSeries {
     this.asLine = false,
     this.secondary = false,
     this.trend = false,
+    this.xValues,
   });
 }
 
@@ -347,12 +357,22 @@ class ChartVM {
   final List<String> categories;
   final List<ChartSeries> series;
   final bool showLegend;
+  final ChartGrouping grouping;
+
+  /// Radar: `radarStyle="filled"` (alanı dolu).
+  final bool filled;
+
+  /// Dosyadaki tür birebir çizilemedi, en yakın türle çizildi (rozet).
+  final bool approx;
   const ChartVM({
     required this.type,
     required this.series,
     this.doughnut = false,
     this.categories = const [],
     this.showLegend = false,
+    this.grouping = ChartGrouping.standard,
+    this.filled = false,
+    this.approx = false,
   });
 }
 
@@ -1596,34 +1616,49 @@ class PptxRender {
     if (plotArea == null) return null;
 
     ChartType? type;
-    var doughnut = false;
+    var doughnut = false, approx = false;
     XmlElement? chartEl;
     for (final child in plotArea.childElements) {
-      switch (child.name.qualified) {
-        case 'c:barChart':
-          type = (_first(child, 'c:barDir')?.getAttribute('val') ?? 'col') ==
-                  'bar'
+      ChartType barDir() =>
+          (_first(child, 'c:barDir')?.getAttribute('val') ?? 'col') == 'bar'
               ? ChartType.bar
               : ChartType.column;
-          break;
-        case 'c:pieChart':
-          type = ChartType.pie;
-          break;
-        case 'c:doughnutChart':
-          type = ChartType.pie;
-          doughnut = true;
-          break;
-        case 'c:lineChart':
-        case 'c:areaChart': // alan → çizgiyle yaklaşıklanır
-          type = ChartType.line;
-          break;
-        default:
-          continue;
-      }
+      // Bilinmeyen tür bugüne dek HİÇ çizilmiyordu (null → grafik yok);
+      // artık en yakın türle çizilir, [approx] rozeti açar.
+      final m = switch (child.name.qualified) {
+        'c:barChart' => (barDir(), false),
+        'c:bar3DChart' => (barDir(), true),
+        'c:pieChart' || 'c:doughnutChart' => (ChartType.pie, false),
+        'c:pie3DChart' || 'c:ofPieChart' => (ChartType.pie, true),
+        'c:lineChart' => (ChartType.line, false),
+        'c:line3DChart' ||
+        'c:stockChart' ||
+        'c:surfaceChart' ||
+        'c:surface3DChart' =>
+          (ChartType.line, true),
+        'c:areaChart' => (ChartType.area, false),
+        'c:area3DChart' => (ChartType.area, true),
+        'c:scatterChart' => (ChartType.scatter, false),
+        'c:bubbleChart' => (ChartType.scatter, true),
+        'c:radarChart' => (ChartType.radar, false),
+        _ => null,
+      };
+      if (m == null) continue;
+      (type, approx) = m;
+      doughnut = child.name.qualified == 'c:doughnutChart';
       chartEl = child;
       break;
     }
     if (chartEl == null || type == null) return null;
+    final scatter = type == ChartType.scatter;
+    final grouping =
+        switch (_first(chartEl, 'c:grouping')?.getAttribute('val')) {
+      'stacked' => ChartGrouping.stacked,
+      'percentStacked' => ChartGrouping.percent,
+      _ => ChartGrouping.standard,
+    };
+    final scatterStyle =
+        _first(chartEl, 'c:scatterStyle')?.getAttribute('val') ?? 'marker';
 
     final palette = _chartPalette(theme);
     final serEls = chartEl.findElements('c:ser').toList();
@@ -1643,12 +1678,21 @@ class PptxRender {
         final c = sp == null ? null : _solidFill(sp, theme, clrMap);
         if (idx != null && c != null) ptColors[idx] = c;
       }
-      if (categories.isEmpty) categories = _strValues(_first(ser, 'c:cat'));
+      if (!scatter && categories.isEmpty) {
+        categories = _strValues(_first(ser, 'c:cat'));
+      }
+      final xs = scatter ? _numValues(_first(ser, 'c:xVal')) : const <double>[];
+      // Excel "yalnız işaretçi" dağılımı lineMarker + çizgisi noFill yazar.
+      final ln = spPr == null ? null : _first(spPr, 'a:ln');
       series.add(ChartSeries(
         name: name,
         color: color,
-        values: _numValues(_first(ser, 'c:val')),
+        values: _numValues(_first(ser, scatter ? 'c:yVal' : 'c:val')),
         pointColors: ptColors,
+        asLine: scatter &&
+            scatterStyle != 'marker' &&
+            (ln == null || _first(ln, 'a:noFill') == null),
+        xValues: xs.isEmpty ? null : xs,
       ));
     }
     if (series.isEmpty || series.every((s) => s.values.isEmpty)) return null;
@@ -1670,6 +1714,9 @@ class PptxRender {
       categories: categories,
       series: series,
       showLegend: _firstDeep(root, 'c:legend') != null,
+      grouping: grouping,
+      filled: _first(chartEl, 'c:radarStyle')?.getAttribute('val') == 'filled',
+      approx: approx,
     );
   }
 

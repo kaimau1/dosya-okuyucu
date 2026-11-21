@@ -24,7 +24,7 @@ extension _SpreadsheetProChartPart on _SpreadsheetEditorScreenState {
               child: Text(ctx.t('xp.chart_secondary')),
             ),
           ],
-          if (spec.kind != XlsxChartKind.pie)
+          if (spec.kind.allowsTrend)
             CheckedPopupMenuItem(
               value: 'trend',
               checked: spec.trendline,

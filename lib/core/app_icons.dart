@@ -247,6 +247,11 @@ abstract final class AppIcons {
   static const IconData dns = Icons.dns_rounded;
   static const IconData donutLarge = Icons.donut_large_rounded;
   static const IconData donutSmall = Icons.donut_small_rounded;
+  // Grafik türleri (B10 m.1).
+  static const IconData areaChart = Icons.area_chart_rounded;
+  static const IconData scatterPlot = Icons.scatter_plot_rounded;
+  static const IconData radar = Icons.radar_rounded;
+  static const IconData stackedBarChart = Icons.stacked_bar_chart_rounded;
   static const IconData downloadForOffline = Icons.download_for_offline_rounded;
   static const IconData dragHandle = Icons.drag_handle_rounded;
   static const IconData dragIndicator = Icons.drag_indicator_rounded;

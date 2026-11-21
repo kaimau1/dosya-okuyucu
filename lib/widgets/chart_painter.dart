@@ -6,7 +6,8 @@ import '../core/l10n/app_strings.dart';
 import '../services/pptx_render.dart';
 import '../core/app_colors.dart';
 
-/// [ChartVM]'i çizer: sütun/çubuk/pasta/çizgi + lejant. Veri, seri renkleri ve
+/// [ChartVM]'i çizer: sütun/çubuk (yan yana, yığılmış, %100), pasta/halka,
+/// çizgi, alan, dağılım (XY), radar + lejant; Excel ve Slayt ORTAK çizici. Veri, seri renkleri ve
 /// kategoriler PowerPoint'le aynıdır; eksen/lejant stili sadeleştirilmiştir
 /// (3B, gradient, ızgara süsü yok) — okunur ve doğru oranlı bir grafik.
 class ChartPainter extends CustomPainter {
@@ -36,7 +37,17 @@ class ChartPainter extends CustomPainter {
       case ChartType.column:
         _barsOrLine(canvas, plot, fs, line: false);
         break;
+      case ChartType.area:
+        _barsOrLine(canvas, plot, fs, line: true, fillArea: true);
+        break;
+      case ChartType.scatter:
+        _scatter(canvas, plot, fs);
+        break;
+      case ChartType.radar:
+        _radar(canvas, plot, fs);
+        break;
     }
+    if (chart.approx) _approxBadge(canvas, size, fs);
   }
 
   // -------------------------------------------------------------- yardımcı
@@ -61,6 +72,53 @@ class ChartPainter extends CustomPainter {
       for (final v in s.values) {
         mn = math.min(mn, v);
         mx = math.max(mx, v);
+      }
+    }
+    if (mn == mx) mx = mn + 1;
+    return (min: mn, max: mx);
+  }
+
+  /// Değer ekseni etiketi (%100 yığılmışta "%" ekli).
+  String _vfmt(double v) =>
+      chart.grouping == ChartGrouping.percent ? '${_fmt(v)}%' : _fmt(v);
+
+  /// Yığılmış / %100: her serinin kategori başına (taban, uç) değeri; artılar
+  /// yukarı, eksiler aşağı birikir (Excel gibi). Yan yana grafikte null.
+  List<List<(double, double)>>? _stack(int n) {
+    if (chart.grouping == ChartGrouping.standard) return null;
+    final pct = chart.grouping == ChartGrouping.percent;
+    double at(ChartSeries s, int c) => c < s.values.length ? s.values[c] : 0.0;
+    final total = List.filled(n, 0.0);
+    if (pct) {
+      for (final s in chart.series) {
+        for (var c = 0; c < n; c++) {
+          total[c] += at(s, c).abs();
+        }
+      }
+    }
+    final pos = List.filled(n, 0.0), neg = List.filled(n, 0.0);
+    final out = <List<(double, double)>>[];
+    for (final s in chart.series) {
+      final row = <(double, double)>[];
+      for (var c = 0; c < n; c++) {
+        var v = at(s, c);
+        if (pct) v = total[c] == 0 ? 0 : v / total[c] * 100;
+        final acc = v >= 0 ? pos : neg;
+        final base = acc[c];
+        acc[c] += v;
+        row.add((base, acc[c]));
+      }
+      out.add(row);
+    }
+    return out;
+  }
+
+  ({double min, double max}) _stackRange(List<List<(double, double)>> st) {
+    var mn = 0.0, mx = 0.0;
+    for (final row in st) {
+      for (final (_, e) in row) {
+        mn = math.min(mn, e);
+        mx = math.max(mx, e);
       }
     }
     if (mn == mx) mx = mn + 1;
@@ -158,10 +216,12 @@ class ChartPainter extends CustomPainter {
 
   // ------------------------------------------------ sütun / çizgi (dikey değer)
 
-  void _barsOrLine(Canvas canvas, Rect area, double fs, {required bool line}) {
+  void _barsOrLine(Canvas canvas, Rect area, double fs,
+      {required bool line, bool fillArea = false}) {
     final n = _catCount;
     if (n == 0) return;
-    final rng = _range();
+    final stack = _stack(n);
+    final rng = stack == null ? _range() : _stackRange(stack);
     final span = rng.max - rng.min;
     // İkincil eksen (Faz 36): ayrı ölçek, etiketleri sağda.
     final hasSecondary = chart.series.any((x) => x.secondary);
@@ -169,7 +229,7 @@ class ChartPainter extends CustomPainter {
     final span2 = rng2.max - rng2.min;
 
     // Değer etiketleri için sol boşluk, kategori etiketleri için alt boşluk.
-    final maxLbl = _tp(_fmt(rng.max), fs);
+    final maxLbl = _tp(_vfmt(rng.max), fs);
     final leftPad = maxLbl.width + 6;
     maxLbl.dispose();
     var rightPad = fs * 0.5;
@@ -201,13 +261,19 @@ class ChartPainter extends CustomPainter {
       final y = yFor(t);
       canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y),
           Paint()..color = _axis..strokeWidth = 0.7);
-      final tp = _tp(_fmt(t), fs);
+      final tp = _tp(_vfmt(t), fs);
       tp.paint(canvas, Offset(plot.left - tp.width - 3, y - tp.height / 2));
       tp.dispose();
     }
 
-    final baseline = yFor(rng.min < 0 ? 0 : rng.min);
+    final baseValue = rng.min < 0 ? 0.0 : rng.min;
+    final baseline = yFor(baseValue);
     final groupW = plot.width / n;
+    // Serinin c. noktası (taban, uç): yığılmışta birikmiş, değilse eksenden.
+    (double, double) pt(ChartSeries s, int c) {
+      if (stack != null) return stack[chart.series.indexOf(s)][c];
+      return (baseValue, c < s.values.length ? s.values[c] : 0.0);
+    }
 
     final barSeries = [
       if (!line)
@@ -223,7 +289,7 @@ class ChartPainter extends CustomPainter {
         final path = Path();
         final dots = <Offset>[];
         for (var i = 0; i < n; i++) {
-          final v = i < s.values.length ? s.values[i] : 0.0;
+          final v = pt(s, i).$2;
           final x = plot.left + groupW * (i + 0.5);
           final o = Offset(x, yOf(s, v));
           if (i == 0) {
@@ -232,6 +298,16 @@ class ChartPainter extends CustomPainter {
             path.lineTo(o.dx, o.dy);
           }
           dots.add(o);
+        }
+        if (fillArea) {
+          // Alan: uçlardan ileri, tabandan geri kapanan çokgen.
+          final poly = Path()..addPolygon(dots, false);
+          for (var i = n - 1; i >= 0; i--) {
+            poly.lineTo(dots[i].dx, yOf(s, pt(s, i).$1));
+          }
+          poly.close();
+          canvas.drawPath(poly, Paint()..color = s.color);
+          dots.clear();
         }
         canvas.drawPath(
             path,
@@ -247,16 +323,18 @@ class ChartPainter extends CustomPainter {
       }
     }
     if (barSeries.isNotEmpty) {
-      final m = barSeries.length;
+      // Yığılmışta tüm seriler aynı sütunda üst üste.
+      final m = stack == null ? barSeries.length : 1;
       final gap = groupW * 0.15;
       final barW = (groupW - 2 * gap) / math.max(1, m);
       for (var c = 0; c < n; c++) {
-        for (var si = 0; si < m; si++) {
-          final vals = barSeries[si].values;
-          final v = c < vals.length ? vals[c] : 0.0;
-          final x = plot.left + c * groupW + gap + si * barW;
+        for (var si = 0; si < barSeries.length; si++) {
+          final (b, v) = pt(barSeries[si], c);
+          final x =
+              plot.left + c * groupW + gap + (stack == null ? si : 0) * barW;
           final yv = yOf(barSeries[si], v);
-          final top = math.min(yv, baseline), bot = math.max(yv, baseline);
+          final yb = stack == null ? baseline : yFor(b);
+          final top = math.min(yv, yb), bot = math.max(yv, yb);
           canvas.drawRect(Rect.fromLTWH(x, top, barW * 0.88, bot - top),
               Paint()..color = barSeries[si].color);
         }
@@ -281,7 +359,7 @@ class ChartPainter extends CustomPainter {
       for (final s in lineSeries) {
         final path = Path();
         for (var i = 0; i < n; i++) {
-          final v = i < s.values.length ? s.values[i] : 0.0;
+          final v = pt(s, i).$2;
           final o = Offset(plot.left + groupW * (i + 0.5), yOf(s, v));
           if (i == 0) {
             path.moveTo(o.dx, o.dy);
@@ -315,7 +393,8 @@ class ChartPainter extends CustomPainter {
   void _bars(Canvas canvas, Rect area, double fs, {required bool horizontal}) {
     final n = _catCount;
     if (n == 0) return;
-    final rng = _range();
+    final stack = _stack(n);
+    final rng = stack == null ? _range() : _stackRange(stack);
     final span = rng.max - rng.min;
 
     // En geniş kategori etiketi için sol boşluk.
@@ -336,7 +415,7 @@ class ChartPainter extends CustomPainter {
       final x = xFor(t);
       canvas.drawLine(Offset(x, plot.top), Offset(x, plot.bottom),
           Paint()..color = _axis..strokeWidth = 0.7);
-      final tp = _tp(_fmt(t), fs);
+      final tp = _tp(_vfmt(t), fs);
       tp.paint(canvas, Offset(x - tp.width / 2, plot.bottom + 3));
       tp.dispose();
     }
@@ -345,14 +424,15 @@ class ChartPainter extends CustomPainter {
     final groupH = plot.height / n;
     final m = chart.series.length;
     final gap = groupH * 0.15;
-    final barH = (groupH - 2 * gap) / math.max(1, m);
+    final barH = (groupH - 2 * gap) / math.max(1, stack == null ? m : 1);
     for (var c = 0; c < n; c++) {
       for (var si = 0; si < m; si++) {
         final vals = chart.series[si].values;
-        final v = c < vals.length ? vals[c] : 0.0;
-        final y = plot.top + c * groupH + gap + si * barH;
+        final v = stack?[si][c].$2 ?? (c < vals.length ? vals[c] : 0.0);
+        final y = plot.top + c * groupH + gap + (stack == null ? si : 0) * barH;
         final xv = xFor(v);
-        final l = math.min(xv, baseX), r = math.max(xv, baseX);
+        final xb = stack == null ? baseX : xFor(stack[si][c].$1);
+        final l = math.min(xv, xb), r = math.max(xv, xb);
         canvas.drawRect(Rect.fromLTWH(l, y, r - l, barH * 0.88),
             Paint()..color = chart.series[si].color);
       }
@@ -363,6 +443,137 @@ class ChartPainter extends CustomPainter {
         tp.dispose();
       }
     }
+  }
+
+  // ------------------------------------------------ dağılım (XY)
+
+  void _scatter(Canvas canvas, Rect area, double fs) {
+    List<double> xsOf(ChartSeries s) =>
+        s.xValues ?? [for (var i = 0; i < s.values.length; i++) i + 1.0];
+    var mnX = 0.0, mxX = 0.0;
+    for (final s in chart.series) {
+      for (final x in xsOf(s)) {
+        mnX = math.min(mnX, x);
+        mxX = math.max(mxX, x);
+      }
+    }
+    if (mnX == mxX) mxX = mnX + 1;
+    final rng = _range();
+    final maxLbl = _tp(_fmt(rng.max), fs);
+    final plot = Rect.fromLTRB(area.left + maxLbl.width + 6, area.top + fs,
+        area.right - fs, area.bottom - fs * 1.5);
+    maxLbl.dispose();
+    if (plot.width <= 0 || plot.height <= 0) return;
+    double xFor(double v) => plot.left + (v - mnX) / (mxX - mnX) * plot.width;
+    double yFor(double v) =>
+        plot.bottom - (v - rng.min) / (rng.max - rng.min) * plot.height;
+    final grid = Paint()
+      ..color = _axis
+      ..strokeWidth = 0.7;
+    for (var k = 0; k <= 2; k++) {
+      final ty = rng.min + (rng.max - rng.min) * k / 2;
+      final y = yFor(ty);
+      canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y), grid);
+      final tp = _tp(_fmt(ty), fs);
+      tp.paint(canvas, Offset(plot.left - tp.width - 3, y - tp.height / 2));
+      tp.dispose();
+      final tx = mnX + (mxX - mnX) * k / 2;
+      final xl = _tp(_fmt(tx), fs);
+      xl.paint(canvas, Offset(xFor(tx) - xl.width / 2, plot.bottom + 3));
+      xl.dispose();
+    }
+    canvas.drawLine(plot.bottomLeft, plot.topLeft, grid);
+    final r = math.max(2.0, area.height * 0.012);
+    for (final s in chart.series) {
+      final xs = xsOf(s);
+      final pts = [
+        for (var i = 0; i < math.min(xs.length, s.values.length); i++)
+          Offset(xFor(xs[i]), yFor(s.values[i])),
+      ];
+      if (s.asLine && pts.length > 1) {
+        canvas.drawPath(
+            Path()..addPolygon(pts, false),
+            Paint()
+              ..color = s.color
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = math.max(1.5, area.height * 0.006));
+      }
+      for (final o in pts) {
+        canvas.drawCircle(o, r, Paint()..color = s.color);
+      }
+    }
+  }
+
+  // ------------------------------------------------ radar
+
+  void _radar(Canvas canvas, Rect area, double fs) {
+    final n = _catCount;
+    if (n == 0) return;
+    final rng = _range();
+    final span = rng.max - rng.min;
+    final c = area.center;
+    final rad = math.min(area.width, area.height) / 2 - fs * 1.8;
+    if (rad <= 4) return;
+    Offset at(int i, double v) {
+      final a = -math.pi / 2 + 2 * math.pi * i / n;
+      final k = (v - rng.min) / span * rad;
+      return c + Offset(math.cos(a) * k, math.sin(a) * k);
+    }
+
+    final grid = Paint()
+      ..color = _axis
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.7;
+    for (final lv in const [1 / 3, 2 / 3, 1.0]) {
+      canvas.drawPath(
+          Path()
+            ..addPolygon(
+                [for (var i = 0; i < n; i++) at(i, rng.min + span * lv)], true),
+          grid);
+    }
+    for (var i = 0; i < n; i++) {
+      final edge = at(i, rng.max);
+      canvas.drawLine(c, edge, grid);
+      if (i < chart.categories.length) {
+        final tp = _tp(chart.categories[i], fs, maxW: rad);
+        final dir = (edge - c) / rad;
+        final o = edge + dir * (fs * 0.9);
+        tp.paint(canvas, o - Offset(tp.width / 2, tp.height / 2));
+        tp.dispose();
+      }
+    }
+    final mx = _tp(_fmt(rng.max), fs);
+    mx.paint(canvas, at(0, rng.max) + Offset(3, -mx.height / 2));
+    mx.dispose();
+    for (final s in chart.series) {
+      final poly = Path()
+        ..addPolygon([
+          for (var i = 0; i < n; i++)
+            at(i, i < s.values.length ? s.values[i] : 0.0),
+        ], true);
+      if (chart.filled) {
+        canvas.drawPath(
+            poly, Paint()..color = s.color.withValues(alpha: 0.45));
+      }
+      canvas.drawPath(
+          poly,
+          Paint()
+            ..color = s.color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = math.max(1.5, area.height * 0.006)
+            ..strokeJoin = StrokeJoin.round);
+    }
+  }
+
+  /// Dosyadaki tür en yakın türle çizildi: sağ üstte küçük "≈ yaklaşık".
+  void _approxBadge(Canvas canvas, Size size, double fs) {
+    final tp = _tp(AppStrings.current.t('chart.approx'), fs);
+    final r = Rect.fromLTWH(
+        size.width - tp.width - 10, 2, tp.width + 8, tp.height + 4);
+    canvas.drawRRect(RRect.fromRectAndRadius(r, Radius.circular(fs * 0.4)),
+        Paint()..color = AppColors.chartApproxBadge);
+    tp.paint(canvas, r.topLeft + const Offset(4, 2));
+    tp.dispose();
   }
 
   /// En küçük kareler doğrusu `y = a + b·i` (i = 0..n-1); 2 noktadan azsa null.
