@@ -143,6 +143,7 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
             ('copy', AppIcons.copy, 'common.copy'),
             ('paste', AppIcons.paste, 'common.paste'),
             ('paste_values', AppIcons.paste, 'excel.paste_values'),
+            ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
             ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
             ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
             ('clear', AppIcons.backspace, 'excel.clear_contents'),
@@ -178,6 +179,8 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         await _paste();
       case 'paste_values':
         _pasteSpecial(values: true);
+      case 'paste_formulas':
+        _pasteFormulas();
       case 'paste_formats':
         _pasteSpecial(formats: true);
       case 'paste_transpose':
@@ -246,6 +249,17 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
       }
     }
     _editCells('excel.undo_paste', out, formatSources: fmt.isEmpty ? null : fmt);
+  }
+
+  /// Yalnız formüller (B10 m.7): değer/formül başvuruları normal yapıştırma
+  /// gibi kayar, hedefin biçimi korunur.
+  void _pasteFormulas() {
+    final clip = _clip;
+    if (clip == null || _sheet == null) {
+      _snack(context.t('excel.nothing_to_paste'));
+      return;
+    }
+    _editCells('excel.undo_paste', pasteCells(clip, _range));
   }
 
   void _clearFormats() {

@@ -102,6 +102,7 @@ const Map<String, (String, String, String)> _t14 = {
   'excel.keyboard_123': ('Sayı tuş takımı', 'Number keypad', 'لوحة الأرقام'),
   'excel.keyboard_abc': ('Harf klavyesi', 'Letter keyboard', 'لوحة الأحرف'),
   'excel.paste_values': ('Yalnız değerleri yapıştır', 'Paste values only', 'لصق القيم فقط'),
+  'excel.paste_formulas': ('Yalnız formülleri yapıştır', 'Paste formulas only', 'لصق الصيغ فقط'),
   'excel.paste_formats': ('Yalnız biçimi yapıştır', 'Paste formatting only', 'لصق التنسيق فقط'),
   'excel.paste_transpose': ('Devrik yapıştır', 'Paste transposed', 'لصق مع تبديل الصفوف والأعمدة'),
   'excel.clear_formats': ('Biçimi temizle', 'Clear formats', 'مسح التنسيقات'),
