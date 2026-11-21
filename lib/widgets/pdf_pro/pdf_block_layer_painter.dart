@@ -10,11 +10,9 @@ class _LayerPainter extends CustomPainter {
     required this.accent,
     required this.pending,
     required this.px,
-    required this.drag,
-    required this.widthDrag,
     required this.itemRect,
-    required this.itemScale,
     required this.itemGrip,
+    required this.groupRects,
     required this.onAccent,
     required this.movable,
     required this.annotRect,
@@ -36,9 +34,11 @@ class _LayerPainter extends CustomPainter {
   final Color accent, pending, strokeColor, onAccent;
   final Offset? itemGrip;
   final bool movable;
-  final double px, widthDrag, itemScale, strokeWidth;
-  final Offset drag;
+  final double px, strokeWidth;
   final Rect? itemRect, annotRect;
+
+  /// Çoklu seçimin üyeleri (Faz 59 m.5); boşsa tekli seçim.
+  final List<Rect> groupRects;
   final PdfLiveEdit? live;
   final Offset Function(double x, double y) toWidget;
   final ValueNotifier<bool> caretOn;
@@ -64,51 +64,16 @@ class _LayerPainter extends CustomPainter {
     line(r.bottomLeft, r.topLeft);
   }
 
-  /// Taşıma tutamacı: dolu daire + dört yön oku.
-  void _moveGrip(Canvas canvas, Offset at) {
-    final rad = PdfEditTokens.grip / 2 * px;
-    canvas.drawCircle(at, rad, Paint()..color = accent);
-    final p = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6 * px
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..color = onAccent;
-    final arm = rad * 0.58, head = rad * 0.24;
-    for (final d in const [
-      Offset(1, 0),
-      Offset(-1, 0),
-      Offset(0, 1),
-      Offset(0, -1)
-    ]) {
-      final tip = at + d * arm;
-      final side = Offset(d.dy, d.dx) * head;
-      canvas
-        ..drawLine(at, tip, p)
-        ..drawLine(tip, tip - d * head + side, p)
-        ..drawLine(tip, tip - d * head - side, p);
-    }
-  }
+  void _moveGrip(Canvas canvas, Offset at) =>
+      _paintMoveGrip(canvas, at, accent, onAccent, px);
 
   /// **Bu boyayıcı dokunuşu YUTMAZ** (sınıf açıklamasındaki kök neden;
   /// `CustomPainter.hitTest` null dönerse `CustomPaint` her dokunuşu yutar).
   @override
   bool hitTest(Offset position) => false;
 
-  void _selection(Canvas canvas, Rect r) {
-    canvas.drawRect(
-        r, Paint()..color = accent.withValues(alpha: PdfEditTokens.frameFillAlpha));
-    canvas.drawRect(
-        r,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = PdfEditTokens.frameActiveWidth * px
-          ..color = accent);
-    final handle = Paint()..color = accent;
-    for (final c in [r.topLeft, r.topRight, r.bottomLeft, r.bottomRight]) {
-      canvas.drawCircle(c, PdfEditTokens.handle / 2 * px, handle);
-    }
-  }
+  void _selection(Canvas canvas, Rect r) =>
+      _paintSelection(canvas, r, accent, px);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -131,9 +96,7 @@ class _LayerPainter extends CustomPainter {
     }
     final s = selected;
     if (s != null && s < rects.length) {
-      final base = rects[s].inflate(2 * px).shift(drag);
-      final r = Rect.fromLTRB(
-          base.left, base.top, base.right + widthDrag, base.bottom);
+      final r = rects[s].inflate(2 * px);
       _selection(canvas, r);
       // Genişlik tutamacı (sağ kenarın ortası).
       canvas.drawRRect(
@@ -146,11 +109,18 @@ class _LayerPainter extends CustomPainter {
     }
     final ir = itemRect;
     if (ir != null) {
-      final r = Rect.fromLTWH(ir.left + drag.dx, ir.top + drag.dy,
-          ir.width * itemScale, ir.height * itemScale);
-      _selection(canvas, r);
+      _selection(canvas, ir);
       final g = itemGrip;
-      if (g != null && itemScale == 1) _moveGrip(canvas, g + drag);
+      if (g != null) _moveGrip(canvas, g);
+    }
+    for (final r in groupRects) {
+      _dashed(
+          canvas,
+          r.inflate(2 * px),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = PdfEditTokens.frameActiveWidth * px
+            ..color = accent);
     }
     final ar = annotRect;
     if (ar != null) {
@@ -245,4 +215,155 @@ class _LayerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LayerPainter old) => true;
+}
+
+/// Seçim çerçevesi: hafif dolgu, kontur, dört köşe tutamacı.
+void _paintSelection(Canvas canvas, Rect r, Color accent, double px) {
+  canvas.drawRect(
+      r, Paint()..color = accent.withValues(alpha: PdfEditTokens.frameFillAlpha));
+  canvas.drawRect(
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = PdfEditTokens.frameActiveWidth * px
+        ..color = accent);
+  final handle = Paint()..color = accent;
+  for (final c in [r.topLeft, r.topRight, r.bottomLeft, r.bottomRight]) {
+    canvas.drawCircle(c, PdfEditTokens.handle / 2 * px, handle);
+  }
+}
+
+/// Taşıma tutamacı: dolu daire + dört yön oku.
+void _paintMoveGrip(
+    Canvas canvas, Offset at, Color accent, Color onAccent, double px) {
+  final rad = PdfEditTokens.grip / 2 * px;
+  canvas.drawCircle(at, rad, Paint()..color = accent);
+  final p = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 1.6 * px
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round
+    ..color = onAccent;
+  final arm = rad * 0.58, head = rad * 0.24;
+  for (final d in const [
+    Offset(1, 0),
+    Offset(-1, 0),
+    Offset(0, 1),
+    Offset(0, -1)
+  ]) {
+    final tip = at + d * arm;
+    final side = Offset(d.dy, d.dx) * head;
+    canvas
+      ..drawLine(at, tip, p)
+      ..drawLine(tip, tip - d * head + side, p)
+      ..drawLine(tip, tip - d * head - side, p);
+  }
+}
+
+/// Sürükleme önizlemesi (taşı / genişlet / ölçekle). **Kasma kuralı:**
+/// sürükleme sırasında yalnız bu boyayıcı yeniden çizilir — katman yeniden
+/// kurulmaz, öteki blok kılavuzları boyanmaz ([_DragPainter] `repaint`).
+class _DragPreview extends ChangeNotifier {
+  /// Sürüklenen çerçeve (katman pikseli); null = sürükleme yok.
+  Rect? frame;
+  List<Rect> members = const [];
+  /// Taşıma tutamacının çerçevenin üst ortasına göre yeri; null = çizilmez.
+  Offset? grip;
+  PdfSnapTargets? targets;
+
+  Offset _raw = Offset.zero;
+  Offset drag = Offset.zero;
+  double width = 0, scale = 1;
+  PdfSnap snap = PdfSnap.none;
+
+  void begin(Rect frame,
+      {List<Rect> members = const [], Offset? grip, PdfSnapTargets? targets}) {
+    this.frame = frame;
+    this.members = members;
+    this.grip = grip;
+    this.targets = targets;
+    _raw = Offset.zero;
+    drag = Offset.zero;
+    width = 0;
+    scale = 1;
+    snap = PdfSnap.none;
+    notifyListeners();
+  }
+
+  /// Taşıma: ham kayma + tutunma. Kılavuz yeni belirdiyse true (titreşim).
+  bool move(Offset delta) {
+    _raw += delta;
+    final f = frame, t = targets;
+    final hadGuide = snap.xs.isNotEmpty || snap.ys.isNotEmpty;
+    snap = f == null || t == null ? PdfSnap(_raw, const [], const []) : t.snap(f, _raw);
+    drag = snap.offset;
+    notifyListeners();
+    return !hadGuide && (snap.xs.isNotEmpty || snap.ys.isNotEmpty);
+  }
+
+  void widen(double dx) {
+    width += dx;
+    notifyListeners();
+  }
+
+  void resize(double s) {
+    scale = s;
+    notifyListeners();
+  }
+
+  void end() {
+    frame = null;
+    members = const [];
+    grip = null;
+    targets = null;
+    snap = PdfSnap.none;
+    notifyListeners();
+  }
+}
+
+class _DragPainter extends CustomPainter {
+  _DragPainter(this.preview,
+      {required this.accent, required this.onAccent, required this.px})
+      : super(repaint: preview);
+
+  final _DragPreview preview;
+  final Color accent, onAccent;
+  final double px;
+
+  @override
+  bool hitTest(Offset position) => false;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final f = preview.frame;
+    if (f == null) return;
+    final d = preview.drag, s = preview.scale;
+    final guide = Paint()
+      ..strokeWidth = 1 * px
+      ..color = accent;
+    for (final x in preview.snap.xs) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), guide);
+    }
+    for (final y in preview.snap.ys) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), guide);
+    }
+    final member = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = PdfEditTokens.frameActiveWidth * px
+      ..color = accent;
+    for (final m in preview.members) {
+      canvas.drawRect(m.inflate(2 * px).shift(d), member);
+    }
+    final r = Rect.fromLTWH(f.left + d.dx, f.top + d.dy,
+        f.width * s + preview.width, f.height * s);
+    _paintSelection(canvas, r, accent, px);
+    final g = preview.grip;
+    if (g != null && s == 1) {
+      _paintMoveGrip(canvas, r.topCenter + g, accent, onAccent, px);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DragPainter old) =>
+      old.preview != preview || old.accent != accent || old.px != px;
 }
