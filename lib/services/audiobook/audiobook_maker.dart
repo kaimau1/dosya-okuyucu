@@ -17,18 +17,24 @@ enum AudiobookVoice {
   /// Cihazın konuşma motoru (Google TTS vb.) — indirme yok.
   system,
   antalia,
-  ema;
+  ema,
+  kokoroTr,
+  kokoroEn;
 
   NeuralVoice? get neural => switch (this) {
         AudiobookVoice.system => null,
         AudiobookVoice.antalia => NeuralVoice.antalia,
         AudiobookVoice.ema => NeuralVoice.ema,
+        AudiobookVoice.kokoroTr => NeuralVoice.kokoroTr,
+        AudiobookVoice.kokoroEn => NeuralVoice.kokoroEn,
       };
 
   String get folderTag => switch (this) {
         AudiobookVoice.system => '',
         AudiobookVoice.antalia => ' (Antalia)',
         AudiobookVoice.ema => ' (EMA)',
+        AudiobookVoice.kokoroTr => ' (Kokoro)',
+        AudiobookVoice.kokoroEn => ' (Kokoro EN)',
       };
 }
 

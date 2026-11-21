@@ -1619,6 +1619,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Ayarlar → Yapay zekâ → Görev başına model: en üstte "Akıllı kararlar — gemini-decision-1".
 - (U6 b) Uygulamalar: kullanım izni varken listenin üstünde öneri kartı ("X 40 gündür açılmadı, 200 MB" ya da "X önbelleği 400 MB"); "Bir daha önerme" → kart sıradakine geçer; menüde "Gizlenen n öneriyi geri getir".
 - (U6 c) Bellek analizi → Ayıkla satırı alt yazısı: "bulanık n · ekran görüntüsü n · kopya n" dökümü.
+- [ ] (U6 a) Ayarlar → Yapay zekâ sesleri: "Kokoro Türkçe" (~134 MB, ORT yoksa +14 MB) ve "Kokoro English" (~111 MB) kartları; indir → % ilerliyor, bitince "kurulu"; birini sil → öteki çalışmaya devam (ortak espeak-ng kalır).
+- [ ] (U6 a) Kokoro Türkçe seçili sesli okuma: "Toplantı 12 Mart 2025'te saat 14:30'da, bilet %15 indirimle 250 TL." → sayı/tarih/saat/yüzde/TL doğru okunuyor mu, ses kadın (Elif), cızırtı/sessizlik yok mu? Kokoro English İngilizce metinde doğal mı?
+- [ ] (U6 a) **HIZ (ölç):** masaüstü Chromium'da 9,3 sn ses ≈ 14–15 sn sürdü (gerçek zamanın ~0,6×'i). Telefonda bir paragrafın üretim süresi / ses süresi oranını not et; sesli okumada parçalar arası bekleme uzunsa Kokoro yalnız sesli kitap için önerilmeli (sabah bakılacak). İlk yüklemede bellek/ısınma.
+- [ ] (U6 a) Sesli kitap → Kokoro Türkçe ile 1 bölüm üret: klasör "(Kokoro)" ekli, bölüm zaman aşımına düşmeden bitiyor mu?
 ## 2026-11-19 — Word 2.0 m.7 Yazma hissi (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
 - [ ] Klavye açıkken üstteki çubuk: imleç yalnızken madde/numara/girinti/hizalama + K T A; bir sözcük seçince K T A S, renk, vurgu (sarı), biçimi temizle görünüyor mu? Seçim kalkınca çubuk zıplamadan geri dönüyor mu?
 - [ ] Gboard (Türkçe): "işte geldi. ılık" yaz → "İşte geldi. Ilık"; "3. sınıf", "vb. gibi", "www.ornek.com" küçük kalıyor mu? İngilizce arayüzde "i" → "I" mi?
