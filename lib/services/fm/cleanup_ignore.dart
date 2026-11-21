@@ -79,7 +79,6 @@ class CleanupIgnore {
       applyTo(list, ids: _ids, paths: _paths);
 
   /// Saf (birim testli).
-  @visibleForTesting
   static List<CleanupSuggestion> applyTo(
     List<CleanupSuggestion> list, {
     required Set<String> ids,
