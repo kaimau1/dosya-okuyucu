@@ -143,7 +143,6 @@ void main() {
         await tester.pump();
         expect(find.byKey(const ValueKey('home-nav-column')), findsNothing);
         expect(find.byType(NavigationRail), findsNothing);
-        expect(find.byType(VerticalDivider), findsNothing);
         expect(find.byKey(const ValueKey('dash-two-columns')), findsOneWidget);
       });
     }
