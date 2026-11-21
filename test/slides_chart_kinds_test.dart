@@ -5,6 +5,7 @@ import 'package:dosya_okuyucu/services/pptx/pro/pptx_package.dart';
 import 'package:dosya_okuyucu/services/pptx_editor.dart';
 import 'package:dosya_okuyucu/services/pptx_render.dart';
 import 'package:dosya_okuyucu/services/pptx_writer.dart';
+import 'package:dosya_okuyucu/services/xlsx_chart.dart';
 import 'package:dosya_okuyucu/widgets/chart_painter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -53,6 +54,11 @@ void main() {
             : '<c:grouping val="percentStacked"/>'));
       }
       expect(xml, contains('<c:externalData'));
+      // Seri rengi sunum temasına bağlı (sabit RGB değil) — B11 renk.
+      expect(xml, contains('<a:schemeClr val="accent1"/>'));
+      for (final hex in XlsxChartWriter.palette) {
+        expect(xml, isNot(contains('<a:srgbClr val="$hex"/>')));
+      }
 
       final shape = PptxEditor.parse(b)
           .slides
