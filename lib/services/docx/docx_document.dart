@@ -180,6 +180,14 @@ class DocxRev {
   const DocxRev(this.author, this.date, {this.source});
 }
 
+/// İzlenen biçim değişikliği (`w:rPrChange`): kim/ne zaman + biçimin ESKİ
+/// hâli (`w:rPr`; reddedilince geri gelir).
+class DocxFmtRev {
+  final DocxRev rev;
+  final XmlElement old;
+  const DocxFmtRev(this.rev, this.old);
+}
+
 /// Bir harfin biçimi: özgün run (+ özgün metni) ve kullanıcı örtmeleri.
 class DocxCharStyle {
   /// Özgün `w:r` (yeni yazıda ve paragraf işaretinde null).
@@ -198,8 +206,11 @@ class DocxCharStyle {
   /// İzlenen ekleme işareti (yoksa null).
   final DocxRev? rev;
 
+  /// İzlenen biçim değişikliği (yoksa null) — kayıtta `w:rPrChange`.
+  final DocxFmtRev? fmt;
+
   const DocxCharStyle(this.run, this.runText, this.rPr, this.look,
-      {this.patch = DocxRunPatch.none, this.rev});
+      {this.patch = DocxRunPatch.none, this.rev, this.fmt});
 
   bool? get bold => patch.bold;
   bool? get italic => patch.italic;
@@ -223,12 +234,17 @@ class DocxCharStyle {
           DocxRunPatch patch = DocxRunPatch.none}) =>
       DocxCharStyle(run, runText, rPr, look,
           rev: rev,
+          fmt: fmt,
           patch: this.patch.merge(patch).merge(
               DocxRunPatch(bold: bold, italic: italic, underline: underline)));
 
   /// Aynı run, başka görünüş (paragraf stili değişti).
   DocxCharStyle withLook(DocxRunLook l) =>
-      DocxCharStyle(run, runText, rPr, l, patch: patch, rev: rev);
+      DocxCharStyle(run, runText, rPr, l, patch: patch, rev: rev, fmt: fmt);
+
+  /// Aynı biçim, izlenen biçim değişikliği işaretli.
+  DocxCharStyle withFmt(DocxFmtRev f) =>
+      DocxCharStyle(run, runText, rPr, look, patch: patch, rev: rev, fmt: f);
 
   /// Aynı biçim, başka izleme işareti. Aynı (biçim, işaret) için son nesne
   /// saklanır: art arda yazılan harfler aynı nesneyi paylaşsın (tek run/span).
@@ -237,7 +253,7 @@ class DocxCharStyle {
     final memo = _withRev[this];
     if (memo != null && identical(memo.$1, r)) return memo.$2;
     final out =
-        DocxCharStyle(run, runText, rPr, look, patch: patch, rev: r);
+        DocxCharStyle(run, runText, rPr, look, patch: patch, rev: r, fmt: fmt);
     _withRev[this] = (r, out);
     return out;
   }
@@ -246,7 +262,8 @@ class DocxCharStyle {
 
   /// Run'dan kopmuş hâli (yazılan yeni metin özgün run'ı "aynen" sayılmasın).
   /// Aynı biçim için hep AYNI nesne: ardışık yazılan harfler tek run olur.
-  DocxCharStyle detached() => run == null
+  /// Biçim değişikliği izi yeni yazıya geçmez.
+  DocxCharStyle detached() => run == null && fmt == null
       ? this
       : (_detached[this] ??=
           DocxCharStyle(null, null, rPr, look, patch: patch, rev: rev));
@@ -1191,7 +1208,7 @@ class DocxDocument {
   /// karakter stili kalkar, paragraf stilinin biçimi kalır.
   DocxPara clearFormatting(DocxPara p, int from, int to) {
     final plain = DocxCharStyle(null, null, null, styles.runLook(p.pPr, null));
-    return p.mapStyles(from, to, (s) => plain.withRev(s.rev));
+    return trackFormat(p, p.mapStyles(from, to, (s) => plain.withRev(s.rev)));
   }
 
   /// Biçim boyacısı: [src]'nin harf biçimi (rPr şablonu + örtmeler) hedef
@@ -1199,7 +1216,7 @@ class DocxDocument {
   DocxPara paintFormat(DocxPara p, int from, int to, DocxCharStyle src) {
     final st = DocxCharStyle(null, null, src.rPr, styles.runLook(p.pPr, src.rPr),
         patch: src.patch);
-    return p.mapStyles(from, to, (s) => st.withRev(s.rev));
+    return trackFormat(p, p.mapStyles(from, to, (s) => st.withRev(s.rev)));
   }
 
   // ── listeler ─────────────────────────────────────────────────────────────
@@ -1588,7 +1605,9 @@ class DocxDocument {
         usedRuns.add(run);
         addRun(run, style.rev);
       } else {
-        addRun(_newRun(style, text), style.rev);
+        final r = _newRun(style, text);
+        if (style.fmt case final f?) _addRPrChange(r, f);
+        addRun(r, style.rev);
       }
       k = j;
     }
@@ -1610,6 +1629,24 @@ class DocxDocument {
     ]);
   }
 
+  /// Run'ın `w:rPr`'sine sonda `w:rPrChange` (izlenen biçim değişikliği):
+  /// eski biçim içinde, reddedilince geri gelir.
+  void _addRPrChange(XmlElement r, DocxFmtRev f) {
+    var rPr = _child(r, 'rPr');
+    if (rPr == null) {
+      rPr = XmlElement(const XmlName.qualified('w:rPr'));
+      r.children.insert(0, rPr);
+    }
+    rPr.children.add(XmlElement(const XmlName.qualified('w:rPrChange'), [
+      XmlAttribute(const XmlName.qualified('w:id'), '${_nextRevId()}'),
+      XmlAttribute(const XmlName.qualified('w:author'), f.rev.author),
+      if (f.rev.date.isNotEmpty)
+        XmlAttribute(const XmlName.qualified('w:date'), f.rev.date),
+    ], [
+      f.old.copy()
+    ]));
+  }
+
   /// Belgede kullanılmamış izleme kimliği (artarak).
   int _nextRevId() {
     if (_revId < 0) {
@@ -1625,7 +1662,10 @@ class DocxDocument {
 
   static bool _sameWrite(DocxCharStyle a, DocxCharStyle b) =>
       identical(a, b) ||
-      (identical(a.rPr, b.rPr) && a.patch == b.patch && identical(a.rev, b.rev));
+      (identical(a.rPr, b.rPr) &&
+          a.patch == b.patch &&
+          identical(a.rev, b.rev) &&
+          identical(a.fmt, b.fmt));
 
   static XmlElement _newRun(DocxCharStyle style, String text) {
     final rPr = style.rPr?.copy() ?? XmlElement(const XmlName.qualified('w:rPr'));

@@ -576,7 +576,7 @@ class DocxEditController extends ChangeNotifier
       if (p.opaque) continue;
       final from = i == s.para ? s.offset : 0;
       final to = i == e.para ? e.offset : p.length;
-      doc.paras[i] = p.format(from, to, patch: patch);
+      doc.paras[i] = doc.trackFormat(p, p.format(from, to, patch: patch));
     }
     _changed(notify: true);
   }

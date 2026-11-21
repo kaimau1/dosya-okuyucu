@@ -13,6 +13,8 @@ part of 'docx_document.dart';
 /// (`w:pPr/w:rPr/w:ins`), paragraf birleştirme öncekinin işaretini silinmiş
 /// (`w:pPr/w:rPr/w:del`) yazar — paragraflar ayrı kalır, kabulde Word
 /// birleştirir. Kendi eklediği işareti silmek gerçekten birleştirir.
+/// Biçim değişikliği (kalın, renk, biçimi temizle, biçim boyacısı) harfe
+/// [DocxFmtRev] olarak girer, kayıtta `w:rPrChange` (eski biçimle) olur.
 
 const _settingsRel =
     'http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings';
@@ -251,6 +253,41 @@ extension DocxTrack on DocxDocument {
 
   /// Bu oturumda izlenerek yazıldı/silindi mi (henüz kaydedilmemiş olabilir).
   bool get hasLiveRevisions => _liveTracked;
+
+  // ── biçim değişikliği ───────────────────────────────────────────────────
+
+  /// İzle açıkken [before] → [after] biçim değişikliğinde değişen harfler
+  /// [DocxFmtRev] alır (kayıtta `w:rPrChange` + eski `w:rPr`). Kendi
+  /// eklememizdeki harf işaretlenmez (Word gibi); zaten işaretliyse ilk eski
+  /// biçim korunur.
+  DocxPara trackFormat(DocxPara before, DocxPara after) {
+    if (!trackChanges || identical(before, after)) return after;
+    final rev = _currentRev();
+    final st = [...after.styles];
+    final fmts = Map<DocxCharStyle, DocxFmtRev>.identity();
+    final made = Map<DocxFmtRev, Map<DocxCharStyle, DocxCharStyle>>.identity();
+    var any = false;
+    for (var k = 0; k < st.length && k < before.styles.length; k++) {
+      final b = before.styles[k];
+      if (identical(b, st[k]) || after.atoms[k] != null) continue;
+      if (b.rev != null && b.rev!.author == rev.author) continue;
+      final f = b.fmt ?? (fmts[b] ??= DocxFmtRev(rev, _oldRPr(b)));
+      st[k] = (made[f] ??= Map.identity())[st[k]] ??= st[k].withFmt(f);
+      any = true;
+    }
+    if (!any) return after;
+    _liveTracked = true;
+    return after.copyWith(styles: st);
+  }
+
+  /// Harfin değişiklikten önce yazılacak `w:rPr`'si. Dosyada zaten izlenen
+  /// biçim değişikliği varsa onun eski hâli (ilk durum).
+  static XmlElement _oldRPr(DocxCharStyle s) {
+    final prev = DocxDocument._child(DocxDocument._child(s.rPr, 'rPrChange'), 'rPr');
+    if (prev != null) return prev.copy();
+    return DocxDocument._child(DocxDocument._newRun(s, ''), 'rPr') ??
+        XmlElement(const XmlName.qualified('w:rPr'));
+  }
 
   // ── paragraf işareti ────────────────────────────────────────────────────
 
