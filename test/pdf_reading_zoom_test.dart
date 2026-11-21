@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dosya_okuyucu/services/pdf/pdf_reading_zoom.dart';
@@ -124,6 +126,19 @@ void main() {
       expect(PdfPagedTurn.swipe(const Offset(-80, 0), slow), 0,
           reason: 'yavaş kısa yol sayfa çevirmez');
       expect(PdfPagedTurn.swipe(const Offset(-200, 0), slow), 1);
+    });
+
+    test('sayfa aralığı komşu sayfayı ekran dışında tutar (P28)', () {
+      const view = Size(392, 850); // dikey telefon (dp)
+      const a4 = Size(595, 842); // pt
+      const pad = 8.0;
+      final g = PdfPagedTurn.gap([a4], view, pad: pad);
+      final z = (view.width - 2 * pad) / a4.width; // genişliğe sığar
+      // Ortalanmış sayfanın altındaki boş alan (dp) < aralık × yakınlık.
+      final below = (view.height - a4.height * z) / 2;
+      expect(g * z, greaterThanOrEqualTo(below));
+      // Yatay sayfa ekrandan geniş değilse aralık yine pozitif; boş liste 0.
+      expect(PdfPagedTurn.gap(const [], view), 0);
     });
   });
 }

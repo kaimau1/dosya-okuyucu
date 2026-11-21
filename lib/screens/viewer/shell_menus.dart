@@ -393,22 +393,6 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                                   apply(() => _tabWidth = v.first),
                             ),
                           ),
-                        // Sürükleyici okuma (Ferrari H3.6): çubuklar çekilince
-                        // durum çubuğu da gizlenir; tam ekranda gereksiz.
-                        if (_isPdf)
-                        SwitchListTile(
-                          key: const ValueKey('pdf-hide-status'),
-                          secondary: const Icon(AppIcons.fitScreen),
-                          title: Text(context.t('pp.hide_status')),
-                          subtitle: Text(context.t('pp.hide_status_hint')),
-                          value: _hideStatusBar,
-                          onChanged: _fullscreen
-                              ? null
-                              : (v) {
-                                  _setHideStatusBar(v);
-                                  setSheet(() {});
-                                },
-                        ),
                         SwitchListTile(
                           key: const ValueKey('reading-fullscreen'),
                           secondary: const Icon(AppIcons.fullscreen),
@@ -763,6 +747,24 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                                   apply(() => _tabWidth = v.first),
                             ),
                           ),
+                        // Sürükleyici okuma (Ferrari H3.6): çubuklar çekilince
+                        // durum çubuğu da gizlenir; tam ekranda gereksiz.
+                        // PDF'in Aa levhası BU (P09: metin levhasındaydı,
+                        // PDF'te hiç görünmüyordu).
+                        if (_isPdf)
+                        SwitchListTile(
+                          key: const ValueKey('pdf-hide-status'),
+                          secondary: const Icon(AppIcons.fitScreen),
+                          title: Text(context.t('pp.hide_status')),
+                          subtitle: Text(context.t('pp.hide_status_hint')),
+                          value: _hideStatusBar,
+                          onChanged: _fullscreen
+                              ? null
+                              : (v) {
+                                  _setHideStatusBar(v);
+                                  setSheet(() {});
+                                },
+                        ),
                         SwitchListTile(
                           key: const ValueKey('reading-fullscreen'),
                           secondary: const Icon(AppIcons.fullscreen),

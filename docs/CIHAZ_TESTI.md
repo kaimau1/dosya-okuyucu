@@ -1203,6 +1203,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] **H8.5 döndür:** Videoyu düzenle → beşinci araç "Döndür": önizleme saat yönünde 90° dönüyor, dördüncü dokunuşta başa? Kaydet → çıktı önizlemedekiyle AYNI yöne mi dönmüş (Media3 derece yönü koddan doğrulanmadı — ters dönüyorsa `ci/MediaTranscode.kt` `360 - rotation` → `rotation`)? Dikey telefon videosunda da doğru mu? Beş araç dar telefonda sığıyor mu?
 - [ ] **H8.5 kareyi kaydet:** üst çubuk fotoğraf makinesi → `<ad>_kare_<dk-sn>.jpg` videonun yanında, tam çözünürlük, dikey videoda dik; döndürme seçiliyken fotoğraf da dönmüş mü? Bildirim "Fotoğraf kaydedildi: …"; galeride görünüyor mu?
 
+## P28 — PDF kabuğu P09 kırmızıları (2026-11-14, dal faz-oto-P28-pdf-kabuk — yazıldı, cihazda doğrulanmadı)
+- 2026-11-15 · Mi Note 10 Lite · A/B hız yarım (tek koşu/taraf, belirgin gerileme yok); aşağıdaki 3 madde gözle DENENMEDİ (kullanıcı ölçümü kesti).
+- [ ] H3.6: PDF › Aa levhasında "Okurken durum çubuğunu da gizle" var; açınca kaydırırken çubuklarla durum çubuğu da gizleniyor, sayfa yerinden zıplamıyor.
+- [ ] H3.7: kaydırırken "N / toplam" rozeti çubuklar görünürken yapay zekâ düğmesinin solunda, çubuklar çekikken sağ altta (tutamacın solunda); hiçbir anda örtülmüyor.
+- [ ] H3.5: "Sayfa sayfa çevir" açık → ekranda yalnız okunan sayfa (altta/üstte komşu sayfa yok); kenar dokunuşu / kaydırma sonraki sayfayı yine ortalıyor; iki parmakla yakınlaşınca serbest gezinme çalışıyor; kip kapanınca belge eski düzenine dönüyor.
+
 ## Ferrari H10/H11 — Durumlar ve görüntüleyici kabuğu (2026-11-14, dal faz-oto-P04-kabuk)
 - [ ] Video: oynarken 3 sn dokunma → üst çubuk, alt denetimler, kilit/döndür bir anda değil yumuşakça soluyor; solarken ekrana dokun → geri geliyor (kaybolmuyor). "Animasyonları kaldır" açıkken doğrudan gizleniyor. Solma sırasında video yerinden oynamıyor.
 - [ ] Video jestleri (var olan, doğrula): kenarda çift dokunuş ±10 sn · yatay sürükleme sarma balonu · sağda dikey ses, solda dikey parlaklık · uzun basış 2×.

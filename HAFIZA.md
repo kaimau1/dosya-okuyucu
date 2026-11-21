@@ -576,3 +576,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-14 — P08 PDF Pro oturum belleği (needsReplay)
 - **Bug kökü:** `PdfEditSession.commitLive` koşulsuz `_restored = true` → yerinde yazma sonrası `needsReplay` hep açık → `PdfEditSaver.encode` her 30 sn geçici kayıtta ve Kaydet'te açılış baytlarından ikinci tam PDFium belgesi açıp komutları yeniden oynatıyordu. commitLive sayfayı anlık görüntüden geri KOYMAZ (sayfa nesnesi aynı; yer imleri bozulmaz) → bayrak gereksizdi. Gizlenen özgünleri bitiş yazımı kaldırır, ara yazımların erişilemez artıklarını (tuş başı yüklenen yedek font vb.) kırpma atar. `_restored` yalnız gerçekten sayfa geri konan yerlerde: undo/redo/cancelLive(changed).
 - **Doğrulanmadı:** bellek etkisi cihazda A/B (C1).
+## 2026-11-14 — P28 PDF kabuğu (P09 kırmızıları)
+- **Kök (H3.6 görünmüyordu):** "durum çubuğunu da gizle" anahtarı `_showReadingSettings` (metin levhası) içine konmuştu; PDF Aa düğmesi `_showPdfReadingSettings` açar → seçenek hiç görünmedi. Bekçi: `test/pdf_reading_sheet_guard_test.dart`. **Tuzak:** iki ayrı Aa levhası var; PDF ayarı daima PDF levhasına.
+- **Kök (H3.7):** rozet `end: 44` ile AI düğmesinin (sağdan 16 + 56 dp) altında; düğme çubuklarla görünür. `ReadingFloat.endShown` (shown ile 44 → 80); kullanıcının "sağ alt" kararı korundu.
+- **Kök (H3.5):** dikey telefonda A4 genişliğe sığınca üst/alt ~150 dp boş; 8 pt aralıklı komşu sayfalar oradan görünüyordu. Kipteyken aralık `PdfPagedTurn.gap` kadar açılır (`_pagedPdfLayout`, yatay düzen aynı).
