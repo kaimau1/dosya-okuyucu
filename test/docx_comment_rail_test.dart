@@ -1,5 +1,7 @@
 // B9b — Word yorum balonu: tablette kenar sütununda (metin daralır),
 // telefonda paragraf altında; yorumsuz belgede sütun yok.
+import 'dart:typed_data';
+
 import 'package:dosya_okuyucu/services/blank_docs.dart';
 import 'package:dosya_okuyucu/services/docx/docx_document.dart';
 import 'package:dosya_okuyucu/widgets/docx_editor/docx_edit_controller.dart';
@@ -8,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DocxEditController _doc({required bool comment}) {
-  final c = DocxEditController(DocxDocument.parse(BlankDocs.blankDocx()));
+  final c = DocxEditController(DocxDocument.parse(Uint8List.fromList(BlankDocs.blankDocx())));
   c.select(const DocPos(0, 0), const DocPos(0, 0));
   c.insertText('Kenar sütunu deneme paragrafı');
   if (comment) {
