@@ -132,6 +132,9 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// Dışa aktarılan grafik görüntüsünün zemini (tema bağımsız beyaz kâğıt).
   static const chartExportPaper = Color(0xFFFFFFFF);
+
+  /// Grafik "yaklaşık" rozeti zemini (en yakın türle çizilen dosya grafiği).
+  static const chartApproxBadge = Color(0xE6FFF4CE);
   static const findMatch = Color(0x7FFFEB3B);
   static const findActive = Color(0x7FFF9800);
 

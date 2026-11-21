@@ -403,6 +403,11 @@ Impeller Vulkan bu telefonda (Adreno 618) **OpenGLES'e düşüyor**. Skia denend
       dolgu rengi/kalın da doldurulan hücrelere geçiyor, Geri al hepsini geri alıyor. A sütunu
       "Ad Soyad" listesi, B2'ye "Ali" yaz → Veri → Hızlı doldurma → B'nin kalanı adlarla doluyor;
       C2'ye soyad, D2'ye "Yılmaz, Ali" ile aynı. `=SATIRSAR({1;2;3;4};2)` 2×2 taşıyor.
+- [ ] **Grafik türleri (B10 m.1, 2026-11-21 — yazıldı, cihazda doğrulanmadı):** `satis.xlsx` A1:C4 →
+      Grafik ekle → yığılmış / %100 yığılmış sütun ve çubuk, alan, halka, dağılım (XY), radar
+      önizlemesi doğru; ekle → kaydet → masaüstü Excel'de aynı tür, "onarıldı" uyarısı yok. X/Y iki
+      sayı sütunu seçip Dağılım → noktalar X değerlerine göre. Excel'de yapılmış 3B sütun / kabarcık /
+      borsa grafiği olan dosya → ızgarada (ve aynı grafik slaytta) çiziliyor, sağ üstte "≈ yaklaşık".
 - [ ] **Görünüm:** sığmayan metin boş komşuya taşıyor, çok satırlı hücreler Excel kadar yüksek;
       kılavuz çizgileri; durum çubuğunda "Sayfa 1 / 3"; büyük dosyada kaydırma (§1).
 - [ ] **Sayfa sekmeleri:** basılı tut + sürükle = sırala (yerinde bırakınca menü); Sola/Sağa taşı;
