@@ -19,6 +19,7 @@ import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
 import '../../widgets/fm/fm_entry_icon.dart';
+import 'entry_actions.dart' show trashWithUndo;
 import 'smart_clutter_screen.dart';
 import 'trash_screen.dart';
 import '../../services/fm/smart_sort.dart';
@@ -141,9 +142,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
   final Set<String> _trashed = {};
 
   Future<void> _trashOne(String path) async {
-    await FmEnv.trash.moveToTrash([path]);
+    // Ortak uç: "Geri al" kartı (B13 m.5 bekçisi `undo_paths_guard_test`).
+    // ponytail: "Geri al" sonrası dosya yeniden taramaya dek listede görünmez.
+    final ok = await trashWithUndo(context, [path]);
     FsEvents.changed();
-    if (!mounted) return;
+    if (!ok || !mounted) return;
     setState(() {
       _trashed.add(path);
       _seedSignature = null;
