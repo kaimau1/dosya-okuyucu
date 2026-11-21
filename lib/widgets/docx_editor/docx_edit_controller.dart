@@ -380,7 +380,7 @@ class DocxEditController extends ChangeNotifier
     final (pPr, look) =
         atEnd ? doc.nextParagraphProps(p) : (p.pPr, p.look);
     final (left, right) = p.split(extent.offset, nextPPr: pPr, nextLook: look);
-    doc.paras[i] = left;
+    doc.paras[i] = doc.markParaInserted(left);
     doc.paras.insert(i + 1, right);
     base = extent = DocPos(i + 1, 0);
     composing = TextRange.empty;
@@ -415,7 +415,18 @@ class DocxEditController extends ChangeNotifier
     }
     _record(typing: false);
     final at = prev.length;
-    doc.paras[i - 1] = prev.join(cur);
+    if (doc.trackChanges) {
+      // İzle açık: önceki paragrafın işareti silinmiş olur, paragraflar
+      // ayrı kalır; imleç öncekinin sonuna (Word gibi).
+      final marked = doc.markParaDeleted(prev);
+      if (marked != null) {
+        doc.paras[i - 1] = marked;
+        base = extent = DocPos(i - 1, at);
+        _changed(notify: notify);
+        return;
+      }
+    }
+    doc.paras[i - 1] = doc.withoutParaIns(prev).join(cur);
     doc.paras.removeAt(i);
     base = extent = DocPos(i - 1, at);
     structure++;
@@ -452,6 +463,13 @@ class DocxEditController extends ChangeNotifier
           final from = k == s.para ? s.offset : 0;
           final to = k == e.para ? e.offset : p.length;
           doc.paras[k] = doc.editText(p, from, to, '', p.mark);
+          // İzle açık: aradaki paragraf işaretleri de silinmiş işaretlenir.
+          if (doc.trackChanges &&
+              k < e.para &&
+              identical(paras[k + 1].container, p.container) &&
+              !paras[k + 1].opaque) {
+            doc.paras[k] = doc.markParaDeleted(doc.paras[k]) ?? doc.paras[k];
+          }
         }
       }
     }

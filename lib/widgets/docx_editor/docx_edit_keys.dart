@@ -39,10 +39,17 @@ extension DocxEditKeys on DocxEditController {
       final next = paras[i + 1];
       if (next.opaque || !identical(next.container, p.container)) return;
       _record(typing: false);
-      doc.paras[i] = p.join(next);
-      doc.paras.removeAt(i + 1);
-      base = extent = DocPos(i, at);
-      structure++;
+      // İzle açık: işaret silinmiş olur, paragraflar ayrı kalır.
+      final marked = doc.trackChanges ? doc.markParaDeleted(p) : null;
+      if (marked != null) {
+        doc.paras[i] = marked;
+        base = extent = DocPos(i + 1, 0);
+      } else {
+        doc.paras[i] = doc.withoutParaIns(p).join(next);
+        doc.paras.removeAt(i + 1);
+        base = extent = DocPos(i, at);
+        structure++;
+      }
     } else {
       final n = at + 1 < p.length && _isHigh(p.text.codeUnitAt(at)) &&
               _isLow(p.text.codeUnitAt(at + 1))
