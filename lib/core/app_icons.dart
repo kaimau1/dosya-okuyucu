@@ -174,6 +174,14 @@ abstract final class AppIcons {
   static const IconData addLink = Icons.add_link_rounded;
   static const IconData album = Icons.album_rounded;
   static const IconData alignHorizontalLeft = Icons.align_horizontal_left_rounded;
+  static const IconData alignHorizontalCenter = Icons.align_horizontal_center_rounded;
+  static const IconData alignHorizontalRight = Icons.align_horizontal_right_rounded;
+  static const IconData alignVerticalTop = Icons.align_vertical_top_rounded;
+  static const IconData alignVerticalCenter = Icons.align_vertical_center_rounded;
+  static const IconData alignVerticalBottom = Icons.align_vertical_bottom_rounded;
+  static const IconData horizontalDistribute = Icons.horizontal_distribute_rounded;
+  static const IconData verticalDistribute = Icons.vertical_distribute_rounded;
+  static const IconData lasso = Icons.highlight_alt_rounded;
   static const IconData analytics = Icons.analytics_rounded;
   static const IconData android = Icons.android_rounded;
   static const IconData arrowDropDownCircle = Icons.arrow_drop_down_circle_rounded;

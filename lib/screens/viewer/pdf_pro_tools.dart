@@ -866,6 +866,47 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         ];
       case PdfProTool.image:
         final item = pro.selectedItem;
+        final group = pro.selectedItems;
+        if (group.length >= 2) {
+          PdfProChip align(IconData i, String key, PdfAxisAlign mode,
+                  {required bool vertical}) =>
+              PdfProChip(i, t(key), () {
+                if (pro.busy) return;
+                pro
+                    .alignSelected(mode,
+                        vertical: vertical, label: 'pse.step_align')
+                    .catchError(_proRefused);
+              }, tapKey: ValueKey('pse-$key'));
+          return [
+            align(AppIcons.alignHorizontalLeft, 'pse.obj_align_left',
+                PdfAxisAlign.start, vertical: false),
+            align(AppIcons.alignHorizontalCenter, 'pse.obj_align_hcenter',
+                PdfAxisAlign.center, vertical: false),
+            align(AppIcons.alignHorizontalRight, 'pse.obj_align_right',
+                PdfAxisAlign.end, vertical: false),
+            align(AppIcons.alignVerticalTop, 'pse.obj_align_top',
+                PdfAxisAlign.end, vertical: true),
+            align(AppIcons.alignVerticalCenter, 'pse.obj_align_vcenter',
+                PdfAxisAlign.center, vertical: true),
+            align(AppIcons.alignVerticalBottom, 'pse.obj_align_bottom',
+                PdfAxisAlign.start, vertical: true),
+            if (group.length >= 3) ...[
+              align(AppIcons.horizontalDistribute, 'pse.obj_distribute_h',
+                  PdfAxisAlign.distribute, vertical: false),
+              align(AppIcons.verticalDistribute, 'pse.obj_distribute_v',
+                  PdfAxisAlign.distribute, vertical: true),
+            ],
+            PdfProChip(AppIcons.delete, t('common.delete'), () {
+              final page = pro.selectedPage;
+              if (page == null || pro.busy) return;
+              pro
+                  .mutate(page,
+                      [PdfMutAction.delete([for (final i in group) i.index])],
+                      label: 'pse.step_delete')
+                  .catchError(_proRefused);
+            }, danger: true),
+          ];
+        }
         if (item != null) {
           return [
             if (item.isImage) ...[
@@ -892,6 +933,9 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         return [
           PdfProChip(AppIcons.addPhoto, t('pse.img_add'), _proInsertImage,
               tapKey: const ValueKey('pse-chip-image')),
+          PdfProChip(AppIcons.lasso, t('pse.obj_lasso'),
+              () => pro.armLasso = !pro.armLasso,
+              active: pro.armLasso, tapKey: const ValueKey('pse-chip-lasso')),
         ];
       case PdfProTool.markup:
         PdfProChip kind(PdfMarkupKind k, IconData i, String key) =>

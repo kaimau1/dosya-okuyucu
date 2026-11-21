@@ -139,6 +139,7 @@ import '../services/pdf/pro/pdf_edit_access.dart';
 import '../services/pdf/pro/pdf_edit_bridge.dart';
 import '../services/pdf/pro/pdf_edit_recovery.dart';
 import '../services/pdf/pro/pdf_edit_session.dart';
+import '../services/pdf/pro/pdf_object_geometry.dart' show PdfAxisAlign;
 import '../services/pdf/pro/pdf_version_history.dart';
 part 'viewer/pending_save.dart';
 part 'viewer/find_replace.dart';

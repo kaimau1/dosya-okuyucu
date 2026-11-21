@@ -226,7 +226,26 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
       _drawReset();
       return;
     }
-    _finishMarkup();
+    c.armLasso ? _finishLasso() : _finishMarkup();
+  }
+
+  /// Kement bitti: merkezi dikdörtgende kalan nesneler seçilir; kement
+  /// bir kez çalışır (görüntüleyici tek parmakla yine kayar).
+  void _finishLasso() {
+    final from = _markFrom, to = _markTo;
+    setState(() {
+      _markFrom = null;
+      _markTo = null;
+      _stroke.clear();
+    });
+    c.armLasso = false;
+    if (from == null || to == null) return;
+    final items = _selectable().toList();
+    final hit = pdfInLasso(
+        [for (final it in items) _itemRect(it)], Rect.fromPoints(from, to));
+    if (hit.isEmpty) return c.clearSelection();
+    AppHaptics.selection();
+    c.selectItems(pageIndex, [for (final k in hit) items[k]]);
   }
 
   /// Dokun / çift dokun / uzun bas hedefi. Görüntüleyicinin içindeyken jesti
@@ -570,6 +589,18 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     }
   }
 
+  Future<void> _dropGroup(List<PdfPageItem> items) async {
+    final d = _preview.drag;
+    _endDrag();
+    if (d.distance < 1.5 * _px) return;
+    try {
+      await c.moveItems(pageIndex, items, d.dx / _unit, -d.dy / _unit,
+          label: 'pse.step_move');
+    } catch (e) {
+      widget.events.onRefused(e);
+    }
+  }
+
   Future<void> _dropItem(PdfPageItem item) async {
     final d = _preview.drag, s = _preview.scale;
     _endDrag();
@@ -608,6 +639,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         final selected = c.selectedPage == pageIndex ? c.selectedBlock : null;
         final item = c.selectedPage == pageIndex ? c.selectedItem : null;
         final annot = c.selectedPage == pageIndex ? c.selectedAnnot : null;
+        final group = c.selectedPage == pageIndex
+            ? c.selectedItems
+            : const <PdfPageItem>[];
+        final groupRects = [for (final it in group) _itemRect(it)];
+        final groupBox = groupRects.isEmpty
+            ? null
+            : groupRects.reduce((a, b) => a.expandToInclude(b));
         final tool = c.tool;
         final px = _px;
 
@@ -620,9 +658,14 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           pending: PdfEditTokens.pending(dark),
           px: px,
           itemRect: item == null || _dragging ? null : _itemRect(item),
-          itemGrip:
-              item == null || _dragging ? null : _gripAnchor(_itemRect(item)),
-          groupRects: const [],
+          itemGrip: _dragging
+              ? null
+              : item != null
+                  ? _gripAnchor(_itemRect(item))
+                  : groupBox == null
+                      ? null
+                      : _gripAnchor(groupBox),
+          groupRects: _dragging ? const [] : groupRects,
           onAccent: scheme.onPrimary,
           movable: selected != null &&
               selected < blocks.length &&
@@ -634,10 +677,12 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           toWidget: _w,
           caretOn: _caretOn,
           stroke: _stroke,
-          strokeColor: c.markup == PdfMarkupKind.redact
-              ? scheme.onSurface
-              : Color(c.markupColor | 0xFF000000),
-          strokeWidth: c.markupWidth * _unit,
+          strokeColor: c.armLasso
+              ? accent
+              : c.markup == PdfMarkupKind.redact
+                  ? scheme.onSurface
+                  : Color(c.markupColor | 0xFF000000),
+          strokeWidth: c.armLasso ? 1.5 * px : c.markupWidth * _unit,
           markFrom: _markFrom,
           markTo: _markTo,
           markRects: _markFrom != null && _markTo != null && _textMarkup
@@ -646,7 +691,11 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                     Rect.fromPoints(_w(q[0], q[1]), _w(q[6], q[7]))
                 ]
               : const [],
-          shape: _shapeMarkup ? c.markup : null,
+          shape: _shapeMarkup
+              ? c.markup
+              : c.armLasso
+                  ? PdfMarkupKind.rect
+                  : null,
         );
 
         final children = <Widget>[
@@ -720,6 +769,14 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                   AppHaptics.selection();
                   _caretTo(at, word: true);
                   _extending = true;
+                  return;
+                }
+                if (tool == PdfProTool.image) {
+                  // Uzun bas = çoklu seçime ekle / çıkar (Faz 59 m.5).
+                  final it = _itemAt(at);
+                  if (it == null) return;
+                  AppHaptics.selection();
+                  c.toggleItem(pageIndex, it);
                   return;
                 }
                 if (tool != PdfProTool.text) return;
@@ -820,6 +877,20 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                       ((w * _preview.scale + e.delta.dx) / w).clamp(0.1, 8.0));
                 },
                 onEnd: () => _dropItem(item)));
+        }
+        // Çoklu seçim: grubun kutusundan tek tutamaç = hepsini taşı.
+        if (live == null && groupBox != null && !c.busy) {
+          final anchor = _gripAnchor(groupBox);
+          children.add(grip(anchor, hs,
+              key: const ValueKey('pse-grip-group'),
+              onStart: () => _preview.begin(groupBox,
+                  members: groupRects,
+                  grip: anchor - groupBox.topCenter,
+                  targets: _targets(items: {for (final i in group) i.index})),
+              onUpdate: (e) {
+                if (_preview.move(e.delta)) AppHaptics.selection();
+              },
+              onEnd: () => _dropGroup(group)));
         }
         return SizedBox.fromSize(
           size: widget.pageSize,

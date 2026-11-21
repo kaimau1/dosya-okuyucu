@@ -108,11 +108,7 @@ class _LayerPainter extends CustomPainter {
       if (movable) _moveGrip(canvas, r.topCenter);
     }
     final ir = itemRect;
-    if (ir != null) {
-      _selection(canvas, ir);
-      final g = itemGrip;
-      if (g != null) _moveGrip(canvas, g);
-    }
+    if (ir != null) _selection(canvas, ir);
     for (final r in groupRects) {
       _dashed(
           canvas,
@@ -122,6 +118,9 @@ class _LayerPainter extends CustomPainter {
             ..strokeWidth = PdfEditTokens.frameActiveWidth * px
             ..color = accent);
     }
+    // Tekli nesnenin ya da grubun taşıma tutamacı.
+    final g = itemGrip;
+    if (g != null) _moveGrip(canvas, g);
     final ar = annotRect;
     if (ar != null) {
       _dashed(
