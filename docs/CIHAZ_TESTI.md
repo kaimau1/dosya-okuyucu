@@ -1646,3 +1646,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Tablette (yatay ve dikey) yorumlu Word belgesi: metin daralır, sarı balonlar sağda kenar sütununda yorumlu paragrafın hizasında; dokununca yorum levhası açılır. Yorumsuz belgede metin tam genişlik.
 - [ ] Telefonda balon eskisi gibi paragraf altında; tablette ilk yorumu ekleyince sütun açılır, yazarken takılma yok.
 - [ ] A/B (C2): tablette yorumlu belgede yazma/kaydırma karesi (ölçülmedi).
+
+## U8 Yer aç: dosyayı aç, bak, tek tek sil (2026-11-21) — yazıldı, cihazda doğrulanmadı
+- Yer aç → bir öneride "n dosyayı gör" → dosyaya dokun: görsel/video/belge uygulamada açılmalı; geri gel → aynı liste.
+- Satırdaki çöp düğmesi: dosya listeden ve öneri boyutundan hemen düşmeli, Çöp kutusunda görünmeli; Önemli Dosyalar'da olanlarda çöp düğmesi yok.
+

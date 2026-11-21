@@ -11,6 +11,7 @@ import '../../services/fm/important_files.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/cleanup_ignore.dart';
 import '../../services/fm/duplicate_finder.dart';
+import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
@@ -130,8 +131,24 @@ class _CleanupScreenState extends State<CleanupScreen> {
   List<CleanupSuggestion> get _suggestions {
     final result = _scanJob?.result;
     return result is CleanupScanResult
-        ? CleanupIgnore.instance.apply(result.suggestions)
+        ? CleanupIgnore.applyTo(CleanupIgnore.instance.apply(result.suggestions),
+            ids: const {}, paths: _trashed)
         : const [];
+  }
+
+  /// Listeden tek tek çöpe atılanlar (kullanıcı 2026-11-21: "açıp bakıp
+  /// gereksizse sileyim"). Yeniden taramayı beklemeden öneriden düşer.
+  final Set<String> _trashed = {};
+
+  Future<void> _trashOne(String path) async {
+    await FmEnv.trash.moveToTrash([path]);
+    FsEvents.changed();
+    if (!mounted) return;
+    setState(() {
+      _trashed.add(path);
+      _seedSignature = null;
+      _seedSelection();
+    });
   }
 
   /// Güvenli öneriler açık gelir. Yalnız sonuç DEĞİŞTİĞİNDE kurulur, yoksa
@@ -445,11 +462,25 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: IconButton(
-                      tooltip: context.t('clean.never_suggest_file'),
-                      icon: const Icon(AppIcons.hiddenOff, size: 20),
-                      onPressed: () => _ignore(
-                          () => CleanupIgnore.instance.ignoreFile(f.path)),
+                    // Dokun = aç, bak; gereksizse satırdaki çöp düğmesi.
+                    onTap: () => EntryOpener.open(context, f.path),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: context.t('clean.never_suggest_file'),
+                          icon: const Icon(AppIcons.hiddenOff, size: 20),
+                          onPressed: () => _ignore(
+                              () => CleanupIgnore.instance.ignoreFile(f.path)),
+                        ),
+                        if (!ImportantFiles.isImportant(f.path))
+                          IconButton(
+                            key: ValueKey('clean-trash-${f.path}'),
+                            tooltip: context.t('jr.trash_created'),
+                            icon: const Icon(AppIcons.delete, size: 20),
+                            onPressed: () => _trashOne(f.path),
+                          ),
+                      ],
                     ),
                   ),
                 if (s.files.length > 20)
