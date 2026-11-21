@@ -26,6 +26,7 @@ import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart' show AppTypeContext, Gap, Radii;
+import '../../screens/fm/dashboard_screen.dart' show DashboardScreen;
 import '../../services/docx/docx_document.dart';
 import '../../services/docx/docx_styles.dart';
 import 'docx_edit_controller.dart';
@@ -704,7 +705,10 @@ class DocxEditorViewState extends State<DocxEditorView>
     return TextSpan(style: _style(p.mark.effective), children: kids);
   }
 
-  Widget _para(int i, double maxW) {
+  /// [rail] > 0 (B9b, tablet + yorumlu belge): balonlar paragrafın yanında
+  /// [rail] genişliğinde kenar sütununda; her paragraf aynı Row şeklinde
+  /// (ağaç sabit). 0: balon paragraf altında (telefon, tablo hücresi).
+  Widget _para(int i, double maxW, {double rail = 0}) {
     final p = c.paras[i];
     final look = p.look;
     final label = c.labels.length > i ? c.labels[i] : '';
@@ -752,29 +756,51 @@ class DocxEditorViewState extends State<DocxEditorView>
       );
     }
     final notes = _balloons(p);
-    if (notes != null) {
+    if (notes != null && rail <= 0) {
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [body, ...notes],
       );
     }
-    return Padding(
+    final top = math.min(18.0, look.spaceBeforePt * s * 0.6);
+    final out = Padding(
       padding: EdgeInsetsDirectional.only(
         start: look.bidi ? 0 : indent,
         end: look.bidi ? indent : 0,
-        top: math.min(18, look.spaceBeforePt * s * 0.6),
+        top: top,
         bottom: math.min(14, look.spaceAfterPt * s * 0.6),
       ),
       child: body,
+    );
+    if (rail <= 0) return out;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: out),
+        const SizedBox(width: Gap.md),
+        SizedBox(
+          key: ValueKey('docx-rail-$i'),
+          width: rail,
+          child: notes == null
+              ? null
+              : Padding(
+                  padding: EdgeInsetsDirectional.only(top: top),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: notes,
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
   /// B9 m.4 — yorum balonu: paragraftaki her kök yorumun yazarı + metni
   /// paragrafın altında (en çok 2 satır); dokununca yorumlar açılır.
   /// Yorumsuz paragrafta maliyet tek `indexOf`.
-  // ponytail: telefonda da tablette de paragraf altı (metin yeniden akmaz);
-  // tablette sağ kenar sütunu istenirse metin genişliği tüm belgede daralmalı.
+  // B9b: tablette (DashboardScreen.twoColumns) kenar sütununa gider, bkz. _para.
   List<Widget>? _balloons(DocxPara p) {
     List<Widget>? out;
     var k = p.text.indexOf(kDocxAtom);
@@ -1009,7 +1035,13 @@ class DocxEditorViewState extends State<DocxEditorView>
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
-      final maxW = math.max(120.0, box.maxWidth - 32);
+      // B9b: tablette yorumlu belgede metin akışı kenar sütunu kadar daralır.
+      final rail = DashboardScreen.twoColumns(MediaQuery.sizeOf(context)) &&
+              c.doc.hasComments
+          ? math.min(260.0, box.maxWidth * 0.3)
+          : 0.0;
+      final maxW = math.max(
+          120.0, box.maxWidth - 32 - (rail > 0 ? rail + Gap.md : 0));
       final bl = _blockList;
       final list = ListView.builder(
         controller: _scroll,
@@ -1019,7 +1051,9 @@ class DocxEditorViewState extends State<DocxEditorView>
         itemBuilder: (context, k) {
           final b = bl[k];
           if (b.start >= c.paras.length) return const SizedBox.shrink();
-          return b.table == null ? _para(b.start, maxW) : _table(b, maxW);
+          return b.table == null
+              ? _para(b.start, maxW, rail: rail)
+              : _table(b, maxW);
         },
       );
       final sel = _selTop;
