@@ -97,6 +97,7 @@ tabloda koşu başı °C sütunu ve taraf ortalaması var; ortalamalar > 1 °C a
   "yazıldı, cihazda doğrulanmadı" + `docs/CIHAZ_TESTI.md` maddesi.
 
 ## Test telefonu kuralları (Mi Note 10 Lite — Xiaomi, MIUI, Android 12, USB)
+- **ORTAK CİHAZ KİLİDİ (2026-11-21, kullanıcı):** telefon Gemini (başka proje) ile ortak, aynı anda kullanılmaz. adb ile kurulum/ölçüm ÖNCESİ `powershell -NoProfile -File C:\Users\sena\Desktop\cihaz-kilit.ps1 al claude "<kısa iş>"`; `MESGUL` (çıkış 1) → cihaza dokunma, kod işine geç / turu cihazsız sür. Bitince `... birak claude`. Kilit telefonda (`/data/local/tmp/cihaz_kilit.txt`), 90 dk'da bayatlar; uzun ölçümde `al` ile tazele. Gemini kuralı: `~/.gemini/GEMINI.md`.
 
 Ekranı arızalı; sürekli açık kalınca ısınır ("sadece ihtiyaç halinde ekranı aç"); kilit yok,
 yukarı kaydırarak açılır. **Telefon aynı anda TEK ajanda / tek işte.** Diğer cihazlar (Xiaomi
