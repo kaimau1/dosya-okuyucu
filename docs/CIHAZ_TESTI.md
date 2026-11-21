@@ -1608,6 +1608,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Video: iki parmakla yakınlaştır/kaydır (sarma ya da ses değişmemeli); hız simgesi → ekran kararmadan küçük panel, sürüklerken hız anında değişmeli; 1,7× iken üstte "1.7× ✕" hapı, ✕ ile 1×. Ses oynatıcıda da aynı hap.
 - Yer aç: öneri kartında "Bir daha önerme" ve dosya listesinde göz simgesi; yeniden analizde gelmemeli; en altta "Gizlenen n öneriyi geri getir". Akıllı düzen açıksa en üstte "Ayıkla · n gereksiz" kartı.
 - Ayarlar → Yapay zekâ → Görev başına model: en üstte "Akıllı kararlar — gemini-decision-1".
+- (U6 b) Uygulamalar: kullanım izni varken listenin üstünde öneri kartı ("X 40 gündür açılmadı, 200 MB" ya da "X önbelleği 400 MB"); "Bir daha önerme" → kart sıradakine geçer; menüde "Gizlenen n öneriyi geri getir".
+- (U6 c) Bellek analizi → Ayıkla satırı alt yazısı: "bulanık n · ekran görüntüsü n · kopya n" dökümü.
 ## 2026-11-19 — Word 2.0 m.7 Yazma hissi (bulut, dal faz-oto-B9-word2; yazıldı, cihazda doğrulanmadı)
 - [ ] Klavye açıkken üstteki çubuk: imleç yalnızken madde/numara/girinti/hizalama + K T A; bir sözcük seçince K T A S, renk, vurgu (sarı), biçimi temizle görünüyor mu? Seçim kalkınca çubuk zıplamadan geri dönüyor mu?
 - [ ] Gboard (Türkçe): "işte geldi. ılık" yaz → "İşte geldi. Ilık"; "3. sınıf", "vb. gibi", "www.ornek.com" küçük kalıyor mu? İngilizce arayüzde "i" → "I" mi?
