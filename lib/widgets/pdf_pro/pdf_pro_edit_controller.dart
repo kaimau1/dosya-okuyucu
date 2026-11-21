@@ -122,6 +122,34 @@ class PdfLiveEdit {
 
   /// Font seçici satırları (yazma boyunca bir kez kurulur).
   List<PdfFontChoice>? fontMenu;
+
+  /// **Taşma/çakışma** (Faz 57 / 3): yazdıkça uzayan blok altındaki bloğa
+  /// biniyorsa o blok; null = sığıyor.
+  PdfTextBlock? collision;
+
+  /// "Alttakileri aşağı it" seçildi: bitişte alttaki bloklar blok uzadığı
+  /// kadar iner.
+  bool pushBelow = false;
+
+  /// Bloğun taban çizgisi + inişe göre alt kenarı (yaklaşık; yalnız fark
+  /// için kullanılır).
+  static double bottomOf(PdfBlockTextMap m) => m.bases.isEmpty
+      ? 0
+      : m.bases.last - (m.sizes.isEmpty ? 12.0 : m.sizes.last) * 0.25;
+
+  /// Yazmadan önceki alt kenar (yeni kutuda ilk satır).
+  double get origBottom =>
+      block?.bottom ??
+      base.base - (map.sizes.isEmpty ? 12.0 : map.sizes.first) * 0.25;
+
+  /// Blok kaç birim aşağı uzadı (yazmadan önceki hâline göre).
+  double get growth =>
+      (block == null
+          ? base.base -
+              (map.sizes.isEmpty ? 12.0 : map.sizes.first) * 0.25
+          : bottomOf(block!.map)) -
+      bottomOf(map);
+
   final String _origText;
   final List<PdfStyleSpan> _origSpans;
   final PdfBlockAlign _origAlign;
@@ -843,6 +871,7 @@ class PdfProEditController extends ChangeNotifier {
           PdfProPerf.end('tus', sw);
           if (r.ok) {
             live._took(r, first: first);
+            live.collision = _collision(live);
           } else {
             live
               ..error = r.error
@@ -859,6 +888,92 @@ class PdfProEditController extends ChangeNotifier {
       _liveIdle?.complete();
       _liveIdle = null;
     }
+  }
+
+  /// Uzayan bloğun bindiği ilk (en üstteki) alt blok: yatayda örtüşen,
+  /// yazmadan önce bloğun altında duran ve şimdi alt kenarı onun üstüne inen.
+  PdfTextBlock? _collision(PdfLiveEdit live) {
+    if (live.base.angle != 0 || live.growth <= 0.5) return null;
+    final blocks = _blocks[live.pageIndex] ?? const <PdfTextBlock>[];
+    final left = math.min(live.base.firstX, live.base.bodyX) + live.dx;
+    final right = left + (live.width ?? live.base.width);
+    final was = live.origBottom + live.dy;
+    final now = was - live.growth;
+    PdfTextBlock? hit;
+    for (final b in blocks) {
+      if (identical(b, live.block) || b.angle != 0) continue;
+      if (math.min(b.right, right) - math.max(b.left, left) <= 0) continue;
+      if (b.top > was + 0.5 || b.top <= now + 0.5) continue;
+      if (hit == null || b.top > hit.top) hit = b;
+    }
+    return hit;
+  }
+
+  /// Taşma seçenekleri (Faz 57 / 3): punto küçült · alttakileri it · kutuyu
+  /// sayfa kenar boşluğuna dek genişlet. Genişletilemiyorsa false.
+  bool liveOverflow(String option) {
+    final live = _live;
+    if (live == null) return false;
+    switch (option) {
+      case 'shrink':
+        final s = live.size ??
+            (live.map.sizes.isEmpty ? 12.0 : live.map.sizes.first);
+        if (s <= 4) return false;
+        liveParagraph(size: (s - 1).roundToDouble());
+      case 'push':
+        live.pushBelow = !live.pushBelow;
+        _notify();
+      case 'widen':
+        final w = widenTo(live);
+        if (w == null) return false;
+        live.width = w;
+        _scheduleLive();
+        _notify();
+    }
+    return true;
+  }
+
+  /// Genişletilebilecek en büyük genişlik (sağ kenar boşluğu 36 pt);
+  /// kazanç yoksa null.
+  double? widenTo(PdfLiveEdit live) {
+    final page = _content[live.pageIndex]?.width ?? 0;
+    if (page <= 0 || live.base.angle != 0) return null;
+    final left = math.min(live.base.firstX, live.base.bodyX) + live.dx;
+    final now = live.width ?? live.base.width;
+    final max = page - 36 - left;
+    return max > now + 4 ? max : null;
+  }
+
+  /// Bitişte "it" seçiliyse: blok altındaki (yatayda örtüşen) bloklar ve
+  /// süs çizgileri blok uzadığı kadar aşağı iner — ayrı geri alınabilir adım.
+  Future<void> _pushBelow(PdfLiveEdit live, List<int> created) async {
+    final grow = live.growth;
+    if (grow <= 0.5 || live.base.angle != 0) return;
+    final page = live.pageIndex;
+    final content = await _contentNow(page);
+    final blocks = await _blocksNow(page);
+    final left = math.min(live.base.firstX, live.base.bodyX) + live.dx;
+    final right = left + (live.width ?? live.base.width);
+    final was = live.origBottom + live.dy;
+    final own = created.toSet();
+    final move = <int>{};
+    for (final b in blocks) {
+      if (b.angle != 0 || b.objectIndexes.any(own.contains)) continue;
+      if (math.min(b.right, right) - math.max(b.left, left) <= 0) continue;
+      if (b.top > was + 0.5) continue;
+      move.addAll(b.objectIndexes);
+      for (final d in PdfBlockRequest.decorations(b, content)) {
+        move.add(d.index);
+      }
+    }
+    if (move.isEmpty) return;
+    await session.apply(
+        PdfMutateOp(PdfMutation(page, [
+          PdfMutAction.transform(move.toList()..sort(), [1, 0, 0, 1, 0, -grow])
+        ])),
+        label: 'pse.step_push',
+        detail: '');
+    _invalidate(page);
   }
 
   Future<void> _settleLive() async {
@@ -879,27 +994,16 @@ class PdfProEditController extends ChangeNotifier {
       return true;
     }
     return _guard(() async {
-      if (live.applied) {
-        // Canlı belgeden gizlenen özgün nesneleri kaldır.
-        final r = await session.liveApply(() => PdfEditBridge.typeset(
-            document, live.finishRequest(),
-            fonts: live.fonts));
-        if (!r.ok) {
-          live
-            ..error = r.error
-            ..glyphError = r.glyph;
-          return false;
-        }
-      } else {
-        final r = await session.liveApply(() => PdfEditBridge.typeset(
-            document, live.finalRequest(),
-            fonts: live.fonts));
-        if (!r.ok) {
-          live
-            ..error = r.error
-            ..glyphError = r.glyph;
-          return false;
-        }
+      // Canlı belgeden gizlenen özgün nesneleri kaldır (yazıldıysa).
+      final r = await session.liveApply(() => PdfEditBridge.typeset(
+          document,
+          live.applied ? live.finishRequest() : live.finalRequest(),
+          fonts: live.fonts));
+      if (!r.ok) {
+        live
+          ..error = r.error
+          ..glyphError = r.glyph;
+        return false;
       }
       await session.commitLive(
           label: label,
@@ -907,6 +1011,13 @@ class PdfProEditController extends ChangeNotifier {
           op: PdfTypesetOp(live.finalRequest()));
       _live = null;
       _invalidate(live.pageIndex);
+      if (live.pushBelow) {
+        try {
+          await _pushBelow(live, r.created);
+        } on PdfEditBridgeRefused {
+          // Bilinçli: yazım adımı kaydedildi; itme olmazsa blok yerinde kalır.
+        }
+      }
       return true;
     });
   }

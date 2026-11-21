@@ -95,10 +95,17 @@ class PdfProFormatLabels {
     required this.glyphError,
     required this.error,
     required this.size,
+    this.overflow = '',
+    this.shrink = '',
+    this.push = '',
+    this.widen = '',
   });
   final String done, cancel, bold, italic, underline, strike, color, highlight;
   final String align, smaller, larger, selectAll, copy, cut, paste;
   final String docFont, fallbackFont, glyphError, error, size;
+
+  /// Taşma uyarısı ve seçenekleri (Faz 57 / 3).
+  final String overflow, shrink, push, widen;
 }
 
 /// **Klavye üstü biçim çubuğu** (etkileşim §5): ✓/✕, yazı tipi rozeti
@@ -219,6 +226,46 @@ class PdfProFormatBar extends StatelessWidget {
                           style: context.type.caption,
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              if (err == null && live.collision != null)
+                Container(
+                  key: const ValueKey('pse-overflow'),
+                  color: PdfEditTokens.pending(dark).withValues(alpha: 0.16),
+                  padding: const EdgeInsetsDirectional.only(
+                      start: Gap.md, end: Gap.xs),
+                  child: Row(
+                    children: [
+                      Icon(AppIcons.warning,
+                          size: AppIcons.small,
+                          color: PdfEditTokens.pending(dark)),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(labels.overflow,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.type.caption),
+                      ),
+                      TextButton(
+                        key: const ValueKey('pse-overflow-shrink'),
+                        onPressed: () => controller.liveOverflow('shrink'),
+                        child: Text(labels.shrink),
+                      ),
+                      TextButton.icon(
+                        key: const ValueKey('pse-overflow-push'),
+                        icon: live.pushBelow
+                            ? const Icon(AppIcons.check, size: AppIcons.small)
+                            : const SizedBox.shrink(),
+                        onPressed: () => controller.liveOverflow('push'),
+                        label: Text(labels.push),
+                      ),
+                      if (controller.widenTo(live) != null)
+                        TextButton(
+                          key: const ValueKey('pse-overflow-widen'),
+                          onPressed: () => controller.liveOverflow('widen'),
+                          child: Text(labels.widen),
+                        ),
                     ],
                   ),
                 ),

@@ -945,6 +945,10 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         glyphError: context.t('pse.refused_glyph'),
         error: context.t('pse.refused'),
         size: context.t('pse.fmt_size'),
+        overflow: context.t('pse.overflow'),
+        shrink: context.t('pse.overflow_shrink'),
+        push: context.t('pse.overflow_push'),
+        widen: context.t('pse.overflow_widen'),
       );
 
   /// Düzenleme kipinin gövde üstü katmanları: bağlamsal çubuk, yazarken
