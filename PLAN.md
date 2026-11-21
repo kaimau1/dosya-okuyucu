@@ -305,7 +305,8 @@ _Bitti (bulut 2026-11-19, dal faz-oto-B9-word2; HAFIZA 2026-11-19 B9): m.1 içer
 8. **Açılış hızı:** görünür pencere önce (B13 m.4) ve ayrıştırma izolatta (B12 m.2) VAR. Ölçüm:
    `large_file_test` "ilk pencere" (perf kapısı, PERF `xlsx_head_100k_ms`). **Kök (koddan):**
    `XlsxStream.read` hücre tavanı 800 iken de sayfa XML'ini + sharedStrings'i önce TAMAMEN geçici
-   dosyaya açıyor (`_unpack`) → baş okuması dosya boyuyla büyür. Sıradaki: CI ölçümüne göre erken
+   dosyaya açıyor (`_unpack`) → baş okuması dosya boyuyla büyür (CI 2026-11-21: 100 bin satır baş 445 ms,
+   tam 1669 ms). Sıradaki: CI ölçümüne göre erken
    duran açma (`Inflate.lazy` blok blok, tavan dolunca dur) → aynı test yeniden; A/B → C2.
 
 **Bitti:** 1–8 testli, `excel_roundtrip_test` yeşil, C2'ye "Excel A/B".

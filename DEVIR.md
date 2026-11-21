@@ -12,6 +12,8 @@ Kök/kanıt: lib/services/xlsx/xlsx_stream.dart `read` → `_unpack(ss…)` ve
 `_unpack(f…)` sayfa XML'ini tavan 800 iken de tümüyle açıyor.
 Ölçüm: CI "Perf gerileme kapısı" özetinde `PERF xlsx_head_100k_ms=…
 xlsx_stream_full_100k_ms=…` (test/large_file_test.dart "ilk pencere").
+CI 44895645942 ham: xlsx_head_100k_ms=445 xlsx_stream_full_100k_ms=1669 file_kb=1741
+(baş = tamın %27'si; 800 hücre için büyük → erken durma değer).
 Sıradaki: baş/tam oranı yüksekse `_unpack` yerine `Inflate.lazy` +
 `inflateBlock` ile blok blok aç, `_readSheet` tavanı dolunca dur → aynı
 test; tavan `lessThan(3000)` ölçümle daraltılır (yalnız düşer).
