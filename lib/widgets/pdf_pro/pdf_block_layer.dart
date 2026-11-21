@@ -56,6 +56,36 @@ double pdfPressureFactor(Iterable<double> pressures) {
   return n == 0 ? 1 : 0.4 + 1.2 * (sum / n);
 }
 
+/// **Bulut** (Faz 60 m.2): dikdörtgenin çevresinde dışa taşan yaylar —
+/// tek kapalı mürekkep yolu (x,y,x,y…; sayfa uzayı, saat yönü tersine).
+/// Yay çapı kısa kenarın ¼'ü, 6–20 pt.
+List<double> pdfCloudPath(double l, double b, double r, double t) {
+  final d = (math.min(r - l, t - b) / 4).clamp(6.0, 20.0);
+  final corners = [(l, b), (r, b), (r, t), (l, t)];
+  final out = <double>[l, b];
+  for (var e = 0; e < 4; e++) {
+    final (x0, y0) = corners[e];
+    final (x1, y1) = corners[(e + 1) % 4];
+    final len = math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+    if (len <= 0) continue;
+    final ux = (x1 - x0) / len, uy = (y1 - y0) / len;
+    // Saat yönü tersine yürürken dış normal (uy, -ux).
+    final nx = uy, ny = -ux;
+    final n = math.max(1, (len / d).round());
+    final seg = len / n, rad = seg / 2;
+    for (var k = 0; k < n; k++) {
+      final cx = x0 + ux * seg * (k + 0.5), cy = y0 + uy * seg * (k + 0.5);
+      for (var j = 1; j <= 6; j++) {
+        final th = math.pi - math.pi * j / 6;
+        out
+          ..add(cx + ux * math.cos(th) * rad + nx * math.sin(th) * rad)
+          ..add(cy + uy * math.cos(th) * rad + ny * math.sin(th) * rad);
+      }
+    }
+  }
+  return out;
+}
+
 /// Sayfa katmanının ekrana (görüntüleyici) bildirdiği olaylar.
 class PdfProLayerEvents {
   const PdfProLayerEvents({
@@ -493,6 +523,23 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         ], label: 'pse.step_redact');
         return;
       }
+      if (kind == PdfMarkupKind.cloud && (to - from).distance > 6 * _px) {
+        // Bulut: tırtıklı kenar mürekkep açıklaması (PDFium görünüşünü
+        // kendisi üretir; her okuyucuda aynı görünür, Silgi/Yorumlar bulur).
+        final a = _p(from), z = _p(to);
+        final l = math.min(a.x, z.x), r = math.max(a.x, z.x);
+        final b = math.min(a.y, z.y), t = math.max(a.y, z.y);
+        final path = pdfCloudPath(l, b, r, t);
+        final pad = 12 + c.markupWidth;
+        await c.annotate(
+            PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
+                rect: [l - pad, b - pad, r + pad, t + pad],
+                ink: [path],
+                color: c.markupColor | 0xFF000000,
+                width: c.markupWidth),
+            label: 'pse.step_cloud');
+        return;
+      }
       if (_shapeMarkup && (to - from).distance > 6 * _px) {
         final a = _p(from), z = _p(to);
         await c.mutate(pageIndex, [
@@ -720,7 +767,7 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                           : Color(_inkColor(c.markup)),
                   width:
                       c.armLasso ? 1.5 * px : _inkWidth(c.markup) * _unit,
-                  shape: _shapeMarkup
+                  shape: _shapeMarkup || c.markup == PdfMarkupKind.cloud
                       ? c.markup
                       : c.armLasso
                           ? PdfMarkupKind.rect

@@ -16,8 +16,9 @@ import '../../services/pdf/pro/pdf_sensitive.dart';
 enum PdfProTool { text, image, markup, sign, form, pages, more }
 
 /// İşaretleme aracının kipi (Faz 60). [marker] = serbest fosforlu kalem
-/// (eski kalem ekranının fosforlusu, yarı saydam mürekkep).
-enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact, marker }
+/// (eski kalem ekranının fosforlusu, yarı saydam mürekkep); [cloud] tırtıklı
+/// çerçeve.
+enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact, marker, cloud }
 
 /// Belge geneli aramada bir eşleşme.
 class PdfFindHit {

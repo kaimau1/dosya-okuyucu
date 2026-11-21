@@ -986,6 +986,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           kind(PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
           kind(PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
           kind(PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
+          kind(PdfMarkupKind.cloud, AppIcons.cloud, 'pse.mk_cloud'),
           kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
           kind(PdfMarkupKind.redact, AppIcons.pdfRedact, 'pse.mk_redact'),
           PdfProChip(AppIcons.shield, t('pse.kvkk_title'), _proSensitive,

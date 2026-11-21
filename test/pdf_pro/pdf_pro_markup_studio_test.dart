@@ -153,6 +153,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  test('bulut yolu: kapalı, kenarda yaylar, dikdörtgenin içine girmez', () {
+    final pts = pdfCloudPath(100, 100, 300, 180);
+    expect(pts.length.isEven, isTrue);
+    // Kısa kenar 80 → çap 20: alt/üst 10, yanlar 4 yay; yay başına 6 nokta.
+    expect(pts.length ~/ 2, 1 + (10 + 4 + 10 + 4) * 6);
+    expect(pts[pts.length - 2], closeTo(100, 1e-6));
+    expect(pts.last, closeTo(100, 1e-6));
+    for (var i = 0; i < pts.length; i += 2) {
+      final x = pts[i], y = pts[i + 1];
+      final inside = x > 100 + 1e-6 && x < 300 - 1e-6 && y > 100 + 1e-6 &&
+          y < 180 - 1e-6;
+      expect(inside, isFalse, reason: 'yay içe dönmüş: ($x, $y)');
+      expect(x, inInclusiveRange(89, 311));
+      expect(y, inInclusiveRange(89, 191));
+    }
+  });
+
+  testWidgets('bulut sürüklemesi tek mürekkep açıklaması bırakır',
+      (tester) async {
+    final h = await open(tester);
+    h.c.armMarkup(PdfMarkupKind.cloud);
+    await tester.pump();
+    final g = await tester.startGesture(const Offset(100, 200));
+    await g.moveBy(const Offset(120, 0));
+    await g.moveBy(const Offset(0, 80));
+    await tester.pump();
+    await g.up();
+    await tester.pump();
+    await until(tester, () => h.c.session.steps.length == 1 && !h.c.busy);
+    final ink = (await annots(tester, h))
+        .where((a) => a.subtype == PdfAnnotType.ink)
+        .toList();
+    expect(ink, hasLength(1));
+    expect(ink.single.ink.single.length, greaterThan(40));
+  });
+
   test('basınç: kalemde 0–1, parmakta bilgi yok; kalınlık çarpanı', () {
     expect(
         pdfPressureOf(const PointerDownEvent(
