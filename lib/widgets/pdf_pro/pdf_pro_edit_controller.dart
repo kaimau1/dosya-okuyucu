@@ -960,9 +960,20 @@ class PdfProEditController extends ChangeNotifier {
     final was = live.origBottom + live.dy;
     final own = created.toSet();
     final move = <int>{};
+    final textTop = {for (final t in content.texts) t.index: t.top};
     for (final b in blocks) {
-      if (b.angle != 0 || b.objectIndexes.any(own.contains)) continue;
+      if (b.angle != 0) continue;
       if (math.min(b.right, right) - math.max(b.left, left) <= 0) continue;
+      if (b.objectIndexes.any(own.contains)) {
+        // KÖK (CI 2026-11-21): bloklar yazımdan SONRA çıkarılır; uzayan blok
+        // alttakine bindiği için ikisi tek blok olur → alttakinin nesneleri
+        // (eski alt kenarın altındakiler) yine de iner.
+        for (final i in b.objectIndexes) {
+          final top = textTop[i];
+          if (!own.contains(i) && top != null && top <= was + 0.5) move.add(i);
+        }
+        continue;
+      }
       if (b.top > was + 0.5) continue;
       move.addAll(b.objectIndexes);
       for (final d in PdfBlockRequest.decorations(b, content)) {

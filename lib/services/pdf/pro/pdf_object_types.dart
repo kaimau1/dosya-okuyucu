@@ -246,9 +246,11 @@ abstract final class PdfLinkTarget {
         t = 'https://$t';
       }
     }
-    final u = Uri.tryParse(t);
     // PDFium URI'yi 7 bit ASCII ister (Türkçe alan adı punycode'suz yazılamaz).
-    if (u == null || u.toString().codeUnits.any((c) => c > 127)) return null;
+    // Girdide bakılır: Uri.toString() ASCII dışını %-kodlayıp gizliyordu.
+    if (t.codeUnits.any((c) => c > 127)) return null;
+    final u = Uri.tryParse(t);
+    if (u == null) return null;
     final scheme = u.scheme.toLowerCase();
     if (scheme == 'mailto') return u.path.contains('@') ? u.toString() : null;
     if ((scheme == 'http' || scheme == 'https') && u.host.contains('.')) {
