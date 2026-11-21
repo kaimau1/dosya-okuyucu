@@ -405,8 +405,7 @@ class XlsxSheet {
       c2: f.c2,
       // Yalnız dokunulan sütunlar: dosyadan okunan ölçüt dosyada zaten var.
       filters: {
-        for (final c in filterTouched)
-          if (filterCriteria[c] case final cf?) c: cf,
+        for (final c in filterTouched) c: ?filterCriteria[c],
       },
       sort: filterSort,
       valuesOf: (c) => {
