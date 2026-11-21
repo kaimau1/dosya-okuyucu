@@ -83,7 +83,7 @@ extension _InstalledAppsScreenViewsPart on _InstalledAppsScreenState {
       padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.sm, Gap.xs),
+          padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.xs),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
