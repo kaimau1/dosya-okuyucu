@@ -5,7 +5,9 @@ import '../../core/l10n/app_strings.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_bucket.dart';
 import 'fm_more_sheet.dart';
+import 'smart_cat_style.dart';
 
 /// **Liste denetim şeridi** — kategori / hızlı klasör ekranlarının yeni üst
 /// alanı (2026-10-23, kullanıcı ekran görüntüsüyle: *"işaretli üst alanlar UI
@@ -51,6 +53,12 @@ class FmListControls {
   static List<(String, FmFilter)> hiddenCriteria(
       BuildContext context, FmFilter f) {
     final out = <(String, FmFilter)>[];
+    for (final b in f.buckets) {
+      out.add((context.t(b.labelKey), f.toggleBucket(b)));
+    }
+    for (final cat in f.smartCats) {
+      out.add((SmartCatStyle.label(context, cat), f.toggleSmartCat(cat)));
+    }
     if (f.dateRange != FmDateRange.any) {
       out.add((context.t(f.dateRange.labelKey),
           f.withDateRange(FmDateRange.any)));

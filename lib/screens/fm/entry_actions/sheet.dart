@@ -784,34 +784,53 @@ Future<bool> joinEntry(BuildContext context, FsEntry entry) async {
   }
 }
 
-/// Sayfanın başlığı: dosyanın kendisi (simge, ad, boyut/tarih).
-Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Row(
+/// Sayfanın başlığı: dosyanın kendisi (simge, ad, boyut/tarih/konum).
+Widget _sheetHeader(BuildContext ctx, FsEntry entry) {
+  final theme = Theme.of(ctx);
+  final scheme = theme.colorScheme;
+  final meta = entry.isDir
+      ? '${ctx.t('fm.folder')} · ${FsPaths.humanDate(entry.modifiedMs)}'
+      : '${FsPaths.humanSize(entry.sizeBytes)} · '
+          '${FsPaths.humanDate(entry.modifiedMs)}';
+  return DecoratedBox(
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(Radii.card),
+      border: Border.all(color: scheme.outlineVariant),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(Gap.sm + 4),
+      child: Row(
         children: [
-          FmEntryIcon(entry: entry, size: 40),
+          FmEntryIcon(entry: entry, size: 44),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(ctx).textTheme.titleMedium),
                 Text(
-                  entry.isDir
-                      ? '${ctx.t('fm.folder')} · '
-                          '${FsPaths.humanDate(entry.modifiedMs)}'
-                      : '${FsPaths.humanSize(entry.sizeBytes)} · '
-                          '${FsPaths.humanDate(entry.modifiedMs)}',
+                  entry.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  meta,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(ctx).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
           ),
         ],
-      );
+      ),
+    ),
+  );
+}
 
 /// **Kısayol oluştur** (2026-11-15, kullanıcı: *"depodaki tüm klasörleri
 /// kısayol olarak kendi panomuza ekleme seçeneği olsun; iki seçenekli kart:

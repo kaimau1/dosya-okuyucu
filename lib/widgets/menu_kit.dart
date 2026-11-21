@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -540,7 +542,11 @@ class _MenuSectionsState extends State<MenuSections> {
       if (top.isNotEmpty)
         _BentoGrid(items: [
           for (final (a, span, isPrimary) in top)
-            (span, _BentoTile(action: a, primary: isPrimary)),
+            _BentoEntry(
+              span: span,
+              child: _BentoTile(action: a, primary: isPrimary),
+              measure: (w) => _measureBentoTile(context, a, w),
+            ),
         ]),
     ];
     for (final s in widget.sections) {
@@ -553,12 +559,13 @@ class _MenuSectionsState extends State<MenuSections> {
           : const SizedBox(height: Gap.sm));
       children.add(_BentoGrid(items: [
         for (var i = 0; i < s.actions.length; i++)
-          (
+          _BentoEntry(
             // Her grup iki sütun — türe özel olanlar da (2026-11-15,
             // kullanıcı: *"tek sütun olmuş, 2 sütun olsun tüm türlerde"*).
             // Tek kalan son işlem tam genişlik.
-            i == s.actions.length - 1 && i.isEven ? 4 : 2,
-            _BentoRowTile(action: s.actions[i]),
+            span: i == s.actions.length - 1 && i.isEven ? 4 : 2,
+            child: _BentoRowTile(action: s.actions[i]),
+            measure: (w) => _measureBentoRow(context, s.actions[i], w),
           ),
       ]));
     }
@@ -882,10 +889,61 @@ class _CheckBadge extends StatelessWidget {
   };
 }
 
+double _measureTextHeight(
+  BuildContext context,
+  String text,
+  TextStyle? style,
+  double maxWidth,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 2,
+    ellipsis: '…',
+  )..layout(maxWidth: math.max(1.0, maxWidth));
+  final h = painter.height;
+  painter.dispose();
+  return h;
+}
+
+double _measureBentoTile(BuildContext context, MenuKitAction a, double width) {
+  final style = Theme.of(context)
+      .textTheme
+      .labelLarge
+      ?.copyWith(height: 1.2, fontWeight: FontWeight.w700);
+  final labelH = _measureTextHeight(context, a.label, style, width - 20);
+  return math.max(66.0, 11 + 22 + 8 + labelH + 10 + 2);
+}
+
+double _measureBentoRow(BuildContext context, MenuKitAction a, double width) {
+  final theme = Theme.of(context);
+  final labelStyle = theme.textTheme.labelLarge
+      ?.copyWith(height: 1.2, fontWeight: FontWeight.w700);
+  final textW = width - 24 - 22 - 12 - (a.checked != null ? 30 : 0);
+  final labelH = _measureTextHeight(context, a.label, labelStyle, textW);
+  final hintH = a.hint == null
+      ? 0.0
+      : _measureTextHeight(context, a.hint!, theme.textTheme.bodySmall, textW);
+  return math.max(52.0, 20 + labelH + hintH + 2);
+}
+
+class _BentoEntry {
+  final int span;
+  final Widget child;
+  final double Function(double width) measure;
+  const _BentoEntry({
+    required this.span,
+    required this.child,
+    required this.measure,
+  });
+}
+
 /// Bento ızgarası: 4 sütun, karo genişliği 1, 2 ya da 4 sütun. Satırdaki
-/// karolar aynı boyda; sütunlar satırlar arasında hizalı.
+/// karolar aynı boyda (IntrinsicHeight olmadan metin ölçümüyle); sütunlar
+/// satırlar arasında hizalı.
 class _BentoGrid extends StatelessWidget {
-  final List<(int, Widget)> items;
+  final List<_BentoEntry> items;
   const _BentoGrid({required this.items});
 
   static const _gap = 8.0;
@@ -894,17 +952,17 @@ class _BentoGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
       final unit = (box.maxWidth - 3 * _gap) / 4;
-      final rows = <List<(int, Widget)>>[];
-      var cur = <(int, Widget)>[];
+      final rows = <List<_BentoEntry>>[];
+      var cur = <_BentoEntry>[];
       var used = 0;
       for (final it in items) {
-        if (used + it.$1 > 4) {
+        if (used + it.span > 4) {
           rows.add(cur);
           cur = [];
           used = 0;
         }
         cur.add(it);
-        used += it.$1;
+        used += it.span;
       }
       if (cur.isNotEmpty) rows.add(cur);
       return Column(
@@ -913,29 +971,37 @@ class _BentoGrid extends StatelessWidget {
           for (var r = 0; r < rows.length; r++)
             Padding(
               padding: EdgeInsets.only(top: r == 0 ? 0 : _gap),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < rows[r].length; i++) ...[
-                      if (i > 0) const SizedBox(width: _gap),
-                      // Satırın son karosu kalan yeri alır (yuvarlama payı);
-                      // eksik satırda boşluk sonda kalır.
-                      if (i == rows[r].length - 1 &&
-                          rows[r].fold<int>(0, (n, e) => n + e.$1) == 4)
-                        Expanded(child: rows[r][i].$2)
-                      else
-                        SizedBox(
-                          width: rows[r][i].$1 * unit +
-                              (rows[r][i].$1 - 1) * _gap,
-                          child: rows[r][i].$2,
-                        ),
+              child: () {
+                final row = rows[r];
+                var rowH = 0.0;
+                for (final it in row) {
+                  final w = it.span * unit + (it.span - 1) * _gap;
+                  rowH = math.max(rowH, it.measure(w));
+                }
+                final full = row.fold<int>(0, (n, e) => n + e.span) == 4;
+                return SizedBox(
+                  height: rowH,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < row.length; i++) ...[
+                        if (i > 0) const SizedBox(width: _gap),
+                        // Satırın son karosu kalan yeri alır (yuvarlama payı);
+                        // eksik satırda boşluk sonda kalır.
+                        if (i == row.length - 1 && full)
+                          Expanded(child: row[i].child)
+                        else
+                          SizedBox(
+                            width: row[i].span * unit +
+                                (row[i].span - 1) * _gap,
+                            child: row[i].child,
+                          ),
+                      ],
+                      if (!full) const Spacer(),
                     ],
-                    if (rows[r].fold<int>(0, (n, e) => n + e.$1) < 4)
-                      const Spacer(),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              }(),
             ),
         ],
       );
@@ -954,13 +1020,13 @@ class _BentoTile extends StatelessWidget {
     final theme = Theme.of(context);
     final a = action;
     final (bg, fg, ink) = _bentoColors(theme.colorScheme, a.shownTone, primary);
+    final radius = BorderRadius.circular(18);
     return _semantic(
       a,
-      Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
+      Ink(
+        decoration: BoxDecoration(color: bg, borderRadius: radius),
         child: InkWell(
+          borderRadius: radius,
           onTap: a.enabled ? a.onTap : null,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 66),
@@ -1007,13 +1073,13 @@ class _BentoRowTile extends StatelessWidget {
     final scheme = theme.colorScheme;
     final a = action;
     final (bg, fg, ink) = _bentoColors(scheme, a.shownTone, false);
+    final radius = BorderRadius.circular(18);
     return _semantic(
       a,
-      Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
+      Ink(
+        decoration: BoxDecoration(color: bg, borderRadius: radius),
         child: InkWell(
+          borderRadius: radius,
           onTap: a.enabled ? a.onTap : null,
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 52),

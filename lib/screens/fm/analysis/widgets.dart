@@ -8,7 +8,20 @@ class _Slice {
 
   /// Lejantta yazan ad ("Videolar", "Sistem ve diğer").
   final String label;
-  const _Slice({required this.bytes, required this.color, this.label = ''});
+  final FmCategory? category;
+  final bool isApps;
+  final bool isOther;
+
+  const _Slice({
+    required this.bytes,
+    required this.color,
+    this.label = '',
+    this.category,
+    this.isApps = false,
+    this.isOther = false,
+  });
+
+  bool get interactive => category != null || isApps;
 }
 
 /// **Ana bellek kartı** — ekranın ilk gördüğü şey.
@@ -27,11 +40,13 @@ class _Slice {
 class _VolumeCard extends StatelessWidget {
   final StorageVolume volume;
   final List<_Slice> slices;
+  final ValueChanged<_Slice>? onSliceTap;
   final TrendDelta? trend;
 
   const _VolumeCard({
     required this.volume,
     this.slices = const [],
+    this.onSliceTap,
     this.trend,
   });
 
@@ -113,7 +128,7 @@ class _VolumeCard extends StatelessWidget {
               // açıklanmıyordu ve kullanıcı onu "boş alan" sanabiliyordu.
               if (slices.isNotEmpty) ...[
                 const SizedBox(height: Gap.sm),
-                _SliceLegend(slices: slices),
+                _SliceLegend(slices: slices, onTap: onSliceTap),
               ],
             ],
             if (trend?.hasData ?? false) ...[
@@ -132,34 +147,45 @@ class _VolumeCard extends StatelessWidget {
 /// Doluluk çubuğunun lejantı: en büyük dilimler (en çok 6) + boyutları.
 class _SliceLegend extends StatelessWidget {
   final List<_Slice> slices;
-  const _SliceLegend({required this.slices});
+  final ValueChanged<_Slice>? onTap;
+  const _SliceLegend({required this.slices, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final small = Theme.of(context).textTheme.bodySmall;
-    // Taranan türler zaten büyükten küçüğe; "diğer" en sonda kalsın diye
-    // yeniden sıralanmaz, yalnız kırpılır.
-    final shown =
-        slices.length <= 6 ? slices : [...slices.take(5), slices.last];
+    // Taranan türler + uygulamalar büyükten küçüğe; "Diğer" varsa sonda kalır.
+    final shown = slices.length <= 6
+        ? slices
+        : (slices.last.isOther
+            ? [...slices.take(5), slices.last]
+            : slices.take(6).toList());
     return Wrap(
-      spacing: Gap.md,
+      spacing: Gap.sm + 2,
       runSpacing: Gap.xs,
       children: [
         for (final s in shown)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: s.color,
-                  borderRadius: BorderRadius.circular(3),
-                ),
+          InkWell(
+            borderRadius: BorderRadius.circular(Radii.control),
+            onTap: s.interactive && onTap != null ? () => onTap!(s) : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: s.color,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: Gap.xs + 2),
+                  Text('${s.label} ${FsPaths.humanSize(s.bytes)}',
+                      style: small),
+                ],
               ),
-              const SizedBox(width: Gap.xs + 2),
-              Text('${s.label} ${FsPaths.humanSize(s.bytes)}', style: small),
-            ],
+            ),
           ),
       ],
     );
@@ -179,52 +205,78 @@ class _CapacityBar extends StatelessWidget {
     required this.slices,
   });
 
+  List<int> _computeFlexes() {
+    if (slices.isEmpty || capacity <= 0) return const [];
+    final totalSliceBytes =
+        slices.fold<int>(0, (sum, s) => sum + (s.bytes > 0 ? s.bytes : 0));
+    if (totalSliceBytes <= 0) return const [];
+    final targetUsed = (fraction.clamp(0.0, 1.0) * 10000).round();
+    final scaleToTarget =
+        targetUsed > 0 && (totalSliceBytes * 10000 / capacity) > targetUsed;
+    final out = List<int>.filled(slices.length, 0);
+    var sum = 0;
+    for (var i = 0; i < slices.length; i++) {
+      final b = slices[i].bytes;
+      if (b <= 0) continue;
+      final raw = scaleToTarget
+          ? (b * targetUsed / totalSliceBytes).round()
+          : (b * 10000 / capacity).round();
+      final flex = raw < 1 ? 1 : raw;
+      out[i] = flex;
+      sum += flex;
+    }
+    final maxSum = scaleToTarget ? targetUsed : 10000;
+    if (sum > maxSum && sum > 0) {
+      var excess = sum - maxSum;
+      while (excess > 0) {
+        var maxIdx = -1;
+        for (var i = 0; i < out.length; i++) {
+          if (out[i] > 1 && (maxIdx < 0 || out[i] > out[maxIdx])) maxIdx = i;
+        }
+        if (maxIdx < 0) break;
+        final take = excess < (out[maxIdx] - 1) ? excess : (out[maxIdx] - 1);
+        out[maxIdx] -= take;
+        excess -= take;
+      }
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final track = scheme.surfaceContainerHighest;
+    final flexes = _computeFlexes();
+    final usedFlex = flexes.fold<int>(0, (a, b) => a + b).clamp(0, 10000);
     return ClipRRect(
       borderRadius: BorderRadius.circular(Radii.control),
       child: SizedBox(
         height: 14,
-        child: slices.isEmpty || capacity <= 0
+        child: flexes.isEmpty
             ? LinearProgressIndicator(
                 value: fraction.clamp(0, 1).toDouble(),
                 minHeight: 14,
                 backgroundColor: track,
               )
-            // **`flex` tam sayı olmak zorunda:** oranları doğrudan piksele
-            // çevirmek (elle genişlik) kayan nokta artığı yüzünden
-            // "overflowed by 0.0001 pixels" riski taşıyor (aynı ders
-            // `photos_screen`de düşüldü). Onbinde bir çözünürlükte tam sayı
-            // paylar kullanılıyor; bölüştürmeyi `Row`un kendisi yapıyor.
             : Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final s in slices)
-                    if ((s.bytes * 10000 ~/ capacity) > 0)
+                  for (var i = 0; i < slices.length; i++)
+                    if (flexes[i] > 0)
                       Expanded(
-                        flex: s.bytes * 10000 ~/ capacity,
-                        child: ColoredBox(color: s.color),
+                        flex: flexes[i],
+                        child: ColoredBox(color: slices[i].color),
                       ),
                   // Boş alan payı — hiç kalmadıysa çizilmez.
-                  if (10000 - _usedFlex > 0)
+                  if (10000 - usedFlex > 0)
                     Expanded(
-                      flex: 10000 - _usedFlex,
+                      flex: 10000 - usedFlex,
                       child: ColoredBox(color: track),
                     ),
                 ],
               ),
       ),
     );
-  }
-
-  int get _usedFlex {
-    var total = 0;
-    for (final s in slices) {
-      final f = s.bytes * 10000 ~/ capacity;
-      if (f > 0) total += f;
-    }
-    return total > 10000 ? 10000 : total;
   }
 }
 
@@ -271,6 +323,30 @@ class _TrendRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ToolsGroupHeader extends StatelessWidget {
+  final String title;
+  const _ToolsGroupHeader(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      color: theme.colorScheme.surfaceContainerLowest,
+      padding: const EdgeInsetsDirectional.fromSTEB(
+          Gap.md, Gap.sm + 2, Gap.md, Gap.xs),
+      child: Text(
+        title,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.4,
+        ),
+      ),
     );
   }
 }
@@ -322,10 +398,8 @@ class _ToolRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodyLarge
                           ?.copyWith(fontWeight: FontWeight.w600)),
-                  // Açıklama TEK satır: üç kartın her birinde iki satır
-                  // dolanan bu metinler ekranın yarısını yiyordu.
                   Text(note,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall),
                 ],

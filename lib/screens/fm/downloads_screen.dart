@@ -11,23 +11,25 @@ import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
 import '../../core/app_icons.dart';
 import '../../widgets/side_menu_view.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
+import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
+import '../../widgets/fm/fm_list_controls.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
+import 'category_tools.dart';
 import 'entry_actions.dart';
 import '../../widgets/motion.dart';
-
-enum _DlSort { oldest, newest, largest, name }
 
 /// İndirilenler: "gereksizleri kolay silmek" için yaş odaklı liste.
 ///
@@ -55,13 +57,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   bool _loading = true;
   /// **Varsayılan: en yeni önce** (kullanıcı 2026-08-17: *"indirilenlerde en
   /// güncelden en eskiye sıralanmalı, şu an tam tersi varsayılan"*).
-  ///
-  /// Eskiden "en eski önce"ydi çünkü bu ekran "yer aç" gözüyle tasarlanmıştı:
-  /// en eski indirmeler silinecek adaylardı. Ama insanlar buraya çoğu zaman
-  /// **az önce indirdikleri** dosyayı açmaya geliyor; onu bulmak için 38
-  /// satır kaydırmak gerekiyordu. Eski dosyalar sıralamadan bir dokunuş uzakta
-  /// (ve "çok eski" uyarısı zaten ayrı gösteriliyor).
-  _DlSort _sort = _DlSort.newest;
+  FmSort _sort = FmSort.date;
+  bool _desc = true;
 
   static const _memoryId = 'downloads';
 
@@ -82,24 +79,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         ListMemory.rememberFilter(_memoryId, f);
       });
 
-  /// Sıralama [ListMemory]'de ortak [FmSort] diliyle saklanır.
-  static (FmSort, bool) _toFmSort(_DlSort s) => switch (s) {
-        _DlSort.newest => (FmSort.date, true),
-        _DlSort.oldest => (FmSort.date, false),
-        _DlSort.largest => (FmSort.size, true),
-        _DlSort.name => (FmSort.name, false),
-      };
-
-  static _DlSort? _fromFmSort(FmSort? sort, bool? desc) => switch (sort) {
-        FmSort.date => desc == false ? _DlSort.oldest : _DlSort.newest,
-        FmSort.size => _DlSort.largest,
-        FmSort.name => _DlSort.name,
-        _ => null,
-      };
-
-  void _setSort(_DlSort v) {
-    setState(() => _sort = v);
-    final (sort, desc) = _toFmSort(v);
+  void _setSort(FmSort sort, bool desc) {
+    setState(() {
+      _sort = sort;
+      _desc = desc;
+    });
     ListMemory.saveSort(_memoryId, sort, desc);
   }
 
@@ -116,11 +100,14 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     // Başka uygulamanın (Claude, Notlar, tarayıcı…) indirdiği dosya: sekme
     // ayakta kaldığı için initState bir daha koşmuyor (bkz. FsEvents.returned).
     FsEvents.returned.addListener(_load);
+    FileTags.ensureLoaded().then((_) {
+      if (mounted) setState(() {});
+    });
     ListMemory.load(_memoryId).then((saved) {
-      final restored = _fromFmSort(saved.sort, saved.descending);
       if (!mounted) return;
       setState(() {
-        if (restored != null) _sort = restored;
+        _sort = saved.sort ?? _sort;
+        _desc = saved.descending ?? _desc;
         _layout = saved.layout ?? _layout;
       });
     });
@@ -169,28 +156,60 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   /// (her seçim dokunuşunda) bütün liste yeniden süzülüp sıralanıyordu.
   List<FsEntry> get _sorted {
     final key = '${identityHashCode(_files)}|$_query|${_filter.signature}|'
-        '${_sort.name}';
+        '${_sort.name}|$_desc';
     final cached = _sortedCache;
     if (cached != null && key == _sortedKey) return cached;
     // Arama bellekte süzer: bu ekranın listesi zaten yüklü, disk okunmaz.
-    var list = _filter.apply(_files)
-        .where((e) => _query.trim().isEmpty || fmMatches(e.name, _query, path: e.path))
+    final filtered = _filter
+        .apply(_files, tagsOf: FileTags.forPath)
+        .where((e) =>
+            _query.trim().isEmpty || fmMatches(e.name, _query, path: e.path))
         .toList();
-    switch (_sort) {
-      case _DlSort.oldest:
-        list.sort((a, b) => a.lastTouchedMs.compareTo(b.lastTouchedMs));
-      case _DlSort.newest:
-        list.sort((a, b) => b.lastTouchedMs.compareTo(a.lastTouchedMs));
-      case _DlSort.largest:
-        list.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
-      case _DlSort.name:
-        // Ortak sıralama: ad anahtarı öğe başına bir kez hesaplanır.
-        list = FsScan.sort(list, FmSort.name, foldersFirst: false);
-    }
+    final list =
+        FsScan.sort(filtered, _sort, descending: _desc, foldersFirst: false);
     _sortedCache = list;
     _sortedKey = key;
     return list;
   }
+
+  FmListControls get _controls => FmListControls(
+        sort: _sort,
+        descending: _desc,
+        onSort: _setSort,
+        filter: _filter,
+        onFilterChanged: _setFilter,
+        onOpenFilter: _openFilterSheet,
+        onTools: () => _openTools(_sorted),
+      );
+
+  Future<void> _openFilterSheet() async {
+    final result = await showFmFilterSheet(
+      context,
+      filter: _filter,
+      sort: _sort,
+      descending: _desc,
+      extensions: extensionCounts(_files),
+      tags: FileTags.counts(),
+      smartCats: smartCatCountsFor(_files, _filter),
+    );
+    if (result == null || !mounted) return;
+    _setFilter(result.filter);
+    _setSort(result.sort, result.descending);
+  }
+
+  Future<void> _openTools(List<FsEntry> files) => showCategoryTools(
+        context,
+        title: context.t('downloads.title'),
+        visible: files,
+        onSelectAll: () => setState(() {
+          if (files.every((e) => _selected.contains(e.path))) {
+            _selected.removeAll(files.map((e) => e.path));
+          } else {
+            _selected.addAll(files.map((e) => e.path));
+          }
+        }),
+        onChanged: _load,
+      );
 
   List<FsEntry> get _ancient => _files
       .where((e) => ageLevelFor(_ageDays(e)) == AgeLevel.ancient)
@@ -318,22 +337,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                         if (picked != null && mounted) _setLayout(picked);
                       },
                     ),
-                    PopupMenuButton<_DlSort>(
-                      tooltip: context.t('downloads.sort'),
-                      icon: const Icon(AppIcons.sort),
-                      onSelected: _setSort,
-                      itemBuilder: (_) => [
-                        PopupMenuItem(
-                            value: _DlSort.oldest,
-                            child: Text(context.t('downloads.sort_oldest'))),
-                        PopupMenuItem(
-                            value: _DlSort.newest, child: Text(context.t('downloads.sort_newest'))),
-                        PopupMenuItem(
-                            value: _DlSort.largest,
-                            child: Text(context.t('downloads.sort_largest'))),
-                        PopupMenuItem(
-                            value: _DlSort.name, child: Text(context.t('downloads.sort_name'))),
-                      ],
+                    FmFilterButton(
+                        filter: _filter, onPressed: _openFilterSheet),
+                    IconButton(
+                      key: const ValueKey('downloads-more'),
+                      tooltip: context.t('fm.more'),
+                      icon: const Icon(AppIcons.more),
+                      onPressed: () => _openTools(files),
                     ),
                   ],
                 ),
@@ -364,10 +374,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                       trailing: [
                         FmMoreChip(
                           active: _filter.activeCount,
-                          sections: (c) => fmDateSizeSections(c,
-                              filter: _filter, onChanged: _setFilter),
+                          sections: (c) => _controls.sections(c,
+                              tags: FileTags.counts()),
                         ),
                       ],
+                    ),
+                    FmActiveCriteria(
+                      filter: _filter,
+                      onChanged: _setFilter,
+                      padding: const EdgeInsetsDirectional.only(start: 12),
                     ),
                     Expanded(
                       child: FmFileListView(

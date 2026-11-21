@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
-
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
+import '../app_dialog.dart';
 
 /// Yerleşim seçici: dosya listelerinde liste / büyük liste / ızgara
 /// ([FmLayoutInfo.fileListChoices]); Fotoğraflar'da 2-3-4-5 sütun.
@@ -23,35 +23,106 @@ Future<FmLayout?> showFmLayoutSheet(
       ? FmLayoutInfo.fileListChoices
       : FmLayout.values.where((l) => l.isGrid).toList(growable: false);
 
-  return showModalBottomSheet<FmLayout>(
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
-            child: Text(title ?? ctx.t('uix.view'), style: Theme.of(ctx).textTheme.titleMedium),
-          ),
-          RadioGroup<FmLayout>(
-            groupValue: current,
-            onChanged: (v) => Navigator.pop(ctx, v),
-            child: Column(children: [
-              for (final l in options)
-                RadioListTile<FmLayout>(
-                  value: l,
-                  secondary: Icon(fmLayoutIcon(l)),
-                  title: Text(l.label),
-                  subtitle: Text(l.description),
-                ),
-            ]),
-          ),
-          const SizedBox(height: Gap.sm),
-        ],
-      ),
-    ),
+  return showAppSheet<FmLayout>(
+    context,
+    title: title ?? context.t('uix.view'),
+    builder: (ctx) {
+      final theme = Theme.of(ctx);
+      final scheme = theme.colorScheme;
+      final skin = AppSkinData.of(ctx);
+      final pal = skin.palette;
+      final radius = BorderRadius.circular(skin.metrics.radiusCard);
+      return Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < options.length; i++) ...[
+              if (i > 0) const SizedBox(height: Gap.sm),
+              () {
+                final l = options[i];
+                final selected = l == current;
+                return Semantics(
+                  button: true,
+                  selected: selected,
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: selected ? scheme.primaryContainer : pal.card,
+                      borderRadius: radius,
+                      border: Border.all(
+                        color: selected ? scheme.primary : pal.rule,
+                        width: selected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: InkWell(
+                      borderRadius: radius,
+                      onTap: () => Navigator.pop(ctx, l),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.md, vertical: Gap.sm + 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? scheme.primary
+                                    : pal.well,
+                                borderRadius:
+                                    BorderRadius.circular(Radii.control),
+                              ),
+                              child: Icon(
+                                fmLayoutIcon(l),
+                                size: 22,
+                                color: selected
+                                    ? scheme.onPrimary
+                                    : scheme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: Gap.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    ctx.t(l.labelKey),
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: selected
+                                          ? scheme.onPrimaryContainer
+                                          : scheme.onSurface,
+                                    ),
+                                  ),
+                                  Text(
+                                    ctx.t(l.descriptionKey),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: selected
+                                          ? scheme.onPrimaryContainer
+                                              .withValues(alpha: 0.85)
+                                          : scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (selected)
+                              Icon(AppIcons.checkCircle,
+                                  size: 22, color: scheme.primary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }(),
+            ],
+          ],
+        ),
+      );
+    },
   );
 }
 

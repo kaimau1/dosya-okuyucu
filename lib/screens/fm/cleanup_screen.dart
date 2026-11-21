@@ -13,6 +13,7 @@ import '../../services/fm/cleanup_ignore.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
@@ -26,7 +27,6 @@ import '../../services/fm/smart_sort.dart';
 import '../../core/safe_insets.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/motion.dart' show FmEmptyState;
-import '../../widgets/embedded_toolbar.dart';
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
 ///
@@ -82,6 +82,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
   static const _applyJobId = 'cleanup_apply';
 
   final Set<String> _selected = {};
+  final Set<String> _expanded = {};
+  final Set<String> _showAllFiles = {};
 
   /// Kullanıcı seçimi bir kez kurulur; sonuç tazelenince yeniden kurulmalı.
   String? _seedSignature;
@@ -328,7 +330,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final chosen = _chosen;
     return Scaffold(
       appBar: widget.embedded
-          ? EmbeddedToolbar(actions: [_reanalyzeButton()])
+          ? null
           : AppBar(
               title: Text(context.t('clean.title')),
               actions: [_reanalyzeButton()],
@@ -350,17 +352,26 @@ class _CleanupScreenState extends State<CleanupScreen> {
           : _suggestions.isEmpty
               ? FmEmptyState(
                   icon: AppIcons.cleanEmpty,
-                  title: context.t('clean.nothing_body'))
+                  title: context.t('clean.nothing_body'),
+                  action: FilledButton.tonalIcon(
+                    onPressed: _loading ? null : _analyze,
+                    icon: const Icon(AppIcons.refresh, size: 18),
+                    label: Text(context.t('clean.reanalyze')),
+                  ),
+                )
               : ListView(
                   padding: withNavInset(context, const EdgeInsets.fromLTRB(
                       Gap.md, Gap.md, Gap.md, 120)),
                   children: [
+                    _summaryBanner(chosen),
+                    const SizedBox(height: Gap.sm + 2),
                     // Akıllı düzenin (Decisions modeli) "Ayıkla" bulguları
                     // Yer aç'ta da (2026-11-20, kullanıcı: "yer aç gibi
                     // şeylerde bu yeni model kullanılabilir"). Silme Ayıkla
                     // ekranında tek tek onayla — burada otomatik seçilmez.
-                    if (_clutterCount > 0)
+                    if (_clutterCount > 0) ...[
                       Card(
+                        margin: EdgeInsets.zero,
                         child: ListTile(
                           key: const ValueKey('clean-smart-clutter'),
                           leading: const Icon(AppIcons.ai),
@@ -374,6 +385,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
                           },
                         ),
                       ),
+                      const SizedBox(height: Gap.sm + 2),
+                    ],
                     for (final s in _suggestions) _card(s),
                     if (CleanupIgnore.instance.count > 0)
                       Center(
@@ -404,6 +417,62 @@ class _CleanupScreenState extends State<CleanupScreen> {
     );
   }
 
+  Widget _summaryBanner(List<CleanupSuggestion> chosen) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final total = cleanupTotal(_suggestions);
+    final selectedBytes = cleanupTotal(chosen);
+    final safeIds = {
+      for (final s in _suggestions)
+        if (s.safeByDefault) s.id,
+    };
+    final allSafeSelected =
+        safeIds.isNotEmpty && safeIds.every(_selected.contains);
+    return Card(
+      margin: EdgeInsets.zero,
+      color: scheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.t('clean.summary_line', {
+                'total': FsPaths.humanSize(total),
+                'selected': FsPaths.humanSize(selectedBytes),
+              }),
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: Gap.sm),
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (safeIds.isNotEmpty && !allSafeSelected)
+                  FilledButton.tonal(
+                    onPressed: () => setState(() => _selected.addAll(safeIds)),
+                    child: Text(context.t('clean.select_safe')),
+                  ),
+                if (_selected.isNotEmpty)
+                  OutlinedButton(
+                    onPressed: () => setState(_selected.clear),
+                    child: Text(context.t('clean.deselect_all')),
+                  ),
+                TextButton.icon(
+                  onPressed: _loading ? null : _analyze,
+                  icon: const Icon(AppIcons.refresh, size: 18),
+                  label: Text(context.t('common.refresh')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   int get _clutterCount => SmartSort.isLoaded && SmartSort.enabled
       ? SmartSort.clutter().length
       : 0;
@@ -417,93 +486,272 @@ class _CleanupScreenState extends State<CleanupScreen> {
     });
   }
 
+  void _openTrash() => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const TrashScreen(),
+      ));
+
   Widget _card(CleanupSuggestion s) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final selected = _selected.contains(s.id);
+    final isTrash = s.id == 'trash';
+    final canExpand = !isTrash && s.files.isNotEmpty;
+    final expanded = canExpand && _expanded.contains(s.id);
+    final showAll = _showAllFiles.contains(s.id);
+    final statusColor =
+        s.safeByDefault ? Paper.success(context) : scheme.error;
+    final statusIcon = s.safeByDefault ? AppIcons.verified : AppIcons.warning;
+    final badgeLabel =
+        context.t(s.safeByDefault ? 'clean.badge_safe' : 'clean.badge_review');
+
+    void toggleSelect() => setState(() {
+          if (!_selected.remove(s.id)) _selected.add(s.id);
+        });
+
+    void onBodyTap() {
+      if (isTrash) {
+        _openTrash();
+      } else if (canExpand) {
+        setState(() {
+          if (!_expanded.remove(s.id)) _expanded.add(s.id);
+        });
+      } else {
+        toggleSelect();
+      }
+    }
+
+    final statusBadge = Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+      child: Icon(statusIcon, size: 20, color: statusColor),
+    );
+
     return Card(
+      margin: const EdgeInsets.only(bottom: Gap.sm + 2),
+      clipBehavior: Clip.antiAlias,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CheckboxListTile(
-            value: selected,
-            onChanged: (_) => setState(() {
-              if (!_selected.remove(s.id)) _selected.add(s.id);
-            }),
-            title: Text(context.t(s.titleKey)),
-            subtitle: Text('${context.t(s.detailKey, s.detailVars)}\n'
-                '${FsPaths.humanSize(s.bytes)}'),
-            isThreeLine: true,
-            secondary: !s.safeByDefault
-                ? Tooltip(
-                    message: context.t('clean.personal_warning'),
-                    child: Icon(AppIcons.warning,
-                        color: Theme.of(context).colorScheme.error),
-                  )
-                : const Icon(AppIcons.verified),
-          ),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: TextButton.icon(
-              key: ValueKey('clean-ignore-${s.id}'),
-              onPressed: () => _ignore(() => CleanupIgnore.instance
-                  .ignoreSuggestion(s.id)),
-              icon: const Icon(AppIcons.hiddenOff, size: 18),
-              label: Text(context.t('clean.never_suggest')),
-            ),
-          ),
-          if (s.files.isNotEmpty)
-            ExpansionTile(
-              title: Text(context.t('clean.see_files', {'n': s.files.length})),
-              children: [
-                // İlk 20: uzun listeyi tümüyle çizmek gereksiz, karar için yeter.
-                for (final f in s.files.take(20))
-                  ListTile(
-                    dense: true,
-                    leading: FmEntryIcon(entry: f, size: 32),
-                    title:
-                        Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(
-                      '${FsPaths.humanSize(f.sizeBytes)} · ${p.dirname(f.path)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    // Dokun = aç, bak; gereksizse satırdaki çöp düğmesi.
-                    onTap: () => EntryOpener.open(context, f.path),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: onBodyTap,
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        Gap.md, Gap.md, Gap.xs, Gap.md),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          tooltip: context.t('clean.never_suggest_file'),
-                          icon: const Icon(AppIcons.hiddenOff, size: 20),
-                          onPressed: () => _ignore(
-                              () => CleanupIgnore.instance.ignoreFile(f.path)),
-                        ),
-                        if (!ImportantFiles.isImportant(f.path))
-                          IconButton(
-                            key: ValueKey('clean-trash-${f.path}'),
-                            tooltip: context.t('jr.trash_created'),
-                            icon: const Icon(AppIcons.delete, size: 20),
-                            onPressed: () => _trashOne(f.path),
+                        s.safeByDefault
+                            ? statusBadge
+                            : Tooltip(
+                                message: context.t('clean.personal_warning'),
+                                child: statusBadge,
+                              ),
+                        const SizedBox(width: Gap.sm + 4),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      context.t(s.titleKey),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: theme.textTheme.titleSmall
+                                          ?.copyWith(fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                  const SizedBox(width: Gap.xs),
+                                  DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: statusColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(
+                                          Radii.control),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      child: Text(
+                                        badgeLabel,
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                context.t(s.detailKey, s.detailVars),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant),
+                              ),
+                              const SizedBox(height: Gap.sm),
+                              Wrap(
+                                spacing: Gap.sm,
+                                runSpacing: Gap.xs,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: scheme.primaryContainer
+                                          .withValues(alpha: 0.7),
+                                      borderRadius: BorderRadius.circular(
+                                          Radii.control),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      child: Text(
+                                        FsPaths.humanSize(s.bytes),
+                                        style: theme.textTheme.labelMedium
+                                            ?.copyWith(
+                                          color: scheme.onPrimaryContainer,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (isTrash)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          context.t('clean.open_trash'),
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                            color: scheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Icon(AppIcons.chevron,
+                                            size: 16, color: scheme.primary),
+                                      ],
+                                    )
+                                  else if (canExpand)
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          expanded
+                                              ? context.t('clean.hide_files')
+                                              : context.t(
+                                                  'clean.inspect_files',
+                                                  {'n': s.files.length}),
+                                          style: theme.textTheme.labelMedium
+                                              ?.copyWith(
+                                            color: scheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Icon(
+                                          expanded
+                                              ? AppIcons.expandLess
+                                              : AppIcons.expandMore,
+                                          size: 18,
+                                          color: scheme.primary,
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
+                        ),
                       ],
                     ),
                   ),
-                if (s.files.length > 20)
-                  ListTile(
-                    dense: true,
-                    title: Text(context
-                        .t('count.more_files', {'n': s.files.length - 20})),
-                  ),
-              ],
-            ),
-          if (s.id == 'trash')
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => const TrashScreen(),
-                )),
-                child: Text(context.t('clean.open_trash')),
+                ),
               ),
-            ),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(top: Gap.xs, end: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      key: ValueKey('clean-ignore-${s.id}'),
+                      tooltip: context.t('clean.never_suggest'),
+                      icon: const Icon(AppIcons.hiddenOff, size: 20),
+                      onPressed: () => _ignore(
+                          () => CleanupIgnore.instance.ignoreSuggestion(s.id)),
+                    ),
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Checkbox(
+                        value: selected,
+                        onChanged: (_) => toggleSelect(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (expanded) ...[
+            const Divider(height: 1),
+            for (final f in showAll ? s.files : s.files.take(20))
+              ListTile(
+                dense: true,
+                leading: FmEntryIcon(entry: f, size: 32),
+                title:
+                    Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  '${FsPaths.humanSize(f.sizeBytes)} · '
+                  '${FmLocation.label(f.path, context.t, volumes: FmEnv.volumes)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                // Dokun = aç, bak; gereksizse satırdaki çöp düğmesi.
+                onTap: () => EntryOpener.open(context, f.path),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: context.t('clean.never_suggest_file'),
+                      icon: const Icon(AppIcons.hiddenOff, size: 20),
+                      onPressed: () => _ignore(
+                          () => CleanupIgnore.instance.ignoreFile(f.path)),
+                    ),
+                    if (!ImportantFiles.isImportant(f.path))
+                      IconButton(
+                        key: ValueKey('clean-trash-${f.path}'),
+                        tooltip: context.t('jr.trash_created'),
+                        icon: const Icon(AppIcons.delete, size: 20),
+                        onPressed: () => _trashOne(f.path),
+                      ),
+                  ],
+                ),
+              ),
+            if (!showAll && s.files.length > 20)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Gap.xs),
+                child: Center(
+                  child: TextButton(
+                    onPressed: () => setState(() => _showAllFiles.add(s.id)),
+                    child: Text(context.t('clean.show_all_more',
+                        {'n': s.files.length - 20})),
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );

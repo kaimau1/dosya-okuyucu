@@ -7,7 +7,11 @@ import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
+import '../../services/fm/smart_sort_taxonomy.dart';
+import '../app_dialog.dart';
 import 'fm_type_chips.dart' show FmSheetSectionTitle;
+import 'pin_dialog.dart';
+import 'smart_cat_style.dart';
 
 /// Süzgeç sayfasının sonucu: süzgeç + sıralama birlikte döner.
 class FmFilterResult {
@@ -39,14 +43,14 @@ Future<FmFilterResult?> showFmFilterSheet(
   Map<MediaBucket, int> buckets = const {},
   Map<ChatMediaKind, int> chatKinds = const {},
   Map<String, int> tags = const {},
+  Map<String, int> smartCats = const {},
   bool showSort = true,
   bool showDuplicateSwitch = false,
   List<FmSort> sortOptions = FmSort.values,
 }) =>
-    showModalBottomSheet<FmFilterResult>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
+    showAppSheet<FmFilterResult>(
+      context,
+      scrollable: false,
       builder: (_) => _FilterSheet(
         filter: filter,
         sort: sort,
@@ -55,6 +59,7 @@ Future<FmFilterResult?> showFmFilterSheet(
         buckets: buckets,
         chatKinds: chatKinds,
         tags: tags,
+        smartCats: smartCats,
         showSort: showSort,
         showDuplicateSwitch: showDuplicateSwitch,
         sortOptions: sortOptions,
@@ -69,6 +74,7 @@ class _FilterSheet extends StatefulWidget {
   final Map<MediaBucket, int> buckets;
   final Map<ChatMediaKind, int> chatKinds;
   final Map<String, int> tags;
+  final Map<String, int> smartCats;
   final bool showSort;
   final bool showDuplicateSwitch;
   final List<FmSort> sortOptions;
@@ -81,6 +87,7 @@ class _FilterSheet extends StatefulWidget {
     required this.buckets,
     required this.chatKinds,
     required this.tags,
+    required this.smartCats,
     required this.showSort,
     required this.showDuplicateSwitch,
     required this.sortOptions,
@@ -255,6 +262,40 @@ class _FilterSheetState extends State<_FilterSheet> {
                         ),
                     ],
                   ),
+                  if (widget.smartCats.isNotEmpty || _filter.smartCats.isNotEmpty) ...[
+                    _label(context.t('sm.filter_title')),
+                    Wrap(
+                      spacing: Gap.sm,
+                      runSpacing: Gap.xs,
+                      children: [
+                        ChoiceChip(
+                          label: Text(context.t('flt.all')),
+                          selected: _filter.smartCats.isEmpty,
+                          onSelected: (_) => setState(
+                              () => _filter = _filter.withSmartCats(const {})),
+                        ),
+                        for (final e in _sortedSmartCats)
+                          FilterChip(
+                            avatar: Icon(SmartCatStyle.icon(e.key),
+                                size: AppIcons.small,
+                                color: SmartCatStyle.color(e.key)),
+                            label: Text(
+                                '${SmartCatStyle.label(context, e.key)} (${e.value})'),
+                            selected: _filter.smartCats.contains(e.key),
+                            onSelected: (on) async {
+                              if (on &&
+                                  SmartTaxonomy.sensitive.contains(e.key) &&
+                                  !await unlockSensitiveCats(context)) {
+                                return;
+                              }
+                              if (!mounted) return;
+                              setState(
+                                  () => _filter = _filter.toggleSmartCat(e.key));
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
                   if (widget.buckets.length > 1) ...[
                     _label(context.t('flt.source')),
                     Wrap(
@@ -369,14 +410,27 @@ class _FilterSheetState extends State<_FilterSheet> {
                     ),
                   ],
                   if (widget.showDuplicateSwitch) ...[
-                    const SizedBox(height: Gap.sm),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: _filter.hideDuplicates,
-                      onChanged: (v) => setState(
-                          () => _filter = _filter.withHideDuplicates(v)),
-                      title: Text(context.t('flt.hide_dupes')),
-                      subtitle: Text(context.t('flt.hide_dupes_sub')),
+                    const SizedBox(height: Gap.md),
+                    Card(
+                      margin: EdgeInsets.zero,
+                      elevation: 0,
+                      color: theme.colorScheme.surfaceContainerLow,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        side: BorderSide(
+                            color: theme.colorScheme.outlineVariant),
+                      ),
+                      child: SwitchListTile(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Radii.card)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: Gap.md, vertical: Gap.xs),
+                        value: _filter.hideDuplicates,
+                        onChanged: (v) => setState(
+                            () => _filter = _filter.withHideDuplicates(v)),
+                        title: Text(context.t('flt.hide_dupes')),
+                        subtitle: Text(context.t('flt.hide_dupes_sub')),
+                      ),
                     ),
                   ],
                   const SizedBox(height: Gap.md),
@@ -452,6 +506,15 @@ class _FilterSheetState extends State<_FilterSheet> {
         return byCount != 0 ? byCount : a.key.compareTo(b.key);
       });
     return list;
+  }
+
+  List<MapEntry<String, int>> get _sortedSmartCats {
+    final map = <String, int>{...widget.smartCats};
+    for (final c in _filter.smartCats) {
+      map.putIfAbsent(c, () => 0);
+    }
+    return map.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
   }
 
   Widget _label(String text) => FmSheetSectionTitle(text);
