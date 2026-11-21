@@ -40,8 +40,7 @@ class ColumnFilter {
     final out = <int>{};
     if (top != null) {
       final nums = <double>[
-        for (var r = first; r <= last; r++)
-          if (number(r) case final v?) v,
+        for (var r = first; r <= last; r++) ?number(r),
       ]..sort();
       final n = top!.clamp(0, nums.length);
       if (n == 0) {
