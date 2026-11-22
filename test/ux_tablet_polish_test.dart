@@ -158,21 +158,9 @@ void main() {
       ));
       await tester.pump();
 
+      // Sekme çubuğu da AppBar içinde "Yer aç" yazar; yalnız başlığa bak.
       final appBar = tester.widget<AppBar>(find.byType(AppBar));
-      expect(
-        find.descendant(
-          of: find.byWidget(appBar),
-          matching: find.text('Yer aç'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byWidget(appBar),
-          matching: find.text('İşlemler'),
-        ),
-        findsNothing,
-      );
+      expect((appBar.title as Text).data, 'Yer aç');
     });
 
     testWidgets('AudioPlayerScreen geniş ekranda iki bölmeli açılır ve taşmaz',
