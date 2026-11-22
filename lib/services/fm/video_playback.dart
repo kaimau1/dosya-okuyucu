@@ -227,7 +227,9 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     if (pendingDispose != null) {
       try {
         await pendingDispose;
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: önceki denetleyici kapanış hatası yeni yüklemeyi engellemez.
+      }
     }
     var old = _controller;
     old?.removeListener(_onTick);

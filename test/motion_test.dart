@@ -20,11 +20,18 @@ void main() {
         ),
       ),
     ));
-    double scale() =>
-        tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale;
+    double scale() {
+      final t = find.descendant(
+        of: find.byType(PressScale),
+        matching: find.byType(Transform),
+      );
+      if (t.evaluate().isEmpty) return 1;
+      return tester.widget<Transform>(t).transform.storage[0];
+    }
     final gesture =
         await tester.startGesture(tester.getCenter(find.byType(InkWell)));
     await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 50));
     expect(scale(), lessThan(1));
     await gesture.up();
     await tester.pumpAndSettle();
@@ -45,7 +52,14 @@ void main() {
         .startGesture(tester.getCenter(find.byType(SizedBox).last));
     await gesture.moveBy(const Offset(0, 30));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 1);
+    final t = find.descendant(
+      of: find.byType(PressScale),
+      matching: find.byType(Transform),
+    );
+    final s = t.evaluate().isEmpty
+        ? 1.0
+        : tester.widget<Transform>(t).transform.storage[0];
+    expect(s, 1);
     await gesture.up();
   });
 

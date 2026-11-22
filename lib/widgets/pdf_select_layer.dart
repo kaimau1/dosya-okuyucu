@@ -15,6 +15,7 @@ import '../core/app_icons.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
 import '../core/app_colors.dart';
+import '../core/device_profile.dart';
 
 // Seçim geometrisi 2026-08-05'te servise taşındı (OCR araması da kullanıyor);
 // eski adresten içe aktaran dosyalar/testler kırılmasın diye yeniden sunulur.
@@ -217,6 +218,11 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   Offset? _ocrPendingSelect;
   int? _ocrPendingPointer;
 
+  /// Taranmış sayfa görünür olur olmaz OCR'ı kendiliğinden başlatan gecikme.
+  /// 350 ms: hızla kaydırılıp geçilen sayfalar pil yakmasın, duran sayfa ise
+  /// kullanıcı daha dokunmadan seçilebilir olsun.
+  Timer? _autoOcrTimer;
+
   /// Çift dokunuş ölçümü (dokunmada kelime seçimi — Chrome mobil paritesi).
   DateTime? _lastTapAt;
   Offset _lastTapPos = Offset.zero;
@@ -235,12 +241,21 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   PdfPageText? _geomText;
   Size? _geomSize;
 
+  Timer? _textTimer;
   Future<void>? _textLoad;
 
+  @override
+  void initState() {
+    super.initState();
+    _textTimer = Timer(PdfSelectLayer.textLoadDelay, _ensureText);
+  }
+
   /// Metni (bir kez) yükler; ikinci çağrı ilk işi bekler.
-  /// Yalnız işaretçi dokunuşu / hover anında tetiklenir — kaydırmada
-  /// pdfium kuyruğunu doldurmaz.
-  Future<void> _ensureText() => _textLoad ??= _loadText();
+  Future<void> _ensureText() {
+    _textTimer?.cancel();
+    _textTimer = null;
+    return _textLoad ??= _loadText();
+  }
 
   Future<void> _loadText() async {
     PdfPageText? t;
@@ -254,6 +269,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       if (t != null) _text = t;
       _textLoaded = true;
     });
+    _maybeAutoOcr();
   }
 
   @override
@@ -287,8 +303,10 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   @override
   void dispose() {
+    _textTimer?.cancel();
     _pressTimer?.cancel();
     _ocrEmptyTimer?.cancel();
+    _autoOcrTimer?.cancel();
     if (_notifiedSelecting || _dragAtActive) {
       // Katman aktif seçim ortasında sökülürse pan kilidi / kenar kaydırması
       // üstte asılı kalmasın. dispose içinde parent setState çağrılamaz →
@@ -569,6 +587,22 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   /// pdfium metni "ince" mi? (Yalnız sayfa numarası gibi kırıntılar da
   /// taranmış sayıdadır.) İnce sayfa = OCR adayı.
   bool get _textThin => (_text?.fullText.trim().length ?? 0) < 8;
+
+  /// Taranmış sayfa görünür olur olmaz OCR'ı KENDİLİĞİNDEN başlat (kullanıcı
+  /// isteği 2026-08-05: *"kullanıcıya bir şey bırakmamalısın, otomatik
+  /// olmalı"*). Sessiz çalışır — çip yalnız kullanıcı sonucu beklerken
+  /// görünür. 350 ms gecikme: hızla kaydırılıp geçilen sayfa (katman söküldüğü
+  /// için zamanlayıcısı iptal olur) hiç OCR'lanmaz, pil korunur; hafif
+  /// cihazlarda arka plan OCR'ı kapatılır (uzun basış hâlâ tetikler).
+  void _maybeAutoOcr() {
+    if (!_textLoaded || _ocrTried || _ocrRunning) return;
+    if (!DeviceProfile.budget.contentIndexOcrDefault) return;
+    if (!PdfOcrText.isSupported || !_textThin) return;
+    _autoOcrTimer?.cancel();
+    _autoOcrTimer = Timer(const Duration(milliseconds: 350), () {
+      if (mounted) _startOcr();
+    });
+  }
 
   Future<void> _startOcr() async {
     if (_ocrRunning || _ocrTried || !PdfOcrText.isSupported) return;
@@ -868,7 +902,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
                         color: scheme.primary.withValues(alpha: 0.28),
                       ),
                     )
-                  : const SizedBox.shrink(),
+                  : const SizedBox.expand(),
             ),
           ),
           if (_hasSelection) ...[

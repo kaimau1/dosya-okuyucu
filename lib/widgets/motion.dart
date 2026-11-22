@@ -141,23 +141,32 @@ class _PressScaleState extends State<PressScale>
 
   @override
   Widget build(BuildContext context) {
-    final anim = _scaleAnim;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _onDown,
       onPointerMove: _onMove,
       onPointerUp: _onUp,
       onPointerCancel: (e) => _release(),
-      child: anim == null
-          ? widget.child
-          : AnimatedBuilder(
-              animation: anim,
-              builder: (context, child) =>
-                  Transform.scale(scale: anim.value, child: child),
-              child: widget.child,
-            ),
+      child: AnimatedBuilder(
+        animation: _scaleAnim ?? _idle,
+        builder: (context, child) => Transform.scale(
+          scale: _scaleAnim?.value ?? 1.0,
+          child: child,
+        ),
+        child: widget.child,
+      ),
     );
   }
+}
+
+const _idle = _IdleListenable();
+
+class _IdleListenable implements Listenable {
+  const _IdleListenable();
+  @override
+  void addListener(VoidCallback listener) {}
+  @override
+  void removeListener(VoidCallback listener) {}
 }
 
 /// **Yumuşak giriş** — yeni beliren parça hafifçe büyüyüp yukarı süzülerek
