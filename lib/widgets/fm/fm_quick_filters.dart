@@ -526,9 +526,9 @@ _Counts _computeCounts(
 
 /// AI kategorileri (Akıllı düzen): (kimlik, listede kaç dosya), çoktan aza.
 /// Akıllı düzen kapalıysa boş. Yalnız eşlem bakışı — ucuz.
-List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
+Map<String, int> smartCatCountsFor(List<FsEntry> source, FmFilter f) {
   final smartOf = FmFilter.smartCatOf;
-  if (smartOf == null) return const [];
+  if (smartOf == null) return const {};
   final userCatsOf = FmFilter.smartUserCatsOf;
   final counts = <String, int>{};
   for (final e in source) {
@@ -545,6 +545,11 @@ List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
   for (final c in f.smartCats) {
     counts.putIfAbsent(c, () => 0);
   }
+  return counts;
+}
+
+List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
+  final counts = smartCatCountsFor(source, f);
   return counts.entries.map((e) => (e.key, e.value)).toList()
     ..sort((a, b) => b.$2.compareTo(a.$2));
 }
@@ -686,6 +691,7 @@ Future<void> showFmSourceSheet(
         }
 
         final c = _computeCounts(source, f, untouchedDays, showBuckets);
+        final smartCats = _smartCounts(source, f);
         final months = untouchedDays ~/ 30;
         final scheme = Theme.of(ctx).colorScheme;
         Widget section(String title, List<Widget Function(double)> tiles) {
@@ -709,6 +715,29 @@ Future<void> showFmSourceSheet(
             ],
           );
         }
+
+        final smartTiles = <Widget Function(double)>[
+          for (final (cat, n) in smartCats)
+            (w) => FmChoiceTile(
+                  key: ValueKey('smartcat-$cat'),
+                  width: w,
+                  icon: SmartCatStyle.icon(cat),
+                  color: SmartCatStyle.color(cat),
+                  label: SmartCatStyle.label(ctx, cat),
+                  count: n,
+                  selected: f.smartCats.contains(cat),
+                  onTap: () async {
+                    final adding = !f.smartCats.contains(cat);
+                    if (adding &&
+                        SmartTaxonomy.sensitive.contains(cat) &&
+                        !await unlockSensitiveCats(ctx)) {
+                      return;
+                    }
+                    if (!ctx.mounted) return;
+                    apply(f.toggleSmartCat(cat));
+                  },
+                ),
+        ];
 
         final where = <Widget Function(double)>[
           for (final (v, n) in c.volumes)
@@ -819,6 +848,7 @@ Future<void> showFmSourceSheet(
                       style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant)),
                 ),
+                section(ctx.t('sm.filter_title'), smartTiles),
                 section(ctx.t('src.where'), where),
                 section(ctx.t('src.when'), when),
                 section(ctx.t('more.tags'), tagTiles),
@@ -840,8 +870,9 @@ Future<void> showFmSourceSheet(
   );
 }
 
-/// Kaynak hapının saydığı etkin ölçüt sayısı (birim, kaynak, zaman, büyük, etiket).
+/// Kaynak hapının saydığı etkin ölçüt sayısı (akıllı kategori, birim, kaynak, zaman, büyük, etiket).
 int _sourceActive(FmFilter f) =>
+    f.smartCats.length +
     f.volumeRoots.length +
     f.buckets.length +
     (f.openedWithinDays != null ? 1 : 0) +
@@ -852,6 +883,7 @@ int _sourceActive(FmFilter f) =>
 /// Yalnız kaynak levhasının ölçütlerini bırakır (tür/tarih/sıra korunur).
 FmFilter _clearSource(FmFilter f) {
   var g = f;
+  if (g.smartCats.isNotEmpty) g = g.withSmartCats(const {});
   for (final v in f.volumeRoots.toList()) {
     g = g.toggleVolumeRoot(v);
   }
@@ -926,9 +958,10 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       return const SizedBox.shrink();
     }
 
-    // Tüm kaynak/zaman/boyut süzgeçleri TEK hapta; dokununca kart levhası.
+    // Tüm kaynak/akıllı kategori/zaman/boyut süzgeçleri TEK hapta (şeritte
+    // en fazla 3 hap: Tür · Kaynak ve zaman · Analiz ve diğer).
     final active = _sourceActive(f);
-    final hasAny = tagged || active > 0;
+    final hasAny = tagged || counts.smart || active > 0;
     return FmFilterBar(
       children: [
         ...widget.leading,
@@ -950,27 +983,6 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
               count: active > 0 ? active : null,
               dropdown: true,
               highlighted: active > 0,
-            ),
-          ),
-        // AI kategorisi (Akıllı düzen): yalnız listede kategorili dosya varsa.
-        if (counts.smart)
-          InkWell(
-            key: const ValueKey('smartcat-pill'),
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => showSmartCatSheet(
-              context,
-              cats: _smartCounts(widget.source, widget.filter),
-              filter: widget.filter,
-              onChanged: widget.onChanged,
-            ),
-            child: FmPill(
-              icon: AppIcons.ai,
-              label: f.smartCats.length == 1
-                  ? SmartCatStyle.label(context, f.smartCats.first)
-                  : context.t('sm.filter_pill'),
-              count: f.smartCats.length > 1 ? f.smartCats.length : null,
-              dropdown: true,
-              highlighted: f.smartCats.isNotEmpty,
             ),
           ),
         ...widget.trailing,

@@ -267,6 +267,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                       // kırılımı elimizde yok, orada düz bir doluluk çubuğu
                       // dürüst olanı.
                       slices: v.isPrimary ? _slices(categories) : const [],
+                      onSliceTap: v.isPrimary ? _onSliceTap : null,
                       // Eğilim satırı kartın İÇİNDE: ayrı bir kart olarak tek
                       // cümle için tam bir kutu harcıyordu ve "ana bellek"
                       // kartıyla arasında hiçbir görsel bağ yoktu.
@@ -274,11 +275,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     ),
                     const SizedBox(height: Gap.md),
                   ],
-                  // **Araçlar tek kartta, ayrı ayrı üç kart değil** (kullanıcı
-                  // 2026-08-29: *"üst kısım özellikle yılın şeklinde duruyor"*).
-                  // Üç ayrı kart, her biri iki satır açıklamayla, ekranın
-                  // yarısını yiyor ve asıl veriyi ("Türlere göre") ekranın
-                  // dışına itiyordu. Açıklamalar tek satıra indi.
+                  // **Araçlar** — temiz iki grup altında ferah liste.
                   Text(context.t('an.tools'),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color:
@@ -289,7 +286,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   Card(
                     clipBehavior: Clip.antiAlias,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        _ToolsGroupHeader(context.t('an.tools_clean')),
                         _ToolRow(
                           icon: AppIcons.organize,
                           color: AppHues.cyan,
@@ -314,9 +313,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                 DuplicatesScreen(roots: FmEnv.volumeRoots),
                           )),
                         ),
-                        // **Depolama merkezi** (2026-10-21, Faz 2): benzer
-                        // görseller ve sohbet medyası panoda ayrı kutulardı;
-                        // ikisi de "yer aç" sorusunun parçası, burada durur.
                         const Divider(height: 1),
                         _ToolRow(
                           icon: AppIcons.autoAwesomeMotion,
@@ -334,6 +330,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           onTap: () => openChatCleanupScreen(context),
                         ),
                         const Divider(height: 1),
+                        _ToolsGroupHeader(context.t('an.tools_explore')),
                         _ToolRow(
                           icon: AppIcons.ai,
                           color: AppHues.violet,
@@ -635,6 +632,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// küçük olabilir (uygulama verisi, sistem, erişilemeyen klasörler) — o fark
   /// "Diğer" dilimi olarak, taranan dilimlerden sonra çiziliyor; toplamı
   /// kullanılan alana eşitlemek için uydurulmuş bir sayı DEĞİL, gerçek artık.
+  void _onSliceTap(_Slice slice) {
+    if (slice.category != null) {
+      _openType(slice.category!);
+    } else if (slice.isApps) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const InstalledAppsScreen()),
+      );
+    }
+  }
+
   List<_Slice> _slices(List<FmCategory> categories) {
     final index = _index;
     var scanned = 0;
@@ -646,7 +653,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       out.add(_Slice(
           bytes: bytes,
           color: FmColors.forCategory(c),
-          label: context.t(c.labelKey)));
+          label: context.t(c.labelKey),
+          category: c));
     }
     final apps = _apps;
     if (apps != null && apps.totalBytes > 0) {
@@ -654,9 +662,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       out.add(_Slice(
           bytes: apps.totalBytes,
           color: FmColors.apk,
-          label: context.t('fm.apps')));
+          label: context.t('fm.apps'),
+          isApps: true));
     }
     if (out.isEmpty) return const [];
+    // Uygulamalar dahil tüm dilimler büyükten küçüğe sıralanır ki büyük
+    // olanlar lejantta ilk 5 içinde yer bulsun; "Diğer" en sonda kalır.
+    out.sort((a, b) => b.bytes.compareTo(a.bytes));
     // Kalan kullanılan alan (ölçülemeyen): nötr ton.
     for (final v in _volumes) {
       if (!v.isPrimary || !v.hasStats) continue;
@@ -665,7 +677,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         out.add(_Slice(
             bytes: rest,
             color: AppHues.silver,
-            label: context.t('an.other_used')));
+            label: context.t('an.other_used'),
+            isOther: true));
       }
     }
     return out;

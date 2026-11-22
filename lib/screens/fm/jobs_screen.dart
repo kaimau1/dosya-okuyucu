@@ -50,11 +50,14 @@ class JobsScreen extends StatelessWidget {
   List<Widget> _actions(BuildContext context) => [
         // Geri alınabilir taşıma/kopyalama geçmişi (eski "Son işlemler"
         // kutusu, 2026-10-21'de Geçmiş > İşlemler'e katıldı).
-        IconButton(
-          tooltip: context.t('oph.title'),
-          icon: const Icon(AppIcons.undo),
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => const OpHistoryScreen())),
+        Tooltip(
+          message: context.t('oph.title'),
+          child: TextButton.icon(
+            icon: const Icon(AppIcons.history, size: 18),
+            label: Text(context.t('oph.title')),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const OpHistoryScreen())),
+          ),
         ),
         AnimatedBuilder(
           animation: JobQueue.instance,
@@ -128,16 +131,30 @@ class JobsScreen extends StatelessWidget {
       );
 }
 
-/// Biten işler iki sütunda; satırdaki iki kart AYNI yükseklikte (kısa olan
-/// uzun olanınkine uzar — ızgara tırtıklı görünmesin). Sabit hücre yüksekliği
-/// yok: büyük yazı ölçeğinde metin taşmasın diye satır içeriğe göre büyür.
+/// Biten işler: tek iş varsa veya dar ekranda tam genişlik okunaklı kartlar;
+/// geniş ekranda birden çok iş 2-3 sütunda (IntrinsicHeight/Spacer olmadan).
 class _FinishedGrid extends StatelessWidget {
   final List<FmJob> jobs;
   const _FinishedGrid({required this.jobs});
 
   @override
   Widget build(BuildContext context) {
-    final columns = MediaQuery.sizeOf(context).width >= 720 ? 3 : 2;
+    final width = MediaQuery.sizeOf(context).width;
+    final columns = jobs.length <= 1
+        ? 1
+        : (width >= 900 ? 3 : (width >= 600 ? 2 : 1));
+    if (columns == 1) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final job in jobs)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.sm),
+              child: _FinishedJobTile(job: job),
+            ),
+        ],
+      );
+    }
     final rows = <List<FmJob>>[
       for (var i = 0; i < jobs.length; i += columns)
         jobs.sublist(i, i + columns > jobs.length ? jobs.length : i + columns),
@@ -147,20 +164,18 @@ class _FinishedGrid extends StatelessWidget {
         for (final row in rows)
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < columns; i++) ...[
-                    if (i > 0) const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: i < row.length
-                          ? _FinishedJobTile(job: row[i])
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < columns; i++) ...[
+                  if (i > 0) const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: i < row.length
+                        ? _FinishedJobTile(job: row[i])
+                        : const SizedBox.shrink(),
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
       ],
@@ -168,7 +183,7 @@ class _FinishedGrid extends StatelessWidget {
   }
 }
 
-/// Biten işin küçük kartı: durum simgesi, başlık, özet, ürettiği ilk dosya ve
+/// Biten işin kartı: durum simgesi, başlık, özet, ürettiği ilk dosya ve
 /// süre. Dokununca işin ilgili yerine gider (ya da sürdürülebiliyorsa sürdürür).
 class _FinishedJobTile extends StatelessWidget {
   final FmJob job;
@@ -183,8 +198,10 @@ class _FinishedJobTile extends StatelessWidget {
     final destination = jobHasDestination(job);
     final elapsed = job.elapsed;
     final outputs = job.outputs;
+    final statusColor = card._color(scheme) ?? scheme.onSurfaceVariant;
     return Card(
       margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: resumable
             ? () => card._resume(context, job)
@@ -192,45 +209,57 @@ class _FinishedJobTile extends StatelessWidget {
                 ? () => openJobTarget(context, job, fallbackToJobs: false)
                 : null),
         child: Padding(
-          padding: const EdgeInsets.all(Gap.sm + 4),
+          padding: const EdgeInsets.all(Gap.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 30,
-                    height: 30,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
-                      color: (card._color(scheme) ?? scheme.onSurfaceVariant)
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(9),
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(Radii.control),
                     ),
-                    child: Icon(card._icon,
-                        size: 18, color: card._color(scheme)),
+                    child: Icon(card._icon, size: 18, color: statusColor),
                   ),
-                  const Spacer(),
-                  if (destination && !resumable)
+                  const SizedBox(width: Gap.sm + 2),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(job.shownTitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text(card.subtitle(context),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  if (destination && !resumable) ...[
+                    const SizedBox(width: Gap.xs),
                     Icon(AppIcons.chevron,
                         size: 18, color: scheme.onSurfaceVariant),
+                  ],
                 ],
               ),
-              const SizedBox(height: Gap.sm),
-              Text(job.shownTitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleSmall),
-              const SizedBox(height: 2),
-              Text(card.subtitle(context),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall),
               if (outputs.isNotEmpty) ...[
-                const SizedBox(height: Gap.xs),
+                const SizedBox(height: Gap.sm),
                 Text(context.t('jb.outputs', {'n': outputs.length}),
-                    style: theme.textTheme.labelSmall),
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: 2),
                 InkWell(
+                  borderRadius: BorderRadius.circular(Radii.control),
                   onTap: () => EntryOpener.open(context, outputs.first,
                       siblings: outputs),
                   child: Padding(
@@ -238,43 +267,46 @@ class _FinishedJobTile extends StatelessWidget {
                     child: Text(p.basename(outputs.first),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: scheme.primary)),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
-              const Spacer(),
-              if (elapsed != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: Gap.xs),
-                  child: MonoText(context.t('jb.took', {
-                    'status': context.t(job.status.labelKey),
-                    'time': humanDuration(elapsed),
-                  })),
+              if (elapsed != null || resumable || outputs.isNotEmpty) ...[
+                const SizedBox(height: Gap.sm),
+                Row(
+                  children: [
+                    if (elapsed != null)
+                      Expanded(
+                        child: MonoText(context.t('jb.took', {
+                          'status': context.t(job.status.labelKey),
+                          'time': humanDuration(elapsed),
+                        })),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                    if (resumable)
+                      FilledButton.tonal(
+                        onPressed: () => card._resume(context, job),
+                        child: Text(context.t('jb.resume')),
+                      )
+                    else if (outputs.isNotEmpty)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 8)),
+                        onPressed: () => Navigator.of(context).push(
+                          browserRoute(
+                              BrowserScreen(path: p.dirname(outputs.first))),
+                        ),
+                        icon: const Icon(AppIcons.emptyFolder, size: 16),
+                        label: Text(context.t('jb.open_folder'),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                  ],
                 ),
-              if (resumable)
-                Padding(
-                  padding: const EdgeInsets.only(top: Gap.xs),
-                  child: FilledButton.tonal(
-                    onPressed: () => card._resume(context, job),
-                    child: Text(context.t('jb.resume')),
-                  ),
-                )
-              else if (outputs.isNotEmpty)
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 4)),
-                    onPressed: () => Navigator.of(context).push(
-                      browserRoute(
-                          BrowserScreen(path: p.dirname(outputs.first))),
-                    ),
-                    icon: const Icon(AppIcons.emptyFolder, size: 16),
-                    label: Text(context.t('jb.open_folder'),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
-                ),
+              ],
             ],
           ),
         ),

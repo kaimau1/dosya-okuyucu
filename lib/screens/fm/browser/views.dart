@@ -289,43 +289,38 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
           title: Text(text),
           onTap: onTap,
         );
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              item(AppIcons.newFolder, context.t('fm.new_folder'), () {
-                Navigator.pop(ctx);
-                _newFolder();
-              }),
-              item(AppIcons.newWord, context.t('fm.new_word_doc'), () {
-                Navigator.pop(ctx);
-                _newDocument('docx');
-              }),
-              item(AppIcons.newSheet, context.t('fm.new_xlsx'), () {
-                Navigator.pop(ctx);
-                _newDocument('xlsx');
-              }),
-              item(AppIcons.newText, context.t('fm.new_text_file'), () {
-                Navigator.pop(ctx);
-                _newDocument('txt');
-              }),
-              const Divider(),
-              item(AppIcons.scanHere, context.t('create.scan'), () {
-                Navigator.pop(ctx);
-                _scanHere();
-              }),
-              item(AppIcons.importHere, context.t('create.import'), () {
-                Navigator.pop(ctx);
-                _importHere();
-              }),
-              const SizedBox(height: Gap.sm),
-            ],
-          ),
-        ),
+    showAppSheet<void>(
+      context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          item(AppIcons.newFolder, context.t('fm.new_folder'), () {
+            Navigator.pop(ctx);
+            _newFolder();
+          }),
+          item(AppIcons.newWord, context.t('fm.new_word_doc'), () {
+            Navigator.pop(ctx);
+            _newDocument('docx');
+          }),
+          item(AppIcons.newSheet, context.t('fm.new_xlsx'), () {
+            Navigator.pop(ctx);
+            _newDocument('xlsx');
+          }),
+          item(AppIcons.newText, context.t('fm.new_text_file'), () {
+            Navigator.pop(ctx);
+            _newDocument('txt');
+          }),
+          const Divider(),
+          item(AppIcons.scanHere, context.t('create.scan'), () {
+            Navigator.pop(ctx);
+            _scanHere();
+          }),
+          item(AppIcons.importHere, context.t('create.import'), () {
+            Navigator.pop(ctx);
+            _importHere();
+          }),
+          const SizedBox(height: Gap.sm),
+        ],
       ),
     );
   }

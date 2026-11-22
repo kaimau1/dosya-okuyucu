@@ -50,6 +50,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
             if (picked != null) _setLayout(picked);
           },
         ),
+        FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
         // ⋮ (2026-11-20, kullanıcı: "Belgeler sayfasında bir menü olsun"):
         // "Analiz ve diğer" levhasının aynısı + liste/belge eylemleri.
         IconButton(
@@ -104,7 +105,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
     return counts;
   }
 
-  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
+  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür, akıllı kategori).
   Future<void> _openFilterSheet() async {
     _ensureCounts();
     final result = await showFmFilterSheet(
@@ -116,6 +117,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
       buckets: _bucketCache ?? const {},
       chatKinds: _chatKindCache ?? const {},
       tags: FileTags.counts(),
+      smartCats: smartCatCountsFor(_files, _filter),
       showDuplicateSwitch: true,
     );
     if (result == null || !mounted) return;

@@ -60,6 +60,18 @@ Future<void> showCategoryTools(
     title: context.t('ct.title'),
     subtitle: context.t('ct.subtitle', {'title': title, 'n': n}),
     groups: [
+      if (isDocs)
+        AppActionGroup(title: context.t('ct.group_quick_create'), actions: [
+          AppAction(
+              value: 'scan',
+              icon: AppIcons.ocr,
+              accent: true,
+              label: context.t('fm.scan_document')),
+          AppAction(
+              value: 'new_doc',
+              icon: AppIcons.noteAdd,
+              label: context.t('home.new_document_title')),
+        ]),
       AppActionGroup(title: context.t('ct.group_analysis'), actions: [
         AppAction(
             value: 'summary',
@@ -91,14 +103,6 @@ Future<void> showCategoryTools(
               icon: AppIcons.ai,
               label: context.t('sm.tile'),
               hint: context.t('ui.ct_smart_hint')),
-          AppAction(
-              value: 'scan',
-              icon: AppIcons.ocr,
-              label: context.t('fm.scan_document')),
-          AppAction(
-              value: 'new_doc',
-              icon: AppIcons.noteAdd,
-              label: context.t('home.new_document_title')),
         ]),
       AppActionGroup(title: context.t('ui.ct_list'), actions: [
         if (onSelectAll != null)
@@ -186,6 +190,34 @@ CollectionInsights _insightsOf(List<FsEntry> files) => CollectionInsights.of(
       files,
       openedAtOf: OpenHistory.forPath,
       tagsOf: FileTags.forPath,
+    );
+
+/// Özet veya genel analiz levhasını doğrudan açar (tek katmanlı menüler için).
+Future<void> showCategoryInsights(
+  BuildContext context, {
+  required String title,
+  required List<FsEntry> visible,
+  required bool full,
+}) =>
+    _showInsights(
+      context,
+      title,
+      [for (final e in visible) if (!e.isDir) e],
+      full: full,
+    );
+
+/// Akıllı analiz akışını doğrudan başlatır (tek katmanlı menüler için).
+Future<void> runCategoryAiAnalysis(
+  BuildContext context, {
+  required String title,
+  required List<FsEntry> visible,
+  required Future<void> Function() onChanged,
+}) =>
+    _aiAnalysis(
+      context,
+      title,
+      [for (final e in visible) if (!e.isDir) e],
+      onChanged,
     );
 
 /// Özet (kısa) ya da genel analiz (uzun) levhası — ikisi de cihazda.
