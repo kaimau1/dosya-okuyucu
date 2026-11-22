@@ -62,7 +62,11 @@ abstract final class SmartQuota {
   static const prefLog = 'smart_sort_quota_log';
 
   /// Seçilebilir günlük sınırlar.
-  static const capChoices = [50, 100, 200, 500, 1000];
+  /// [unlimited] = "Sınırsız" (2026-11-22, kullanıcı: "arka planda tüm
+  /// dosyaları tarayacak şekilde de yapılabilsin").
+  static const unlimited = 1 << 30;
+  static const capChoices = [50, 100, 200, 500, 1000, 5000, unlimited];
+  static bool get isUnlimited => _cap >= unlimited;
   static const defaultCap = 200;
   static const historyDays = 7;
 

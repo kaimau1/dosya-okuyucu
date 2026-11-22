@@ -127,7 +127,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final r = await SmartSort.run(
-        credentials: state.aiCredentials, scope: state.aiScopeRules);
+        credentials: state.aiCredentials,
+        scope: state.aiScopeRules,
+        // Sınırsızda bir turda daha çok dosya (kalan sonraki dokunuşta /
+        // arka planda; havuz zaten TÜM dosyalar — bkz. SmartSort.scanAll).
+        limit: SmartQuota.isUnlimited ? 2000 : 300);
     var msg = switch (r.hold) {
       SmartHold.wifi => s.t('sm.hold_wifi'),
       SmartHold.cap =>
@@ -1157,12 +1161,19 @@ class SmartSortSettings extends StatelessWidget {
         ListTile(
           key: const ValueKey('ss-cap'),
           leading: const Icon(AppIcons.dataUsage),
-          title: Text(context.t('sm.cap', {'cap': SmartQuota.dailyCap})),
-          subtitle: Text(context.t('sm.cap_sub', {
-            'n': SmartQuota.usedToday,
-            'cap': SmartQuota.dailyCap,
-            'l': SmartQuota.limitedToday,
-          })),
+          title: Text(SmartQuota.isUnlimited
+              ? context.t('sm.cap_none')
+              : context.t('sm.cap', {'cap': SmartQuota.dailyCap})),
+          subtitle: Text(SmartQuota.isUnlimited
+              ? context.t('sm.cap_sub_none', {
+                  'n': SmartQuota.usedToday,
+                  'l': SmartQuota.limitedToday,
+                })
+              : context.t('sm.cap_sub', {
+                  'n': SmartQuota.usedToday,
+                  'cap': SmartQuota.dailyCap,
+                  'l': SmartQuota.limitedToday,
+                })),
           onTap: () => unawaited(_pickCap(context)),
         ),
       ]);
@@ -1192,7 +1203,9 @@ class SmartSortSettings extends StatelessWidget {
           for (final c in SmartQuota.capChoices)
             ListTile(
               key: ValueKey('ss-cap-$c'),
-              title: Text(ctx.t('sm.cap_n', {'n': c})),
+              title: Text(c >= SmartQuota.unlimited
+                  ? ctx.t('sm.cap_unlimited')
+                  : ctx.t('sm.cap_n', {'n': c})),
               trailing: c == SmartQuota.dailyCap
                   ? const Icon(AppIcons.check)
                   : null,

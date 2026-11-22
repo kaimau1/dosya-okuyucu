@@ -301,7 +301,7 @@ object Extras {
     // ── Akıllı düzen arka plan işi (2026-11-19) ────────────────────────────
     const val SMART_JOB_ID = 0x5E02
 
-    /** Şarjda + ölçülü olmayan ağda ~3 saatte bir [SmartBgJob]; [on] false iptal. */
+    /** Şarjda + ölçülü olmayan ağda ~saatte bir [SmartBgJob]; [on] false iptal. */
     fun scheduleSmartBg(ctx: Context, on: Boolean): Boolean {
         val scheduler = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
             ?: return false
@@ -309,9 +309,13 @@ object Extras {
             scheduler.cancel(SMART_JOB_ID)
             return true
         }
-        if (scheduler.getPendingJob(SMART_JOB_ID) != null) return true
+        // 2026-11-22: 3 sa → 1 sa (kullanıcı: "bitmiyor"); eski aralıklı iş
+        // varsa yenisiyle değiştirilir.
+        val interval = TimeUnit.HOURS.toMillis(1)
+        val pending = scheduler.getPendingJob(SMART_JOB_ID)
+        if (pending != null && pending.intervalMillis == interval) return true
         val info = JobInfo.Builder(SMART_JOB_ID, ComponentName(ctx, SmartBgJob::class.java))
-            .setPeriodic(TimeUnit.HOURS.toMillis(3))
+            .setPeriodic(interval)
             .setRequiresCharging(true)
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
             .setPersisted(true)

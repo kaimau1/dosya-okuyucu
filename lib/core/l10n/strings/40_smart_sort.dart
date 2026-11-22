@@ -274,6 +274,13 @@ const Map<String, (String, String, String)> _t40 = {
     'اليوم {n}/{cap} · تنبيهات الحصة المجانية {l}',
   ),
   'sm.cap_title': ('Günlük sınır', 'Daily limit', 'الحد اليومي'),
+  'sm.cap_unlimited': ('Sınırsız', 'Unlimited', 'بلا حد'),
+  'sm.cap_none': ('Günlük sınır yok', 'No daily limit', 'لا حد يومي'),
+  'sm.cap_sub_none': (
+    'Bugün {n} dosya · ücretsiz kota uyarısı {l}',
+    'Today {n} files · free quota warnings {l}',
+    'اليوم {n} ملفات · تنبيهات الحصة المجانية {l}',
+  ),
   'sm.cap_n': ('{n} dosya', '{n} files', '{n} ملفات'),
   'sm.cap_day': (
     '{d}: {n} dosya · {l} kota uyarısı',

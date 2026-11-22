@@ -410,6 +410,13 @@ class SmartUsage {
 abstract final class SmartSort {
   static const _fileName = 'smart_sort.json';
   static const _parallel = 2;
+
+  /// Aday havuzu: kapsamdaki en yeni bu kadar dosya. KÖK (2026-11-22,
+  /// kullanıcı: "günlerdir parça parça yapıyorum, bitmiyor"): havuz en yeni
+  /// 1500 (arka planda 400) dosyaydı — düzenlenmişler havuzu doldurunca daha
+  /// eski dosyalara HİÇ sıra gelmiyordu. Tarama isolate'te; bellekte yalnız
+  /// en yeni N tutulur.
+  static const scanAll = 100000;
   static const _isolateParseBytes = 256 * 1024;
 
   static const prefEnabled = 'smart_sort_on';
@@ -1498,7 +1505,7 @@ abstract final class SmartSort {
   static Future<SmartRunResult> run({
     required AiCredentials credentials,
     required AiScope scope,
-    int scan = 1500,
+    int scan = scanAll,
     int limit = 300,
     bool reportBatch = false,
   }) async {
