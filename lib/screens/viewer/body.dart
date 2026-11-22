@@ -71,7 +71,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       _holdAutoScroll(false);
                       _pagedPointerCancel();
                     },
-                    child: _nightFilter(
                     child: PdfViewer.file(
                       doc.path,
                       key: _pdfViewerKey,
@@ -79,6 +78,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       initialPageNumber: _pdfPage,
                       passwordProvider: _askPdfPassword,
                       params: PdfViewerParams(
+                        pageImageColorFilter: _pdfPageColorFilter,
+                        onePassRenderingSizeThreshold:
+                            DeviceProfile.budget.isLight ? 1400 : 2000,
+                        behaviorControlParams: PdfViewerBehaviorControlParams(
+                          // 500 ms (Motion dışı zamanlayıcı)
+                          trailingPageLoadingDelay:
+                              const Duration(microseconds: 500000),
+                          partialImageLoadingDelay: Motion.short,
+                          loadPageDimensionsOnDemand:
+                              _docSize > (100 << 20) || _pageCount >= 500,
+                        ),
+                        loadingBannerBuilder: (_, _, _) =>
+                            const SizedBox.shrink(),
                         // **2/4 sütunda en küçük yakınlık** (kullanıcı
                         // 2026-10-30: *"2 sütun 4 sütun seçildiğinde sayfa
                         // yine tek sütun gibi görünüyor, zoom out yapınca
@@ -134,23 +146,45 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // altında kalmasın. Pay SABİT — görünüm boyu hiç
                         // değişmez (pdfrx boy değişince sayfa başına
                         // atlıyordu, HAFIZA 2026-10-23 (14)).
-                        layoutPages: (pages, params) => _insetPdfLayout(
-                          _pdfColumns == 1
-                              // Kenar boşluğu kırpma (H3.4) yalnız tek sütunda;
-                              // sayfa sayfa kipinde (H3.5) sayfalar aralıklı.
-                              ? _pagedPdfLayout(
-                                  _pdfCrop == null
-                                      ? _plainPdfLayout(pages, params)
-                                      : PdfMarginCropper.layout(
-                                          pages, params.margin, _pdfCrop!),
-                                  context,
-                                  params.margin)
-                              : _pdfColumns == kPdfBookLayout
-                                  ? _layoutPdfBook(pages, params)
-                                  : _layoutPdfColumns(pages, params),
-                          context,
-                          chrome,
-                        ),
+                        layoutPages: (pages, params) {
+                          var viewW = MediaQuery.sizeOf(context).width;
+                          if (_pdfDoc != null &&
+                              _pdfSidePanel &&
+                              viewW >= 840) {
+                            viewW -= _kSidePanelWidth + 1;
+                          }
+                          final key = (
+                            count: pages.length,
+                            firstW: pages.isEmpty ? 0.0 : pages.first.width,
+                            cols: _pdfColumns,
+                            crop: _pdfCrop,
+                            paged: _pdfPaged,
+                            chrome: chrome,
+                            viewW: viewW,
+                          );
+                          final cached = _pdfLayoutCache;
+                          if (cached != null && _pdfLayoutKey == key) {
+                            return cached;
+                          }
+                          final laid = _insetPdfLayout(
+                            _pdfColumns == 1
+                                ? _pagedPdfLayout(
+                                    _pdfCrop == null
+                                        ? _plainPdfLayout(pages, params)
+                                        : PdfMarginCropper.layout(
+                                            pages, params.margin, _pdfCrop!),
+                                    context,
+                                    params.margin)
+                                : _pdfColumns == kPdfBookLayout
+                                    ? _layoutPdfBook(pages, params)
+                                    : _layoutPdfColumns(pages, params),
+                            context,
+                            chrome,
+                          );
+                          _pdfLayoutKey = key;
+                          _pdfLayoutCache = laid;
+                          return laid;
+                        },
                         // Bitmap ölçeği pdfrx 2.12'nin kendisinde (basamaklı
                         // `getPageRenderingScale` 2.x'te fazladan çizim
                         // tetikliyordu — Faz 48.4 ölçümü). Önbellek tavanı
@@ -165,24 +199,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         onInteractionEnd: (_) => _recordPdfZoom(),
                         onInteractionStart: (_) {
                           _pdfJumpTarget = null;
-                          if (_pdfPinch) _partSetState(() => _pdfPinch = false);
                         },
-                        // **Kaydırma "birazcık gidip duruyordu"** (2026-10-29
-                        // kullanıcı bulgusu): pdfrx'in varsayılan fırlatma
-                        // sürtünmesi (1,35e-5) 3000 px/sn'lik bir fırlatmayı
-                        // ~270 px'te durduruyor; Android listeleri ~1300 px
-                        // götürür. Kaydırmada [kPdfPanFriction]. AMA aynı
-                        // katsayı ×200 yakınlaştırma ataletine de giriyor
-                        // (≥ 1/200 olunca yakınlık fırlar) → iki parmaklı
-                        // jestte varsayılana dönülür. Bu parametre belgeyi
-                        // yeniden yüklemez/düzeni değiştirmez.
-                        interactionEndFrictionCoefficient:
-                            _pdfPinch ? kPdfPinchFriction : kPdfPanFriction,
-                        onInteractionUpdate: (d) {
-                          if (d.pointerCount >= 2 && !_pdfPinch) {
-                            _partSetState(() => _pdfPinch = true);
-                          }
-                        },
+                        interactionEndFrictionCoefficient: kPdfPanFriction,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı
                         // (pdfrx, Faz 1) + taranmış sayfaların OCR eşleşmeleri
                         // (Faz 2) — renkler aynı, kullanıcı fark görmez.
@@ -283,7 +301,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         },
                         onPageChanged: (page) {
                           if (mounted && page != null) {
-                            _partSetState(() => _pdfPage = page);
+                            _pdfPage = page;
                             // Kaldığın yerden devam: kayıt kuralları
                             // `ReadingPositions`ta (ilk/son sayfa ve kısa belge
                             // kaydedilmez), yazma gecikmeli.
@@ -370,7 +388,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         ],
                       ),
                     ),
-                  )),
+                  ),
                 ),
                 // Açılış köprüsü (Ferrari H1.1): belge gelene kadar kapak /
                 // kâğıt; görüntüleyicinin ÜSTÜNDE, boyunu değiştirmez.
@@ -403,21 +421,22 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     endShown: _pro == null && !_editingText ? 80 : null,
                     child: Align(
                       alignment: AlignmentDirectional.centerEnd,
-                      child: ExcludeSemantics(
-                        excluding: !_pageBadgeOn,
-                        child: IgnorePointer(
-                          ignoring: !_pageBadgeOn,
-                          child: AnimatedOpacity(
-                            key: const ValueKey('pdf-page-badge-fade'),
-                            opacity: _pageBadgeOn ? 1 : 0,
-                            duration: Motion.of(context, Motion.medium),
-                            curve: Motion.standard,
-                            // Rozet İngilizce/Arapça arayüzde de çevrilmeli —
-                            // eskiden "— sayfaya git" kısmı koda gömülü
-                            // Türkçeydi.
-                            child: _pageBadge(),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _pageBadgeOnN,
+                        builder: (context, badgeOn, child) => ExcludeSemantics(
+                          excluding: !badgeOn,
+                          child: IgnorePointer(
+                            ignoring: !badgeOn,
+                            child: AnimatedOpacity(
+                              key: const ValueKey('pdf-page-badge-fade'),
+                              opacity: badgeOn ? 1 : 0,
+                              duration: Motion.of(context, Motion.medium),
+                              curve: Motion.standard,
+                              child: child,
+                            ),
                           ),
                         ),
+                        child: _pageBadge(),
                       ),
                     ),
                   ),
@@ -462,6 +481,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
               transformationController: _imgTx,
               minScale: 1,
               maxScale: 6,
+              onInteractionEnd: (_) => _syncImgDecodeWidth(),
               child: Center(
                 child: RotatedBox(
                   quarterTurns: _imgQuarterTurns,
@@ -471,8 +491,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // Bellek/pil: tam çözünürlük yerine ekranın
                         // gerektirdiği kadar piksel (bkz. core/image_budget.dart).
                         // G7.7: FmFileImage ayrıca piksel tavanı uygular.
-                        image:
-                            FmFileImage(doc.path, cacheWidth: _imgDecodeWidth),
+                        image: FmFileImage(doc.path,
+                            cacheWidth: _imgDecodeWidth,
+                            maxLongSide: _imgDecodeWidth),
                         gaplessPlayback: true,
                         errorBuilder: (_, _, _) => Text(
                           context.t('vw.image_failed'),
@@ -738,34 +759,39 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
             itemCount: doc.pages.length,
             itemBuilder: (context, i) {
               final page = i + 1;
-              final current = page == _pdfPage;
+              final thumb = AspectRatio(
+                aspectRatio: doc.pages[i].width /
+                    (doc.pages[i].height == 0 ? 1 : doc.pages[i].height),
+                // Gecikmeli: küçük resimler ana sayfalarla aynı
+                // çizim sırasını paylaşır (bkz. [_DeferredPdfThumb]).
+                child: _DeferredPdfThumb(
+                    key: ValueKey('pdf-thumb-$page'),
+                    document: doc,
+                    pageNumber: page),
+              );
               return Padding(
                 padding: const EdgeInsets.only(bottom: Gap.sm),
                 child: InkWell(
                   onTap: () => _goToPdfPage(page, doc.pages.length),
                   child: Column(
                     children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: current
-                                ? scheme.primary
-                                : scheme.outlineVariant,
-                            width: current ? 2 : 1,
-                          ),
-                        ),
-                        child: AspectRatio(
-                          aspectRatio: doc.pages[i].width /
-                              (doc.pages[i].height == 0
-                                  ? 1
-                                  : doc.pages[i].height),
-                          // Gecikmeli: küçük resimler ana sayfalarla aynı
-                          // çizim sırasını paylaşır (bkz. [_DeferredPdfThumb]).
-                          child: _DeferredPdfThumb(
-                              key: ValueKey('pdf-thumb-$page'),
-                              document: doc,
-                              pageNumber: page),
-                        ),
+                      ValueListenableBuilder<int>(
+                        valueListenable: _pdfPageN,
+                        builder: (_, cur, child) {
+                          final current = page == cur;
+                          return DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: current
+                                    ? scheme.primary
+                                    : scheme.outlineVariant,
+                                width: current ? 2 : 1,
+                              ),
+                            ),
+                            child: child,
+                          );
+                        },
+                        child: thumb,
                       ),
                       const SizedBox(height: 2),
                       Text('$page',

@@ -32,6 +32,13 @@ class FmFileImage extends ImageProvider<FmFileImage> {
   /// Çözme genişliği (piksel). Kaynak daha genişse motor **çözerken** küçültür.
   final int? cacheWidth;
 
+  /// Çözme yüksekliği (piksel). Kaynak daha uzunsa motor **çözerken** küçültür.
+  final int? cacheHeight;
+
+  /// Uzun kenar tavanı (piksel): dikey/yatay fark etmeksizin en büyük kenarı
+  /// sınırlar (ör. 3 fotoğrafın 64 MB önbelleğe sığması için 2048).
+  final int? maxLongSide;
+
   final double scale;
 
   /// Kare hücre (`BoxFit.cover`) için: [cacheWidth] GENİŞLİĞİ değil KISA
@@ -40,8 +47,14 @@ class FmFileImage extends ImageProvider<FmFileImage> {
   /// (kullanıcı 2026-11-04: *"görsellerde ön izlemeler çok kalitesiz"*).
   final bool cover;
 
-  const FmFileImage(this.path,
-      {this.cacheWidth, this.scale = 1.0, this.cover = false});
+  const FmFileImage(
+    this.path, {
+    this.cacheWidth,
+    this.cacheHeight,
+    this.maxLongSide,
+    this.scale = 1.0,
+    this.cover = false,
+  });
 
   @override
   Future<FmFileImage> obtainKey(ImageConfiguration configuration) =>
@@ -61,29 +74,43 @@ class FmFileImage extends ImageProvider<FmFileImage> {
 
   Future<ui.Codec> _load(FmFileImage key, ImageDecoderCallback decode) async {
     final buffer = await ui.ImmutableBuffer.fromFilePath(key.path);
-    final target = key.cacheWidth;
+    final targetW = key.cacheWidth;
+    final targetH = key.cacheHeight;
+    final maxLong = key.maxLongSide;
     return decode(
       buffer,
-      // En-boy oranı korunur: yalnız genişlik verilir, yükseklik ondan türer.
-      // Kaynak zaten daha darsa BÜYÜTÜLMEZ — bulanık bir küçük resim
+      // En-boy oranı korunur: yalnız verilen sınırlar uygulanır.
+      // Kaynak zaten daha küçükse BÜYÜTÜLMEZ — bulanık bir küçük resim
       // üretmenin anlamı yok, üstelik bellekte de daha çok yer tutardı.
       // G7.7: her durumda piksel tavanı ([fmPixelCap]) — yalnız genişlik
       // sınırı 1000×1.000.000'luk bir "bomba" görselde işe yaramaz.
       getTargetSize: (int width, int height) {
-        final ui.TargetImageSize size;
-        if (target == null) {
-          size = ui.TargetImageSize(width: width, height: height);
-        } else if (key.cover) {
-          size = fmCoverTargetSize(width, height, target);
-        } else if (width <= target) {
-          size = ui.TargetImageSize(width: width, height: height);
-        } else {
-          size = ui.TargetImageSize(
-            width: target,
-            height: (height * target / width).round().clamp(1, height),
-          );
+        if (targetW != null && key.cover) {
+          final covered = fmCoverTargetSize(width, height, targetW);
+          return fmPixelCap(
+              covered.width ?? width, covered.height ?? height);
         }
-        return fmPixelCap(size.width ?? width, size.height ?? height);
+        var w = width;
+        var h = height;
+        if (maxLong != null && maxLong > 0) {
+          final longSide = w > h ? w : h;
+          if (longSide > maxLong) {
+            final k = maxLong / longSide;
+            w = (w * k).round().clamp(1, w);
+            h = (h * k).round().clamp(1, h);
+          }
+        }
+        if (targetW != null && targetW > 0 && w > targetW) {
+          final k = targetW / w;
+          w = targetW;
+          h = (h * k).round().clamp(1, h);
+        }
+        if (targetH != null && targetH > 0 && h > targetH) {
+          final k = targetH / h;
+          h = targetH;
+          w = (w * k).round().clamp(1, w);
+        }
+        return fmPixelCap(w, h);
       },
     );
   }
@@ -93,15 +120,21 @@ class FmFileImage extends ImageProvider<FmFileImage> {
       other is FmFileImage &&
       other.path == path &&
       other.cacheWidth == cacheWidth &&
+      other.cacheHeight == cacheHeight &&
+      other.maxLongSide == maxLongSide &&
       other.scale == scale &&
       other.cover == cover;
 
   @override
-  int get hashCode => Object.hash(path, cacheWidth, scale, cover);
+  int get hashCode =>
+      Object.hash(path, cacheWidth, cacheHeight, maxLongSide, scale, cover);
 
   @override
   String toString() =>
-      'FmFileImage("$path", cacheWidth: $cacheWidth${cover ? ', cover' : ''})';
+      'FmFileImage("$path", cacheWidth: $cacheWidth'
+      '${cacheHeight != null ? ', cacheHeight: $cacheHeight' : ''}'
+      '${maxLongSide != null ? ', maxLongSide: $maxLongSide' : ''}'
+      '${cover ? ', cover' : ''})';
 }
 
 /// G7.7 (2026-11-12): çözülen bitmap'in en çok piksel sayısı. 24 MP ≈ 96 MB;

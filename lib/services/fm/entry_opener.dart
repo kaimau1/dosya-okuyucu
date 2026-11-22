@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/edition.dart';
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/private_zone.dart';
@@ -66,6 +67,7 @@ enum OpenRoute {
 /// yalnız `home_screen` içindeydi).
 abstract final class EntryOpener {
   static final _fileService = FileService();
+  static final _playerFade = CurveTween(curve: Curves.easeOut);
 
   /// Dosya hangi ekrana gider?
   ///
@@ -153,12 +155,14 @@ abstract final class EntryOpener {
     List<String>? siblings,
     bool startInk = false,
   }) async {
-    if (!File(path).existsSync()) {
+    if (!await File(path).exists()) {
+      if (!context.mounted) return;
       _snack(context, context.t('open.not_found'));
       // Listede kalan hayalet kaydı düşür — kullanıcı bir daha görmesin.
       FsEvents.reportUnreadable(path);
       return;
     }
+    if (!context.mounted) return;
     if (path.toLowerCase().endsWith('.pdf')) PdfProPerf.openTap(); // H0.3
     final route = routeFor(path);
     final group =
@@ -201,12 +205,25 @@ abstract final class EntryOpener {
       final player = PageRouteBuilder<void>(
         transitionDuration: Motion.long,
         reverseTransitionDuration: Motion.medium,
-        pageBuilder: (_, _, _) =>
-            MediaPlayerScreen(path: path, playlist: group),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
+        pageBuilder: (_, _, _) => MediaPlayerScreen(
+          path: path,
+          playlist: group,
+          externalBackdrop: true,
         ),
+        transitionsBuilder: (ctx, animation, _, child) {
+          if (Motion.reduced(ctx)) return child;
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: FadeTransition(
+                  opacity: animation.drive(_playerFade),
+                  child: const ColoredBox(color: AppColors.mediaSurface),
+                ),
+              ),
+              child,
+            ],
+          );
+        },
       );
       final closed = Navigator.of(context).push(player);
       // Geçmiş kaydı + başlatıcı kısayolu (yerel çağrı, platform iş
@@ -267,9 +284,13 @@ abstract final class EntryOpener {
 
     LoadedDoc doc;
     try {
-      // Excel düzenleyicisi kitabı kendisi ayrıştırır (P12): burada ikinci
-      // bir ayrıştırma açılışı ikiye katlıyordu.
-      doc = await _fileService.load(path, spreadsheetText: false);
+      // Excel/Word/Slayt düzenleyicileri dosyayı kendisi ayrıştırır: burada
+      // ikinci bir tam metin çıkarması açılışı yavaşlatıyordu.
+      doc = await _fileService.load(
+        path,
+        spreadsheetText: false,
+        officeText: false,
+      );
     } catch (e) {
       closeBusy(); // yükleniyor penceresini kapat
       if (context.mounted) {

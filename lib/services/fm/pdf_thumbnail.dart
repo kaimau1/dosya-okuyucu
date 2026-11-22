@@ -9,6 +9,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
 import '../../core/app_colors.dart';
+import '../../core/device_profile.dart';
 
 /// PDF'in **ilk sayfasını** küçük resim olarak üretir ve diskte önbelleğe alır.
 ///
@@ -141,7 +142,7 @@ abstract final class PdfThumbnail {
   // çıkmış hücrelerin işi de sürüyordu → parmağın durduğu yerdeki önizleme
   // en son geliyordu. Artık en çok 2 üretim, sıradakiler SONDAN alınır,
   // ekrandan çıkmış hücrenin işi hiç başlamaz (video küçük resmiyle aynı).
-  static const _maxParallel = 2;
+  static int get _maxParallel => DeviceProfile.budget.thumbConcurrency;
   static int _running = 0;
   static final List<(String, Completer<bool>)> _pending = [];
   static final Map<String, List<bool Function()>> _wanted = {};
@@ -179,7 +180,7 @@ abstract final class PdfThumbnail {
     if (cached != null) return cached;
     final base = await getTemporaryDirectory();
     final dir = Directory(p.join(base.path, 'pdf_thumbs'));
-    if (!dir.existsSync()) await dir.create(recursive: true);
+    if (!await dir.exists()) await dir.create(recursive: true);
     _dir = dir;
     // **Sınır** (2026-09-23): bu önbelleğin hiç budaması yoktu; her PDF'in
     // her sürümü/boyu yeni dosya olarak sonsuza dek birikiyordu. Oturumda
@@ -192,7 +193,7 @@ abstract final class PdfThumbnail {
     PdfDocument? doc;
     String dest;
     try {
-      final stat = File(path).statSync();
+      final stat = await File(path).stat();
       final dir = await _cacheDir();
       dest = p.join(
         dir.path,
@@ -200,7 +201,7 @@ abstract final class PdfThumbnail {
                 size)
             .replaceAll('.jpg', '.png'),
       );
-      if (File(dest).existsSync()) return dest;
+      if (await File(dest).exists()) return dest;
     } catch (_) {
       _markFailed(path);
       return null;

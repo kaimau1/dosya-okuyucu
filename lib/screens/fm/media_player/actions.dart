@@ -200,6 +200,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
   void _skip(int delta) {
     _vZoom = 1;
     _vPan = Offset.zero;
+    _updateVideoTransform();
     unawaited(_p.skip(delta));
   }
 
@@ -250,7 +251,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     _volume = next;
     unawaited(c.setVolume(next));
     _volumeTimer?.cancel();
-    _partSetState(() => _volumeHint = next);
+    _volumeHintN.value = next;
   }
 
   /// Sol yarıda dikey kaydırma: PENCERE parlaklığı (Faz 18 / G18).
@@ -268,14 +269,14 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     _brightnessTouched = true;
     unawaited(NativeExtras.setBrightness(next));
     _volumeTimer?.cancel();
-    _partSetState(() => _brightnessHint = next);
+    _brightnessHintN.value = next;
   }
 
   void _boostStart() {
     if (_speedBeforeBoost != null) return;
     _speedBeforeBoost = _speed;
     unawaited(_p.setSpeed(2.0));
-    _partSetState(() {});
+    _boostN.value = true;
   }
 
   void _boostEnd() {
@@ -283,7 +284,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     if (back == null) return;
     _speedBeforeBoost = null;
     unawaited(_p.setSpeed(back));
-    _partSetState(() {});
+    _boostN.value = false;
   }
 
   void _scrubStart(DragStartDetails _) {
@@ -304,12 +305,12 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     final width = MediaQuery.sizeOf(context).width;
     final ms = from.inMilliseconds + (_scrubDx / width * 90000).round();
     final max = c.value.duration.inMilliseconds;
-    _partSetState(() => _scrubTarget =
-        Duration(milliseconds: ms.clamp(0, max > 0 ? max : ms.abs())));
+    _scrubTargetN.value =
+        Duration(milliseconds: ms.clamp(0, max > 0 ? max : ms.abs()));
   }
 
   void _scrubCommit() {
-    final target = _scrubTarget;
+    final target = _scrubTargetN.value;
     _scrubCancel();
     if (target != null) unawaited(_p.seek(target));
     _scheduleHide();
@@ -318,7 +319,7 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
   void _scrubCancel() {
     _scrubFrom = null;
     _scrubDx = 0;
-    if (_scrubTarget != null) _partSetState(() => _scrubTarget = null);
+    if (_scrubTargetN.value != null) _scrubTargetN.value = null;
   }
 
   void _toggleLock() {
@@ -352,14 +353,13 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
         ),
       );
 
-  Widget _brightnessBadge() => _hudPill(
+  Widget _brightnessBadge(double brightness) => _hudPill(
         AppIcons.brightness,
-        '${((_brightnessHint ?? 0) * 100).round()}%',
-        value: _brightnessHint,
+        '${(brightness * 100).round()}%',
+        value: brightness,
       );
 
-  Widget _gestureBubble() {
-    final target = _scrubTarget;
+  Widget _gestureBubble(Duration? target) {
     if (target != null) {
       final from = _scrubFrom ?? Duration.zero;
       final diff = (target - from).inSeconds;
@@ -403,16 +403,13 @@ extension _MediaPlayerScreenActionsPart on _MediaPlayerScreenState {
     _volumeTimer?.cancel();
     _volumeTimer = Timer(const Duration(milliseconds: 900), () {
       if (mounted) {
-        _partSetState(() {
-          _volumeHint = null;
-          _brightnessHint = null;
-        });
+        _volumeHintN.value = null;
+        _brightnessHintN.value = null;
       }
     });
   }
 
-  Widget _volumeBadge() {
-    final value = _volumeHint ?? 1;
+  Widget _volumeBadge(double value) {
     return Center(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

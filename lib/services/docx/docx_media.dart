@@ -622,19 +622,35 @@ extension DocxMedia on DocxDocument {
     return id;
   }
 
+  static final Expando<bool> _hasCommentsCache = Expando<bool>('hasComments');
+  static final Expando<Map<String, (DocxComment, int)?>> _balloonMapCache =
+      Expando<Map<String, (DocxComment, int)?>>('commentBalloonMap');
+
+  void _invalidateCommentCaches() {
+    _hasCommentsCache[this] = null;
+    _balloonMapCache[this] = null;
+  }
+
   /// B9b: belgede en az bir yorum var mı (tablette kenar sütunu açılır).
   /// Yalnız yorum parçasına bakar, gövde TARANMAZ; ilk yorumda durur.
-  bool get hasComments =>
-      _commentsIfAny()
-          ?.rootElement
-          .childElements
-          .any((e) => e.name.local == 'comment') ??
-      false;
+  bool get hasComments {
+    final cached = _hasCommentsCache[this];
+    if (cached != null) return cached;
+    final res = _commentsIfAny()
+            ?.rootElement
+            .childElements
+            .any((e) => e.name.local == 'comment') ??
+        false;
+    _hasCommentsCache[this] = res;
+    return res;
+  }
 
   /// Kenar balonu (B9 m.4): [id]'li yorum + yanıt sayısı. Gövde TARANMAZ
   /// (yorumlu paragraf her çizildiğinde çağrılır; maliyet yorum sayısı
   /// kadar). Yanıtsa (balonu kökündedir) ya da yoksa null.
   (DocxComment, int)? commentBalloon(String id) {
+    var cache = _balloonMapCache[this];
+    if (cache != null && cache.containsKey(id)) return cache[id];
     final x = _commentsIfAny();
     if (x == null) return null;
     XmlElement? c;
@@ -644,7 +660,11 @@ extension DocxMedia on DocxDocument {
         break;
       }
     }
-    if (c == null) return null;
+    if (c == null) {
+      (cache ??= <String, (DocxComment, int)?>{})[id] = null;
+      _balloonMapCache[this] = cache;
+      return null;
+    }
     String? pid;
     final ps = c.childElements.where((e) => e.name.local == 'p');
     if (ps.isNotEmpty) {
@@ -662,17 +682,24 @@ extension DocxMedia on DocxDocument {
           if (a.name.local == 'paraIdParent') parent = a.value;
         }
         if (me == pid) {
-          if (parent != null) return null;
+          if (parent != null) {
+            (cache ??= <String, (DocxComment, int)?>{})[id] = null;
+            _balloonMapCache[this] = cache;
+            return null;
+          }
           done = e.attributes.any((a) => a.name.local == 'done' && a.value == '1');
         }
         if (parent == pid) replies++;
       }
     }
-    return (
+    final out = (
       DocxComment(id, c.getAttribute('w:author') ?? '',
           c.getAttribute('w:date') ?? '', DocxDocument._textOf(c).trim(), done, null),
       replies,
     );
+    (cache ??= <String, (DocxComment, int)?>{})[id] = out;
+    _balloonMapCache[this] = cache;
+    return out;
   }
 
   /// Belgedeki (başvurusu olan) yorumlar.
@@ -730,6 +757,7 @@ extension DocxMedia on DocxDocument {
   }
 
   XmlElement _newComment(String text, String author) {
+    _invalidateCommentCaches();
     final x = _commentsPart();
     _commentsTouched[this] = true;
     var maxId = -1;
@@ -806,6 +834,7 @@ extension DocxMedia on DocxDocument {
         XmlAttribute(const XmlName.qualified('w15:done'), '0'),
       ]));
       _dirtyParts.add(_sidePartName('/commentsExtended', 'word/commentsExtended.xml'));
+      _invalidateCommentCaches();
       return (i, insertAtom(p, k + 1, _commentRefAtom(id), p.styles[k]));
     }
     return null;
@@ -843,12 +872,14 @@ extension DocxMedia on DocxDocument {
     row.attributes
         .add(XmlAttribute(const XmlName.qualified('w15:done'), done ? '1' : '0'));
     _dirtyParts.add(_sidePartName('/commentsExtended', 'word/commentsExtended.xml'));
+    _invalidateCommentCaches();
     return true;
   }
 
   /// Yorumu (ve yanıtlarını) modelden kaldırır; değişen paragraf sıralarını
   /// döndürür. Parçadan budama kaydette olur (geri al geri getirir).
   List<int> deleteComment(String id) {
+    _invalidateCommentCaches();
     final ids = {id};
     for (final c in comments()) {
       if (c.parentId == id) ids.add(c.id);

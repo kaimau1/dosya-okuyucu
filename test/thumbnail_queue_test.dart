@@ -39,7 +39,8 @@ void main() {
     return f.path;
   }
 
-  Future<void> settle() => Future<void>.delayed(Duration.zero);
+  Future<void> settle() =>
+      Future<void>.delayed(const Duration(milliseconds: 20));
 
   void open(String name) => (gates[name] ??= Completer<void>()).complete();
 
@@ -70,6 +71,7 @@ void main() {
     expect(await results['c'], isNull, reason: 'giden hücrenin işi atlandı');
     expect(started, isNot(contains('c.mp4')));
     expect(await results['e'], isNotNull);
+    expect(await results['d'], isNotNull);
     expect(ThumbnailCache.debugQueue, (running: 0, pending: 0));
 
     // Atlanan dosya "bozuk" sayılmadı: yeniden istenince üretilir.

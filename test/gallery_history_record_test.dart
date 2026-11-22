@@ -60,6 +60,10 @@ void main() {
     ));
 
     await tester.tap(find.text('aç'));
+    // EntryOpener.open eşzamansız File.exists() ile gerçek dosya G/Ç yapar;
+    // FakeAsync sahte saatinde tamamlanması için runAsync ile bekle.
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();
     expect(find.byType(ImageGalleryScreen), findsOneWidget);
     expect(notified, 0,

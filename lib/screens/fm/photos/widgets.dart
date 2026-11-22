@@ -178,18 +178,19 @@ class _PhotoTile extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            AnimatedScale(
-              scale: selected ? 0.84 : 1,
-              duration: Motion.of(context, Motion.short),
-              curve: Curves.easeOutCubic,
-              child: ClipRRect(
-                // Seçili değilken köşeyi önizlemenin kendisi yuvarlar
-                // ([FmEntryIcon.radius]); ikinci bir kırpma katmanı açılmaz.
-                borderRadius: BorderRadius.circular(selected ? 14 : radius),
-                clipBehavior: selected ? Clip.antiAlias : Clip.none,
-                child: thumb,
-              ),
-            ),
+            if (selecting)
+              AnimatedScale(
+                scale: selected ? 0.84 : 1,
+                duration: Motion.of(context, Motion.short),
+                curve: Curves.easeOutCubic,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(selected ? 14 : radius),
+                  clipBehavior: selected ? Clip.antiAlias : Clip.none,
+                  child: thumb,
+                ),
+              )
+            else
+              thumb,
             if (selecting)
               PositionedDirectional(
                 top: 6,

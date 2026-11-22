@@ -54,6 +54,8 @@ object MediaTranscodeBridge {
     private var transformer: Transformer? = null
     private val main = Handler(Looper.getMainLooper())
     private val ioPool = java.util.concurrent.Executors.newFixedThreadPool(2)
+    // HDR denetimi ızgara probe havuzundan ayrı: video açılışı ızgara taramasını beklemez.
+    private val hdrPool = java.util.concurrent.Executors.newFixedThreadPool(2)
 
     fun configure(messenger: BinaryMessenger, context: Context) {
         val ch = MethodChannel(messenger, "dosya_okuyucu/transcode")
@@ -72,12 +74,21 @@ object MediaTranscodeBridge {
                         }
                     }
                 }
+                "duration" -> {
+                    val path = call.argument<String>("path")
+                    if (path == null) result.success(null) else {
+                        ioPool.execute {
+                            val ms = durationMs(path)
+                            main.post { result.success(ms) }
+                        }
+                    }
+                }
                 // HDR (HDR10/HDR10+/HLG/Dolby Vision) mi? Oynatıcı bunu doku
                 // yerine yüzey görünümünde açar (dokuda görüntü donuyordu).
                 "hdr" -> {
                     val path = call.argument<String>("path")
                     if (path == null) result.success(false) else {
-                        ioPool.execute {
+                        hdrPool.execute {
                             val v = isHdr(path)
                             main.post { result.success(v) }
                         }
@@ -112,6 +123,18 @@ object MediaTranscodeBridge {
                 }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun durationMs(path: String): Long? {
+        val r = MediaMetadataRetriever()
+        return try {
+            r.setDataSource(path)
+            r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+        } catch (e: Exception) {
+            null
+        } finally {
+            try { r.release() } catch (e: Exception) {}
         }
     }
 

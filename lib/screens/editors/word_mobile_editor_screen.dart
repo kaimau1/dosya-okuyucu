@@ -157,6 +157,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
     _head?.dispose();
+    _memoWidget = null;
+    _memoCtrl = null;
     _panel.dispose();
     _session.dispose();
     super.dispose();
@@ -195,7 +197,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       }
       final isolate = WordMobileEditorScreen.parseInIsolate;
       // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
-      if (isolate) {
+      // 512 KB altı belgelerde tam ayrıştırma zaten çok hızlı; çift isolate
+      // önizleme yükünü atla.
+      if (isolate && bytes.length >= 512 * 1024) {
         void plain() {
           unawaited(compute(_previewParas, bytes).then((list) {
             if (mounted && _doc == null && list.isNotEmpty) {
@@ -241,6 +245,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     _ctrl?.dispose();
     _head?.dispose();
     _head = null;
+    _memoWidget = null;
+    _memoCtrl = null;
     _doc = doc;
     _ctrl = DocxEditController(doc)..addListener(_onEdit);
     _seenRevision = 0;
@@ -370,26 +376,42 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (next != null) _pinch.setZoom(next / _baseScale);
   }
 
+  Widget? _memoWidget;
+  DocxEditController? _memoCtrl;
+  double? _memoZoom;
+  ScrollPhysics? _memoPhysics;
+  double? _memoBaseScale;
+  bool? _memoSpellcheck;
+  bool? _memoAutoFormat;
+
   /// Belge görünümü kurucusu. Çimdik sürerken `PinchZoomArea` her parmak
   /// hareketinde kurucuyu çağırır ama ölçek ancak parmak kalkınca değişir →
-  /// aynı widget örneği döner, belge her karede yeniden kurulmaz. Ekran
-  /// yeniden kurulunca kapanış (ve önbelleği) de yenilenir.
+  /// aynı widget örneği döner, belge her karede yeniden kurulmaz.
   Widget Function(BuildContext, double, ScrollPhysics?) _memoView(
       DocxEditController c) {
-    Widget? memo;
-    double? memoZoom;
-    ScrollPhysics? memoPhysics;
     return (context, zoom, physics) {
-      if (memo == null || zoom != memoZoom || physics != memoPhysics) {
-        memoZoom = zoom;
-        memoPhysics = physics;
-        memo = DocxEditorView(
+      final spell = EditPrefs.wordSpellcheck;
+      final autoFmt = EditPrefs.wordAutoFormat;
+      if (_memoWidget == null ||
+          !identical(c, _memoCtrl) ||
+          zoom != _memoZoom ||
+          physics != _memoPhysics ||
+          _baseScale != _memoBaseScale ||
+          spell != _memoSpellcheck ||
+          autoFmt != _memoAutoFormat) {
+        _memoCtrl = c;
+        _memoZoom = zoom;
+        _memoPhysics = physics;
+        _memoBaseScale = _baseScale;
+        _memoSpellcheck = spell;
+        _memoAutoFormat = autoFmt;
+        _memoWidget = DocxEditorView(
           key: _viewKey,
           controller: c,
           scale: _baseScale * zoom,
           physics: physics,
-          spellcheck: EditPrefs.wordSpellcheck,
-          autoFormat: EditPrefs.wordAutoFormat,
+          spellcheck: spell,
+          autoFormat: autoFmt,
           actions: DocxEditorActions(
               translate: _translate,
               aiFix: _aiFix,
@@ -399,7 +421,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
               openControl: _fillControl),
         );
       }
-      return memo!;
+      return _memoWidget!;
     };
   }
 

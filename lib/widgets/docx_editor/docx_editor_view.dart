@@ -755,7 +755,7 @@ class DocxEditorViewState extends State<DocxEditorView>
         ],
       );
     }
-    final notes = _balloons(p);
+    final notes = c.doc.hasComments ? _balloons(p) : null;
     if (notes != null && rail <= 0) {
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1076,8 +1076,10 @@ class DocxEditorViewState extends State<DocxEditorView>
                   onLongPressEnd: widget.readOnly ? null : _onLongPressEnd,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (_) {
-                      WidgetsBinding.instance
-                          .addPostFrameCallback((_) => _measureOverlay());
+                      if (!c.collapsed) {
+                        WidgetsBinding.instance
+                            .addPostFrameCallback((_) => _measureOverlay());
+                      }
                       return false;
                     },
                     child: list,

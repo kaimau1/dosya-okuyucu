@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../core/app_state.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_list_groups.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/ai_index.dart';
 import '../../services/fm/fs_scan.dart';
 import '../motion.dart';
 import 'drag_select.dart';
@@ -149,14 +153,21 @@ class FmFileListView extends StatelessWidget {
     }
     final items = groupBy == null
         ? [for (var i = 0; i < entries.length; i++) FmEntryItem(entries[i], i)]
-        : groupEntries(entries, groupBy!,
+        : _groupEntriesFast(entries, groupBy!,
             now: DateTime.now(), timeOf: groupTimeOf);
 
-    Widget view = _FreshRows(
-      entries: entries,
-      builder: (fresh) => layout.isGrid
-          ? _grid(context, items, fresh)
-          : _list(context, items, fresh),
+    context.dependOnBrowse();
+    final thumbsOn = context.select<AppState, bool>((s) => s.fmThumbnails);
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 3.0;
+
+    Widget view = ValueListenableBuilder<int>(
+      valueListenable: AiIndex.revision,
+      builder: (context, _, _) => _FreshRows(
+        entries: entries,
+        builder: (fresh) => layout.isGrid
+            ? _grid(context, items, fresh, thumbsOn: thumbsOn, dpr: dpr)
+            : _list(context, items, fresh, thumbsOn: thumbsOn, dpr: dpr),
+      ),
     );
     if (onSelectRange != null) {
       view = DragSelectArea(
@@ -201,7 +212,12 @@ class FmFileListView extends StatelessWidget {
       withNavInset(context, EdgeInsets.fromLTRB(h, Gap.xs, h, bottomPadding));
 
   Widget _list(
-      BuildContext context, List<FmListItem> items, Set<String> fresh) {
+    BuildContext context,
+    List<FmListItem> items,
+    Set<String> fresh, {
+    required bool thumbsOn,
+    required double dpr,
+  }) {
     // **Sabit satır yüksekliği** (Faz 17 / G14): 5.000 öğede YUKARI
     // kaydırmada p99 50 ms ölçülmüştü — yukarıdan giren her satır ölçülüyor,
     // kaydırma ofseti tahminle düzeltiliyordu. Başlıksız listede bütün
@@ -215,10 +231,13 @@ class FmFileListView extends StatelessWidget {
         controller: controller,
         padding: _pad(context, Gap.xs),
         itemCount: items.length,
-        prototypeItem: _row(items.first as FmEntryItem),
-        itemBuilder: (context, i) =>
-            _focus(context, (items[i] as FmEntryItem).entry,
-                _row(items[i] as FmEntryItem), fresh),
+        prototypeItem: _row(items.first as FmEntryItem,
+            prototype: true, thumbsOn: thumbsOn, dpr: dpr),
+        itemBuilder: (context, i) => _focus(
+            context,
+            (items[i] as FmEntryItem).entry,
+            _row(items[i] as FmEntryItem, thumbsOn: thumbsOn, dpr: dpr),
+            fresh),
       );
     }
     // **Yapışkan grup başlıkları** (Ferrari H4.5, 2026-11-14): "Bugün ·
@@ -251,16 +270,67 @@ class FmFileListView extends StatelessWidget {
               SliverPadding(
                 padding: inset.copyWith(top: 0, bottom: 0),
                 sliver: SliverPrototypeExtentList.builder(
-                  prototypeItem: _row(cells.first),
+                  prototypeItem: _row(cells.first,
+                      prototype: true, thumbsOn: thumbsOn, dpr: dpr),
                   itemCount: cells.length,
-                  itemBuilder: (context, i) =>
-                      _focus(context, cells[i].entry, _row(cells[i]), fresh),
+                  itemBuilder: (context, i) => _focus(
+                      context,
+                      cells[i].entry,
+                      _row(cells[i], thumbsOn: thumbsOn, dpr: dpr),
+                      fresh),
                 ),
               ),
           ]),
         SliverPadding(padding: EdgeInsets.only(bottom: inset.bottom)),
       ],
     );
+  }
+
+  static List<FmListItem> _groupEntriesFast(
+    List<FsEntry> entries,
+    FmSort sort, {
+    required DateTime now,
+    int Function(FsEntry e)? timeOf,
+  }) {
+    if (entries.isEmpty) return const [];
+    if (sort != FmSort.date) {
+      return groupEntries(entries, sort, now: now, timeOf: timeOf);
+    }
+    final today = DateTime(now.year, now.month, now.day);
+    final todayMs = today.millisecondsSinceEpoch;
+    final weekMs = today.subtract(const Duration(days: 6)).millisecondsSinceEpoch;
+    final monthMs =
+        today.subtract(const Duration(days: 29)).millisecondsSinceEpoch;
+    String bucketOf(FsEntry e) {
+      final ms = timeOf != null ? timeOf(e) : e.modifiedMs;
+      if (ms >= todayMs) return 'grp.today';
+      if (ms >= weekMs) return 'grp.week';
+      if (ms >= monthMs) return 'grp.month';
+      return 'grp.older';
+    }
+
+    final counts = <String, int>{};
+    final keys = List<String>.generate(entries.length, (i) {
+      final k = bucketOf(entries[i]);
+      counts[k] = (counts[k] ?? 0) + 1;
+      return k;
+    }, growable: false);
+    if (counts.length <= 1) {
+      return [
+        for (var i = 0; i < entries.length; i++) FmEntryItem(entries[i], i),
+      ];
+    }
+    final out = <FmListItem>[];
+    String? current;
+    for (var i = 0; i < entries.length; i++) {
+      final key = keys[i];
+      if (key != current) {
+        current = key;
+        out.add(FmHeaderItem(key, counts[key]!));
+      }
+      out.add(FmEntryItem(entries[i], i));
+    }
+    return out;
   }
 
   /// Başlık + altındaki satırlar (ilk başlıktan önceki satırlar başlıksız).
@@ -279,14 +349,19 @@ class FmFileListView extends StatelessWidget {
     return groups;
   }
 
-  Widget _row(FmEntryItem item) {
+  Widget _row(
+    FmEntryItem item, {
+    bool prototype = false,
+    required bool thumbsOn,
+    required double dpr,
+  }) {
     final entry = item.entry;
     return DragSelectItem(
       index: item.index,
       child: FmEntryRow(
         entry: entry,
         layout: layout,
-        selected: selected.contains(entry.path),
+        selected: !prototype && selected.contains(entry.path),
         selecting: _selecting,
         subtitle: subtitle(entry),
         subtitleEnd: subtitleEnd?.call(entry),
@@ -295,8 +370,12 @@ class FmFileListView extends StatelessWidget {
         onTap: () => _tap(entry),
         onCheck: () => _toggle(entry),
         onMore: onMore == null || _selecting ? null : () => onMore!(entry),
-        audioQueue: _audioQueue,
-        heroTag: _heroTag(entry),
+        audioQueue: prototype ? null : _audioQueue,
+        heroTag: prototype ? null : _heroTag(entry),
+        thumbnails: !prototype,
+        thumbsOn: prototype ? false : thumbsOn,
+        dpr: dpr,
+        alias: prototype ? '' : AiIndex.aliasOf(entry.path),
       ),
     );
   }
@@ -316,7 +395,12 @@ class FmFileListView extends StatelessWidget {
       ];
 
   Widget _grid(
-      BuildContext context, List<FmListItem> items, Set<String> fresh) {
+    BuildContext context,
+    List<FmListItem> items,
+    Set<String> fresh, {
+    required bool thumbsOn,
+    required double dpr,
+  }) {
     // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür;
     // başlık listede olduğu gibi yapışkan (H4.5).
     final groups = _groups(items);
@@ -362,6 +446,9 @@ class FmFileListView extends StatelessWidget {
                           selecting: _selecting,
                           onTap: () => _tap(c.entry),
                           heroTag: _heroTag(c.entry),
+                          thumbsOn: thumbsOn,
+                          dpr: dpr,
+                          alias: AiIndex.aliasOf(c.entry.path),
                         ),
                       ),
                       fresh);
