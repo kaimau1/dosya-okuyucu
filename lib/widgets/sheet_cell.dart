@@ -13,13 +13,23 @@ import '../services/xlsx_editor.dart';
 /// dosyadan gelen beyaz dolgu üstünde açık tema yazı rengi). Kontrast
 /// oranı okunamayacak kadar düşükse renk zemine göre çevrilir; makul ama
 /// düşük kontrastlı (gri/beyaz gibi BİLİNÇLİ) seçimler korunur.
+final Map<(int, int), Color> _readableCache = {};
+
 @visibleForTesting
 Color readableOn(Color fg, Color bg) {
+  final key = (fg.toARGB32(), bg.toARGB32());
+  final hit = _readableCache[key];
+  if (hit != null) return hit;
   final lf = fg.computeLuminance();
   final lb = bg.computeLuminance();
   final ratio = (math.max(lf, lb) + 0.05) / (math.min(lf, lb) + 0.05);
-  if (ratio >= 2.5) return fg;
-  return lb > 0.5 ? const Color(0xFF1A1A1A) : const Color(0xFFF2F2F2);
+  final out = ratio >= 2.5
+      ? fg
+      : (lb > 0.5 ? const Color(0xFF1A1A1A) : const Color(0xFFF2F2F2));
+  if (_readableCache.length >= 128) {
+    _readableCache.keys.take(32).toList().forEach(_readableCache.remove);
+  }
+  return _readableCache[key] = out;
 }
 
 /// Hit-test ile hücreyi bulmak için (aralık seçiminde parmağın altındaki

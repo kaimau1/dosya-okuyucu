@@ -231,6 +231,7 @@ extension _SpreadsheetEditorScreenFindReplacePart on _SpreadsheetEditorScreenSta
     }
     _session.changed();
     _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
   }
 }

@@ -128,6 +128,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
     if (text.isEmpty) return;
     // Not await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
     final note = context.t('pa.save_note');
+    final activityDetail = context.t('ps.act_ai');
     setState(() => _busy = true);
     try {
       final bytes = await _conversion.textToPdf(widget.fileName, text);
@@ -138,6 +139,7 @@ class _PdfAiEditScreenState extends State<PdfAiEditScreen> {
         originalPath: widget.path,
         bytes: bytes,
         note: note,
+        activityDetail: activityDetail,
       );
       if (outcome == null || !mounted) return;
       await recordAiEditJob(widget.fileName, outcome);

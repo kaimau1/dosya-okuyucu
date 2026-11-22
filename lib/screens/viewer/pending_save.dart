@@ -120,6 +120,7 @@ extension _ViewerScreenPendingSavePart on _ViewerScreenState {
       originalPath: widget.doc.path,
       bytes: bytes,
       note: context.t('vw.edits_applied'),
+      activityDetail: context.t('ps.act_edited'),
     );
     if (outcome == null) return false;
     if (outcome.overwritten) {
@@ -134,6 +135,14 @@ extension _ViewerScreenPendingSavePart on _ViewerScreenState {
       if (marks.isNotEmpty && mounted) {
         // Vurgular artık dosyada: belge tazelenince pdfium çizer, üstümüzdeki
         // çizim ancak ondan SONRA kalkar (arada bir kare boş kalmasın).
+        await _reloadPdf();
+      }
+    } else {
+      // Kopya olarak kaydedildi: özgün dosyadaki geçici baytları hemen yedekten
+      // geri yükle ki özgün dosya kirli kalmasın.
+      final hadFileEdits = _pdfBackupPath != null;
+      await _restoreOriginal();
+      if (hadFileEdits && mounted) {
         await _reloadPdf();
       }
     }

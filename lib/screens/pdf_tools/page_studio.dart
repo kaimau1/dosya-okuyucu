@@ -13,10 +13,12 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../core/user_error.dart';
 import '../../services/conversion_service.dart';
 import '../../services/document_scanner.dart';
 import '../../services/pdf_tools.dart';
 import '../../services/scan_prepare.dart';
+import '../../widgets/app_dialog.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker, PickedFile;
 
 /// Stüdyodaki bir sayfa: [id] çoğaltılan kopyaları ayırır (anahtar),
@@ -76,6 +78,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   final Set<int> _selected = {};
   int _nextId = 0;
   bool _loading = false;
+  bool _scanning = false;
   final _scroll = ScrollController();
   final _gridKey = GlobalKey();
   Timer? _edgeTimer;
@@ -181,6 +184,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   }
 
   Future<void> _insertFile() async {
+    if (_loading || _scanning) return;
     final res = await AppFilePicker.pickFiles(
         type: FileType.custom, allowedExtensions: ['pdf']);
     final path = res?.files.firstOrNull?.path;
@@ -190,6 +194,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
 
   /// Görseller A4 sayfalara (Pro "Görsellerden PDF" ile aynı yol).
   Future<void> _insertImages() async {
+    if (_loading || _scanning) return;
     final res =
         await AppFilePicker.pickFiles(type: FileType.image, allowMultiple: true);
     final paths = [
@@ -203,10 +208,22 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
 
   /// Tarama, araçlardaki "tara ve ekle" kuralıyla: sayfa olduğu gibi.
   Future<void> _insertScan() async {
-    final scanned = await DocumentScanner.scanPages();
+    if (_loading || _scanning) return;
+    _scanning = true;
+    List<String>? scanned;
+    try {
+      scanned = await DocumentScanner.scanPages();
+    } catch (e) {
+      if (mounted) {
+        showSnack(context, userErrorText(e));
+      }
+      return;
+    } finally {
+      _scanning = false;
+    }
     if (scanned == null || scanned.isEmpty || !mounted) return;
     await _insertPdf(() async => ConversionService().imagesToPdf(
-        ScanPage.displays(await ScanPrepare.pages(scanned)),
+        ScanPage.displays(await ScanPrepare.pages(scanned!)),
         uniformPage: PdfPageFormat.a4));
   }
 
@@ -355,11 +372,32 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
         : _selected.addAll(_items.map((e) => e.id)));
   }
 
+  Future<void> _handlePop(bool didPop) async {
+    if (didPop) return;
+    if (_history.isEmpty) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final leave = await showAppConfirm(
+      context,
+      title: context.t('pdf.discard_title'),
+      message: context.t('pdf.discard_body'),
+      confirmLabel: context.t('pdf.discard_confirm'),
+      destructive: true,
+    );
+    if (leave && mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final doc = _doc;
     final hasSel = _selected.isNotEmpty;
-    return Scaffold(
+    return PopScope<PdfStudioResult>(
+      canPop: _history.isEmpty,
+      onPopInvokedWithResult: (didPop, _) => _handlePop(didPop),
+      child: Scaffold(
       appBar: AppBar(
         title: Text(hasSel
             ? context.t('pp.studio_selected', {'n': _selected.length})
@@ -477,6 +515,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
                 ),
               ],
             ),
+    ),
     );
   }
 

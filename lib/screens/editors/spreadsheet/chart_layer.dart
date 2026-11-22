@@ -99,24 +99,33 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
   }
 
   static double _axisStart(SheetAxisMetrics m, int index) {
-    final at = m.indices.indexOf(index);
+    if (m.isEmpty) return 0;
+    final at = m.positionOf(index);
     if (at >= 0) return m.startAt(at);
-    // Pencere dışı: en yakın küçük indeksin sonuna.
-    var best = 0.0;
-    for (var i = 0; i < m.length; i++) {
-      if (m.indices[i] > index) break;
-      best = m.startAt(i) + m.sizeAt(i);
+    if (index <= m.indices.first) return 0;
+    if (index > m.indices.last) return m.total;
+    // Pencere dışı / gizli: ikili aramayla en yakın küçük indeksin sonuna.
+    var lo = 0, hi = m.length - 1, best = 0;
+    while (lo <= hi) {
+      final mid = (lo + hi) ~/ 2;
+      if (m.indices[mid] < index) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
     }
-    return best;
+    return m.startAt(best) + m.sizeAt(best);
   }
 
   /// Konum → en yakın indeks.
   static int _axisIndexAt(SheetAxisMetrics m, double pos) {
-    if (m.length == 0) return 0;
-    for (var i = 0; i < m.length; i++) {
-      if (m.startAt(i) + m.sizeAt(i) / 2 >= pos) return m.indices[i];
+    if (m.isEmpty) return 0;
+    final i = m.firstAt(pos.clamp(0.0, m.total));
+    if (i + 1 < m.length && m.startAt(i) + m.sizeAt(i) / 2 < pos) {
+      return m.indices[i + 1];
     }
-    return m.indices.last;
+    return m.indices[i];
   }
 
   Widget _chartBox(

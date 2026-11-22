@@ -220,6 +220,8 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
           : (cur!.type == 'custom' ? '=${shown(cur.formula1!)}' : cur.formula1!);
     final bCtl = _valCtl[2]..text = cur?.formula2 ?? '';
     final errCtl = _valCtl[3]..text = cur?.error ?? '';
+    final promptTitleCtl = _valCtl[4]..text = cur?.promptTitle ?? '';
+    final promptCtl = _valCtl[5]..text = cur?.prompt ?? '';
     final result = await showAppSheet<String>(
       context,
       title: context.t('excel.validation'),
@@ -302,6 +304,18 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
                 controller: errCtl,
                 decoration: InputDecoration(labelText: ctx.t('excel.val_error')),
               ),
+              TextField(
+                key: const ValueKey('xl-val-prompt-title'),
+                controller: promptTitleCtl,
+                decoration: InputDecoration(
+                    labelText: ctx.t('excel.val_prompt_title')),
+              ),
+              TextField(
+                key: const ValueKey('xl-val-prompt'),
+                controller: promptCtl,
+                decoration:
+                    InputDecoration(labelText: ctx.t('excel.val_prompt')),
+              ),
               const SizedBox(height: 8),
               Wrap(spacing: 6, children: [
                 for (final st in const ['stop', 'warning', 'information'])
@@ -332,19 +346,6 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
         ),
       ),
     );
-    String? toBound(String s) {
-      final t = s.trim();
-      if (t.isEmpty) return null;
-      if (type == 'date') {
-        // gg.aa.yyyy → Excel seri numarası (dosyada sayı durur).
-        final m = RegExp(r'^(\d{1,2})[./](\d{1,2})[./](\d{4})$').firstMatch(t);
-        if (m == null) return t;
-        final dt = DateTime.utc(int.parse(m[3]!), int.parse(m[2]!), int.parse(m[1]!));
-        return '${dt.difference(DateTime.utc(1899, 12, 30)).inDays}';
-      }
-      return t.replaceAll(',', '.');
-    }
-
     // Kullanıcının yazdığı formül → dosya biçimi (başında `=` olmadan).
     String toFile(String f) {
       var t = f.trim();
@@ -354,7 +355,49 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
           : t;
     }
 
+    String? toBound(String s) {
+      final t = s.trim();
+      if (t.isEmpty) return null;
+      if (t.startsWith('=')) {
+        final f = toFile(t);
+        return f.isEmpty ? null : f;
+      }
+      if (type == 'date') {
+        // gg.aa.yyyy → Excel seri numarası (dosyada sayı durur).
+        final m = RegExp(r'^(\d{1,2})[./](\d{1,2})[./](\d{4})$').firstMatch(t);
+        if (m != null) {
+          final day = int.parse(m[1]!);
+          final month = int.parse(m[2]!);
+          final year = int.parse(m[3]!);
+          final dt = DateTime.utc(year, month, day);
+          if (dt.year != year || dt.month != month || dt.day != day) {
+            return null;
+          }
+          final base = sheet.date1904
+              ? DateTime.utc(1904, 1, 1)
+              : DateTime.utc(1899, 12, 30);
+          return '${dt.difference(base).inDays}';
+        }
+        final norm = t.replaceAll(',', '.');
+        return double.tryParse(norm) != null ? norm : null;
+      }
+      if (type == 'whole') {
+        return int.tryParse(t) != null ? t : null;
+      }
+      if (type == 'textLength') {
+        final n = int.tryParse(t);
+        return (n != null && n >= 0) ? t : null;
+      }
+      if (type == 'decimal') {
+        final norm = t.replaceAll(',', '.');
+        return double.tryParse(norm) != null ? norm : null;
+      }
+      return t.replaceAll(',', '.');
+    }
+
     final listText = listCtl.text, a = aCtl.text, b = bCtl.text, err = errCtl.text;
+    final promptTitle = promptTitleCtl.text.trim();
+    final prompt = promptCtl.text.trim();
     if (result == null || !mounted) return;
     final name = sheet.name;
     final previous = [
@@ -383,28 +426,37 @@ extension _SpreadsheetDataFinishPart on _SpreadsheetEditorScreenState {
       }
       final custom = type == 'custom' ? toFile(a) : null;
       if (custom != null && custom.isEmpty) return;
+      final needsBounds = type == 'whole' ||
+          type == 'decimal' ||
+          type == 'date' ||
+          type == 'textLength';
+      final twoBounds = op == 'between' || op == 'notBetween';
+      final bound1 = needsBounds ? toBound(a) : null;
+      final bound2 = needsBounds && twoBounds ? toBound(b) : null;
+      if (needsBounds && (bound1 == null || (twoBounds && bound2 == null))) {
+        _snack(context.t('excel.val_bad_bound'));
+        return;
+      }
       final v = XlsxDataValidation(
         type: type,
         ranges: [range],
         options: type == 'list' && listRef == null ? opts : null,
         formula1: type == 'list'
             ? listRef ?? '"${opts.join(',')}"'
-            : custom ?? toBound(a),
-        formula2: type == 'list' ||
-                type == 'custom' ||
-                !(op == 'between' || op == 'notBetween')
+            : custom ?? bound1,
+        formula2: type == 'list' || type == 'custom' || !twoBounds
             ? null
-            : toBound(b),
+            : bound2,
         operator: type == 'list' || type == 'custom' ? 'between' : op,
         error: err.trim().isEmpty ? null : err.trim(),
         errorStyle: style,
-        // Var olan kuralın giriş iletisi korunur.
-        promptTitle: cur?.promptTitle,
-        prompt: cur?.prompt,
-        showInputMessage: cur?.showInputMessage ?? false,
+        promptTitle: promptTitle.isEmpty ? null : promptTitle,
+        prompt: prompt.isEmpty ? null : prompt,
+        showInputMessage: promptTitle.isNotEmpty || prompt.isNotEmpty,
       );
       apply = () => editor.addValidation(name, range, v);
     }
+    _dismissedPromptCell = null;
     apply();
     _recordStep('excel.undo_validation', apply,
         () => editor.restoreValidations(name, range, previous));

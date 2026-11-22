@@ -163,10 +163,10 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               context.t('excel.insert_col_right'),
               onTap: () => _insertColumn(right: true)),
           const RibbonSep(),
-          RibbonButton(OfficeIcons.insertRow, context.t('excel.delete_row'),
+          RibbonButton(AppIcons.delete, context.t('excel.delete_row'),
               onTap: _deleteRow),
           RibbonButton(
-              OfficeIcons.insertColumn, context.t('excel.delete_col'),
+              AppIcons.removeCircleOutline, context.t('excel.delete_col'),
               onTap: _deleteColumn),
           RibbonButton(
               OfficeIcons.clearContents, context.t('excel.clear_contents'),
@@ -195,10 +195,10 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
           RibbonButton(OfficeIcons.autoSum, context.t('excel.autosum'),
               onTap: _autoSum),
           for (final (fn, key) in const [
-            ('ORTALAMA', 'excel.fn_average'),
-            ('BAĞ_DEĞ_SAY', 'excel.fn_count'),
-            ('MAK', 'excel.fn_max'),
-            ('MİN', 'excel.fn_min'),
+            ('AVERAGE', 'excel.fn_average'),
+            ('COUNT', 'excel.fn_count'),
+            ('MAX', 'excel.fn_max'),
+            ('MIN', 'excel.fn_min'),
           ])
             RibbonButton(OfficeIcons.autoSum, context.t(key),
                 key: ValueKey('xl-fn-$fn'), onTap: () => _autoFunction(fn)),
@@ -228,7 +228,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               key: const ValueKey('xl-filter-toggle'),
               active: _sheet?.layout.autoFilterRef != null,
               onTap: _toggleAutoFilter),
-          RibbonButton(OfficeIcons.filter, context.t('excel.filter'),
+          RibbonButton(AppIcons.filterAlt, context.t('excel.filter'),
               onTap: _filterSelectedColumn),
           RibbonButton(AppIcons.validation, context.t('excel.validation'),
               key: const ValueKey('xl-validation'), onTap: _showValidation),
@@ -276,7 +276,7 @@ extension _SpreadsheetEditorScreenRibbonPart on _SpreadsheetEditorScreenState {
               context.t(_noteHere ? 'excel.note_edit' : 'excel.note_new'),
               key: const ValueKey('xl-note'), onTap: _editNote),
           if (_noteHere && _excelPro)
-            RibbonButton(AppIcons.comment, context.t('xp.note_reply'),
+            RibbonButton(AppIcons.forum, context.t('xp.note_reply'),
                 key: const ValueKey('xl-note-reply'), onTap: _replyToNote),
           if (_noteHere)
             RibbonButton(AppIcons.delete, context.t('excel.note_delete'),

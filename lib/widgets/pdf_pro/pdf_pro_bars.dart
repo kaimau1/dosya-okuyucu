@@ -547,10 +547,16 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): widget.onEscape,
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true):
-            widget.onUndo,
-        const SingleActivator(LogicalKeyboardKey.keyY, control: true):
-            widget.onRedo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): () {
+          if (widget.controller.live != null) {
+            widget.onEscape();
+          } else {
+            widget.onUndo();
+          }
+        },
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): () {
+          if (widget.controller.live == null) widget.onRedo();
+        },
         const SingleActivator(LogicalKeyboardKey.keyB, control: true): () =>
             style((a, b) => PdfStyleSpan(a, b, bold: !on((s) => s.bold))),
         const SingleActivator(LogicalKeyboardKey.keyI, control: true): () =>

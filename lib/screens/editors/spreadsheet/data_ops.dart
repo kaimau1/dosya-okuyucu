@@ -337,6 +337,7 @@ extension _SpreadsheetEditorScreenDataPart on _SpreadsheetEditorScreenState {
     _recordStep(label, () => put(hide), () => put(!hide));
     _session.changed();
     _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
   }
 }

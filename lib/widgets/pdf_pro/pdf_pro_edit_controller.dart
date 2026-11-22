@@ -273,16 +273,47 @@ class PdfLiveEdit {
       return pre + newMid;
     }
 
-    spans = [
+    final shifted = <PdfStyleSpan>[
       for (final s in spans)
         if (shift(s.end) > shift(s.start))
           s.shifted(shift(s.start), shift(s.end)),
     ];
     final p = pending;
     if (p != null && newMid > 0) {
-      spans = [...spans, p.shifted(pre, pre + newMid)];
+      shifted.add(p.shifted(pre, pre + newMid));
     }
+    spans = _mergeSpans(shifted);
     text = next;
+  }
+
+  static bool _sameStyle(PdfStyleSpan a, PdfStyleSpan b) =>
+      a.bold == b.bold &&
+      a.italic == b.italic &&
+      a.underline == b.underline &&
+      a.strike == b.strike &&
+      a.size == b.size &&
+      a.color == b.color &&
+      a.highlight == b.highlight &&
+      a.font == b.font;
+
+  static List<PdfStyleSpan> _mergeSpans(List<PdfStyleSpan> input) {
+    if (input.length < 2) return input;
+    final out = <PdfStyleSpan>[];
+    for (final s in input) {
+      if (s.end <= s.start) continue;
+      if (out.isNotEmpty) {
+        final prev = out.last;
+        if (_sameStyle(prev, s) &&
+            s.start <= prev.end &&
+            s.end >= prev.start) {
+          out[out.length - 1] = prev.shifted(
+              math.min(prev.start, s.start), math.max(prev.end, s.end));
+          continue;
+        }
+      }
+      out.add(s);
+    }
+    return out;
   }
 
   /// [i]. karakterin (imleç solundakinin) seçilmiş yazı tipi; yoksa null.
@@ -377,7 +408,10 @@ class PdfProEditController extends ChangeNotifier {
   PdfProTool _tool = PdfProTool.text;
   PdfProTool get tool => _tool;
   set tool(PdfProTool t) {
-    if (_tool == t) return;
+    if (_tool == t && _live == null) return;
+    if (_live != null) {
+      unawaited(_commitLiveBeforeAction());
+    }
     _tool = t;
     if (t != PdfProTool.markup) _markup = PdfMarkupKind.none;
     _lasso = false;
@@ -387,6 +421,21 @@ class PdfProEditController extends ChangeNotifier {
     selectedItems = const [];
     selectedAnnot = null;
     _notify();
+  }
+
+  Future<bool> _commitLiveBeforeAction() async {
+    final live = _live;
+    if (live == null) return true;
+    final label = live.block == null
+        ? 'pse.step_textbox'
+        : live.text.trim().isEmpty
+            ? 'pse.step_delete'
+            : 'pse.step_paragraph';
+    final ok = await commitEdit(label: label);
+    if (!ok && _live != null) {
+      await cancelEdit();
+    }
+    return ok;
   }
 
   /// Kement kurulu (Görsel aracı, Faz 59 m.5): tek parmak sürüklemesi
@@ -1364,23 +1413,45 @@ class PdfProEditController extends ChangeNotifier {
         // blokları metinleriyle yeniden bul.
         final pages = byBlock.keys.map((k) => k.$1).toSet().toList()..sort();
         for (final p in pages) {
-          final targets = <String, List<PdfFindHit>>{};
+          final targets = <(int, int), (PdfTextBlock, List<PdfFindHit>)>{};
           final blocks = await _blocksNow(p);
           for (final e in byBlock.entries) {
             if (e.key.$1 != p || e.key.$2 >= blocks.length) continue;
-            targets[blocks[e.key.$2].map.text] = e.value;
+            targets[e.key] = (blocks[e.key.$2], e.value);
           }
+          final used = <PdfTextBlock>{};
           for (final e in targets.entries) {
+            final orig = e.value.$1;
             final now = await _blocksNow(p);
-            final block = now
-                .where((b) => b.map.text == e.key && b.editable)
-                .firstOrNull;
+            PdfTextBlock? block;
+            final idx = e.key.$2;
+            if (idx < now.length &&
+                !used.contains(now[idx]) &&
+                now[idx].editable &&
+                now[idx].map.text == orig.map.text &&
+                (now[idx].top - orig.top).abs() < 4 &&
+                (now[idx].left - orig.left).abs() < 4) {
+              block = now[idx];
+            } else {
+              var bestDist = double.infinity;
+              for (final b in now) {
+                if (used.contains(b) || !b.editable || b.map.text != orig.map.text) {
+                  continue;
+                }
+                final d = (b.left - orig.left).abs() + (b.top - orig.top).abs();
+                if (d < bestDist) {
+                  bestDist = d;
+                  block = b;
+                }
+              }
+            }
             if (block == null) {
               refused++;
               continue;
             }
-            final runes = e.key.runes.toList();
-            final list = [...e.value]..sort((a, b) => b.start.compareTo(a.start));
+            used.add(block);
+            final runes = orig.map.text.runes.toList();
+            final list = [...e.value.$2]..sort((a, b) => b.start.compareTo(a.start));
             for (final h in list) {
               runes.replaceRange(h.start, h.end, replacement.runes);
             }
@@ -1582,33 +1653,47 @@ class PdfProEditController extends ChangeNotifier {
     return out;
   }
 
-  Future<bool> undo() => _guard(() async {
-        final page = session.undoStep?.pageIndex;
-        final ok = await session.undo();
-        if (ok && page != null) _invalidate(page);
-        return ok;
-      });
+  Future<bool> undo() async {
+    if (_live != null) {
+      await cancelEdit();
+      return true;
+    }
+    return _guard(() async {
+      final page = session.undoStep?.pageIndex;
+      final ok = await session.undo();
+      if (ok && page != null) _invalidate(page);
+      return ok;
+    });
+  }
 
-  Future<bool> redo() => _guard(() async {
-        final page = session.redoStep?.pageIndex;
-        final ok = await session.redo();
-        if (ok && page != null) _invalidate(page);
-        return ok;
-      });
+  Future<bool> redo() async {
+    if (_live != null) return false;
+    return _guard(() async {
+      final page = session.redoStep?.pageIndex;
+      final ok = await session.redo();
+      if (ok && page != null) _invalidate(page);
+      return ok;
+    });
+  }
 
-  Future<PdfEditSaveResult> save() => _guard(() async {
-        final sw = PdfProPerf.start();
-        final r = await saver.save();
-        PdfProPerf.end('kaydet', sw);
-        if (r.overwritten) {
-          _savedOver = true;
-          await PdfEditRecovery.clear(path);
-        }
-        return r;
-      });
+  Future<PdfEditSaveResult> save() async {
+    if (_live != null) await _commitLiveBeforeAction();
+    return _guard(() async {
+      final sw = PdfProPerf.start();
+      final r = await saver.save();
+      PdfProPerf.end('kaydet', sw);
+      if (r.overwritten) {
+        _savedOver = true;
+        await PdfEditRecovery.clear(path);
+      }
+      return r;
+    });
+  }
 
-  Future<PdfEditSaveResult> saveAs({bool documents = false}) =>
-      _guard(() => saver.saveAs(documents: documents));
+  Future<PdfEditSaveResult> saveAs({bool documents = false}) async {
+    if (_live != null) await _commitLiveBeforeAction();
+    return _guard(() => saver.saveAs(documents: documents));
+  }
 
   /// Kaydedilmemiş değişiklikleri bırakır; false → çağıran belgeyi diskten
   /// yeniden okumalı (kayıtlı hâle yığından dönülemedi).
@@ -1649,13 +1734,16 @@ class PdfProEditController extends ChangeNotifier {
       return;
     }
     final at = _changes;
+    _busy = true;
     try {
       final bytes = await saver.encode();
-      if (_closed) return;
+      if (_closed || _live != null || _changes != at) return;
       await PdfEditRecovery.writeSnapshot(path, bytes);
       _snapshotAt = at;
     } catch (_) {
       // Bilinçli: geçici kayıt bir emniyet ağı; sıradaki turda yeniden denenir.
+    } finally {
+      _busy = false;
     }
   }
 

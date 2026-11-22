@@ -38,7 +38,9 @@ class SheetTextMeasure {
     )..layout();
     final value = painter.width;
     painter.dispose();
-    if (_widths.length >= limit) _widths.clear();
+    if (_widths.length >= limit) {
+      _widths.keys.take(1000).toList().forEach(_widths.remove);
+    }
     _widths[key] = value;
     return value;
   }
@@ -56,7 +58,9 @@ class SheetTextMeasure {
     )..layout(maxWidth: maxWidth);
     final value = painter.height;
     painter.dispose();
-    if (_heights.length >= limit) _heights.clear();
+    if (_heights.length >= limit) {
+      _heights.keys.take(1000).toList().forEach(_heights.remove);
+    }
     _heights[key] = value;
     return value;
   }

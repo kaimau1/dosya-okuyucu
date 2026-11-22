@@ -202,13 +202,15 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
       for (final r in order) before[r - firstData],
     ];
     // B10 m.5: süzgeç aralığının sıralaması dosyaya `sortState` olarak yazılır.
+    final inFilter = _filterCoversColumn(sheet, c);
     final sortBefore = sheet.filterSort;
-    final sortAfter = [(col: c, descending: !ascending)];
+    final sortAfter =
+        inFilter ? [(col: c, descending: !ascending)] : sortBefore;
     void write(List<SheetLineSnapshot> rows, List<SortLevelRef> sort) {
       for (var i = 0; i < rows.length; i++) {
         editor.restoreRow(name, firstData + i, rows[i]);
       }
-      sheet.setFilterSort(sort);
+      if (inFilter) sheet.setFilterSort(sort);
     }
 
     write(after, sortAfter);

@@ -42,6 +42,7 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
@@ -285,6 +286,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   final _hTop = ScrollController();
   final _vBody = ScrollController();
   final _vLeft = ScrollController();
+  final _scrolledDown = ValueNotifier<bool>(false);
   bool _syncing = false;
 
   /// Yatay sanallaştırma penceresi (görünen ilk/son sütun).
@@ -307,6 +309,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   /// Ölçü önbelleğini geçersiz kılan imza + önbellek.
   String _metricsKey = '';
+  String _autoFitKey = '';
+  int _autoFitVersion = 0;
   SheetAxisMetrics _colMetrics = SheetAxisMetrics.empty;
   SheetAxisMetrics _rowMetrics = SheetAxisMetrics.empty;
 
@@ -341,6 +345,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// Uygulama içi pano. Sistem panosu da yazılır (TSV) ama formül kaydırması
   /// ve "kesme" bilgisi yalnız burada durur.
   SheetClip? _clip;
+  String? _clipSheetName;
+  List<List<String>>? _clipDisplayValues;
+
+  /// Seçili hücrede kullanıcı tarafından kapatılan veri doğrulama ipucu.
+  (int, int)? _dismissedPromptCell;
 
   /// Doldurma tutamağı sürüklenirken hedeflenen son satır/sütun
   /// (null = sürükleme yok). Hedef aralık seçili gibi vurgulanır.
@@ -376,6 +385,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   int? _resizeCol;
   int? _resizeRow;
   double _resizeStart = 0;
+  double? _resizePreviewSize;
 
   @override
   void initState() {
@@ -414,6 +424,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     _hTop.dispose();
     _vBody.dispose();
     _vLeft.dispose();
+    _scrolledDown.dispose();
     super.dispose();
   }
 
@@ -497,7 +508,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// Levha metin alanları (Hücreleri biçimlendir > Özel, Veri doğrulama):
   /// ekranın ömrüne bağlı — levha kapanış animasyonu sürerken atılmasınlar.
   final _fcCustom = TextEditingController();
-  final _valCtl = List.generate(4, (_) => TextEditingController());
+  final _valCtl = List.generate(6, (_) => TextEditingController());
 
   // ── satır/sütun listeleri ─────────────────────────────────────────────────
 
@@ -619,6 +630,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                     if (editor.truncated) _truncatedBanner(),
                     if (_finding) ...[_findBar(), _replaceBar()],
                     _cellBar(),
+                    _validationPromptBanner(),
                     _formulaSuggestions(),
                     _formulaPreview(),
                     ?_argumentHint(),

@@ -88,6 +88,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
       );
       if (!mounted) return;
       final note = context.t('sg.note');
+      final activityDetail = context.t('ps.act_signed');
       setState(() => _busy = false);
       // İmza atmak geri alınamaz bir yazma: özgün belgeyi korumak isteyene
       // kopya/klasör seçme yolu açık (2026-07-26 isteği).
@@ -96,6 +97,7 @@ class _PdfSignScreenState extends State<PdfSignScreen> {
         originalPath: widget.path,
         bytes: out,
         note: note,
+        activityDetail: activityDetail,
       );
       if (outcome == null || !mounted) return;
       // Yalnız üzerine yazıldıysa açık görüntüleyici tazelenmeli.
