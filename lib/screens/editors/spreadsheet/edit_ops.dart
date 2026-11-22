@@ -15,12 +15,16 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   void _onVScroll() {
     final down = _vBody.hasClients && _vBody.offset > 0.5;
     if (down != _scrolledDown.value) _scrolledDown.value = down;
-    // Kenara yaklaşınca ızgara büyür (Faz 25 / madde 12).
-    if (_vBody.hasClients && _vBody.position.extentAfter < 400 &&
+    // Kenara yaklaşınca ızgara büyür (Faz 25 / madde 12) — kare başına bir kez.
+    if (!_growScheduled &&
+        _vBody.hasClients &&
+        _vBody.position.extentAfter < 400 &&
         _vBody.position.maxScrollExtent > 0) {
+      _growScheduled = true;
       _extraRows += 100;
       _gridVersion++;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        _growScheduled = false;
         if (mounted) _partSetState(() {});
       });
     }
@@ -32,18 +36,31 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     _syncing = false;
   }
 
-  /// Görünen sütun penceresini yeniden hesaplar; DEĞİŞTİYSE yeniden çizer.
-  /// (Her kaydırma pikselinde değil, sütun sınırı geçilince.)
-  void _updateColWindow() {
+  void _resetColWindow() {
+    _colWindow.value = (0, 0);
+  }
+
+  /// Görünen sütun penceresini yeniden hesaplar; yalnız tampon kenarı
+  /// aşılınca [_colWindow] güncellenir (ekranın kökü yeniden kurulmaz).
+  void _updateColWindow({bool force = false}) {
     if (_colMetrics.isEmpty) return;
     final offset = _hBody.hasClients ? _hBody.offset : 0.0;
-    final first = _colMetrics.firstAt(offset);
-    final last = _colMetrics.lastAt(offset + _viewportW);
-    if (first != _firstCol || last != _lastCol) {
-      _partSetState(() {
-        _firstCol = first;
-        _lastCol = last;
-      });
+    final visFirst = _colMetrics.firstAt(offset);
+    final visLast = _colMetrics.firstAt(offset + _viewportW);
+    final maxIdx = _colMetrics.length - 1;
+    final (curFirst, curLast) = _colWindow.value;
+    const buffer = 2;
+    final covered = !force &&
+        curLast >= curFirst &&
+        curLast <= maxIdx &&
+        (curFirst != 0 || curLast != 0 || maxIdx == 0) &&
+        visFirst >= curFirst + (curFirst > 0 ? 1 : 0) &&
+        visLast <= curLast - (curLast < maxIdx ? 1 : 0);
+    if (covered) return;
+    final nextFirst = math.max(0, visFirst - buffer);
+    final nextLast = math.min(maxIdx, visLast + buffer);
+    if (nextFirst != curFirst || nextLast != curLast) {
+      _colWindow.value = (nextFirst, nextLast);
     }
   }
 
@@ -449,17 +466,41 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     _RenderContext ctx,
     int r,
     List<int> cols,
-    Map<int, XlsxCellView> views,
-  ) {
+    Map<int, XlsxCellView> views, {
+    List<XlsxCellStyle?>? styles,
+    List<XlsxMerge?>? merges,
+  }) {
+    if (cols.isEmpty) return SheetSpillPlan.empty;
     final sheet = ctx.sheet;
+    // Hızlı çıkış: satırdaki hiçbir hücre taşamayacaksa (boş, sayı, sarılı,
+    // birleşik ya da kesin sığan) plan listesi bile kurulmaz.
+    var maySpill = false;
+    for (var i = 0; i < cols.length; i++) {
+      final c = cols[i];
+      final view = views[c];
+      if (view == null || view.text.isEmpty || view.numeric) continue;
+      final style = styles != null ? styles[i] : sheet.styleAt(r, c);
+      if (style?.wrap ?? false) continue;
+      final merged = (merges != null ? merges[i] : sheet.mergeAt(r, c)) != null;
+      if (merged) continue;
+      final colW = sheet.colWidth(c);
+      final pad = SheetCell.horizontalPadding(style);
+      if (view.text.length * ((style?.fontSize ?? 11) * 0.75) + pad > colW) {
+        maySpill = true;
+        break;
+      }
+    }
+    if (!maySpill) return SheetSpillPlan.empty;
+
     final rtl = sheet.rightToLeft;
     final cells = <SheetSpillCell>[];
-    for (final c in cols) {
+    for (var i = 0; i < cols.length; i++) {
+      final c = cols[i];
       final view = views[c] ?? const XlsxCellView('');
-      final style = sheet.styleAt(r, c);
+      final style = styles != null ? styles[i] : sheet.styleAt(r, c);
       final align = style?.alignFor(view.numeric, rightToLeft: rtl) ??
           (rtl ? TextAlign.right : TextAlign.left);
-      final merged = sheet.mergeAt(r, c) != null;
+      final merged = (merges != null ? merges[i] : sheet.mergeAt(r, c)) != null;
       final wrap = style?.wrap ?? false;
       final colW = sheet.colWidth(c);
       final pad = SheetCell.horizontalPadding(style);

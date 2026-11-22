@@ -54,8 +54,6 @@ class PdfEditBridgeRefused implements Exception {
 
 const _fpdfPageObjText = 1; // FPDF_PAGEOBJ_TEXT
 
-final _rtl = RegExp(r'[֐-ࣿיִ-﷿ﹰ-﻿]');
-
 abstract final class PdfEditBridge {
   /// Sayfanın metin nesneleri (sıra, metin, kutu, font, punto, matris).
   static Future<List<PdfTextObjectInfo>> textObjects(

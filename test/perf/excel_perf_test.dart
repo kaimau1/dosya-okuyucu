@@ -11,6 +11,7 @@ import 'package:dosya_okuyucu/services/formula_engine.dart';
 import 'package:dosya_okuyucu/services/xlsx/pivot.dart';
 import 'package:dosya_okuyucu/services/xlsx_editor.dart';
 import 'package:dosya_okuyucu/services/xlsx_writer.dart';
+import 'package:dosya_okuyucu/widgets/office_shell.dart';
 import 'package:dosya_okuyucu/widgets/sheet_cell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -261,6 +262,34 @@ void main() {
       expect(onscreen, greaterThan(10), reason: 'ızgara görünmeli');
       expect(r.of(SheetCell), lessThanOrEqualTo(cells));
       expect(r.total, lessThan(12000));
+      await t.pumpWidget(const SizedBox());
+      await t.pump(const Duration(seconds: 3));
+    });
+
+    testWidgets('yatay kaydırma ekran kökünü (OfficeShell) yeniden kurmaz',
+        (t) async {
+      t.view.physicalSize = const Size(1080, 2200);
+      t.view.devicePixelRatio = 2.75;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(MaterialApp(
+        home: SpreadsheetEditorScreen(
+            path: path, name: 'giris.xlsx', plainText: ''),
+      ));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 100));
+      final center = t.getCenter(find.byType(Scaffold).first);
+      final r = await countRebuilds(t, () async {
+        // Birkaç sütun geçecek kadar yatay kaydır: yalnız sütun penceresi
+        // dinleyicileri yenilenmeli, kök OfficeShell hiç kurulmamalı.
+        for (var i = 0; i < 4; i++) {
+          await t.dragFrom(center, const Offset(-160, 0));
+          await t.pump(const Duration(milliseconds: 16));
+        }
+      });
+      // ignore: avoid_print
+      print('PERF excel_hscroll_rebuilds=${r.total} shell=${r.of(OfficeShell)}');
+      expect(r.of(OfficeShell), 0,
+          reason: 'yatay kaydırma sütun sınırında tüm ekranı kurmamalı');
       await t.pumpWidget(const SizedBox());
       await t.pump(const Duration(seconds: 3));
     });

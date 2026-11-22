@@ -246,12 +246,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   void _toggleFreeze() {
     _partSetState(() {
       _freeze = !_freeze;
-      _firstCol = 0;
-      _lastCol = 0;
     });
+    _resetColWindow();
     if (_hBody.hasClients) _hBody.jumpTo(0);
     if (_vBody.hasClients) _vBody.jumpTo(0);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateColWindow(force: true));
   }
 
   /// Sayfa yönünü (soldan sağa / sağdan sola) değiştirir — Excel'in
@@ -266,12 +266,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     _partSetState(() {
       sheet.setRightToLeft(next);
       _session.changed();
-      // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
-      _firstCol = 0;
-      _lastCol = 0;
     });
+    // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
+    _resetColWindow();
     if (_hBody.hasClients) _hBody.jumpTo(0);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateColWindow(force: true));
     _snack(context.t(next ? 'excel.sheet_rtl_on' : 'excel.sheet_rtl_off'));
   }
 

@@ -75,9 +75,13 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
                         style: context.type.compact
                             .copyWith(fontWeight: FontWeight.w600)),
                   Expanded(
-                      child:
-                          CustomPaint(painter: ChartPainter(chart.chart),
-                              child: const SizedBox.expand())),
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        painter: ChartPainter(chart.chart),
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -183,7 +187,10 @@ extension _SpreadsheetChartLayerPart on _SpreadsheetEditorScreenState {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: CustomPaint(painter: ChartPainter(chartPreviewOf(spec))),
+                  child: RepaintBoundary(
+                    child: CustomPaint(
+                        painter: ChartPainter(chartPreviewOf(spec))),
+                  ),
                 ),
               ),
             ),

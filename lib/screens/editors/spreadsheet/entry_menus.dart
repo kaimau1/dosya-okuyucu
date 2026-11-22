@@ -5,58 +5,73 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
 
   List<Widget> _selectionHandles() {
     if (_editing) return const [];
+    final surface = Theme.of(context).colorScheme.surface;
+    final startDot = _handleBody(surface, start: true);
+    final endDot = _handleBody(surface, start: false);
+    const touch = 34.0;
     return [
-      AnimatedBuilder(
-        animation: Listenable.merge([_hBody, _vBody]),
-        builder: (context, _) {
-          final tl = _rectOf(_tlKey);
-          final br = _rectOf(_brKey);
-          return Stack(
-            children: [
-              if (tl != null) _handle(tl.topLeft, start: true),
-              if (br != null) _handle(br.bottomRight, start: false),
-            ],
-          );
-        },
+      // Kendi katmanı: kaydırma boyunca tutamak konumu değişirken alttaki
+      // ızgaranın tamamını kirletmez.
+      Positioned.fill(
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _gridScroll,
+            builder: (context, _) {
+              final tl = _rectOf(_tlKey);
+              final br = _rectOf(_brKey);
+              if (tl == null && br == null) return const SizedBox.shrink();
+              return Stack(
+                children: [
+                  if (tl != null)
+                    Positioned(
+                      left: tl.left - touch / 2,
+                      top: tl.top - touch / 2,
+                      child: startDot,
+                    ),
+                  if (br != null)
+                    Positioned(
+                      left: br.right + 8 - touch / 2,
+                      top: br.bottom + 8 - touch / 2,
+                      child: endDot,
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     ];
   }
 
-  Widget _handle(Offset at, {required bool start}) {
+  Widget _handleBody(Color surface, {required bool start}) {
     const touch = 34.0, dot = 14.0;
     // Doldurma karesi sağ-alt köşenin İÇİNDE; seçim tutamağı köşenin dışına
     // taşar — iki hedef çakışmaz.
-    final c = start ? at : at + const Offset(8, 8);
-    final scheme = Theme.of(context).colorScheme;
-    return Positioned(
-      left: c.dx - touch / 2,
-      top: c.dy - touch / 2,
-      child: RawGestureDetector(
-        key: ValueKey(start ? 'sel-handle-start' : 'sel-handle-end'),
-        behavior: HitTestBehavior.opaque,
-        gestures: {
-          ImmediateMultiDragGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<
-                  ImmediateMultiDragGestureRecognizer>(
-            ImmediateMultiDragGestureRecognizer.new,
-            (r) => r.onStart = (_) => _HandleDrag(
-                  onMove: (g) => _onHandleMove(g, start: start),
-                  onFling: (v) => _onHandleFling(v, start: start),
-                ),
-          ),
-        },
-        child: SizedBox(
-          width: touch,
-          height: touch,
-          child: Center(
-            child: Container(
-              width: dot,
-              height: dot,
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: OfficeColors.excel, width: 2.5),
+    return RawGestureDetector(
+      key: ValueKey(start ? 'sel-handle-start' : 'sel-handle-end'),
+      behavior: HitTestBehavior.opaque,
+      gestures: {
+        ImmediateMultiDragGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<
+                ImmediateMultiDragGestureRecognizer>(
+          ImmediateMultiDragGestureRecognizer.new,
+          (r) => r.onStart = (_) => _HandleDrag(
+                onMove: (g) => _onHandleMove(g, start: start),
+                onFling: (v) => _onHandleFling(v, start: start),
               ),
+        ),
+      },
+      child: SizedBox(
+        width: touch,
+        height: touch,
+        child: Center(
+          child: Container(
+            width: dot,
+            height: dot,
+            decoration: BoxDecoration(
+              color: surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: OfficeColors.excel, width: 2.5),
             ),
           ),
         ),

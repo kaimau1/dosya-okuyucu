@@ -246,7 +246,12 @@ String pdfFontAlias(String family) => switch (family) {
       _ => family,
     };
 
-final _rtlRe = RegExp(r'[֐-ࣿיִ-﷿ﹰ-﻿]');
+/// Sağdan sola yazı (İbranice, Arapça ve sunum biçimleri — U+FEFF BOM hariç).
+///
+/// **Kaçış zorunlu:** ham `U+FB1D` (`יִ`) Unicode NFC ile `U+05D9 U+05B4`'e
+/// ayrışır; karakter sınıfında `\u05B4-\uFDFF` aralığına dönüşüp tire (`–`),
+/// tırnak (`“”`), `₺`/`€` gibi noktalama ve simgeleri yanlışlıkla RTL sayar.
+final pdfRtlPattern = RegExp(r'[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFC]');
 
 /// Liste işareti: madde imi ya da "1." / "a)" / "(2)" / "iv." gibi sayaç.
 final _markerRe = RegExp(
@@ -480,7 +485,7 @@ class PdfTextBlock {
       ? (lines.first.frameBase - lines.last.frameBase) / (lines.length - 1)
       : lines.first.size * 1.2;
 
-  bool get rtl => _rtlRe.hasMatch(text);
+  bool get rtl => pdfRtlPattern.hasMatch(text);
   bool get invisible => lines.first.objects.first.invisible;
 
   PdfBlockLock get lock => rtl

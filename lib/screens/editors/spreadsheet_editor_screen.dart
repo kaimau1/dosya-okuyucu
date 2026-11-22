@@ -288,10 +288,16 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   final _vLeft = ScrollController();
   final _scrolledDown = ValueNotifier<bool>(false);
   bool _syncing = false;
+  bool _growScheduled = false;
 
-  /// Yatay sanallaştırma penceresi (görünen ilk/son sütun).
-  int _firstCol = 0;
-  int _lastCol = 0;
+  /// Yatay sanallaştırma penceresi (görünen ilk/son sütun): değişince yalnız
+  /// sütun şeritleri yenilenir, ekranın kökü yeniden kurulmaz.
+  final ValueNotifier<(int, int)> _colWindow = ValueNotifier((0, 0));
+
+  /// Seçim tutamakları ve yüzer editör için tek paylaşılan birleşik dinleyici.
+  late final Listenable _gridScroll = Listenable.merge([_hBody, _vBody]);
+  late final Listenable _editorScroll =
+      Listenable.merge([_hBody, _vBody, _cellField]);
 
   /// Kaydırılan bölgenin (sabit başlıklar/donmuş bölme HARİÇ) ölçüsü.
   double _viewportW = 400;
@@ -425,6 +431,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     _vBody.dispose();
     _vLeft.dispose();
     _scrolledDown.dispose();
+    _colWindow.dispose();
     super.dispose();
   }
 

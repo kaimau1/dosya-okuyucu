@@ -126,6 +126,33 @@ void main() {
       expect(by('Dikey birinci').angle, closeTo(1.5708, 0.001));
     });
 
+    test('tire, tırnak, para birimi ve BOM RTL sayılmaz (NFC regresyonu)', () {
+      final blocks = groupTextBlocks([
+        o(0, 'General Practitioner – Compulsory Public Service', 50, 760),
+        o(1, 'November 28, 2025 – present — “Ankara” • … ₺ €', 50, 720),
+        o(2, '\uFEFFTürkiye · ÇĞİıÖŞÜ', 50, 680),
+        o(3, 'שלום עולם', 50, 640),
+        o(4, '\uFB1D', 50, 600),
+        o(5, '\uFEFB', 50, 560),
+      ]);
+      PdfTextBlock by(String sub) =>
+          blocks.firstWhere((b) => b.text.contains(sub));
+      for (final s in const [
+        'General Practitioner',
+        'November 28',
+        'Türkiye',
+      ]) {
+        expect(by(s).rtl, isFalse, reason: '$s RTL olmamalı');
+        expect(by(s).lock, PdfBlockLock.none, reason: '$s kilitli olmamalı');
+        expect(by(s).editable, isTrue, reason: '$s düzenlenebilmeli');
+      }
+      for (final s in const ['שלום', '\uFB1D', '\uFEFB']) {
+        expect(by(s).rtl, isTrue, reason: '$s gerçek RTL');
+        expect(by(s).lock, PdfBlockLock.rtl);
+        expect(by(s).editable, isFalse);
+      }
+    });
+
     test('böl / birleştir', () {
       final b = groupTextBlocks([
         o(0, 'Bir satır metni uzun uzun', 50, 700),

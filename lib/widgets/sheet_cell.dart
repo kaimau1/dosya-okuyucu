@@ -120,6 +120,13 @@ class SheetCell extends StatelessWidget {
   final int refEdges;
   final Color? refColor;
 
+  /// Izgaranın bir kez çözdüğü tema/yön değerleri (hücre başına `Theme.of` /
+  /// `Directionality.of` aramalarını kaldırır; null ise bağlamdan okunur).
+  final Color? onSurface;
+  final Color? docSurface;
+  final Color? gridColor;
+  final bool? isRtl;
+
   const SheetCell({
     super.key,
     required this.row,
@@ -143,21 +150,26 @@ class SheetCell extends StatelessWidget {
     this.rangeEdges = 0,
     this.refEdges = 0,
     this.refColor,
+    this.onSurface,
+    this.docSurface,
+    this.gridColor,
+    this.isRtl,
   });
 
   static const edgeTop = 1, edgeRight = 2, edgeBottom = 4, edgeLeft = 8;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final s = style;
     final background = cond?.background ?? s?.background;
+    final fgDefault = onSurface ?? Theme.of(context).colorScheme.onSurface;
+    final surfaceBg = docSurface ?? Paper.docSurface(context);
 
     // Okunurluk hesabı hücrenin GERÇEK zeminine göre: ızgara artık kağıt
     // değil beyaz (bkz. Paper.docSurface).
     final color = readableOn(
-      cond?.foreground ?? view.formatColor ?? s?.fontColor ?? scheme.onSurface,
-      background ?? Paper.docSurface(context),
+      cond?.foreground ?? view.formatColor ?? s?.fontColor ?? fgDefault,
+      background ?? surfaceBg,
     );
 
     final textStyle = metricsStyle(
@@ -173,7 +185,7 @@ class SheetCell extends StatelessWidget {
     // OLMAMALI: yön sayfanın özelliği, hücrenin değil — parametre olsaydı
     // her çağrı yerinde tekrar geçirilmesi gerekir, biri unutulunca o hücre
     // ters hizalanırdı.
-    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final rtl = isRtl ?? (Directionality.of(context) == TextDirection.rtl);
     final align = s?.alignFor(view.numeric, rightToLeft: rtl) ??
         (rtl ? TextAlign.right : TextAlign.left);
     final vAlign = s?.vAlign ?? XlsxVAlign.bottom;
@@ -280,7 +292,8 @@ class SheetCell extends StatelessWidget {
               border: s?.border,
               background: background,
               gridColor: showGridLines
-                  ? Theme.of(context).dividerColor.withValues(alpha: 0.55)
+                  ? (gridColor ??
+                      Theme.of(context).dividerColor.withValues(alpha: 0.55))
                   : null,
               // Aralık seçiliyken çerçeve aralığın DIŞINDA (rangeEdges);
               // tek hücrede imleç hücresi kendi çerçevesini çizer.
@@ -446,41 +459,51 @@ class _CellBorderPainter extends CustomPainter {
     // Izgara çizgileri (Excel'in soluk ızgarası) — kenarlık tanımlıysa onun
     // yerine gerçek kenarlık çizilir.
     final b = border;
-    void side(XlsxBorderSide? s, Offset p1, Offset p2) {
-      if (s != null && s.visible) {
-        final paint = Paint()
-          ..color = Color(s.colorArgb ?? 0xFF000000)
-          ..strokeWidth = s.width
-          ..style = PaintingStyle.stroke;
-        if (s.style == 'double') {
-          final d =
-              (p1.dy == p2.dy) ? const Offset(0, 1.5) : const Offset(1.5, 0);
-          canvas.drawLine(p1 - d, p2 - d, paint..strokeWidth = 1);
-          canvas.drawLine(p1 + d, p2 + d, paint..strokeWidth = 1);
-          return;
-        }
-        if (s.style.toLowerCase().contains('dash') ||
-            s.style.toLowerCase().contains('dot')) {
-          _dashed(canvas, p1, p2, paint);
-          return;
-        }
-        canvas.drawLine(p1, p2, paint);
-        return;
+    final grid = gridColor;
+    if (b == null) {
+      if (grid != null) {
+        canvas.drawRect(
+            rect,
+            Paint()
+              ..color = grid
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 0.5);
       }
-      final grid = gridColor;
-      if (grid == null) return;
-      canvas.drawLine(
-          p1,
-          p2,
-          Paint()
-            ..color = grid
-            ..strokeWidth = 0.5);
-    }
+    } else {
+      Paint? gridPaint;
+      void side(XlsxBorderSide? s, Offset p1, Offset p2) {
+        if (s != null && s.visible) {
+          final paint = Paint()
+            ..color = Color(s.colorArgb ?? 0xFF000000)
+            ..strokeWidth = s.width
+            ..style = PaintingStyle.stroke;
+          if (s.style == 'double') {
+            final d =
+                (p1.dy == p2.dy) ? const Offset(0, 1.5) : const Offset(1.5, 0);
+            canvas.drawLine(p1 - d, p2 - d, paint..strokeWidth = 1);
+            canvas.drawLine(p1 + d, p2 + d, paint..strokeWidth = 1);
+            return;
+          }
+          if (s.style.toLowerCase().contains('dash') ||
+              s.style.toLowerCase().contains('dot')) {
+            _dashed(canvas, p1, p2, paint);
+            return;
+          }
+          canvas.drawLine(p1, p2, paint);
+          return;
+        }
+        if (grid == null) return;
+        final gp = gridPaint ??= Paint()
+          ..color = grid
+          ..strokeWidth = 0.5;
+        canvas.drawLine(p1, p2, gp);
+      }
 
-    side(b?.top, Offset.zero, Offset(size.width, 0));
-    side(b?.left, Offset.zero, Offset(0, size.height));
-    side(b?.right, Offset(size.width, 0), Offset(size.width, size.height));
-    side(b?.bottom, Offset(0, size.height), Offset(size.width, size.height));
+      side(b.top, Offset.zero, Offset(size.width, 0));
+      side(b.left, Offset.zero, Offset(0, size.height));
+      side(b.right, Offset(size.width, 0), Offset(size.width, size.height));
+      side(b.bottom, Offset(0, size.height), Offset(size.width, size.height));
+    }
 
     if (selection != null) {
       canvas.drawRect(

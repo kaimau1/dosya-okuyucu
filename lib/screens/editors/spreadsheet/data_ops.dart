@@ -276,8 +276,7 @@ extension _SpreadsheetEditorScreenDataPart on _SpreadsheetEditorScreenState {
     void apply(int r, int c) {
       sheet.setFreeze(r, c);
       _freeze = r > 0 || c > 0;
-      _firstCol = 0;
-      _lastCol = 0;
+      _resetColWindow();
     }
 
     apply(newR, newC);
@@ -287,7 +286,8 @@ extension _SpreadsheetEditorScreenDataPart on _SpreadsheetEditorScreenState {
     _session.changed();
     _gridVersion++;
     _partSetState(() {});
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateColWindow(force: true));
   }
 
   // ── satır / sütun gizle - göster ───────────────────────────────────────

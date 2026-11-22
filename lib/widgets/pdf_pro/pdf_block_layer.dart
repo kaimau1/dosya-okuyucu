@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -109,6 +110,10 @@ class PdfProBlockLayer extends StatefulWidget {
   @visibleForTesting
   static int debugBuilds = 0;
 
+  /// Kasma bekçisi: ana blok katmanı kaç kez boyandı (sayfa kayarken artmamalı).
+  @visibleForTesting
+  static int debugPaints = 0;
+
   /// Seçili metin bloğunun taşıma tutamacı merkezi.
   ///
   /// Blok üstünde yeterli yer varsa metnin **dışına** (20 px yukarı) yerleşir;
@@ -160,6 +165,15 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   Timer? _blink;
   final ValueNotifier<bool> _caretOn = ValueNotifier(true);
   int _lastSel = -1;
+
+  // Blok kutuları ve kilit bayrakları: sayfa kayarken (boyut sabitken) her
+  // karede yeniden üretilmez; `_LayerPainter.shouldRepaint` aynı referansla
+  // yeniden boyamayı atlar.
+  List<PdfTextBlock>? _cachedBlocks;
+  PdfPage? _cachedPage;
+  Size _cachedRectsSize = Size.zero;
+  List<Rect> _cachedRects = const [];
+  List<bool> _cachedLocked = const [];
 
   @override
   void initState() {
@@ -338,6 +352,20 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
 
   List<Rect> _blockRects(List<PdfTextBlock> blocks) =>
       [for (final b in blocks) _r(b.left, b.bottom, b.right, b.top)];
+
+  (List<Rect>, List<bool>) _blockLayout(List<PdfTextBlock> blocks) {
+    if (identical(blocks, _cachedBlocks) &&
+        identical(widget.page, _cachedPage) &&
+        _cachedRectsSize == widget.pageSize) {
+      return (_cachedRects, _cachedLocked);
+    }
+    _cachedBlocks = blocks;
+    _cachedPage = widget.page;
+    _cachedRectsSize = widget.pageSize;
+    _cachedRects = _blockRects(blocks);
+    _cachedLocked = [for (final b in blocks) !b.editable];
+    return (_cachedRects, _cachedLocked);
+  }
 
   // ── yazma kipi hareketleri ─────────────────────────────────────────────
   void _caretTo(Offset local, {bool word = false, bool extend = false}) {
@@ -693,14 +721,16 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         }());
         final live = _liveHere ? c.live : null;
         final blocks = c.blocksOf(pageIndex) ?? const <PdfTextBlock>[];
-        final rects = _blockRects(blocks);
+        final (rects, locked) = _blockLayout(blocks);
         final selected = c.selectedPage == pageIndex ? c.selectedBlock : null;
         final item = c.selectedPage == pageIndex ? c.selectedItem : null;
         final annot = c.selectedPage == pageIndex ? c.selectedAnnot : null;
         final group = c.selectedPage == pageIndex
             ? c.selectedItems
             : const <PdfPageItem>[];
-        final groupRects = [for (final it in group) _itemRect(it)];
+        final groupRects = group.isEmpty
+            ? const <Rect>[]
+            : [for (final it in group) _itemRect(it)];
         final groupBox = groupRects.isEmpty
             ? null
             : groupRects.reduce((a, b) => a.expandToInclude(b));
@@ -709,12 +739,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
 
         final painter = _LayerPainter(
           rects: tool == PdfProTool.text && live == null ? rects : const [],
-          locked: [for (final b in blocks) !b.editable],
+          locked: tool == PdfProTool.text && live == null ? locked : const [],
           // Sürüklenen çerçeve [_DragPainter]'da; burada çizilmez.
           selected: live == null && !_dragging ? selected : null,
           accent: accent,
           pending: PdfEditTokens.pending(dark),
           px: px,
+          pageSize: widget.pageSize,
           itemRect: item == null || _dragging ? null : _itemRect(item),
           itemGrip: _dragging
               ? null
@@ -737,8 +768,12 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         );
 
         final children = <Widget>[
+          // Kendi katmanı: sayfa kayarken (boyut/seçim değişmeden) yeniden boyanmaz.
           IgnorePointer(
-              child: CustomPaint(size: widget.pageSize, painter: painter)),
+            child: RepaintBoundary(
+              child: CustomPaint(size: widget.pageSize, painter: painter),
+            ),
+          ),
           // Aktif çizim vuruşu katmanı: sürüklerken yalnız bu boyanır.
           IgnorePointer(
             child: RepaintBoundary(

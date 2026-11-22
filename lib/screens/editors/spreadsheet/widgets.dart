@@ -45,6 +45,13 @@ class _RenderContext {
   final FormulaEngine engine;
   final double zoom;
   final Map<XlsxCondRule, _CondStats> condCache;
+  final Color onSurface;
+  final Color surfaceContainerHighest;
+  final Color outlineHalf;
+  final Color docSurface;
+  final Color dividerColor;
+  final Color gridColor;
+  final XlsxRange? filterRange;
 
   /// Formül yazılırken başvurulan aralıklar + renkleri (Faz 25).
   final List<(XlsxRange, Color)> refs;
@@ -54,6 +61,13 @@ class _RenderContext {
     required this.engine,
     required this.zoom,
     required this.condCache,
+    required this.onSurface,
+    required this.surfaceContainerHighest,
+    required this.outlineHalf,
+    required this.docSurface,
+    required this.dividerColor,
+    required this.gridColor,
+    this.filterRange,
     this.refs = const [],
   });
 

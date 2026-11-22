@@ -10,16 +10,23 @@ class _LayerPainter extends CustomPainter {
     required this.accent,
     required this.pending,
     required this.px,
+    required this.pageSize,
     required this.itemRect,
     required this.itemGrip,
     required this.groupRects,
     required this.onAccent,
     required this.movable,
     required this.annotRect,
-    required this.live,
+    required PdfLiveEdit? live,
     required this.toWidget,
     required this.caretOn,
-  }) : super(repaint: caretOn);
+  })  : liveMap = live?.map,
+        liveSelStart = live?.selStart ?? 0,
+        liveSelEnd = live?.selEnd ?? 0,
+        liveComposeStart = live?.composeStart ?? -1,
+        liveComposeEnd = live?.composeEnd ?? -1,
+        liveHasError = live?.error != null,
+        super(repaint: caretOn);
 
   final List<Rect> rects;
   final List<bool> locked;
@@ -28,22 +35,29 @@ class _LayerPainter extends CustomPainter {
   final Offset? itemGrip;
   final bool movable;
   final double px;
+  final Size pageSize;
   final Rect? itemRect, annotRect;
 
   /// Çoklu seçimin üyeleri (Faz 59 m.5); boşsa tekli seçim.
   final List<Rect> groupRects;
-  final PdfLiveEdit? live;
+  final PdfBlockTextMap? liveMap;
+  final int liveSelStart, liveSelEnd, liveComposeStart, liveComposeEnd;
+  final bool liveHasError;
   final Offset Function(double x, double y) toWidget;
   final ValueNotifier<bool> caretOn;
 
-  void _dashed(Canvas canvas, Rect r, Paint paint) {
+  void _addDashedRect(Path path, Rect r) {
     final dash = 5 * px, gap = 3 * px;
     void line(Offset a, Offset b) {
       final len = (b - a).distance;
       if (len <= 0) return;
-      final dir = (b - a) / len;
+      final inv = 1 / len;
+      final ux = (b.dx - a.dx) * inv, uy = (b.dy - a.dy) * inv;
       for (var d = 0.0; d < len; d += dash + gap) {
-        canvas.drawLine(a + dir * d, a + dir * math.min(len, d + dash), paint);
+        final e = math.min(len, d + dash);
+        path
+          ..moveTo(a.dx + ux * d, a.dy + uy * d)
+          ..lineTo(a.dx + ux * e, a.dy + uy * e);
       }
     }
 
@@ -66,22 +80,38 @@ class _LayerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final idle = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = PdfEditTokens.frameIdleWidth * px
-      ..color = accent.withValues(alpha: PdfEditTokens.frameIdleAlpha);
-    final lockPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = PdfEditTokens.frameIdleWidth * px
-      ..color = pending;
-    for (var i = 0; i < rects.length; i++) {
-      if (i == selected) continue;
-      final r = rects[i].inflate(2 * px);
-      if (i < locked.length && locked[i]) {
-        _dashed(canvas, r, lockPaint);
-      } else {
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(r, Radius.circular(2 * px)), idle);
+    assert(() {
+      PdfProBlockLayer.debugPaints++;
+      return true;
+    }());
+    if (rects.isNotEmpty) {
+      Path? idlePath;
+      Path? lockPath;
+      final radius = Radius.circular(2 * px);
+      for (var i = 0; i < rects.length; i++) {
+        if (i == selected) continue;
+        final r = rects[i].inflate(2 * px);
+        if (i < locked.length && locked[i]) {
+          _addDashedRect(lockPath ??= Path(), r);
+        } else {
+          (idlePath ??= Path()).addRRect(RRect.fromRectAndRadius(r, radius));
+        }
+      }
+      if (idlePath != null) {
+        canvas.drawPath(
+            idlePath,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = PdfEditTokens.frameIdleWidth * px
+              ..color = accent.withValues(alpha: PdfEditTokens.frameIdleAlpha));
+      }
+      if (lockPath != null) {
+        canvas.drawPath(
+            lockPath,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = PdfEditTokens.frameIdleWidth * px
+              ..color = pending);
       }
     }
     final s = selected;
@@ -126,10 +156,13 @@ class _LayerPainter extends CustomPainter {
     }
     final ir = itemRect;
     if (ir != null) _selection(canvas, ir);
-    for (final r in groupRects) {
-      _dashed(
-          canvas,
-          r.inflate(2 * px),
+    if (groupRects.isNotEmpty) {
+      final gp = Path();
+      for (final r in groupRects) {
+        _addDashedRect(gp, r.inflate(2 * px));
+      }
+      canvas.drawPath(
+          gp,
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = PdfEditTokens.frameActiveWidth * px
@@ -140,9 +173,10 @@ class _LayerPainter extends CustomPainter {
     if (g != null) _moveGrip(canvas, g);
     final ar = annotRect;
     if (ar != null) {
-      _dashed(
-          canvas,
-          ar.inflate(3 * px),
+      final ap = Path();
+      _addDashedRect(ap, ar.inflate(3 * px));
+      canvas.drawPath(
+          ap,
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = PdfEditTokens.frameActiveWidth * px
@@ -150,10 +184,10 @@ class _LayerPainter extends CustomPainter {
     }
 
     // Yazma kipi: seçim, bileşim alt çizgisi, imleç.
-    final l = live;
-    if (l == null) return;
-    final map = l.map;
-    final lo = math.min(l.selStart, l.selEnd), hi = math.max(l.selStart, l.selEnd);
+    final map = liveMap;
+    if (map == null) return;
+    final lo = math.min(liveSelStart, liveSelEnd),
+        hi = math.max(liveSelStart, liveSelEnd);
     if (hi > lo) {
       final p = Paint()
         ..color = accent.withValues(alpha: PdfEditTokens.textSelectionAlpha);
@@ -169,11 +203,11 @@ class _LayerPainter extends CustomPainter {
             p);
       }
     }
-    if (l.composeStart >= 0 && l.composeEnd > l.composeStart) {
+    if (liveComposeStart >= 0 && liveComposeEnd > liveComposeStart) {
       final p = Paint()
         ..strokeWidth = 1.5 * px
         ..color = accent;
-      for (final q in map.selection(l.composeStart, l.composeEnd)) {
+      for (final q in map.selection(liveComposeStart, liveComposeEnd)) {
         canvas.drawLine(toWidget(q[0], q[1]), toWidget(q[2], q[3]), p);
       }
     }
@@ -185,12 +219,32 @@ class _LayerPainter extends CustomPainter {
           Paint()
             ..strokeWidth = 2 * px
             ..strokeCap = StrokeCap.round
-            ..color = l.error == null ? accent : pending);
+            ..color = !liveHasError ? accent : pending);
     }
   }
 
   @override
-  bool shouldRepaint(_LayerPainter old) => true;
+  bool shouldRepaint(_LayerPainter old) =>
+      !identical(old.rects, rects) ||
+      !identical(old.locked, locked) ||
+      old.selected != selected ||
+      old.accent != accent ||
+      old.pending != pending ||
+      old.onAccent != onAccent ||
+      old.px != px ||
+      old.pageSize != pageSize ||
+      old.movable != movable ||
+      old.itemRect != itemRect ||
+      old.itemGrip != itemGrip ||
+      old.annotRect != annotRect ||
+      !listEquals(old.groupRects, groupRects) ||
+      !identical(old.liveMap, liveMap) ||
+      old.liveSelStart != liveSelStart ||
+      old.liveSelEnd != liveSelEnd ||
+      old.liveComposeStart != liveComposeStart ||
+      old.liveComposeEnd != liveComposeEnd ||
+      old.liveHasError != liveHasError ||
+      old.caretOn != caretOn;
 }
 
 /// Seçim çerçevesi: hafif dolgu, kontur ve isteğe bağlı dört köşe tutamacı.

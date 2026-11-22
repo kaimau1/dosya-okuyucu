@@ -136,5 +136,47 @@ void main() {
     await tester.pump();
     await until(() => c.session.steps.length == 1 && !c.busy);
     expect(tester.takeException(), isNull);
+
+    // Kaydırma bekçisi: overlay konumu (left/top) değişirken sayfa boyutu
+    // sabit → ana blok katmanı yeniden boyanmamalı (GPU katmanı kayar).
+    await tester.pump();
+    final paintsBeforePan = PdfProBlockLayer.debugPaints;
+    for (var i = 1; i <= 5; i++) {
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr')],
+        localizationsDelegates: const [
+          AppStrings.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: Scaffold(
+          body: Stack(children: [
+            Positioned(
+              left: -i * 20.0,
+              top: -i * 15.0,
+              child: PdfProBlockLayer(
+                page: page,
+                pageSize: Size(page.width, page.height),
+                controller: c,
+                events: PdfProLayerEvents(
+                  onEdit: (_, _, {offset, selection}) {},
+                  onLocked: (_, _) {},
+                  onBlockMenu: (_, _) {},
+                  onCommit: () {},
+                  onRefused: (e) => fail('reddedildi: $e'),
+                  onNote: (_, _, _) {},
+                  onAnnotTap: (_, _) {},
+                  onTextBox: (_, _, _) {},
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ));
+    }
+    expect(PdfProBlockLayer.debugPaints, paintsBeforePan,
+        reason: 'sayfa kayarken blok katmanı yeniden boyandı (kasma)');
   });
 }

@@ -430,7 +430,7 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
 
   Widget _floatingEditor(BoxConstraints area) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_hBody, _vBody, _cellField]),
+      animation: _editorScroll,
       builder: (context, _) {
         final rect = _rectOf(_cursorKey);
         final sheet = _sheet;

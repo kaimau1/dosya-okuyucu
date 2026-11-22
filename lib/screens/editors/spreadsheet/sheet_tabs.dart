@@ -38,14 +38,13 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
                         _selCol = 0;
                         _anchorRow = 0;
                         _anchorCol = 0;
-                        _firstCol = 0;
-                        _lastCol = 0;
                         _hits = const []; // eşleşmeler sayfaya özgü
                         _hitIndex = -1;
                       });
+                      _resetColWindow();
                       _syncField();
-                      WidgetsBinding.instance
-                          .addPostFrameCallback((_) => _updateColWindow());
+                      WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => _updateColWindow(force: true));
                     },
                   )),
                 ),

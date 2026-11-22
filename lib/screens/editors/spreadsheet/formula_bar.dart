@@ -17,7 +17,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
       _vBody.jumpTo(((_vBody.offset + focal.dy) * f - focal.dy)
           .clamp(0.0, _vBody.position.maxScrollExtent));
     }
-    _updateColWindow();
+    _updateColWindow(force: true);
     // Şeritteki zoom yüzdesi ölçekle birlikte yenilensin (rozet pinch'te
     // görünür, düğmeyle zoomda görünmez — kullanıcının tek göstergesi bu).
     if (mounted) _partSetState(() {});
