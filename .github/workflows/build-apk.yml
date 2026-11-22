@@ -192,6 +192,12 @@ jobs:
         if: env.MOD != 'atla' && matrix.shard == 0
         run: python3 tool/bagimlilik_denetimi.py
 
+      # Ön denetim (2026-11-22): Flutter kurulmadan önce, ≈1 sn — çeviri
+      # anahtarı, erişilemeyen dosya, kırık import, testte gerçek G/Ç.
+      - name: Ön denetim
+        if: env.MOD != 'atla' && matrix.shard == 0
+        run: python3 tool/on_denetim.py
+
       # Güvenlik fazı G0: kapatılmış açıkların geri gelmesini ve onaysız yeni
       # saldırı yüzeyini (sunucu, dışa açık bileşen, WebView JS) yakalar.
       # Flutter gerekmez; bekleyen kurallar uyarı kipinde (tool/guvenlik_denetimi.sh).

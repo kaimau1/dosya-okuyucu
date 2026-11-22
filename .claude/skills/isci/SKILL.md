@@ -70,6 +70,12 @@ adım · kök neden/kanıt (dosya:satır) · işe yaramayanlar · sıradaki adı
   assets failed" verir; CI `verify` 3 parça test eder). İstisna: plan maddesi açıkça yerel/cihaz
   ölçümü istiyorsa (📱💻 fazlar).
 - `dart format lib` / toplu biçimlendirme YOK — yalnız kendi eklediğin yeni dosya.
+- **Her push'tan önce `python3 tool/on_denetim.py`** (Flutter gerekmez, ≈1 sn): çeviri anahtarı,
+  erişilemeyen dosya, kırık import, testte gerçek G/Ç. Kırmızıysa push etme, düzelt (2026-11-22:
+  dal koşularının ~%35'i ilk push'ta kırmızıydı, çoğu bu sınıftandı).
+- Yeni widget testi yazarken: `testWidgets` içinde `await File(..).writeAsBytes` YOK (`*Sync`);
+  imleç yanıp sönen ekranda (Word/Excel düzenleyici, odaklı TextField) `pumpAndSettle` YOK
+  (sınırlı `pump`); şerit düğmesine dokunmadan önce `ensureVisible`. Silinen dosyanın testini de sil.
 - Push sonrası `gh run list -b <dal> -L 1`; sürüyorsa `timeout 2700 gh run watch <id>
   --exit-status` (arka planda, yoklama döngüsü yok). Kırmızıysa YALNIZ başarısız parçanın kayıt
   kuyruğu (`gh run view <id> --log-failed | tail -n 60`), düzelt, push — en çok 2 tur, sonra

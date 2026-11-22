@@ -72,6 +72,9 @@ Artifact deposu 0,5 GB: APK yayına ÖNBELLEKLE gider (artifact değil); runner 
   3.47.7 `pub get` kilidini bozar — HAFIZA).
   `ci/*.kt` değişikliğini de CI `verify` (Kotlin denetimi) yakalar; `tool/check_kotlin.sh`
   yalnız kotlinc zaten kuruluysa koşturulur (HAFIZA 2026-09-02).
+- **Ön denetim (2026-11-22, CI kırmızı oranı):** HER push'tan önce `python3 tool/on_denetim.py`
+  (Flutter yok, ≈1 sn — çeviri anahtarı, erişilemeyen dosya, kırık import, testte gerçek G/Ç);
+  kırmızıysa push yok. Widget testi kuralları `isci` skill'inde.
 - **Test seçimi + 3 parça (2026-11-05, kullanıcı kararı):** `verify` 3 parçada paralel
   (`Doğrulama (0/3)`…`(2/3)`; analyze + Kotlin 0. parçada); kırmızı parça Actions →
   "Re-run failed jobs" ile tek başına yeniden koşar. Dalda yalnız main'den ayrılınca
