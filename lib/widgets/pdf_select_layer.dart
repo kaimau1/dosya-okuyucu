@@ -599,7 +599,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     if (!DeviceProfile.budget.contentIndexOcrDefault) return;
     if (!PdfOcrText.isSupported || !_textThin) return;
     _autoOcrTimer?.cancel();
-    _autoOcrTimer = Timer(const Duration(milliseconds: 350), () {
+    _autoOcrTimer = Timer(Motion.long, () {
       if (mounted) _startOcr();
     });
   }
