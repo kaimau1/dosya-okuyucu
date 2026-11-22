@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -24,9 +25,21 @@ class ConversionService {
   /// zaten gömülüyordu; görünen metin yolu atlanmıştı (2026-07-26'da düzeltildi).
   static pw.ThemeData? _theme;
 
+  /// Görünmez OCR katmanı için önbellekli `Carlito-Regular.ttf` baytları
+  /// (`Isolate.run` içine doğrudan aktarılır; her kayıtta yeniden okunmaz).
+  static Uint8List? _carlitoRegularBytes;
+
+  static Future<Uint8List> _loadCarlitoRegularBytes() async {
+    final cached = _carlitoRegularBytes;
+    if (cached != null) return cached;
+    final data = await rootBundle.load('assets/fonts/Carlito-Regular.ttf');
+    return _carlitoRegularBytes = data.buffer
+        .asUint8List(data.offsetInBytes, data.lengthInBytes);
+  }
+
   static Future<pw.ThemeData> _turkishTheme() async {
     return _theme ??= pw.ThemeData.withFont(
-      base: pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Regular.ttf')),
+      base: pw.Font.ttf(ByteData.sublistView(await _loadCarlitoRegularBytes())),
       bold: pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Bold.ttf')),
       italic:
           pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Italic.ttf')),
@@ -81,34 +94,54 @@ class ConversionService {
   ///
   /// [ocrLinesPerPage] verilirse i. listedeki satırlar i. sayfaya görünmez metin
   /// olarak yazılır; kısa liste sorun değil, kalan sayfalar metinsiz kalır.
-  /// Tek görsellik hâli [imageToPdf] ile aynı yoldan geçer — davranış tek yerde.
+  /// [ocrSourceSizes] veya [ocrSourcePaths] verilirse ve `display` görseli
+  /// filtreleme sırasında küçültülmüşse (>2480 px → 2480 px), OCR kutuları
+  /// kaynak boyutundan `display` boyutuna orantılı ölçeklenir.
   ///
   /// [uniformPage] verilirse (belge tarayıcı bunu A4 ile çağırır) **her sayfa
   /// aynı kâğıt boyunda** olur: görsel oranı korunarak sayfaya sığdırılır
   /// (kırpılmaz, esnetilmez) ve ORTALANIR; yatay görsel için kâğıt yatay
   /// çevrilir, böylece kenarda dev boşluk kalmaz.
-  ///
-  /// *Niye:* eskiden her sayfa kendi görselinin oranını alıyordu — arka arkaya
-  /// çekilen sayfalar birkaç piksel farklı olduğu için PDF'te sayfa boyu sayfa
-  /// sayfa oynuyordu ("sayfalar tam oturmuyor, düz değil" bulgusu, 2026-07-26).
-  /// Gerçek bir tarayıcı hep aynı kâğıda basar; biz de öyle yapıyoruz.
   Future<Uint8List> imagesToPdf(
     List<String> imagePaths, {
     List<List<OcrLine>> ocrLinesPerPage = const [],
     PdfPageFormat? uniformPage,
+    List<({int width, int height})?> ocrSourceSizes = const [],
+    List<String>? ocrSourcePaths,
   }) async {
-    if (imagePaths.isEmpty) throw ArgumentError('PDF için en az bir görsel gerekli');
+    if (imagePaths.isEmpty) {
+      throw ArgumentError('PDF için en az bir görsel gerekli');
+    }
 
     // Görünmez katman Türkçe karakter içerebilir → gömülü Carlito (varsayılan
     // Helvetica'da ğ/ş/ı çizilemez ve pdf paketi hata atar).
     final hasOcr = ocrLinesPerPage.any((lines) => lines.isNotEmpty);
-    final font = hasOcr
-        ? pw.Font.ttf(await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
-        : null;
+    final fontBytes = hasOcr ? await _loadCarlitoRegularBytes() : null;
+
+    return Isolate.run(() => _buildImagesPdfInIsolate(
+          imagePaths: imagePaths,
+          ocrLinesPerPage: ocrLinesPerPage,
+          uniformPage: uniformPage,
+          fontBytes: fontBytes,
+          ocrSourceSizes: ocrSourceSizes,
+          ocrSourcePaths: ocrSourcePaths,
+        ));
+  }
+
+  static Future<Uint8List> _buildImagesPdfInIsolate({
+    required List<String> imagePaths,
+    required List<List<OcrLine>> ocrLinesPerPage,
+    required PdfPageFormat? uniformPage,
+    required Uint8List? fontBytes,
+    required List<({int width, int height})?> ocrSourceSizes,
+    required List<String>? ocrSourcePaths,
+  }) async {
+    final font =
+        fontBytes != null ? pw.Font.ttf(ByteData.sublistView(fontBytes)) : null;
 
     final doc = pw.Document();
     for (var i = 0; i < imagePaths.length; i++) {
-      final bytes = await File(imagePaths[i]).readAsBytes();
+      final bytes = File(imagePaths[i]).readAsBytesSync();
       final image = pw.MemoryImage(bytes);
 
       // Çözülemeyen biçimde (ör. HEIC/HEIF) boyutlar null gelir — sessizce bozuk
@@ -162,6 +195,36 @@ class ConversionService {
       final ocrLines =
           i < ocrLinesPerPage.length ? ocrLinesPerPage[i] : const <OcrLine>[];
 
+      // Filtrelenmiş (>2480 px → 2480 px) sayfalarda OCR kaynak görselin
+      // boyutunda tanınmış olabilir: kaynak boyutu farklıysa kutuları
+      // `display` boyutuna orantılı ölçekle.
+      var lineScaleX = scale;
+      var lineScaleY = scale;
+      if (ocrLines.isNotEmpty) {
+        var srcSize = i < ocrSourceSizes.length ? ocrSourceSizes[i] : null;
+        if (srcSize == null &&
+            ocrSourcePaths != null &&
+            i < ocrSourcePaths.length &&
+            ocrSourcePaths[i] != imagePaths[i]) {
+          try {
+            final srcImg =
+                pw.MemoryImage(File(ocrSourcePaths[i]).readAsBytesSync());
+            if (srcImg.width != null &&
+                srcImg.height != null &&
+                srcImg.width! > 0 &&
+                srcImg.height! > 0) {
+              srcSize = (width: srcImg.width!, height: srcImg.height!);
+            }
+          } catch (_) {
+            // Kaynak okunamazsa display boyutuyla devam edilir.
+          }
+        }
+        if (srcSize != null && srcSize.width > 0 && srcSize.height > 0) {
+          lineScaleX = scale * (imgWidth / srcSize.width);
+          lineScaleY = scale * (imgHeight / srcSize.height);
+        }
+      }
+
       doc.addPage(
         pw.Page(
           pageFormat: PdfPageFormat(pageWidth, pageHeight),
@@ -169,25 +232,6 @@ class ConversionService {
           build: (context) => pw.Stack(
             fit: pw.StackFit.expand,
             children: [
-              // Resim ALTTA, metin katmanı ÜSTTE ama GÖRÜNMEZ çizilir.
-              //
-              // Kullanıcı hatası 2026-07-31 (ekran görüntüsü): "metinleri de
-              // tanı" ile taranan sayfada OCR metni **koyu siyah** ve dev
-              // punto olarak sayfanın sağına taşmış hâlde basılıyordu; belge
-              // okunamaz hâle geliyordu. İki ayrı kök neden vardı:
-              //
-              // 1. Görünmezlik `PdfColor(0,0,0,0)` ile, yani **saydam renkle**
-              //    deneniyordu. `pdf` paketi metin doldurma renginde alfa
-              //    kanalını PDF'e yazmıyor (`… rg` yalnız RGB) → metin
-              //    tastamam siyah çıkıyordu. Doğrusu PDF'in kendi "metin
-              //    çizim kipi 3" özelliği: `PdfTextRenderingMode.invisible`.
-              //    Metin çizilmez ama belgede DURUR: aranabilir, kopyalanabilir.
-              // 2. Metin resmin ALTINA konup "resim üstünü örter" varsayılıyordu.
-              //    Örtme yalnız resmin sınırları içinde çalışır; OCR kutusuna
-              //    sığmayan uzun satır resmin sağından taşıyordu ve orada
-              //    örtecek bir şey yok. Artık her satır **kendi kutusuna**
-              //    sıkıştırılıyor (`FittedBox`) ve tüm katman resmin dikdörtgeniyle
-              //    kırpılıyor — taşma fiziksel olarak imkânsız.
               pw.Positioned(
                 left: offsetX,
                 top: offsetY,
@@ -209,12 +253,12 @@ class ConversionService {
                         children: [
                           for (final line in ocrLines)
                             pw.Positioned(
-                              left: line.box.left * scale,
-                              top: line.box.top * scale,
+                              left: line.box.left * lineScaleX,
+                              top: line.box.top * lineScaleY,
                               child: pw.SizedBox(
-                                width: (line.box.width * scale)
+                                width: (line.box.width * lineScaleX)
                                     .clamp(1.0, drawWidth),
-                                height: (line.box.height * scale)
+                                height: (line.box.height * lineScaleY)
                                     .clamp(1.0, drawHeight),
                                 child: pw.FittedBox(
                                   fit: pw.BoxFit.fill,
@@ -248,9 +292,6 @@ class ConversionService {
   /// AI/metin içeriğinden slayt destesi (PDF) üretir.
   /// Slaytlar "---" veya "— Slayt" ile ayrılabilir; yoksa paragraflara bölünür.
   Future<Uint8List> textToSlidesPdf(String title, String content) {
-    // Markdown işaretleri ÖNCE temizleniyor: slaytta ham `**`/`#` görünmesin.
-    // (Eskiden bu temizlik `_splitIntoSlides` içindeydi; bölme `TextToSlides`e
-    // taşınınca burada kaldı — iki ayrı bölücü tutmak bakım borcuydu.)
     final cleaned =
         content.split('\n').map(stripInlineMarkdown).join('\n');
     return slidesToPdf(title, TextToSlides.split(cleaned));

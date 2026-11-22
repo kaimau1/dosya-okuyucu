@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import 'scan_page_ops.dart' show ScanPageOps;
+
 /// **Belgenin kâğıt kenarlarını otomatik bulma.**
 ///
 /// Kullanıcı isteği 2026-07-30: *"belge tara kısmı daha gelişmeli, daha iyi
@@ -53,7 +55,7 @@ abstract final class DocEdges {
   ///
   /// [bytes] herhangi bir kodlanmış görsel (JPEG/PNG).
   static List<({double x, double y})>? detect(Uint8List bytes) {
-    final decoded = img.decodeImage(bytes);
+    final decoded = ScanPageOps.decode(bytes);
     if (decoded == null) return null;
     return detectInImage(decoded);
   }

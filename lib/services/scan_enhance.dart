@@ -130,12 +130,26 @@ abstract final class ScanEnhance {
   /// Kodlanmış görsele filtre uygular, **JPEG** baytları döndürür.
   static Uint8List applyToBytes(Uint8List bytes, ScanFilter filter) {
     if (filter == ScanFilter.original) return bytes;
-    final decoded = img.decodeImage(bytes);
+    final decoded = ScanPageOps.decode(bytes);
     if (decoded == null) return bytes;
     return img.encodeJpg(applyToImage(decoded, filter), quality: jpegQuality);
   }
 
   static img.Image applyToImage(img.Image source, ScanFilter filter) {
+    if (filter == ScanFilter.original) return source;
+    final prep = _prepare(
+      source,
+      forcePerChannel: filter == ScanFilter.shadowless,
+    );
+    if (prep == null) return source;
+    return _renderPrepared(prep, filter);
+  }
+
+  static _PreparedEnhance? _prepare(
+    img.Image source, {
+    bool forcePerChannel = false,
+    bool alsoPerChannel = false,
+  }) {
     final longEdge = math.max(source.width, source.height);
     if (longEdge > maxLongEdge) {
       final ratio = maxLongEdge / longEdge;
@@ -148,7 +162,7 @@ abstract final class ScanEnhance {
     }
     final w = source.width;
     final h = source.height;
-    if (w < 8 || h < 8) return source;
+    if (w < 8 || h < 8) return null;
     final n = w * h;
 
     final rgb = source.getBytes(order: img.ChannelOrder.rgb);
@@ -165,20 +179,11 @@ abstract final class ScanEnhance {
     // Sayfanın en açık onda biri bile koyuysa ortada kâğıt yok (koyu bir
     // fotoğraf, gece çekimi): hiçbir yerine dokunulmaz.
     if (paperLevel < 110) {
-      return filter == ScanFilter.auto ||
-              filter == ScanFilter.vivid ||
-              filter == ScanFilter.shadowless
-          ? source
-          : _grayToImage(gray, w, h);
+      return _PreparedEnhance.dark(source, w, h, rgb, gray, paperLevel);
     }
     final paper = [for (final hist in hists) _histQuantile(hist, n, 0.9)];
 
-    // 1) KÂĞIT ZEMİNİ, kanal başına (2026-11-12 yeniden yazım). Eski yol
-    // zemini büyük yarıçaplı ORTALAMAYLA kestiriyordu: ortalamaya mürekkep de
-    // girdiği için yoğun yazının çevresi kararıyor, sert gölge kenarında hale
-    // kalıyordu. Şimdi küçük hücrelerin %85'lik dilimi (mürekkep dışarıda)
-    // alınıp morfolojik KAPAMA ile yazı boşlukları doldurulur → zemin yalnız
-    // kâğıdın (gölgesiyle birlikte) parlaklığıdır.
+    // 1) KÂĞIT ZEMİNİ, kanal başına (2026-11-12 yeniden yazım).
     final bg = _PaperBackground.estimate(rgb, 3, w, h);
 
     // Kâğıt rengi belirgin renkliyse (pembe form, sarı dosya kâğıdı) renk
@@ -186,13 +191,15 @@ abstract final class ScanEnhance {
     // ışığında kanal başına bölme kâğıdı beyaza çeker.
     final hiPaper = paper.reduce(math.max);
     final loPaper = math.max(1, paper.reduce(math.min));
-    final perChannel =
-        filter == ScanFilter.shadowless || hiPaper / loPaper <= neutralPaperCast;
+    final perChannel = forcePerChannel || hiPaper / loPaper <= neutralPaperCast;
+    final buildAltPerChannel = alsoPerChannel && !perChannel;
 
     final flat = Uint8List(n * 3);
     final flatL = Uint8List(n);
     final fl = Uint8List(n);
     final bgL = Uint8List(n);
+    final flatAlt = buildAltPerChannel ? Uint8List(n * 3) : null;
+    final flAlt = buildAltPerChannel ? Uint8List(n) : null;
     final sampler = _GridSampler(bg, w, h);
     final px = [0, 0, 0];
     for (var y = 0; y < h; y++) {
@@ -205,13 +212,22 @@ abstract final class ScanEnhance {
         final fg = gray[i] * 255 ~/ lum;
         flatL[i] = fg > 255 ? 255 : fg;
         var sum = 0;
+        var sumAlt = 0;
         for (var c = 0; c < 3; c++) {
+          final weight = c == 0 ? 299 : (c == 1 ? 587 : 114);
           var v = rgb[j + c] * 255 ~/ (perChannel ? px[c] : lum);
           if (v > 255) v = 255;
           flat[j + c] = v;
-          sum += v * (c == 0 ? 299 : (c == 1 ? 587 : 114));
+          sum += v * weight;
+          if (buildAltPerChannel) {
+            var va = rgb[j + c] * 255 ~/ px[c];
+            if (va > 255) va = 255;
+            flatAlt![j + c] = va;
+            sumAlt += va * weight;
+          }
         }
         fl[i] = sum ~/ 1000;
+        if (buildAltPerChannel) flAlt![i] = sumAlt ~/ 1000;
       }
     }
 
@@ -222,9 +238,7 @@ abstract final class ScanEnhance {
     // 3) Bulanıklığa göre ayarlanan yazı netleştirme (parlaklık üstünde).
     final sharp = sharpenText(fl, w, h, adaptive: true);
 
-    // 4) Ton eğrisi: kâğıt tam beyaza, mürekkep koyuya. Beyaz noktası derin
-    // gölgede (büyük kazanç = büyümüş gürültü) biraz aşağı çekilir — yoksa
-    // gölgenin olduğu yer benekli gri kalıyordu.
+    // 4) Ton eğrisi parametreleri.
     final hist = Int32List(256);
     var counted = 0;
     for (var i = 0; i < n; i++) {
@@ -233,18 +247,57 @@ abstract final class ScanEnhance {
         counted++;
       }
     }
-    final bp =
-        counted == 0 ? 12 : _histQuantile(hist, counted, 0.01).clamp(12, 110).toInt();
+    final bp = counted == 0
+        ? 12
+        : _histQuantile(hist, counted, 0.01).clamp(12, 110).toInt();
+    final curve = Uint8List(256);
+    for (var v = 0; v < 256; v++) {
+      curve[v] = (255 * math.pow(v / 255, toneGamma)).round().clamp(0, 255);
+    }
+
+    return _PreparedEnhance(
+      source: source,
+      w: w,
+      h: h,
+      rgb: rgb,
+      gray: gray,
+      paperLevel: paperLevel,
+      flat: flat,
+      fl: fl,
+      flatPerChannel: flatAlt,
+      flPerChannel: flAlt,
+      bgL: bgL,
+      picture: picture,
+      sharp: sharp,
+      bp: bp,
+      curve: curve,
+    );
+  }
+
+  static img.Image _renderPrepared(_PreparedEnhance p, ScanFilter filter) {
+    if (filter == ScanFilter.original) return p.source;
+    final w = p.w, h = p.h, n = w * h;
+    if (p.paperLevel < 110) {
+      return filter == ScanFilter.auto ||
+              filter == ScanFilter.vivid ||
+              filter == ScanFilter.shadowless
+          ? p.source
+          : _grayToImage(p.gray, w, h);
+    }
+    final bp = p.bp;
+    final bgL = p.bgL;
+    final sharp = p.sharp;
+    final picture = p.picture;
+    final curve = p.curve;
+    final rgb = p.rgb;
+    final gray = p.gray;
+
     final wp0 = filter == ScanFilter.shadowless ? 0.80 : 0.90;
     final wpLut = Int32List(256);
     for (var v = 0; v < 256; v++) {
       final gain = 255 / math.max(1, v);
       final t = ((gain - 1.3) / 1.7).clamp(0.0, 1.0);
       wpLut[v] = ((wp0 - 0.14 * t) * 255).round();
-    }
-    final curve = Uint8List(256);
-    for (var v = 0; v < 256; v++) {
-      curve[v] = (255 * math.pow(v / 255, toneGamma)).round().clamp(0, 255);
     }
 
     if (filter == ScanFilter.gray || filter == ScanFilter.blackWhite) {
@@ -263,6 +316,11 @@ abstract final class ScanEnhance {
       // modu): eşiklenmiş fotoğraf siyah-beyaz karıncalanmaya dönüyordu.
       return _grayToImage(blend(bw, gray, picture), w, h);
     }
+
+    final useAlt =
+        filter == ScanFilter.shadowless && p.flatPerChannel != null;
+    final flat = useAlt ? p.flatPerChannel! : p.flat;
+    final fl = useAlt ? p.flPerChannel! : p.fl;
 
     final out = Uint8List(n * 3);
     final vivid = filter == ScanFilter.vivid;
@@ -582,23 +640,14 @@ abstract final class ScanEnhance {
 
   // ── önizleme ─────────────────────────────────────────────────────────────
 
-  /// Filtre seçim levhası için KÜÇÜK önizlemeler (her filtre için JPEG).
-  /// Tek izolat çağrısında: görsel bir kez çözülür, küçültülür, her filtre
-  /// küçük kopyaya uygulanır. Maske ölçüye göreli olduğu için küçük kopyada
-  /// da aynı bölgeleri korur.
+  /// Filtre seçim levhası/şeridi için KÜÇÜK önizlemeler (her filtre için JPEG).
+  /// Tek izolat çağrısında: görsel bir kez çözülür, küçültülür, zemin/resim
+  /// maskesi/keskinleştirme ara çıktısı **TEK KEZ** hesaplanıp tüm filtreler
+  /// arasında paylaşılır.
   static Map<ScanFilter, Uint8List> previews(ScanPreviewRequest request) {
     final bytes = File(request.sourcePath).readAsBytesSync();
-    img.Image? image;
-    try {
-      image = img.decodeImage(bytes);
-    } catch (_) {
-      image = null;
-    }
+    var image = ScanPageOps.decode(bytes);
     if (image == null) return const {};
-    if (image.exif.imageIfd.hasOrientation &&
-        image.exif.imageIfd.orientation != 1) {
-      image = img.bakeOrientation(image);
-    }
     final long = math.max(image.width, image.height);
     if (long > request.longEdge) {
       final ratio = request.longEdge / long;
@@ -607,10 +656,13 @@ abstract final class ScanEnhance {
           height: (image.height * ratio).round(),
           interpolation: img.Interpolation.average);
     }
+    final prep = _prepare(image, alsoPerChannel: true);
     return {
       for (final filter in ScanFilter.values)
         filter: img.encodeJpg(
-            filter == ScanFilter.original ? image : applyToImage(image, filter),
+            filter == ScanFilter.original || prep == null
+                ? image
+                : _renderPrepared(prep, filter),
             quality: 82),
     };
   }
@@ -804,6 +856,67 @@ abstract final class ScanEnhance {
     final name = '${ScanPageOps.shortBase(sourcePath)}'
         '_${filter.name}_$stamp.jpg';
     return p.join(dir.path, name);
+  }
+}
+
+class _PreparedEnhance {
+  final img.Image source;
+  final int w, h;
+  final Uint8List rgb;
+  final Uint8List gray;
+  final int paperLevel;
+  final Uint8List flat;
+  final Uint8List fl;
+  final Uint8List? flatPerChannel;
+  final Uint8List? flPerChannel;
+  final Uint8List bgL;
+  final Uint8List picture;
+  final Uint8List sharp;
+  final int bp;
+  final Uint8List curve;
+
+  const _PreparedEnhance({
+    required this.source,
+    required this.w,
+    required this.h,
+    required this.rgb,
+    required this.gray,
+    required this.paperLevel,
+    required this.flat,
+    required this.fl,
+    this.flatPerChannel,
+    this.flPerChannel,
+    required this.bgL,
+    required this.picture,
+    required this.sharp,
+    required this.bp,
+    required this.curve,
+  });
+
+  factory _PreparedEnhance.dark(
+    img.Image source,
+    int w,
+    int h,
+    Uint8List rgb,
+    Uint8List gray,
+    int paperLevel,
+  ) {
+    final empty = Uint8List(0);
+    return _PreparedEnhance(
+      source: source,
+      w: w,
+      h: h,
+      rgb: rgb,
+      gray: gray,
+      paperLevel: paperLevel,
+      flat: empty,
+      fl: empty,
+      bgL: empty,
+      picture: empty,
+      sharp: empty,
+      bp: 12,
+      curve: empty,
+    );
   }
 }
 
