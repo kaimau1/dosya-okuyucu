@@ -134,7 +134,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
       // Düzenleme sırasında gizli: o sırada klavye + biçim çubuğu zaten
       // ekranın yarısını alıyor.
-      bottomBar: _editing
+      bottomBar: _editing || _error != null
           ? null
           : DocActionBar([
               // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —

@@ -205,7 +205,11 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
   }) {
     final tiles = _ordered;
     final scale = MediaQuery.textScalerOf(context).scale(1);
-    final columns = FmCategoryGrid.columnsFor(width, textScale: scale);
+    final columns = FmCategoryGrid.balancedColumns(
+      width,
+      tiles.length,
+      textScale: scale,
+    );
     const gap = Gap.xs;
     final w = (width - gap * (columns - 1)) / columns;
     // Klasik/Sakin ızgara yüksekliği metin ölçeğini de hesaba katar (sabit
@@ -249,7 +253,12 @@ class _HomeTileBoardState extends State<HomeTileBoard> {
     // sütuna sıkışınca simge kutusundan sonra metne yer kalmıyor; tek sütuna
     // açılarak tam genişlik alır.
     final midW = width / math.max(1.0, scale) < 235 ? width : half;
-    final columns = FmCategoryGrid.columnsFor(width, textScale: scale);
+    final smallCount = math.max(0, tiles.length - 2 - _bentoMid);
+    final columns = FmCategoryGrid.balancedColumns(
+      width,
+      smallCount,
+      textScale: scale,
+    );
     final small = (width - gap * (columns - 1)) / columns;
     // 2026-11-15 (kullanıcı: büyük kutular "çok büyük alınlı", %20 alçalsın):
     // 140 → 112 dp (yazı ölçeğiyle büyüyen pay korunur).

@@ -360,8 +360,19 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   ),
                 )
               : ListView(
-                  padding: withNavInset(context, const EdgeInsets.fromLTRB(
-                      Gap.md, Gap.md, Gap.md, 120)),
+                  padding: withNavInset(
+                    context,
+                    EdgeInsets.fromLTRB(
+                      MediaQuery.sizeOf(context).width > 960
+                          ? (MediaQuery.sizeOf(context).width - 960) / 2 + Gap.md
+                          : Gap.md,
+                      Gap.md,
+                      MediaQuery.sizeOf(context).width > 960
+                          ? (MediaQuery.sizeOf(context).width - 960) / 2 + Gap.md
+                          : Gap.md,
+                      120,
+                    ),
+                  ),
                   children: [
                     _summaryBanner(chosen),
                     const SizedBox(height: Gap.sm + 2),

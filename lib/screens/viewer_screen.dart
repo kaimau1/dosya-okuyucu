@@ -524,6 +524,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     bool paged,
     EdgeInsets chrome,
     double viewW,
+    double viewH,
   })? _pdfLayoutKey;
   PdfPageLayout? _pdfLayoutCache;
   Timer? _captureTimer;

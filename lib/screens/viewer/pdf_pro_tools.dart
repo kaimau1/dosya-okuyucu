@@ -1089,7 +1089,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         if (inset > 0)
           PositionedDirectional(start: 0, end: 0, bottom: inset, child: bar)
         else
-          ReadingFloat(gap: 0, child: bar),
+          ReadingFloat(gap: 0, child: ToastAvoider(child: bar)),
       ];
     }
     final chips = _proChips(pro);
@@ -1099,8 +1099,10 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       if (chips.isNotEmpty)
         ReadingFloat(
           gap: 0,
-          child: PdfProContextBar(
-              chips: chips, label: context.t('pse.context_bar')),
+          child: ToastAvoider(
+            child: PdfProContextBar(
+                chips: chips, label: context.t('pse.context_bar')),
+          ),
         ),
     ];
   }

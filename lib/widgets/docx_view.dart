@@ -15,7 +15,7 @@ import '../core/webview_guard.dart';
 import 'app_dialog.dart';
 import '../core/app_icons.dart';
 import '../core/skin.dart';
-import '../core/theme.dart' show AppSkinData;
+import '../core/theme.dart' show AppSkinData, Gap, Radii;
 
 /// Canlı görünümdeki seçimin biçim durumu (araç çubuğu düğmeleri yansıtır).
 class DocxSelection {
@@ -562,7 +562,38 @@ class DocxViewState extends State<DocxView> {
       children: [
         _webView(),
         if (_loading)
-          const Center(child: CircularProgressIndicator())
+          Center(
+            child: Builder(builder: (context) {
+              final scheme = Theme.of(context).colorScheme;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.lg, vertical: Gap.md),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.4),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Text(
+                        context.t('vw.preparing'),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: scheme.onSurface,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          )
         else if (_error != null)
           Center(
             child: Padding(
@@ -574,21 +605,8 @@ class DocxViewState extends State<DocxView> {
             ),
           ),
         // Yakınlaştır/uzaklaştır (pinch'e ek, garanti kontrol).
-        //
-        // SOLDA duruyor: sağ altta ekranın AI düğmesi (FAB) var ve düğmeler
-        // onun altında kalıyordu (2026-08-01 kullanıcı ekran görüntüsü).
-        //
-        // **Sistem çubuğu payı (2026-08-17 kullanıcı ekran görüntüsü:
-        // "büyüteç işaretleri telefonun kendi araç çubuğunun altında
-        // kalıyor").** `OfficeShell` alt sistem çubuğunun payını yalnız
-        // `bottomBar` VARKEN bırakıyor; düzenleme sırasında o çubuk gizleniyor
-        // (klavye + biçim şeridi zaten yer kaplıyor) ve gövde ekranın en altına
-        // kadar uzuyor — alttaki uzaklaştır düğmesi geri/ana menü çubuğunun
-        // altında kalıyordu. `paddingOf` klavye açıkken kendiliğinden 0 olur
-        // (insets payı yutar), yani klavyeliyken düğmeler fazladan yükselmez.
-        //
-        // Okuma kipinde (2026-10-28) alt çubukla birlikte iner/kalkar.
-        if (_error == null)
+        // Yalnız belge başarıyla yüklendiğinde görünür.
+        if (!_loading && _error == null)
           AnimatedBuilder(
             animation: chrome?.shown ?? kAlwaysCompleteAnimation,
             builder: (context, child) => Positioned(
@@ -611,7 +629,7 @@ class DocxViewState extends State<DocxView> {
             ),
           ),
         // Ölçek yüzdesi rozeti (Excel/slaytlardaki ile aynı).
-        if (_error == null)
+        if (!_loading && _error == null)
           Positioned(
             top: 12 + _insets.top,
             left: 0,

@@ -124,13 +124,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           width: 380,
           child: _categoryList(categories,
               selectedId: selected.id,
+              showHero: false,
               onPick: (c) => setState(() => _wideSelected = c.id)),
         ),
         const VerticalDivider(width: 1),
         Expanded(
           child: SettingsCategoryScreen(
               key: ValueKey('settings-detail-${selected.id}'),
-              category: selected),
+              category: selected,
+              embedded: true),
         ),
       ],
     );
@@ -142,14 +144,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// sonra kategoriler TEK kartta, ince ayraçlarla (eskiden yedi ayrı ağır
   /// kart; ekran boyu iki kat uzundu).
   Widget _categoryList(List<SettingsCategory> categories,
-      {String? selectedId, ValueChanged<SettingsCategory>? onPick}) {
+      {String? selectedId,
+      ValueChanged<SettingsCategory>? onPick,
+      bool showHero = true}) {
     final scheme = Theme.of(context).colorScheme;
     return ListView(
       padding: withNavInset(
           context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
       children: [
-        const _AppearanceHero(),
-        const SizedBox(height: Gap.sm + 2),
+        if (showHero) ...[
+          const _AppearanceHero(),
+          const SizedBox(height: Gap.sm + 2),
+        ],
         _Suggestions(categories: categories),
         Material(
           key: const ValueKey('settings-categories'),

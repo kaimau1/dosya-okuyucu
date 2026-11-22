@@ -39,11 +39,6 @@ extension _NearbyTabs on _NearbyScreenState {
         ..._transfers(context).expand((w) => [const SizedBox(height: Gap.sm), w]),
         const SizedBox(height: Gap.sm),
         _selectionCard(context),
-        const SizedBox(height: Gap.sm),
-        _devicesStrip(context),
-        // 2026-11-12 kullanıcı: "alınan şeyler bu ekranda görülmeli" —
-        // gelenler yalnız Geçmiş sekmesindeydi.
-        _recentReceived(context),
       ];
       if (box.maxWidth < _NearbyScreenState._wideFrom) {
         return ListView(
@@ -52,11 +47,17 @@ extension _NearbyTabs on _NearbyScreenState {
           children: [
             ...send,
             const SizedBox(height: Gap.sm),
+            _devicesStrip(context),
+            // 2026-11-12 kullanıcı: "alınan şeyler bu ekranda görülmeli" —
+            // gelenler yalnız Geçmiş sekmesindeydi.
+            _recentReceived(context),
+            const SizedBox(height: Gap.sm),
             _qrCard(context),
           ],
         );
       }
-      // Geniş ekran: solda gönderme akışı, sağda QR.
+      // Geniş ekran: solda dosya seç/gönder akışı, sağda hedef cihazlar, QR
+      // ve son alınanlar dengeli iki sütunda.
       return Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1480),
@@ -71,8 +72,20 @@ extension _NearbyTabs on _NearbyScreenState {
               Expanded(
                 key: const ValueKey('near-col-more'),
                 child: ListView(
-                  padding: withNavInset(context, _pad.copyWith(left: 0)),
-                  children: [_qrCard(context)],
+                  padding: withNavInset(
+                    context,
+                    const EdgeInsetsDirectional.only(
+                      end: Gap.md,
+                      top: Gap.md,
+                      bottom: Gap.md,
+                    ),
+                  ),
+                  children: [
+                    _devicesStrip(context),
+                    const SizedBox(height: Gap.sm),
+                    _qrCard(context),
+                    _recentReceived(context),
+                  ],
                 ),
               ),
             ],

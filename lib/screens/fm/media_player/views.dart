@@ -518,14 +518,16 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   Widget _controls(VideoPlayerController c, VideoPlayerValue value) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          Gap.md, Gap.sm, Gap.md, MediaQuery.paddingOf(context).bottom + Gap.sm),
+          Gap.md, Gap.lg, Gap.md, MediaQuery.paddingOf(context).bottom + Gap.sm),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
+          stops: const [0.0, 0.35, 1.0],
           colors: [
-            Colors.transparent,
-            AppColors.mediaSurface.withValues(alpha: 0.75),
+            AppColors.none,
+            AppColors.mediaScrim,
+            AppColors.mediaSurface.withValues(alpha: 0.88),
           ],
         ),
       ),

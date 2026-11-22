@@ -594,8 +594,11 @@ class _VideoThumbState extends State<_VideoThumb> {
   Widget build(BuildContext context) {
     final thumb = _thumb;
     if (thumb == null) {
-      // Liste satırı (küçük) ya da üretilemeyen: dosya simgesi.
-      if (_failed || widget.size < 56) return widget.fallback;
+      // Liste satırı (küçük) ya da yüklenemeyen büyük video kartı.
+      if (widget.size < 56) return widget.fallback;
+      if (_failed) {
+        return _VideoFallback(size: widget.size, radius: widget.radius);
+      }
       return _VideoLoading(size: widget.size, radius: widget.radius);
     }
     return ClipRRect(
@@ -669,6 +672,48 @@ class _VideoLoading extends StatelessWidget {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: scheme.onSurfaceVariant.withValues(alpha: .6),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Küçük resim üretilemediğinde büyük video kartında dev belge simgesi yerine
+/// koyu ve dengeli bir video yer tutucusu gösterir.
+class _VideoFallback extends StatelessWidget {
+  final double size;
+  final double radius;
+
+  const _VideoFallback({required this.size, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    final pill = (size * 0.34).clamp(32.0, 52.0);
+    final iconSize = (size * 0.18).clamp(18.0, 28.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: ColoredBox(
+        color: AppColors.mediaSurface,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: AppColors.onMediaWell,
+                shape: BoxShape.circle,
+              ),
+              child: SizedBox(
+                width: pill,
+                height: pill,
+                child: Icon(
+                  AppIcons.video,
+                  size: iconSize,
+                  color: AppColors.onMediaSoft,
                 ),
               ),
             ),

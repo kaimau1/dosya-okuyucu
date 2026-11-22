@@ -97,12 +97,36 @@ extension _PhotosScreenAlbumsPart on _PhotosScreenState {
       }
       user.add(_Album(a.key, a.name, cover, count, isUser: true));
     }
+    final visibleEntries = byDir.entries.where((e) {
+      final dir = e.key;
+      if (p.basename(dir).startsWith('.')) return false;
+      if (!dir.contains('/.') && !dir.contains(r'\.')) return true;
+      return !p.split(dir).any((seg) => seg.startsWith('.'));
+    }).toList();
+    final nameCounts = <String, int>{};
+    for (final e in visibleEntries) {
+      final base = p.basename(e.key);
+      nameCounts[base] = (nameCounts[base] ?? 0) + 1;
+    }
+    String albumTitle(String dir) {
+      final base = p.basename(dir);
+      if ((nameCounts[base] ?? 0) <= 1) return base;
+      final parent = p.basename(p.dirname(dir));
+      if (parent.isEmpty || parent == '.' || parent == '/') return base;
+      return '$parent / $base';
+    }
+
     final dirs = [
-      for (final MapEntry(key: dir, value: list) in byDir.entries)
+      for (final MapEntry(key: dir, value: list) in visibleEntries)
         _Album(
           'dir:$dir',
-          p.basename(dir),
-          list.reduce((a, b) => a.modifiedMs >= b.modifiedMs ? a : b),
+          albumTitle(dir),
+          list.reduce((a, b) {
+            final aOk = a.sizeBytes > 0;
+            final bOk = b.sizeBytes > 0;
+            if (aOk != bOk) return aOk ? a : b;
+            return a.modifiedMs >= b.modifiedMs ? a : b;
+          }),
           list.length,
         ),
     ]..sort((a, b) => b.count.compareTo(a.count));

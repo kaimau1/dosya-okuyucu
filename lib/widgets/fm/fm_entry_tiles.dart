@@ -260,10 +260,26 @@ class FmEntryRow extends StatelessWidget {
         FmType.of(entry) != FmType.audio) {
       return icon;
     }
-    return Stack(children: [
-      icon,
-      FmInlinePlay(path: entry.path, size: size, queue: audioQueue),
-    ]);
+    // Ses satırlarında dosya uzantısı metninin üstüne binmek yerine sakin
+    // tonlu yuvarlatılmış bir oynatma yuvası çiz.
+    return Builder(builder: (context) {
+      final scheme = Theme.of(context).colorScheme;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.secondaryContainer.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(Radii.control),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: SizedBox.square(
+          dimension: size,
+          child: FmInlinePlay(
+            path: entry.path,
+            size: size,
+            queue: audioQueue,
+          ),
+        ),
+      );
+    });
   }
 
   Widget? _trailing(BuildContext context, ColorScheme scheme) {

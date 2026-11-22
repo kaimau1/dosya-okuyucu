@@ -643,23 +643,79 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   // ── arayüz ────────────────────────────────────────────────────────────────
 
+  ThemeData _studioTheme(ThemeData outer) {
+    final dark = ColorScheme.fromSeed(
+      seedColor: outer.colorScheme.primary,
+      brightness: Brightness.dark,
+    ).copyWith(surface: AppColors.mediaSurface);
+    final labelLarge = outer.textTheme.labelLarge ?? const TextStyle();
+    final labelMedium = outer.textTheme.labelMedium ?? const TextStyle();
+    return outer.copyWith(
+      brightness: Brightness.dark,
+      colorScheme: dark,
+      scaffoldBackgroundColor: AppColors.mediaSurface,
+      iconTheme: const IconThemeData(color: AppColors.onMedia),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.mediaSurface,
+        foregroundColor: AppColors.onMedia,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: dark.surfaceContainerLow,
+        indicatorColor: dark.secondaryContainer,
+        iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
+              color: s.contains(WidgetState.selected)
+                  ? dark.onSecondaryContainer
+                  : AppColors.onMediaSoft,
+            )),
+        labelTextStyle: WidgetStateProperty.resolveWith((s) =>
+            labelMedium.copyWith(
+              color: s.contains(WidgetState.selected)
+                  ? AppColors.onMedia
+                  : AppColors.onMediaSoft,
+            )),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: dark.surfaceContainerHigh,
+        selectedColor: dark.secondaryContainer,
+        side: BorderSide(color: dark.outlineVariant),
+        labelStyle: labelLarge.copyWith(color: AppColors.onMediaSoft),
+        secondaryLabelStyle: labelLarge.copyWith(color: dark.onSecondaryContainer),
+        checkmarkColor: dark.onSecondaryContainer,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: AppColors.onMediaSoft),
+      ),
+      sliderTheme: outer.sliderTheme.copyWith(
+        activeTrackColor: dark.primary,
+        inactiveTrackColor: AppColors.onMediaWell,
+        thumbColor: dark.primary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final studioTheme = _studioTheme(Theme.of(context));
     assert(() {
       ImageEditScreen.debugEdits = _e;
       return true;
     }());
-    return PopScope(
-      canPop: _e.isIdentity || _saving,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (await _confirmLeave() && context.mounted) {
-          _e = const ImageEdits();
-          Navigator.of(context).pop();
-        }
-      },
-      child: Scaffold(
+    return Theme(
+      data: studioTheme,
+      child: Builder(builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
+        return PopScope(
+          canPop: _e.isIdentity || _saving,
+          onPopInvokedWithResult: (didPop, _) async {
+            if (didPop) return;
+            if (await _confirmLeave() && context.mounted) {
+              _e = const ImageEdits();
+              Navigator.of(context).pop();
+            }
+          },
+          child: Scaffold(
         backgroundColor: AppColors.mediaSurface,
         appBar: AppBar(
           backgroundColor: AppColors.mediaSurface,
@@ -761,6 +817,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
           ],
         ),
       ),
+    );
+      }),
     );
   }
 

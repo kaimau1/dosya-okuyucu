@@ -24,7 +24,7 @@ import '../../services/fm/folder_sort_memory.dart';
 import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
-import '../../services/fm/storage_stats.dart' show StorageKind;
+import '../../services/fm/storage_stats.dart' show StorageKind, StorageStats;
 import '../../services/fm/paste_conflict.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
@@ -347,7 +347,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           if (wide)
             Row(
               children: [
-                SizedBox(width: 280, child: _sidePane(context, appState)),
+                SizedBox(width: 248, child: _sidePane(context, appState)),
                 const VerticalDivider(width: 1),
                 Expanded(child: listColumn),
               ],

@@ -104,7 +104,9 @@ Future<void> showFmMoreSheet(BuildContext context,
                   if (s.tiles.isNotEmpty) ...[
                     FmSheetSectionTitle(s.title),
                     LayoutBuilder(builder: (ctx, box) {
-                      final cols = box.maxWidth < 300 ? 2 : 3;
+                      final cols = box.maxWidth < 300
+                          ? 2
+                          : (box.maxWidth >= 460 ? 4 : 3);
                       final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
                       return Wrap(
                         spacing: Gap.sm,

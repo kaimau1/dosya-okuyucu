@@ -152,7 +152,8 @@ class _ThemeGalleryState extends State<ThemeGallery> {
           key: const ValueKey('theme-gallery-strip'),
           scrollDirection: Axis.horizontal,
           controller: _scroll ??= ScrollController(
-            initialScrollOffset: offset <= 0 ? 0 : offset - cardWidth / 2,
+            initialScrollOffset:
+                offset <= cardWidth * 1.4 ? 0 : offset - cardWidth / 2,
           ),
           itemCount: groups.length,
           separatorBuilder: (_, _) => SizedBox(

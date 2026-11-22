@@ -550,8 +550,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
 
   Widget _intro(BuildContext context) {
     final theme = Theme.of(context);
+    final w = MediaQuery.sizeOf(context).width;
+    final hPad = w > 960 ? (w - 960) / 2 + Gap.lg : Gap.lg;
     return ListView(
-      padding: withNavInset(context, const EdgeInsets.all(Gap.lg)),
+      padding: withNavInset(
+          context, EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.lg)),
       children: [
         Icon(AppIcons.ai, size: 48, color: theme.colorScheme.primary),
         const SizedBox(height: Gap.md),
@@ -603,8 +606,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final prog = SmartSort.progress.value;
     final usage = SmartSort.lastUsage.value;
     final extras = _extraTiles(context, clutter, hidden);
+    final w = MediaQuery.sizeOf(context).width;
+    final hPad = w > 960 ? (w - 960) / 2 + Gap.md : Gap.md;
     return ListView(
-      padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
+      padding: withNavInset(
+          context, EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.md)),
       children: [
         // En üstte tek net özet + eylem kartı.
         _statusCard(context, cats.length, prog, usage),
