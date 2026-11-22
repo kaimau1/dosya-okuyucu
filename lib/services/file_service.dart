@@ -94,7 +94,14 @@ class FileService {
   /// Excel düzenleyicisi kitabı zaten kendisi ayrıştırıyor; açılışta iki kez
   /// ayrıştırmak 10 bin × 20 dosyanın açılışını ikiye katlıyordu (P12, HAFIZA
   /// 2026-11-14). Metni isteyen yollar (AI, arama) varsayılanla çağırır.
-  Future<LoadedDoc> load(String path, {bool spreadsheetText = true}) async {
+  ///
+  /// [officeText] false: düzenlenebilir `.docx` ve `.pptx` açılışında da tam
+  /// metin çıkarılmaz — Word/Slayt editörü dosyayı zaten kendi çözüyor.
+  Future<LoadedDoc> load(
+    String path, {
+    bool spreadsheetText = true,
+    bool officeText = true,
+  }) async {
     final file = File(path);
     final name = p.basename(path);
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
@@ -166,6 +173,9 @@ class FileService {
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.word:
+        if (!officeText) {
+          return LoadedDoc(path: path, name: name, kind: kind);
+        }
         // Eski .doc bu noktaya gelmez (yukarıda isLegacyOffice ile ayrılır);
         // kind==word ise içerik daima OOXML .docx'tir (uzantı boş olsa bile).
         final bytes = await file.readAsBytes();
@@ -175,6 +185,9 @@ class FileService {
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);
 
       case DocKind.slides:
+        if (!officeText) {
+          return LoadedDoc(path: path, name: name, kind: kind);
+        }
         final bytes = await file.readAsBytes();
         final text = await compute(OfficeReader.extractPptxText, bytes);
         return LoadedDoc(path: path, name: name, kind: kind, plainText: text);

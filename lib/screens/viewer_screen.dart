@@ -192,8 +192,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   TextEditingController? _textController;
   bool _dirty = false;
 
-  // Görüntüleme durumu (okuma konforu).
-  int _pdfPage = 1;
+  // Görüntüleme durumu (okuma konforu): sayfa değişimi tüm ekranı kurmaz.
+  final ValueNotifier<int> _pdfPageN = ValueNotifier<int>(1);
+  int get _pdfPage => _pdfPageN.value;
+  set _pdfPage(int v) => _pdfPageN.value = v;
 
   /// Bu oturumda girilen PDF parolası: yeniden okumada (düzenleme dönüşü)
   /// tekrar sorulmasın. Yalnız bellekte.
@@ -408,22 +410,32 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final TransformationController _imgTx = TransformationController();
   TapDownDetails? _doubleTapDetails;
 
-  /// Görselin kaç piksel genişlikte çözüleceği (bellek/pil koruması —
-  /// bkz. `core/image_budget.dart`). Yakınlaştırma kademe atlayınca artar.
+  /// Görselin kaç piksel boyunda çözüleceği (bellek/pil koruması —
+  /// bkz. `core/image_budget.dart`). Yakınlaştırma yerleştikten sonra artar.
   int _imgDecodeWidth = ImageBudget.minWidth;
+  Timer? _imgDecodeTimer;
 
-  /// Yakınlaştırma değişince çözme genişliğini kademeye göre günceller.
-  void _onImgTransform() {
+  void _syncImgDecodeWidth() {
     if (!mounted) return;
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
     final want = ImageBudget.forViewport(
       logicalWidth: media.size.width,
+      logicalHeight: media.size.height,
       devicePixelRatio: media.devicePixelRatio,
       scale: _imgTx.value.getMaxScaleOnAxis(),
     );
     if (want == _imgDecodeWidth) return;
     setState(() => _imgDecodeWidth = want);
+  }
+
+  /// Çimdik sırasında her karede tam çözünürlük yeniden çözülmez;
+  /// etkileşim bitiminde / 150 ms yerleşme sonrası güncellenir.
+  void _onImgTransform() {
+    _imgDecodeTimer?.cancel();
+    _imgDecodeTimer = Timer(const Duration(microseconds: 150000), () {
+      _syncImgDecodeWidth();
+    });
   }
 
   // Belge içi arama (metin görüntüleyici).
@@ -481,10 +493,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF'te de açık — çubuklar artık gövdenin boyunu değiştirmiyor.
   final ReadingBars _readingBars = ReadingBars();
 
-  /// Süren jest iki parmaklı mı (yakınlaştırma)? Fırlatma sürtünmesi buna
-  /// göre seçilir (bkz. [kPdfPanFriction]).
-  bool _pdfPinch = false;
-
   /// Okuma konforu (Ferrari H3): çift dokunma / görsel kipinin okuduğu
   /// sayfa nesneleri (PDF Pro köprüsü) — son birkaç sayfa, belgeye bağlı.
   final Map<int, PdfPageContent> _comfortContent = {};
@@ -504,8 +512,22 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Sayfa rozeti (N / toplam) görünür mü (H3.7): yalnız kaydırırken ve
   /// durduktan sonra [Motion.badgeLinger] kadar; sonra solar.
-  bool _pageBadgeOn = true;
+  final ValueNotifier<bool> _pageBadgeOnN = ValueNotifier<bool>(true);
+  bool get _pageBadgeOn => _pageBadgeOnN.value;
+  set _pageBadgeOn(bool v) => _pageBadgeOnN.value = v;
   Timer? _pageBadgeTimer;
+  DateTime? _lastBadgePoke;
+  ({
+    int count,
+    double firstW,
+    int cols,
+    PdfMarginCrop? crop,
+    bool paged,
+    EdgeInsets chrome,
+    double viewW,
+  })? _pdfLayoutKey;
+  PdfPageLayout? _pdfLayoutCache;
+  Timer? _captureTimer;
   bool _pagedZoomed = false;
   int _pagedPointers = 0;
   bool _pagedMulti = false;
@@ -710,10 +732,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// bilinmesi gerekiyor, sonradan atlamak kullanıcıya bir sıçrama gösterirdi.
   Future<void> _restoreReadingPage() async {
     try {
-      _docSize = File(widget.doc.path).lengthSync();
+      _docSize = await File(widget.doc.path).length();
     } catch (_) {
       // Bilinçli: boyut yalnız okuma konumu anahtarı için; okunamazsa konum hatırlanmaz.
     }
+    if (!mounted) return;
     unawaited(PdfBookmarks.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     }));
@@ -794,7 +817,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Ekran ölçüsü ilk kez burada bilinir; çözme genişliği ona göre kurulur.
-    if (widget.doc.kind == DocKind.image) _onImgTransform();
+    if (widget.doc.kind == DocKind.image) _syncImgDecodeWidth();
   }
 
   /// [_offerFormFilling]'in gecikme zamanlayıcısı.
@@ -857,15 +880,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   /// Kapanırken görünen sayfanın görüntüsü (Ferrari H1.4): yeniden açılışta
-  /// köprü onu gösterir. Belge ancak çıkış geçişinden sonra kapanır; çizim
-  /// pdfium işçisinde, kodlama izolatta. Parolalı belgede saklanmaz.
+  /// köprü onu gösterir. Çıkış geçişi ([Motion.pageReverse]) kadar ertelenir
+  /// ki geri dönüş animasyonu kasmadan aksın. Parolalı belgede saklanmaz.
   void _captureLastView() {
     if (!_isPdf || _pdfPassword != null || !_pdfController.isReady) return;
-    // Ekran genişliğinde: yeniden açılışta köprü onu net gösterir.
-    final view = View.of(context);
-    unawaited(PdfLastView.capture(
-        widget.doc.path, _pdfController.document, _pdfPage,
-        widthPx: view.physicalSize.width.round()));
+    final path = widget.doc.path;
+    final doc = _pdfController.document;
+    final page = _pdfPage;
+    final widthPx = View.of(context).physicalSize.width.round();
+    _captureTimer?.cancel();
+    _captureTimer = Timer(Motion.pageReverse, () {
+      unawaited(PdfLastView.capture(path, doc, page, widthPx: widthPx));
+    });
   }
 
   @override
@@ -878,6 +904,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _ocrSelection.dispose();
     _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
+    _imgDecodeTimer?.cancel();
+    _captureTimer?.cancel();
+    _pdfPageN.dispose();
+    _pageBadgeOnN.dispose();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).

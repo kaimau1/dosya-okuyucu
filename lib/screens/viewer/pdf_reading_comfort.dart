@@ -367,19 +367,35 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   // ── Sayfa rozeti (H3.7) ─────────────────────────────────────────────────
 
   /// Görünüm kıpırdadı (kaydırma, yakınlık, sayfa geçişi): rozet görünür,
-  /// hareket durduktan [Motion.badgeLinger] sonra solar. Zamanlayıcı her
-  /// harekette baştan kurulur; durum yalnız değişince yenilenir.
+  /// hareket durduktan [Motion.badgeLinger] sonra solar. Zamanlayıcı en çok
+  /// 300 ms aralıkla tazelenir; yalnız [_pageBadgeOnN] güncellenir.
   void _pokePageBadge() {
-    _pageBadgeTimer?.cancel();
-    _pageBadgeTimer = Timer(Motion.badgeLinger, () {
-      if (mounted && _pageBadgeOn) _partSetState(() => _pageBadgeOn = false);
-    });
-    if (!_pageBadgeOn && mounted) _matrixSetState(() => _pageBadgeOn = true);
+    final now = DateTime.now();
+    final recent = _lastBadgePoke != null &&
+        now.difference(_lastBadgePoke!) < Motion.busyDefer;
+    if (!recent || _pageBadgeTimer == null) {
+      _lastBadgePoke = now;
+      _pageBadgeTimer?.cancel();
+      _pageBadgeTimer = Timer(Motion.badgeLinger, () {
+        if (mounted && _pageBadgeOn) _setPageBadgeOn(false);
+      });
+    }
+    if (!_pageBadgeOn && mounted) _setPageBadgeOn(true);
+  }
+
+  void _setPageBadgeOn(bool on) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pageBadgeOn = on;
+      });
+    } else {
+      _pageBadgeOn = on;
+    }
   }
 
   /// Matris dinleyicisinden durum yenileme: pdfrx matrisi yerleşim sırasında
-  /// da değiştirebiliyor (düzen değişince yeniden konumlama) — o an
-  /// `setState` hata verir, kare sonuna ertelenir.
+  /// da değiştirebiliyor — o an `setState` hata verir, kare sonuna ertelenir.
   void _matrixSetState(VoidCallback fn) {
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {

@@ -232,25 +232,27 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     );
   }
 
-  /// Gece modu açıksa çocuğu renk-tersleyen matrisle sarar.
-  ///
-  /// Matris: R'=255-R, G'=255-G, B'=255-B (alfa aynı). Beyaz kağıt siyah,
-  /// siyah yazı beyaz olur — karanlıkta göz yormaz. `AppColors.onMedia` yerine
-  /// matris kullanılıyor çünkü sayfadaki resim/grafikler de terslenmeli.
+  static const _nightMatrixFilter = ColorFilter.matrix(<double>[
+    -1, 0, 0, 0, 255, //
+    0, -1, 0, 0, 255, //
+    0, 0, -1, 0, 255, //
+    0, 0, 0, 1, 0, //
+  ]);
+
+  /// PDF sayfa görüntüsü renk süzgeci (`PdfViewerParams.pageImageColorFilter`):
+  /// dış `ColorFiltered` (`saveLayer`) olmadan yalnız sayfa görüntüsünü boyar.
+  ColorFilter? get _pdfPageColorFilter {
+    if (_pdfNight) return _nightMatrixFilter;
+    if (_pdfSepia) return _sepiaFilter;
+    return null;
+  }
+
+  /// Gece/Sepya modu açıksa açılış köprüsünü süzgeçler (PdfViewer'ın kendisi
+  /// [_pdfPageColorFilter] kullanır, dış `saveLayer` yok).
   Widget _nightFilter({required Widget child}) {
-    if (!_pdfNight && _pdfSepia) {
-      return ColorFiltered(colorFilter: _sepiaFilter, child: child);
-    }
-    if (!_pdfNight) return child;
-    return ColorFiltered(
-      colorFilter: const ColorFilter.matrix(<double>[
-        -1, 0, 0, 0, 255, //
-        0, -1, 0, 0, 255, //
-        0, 0, -1, 0, 255, //
-        0, 0, 0, 1, 0, //
-      ]),
-      child: child,
-    );
+    final filter = _pdfPageColorFilter;
+    if (filter == null) return child;
+    return ColorFiltered(colorFilter: filter, child: child);
   }
 
   /// Sayfaları [_pdfColumns] sütun hâlinde dizer.
@@ -444,7 +446,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       // Başarı bildirimi YOK (2026-09-27): rozet zaten yeni sayfayı
       // gösteriyor; "2. sayfa (toplam 3239)" şeridi ekranın altını boşuna
       // kapatıyordu.
-      if (_pdfPage != target) _partSetState(() => _pdfPage = target);
+      if (_pdfPage != target) _pdfPage = target;
       // Okuma kipi: sayfanın üstü çubuğun altında kalmasın — atlayış
       // okumaya başlamaktır, çubuklar çekilir (dokununca geri gelir).
       _readingBars.hide();
@@ -529,31 +531,39 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   /// biçiminden (⇕) belli, numara küçük.
   Widget _scrollThumb(int? pageNumber) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-      elevation: 2,
-      shadowColor: AppColors.barrier,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.horizontal(
-          left: Radius.circular(14),
-          right: Radius.circular(4),
-        ),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(AppIcons.unfoldMore, size: 16, color: scheme.primary),
-          Text(
-            '${pageNumber ?? _pdfPage}',
-            maxLines: 1,
-            style: context.type.micro.copyWith(
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+    return RepaintBoundary(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
+          borderRadius: const BorderRadius.horizontal(
+            left: Radius.circular(14),
+            right: Radius.circular(4),
           ),
-        ],
+          border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.7)),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(AppIcons.unfoldMore, size: 16, color: scheme.primary),
+            Text(
+              '${pageNumber ?? _pdfPage}',
+              maxLines: 1,
+              style: context.type.micro.copyWith(
+                color: scheme.onSurface,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -667,14 +677,18 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   }
 
   /// PDF sayfa rozeti: dokununca sayfa gezgini, uzun basınca yıldızla.
+  /// Yalnız [_pdfPageN] dinler — kaydırırken tam ekran yeniden kurulmaz.
   Widget _pageBadge() {
-    return PdfPageChip(
-      page: _pdfPage,
-      count: _pageCount,
-      bookmarked:
-          PdfBookmarks.isMarked(widget.doc.path, _pdfPage, size: _docSize),
-      onTap: _askGoToPage,
-      onLongPress: () => _toggleBookmark(_pdfPage),
+    return ValueListenableBuilder<int>(
+      valueListenable: _pdfPageN,
+      builder: (_, page, _) => PdfPageChip(
+        page: page,
+        count: _pageCount,
+        bookmarked:
+            PdfBookmarks.isMarked(widget.doc.path, page, size: _docSize),
+        onTap: _askGoToPage,
+        onLongPress: () => _toggleBookmark(page),
+      ),
     );
   }
 

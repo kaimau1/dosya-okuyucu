@@ -72,6 +72,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   VideoPlayerController? _controller;
   VideoPlayerController? get controller => _controller;
+  Future<void>? _disposingOld;
 
   List<String> playlist = const [];
   int index = 0;
@@ -146,8 +147,22 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   Duration get duration => _controller?.value.duration ?? Duration.zero;
 
+  /// Bu dosya MPV motoru ya da motor değişimi gerektiriyor mu?
+  /// Yalnız MPV geçişinde rota animasyonunun bitmesi beklenir; düz ExoPlayer
+  /// açılışı bekletilmez.
+  bool needsTransitionWait(String path) {
+    final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
+    final mpv =
+        _mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext);
+    return mpv || mpv != PlayerEngine.isMpv;
+  }
+
   /// Bir dosyayı (ve varsa listesini) açar.
-  Future<void> open(String path, {List<String> list = const []}) async {
+  Future<void> open(
+    String path, {
+    List<String> list = const [],
+    Future<bool>? hdrFuture,
+  }) async {
     final next = list.isEmpty ? [path] : [...list];
     var at = next.indexOf(path);
     if (at < 0) {
@@ -160,7 +175,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     // (ve çoğu zaman dosyanın süresinden uzun) olurdu.
     loopStart = null;
     loopEnd = null;
-    await _load();
+    await _load(hdrFuture: hdrFuture);
   }
 
   /// mpv'de açılacak dosyalar (kullanıcı seçti ya da ExoPlayer çözemedi) —
@@ -197,15 +212,31 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   /// [fallback]: ExoPlayer açamazsa mpv'yi kendiliğinden dene (kullanıcı
   /// motoru elle seçtiyse kapalı — seçimine karışılmaz).
-  Future<void> _load({Duration? startAt, bool fallback = true}) async {
+  Future<void> _load({
+    Duration? startAt,
+    bool fallback = true,
+    Future<bool>? hdrFuture,
+  }) async {
     loading = true;
     error = null;
     _cover = null;
     audioTracks = const [];
     notifyListeners();
+    final pendingDispose = _disposingOld;
+    _disposingOld = null;
+    if (pendingDispose != null) {
+      try {
+        await pendingDispose;
+      } catch (_) {}
+    }
     var old = _controller;
     old?.removeListener(_onTick);
     final path = current;
+    if (path.isEmpty) {
+      loading = false;
+      notifyListeners();
+      return;
+    }
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
     final mpv =
         _mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext);
@@ -227,7 +258,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     final hdr = !mpv &&
         Platform.isAndroid &&
         (p.basename(path).toUpperCase().contains('HDR') ||
-            await VideoTranscoder.isHdr(path));
+            await (hdrFuture ?? VideoTranscoder.isHdr(path)));
     // Bu arada başka dosyaya geçildi: o yükleme kendi işini görüyor.
     if (path != current) return;
     final controller = VideoPlayerController.file(
@@ -464,7 +495,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     backgroundAllowed = false;
     _cover = null;
     c?.removeListener(_onTick);
-    unawaited(c?.dispose());
+    final disposing = c?.dispose();
+    if (disposing != null) _disposingOld = disposing;
     await _clearSession();
     notifyListeners();
   }

@@ -72,6 +72,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
   double _grab = 0;
   String? _lastLabel;
   Timer? _hide;
+  final ValueNotifier<double> _pixels = ValueNotifier<double>(0);
 
   @override
   void initState() {
@@ -92,6 +93,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
   void dispose() {
     _hide?.cancel();
     widget.controller.removeListener(_onScroll);
+    _pixels.dispose();
     super.dispose();
   }
 
@@ -110,7 +112,13 @@ class _FmFastScrollerState extends State<FmFastScroller> {
         if (mounted && !_dragging) setState(() => _visible = false);
       });
     }
-    setState(() => _visible = true);
+    final pos = _position;
+    if (pos != null) {
+      _pixels.value = pos.pixels;
+    }
+    if (!_visible) {
+      setState(() => _visible = true);
+    }
   }
 
   ScrollPosition? get _position {
@@ -148,117 +156,125 @@ class _FmFastScrollerState extends State<FmFastScroller> {
       final track = constraints.maxHeight - widget.padding.vertical;
       if (track < _thumbHeight * 2) return const SizedBox.shrink();
       final usable = track - _thumbHeight;
-      final frac = p.maxScrollExtent <= 0
-          ? 0.0
-          : (p.pixels / p.maxScrollExtent).clamp(0.0, 1.0);
-      final thumbTop = widget.padding.top + frac * usable;
-      final shown = _visible || _dragging;
-      final label = _dragging ? widget.labelFor(p.pixels) : null;
+      return ValueListenableBuilder<double>(
+        valueListenable: _pixels,
+        builder: (context, _, _) {
+          final pos = _position ?? p;
+          final frac = pos.maxScrollExtent <= 0
+              ? 0.0
+              : (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
+          final thumbTop = widget.padding.top + frac * usable;
+          final shown = _visible || _dragging;
+          final label = _dragging ? widget.labelFor(pos.pixels) : null;
 
-      final children = <Widget>[];
+          final children = <Widget>[];
 
-      // ── Yıl işaretleri (yalnız sürüklerken) ─────────────────────────────
-      if (_dragging && widget.ticks != null) {
-        var lastY = -1000.0;
-        for (final tick in widget.ticks!()) {
-          final f = (tick.offset / p.maxScrollExtent).clamp(0.0, 1.0);
-          final y = widget.padding.top + f * usable + _thumbHeight / 2;
-          // Üst üste binen işaretler atlanır; kulpun hizasındaki işaret de
-          // (balon zaten orada).
-          if (y - lastY < 28) continue;
-          if ((y - (thumbTop + _thumbHeight / 2)).abs() < 22) continue;
-          lastY = y;
-          children.add(PositionedDirectional(
-            end: _thumbWidth + 10,
-            top: y - 11,
-            child: _TickLabel(text: tick.label),
-          ));
-        }
-      }
+          // ── Yıl işaretleri (yalnız sürüklerken) ─────────────────────────────
+          if (_dragging && widget.ticks != null) {
+            var lastY = -1000.0;
+            for (final tick in widget.ticks!()) {
+              final f = (tick.offset / pos.maxScrollExtent).clamp(0.0, 1.0);
+              final y = widget.padding.top + f * usable + _thumbHeight / 2;
+              // Üst üste binen işaretler atlanır; kulpun hizasındaki işaret de
+              // (balon zaten orada).
+              if (y - lastY < 28) continue;
+              if ((y - (thumbTop + _thumbHeight / 2)).abs() < 22) continue;
+              lastY = y;
+              children.add(PositionedDirectional(
+                end: _thumbWidth + 10,
+                top: y - 11,
+                child: _TickLabel(text: tick.label),
+              ));
+            }
+          }
 
-      // ── Balon: o anki ay ────────────────────────────────────────────────
-      if (label != null) {
-        children.add(PositionedDirectional(
-          end: _thumbWidth + 14,
-          top: thumbTop + _thumbHeight / 2 - 20,
-          child: Material(
-            elevation: 3,
-            color: scheme.inverseSurface,
-            shape: const StadiumBorder(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              child: Text(
-                label,
-                style: context.type.large.copyWith(
-                  color: scheme.onInverseSurface,
-                  fontWeight: FontWeight.w700,
+          // ── Balon: o anki ay ────────────────────────────────────────────────
+          if (label != null) {
+            children.add(PositionedDirectional(
+              end: _thumbWidth + 14,
+              top: thumbTop + _thumbHeight / 2 - 20,
+              child: Material(
+                elevation: 3,
+                color: scheme.inverseSurface,
+                shape: const StadiumBorder(),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  child: Text(
+                    label,
+                    style: context.type.large.copyWith(
+                      color: scheme.onInverseSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-        ));
-      }
+            ));
+          }
 
-      return Stack(
-        children: [
-          Positioned.fill(child: IgnorePointer(child: Stack(children: children))),
-          PositionedDirectional(
-            end: 0,
-            top: thumbTop,
-            child: IgnorePointer(
-              ignoring: !shown,
-              child: AnimatedOpacity(
-                opacity: shown ? 1 : 0,
-                duration: Motion.of(context, Motion.short),
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onVerticalDragStart: (d) {
-                    _hide?.cancel();
-                    _grab = d.localPosition.dy;
-                    _lastLabel = widget.labelFor(p.pixels);
-                    setState(() => _dragging = true);
-                  },
-                  onVerticalDragUpdate: (d) {
-                    final box = context.findRenderObject() as RenderBox?;
-                    if (box == null) return;
-                    _dragTo(box.globalToLocal(d.globalPosition).dy, track);
-                  },
-                  onVerticalDragEnd: (_) => _endDrag(),
-                  onVerticalDragCancel: _endDrag,
-                  child: Semantics(
-                    label: context.t('ph.fast_scroll'),
-                    child: SizedBox(
-                      // Dokunma alanı görünen kulptan geniş: kenarda ince bir
-                      // kulpu tutturmak zor.
-                      width: _thumbWidth + 18,
-                      height: _thumbHeight,
-                      child: Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: Container(
-                          width: _thumbWidth,
+          return Stack(
+            children: [
+              Positioned.fill(
+                  child: IgnorePointer(child: Stack(children: children))),
+              PositionedDirectional(
+                end: 0,
+                top: thumbTop,
+                child: IgnorePointer(
+                  ignoring: !shown,
+                  child: AnimatedOpacity(
+                    opacity: shown ? 1 : 0,
+                    duration: Motion.of(context, Motion.short),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onVerticalDragStart: (d) {
+                        _hide?.cancel();
+                        _grab = d.localPosition.dy;
+                        _lastLabel = widget.labelFor(pos.pixels);
+                        setState(() => _dragging = true);
+                      },
+                      onVerticalDragUpdate: (d) {
+                        final box = context.findRenderObject() as RenderBox?;
+                        if (box == null) return;
+                        _dragTo(box.globalToLocal(d.globalPosition).dy, track);
+                      },
+                      onVerticalDragEnd: (_) => _endDrag(),
+                      onVerticalDragCancel: _endDrag,
+                      child: Semantics(
+                        label: context.t('ph.fast_scroll'),
+                        child: SizedBox(
+                          // Dokunma alanı görünen kulptan geniş: kenarda ince bir
+                          // kulpu tutturmak zor.
+                          width: _thumbWidth + 18,
                           height: _thumbHeight,
-                          decoration: BoxDecoration(
-                            color: _dragging
-                                ? scheme.primary
-                                : scheme.surfaceContainerHighest,
-                            borderRadius:
-                                const BorderRadiusDirectional.horizontal(
-                              start: Radius.circular(_thumbHeight / 2),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: AppColors.shadow,
-                                blurRadius: 6,
-                                offset: Offset(0, 1),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: Container(
+                              width: _thumbWidth,
+                              height: _thumbHeight,
+                              decoration: BoxDecoration(
+                                color: _dragging
+                                    ? scheme.primary
+                                    : scheme.surfaceContainerHighest,
+                                borderRadius:
+                                    const BorderRadiusDirectional.horizontal(
+                                  start: Radius.circular(_thumbHeight / 2),
+                                ),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: AppColors.shadow,
+                                    blurRadius: 6,
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Icon(
-                            AppIcons.unfoldMore,
-                            size: 20,
-                            color: _dragging
-                                ? scheme.onPrimary
-                                : scheme.onSurfaceVariant,
+                              child: Icon(
+                                AppIcons.unfoldMore,
+                                size: 20,
+                                color: _dragging
+                                    ? scheme.onPrimary
+                                    : scheme.onSurfaceVariant,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -266,9 +282,9 @@ class _FmFastScrollerState extends State<FmFastScroller> {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       );
     });
   }

@@ -84,6 +84,11 @@ class FmEntryRow extends StatelessWidget {
   /// (simgenin yerinde onay kutusu var).
   final String? heroTag;
 
+  /// Üst listeden hazır geçirilen AI ikinci adı, küçük resim ayarı ve DPR.
+  final String? alias;
+  final bool? thumbsOn;
+  final double? dpr;
+
   const FmEntryRow({
     super.key,
     required this.entry,
@@ -100,6 +105,9 @@ class FmEntryRow extends StatelessWidget {
     this.thumbnails = true,
     this.audioQueue,
     this.heroTag,
+    this.alias,
+    this.thumbsOn,
+    this.dpr,
   });
 
   @override
@@ -115,13 +123,53 @@ class FmEntryRow extends StatelessWidget {
     final minRow = MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0;
     final end = subtitleEnd;
     final more = _trailing(context, scheme);
+    final visibleName = NameSpoof.visible(entry.name);
+    final deceptiveExt = NameSpoof.deceptiveExtension(entry.name);
+    final preAlias = alias;
+
+    Widget buildSubtitle(String currentAlias) {
+      final meta = theme.textTheme.bodySmall?.copyWith(
+        color: scheme.onSurfaceVariant,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+      final start = Text.rich(
+        TextSpan(children: [
+          if (currentAlias.isNotEmpty)
+            TextSpan(
+              text: '$currentAlias · ',
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          TextSpan(text: bidiParts(context, subtitle)),
+        ]),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: meta,
+      );
+      if (end == null) return start;
+      return Row(children: [
+        Expanded(child: start),
+        const SizedBox(width: Gap.sm),
+        Text(bidiParts(context, end), maxLines: 1, style: meta),
+      ]);
+    }
+
     return Semantics(
       selected: selected,
       button: true,
       // TalkBack: "PDF, Kira sözleşmesi, 117 KB · dün" (Faz 16 / madde 4).
       // Ad ve alt satır metinleri aşağıda ayrıca okunmasın diye dışlanır.
       label: fmEntrySemanticsLabel(
-          context, entry, end == null ? subtitle : '$subtitle · $end'),
+        context,
+        entry,
+        end == null ? subtitle : '$subtitle · $end',
+        alias: preAlias,
+        visibleName: visibleName,
+        deceptiveExt: deceptiveExt,
+        deceptiveChecked: true,
+      ),
       customSemanticsActions: fmSelectAction(context, selected, onCheck),
       // Basılınca satır hafifçe içe çöker (H4.8) — uzun basışın seçim
       // başlatacağını parmak altında hissettirir; titreşim [DragSelectArea]'da.
@@ -153,6 +201,8 @@ class FmEntryRow extends StatelessWidget {
                             selected: selected,
                             onCheck: onCheck,
                             thumbnails: thumbnails,
+                            thumbsOn: thumbsOn,
+                            dpr: dpr,
                           )),
                       iconSize),
                   const SizedBox(width: Gap.md),
@@ -164,6 +214,9 @@ class FmEntryRow extends StatelessWidget {
                         children: [
                           FmEntryName(
                             entry.name,
+                            visibleName: visibleName,
+                            deceptiveExt: deceptiveExt,
+                            deceptiveChecked: true,
                             maxLines: 1,
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w500,
@@ -173,41 +226,14 @@ class FmEntryRow extends StatelessWidget {
                           const SizedBox(height: 2),
                           // İkinci ad (AI, 2026-11-08) alt satırın başında;
                           // tek satır kalır → satır yüksekliği sabit (G14).
-                          ValueListenableBuilder<int>(
-                            valueListenable: AiIndex.revision,
-                            builder: (context, _, _) {
-                              final alias = AiIndex.aliasOf(entry.path);
-                              final meta = theme.textTheme.bodySmall?.copyWith(
-                                color: scheme.onSurfaceVariant,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
-                              );
-                              final start = Text.rich(
-                                TextSpan(children: [
-                                  if (alias.isNotEmpty)
-                                    TextSpan(
-                                      text: '$alias · ',
-                                      style: TextStyle(
-                                        color: scheme.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  TextSpan(text: bidiParts(context, subtitle)),
-                                ]),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: meta,
-                              );
-                              if (end == null) return start;
-                              return Row(children: [
-                                Expanded(child: start),
-                                const SizedBox(width: Gap.sm),
-                                Text(bidiParts(context, end),
-                                    maxLines: 1, style: meta),
-                              ]);
-                            },
-                          ),
+                          if (preAlias != null)
+                            buildSubtitle(preAlias)
+                          else
+                            ValueListenableBuilder<int>(
+                              valueListenable: AiIndex.revision,
+                              builder: (context, _, _) =>
+                                  buildSubtitle(AiIndex.aliasOf(entry.path)),
+                            ),
                         ],
                       ),
                     ),
@@ -281,6 +307,9 @@ class FmEntryCard extends StatelessWidget {
 
   /// Bkz. [FmEntryRow.heroTag].
   final String? heroTag;
+  final String? alias;
+  final bool? thumbsOn;
+  final double? dpr;
 
   /// Ad şeridinin yüksekliği (iki satır `bodySmall`).
   static const _labelHeight = 34.0;
@@ -293,17 +322,30 @@ class FmEntryCard extends StatelessWidget {
     required this.onTap,
     this.layout = FmLayout.grid3,
     this.heroTag,
+    this.alias,
+    this.thumbsOn,
+    this.dpr,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final visibleName = NameSpoof.visible(entry.name);
+    final deceptiveExt = NameSpoof.deceptiveExtension(entry.name);
     // Basınca hafifçe çöker; seçim kipinde değil (sürükleyerek seçerken
     // hücreler "nefes almasın").
     return Semantics(
       selected: selected,
       button: true,
-      label: fmEntrySemanticsLabel(context, entry, null),
+      label: fmEntrySemanticsLabel(
+        context,
+        entry,
+        null,
+        alias: alias,
+        visibleName: visibleName,
+        deceptiveExt: deceptiveExt,
+        deceptiveChecked: true,
+      ),
       // Ad şeridi bir kez okunsun; dokunma eylemi burada yeniden verilir
       // (dışlanan InkWell'in eylemi düğümden düşer).
       excludeSemantics: true,
@@ -350,6 +392,8 @@ class FmEntryCard extends StatelessWidget {
                               // kutuda 12 dp yuvarlaklık, 140 dp'lik kutuda
                               // ezik duruyordu).
                               radius: (iconSize * 0.12).clamp(6.0, 20.0),
+                              thumbsOn: thumbsOn,
+                              dpr: dpr,
                             )),
                         SizedBox(
                           height: labelH,
@@ -357,6 +401,9 @@ class FmEntryCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: FmEntryName(
                               entry.name,
+                              visibleName: visibleName,
+                              deceptiveExt: deceptiveExt,
+                              deceptiveChecked: true,
                               maxLines: 2,
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall,
@@ -390,15 +437,25 @@ class FmEntryCard extends StatelessWidget {
 /// Klasörde tür söylenmez — simge ve "›" zaten klasör olduğunu anlatıyor,
 /// "Klasörler, Faturalar" kulağa yanlış geliyordu.
 String fmEntrySemanticsLabel(
-    BuildContext context, FsEntry entry, String? subtitle) {
+  BuildContext context,
+  FsEntry entry,
+  String? subtitle, {
+  String? alias,
+  String? visibleName,
+  String? deceptiveExt,
+  bool deceptiveChecked = false,
+}) {
   final type = FmType.of(entry);
-  final alias = AiIndex.aliasOf(entry.path);
+  final resolvedAlias = alias ?? AiIndex.aliasOf(entry.path);
+  final shown = visibleName ?? NameSpoof.visible(entry.name);
+  final ext = deceptiveChecked
+      ? deceptiveExt
+      : NameSpoof.deceptiveExtension(entry.name);
   final parts = [
     if (type != FmType.folder && type != FmType.other) context.t(type.labelKey),
-    NameSpoof.visible(entry.name),
-    if (NameSpoof.deceptiveExtension(entry.name) case final ext?)
-      context.t('fm.name_spoof_warn', {'ext': ext}),
-    if (alias.isNotEmpty) alias,
+    shown,
+    if (ext != null) context.t('fm.name_spoof_warn', {'ext': ext}),
+    if (resolvedAlias.isNotEmpty) resolvedAlias,
     if (subtitle != null && subtitle.isNotEmpty) subtitle,
   ];
   return parts.join(', ');
@@ -422,18 +479,30 @@ Map<CustomSemanticsAction, VoidCallback>? fmSelectAction(
 /// kalın + hata rengiyle gösterilir; tek satırda ad kısalır, son uzantı her
 /// zaman görünür.
 class FmEntryName extends StatelessWidget {
-  const FmEntryName(this.name,
-      {super.key, this.maxLines = 1, this.style, this.textAlign});
+  const FmEntryName(
+    this.name, {
+    super.key,
+    this.maxLines = 1,
+    this.style,
+    this.textAlign,
+    this.visibleName,
+    this.deceptiveExt,
+    this.deceptiveChecked = false,
+  });
 
   final String name;
   final int maxLines;
   final TextStyle? style;
   final TextAlign? textAlign;
+  final String? visibleName;
+  final String? deceptiveExt;
+  final bool deceptiveChecked;
 
   @override
   Widget build(BuildContext context) {
-    final ext = NameSpoof.deceptiveExtension(name);
-    final shown = NameSpoof.visible(name);
+    final ext =
+        deceptiveChecked ? deceptiveExt : NameSpoof.deceptiveExtension(name);
+    final shown = visibleName ?? NameSpoof.visible(name);
     if (ext == null) {
       return Text(shown,
           maxLines: maxLines,

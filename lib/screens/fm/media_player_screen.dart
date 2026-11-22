@@ -25,6 +25,7 @@ import '../../services/fm/subtitles.dart';
 import '../../services/fm/thumbnail_cache.dart';
 import '../../services/fm/subtitle_delays.dart';
 import '../../services/fm/video_playback.dart';
+import '../../services/fm/video_transcode.dart';
 import '../../services/side_menu.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart' show fmMediaHeroTag;
@@ -55,10 +56,15 @@ class MediaPlayerScreen extends StatefulWidget {
   /// Aynı klasördeki medya dosyaları (bu dosya da içinde). Boşsa tek dosya.
   final List<String> playlist;
 
+  /// Rota geçişi siyah arka plan perdesini kendi çiziyorsa (Hero uçuşunda
+  /// `saveLayer` olmaması için) `Scaffold` zemini saydam bırakılır.
+  final bool externalBackdrop;
+
   const MediaPlayerScreen({
     super.key,
     required this.path,
     this.playlist = const [],
+    this.externalBackdrop = false,
   });
 
   /// Bu dosyanın oynatıcısı ekrandan çıkınca kapanır mı? (saf, testli)
@@ -104,6 +110,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   double _vZoom = 1;
   double _vZoomBase = 1;
   Offset _vPan = Offset.zero;
+  final ValueNotifier<Matrix4> _vTransform =
+      ValueNotifier<Matrix4>(Matrix4.identity());
 
   /// Tam oynatıcı açıkken ekran altı mini çubuk gizlenir.
   VoidCallback? _unhideBar;
@@ -130,8 +138,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// Son dokunuşun zamanı — ikinci dokunuşu (sarma) elle ölçmek için.
   DateTime? _lastTapAt;
 
-  /// Dikey kaydırmayla ayarlanan ses; gösterge görünürken dolu.
-  double? _volumeHint;
+  /// Dikey kaydırmayla ayarlanan ses/parlaklık/sarma/boost göstergeleri:
+  /// yalnız HUD hapı yeniden kurulur, oynatıcı yüzeyi kurulmaz.
+  final ValueNotifier<double?> _volumeHintN = ValueNotifier<double?>(null);
   Timer? _volumeTimer;
 
   /// Oynatıcının o anki sesi (0-1). `VideoPlayerValue.volume` başlangıçta 1.
@@ -144,11 +153,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// Pencere parlaklığı (0-1); ilk kaydırmada sistemden okunur. Ekrandan
   /// çıkınca sistemin ayarına dönülür (`setBrightness(-1)`).
   double? _brightness;
-  double? _brightnessHint;
+  final ValueNotifier<double?> _brightnessHintN = ValueNotifier<double?>(null);
   bool _brightnessTouched = false;
 
   /// Uzun basışta geçici 2× — bırakınca [_speedBeforeBoost]'a döner.
   double? _speedBeforeBoost;
+  final ValueNotifier<bool> _boostN = ValueNotifier<bool>(false);
 
   /// **Kontrol kilidi**: cepte/yatarken yanlış dokunuş videoyu
   /// sarmasın/kapatmasın. Kilitliyken yalnız kilit düğmesi görünür.
@@ -159,7 +169,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   /// Yatay kaydırmayla sarma: başlangıç konumu + biriken fark.
   Duration? _scrubFrom;
   double _scrubDx = 0;
-  Duration? _scrubTarget;
+  final ValueNotifier<Duration?> _scrubTargetN =
+      ValueNotifier<Duration?>(null);
+
+  Animation<double>? _routeAnim;
+  AnimationStatusListener? _routeListener;
+  Future<bool>? _hdrFuture;
 
   /// Servis her durum değişiminde haber veriyor; ekran o an yeniden çizilir.
   void _onService() {
@@ -250,8 +265,26 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     // Aynı dosya zaten açıksa baştan başlatma: kullanıcı mini çubuktan ya da
     // bildirimden ekrana döndüğünde video sıfırlanmamalı.
     if (_p.current != widget.path || _p.controller == null) {
-      _pending = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openAfterTransition());
+      final isVideo = FsEntry.categoryForExtension(
+              p.extension(widget.path).replaceFirst('.', '').toLowerCase()) !=
+          FmCategory.audio;
+      if (isVideo &&
+          Platform.isAndroid &&
+          !p.basename(widget.path).toUpperCase().contains('HDR')) {
+        // HDR kontrolü initState'te hemen başlar.
+        _hdrFuture = VideoTranscoder.isHdr(widget.path);
+      }
+      if (!_p.needsTransitionWait(widget.path)) {
+        // ExoPlayer açılışı 320 ms geçiş sonunu beklemez; ilk kareyle yarışır.
+        _pending = false;
+        unawaited(_p.open(widget.path,
+            list: widget.playlist, hdrFuture: _hdrFuture));
+        unawaited(_loadSubtitles());
+      } else {
+        _pending = true;
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _openAfterTransition());
+      }
     } else {
       unawaited(_loadSubtitles());
     }
@@ -262,7 +295,8 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     final animation = ModalRoute.of(context)?.animation;
     void start() {
       if (!mounted || !_pending) return;
-      unawaited(_p.open(widget.path, list: widget.playlist));
+      unawaited(_p.open(widget.path,
+          list: widget.playlist, hdrFuture: _hdrFuture));
       setState(() => _pending = false);
       // Altyazı araması da geçişten SONRA: klasör taraması açılış karelerine
       // karışmasın (bkz. [Subtitles.findForAsync]).
@@ -273,18 +307,28 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       start();
       return;
     }
+    _routeAnim = animation;
     late final AnimationStatusListener listener;
     listener = (status) {
       if (status == AnimationStatus.completed) {
-        animation.removeStatusListener(listener);
+        _stopRouteListener();
         start();
       }
     };
+    _routeListener = listener;
     animation.addStatusListener(listener);
+  }
+
+  void _stopRouteListener() {
+    final l = _routeListener;
+    if (l != null) _routeAnim?.removeStatusListener(l);
+    _routeListener = null;
+    _routeAnim = null;
   }
 
   @override
   void dispose() {
+    _stopRouteListener();
     _unhideBar?.call();
     _unhideMenuHandle?.call();
     _p.removeListener(_onService);
@@ -293,6 +337,11 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _hideTimer?.cancel();
     _volumeTimer?.cancel();
     _lockTimer?.cancel();
+    _vTransform.dispose();
+    _volumeHintN.dispose();
+    _brightnessHintN.dispose();
+    _scrubTargetN.dispose();
+    _boostN.dispose();
     if (_brightnessTouched) unawaited(NativeExtras.setBrightness(-1));
     // **Video kapanınca DURUR** (kullanıcı isteği 2026-11-04: *"videolar
     // kapatınca arka planda oynamasın"*). Eskiden ekrandan çıkınca video mini
@@ -342,7 +391,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.mediaSurface,
+      backgroundColor: widget.externalBackdrop && !Motion.reduced(context)
+          ? Colors.transparent
+          : AppColors.mediaSurface,
       // ÖNEMLİ: üst bar Scaffold'un `appBar` slotuna verilmez. Verilseydi
       // kontroller açılıp kapandıkça body'nin yüksekliği değişir, ortalanmış
       // video her dokunuşta küçülüp kayardı. Bar da alt kontroller gibi
@@ -406,11 +457,13 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
           children: [
             Positioned.fill(
               child: ClipRect(
-                child: Transform(
-                  transform: Matrix4.identity()
-                    ..translateByDouble(_vPan.dx, _vPan.dy, 0, 1)
-                    ..scaleByDouble(_vZoom, _vZoom, 1, 1),
-                  alignment: Alignment.center,
+                child: ValueListenableBuilder<Matrix4>(
+                  valueListenable: _vTransform,
+                  builder: (_, m, child) => Transform(
+                    transform: m,
+                    alignment: Alignment.center,
+                    child: child,
+                  ),
                   child: _surface(c, value),
                 ),
               ),
@@ -428,61 +481,80 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                   builder: (_, live, _) => _captionLayer(live.position),
                 ),
               ),
-            if (_volumeHint != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 80,
-                child: IgnorePointer(child: _volumeBadge()),
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 80,
+              child: IgnorePointer(
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([
+                    _volumeHintN,
+                    _brightnessHintN,
+                    _scrubTargetN,
+                    _boostN,
+                  ]),
+                  builder: (_, _) {
+                    final vol = _volumeHintN.value;
+                    if (vol != null) return _volumeBadge(vol);
+                    final bri = _brightnessHintN.value;
+                    if (bri != null) return _brightnessBadge(bri);
+                    final scrub = _scrubTargetN.value;
+                    if (scrub != null || _boostN.value) {
+                      return _gestureBubble(scrub);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ),
-            if (_brightnessHint != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 80,
-                child: IgnorePointer(child: _brightnessBadge()),
-              ),
-            if (_speedBeforeBoost != null || _scrubTarget != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 80,
-                child: IgnorePointer(child: _gestureBubble()),
-              ),
-            if (!_isAudio && (_locked ? _lockHintVisible : _controlsVisible))
+            ),
+            if (!_isAudio && _locked && _lockHintVisible)
               PositionedDirectional(
                 start: Gap.md,
                 top: 0,
                 bottom: 0,
-                child: Center(
-                    child: _locked ? _lockButton() : _fade(_lockButton())),
-              ),
-            if (!_isAudio && _controlsVisible && !_locked)
-              PositionedDirectional(
-                end: Gap.md,
-                top: 0,
-                bottom: 0,
-                child: Center(child: _fade(_rotateButtons())),
-              ),
-            if (!_isAudio && _controlsVisible && !_locked)
-              PositionedDirectional(
-                end: Gap.md,
-                bottom: MediaQuery.paddingOf(context).bottom + 136,
-                child: _fade(_autoNextButton()),
+                child: Center(child: _lockButton()),
               ),
             if (_controlsVisible && !_locked)
-              Positioned(left: 0, right: 0, top: 0, child: _fade(_topBar())),
-            if (_controlsVisible && !_locked && c != null && value != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                // Konum çubuğu saniyede iki kez değişir; yeniden çizilen
-                // alanı BURAYA hapsediyoruz (bkz. [_onTick]).
-                child: _fade(ValueListenableBuilder<VideoPlayerValue>(
-                  valueListenable: c,
-                  builder: (_, live, _) => _controls(c, live),
-                )),
+              Positioned.fill(
+                child: _fade(
+                  Stack(
+                    children: [
+                      if (!_isAudio)
+                        PositionedDirectional(
+                          start: Gap.md,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(child: _lockButton()),
+                        ),
+                      if (!_isAudio)
+                        PositionedDirectional(
+                          end: Gap.md,
+                          top: 0,
+                          bottom: 0,
+                          child: Center(child: _rotateButtons()),
+                        ),
+                      if (!_isAudio)
+                        PositionedDirectional(
+                          end: Gap.md,
+                          bottom: MediaQuery.paddingOf(context).bottom + 136,
+                          child: _autoNextButton(),
+                        ),
+                      Positioned(left: 0, right: 0, top: 0, child: _topBar()),
+                      if (c != null && value != null)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          // Konum çubuğu saniyede iki kez değişir; yeniden çizilen
+                          // alanı BURAYA hapsediyoruz (bkz. [_onTick]).
+                          child: ValueListenableBuilder<VideoPlayerValue>(
+                            valueListenable: c,
+                            builder: (_, live, _) => _controls(c, live),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
           ],
         ),
@@ -515,19 +587,24 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _vZoomBase = _vZoom;
   }
 
+  void _updateVideoTransform() {
+    _vTransform.value = Matrix4.identity()
+      ..translateByDouble(_vPan.dx, _vPan.dy, 0, 1)
+      ..scaleByDouble(_vZoom, _vZoom, 1, 1);
+  }
+
   void _pinchMove(PointerMoveEvent e) {
     if (!_pts.containsKey(e.pointer)) return;
     _pts[e.pointer] = e.localPosition;
     if (!_pinching || _locked || _isAudio) return;
     final (span, focal) = _span();
-    setState(() {
-      _vZoom = (_vZoomBase * span / _spanStart).clamp(1.0, 5.0);
-      final size = MediaQuery.sizeOf(context);
-      final mx = size.width * (_vZoom - 1) / 2;
-      final my = size.height * (_vZoom - 1) / 2;
-      final next = _vZoom <= 1.0 ? Offset.zero : _vPan + (focal - _focalLast);
-      _vPan = Offset(next.dx.clamp(-mx, mx), next.dy.clamp(-my, my));
-    });
+    _vZoom = (_vZoomBase * span / _spanStart).clamp(1.0, 5.0);
+    final size = MediaQuery.sizeOf(context);
+    final mx = size.width * (_vZoom - 1) / 2;
+    final my = size.height * (_vZoom - 1) / 2;
+    final next = _vZoom <= 1.0 ? Offset.zero : _vPan + (focal - _focalLast);
+    _vPan = Offset(next.dx.clamp(-mx, mx), next.dy.clamp(-my, my));
+    _updateVideoTransform();
     _focalLast = focal;
   }
 
@@ -536,14 +613,12 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
     _pts.remove(pointer);
     _pointers = _pts.length;
     if (_pinching) _pinchStart();
-    if (before != _pinching || _vZoom < 1.05) {
-      setState(() {
-        if (_vZoom < 1.05) {
-          _vZoom = 1;
-          _vPan = Offset.zero;
-        }
-      });
+    if (_vZoom < 1.05) {
+      _vZoom = 1;
+      _vPan = Offset.zero;
+      _updateVideoTransform();
     }
+    if (before != _pinching) setState(() {});
   }
 
 

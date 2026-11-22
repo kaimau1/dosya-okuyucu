@@ -1,4 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui' show Size;
+
+import 'device_profile.dart';
 
 /// Görsel çözme (decode) bütçesi — **bellek ve pil** koruması.
 ///
@@ -63,19 +66,37 @@ abstract final class ImageBudget {
     return stepped.clamp(minWidth, maxWidth);
   }
 
-  /// Yakınlaştırma matrisinin ölçeğinden çözme genişliği (yaygın kullanım).
+  /// Yakınlaştırma matrisinin ölçeğinden çözme boyu (yaygın kullanım).
   ///
   /// Ölçek 1'in altındaysa (uzaklaştırma) 1 sayılır — daha az piksel çözmek
   /// bellekten bir şey kazandırmaz, yalnız uzaklaştırıp yaklaştıran kullanıcıya
   /// gereksiz bir yeniden çözme yaşatırdı.
+  ///
+  /// Hem genişliği hem **yüksekliği** ([logicalHeight] veya [viewportSize])
+  /// hesaba katar; 1× görünümde düşük cihazda 1536, orta/yüksek cihazda
+  /// 2048 tavanı uygulanır (3 fotoğraf 64 MB önbelleğe sığsın). Yakınlaştırmada
+  /// [maxWidth] (3072) tavanına çıkılır.
   static int forViewport({
     required double logicalWidth,
+    double? logicalHeight,
+    Size? viewportSize,
     required double devicePixelRatio,
     required double scale,
-  }) =>
-      decodeWidth(
-        logicalWidth: logicalWidth,
-        devicePixelRatio: devicePixelRatio,
-        zoom: math.max(1, scale),
-      );
+    bool? isLight,
+  }) {
+    final w = viewportSize?.width ?? logicalWidth;
+    final h = viewportSize?.height ?? logicalHeight;
+    final safeW = w.isFinite && w > 0 ? w : minWidth.toDouble();
+    final safeH = (h != null && h.isFinite && h > 0) ? h : 0.0;
+    final longLogical = math.max(safeW, safeH);
+    final safeZoom = scale.isFinite && scale > 1 ? scale : 1.0;
+    final light = isLight ?? DeviceProfile.budget.isLight;
+    final cap = safeZoom <= 1.02 ? (light ? 1536 : 2048) : maxWidth;
+    final raw = decodeWidth(
+      logicalWidth: longLogical,
+      devicePixelRatio: devicePixelRatio,
+      zoom: safeZoom,
+    );
+    return raw.clamp(minWidth, cap);
+  }
 }

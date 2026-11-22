@@ -72,7 +72,9 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
           m.y = -(y * scrollRange + minScrollY);
           ctl.value = m;
         },
-        child: widget.builder(context, ctl.pageNumber),
+        child: RepaintBoundary(
+          child: widget.builder(context, ctl.pageNumber),
+        ),
       ),
     );
   }

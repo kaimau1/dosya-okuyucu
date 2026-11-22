@@ -246,12 +246,18 @@ class FmEntryIcon extends StatelessWidget {
   /// Google Fotoğraflar tarzı dolu ızgarada 0 verilir.
   final double radius;
 
+  /// Üst listeden hazır geçirilen küçük resim ayarı ve piksel oranı.
+  final bool? thumbsOn;
+  final double? dpr;
+
   const FmEntryIcon({
     super.key,
     required this.entry,
     this.size = 44,
     this.thumbnails = true,
     this.radius = Radii.control,
+    this.thumbsOn,
+    this.dpr,
   });
 
   /// **Önemli dosya yıldızı** (kullanıcı isteği 2026-11-04: *"önemli
@@ -278,9 +284,12 @@ class FmEntryIcon extends StatelessWidget {
   Widget _content(BuildContext context) {
     final category = entry.category;
     // Kullanıcı ayarlardan küçük resimleri kapatabilir (yavaş cihaz).
-    context.dependOnBrowse();
-    final thumbsOn =
-        thumbnails && (context.select<AppState, bool>((s) => s.fmThumbnails));
+    final preThumbsOn = this.thumbsOn;
+    if (preThumbsOn == null) {
+      context.dependOnBrowse();
+    }
+    final thumbsOn = thumbnails &&
+        (preThumbsOn ?? context.select<AppState, bool>((s) => s.fmThumbnails));
 
     if (category == FmCategory.document) {
       // Belgeler de aynı ÇİZİLMİŞ kağıdı kullanır (2026-08-29): marka rengi
@@ -295,6 +304,7 @@ class FmEntryIcon extends StatelessWidget {
       if (thumbsOn && entry.extension.toLowerCase() == 'pdf') {
         return _PdfThumb(
           path: entry.path,
+          ext: entry.extension,
           size: size,
           radius: radius,
           fallback: icon,
@@ -305,6 +315,7 @@ class FmEntryIcon extends StatelessWidget {
       if (thumbsOn && OfficeThumbnail.supports(entry.extension)) {
         return _PdfThumb(
           path: entry.path,
+          ext: entry.extension,
           size: size,
           radius: radius,
           fallback: icon,
@@ -330,6 +341,7 @@ class FmEntryIcon extends StatelessWidget {
     if (thumbsOn && category == FmCategory.video) {
       return _VideoThumb(
         path: entry.path,
+        modifiedMs: entry.modifiedMs,
         size: size,
         radius: radius,
         fallback: _badge(context, category),
@@ -337,49 +349,49 @@ class FmEntryIcon extends StatelessWidget {
     }
 
     if (thumbsOn && category == FmCategory.image) {
-      final original = ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Image(
-          // [FmFileImage] (Image.file DEĞİL): tam boyutlu fotoğraf Dart
-          // yığınına kopyalanmadan çözülür — 6 bin fotoğraflık galeride
-          // donmanın ve boş kalan hücrelerin kök nedeni buydu (bkz. sınıfın
-          // başındaki not, 2026-08-17).
-          image: FmFileImage(
-            entry.path,
-            // Bellek koruması: 4000px'lik bir fotoğrafı 44dp'lik kutuya tam
-            // çözünürlükte açmak listeyi şişirir (= decode boyutu). Genişlik
-            // KADEMELİ (bkz. `fmThumbWidth`): görüntüleyici aynı kaydı
-            // önbellekte bulup ilk kareyi anında çizebilsin.
-            cacheWidth: fmThumbWidth(
-                size, MediaQuery.maybeDevicePixelRatioOf(context) ?? 3),
-            cover: true,
-          ),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.low,
-          gaplessPlayback: true,
-          // Çözülene kadar hücre BOŞ kalmasın: soluk bir zemin, sonra resim
-          // yumuşak geçişle gelir. Bomboş beyaz kare kullanıcıya "yüklenmedi"
-          // değil "burada bir şey yok" diyordu.
-          frameBuilder: _placeholder(size),
-          // Açılamayan resim: dosya silinmiş olabilir (Galeri/WhatsApp
-          // temizliği). Bildir — gerçekten yoksa listeden düşürülür, duruyorsa
-          // (bozuk dosya) rozet kalır. Bkz. FsEvents.reportUnreadable.
-          errorBuilder: (_, _, _) {
-            FsEvents.reportUnreadable(entry.path);
-            return _badge(context, category);
-          },
-        ),
-      );
+      Widget buildOriginal() => ClipRRect(
+            borderRadius: BorderRadius.circular(radius),
+            child: Image(
+              // [FmFileImage] (Image.file DEĞİL): tam boyutlu fotoğraf Dart
+              // yığınına kopyalanmadan çözülür — 6 bin fotoğraflık galeride
+              // donmanın ve boş kalan hücrelerin kök nedeni buydu (bkz. sınıfın
+              // başındaki not, 2026-08-17).
+              image: FmFileImage(
+                entry.path,
+                // Bellek koruması: 4000px'lik bir fotoğrafı 44dp'lik kutuya tam
+                // çözünürlükte açmak listeyi şişirir (= decode boyutu). Genişlik
+                // KADEMELİ (bkz. `fmThumbWidth`): görüntüleyici aynı kaydı
+                // önbellekte bulup ilk kareyi anında çizebilsin.
+                cacheWidth: fmThumbWidth(
+                    size, dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3),
+                cover: true,
+              ),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.low,
+              gaplessPlayback: true,
+              // Çözülene kadar hücre BOŞ kalmasın: soluk bir zemin, sonra resim
+              // yumuşak geçişle gelir. Bomboş beyaz kare kullanıcıya "yüklenmedi"
+              // değil "burada bir şey yok" diyordu.
+              frameBuilder: _placeholder(size),
+              // Açılamayan resim: dosya silinmiş olabilir (Galeri/WhatsApp
+              // temizliği). Bildir — gerçekten yoksa listeden düşürülür, duruyorsa
+              // (bozuk dosya) rozet kalır. Bkz. FsEvents.reportUnreadable.
+              errorBuilder: (_, _, _) {
+                FsEvents.reportUnreadable(entry.path);
+                return _badge(context, category);
+              },
+            ),
+          );
       // Android'de hazır küçük resim dosyası (bkz. [ThumbnailCache.forImage]);
       // üretilemezse (ve testte) yukarıdaki özgün dosya yolu.
-      if (!Platform.isAndroid) return original;
+      if (!Platform.isAndroid) return buildOriginal();
       return _PhotoThumb(
         entry: entry,
         size: size,
         radius: radius,
-        fallback: original,
+        fallbackBuilder: buildOriginal,
       );
     }
 
@@ -445,18 +457,12 @@ ImageFrameBuilder _placeholder(double size) => (
       int? frame,
       bool wasSynchronouslyLoaded,
     ) {
-      if (wasSynchronouslyLoaded) return child;
+      if (frame != null || wasSynchronouslyLoaded) return child;
       return SizedBox(
         width: size,
         height: size,
         child: ColoredBox(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: Motion.of(context, Motion.short),
-            curve: Curves.easeOut,
-            child: child,
-          ),
         ),
       );
     };
@@ -486,6 +492,8 @@ class FmSelectableIcon extends StatelessWidget {
   /// Küçük resim çıkarılsın mı? Diskte düz içeriği olmayan girdilerde
   /// (arşiv içi, şifreli kasa) kapalı — tür simgesi gösterilir.
   final bool thumbnails;
+  final bool? thumbsOn;
+  final double? dpr;
 
   const FmSelectableIcon({
     super.key,
@@ -496,12 +504,19 @@ class FmSelectableIcon extends StatelessWidget {
     this.onCheck,
     this.radius = Radii.control,
     this.thumbnails = true,
+    this.thumbsOn,
+    this.dpr,
   });
 
   @override
   Widget build(BuildContext context) {
     final icon = FmEntryIcon(
-        entry: entry, size: size, radius: radius, thumbnails: thumbnails);
+        entry: entry,
+        size: size,
+        radius: radius,
+        thumbnails: thumbnails,
+        thumbsOn: thumbsOn,
+        dpr: dpr);
     if (!selecting) return icon;
     final scheme = Theme.of(context).colorScheme;
     // Rozet önizlemenin en çok %42'sini kaplar ve köşede durur: ortada
