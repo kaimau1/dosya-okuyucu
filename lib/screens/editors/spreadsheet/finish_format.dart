@@ -34,19 +34,30 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
     _endEdit();
     final target = '${p.withoutExtension(widget.savePath ?? widget.path)}.xlsx';
     try {
+      final Future<Uint8List> saving;
       editor.csv = null;
-      final bytes = await editor.saveAsync();
+      try {
+        saving = editor.saveAsync();
+      } finally {
+        editor.csv = f;
+      }
+      final bytes = await saving;
       await SafeWrite.bytes(target, bytes);
+      FsEvents.changed([target]);
+      unawaited(ActivityLog.add(
+        ActivityKind.documentEdit,
+        target,
+        detail: AppStrings.current.t('excel.act_saved'),
+      ));
       if (mounted) {
         _snack(context.t('excel.saved_as_xlsx', {'name': p.basename(target)}));
       }
     } catch (e) {
+      editor.csv = f;
       if (mounted) {
         _snack(AppStrings.current
             .t('common.save_failed', {'error': userErrorText(e)}));
       }
-    } finally {
-      editor.csv = f;
     }
   }
 
@@ -178,6 +189,16 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
         for (var c = range.left; c <= range.right; c++)
           CellRef(r, c): (sheet.styleAt(r, c) ?? const XlsxCellStyle()).border,
     };
+    final overridesBefore = <CellRef, XlsxCellStyle?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): sheet.overrideAt(r, c),
+    };
+    final editsBefore = <(int, int), XlsxStyleEdit?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          (r, c): sheet.styleEdits[(r, c)],
+    };
     Map<String, String?> sidesFor(int r, int c) {
       final top = r == range.top, bottom = r == range.bottom;
       final left = c == range.left, right = c == range.right;
@@ -226,6 +247,15 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
           editor.setCellBorderColored(name, at.row, at.col,
               {side: s.visible ? s.style : null},
               s.colorArgb == null ? null : Color(s.colorArgb!));
+        }
+      });
+      overridesBefore
+          .forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+      editsBefore.forEach((k, edit) {
+        if (edit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = edit;
         }
       });
     });
@@ -665,6 +695,16 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
         for (var c = range.left; c <= range.right; c++)
           CellRef(r, c): sheet.styleAt(r, c) ?? const XlsxCellStyle(),
     };
+    final overridesBefore = <CellRef, XlsxCellStyle?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): sheet.overrideAt(r, c),
+    };
+    final editsBefore = <(int, int), XlsxStyleEdit?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          (r, c): sheet.styleEdits[(r, c)],
+    };
     void applyNow() {
       for (var r = range.top; r <= range.bottom; r++) {
         for (var c = range.left; c <= range.right; c++) {
@@ -690,8 +730,19 @@ extension _SpreadsheetFinishPart on _SpreadsheetEditorScreenState {
           'top': b.border.top.visible ? b.border.top.style : null,
         });
       });
+      overridesBefore
+          .forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+      editsBefore.forEach((k, edit) {
+        if (edit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = edit;
+        }
+      });
     });
     _session.changed();
+    _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
   }
 

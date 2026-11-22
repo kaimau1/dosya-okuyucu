@@ -96,6 +96,9 @@ extension _SpreadsheetKeyboardPart on _SpreadsheetEditorScreenState {
         ch.length == 1 &&
         ch.codeUnitAt(0) >= 0x20 &&
         ch.codeUnitAt(0) != 0x7f) {
+      if (!_guardEditable([CellRef(_selRow, _selCol)])) {
+        return KeyEventResult.handled;
+      }
       _openEditor(caret: false);
       _cellField.value = TextEditingValue(
           text: ch, selection: TextSelection.collapsed(offset: ch.length));

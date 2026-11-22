@@ -121,9 +121,11 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   final _preview = _DragPreview();
   bool _dragging = false;
 
-  // İşaretleme önizlemesi.
+  // İşaretleme önizlemesi: sürüklerken yalnız kendi RepaintBoundary katmanı boyanır.
   final List<Offset> _stroke = [];
   Offset? _markFrom, _markTo;
+  final ValueNotifier<_ActiveStroke> _activeStroke =
+      ValueNotifier(_ActiveStroke.empty);
 
   Timer? _blink;
   final ValueNotifier<bool> _caretOn = ValueNotifier(true);
@@ -149,6 +151,7 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     c.removeListener(_onController);
     _blink?.cancel();
     _caretOn.dispose();
+    _activeStroke.dispose();
     _preview.dispose();
     super.dispose();
   }
@@ -183,14 +186,28 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   int? _drawPointer;
   bool _extending = false;
 
+  void _notifyStroke() {
+    final from = _markFrom, to = _markTo;
+    _activeStroke.value = _ActiveStroke(
+      from: from,
+      to: to,
+      points: List<Offset>.of(_stroke),
+      markRects: from != null && to != null && _textMarkup
+          ? [
+              for (final q in _quadsBetween(from, to))
+                Rect.fromPoints(_w(q[0], q[1]), _w(q[6], q[7]))
+            ]
+          : const [],
+    );
+  }
+
   void _drawReset() {
     _drawPointer = null;
     if (_markFrom == null && _stroke.isEmpty) return;
-    setState(() {
-      _markFrom = null;
-      _markTo = null;
-      _stroke.clear();
-    });
+    _markFrom = null;
+    _markTo = null;
+    _stroke.clear();
+    _activeStroke.value = _ActiveStroke.empty;
   }
 
   void _drawDown(PointerDownEvent e) {
@@ -201,21 +218,19 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
       return;
     }
     _drawPointer = e.pointer;
-    setState(() {
-      _markFrom = e.localPosition;
-      _markTo = e.localPosition;
-      _stroke
-        ..clear()
-        ..add(e.localPosition);
-    });
+    _markFrom = e.localPosition;
+    _markTo = e.localPosition;
+    _stroke
+      ..clear()
+      ..add(e.localPosition);
+    _notifyStroke();
   }
 
   void _drawMove(PointerMoveEvent e) {
     if (e.pointer != _drawPointer) return;
-    setState(() {
-      _markTo = e.localPosition;
-      if (c.markup == PdfMarkupKind.ink) _stroke.add(e.localPosition);
-    });
+    _markTo = e.localPosition;
+    if (c.markup == PdfMarkupKind.ink) _stroke.add(e.localPosition);
+    _notifyStroke();
   }
 
   void _drawUp(PointerEvent e, {bool cancel = false}) {
@@ -233,11 +248,10 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   /// bir kez çalışır (görüntüleyici tek parmakla yine kayar).
   void _finishLasso() {
     final from = _markFrom, to = _markTo;
-    setState(() {
-      _markFrom = null;
-      _markTo = null;
-      _stroke.clear();
-    });
+    _markFrom = null;
+    _markTo = null;
+    _stroke.clear();
+    _activeStroke.value = _ActiveStroke.empty;
     c.armLasso = false;
     if (from == null || to == null) return;
     final items = _selectable().toList();
@@ -389,11 +403,10 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     final from = _markFrom, to = _markTo;
     final kind = c.markup;
     final stroke = List<Offset>.of(_stroke);
-    setState(() {
-      _markFrom = null;
-      _markTo = null;
-      _stroke.clear();
-    });
+    _markFrom = null;
+    _markTo = null;
+    _stroke.clear();
+    _activeStroke.value = _ActiveStroke.empty;
     try {
       if (kind == PdfMarkupKind.ink) {
         if (stroke.length < 2) return;
@@ -454,8 +467,10 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         // Satırın üstünden yatay sürükleme ince bir kutu verir (cihaz
         // 2026-11-13: yalnız birkaç harf silindi, kutu çizgi gibi) → metin
         // seçimi gibi satır dörtgenleri karartılır.
+        final isLineDrag =
+            (to.dy - from.dy).abs() < 6 * _unit || (a.y - z.y).abs() < 6;
         final quads =
-            (a.y - z.y).abs() < 6 ? _quadsBetween(from, to) : const <List<double>>[];
+            isLineDrag ? _quadsBetween(from, to) : const <List<double>>[];
         List<double> box(List<double> q) {
           final xs = [q[0], q[2], q[4], q[6]], ys = [q[1], q[3], q[5], q[7]];
           return [xs.reduce(math.min), ys.reduce(math.min),
@@ -571,18 +586,27 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
 
   Future<void> _dropBlock(PdfTextBlock block) async {
     final d = _preview.drag, w = _preview.width;
+    final start = _preview.frame?.topLeft ?? Offset.zero;
     _endDrag();
     if (d.distance < 1.5 * _px && w.abs() < 1.5 * _px) return;
     try {
-      // Çerçeve = sayfa (dik blok); döndürülmüş blokta taşıma çerçeveye çevrilir.
-      final dxp = d.dx / _unit, dyp = -d.dy / _unit;
+      // Çerçeve = sayfa (dik blok); döndürülmüş sayfa ve blokta taşıma
+      // `toPdfPoint` dönüşümüyle çerçeveye çevrilir.
+      final p0 = _p(start), pd = _p(start + d);
+      final dxp = pd.x - p0.x, dyp = pd.y - p0.y;
       final cs = math.cos(block.angle), sn = math.sin(block.angle);
+      double? newWidth;
+      if (w != 0) {
+        final pw = _p(start + Offset(w, 0));
+        final wx = pw.x - p0.x, wy = pw.y - p0.y;
+        final proj = wx * cs + wy * sn;
+        final dw = proj.abs() > 1e-3 ? proj : Offset(wx, wy).distance * w.sign;
+        newWidth = math.max(block.size * 3, block.frameWidth + dw);
+      }
       await c.reshape(pageIndex, block,
           dx: dxp * cs + dyp * sn,
           dy: -dxp * sn + dyp * cs,
-          width: w == 0
-              ? null
-              : math.max(block.size * 3, block.frameWidth + w / _unit),
+          width: newWidth,
           label: w == 0 ? 'pse.step_move' : 'pse.step_resize');
     } catch (e) {
       widget.events.onRefused(e);
@@ -591,10 +615,12 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
 
   Future<void> _dropGroup(List<PdfPageItem> items) async {
     final d = _preview.drag;
+    final start = _preview.frame?.topLeft ?? Offset.zero;
     _endDrag();
     if (d.distance < 1.5 * _px) return;
     try {
-      await c.moveItems(pageIndex, items, d.dx / _unit, -d.dy / _unit,
+      final p0 = _p(start), pd = _p(start + d);
+      await c.moveItems(pageIndex, items, pd.x - p0.x, pd.y - p0.y,
           label: 'pse.step_move');
     } catch (e) {
       widget.events.onRefused(e);
@@ -603,16 +629,18 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
 
   Future<void> _dropItem(PdfPageItem item) async {
     final d = _preview.drag, s = _preview.scale;
+    final start = _preview.frame?.topLeft ?? Offset.zero;
     _endDrag();
     if (d.distance < 1.5 * _px && (s - 1).abs() < 0.01) return;
     try {
+      final p0 = _p(start), pd = _p(start + d);
       final List<double> m;
       if ((s - 1).abs() >= 0.01) {
         // Sol-üst köşe sabit, oran kilitli ölçek.
-        final ax = item.left, ay = item.top;
+        final ax = p0.x, ay = p0.y;
         m = [s, 0, 0, s, ax - s * ax, ay - s * ay];
       } else {
-        m = [1, 0, 0, 1, d.dx / _unit, -d.dy / _unit];
+        m = [1, 0, 0, 1, pd.x - p0.x, pd.y - p0.y];
       }
       await c.mutate(pageIndex, [PdfMutAction.transform([item.index], m)],
           label: (s - 1).abs() >= 0.01 ? 'pse.step_resize' : 'pse.step_move');
@@ -676,31 +704,33 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           live: live,
           toWidget: _w,
           caretOn: _caretOn,
-          stroke: _stroke,
-          strokeColor: c.armLasso
-              ? accent
-              : c.markup == PdfMarkupKind.redact
-                  ? scheme.onSurface
-                  : Color(c.markupColor | 0xFF000000),
-          strokeWidth: c.armLasso ? 1.5 * px : c.markupWidth * _unit,
-          markFrom: _markFrom,
-          markTo: _markTo,
-          markRects: _markFrom != null && _markTo != null && _textMarkup
-              ? [
-                  for (final q in _quadsBetween(_markFrom!, _markTo!))
-                    Rect.fromPoints(_w(q[0], q[1]), _w(q[6], q[7]))
-                ]
-              : const [],
-          shape: _shapeMarkup
-              ? c.markup
-              : c.armLasso
-                  ? PdfMarkupKind.rect
-                  : null,
         );
 
         final children = <Widget>[
           IgnorePointer(
               child: CustomPaint(size: widget.pageSize, painter: painter)),
+          // Aktif çizim vuruşu katmanı: sürüklerken yalnız bu boyanır.
+          IgnorePointer(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                size: widget.pageSize,
+                painter: _StrokePainter(
+                  _activeStroke,
+                  strokeColor: c.armLasso
+                      ? accent
+                      : c.markup == PdfMarkupKind.redact
+                          ? scheme.onSurface
+                          : Color(c.markupColor | 0xFF000000),
+                  strokeWidth: c.armLasso ? 1.5 * px : c.markupWidth * _unit,
+                  shape: _shapeMarkup
+                      ? c.markup
+                      : c.armLasso
+                          ? PdfMarkupKind.rect
+                          : null,
+                ),
+              ),
+            ),
+          ),
           // Kendi katmanı: sürüklerken yalnız bu boyanır.
           IgnorePointer(
             child: RepaintBoundary(

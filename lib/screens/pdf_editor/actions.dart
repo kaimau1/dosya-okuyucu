@@ -568,6 +568,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       originalPath: widget.path,
       bytes: bytes,
       note: _str.t('pe.save_note'),
+      activityDetail: _str.t('ps.act_edited'),
     );
     if (outcome == null) return false;
     _savedPath = outcome.path;

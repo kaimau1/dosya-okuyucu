@@ -354,51 +354,53 @@ class PdfTools {
     if (strokes.every((s) => s.length < 2)) {
       throw ArgumentError('İmza boş');
     }
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    try {
-      final page = doc.pages[pageIndex];
-      final t = stampTransform(page.size, page.rotation.index);
-      final g = page.graphics;
-      final state = g.save();
+    return Isolate.run(() async {
+      final doc = PdfDocument(inputBytes: bytes, password: password);
       try {
-        if (t.angle != 0 && !rawSpace) {
-          g.translateTransform(t.translate.dx, t.translate.dy);
-          g.rotateTransform(t.angle);
-        }
-        final pen = PdfPen(
-          PdfColor(
-            (colorArgb >> 16) & 0xFF,
-            (colorArgb >> 8) & 0xFF,
-            colorArgb & 0xFF,
-          ),
-          width: thickness,
-          lineCap: PdfLineCap.round,
-          lineJoin: PdfLineJoin.round,
-        );
-        for (final stroke in strokes) {
-          if (stroke.length < 2) continue;
-          final points = [
-            for (final p in stroke)
-              Offset(
-                rect.left + p.dx * rect.width,
-                rect.top + p.dy * rect.height,
-              ),
-          ];
-          // ponytail: segment segment `addLine`. `addPolygon` şekli KAPATIR
-          // (son noktadan ilkine çizgi çeker) — imzada yanlış olur.
-          final path = PdfPath()..startFigure();
-          for (var i = 0; i + 1 < points.length; i++) {
-            path.addLine(points[i], points[i + 1]);
+        final page = doc.pages[pageIndex];
+        final t = stampTransform(page.size, page.rotation.index);
+        final g = page.graphics;
+        final state = g.save();
+        try {
+          if (t.angle != 0 && !rawSpace) {
+            g.translateTransform(t.translate.dx, t.translate.dy);
+            g.rotateTransform(t.angle);
           }
-          g.drawPath(path, pen: pen);
+          final pen = PdfPen(
+            PdfColor(
+              (colorArgb >> 16) & 0xFF,
+              (colorArgb >> 8) & 0xFF,
+              colorArgb & 0xFF,
+            ),
+            width: thickness,
+            lineCap: PdfLineCap.round,
+            lineJoin: PdfLineJoin.round,
+          );
+          for (final stroke in strokes) {
+            if (stroke.length < 2) continue;
+            final points = [
+              for (final p in stroke)
+                Offset(
+                  rect.left + p.dx * rect.width,
+                  rect.top + p.dy * rect.height,
+                ),
+            ];
+            // ponytail: segment segment `addLine`. `addPolygon` şekli KAPATIR
+            // (son noktadan ilkine çizgi çeker) — imzada yanlış olur.
+            final path = PdfPath()..startFigure();
+            for (var i = 0; i + 1 < points.length; i++) {
+              path.addLine(points[i], points[i + 1]);
+            }
+            g.drawPath(path, pen: pen);
+          }
+        } finally {
+          g.restore(state);
         }
+        return await doc.save();
       } finally {
-        g.restore(state);
+        doc.dispose();
       }
-      return await doc.save();
-    } finally {
-      doc.dispose();
-    }
+    });
   }
 
   /// **P19 — aranabilir PDF:** OCR satırlarını sayfaya GÖRÜNMEZ (saydamlık 0)

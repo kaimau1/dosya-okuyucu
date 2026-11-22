@@ -249,6 +249,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       path = LegacyConvert.uniquePath(dir.path, base, ext);
       await File(path).writeAsBytes(data, flush: true);
     }
+    if (ext == 'pdf' && mounted) {
+      await recordPdfEditActivity(context, path,
+          detail: _str.t('ps.act_edited'));
+    }
     if (!mounted) return;
     showSnack(
       context,
@@ -944,6 +948,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final dir = await DocsHome.resolve();
     final path = LegacyConvert.uniquePath(dir.path, base, ext);
     await File(path).writeAsBytes(data, flush: true);
+    if (mounted) {
+      await recordPdfEditActivity(context, path,
+          detail: _str.t('ps.act_edited'));
+    }
     if (!mounted) return;
     showSnack(
       context,

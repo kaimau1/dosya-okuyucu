@@ -183,17 +183,44 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
     });
   }
 
+  void _migrateSheetNameKeys(String from, String to) {
+    final stack = _undoBySheet.remove(from);
+    if (stack != null) _undoBySheet[to] = stack;
+    final pivot = _pivots.remove(from);
+    if (pivot != null) _pivots[to] = pivot;
+    for (final k in _pivots.keys.toList()) {
+      final link = _pivots[k]!;
+      if (link.source == from) {
+        _pivots[k] = _PivotLink(to, link.range, link.spec);
+      }
+    }
+    if (_clipSheetName == from) _clipSheetName = to;
+    if (_arrowsSheet == from) _arrowsSheet = to;
+  }
+
   Future<void> _renameSheet(XlsxSheet sheet) async {
     final editor = _editor;
     if (editor == null) return;
-    final name = await _askSheetName(context.t('excel.rename_sheet'), sheet.name);
-    if (name == null || !mounted || name == sheet.name) return;
+    final oldName = sheet.name;
+    final name = await _askSheetName(context.t('excel.rename_sheet'), oldName);
+    if (name == null || !mounted || name == oldName) return;
     if (editor.hasSheet(name)) {
       _snack(context.t('excel.sheet_name_taken'));
       return;
     }
-    if (!editor.renameSheet(sheet.name, name)) return;
+    if (!editor.renameSheet(oldName, name)) return;
+    _migrateSheetNameKeys(oldName, name);
+    _recordStep('excel.rename_sheet', () {
+      if (editor.renameSheet(oldName, name)) {
+        _migrateSheetNameKeys(oldName, name);
+      }
+    }, () {
+      if (editor.renameSheet(name, oldName)) {
+        _migrateSheetNameKeys(name, oldName);
+      }
+    });
     _session.changed();
+    _gridVersion++;
     _partSetState(() {});
   }
 
@@ -249,7 +276,7 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
               child: Text(ctx.t('common.ok'))),
         ],
       ),
-    ).then((v) => v == null || v.isEmpty ? null : v);
+    ).whenComplete(ctrl.dispose).then((v) => v == null || v.isEmpty ? null : v);
   }
 
   Future<void> _showGoTo() async {

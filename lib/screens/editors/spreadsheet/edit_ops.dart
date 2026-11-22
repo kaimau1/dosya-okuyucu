@@ -13,6 +13,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   }
 
   void _onVScroll() {
+    final down = _vBody.hasClients && _vBody.offset > 0.5;
+    if (down != _scrolledDown.value) _scrolledDown.value = down;
     // Kenara yaklaşınca ızgara büyür (Faz 25 / madde 12).
     if (_vBody.hasClients && _vBody.position.extentAfter < 400 &&
         _vBody.position.maxScrollExtent > 0) {
@@ -383,10 +385,16 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   }
 
   void _autoFitRows(XlsxSheet sheet) {
+    final fitKey = '${sheet.name}|${sheet.layout.colWidths.length}|'
+        '${sheet.layout.rowHeights.length}|$_autoFitVersion';
+    if (fitKey == _autoFitKey) return;
+    _autoFitKey = fitKey;
     sheet.autoRowHeights.clear();
     final byRow = <int, List<double>>{};
     var measured = 0;
+    var visited = 0;
     for (final entry in sheet.layout.cells.entries) {
+      if (++visited > 8000) break;
       if (measured >= _SpreadsheetEditorScreenState._autoFitCellLimit) break;
       final r = rowOfKey(entry.key);
       final c = colOfKey(entry.key);
@@ -453,18 +461,26 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
           (rtl ? TextAlign.right : TextAlign.left);
       final merged = sheet.mergeAt(r, c) != null;
       final wrap = style?.wrap ?? false;
+      final colW = sheet.colWidth(c);
+      final pad = SheetCell.horizontalPadding(style);
+      final definitelyFits =
+          view.text.length * ((style?.fontSize ?? 11) * 0.75) + pad <= colW;
       cells.add(SheetSpillCell(
         col: c,
         text: view.text,
-        columnWidth: sheet.colWidth(c),
+        columnWidth: colW,
         // Faz 26b: sayı / kaydırılan / birleşik hücre hiç taşmaz
         // (`planRowSpill` onları atlar) — ölçmek kaydırmada kare başına
-        // yüzlerce boşa metin düzeni demekti.
-        textWidth: view.text.isEmpty || view.numeric || wrap || merged
+        // yüzlerce boşa metin düzeni demekti. Kısa metin de kesin sığar.
+        textWidth: view.text.isEmpty ||
+                view.numeric ||
+                wrap ||
+                merged ||
+                definitelyFits
             ? 0
             : _measure.widthOf(view.text,
                     SheetCell.metricsStyle(style, numeric: view.numeric)) +
-                SheetCell.horizontalPadding(style),
+                pad,
         wrap: wrap,
         merged: merged,
         numeric: view.numeric,
@@ -657,6 +673,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// adım olsaydı kullanıcı "geri al"a iki kez basmak zorunda kalırdı.
   void _editCells(String label, Map<CellRef, String> values,
       {Map<CellRef, CellRef>? formatSources,
+      String? formatSourceSheet,
       Map<CellRef, String>? numberFormats}) {
     final sheet = _sheet;
     final editor = _editor;
@@ -677,25 +694,114 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final numFmts = numberFormats ?? const <CellRef, String>{};
     if (valueStep.isNoop && formats.isEmpty) return;
 
+    final touchesWrap = formats.isNotEmpty ||
+        values.entries.any((e) =>
+            e.value.contains('\n') ||
+            sheet.rawAt(e.key.row, e.key.col).contains('\n') ||
+            (sheet.styleAt(e.key.row, e.key.col)?.wrap ?? false));
+
+    final srcSheetName = formatSourceSheet ?? name;
     final stylesBefore = <CellRef, XlsxCellStyle?>{
       for (final at in {...formats.keys, ...numFmts.keys})
         at: sheet.overrideAt(at.row, at.col),
     };
+    final styleEditsBefore = <(int, int), XlsxStyleEdit?>{
+      for (final at in formats.keys)
+        (at.row, at.col): sheet.styleEdits[(at.row, at.col)],
+    };
+    final styleCopiesBefore = <(int, int), (int, int)?>{
+      for (final at in formats.keys)
+        (at.row, at.col): sheet.styleCopies[(at.row, at.col)],
+    };
     final numFmtBefore = <CellRef, String?>{
-      for (final at in numFmts.keys)
+      for (final at in {...formats.keys, ...numFmts.keys})
         at: sheet.numberFormatEdits[(at.row, at.col)],
     };
     final step = _CallbackStep(
       label,
       () {
         valueStep.apply();
-        formats.forEach((at, src) =>
-            editor.copyCellFormat(name, src.row, src.col, at.row, at.col));
+        if (srcSheetName == name) {
+          formats.forEach((at, src) =>
+              editor.copyCellFormat(name, src.row, src.col, at.row, at.col));
+        } else {
+          final srcSheet = editor.sheets
+                  .where((s) => s.name == srcSheetName)
+                  .firstOrNull ??
+              sheet;
+          formats.forEach((at, src) {
+            final srcStyle = srcSheet.styleAt(src.row, src.col);
+            if (srcStyle?.fontSize != null) {
+              editor.setFontSize(name, at.row, at.col, srcStyle!.fontSize);
+            }
+            sheet.patchStyle(at.row, at.col, srcStyle);
+            if (srcStyle != null) {
+              final baseEdit = XlsxStyleEdit(
+                bold: srcStyle.bold ? true : null,
+                italic: srcStyle.italic ? true : null,
+                underline: srcStyle.underline ? true : null,
+                strike: srcStyle.strike ? true : null,
+                fontName: srcStyle.fontFamily,
+                fontArgb: srcStyle.fontColor?.toARGB32(),
+                fillArgb: srcStyle.background?.toARGB32(),
+                wrap: srcStyle.wrap ? true : null,
+                hAlign: srcStyle.hAlign == XlsxHAlign.general
+                    ? null
+                    : srcStyle.hAlign.name,
+                vAlign: srcStyle.vAlign == XlsxVAlign.bottom
+                    ? null
+                    : srcStyle.vAlign.name,
+                indent: srcStyle.indent > 0 ? srcStyle.indent : null,
+                rotation: srcStyle.rotation != 0 ? srcStyle.rotation : null,
+                borders: {
+                  if (srcStyle.border.left.visible)
+                    'left': srcStyle.border.left.style,
+                  if (srcStyle.border.right.visible)
+                    'right': srcStyle.border.right.style,
+                  if (srcStyle.border.top.visible)
+                    'top': srcStyle.border.top.style,
+                  if (srcStyle.border.bottom.visible)
+                    'bottom': srcStyle.border.bottom.style,
+                },
+              );
+              final prevEdit = sheet.styleEdits[(at.row, at.col)];
+              final withBase =
+                  prevEdit == null ? baseEdit : prevEdit.merge(baseEdit);
+              final srcEdit = srcSheet.styleEdits[(src.row, src.col)];
+              final mergedEdit =
+                  srcEdit == null ? withBase : withBase.merge(srcEdit);
+              if (!mergedEdit.isEmpty) {
+                sheet.styleEdits[(at.row, at.col)] = mergedEdit;
+              }
+              final srcFmt = srcSheet.numberFormatEdits[(src.row, src.col)] ??
+                  (srcStyle.numFmtCode != 'General'
+                      ? srcStyle.numFmtCode
+                      : null);
+              if (srcFmt != null) {
+                sheet.numberFormatEdits[(at.row, at.col)] = srcFmt;
+              }
+            }
+          });
+        }
         numFmts.forEach((at, code) => sheet.setNumberFormat(at.row, at.col, code));
       },
       () {
         valueStep.revert();
         stylesBefore.forEach((at, s) => sheet.patchStyle(at.row, at.col, s));
+        styleEditsBefore.forEach((k, edit) {
+          if (edit == null) {
+            sheet.styleEdits.remove(k);
+          } else {
+            sheet.styleEdits[k] = edit;
+          }
+        });
+        styleCopiesBefore.forEach((k, cp) {
+          if (cp == null) {
+            sheet.styleCopies.remove(k);
+          } else {
+            sheet.styleCopies[k] = cp;
+          }
+        });
         numFmtBefore.forEach((at, code) {
           if (code == null) {
             sheet.numberFormatEdits.remove((at.row, at.col));
@@ -703,16 +809,12 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
             sheet.numberFormatEdits[(at.row, at.col)] = code;
           }
         });
-        // Kaydetmeye giden iz de silinir; yoksa geri alınmış bir yapıştırmanın
-        // biçimi dosyaya yine yazılırdı.
-        for (final at in formats.keys) {
-          sheet.styleCopies.remove((at.row, at.col));
-        }
       },
     );
     _undo.push(step);
     _session.changed();
     _gridVersion++; // yazma kullanılan alanı büyütebilir → ölçüler yenilenir
+    if (touchesWrap) _autoFitVersion++;
     // Yapıştırma/doldurma/Σ imlecin ALTINDAKİ değeri de değiştirmiş olabilir;
     // formül çubuğu tazelenmezse eski değeri gösterip bir sonraki düzenlemede
     // onu geri yazardı.
@@ -740,6 +842,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     _editing = false;
     _session.changed();
     _gridVersion++;
+    _autoFitVersion++;
     final sheet = _sheet;
     if (sheet != null) {
       // Yapısal geri alma satır/sütun sayısını değiştirmiş olabilir; imleç
@@ -768,6 +871,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     }
     _session.changed();
     _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
     _syncField();
   }
@@ -852,6 +956,14 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     if (sheet == null) return;
     _endEdit();
     final r = _range;
+    final engine = _engineFor(sheet);
+    final displayValues = [
+      for (var row = r.top; row <= r.bottom; row++)
+        [
+          for (var col = r.left; col <= r.right; col++)
+            engine.displayValue(row, col),
+        ],
+    ];
     final clip = SheetClip(
       values: [
         for (var row = r.top; row <= r.bottom; row++)
@@ -860,7 +972,11 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       origin: CellRef(r.top, r.left),
       cut: cut,
     );
-    _partSetState(() => _clip = clip);
+    _partSetState(() {
+      _clip = clip;
+      _clipSheetName = sheet.name;
+      _clipDisplayValues = displayValues;
+    });
     // Sistem panosuna TSV: kullanıcı başka bir uygulamaya (gerçek Excel dahil)
     // yapıştırabilsin.
     await Clipboard.setData(ClipboardData(text: clip.toTsv()));
@@ -897,18 +1013,35 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     // Excel yapıştırırken hücrenin BİÇİMİNİ de taşır. Yalnız uygulama içi
     // panoda yapılabilir: sistem panosundan gelen düz metnin biçimi yok.
     final formats = _clip == null ? null : pasteSources(clip, _range);
+    final srcSheet = _clipSheetName;
     if (clip.cut) {
       // Kesmede kaynak da aynı adımda temizlenir; iki ayrı adım olsaydı
       // "geri al" yarım bir durum bırakırdı.
-      for (var r = 0; r < clip.rows; r++) {
-        for (var c = 0; c < clip.cols; c++) {
-          final at = CellRef(clip.origin.row + r, clip.origin.col + c);
-          values.putIfAbsent(at, () => '');
+      if (srcSheet == null || srcSheet == sheet.name) {
+        for (var r = 0; r < clip.rows; r++) {
+          for (var c = 0; c < clip.cols; c++) {
+            final at = CellRef(clip.origin.row + r, clip.origin.col + c);
+            values.putIfAbsent(at, () => '');
+          }
+        }
+      } else if (_editor != null) {
+        for (var r = 0; r < clip.rows; r++) {
+          for (var c = 0; c < clip.cols; c++) {
+            _editor!.setCell(
+                srcSheet, clip.origin.row + r, clip.origin.col + c, '');
+          }
         }
       }
     }
-    _editCells('excel.undo_paste', values, formatSources: formats);
-    if (clip.cut) _partSetState(() => _clip = null);
+    _editCells('excel.undo_paste', values,
+        formatSources: formats, formatSourceSheet: srcSheet);
+    if (clip.cut) {
+      _partSetState(() {
+        _clip = null;
+        _clipSheetName = null;
+        _clipDisplayValues = null;
+      });
+    }
   }
 
   /// Seçili aralığın içeriğini siler (Excel'de Delete tuşu).
@@ -929,8 +1062,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     final range = autoSumRange(
         _selRow, _selCol, (r, c) => sheet.isNumericAt(r, c));
     final formula = range == null
-        ? '=TOPLA()'
-        : '=TOPLA(${CellRef(range.top, range.left)}:'
+        ? '=SUM()'
+        : '=SUM(${CellRef(range.top, range.left)}:'
             '${CellRef(range.bottom, range.right)})';
     _editCells('excel.undo_autosum', {CellRef(_selRow, _selCol): formula});
     if (range == null && mounted) _snack(context.t('excel.autosum_empty'));

@@ -298,6 +298,7 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
   late int? _top = widget.initial.top;
   late bool _bottom = widget.initial.bottom;
   late int? _fill = widget.initial.fillArgb;
+  bool _boxesTouched = false;
 
   @override
   void dispose() {
@@ -307,9 +308,9 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
 
   ColumnFilter _result() {
     if (_top != null) return ColumnFilter(top: _top, bottom: _bottom);
-    final q = _search.text.trim();
-    if (q.isNotEmpty) return ColumnFilter(contains: q);
     if (_fill != null) return ColumnFilter(fillArgb: _fill);
+    final q = _search.text.trim();
+    if (q.isNotEmpty && !_boxesTouched) return ColumnFilter(contains: q);
     return ColumnFilter(hiddenValues: _off);
   }
 
@@ -330,6 +331,7 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
           onSelected: (on) => setState(() {
             _top = on ? 10 : null;
             _bottom = bottom;
+            if (on) _fill = null;
           }),
         );
     return SafeArea(
@@ -373,7 +375,11 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
                   prefixIcon: const Icon(AppIcons.search, size: 18),
                   hintText: t.t('excel.filter_contains'),
                 ),
-                onChanged: (_) => setState(() => _top = null),
+                onChanged: (_) => setState(() {
+                  _top = null;
+                  _fill = null;
+                  _boxesTouched = false;
+                }),
               ),
             ),
             Padding(
@@ -393,8 +399,10 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
                         label: const SizedBox(width: 16, height: 16),
                         avatar: CircleAvatar(backgroundColor: Color(argb)),
                         selected: _fill == argb,
-                        onSelected: (on) =>
-                            setState(() => _fill = on ? argb : null),
+                        onSelected: (on) => setState(() {
+                          _fill = on ? argb : null;
+                          if (on) _top = null;
+                        }),
                       ),
                   ],
                 ],
@@ -403,12 +411,17 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
             const Divider(height: 1),
             CheckboxListTile(
               dense: true,
-              value: _off.isEmpty,
+              value: shown.isNotEmpty && !shown.any(_off.contains),
               title: Text(t.t('excel.filter_all')),
               onChanged: (v) => setState(() {
-                _off
-                  ..clear()
-                  ..addAll(v == true ? const <String>[] : widget.values);
+                _boxesTouched = true;
+                _top = null;
+                _fill = null;
+                if (v == true) {
+                  _off.removeAll(shown);
+                } else {
+                  _off.addAll(shown);
+                }
               }),
             ),
             const Divider(height: 1),
@@ -424,6 +437,9 @@ class _ColumnFilterSheetState extends State<_ColumnFilterSheet> {
                     title: Text(v.isEmpty ? t.t('excel.filter_blank') : v,
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     onChanged: (on) => setState(() {
+                      _boxesTouched = true;
+                      _top = null;
+                      _fill = null;
                       on == true ? _off.remove(v) : _off.add(v);
                     }),
                   );

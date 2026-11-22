@@ -211,6 +211,7 @@ class TranslateFlow {
       originalPath: path,
       bytes: result.bytes,
       note: note,
+      activityDetail: str.t('ps.act_translated'),
     );
   }
 

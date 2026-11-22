@@ -328,9 +328,15 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     final doc = _pdfDoc;
     if (doc == null || page < 0 || page >= doc.pages.length) return;
     try {
-      // Görünen alanın üst-ortası (sayfa uzayı).
+      // Görünen alanın üst-ortası (ham sayfa uzayına dönüştürülür).
       final p = doc.pages[page];
-      await pro.pasteBlock(page, 56, p.height * 0.5, label: 'pse.step_paste');
+      final rawW = p.rotation.index.isOdd ? p.height : p.width;
+      final rawH = p.rotation.index.isOdd ? p.width : p.height;
+      final pt = Offset(56, p.height * 0.5)
+          .toPdfPoint(page: p, scaledPageSize: Size(p.width, p.height));
+      final x = pt.x.clamp(24.0, math.max(56.0, rawW - 96)).toDouble();
+      final y = pt.y.clamp(24.0, math.max(24.0, rawH - 24)).toDouble();
+      await pro.pasteBlock(page, x, y, label: 'pse.step_paste');
     } catch (e) {
       _proRefused(e);
     }
@@ -390,10 +396,12 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     if (replace != null) {
       m = replace.matrix;
     } else {
-      // Sayfanın ortasına, genişliğin en çok yarısı.
-      final w = math.min(p.width * 0.5, im.width.toDouble());
+      // Sayfanın ortasına, genişliğin en çok yarısı (ham sayfa boyutlarına göre).
+      final rawW = p.rotation.index.isOdd ? p.height : p.width;
+      final rawH = p.rotation.index.isOdd ? p.width : p.height;
+      final w = math.min(rawW * 0.5, im.width.toDouble());
       final h = w * im.height / im.width;
-      m = [w, 0, 0, h, (p.width - w) / 2, (p.height - h) / 2];
+      m = [w, 0, 0, h, (rawW - w) / 2, (rawH - h) / 2];
     }
     try {
       await pro.mutate(page, [
@@ -769,21 +777,31 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   /// Sayfalar · Daha fazla. Okuma kipindeki çubukla aynı yükseklikte — gövde
   /// payı değişmez.
   Widget _proToolBar(PdfProEditController pro) {
+    Future<void> commitThen(FutureOr<void> Function() fn) async {
+      if (pro.live != null) {
+        await _proDone();
+        if (pro.live != null || !mounted || _pro != pro) return;
+      }
+      await fn();
+    }
+
     DocAction tool(PdfProTool t, IconData icon, String key) => DocAction(
-        icon, context.t(key), pro.busy ? null : () => pro.tool = t,
+        icon,
+        context.t(key),
+        pro.busy ? null : () => unawaited(commitThen(() => pro.tool = t)),
         active: pro.tool == t);
     return DocActionBar([
       tool(PdfProTool.text, AppIcons.textFields, 'pse.tool_text'),
       tool(PdfProTool.image, AppIcons.image, 'pse.tool_image'),
       tool(PdfProTool.markup, AppIcons.highlighter, 'pse.tool_markup'),
       DocAction(AppIcons.draw, context.t('pse.tool_sign'),
-          pro.busy ? null : _signPdf),
+          pro.busy ? null : () => unawaited(commitThen(_signPdf))),
       DocAction(AppIcons.formView, context.t('pse.tool_form'),
-          pro.busy ? null : _fillPdfForm),
+          pro.busy ? null : () => unawaited(commitThen(_fillPdfForm))),
       DocAction(AppIcons.thumbnails, context.t('pse.tool_pages'),
-          pro.busy ? null : _proPages),
+          pro.busy ? null : () => unawaited(commitThen(_proPages))),
       DocAction(AppIcons.moreHoriz, context.t('pse.tool_more'),
-          pro.busy ? null : _proMore),
+          pro.busy ? null : () => unawaited(commitThen(_proMore))),
     ]);
   }
 

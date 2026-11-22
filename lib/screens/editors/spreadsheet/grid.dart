@@ -234,7 +234,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       )))),
           if (_editing) _floatingEditor(constraints),
           // Kaydırınca sabit başlığın altında ince gölge (Faz 36 madde 7):
-          // yalnız kaydırma konumu değişince boyanır, boşta kare üretmez.
+          // yalnız kaydırma eşiği geçilince boyanır, her pikselde tetiklenmez.
           Positioned(
             top: topH,
             left: 0,
@@ -242,24 +242,49 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
             height: 6,
             child: IgnorePointer(
               child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: _vBody,
-                  builder: (context, _) =>
-                      _vBody.hasClients && _vBody.offset > 0.5
-                          ? const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [AppColors.shadow, AppColors.none],
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _scrolledDown,
+                  builder: (context, down, _) => down
+                      ? const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [AppColors.shadow, AppColors.none],
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
             ),
           ),
+          if (_resizePreviewSize != null &&
+              (_resizeCol != null || _resizeRow != null))
+            Positioned(
+              top: topH + 8,
+              left: leftW + 8,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.inverseSurface,
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      _resizeCol != null
+                          ? '${XlsxRange.colName(_resizeCol!)}: ${_resizePreviewSize!.toStringAsFixed(1)}'
+                          : '${_resizeRow! + 1}: ${_resizePreviewSize!.toStringAsFixed(1)} pt',
+                      style: context.type.small.copyWith(
+                        color: Theme.of(context).colorScheme.onInverseSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ..._selectionHandles(),
         ],
       );
@@ -405,42 +430,44 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
               _endEdit();
               _resizeCol = col;
               _resizeStart = sheet.layout.colWidthChars(col);
+              _resizePreviewSize = _resizeStart;
+              _partSetState(() {});
             },
       onHorizontalDragUpdate: !isCol
           ? null
           : (d) {
               if (_resizeCol == null) return;
               // Piksel → karakter: Excel'in sütun birimi ~7 px'lik "0" genişliği.
-              _resizeStart =
-                  (_resizeStart + d.delta.dx / (7 * _zoom)).clamp(0.0, 255.0);
-              sheet.setColWidthChars(col, _resizeStart);
-              _session.changed();
-              _gridVersion++;
+              _resizePreviewSize =
+                  ((_resizePreviewSize ?? _resizeStart) +
+                          d.delta.dx / (7 * _zoom))
+                      .clamp(0.0, 255.0);
               _partSetState(() {});
             },
-      onHorizontalDragEnd: !isCol ? null : (_) => _partSetState(() => _resizeCol = null),
-      onHorizontalDragCancel: !isCol ? null : () => _partSetState(() => _resizeCol = null),
+      onHorizontalDragEnd: !isCol ? null : (_) => _endResize(sheet),
+      onHorizontalDragCancel: !isCol ? null : _cancelResize,
       onVerticalDragStart: isCol
           ? null
           : (_) {
               _endEdit();
               _resizeRow = row;
               _resizeStart = sheet.layout.rowHeightPt(row!);
+              _resizePreviewSize = _resizeStart;
+              _partSetState(() {});
             },
       onVerticalDragUpdate: isCol
           ? null
           : (d) {
               if (_resizeRow == null) return;
               // Piksel → punto: 1 pt ≈ 4/3 px.
-              _resizeStart =
-                  (_resizeStart + d.delta.dy * 0.75 / _zoom).clamp(0.0, 409.0);
-              sheet.setRowHeightPt(row!, _resizeStart);
-              _session.changed();
-              _gridVersion++;
+              _resizePreviewSize =
+                  ((_resizePreviewSize ?? _resizeStart) +
+                          d.delta.dy * 0.75 / _zoom)
+                      .clamp(0.0, 409.0);
               _partSetState(() {});
             },
-      onVerticalDragEnd: isCol ? null : (_) => _partSetState(() => _resizeRow = null),
-      onVerticalDragCancel: isCol ? null : () => _partSetState(() => _resizeRow = null),
+      onVerticalDragEnd: isCol ? null : (_) => _endResize(sheet),
+      onVerticalDragCancel: isCol ? null : _cancelResize,
       child: Align(
         alignment: isCol ? Alignment.centerRight : Alignment.bottomCenter,
         child: Container(
@@ -453,5 +480,45 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
         ),
       ),
     );
+  }
+
+  void _endResize(XlsxSheet sheet) {
+    final col = _resizeCol;
+    final row = _resizeRow;
+    final next = _resizePreviewSize;
+    final prev = _resizeStart;
+    _resizeCol = null;
+    _resizeRow = null;
+    _resizePreviewSize = null;
+    if (col != null && next != null && (next - prev).abs() > 0.01) {
+      sheet.setColWidthChars(col, next);
+      _recordStep(
+        'excel.column_width',
+        () => sheet.setColWidthChars(col, next),
+        () => sheet.setColWidthChars(col, prev),
+      );
+      _session.changed();
+      _gridVersion++;
+      _autoFitVersion++;
+    } else if (row != null && next != null && (next - prev).abs() > 0.01) {
+      sheet.setRowHeightPt(row, next);
+      _recordStep(
+        'excel.row_height',
+        () => sheet.setRowHeightPt(row, next),
+        () => sheet.setRowHeightPt(row, prev),
+      );
+      _session.changed();
+      _gridVersion++;
+      _autoFitVersion++;
+    }
+    _partSetState(() {});
+  }
+
+  void _cancelResize() {
+    _partSetState(() {
+      _resizeCol = null;
+      _resizeRow = null;
+      _resizePreviewSize = null;
+    });
   }
 }

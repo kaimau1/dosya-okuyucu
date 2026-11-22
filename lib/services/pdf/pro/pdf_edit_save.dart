@@ -127,11 +127,22 @@ class PdfEditSaver {
 
   /// PDFium ekinin kırpılması saf Dart'tır ve büyük belgede ana iş
   /// parçacığını tutardı (30 sn'lik geçici kayıt yazarken takılma) → ayrı
-  /// izolatta.
-  static Future<Uint8List> _trimmed(Uint8List base, Uint8List saved) =>
-      Isolate.run(() => PdfLinkDests.resolve(
-          PdfIncrementalTrim.trim(base, saved),
-          from: base.length));
+  /// izolatta (`TransferableTypedData` ile sıfır-kopya aktarım).
+  static Future<Uint8List> _trimmed(Uint8List base, Uint8List saved) async {
+    final baseLen = base.length;
+    final baseT = TransferableTypedData.fromList([base]);
+    final savedT = TransferableTypedData.fromList([saved]);
+    final outT = await Isolate.run(() {
+      final b = baseT.materialize().asUint8List();
+      final s = savedT.materialize().asUint8List();
+      final res = PdfLinkDests.resolve(
+        PdfIncrementalTrim.trim(b, s),
+        from: baseLen,
+      );
+      return TransferableTypedData.fromList([res]);
+    });
+    return outT.materialize().asUint8List();
+  }
 
   /// Özgüne artımlı yazar; yazılamıyorsa Belgeler'e kopya.
   Future<PdfEditSaveResult> save() async {

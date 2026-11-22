@@ -53,33 +53,39 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     final sheet = _sheet;
     if (editor == null || sheet == null) return;
     final ctrl = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('excel.cond_format')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: type == 'cellIs'
-              ? const TextInputType.numberWithOptions(decimal: true)
-              : TextInputType.text,
-          decoration: InputDecoration(
-              labelText: ctx.t(type == 'cellIs'
-                  ? 'excel.cond_value'
-                  : 'excel.cond_text')),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+    final String? value;
+    try {
+      value = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.t('excel.cond_format')),
+          content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: type == 'cellIs'
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.text,
+            decoration: InputDecoration(
+                labelText: ctx.t(type == 'cellIs'
+                    ? 'excel.cond_value'
+                    : 'excel.cond_text')),
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(ctx.t('common.cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                child: Text(ctx.t('common.ok'))),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-              child: Text(ctx.t('common.ok'))),
-        ],
-      ),
-    );
+      );
+    } finally {
+      ctrl.dispose();
+    }
     if (value == null || value.isEmpty || !mounted) return;
+    final val = value;
 
     await _pickColor(context.t('excel.fill_color'), (color) {
       final range = _range;
@@ -95,8 +101,8 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           range: xr,
           type: type,
           operator: operator,
-          formulas: type == 'cellIs' ? [value] : const [],
-          text: type == 'cellIs' ? null : value,
+          formulas: type == 'cellIs' ? [val] : const [],
+          text: type == 'cellIs' ? null : val,
           fillArgb: fill,
         );
       }
@@ -157,6 +163,16 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
         for (var c = range.left; c <= range.right; c++)
           CellRef(r, c): (sheet.styleAt(r, c) ?? const XlsxCellStyle()).border,
     };
+    final overridesBefore = <CellRef, XlsxCellStyle?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): sheet.overrideAt(r, c),
+    };
+    final editsBefore = <(int, int), XlsxStyleEdit?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          (r, c): sheet.styleEdits[(r, c)],
+    };
     void applyNow() {
       for (var r = range.top; r <= range.bottom; r++) {
         for (var c = range.left; c <= range.right; c++) {
@@ -178,6 +194,15 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             'top': b.top.visible ? b.top.style : null,
             'bottom': b.bottom.visible ? b.bottom.style : null,
           }));
+      overridesBefore
+          .forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+      editsBefore.forEach((k, edit) {
+        if (edit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = edit;
+        }
+      });
     });
     _session.changed();
     _partSetState(() {});

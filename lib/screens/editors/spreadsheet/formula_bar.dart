@@ -137,6 +137,9 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               onPressed: () {
                 _editing = false;
                 _applyCell(_cellField.text);
+                _keypadPanel.close();
+                _barFocus.unfocus();
+                _cellFocus.unfocus();
               },
             ),
           ],
@@ -157,6 +160,61 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
             icon: Icon(
                 _ribbonOpen ? AppIcons.expandLess : AppIcons.expandMore),
             onPressed: () => _partSetState(() => _ribbonOpen = !_ribbonOpen),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Seçili hücrede veri doğrulama giriş iletisi varsa kompakt, kapatılabilir
+  /// ipucu kartı.
+  Widget _validationPromptBanner() {
+    final v = _sheet?.validationAt(_selRow, _selCol);
+    if (v == null || !v.showInputMessage) return const SizedBox.shrink();
+    if (_dismissedPromptCell == (_selRow, _selCol)) {
+      return const SizedBox.shrink();
+    }
+    final title = v.promptTitle?.trim() ?? '';
+    final body = v.prompt?.trim() ?? '';
+    if (title.isEmpty && body.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('xl-validation-prompt'),
+      width: double.infinity,
+      color: scheme.secondaryContainer.withValues(alpha: 0.65),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 4, 4, 4),
+      child: Row(
+        children: [
+          Icon(AppIcons.info, size: 16, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: context.type.small
+                    .copyWith(color: scheme.onSecondaryContainer),
+                children: [
+                  if (title.isNotEmpty)
+                    TextSpan(
+                      text: body.isEmpty ? title : '$title: ',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  if (body.isNotEmpty) TextSpan(text: body),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('xl-validation-prompt-close'),
+            tooltip: context.t('common.close'),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            iconSize: 16,
+            icon: Icon(AppIcons.close, color: scheme.onSecondaryContainer),
+            onPressed: () => _partSetState(
+                () => _dismissedPromptCell = (_selRow, _selCol)),
           ),
         ],
       ),

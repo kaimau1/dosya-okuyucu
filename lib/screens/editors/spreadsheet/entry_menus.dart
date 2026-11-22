@@ -210,8 +210,25 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         final sheet = _sheet;
         if (sheet == null) break;
         final range = _range;
-        _sortByColumn(sheet, _selCol, range.top, math.max(range.bottom,
-            sheet.maxRows - 1), picked == 'sort_asc');
+        var r1 = range.top;
+        final r2 = _hasRange
+            ? range.bottom
+            : math.max(range.bottom, sheet.maxRows - 1);
+        if (!_hasRange && r1 == 0 && r2 > 0) {
+          final f = _filterRange(sheet);
+          final filterHeader = f != null && f.r1 == 0;
+          final row0Text = sheet.rawAt(0, _selCol).trim().isNotEmpty &&
+              !sheet.isNumericAt(0, _selCol);
+          final row1Diff = sheet.isNumericAt(1, _selCol) ||
+              (sheet.styleAt(0, _selCol)?.bold ?? false) !=
+                  (sheet.styleAt(1, _selCol)?.bold ?? false) ||
+              Iterable<int>.generate(sheet.maxCols).any(
+                  (c) => !sheet.isNumericAt(0, c) && sheet.isNumericAt(1, c));
+          if (filterHeader || (row0Text && row1Diff)) {
+            r1 = 1;
+          }
+        }
+        _sortByColumn(sheet, _selCol, r1, r2, picked == 'sort_asc');
     }
   }
 
@@ -224,7 +241,14 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
       _snack(context.t('excel.nothing_to_paste'));
       return;
     }
-    final engine = _engineFor(sheet);
+    final editor = _editor;
+    final srcSheetName = _clipSheetName ?? sheet.name;
+    final srcSheet = editor?.sheets
+            .where((s) => s.name == srcSheetName)
+            .firstOrNull ??
+        sheet;
+    final srcEngine = _engineFor(srcSheet);
+    final disp = _clipDisplayValues;
     final out = <CellRef, String>{};
     final fmt = <CellRef, CellRef>{};
     for (var i = 0; i < clip.rows; i++) {
@@ -235,9 +259,15 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         final src = CellRef(clip.origin.row + i, clip.origin.col + j);
         if (!formats) {
           final raw = clip.values[i][j];
-          out[dst] = values && raw.startsWith('=')
-              ? engine.displayValue(src.row, src.col)
-              : (transpose ? raw : raw);
+          final cachedDisp =
+              disp != null && i < disp.length && j < disp[i].length
+                  ? disp[i][j]
+                  : null;
+          out[dst] = values
+              ? (raw.startsWith('=')
+                  ? (cachedDisp ?? srcEngine.displayValue(src.row, src.col))
+                  : (cachedDisp ?? raw))
+              : raw;
         }
         if (formats || transpose) fmt[dst] = src;
       }
@@ -248,7 +278,33 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         out[d] = sheet.rawAt(d.row, d.col);
       }
     }
-    _editCells('excel.undo_paste', out, formatSources: fmt.isEmpty ? null : fmt);
+    if (transpose && clip.cut) {
+      if (srcSheetName == sheet.name) {
+        for (var r = 0; r < clip.rows; r++) {
+          for (var c = 0; c < clip.cols; c++) {
+            final at = CellRef(clip.origin.row + r, clip.origin.col + c);
+            out.putIfAbsent(at, () => '');
+          }
+        }
+      } else if (editor != null) {
+        for (var r = 0; r < clip.rows; r++) {
+          for (var c = 0; c < clip.cols; c++) {
+            editor.setCell(
+                srcSheetName, clip.origin.row + r, clip.origin.col + c, '');
+          }
+        }
+      }
+    }
+    _editCells('excel.undo_paste', out,
+        formatSources: fmt.isEmpty ? null : fmt,
+        formatSourceSheet: srcSheetName);
+    if (transpose && clip.cut) {
+      _partSetState(() {
+        _clip = null;
+        _clipSheetName = null;
+        _clipDisplayValues = null;
+      });
+    }
   }
 
   /// Yalnız formüller (B10 m.7): değer/formül başvuruları normal yapıştırma
@@ -268,9 +324,11 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
     if (sheet == null || editor == null) return;
     final range = _range;
     final before = <CellRef, XlsxCellStyle?>{};
+    final editsBefore = <(int, int), XlsxStyleEdit?>{};
     for (var r = range.top; r <= range.bottom; r++) {
       for (var c = range.left; c <= range.right; c++) {
         before[CellRef(r, c)] = sheet.overrideAt(r, c);
+        editsBefore[(r, c)] = sheet.styleEdits[(r, c)];
       }
     }
     void apply() {
@@ -283,12 +341,19 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
     apply();
     _recordStep('excel.clear_formats', apply, () {
       before.forEach((at, s) {
+        final k = (at.row, at.col);
         sheet.patchStyle(at.row, at.col, s);
-        sheet.styleEdits.remove((at.row, at.col));
+        final prevEdit = editsBefore[k];
+        if (prevEdit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = prevEdit;
+        }
       });
     });
     _session.changed();
     _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
   }
 
