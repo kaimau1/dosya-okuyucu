@@ -459,14 +459,20 @@ class AppTheme {
               BorderRadius.vertical(top: Radius.circular(metrics.radiusSheet)),
         ),
       ),
+      // Tostla aynı kart dili (2026-11-22): kart zemini, ince kenarlık,
+      // mürekkep yazı, vurgu renginde eylem.
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         insetPadding: const EdgeInsets.all(Gap.md),
+        backgroundColor: scheme.surfaceContainerLow,
+        actionTextColor: scheme.primary,
+        closeIconColor: scheme.onSurfaceVariant,
+        elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(metrics.radiusControl),
+          side: BorderSide(color: scheme.outlineVariant),
         ),
-        contentTextStyle:
-            text.bodyMedium?.copyWith(color: scheme.onInverseSurface),
+        contentTextStyle: text.bodyMedium?.copyWith(color: scheme.onSurface),
       ),
 
       dividerTheme: DividerThemeData(

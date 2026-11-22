@@ -181,7 +181,7 @@ class AktarAlServisi : android.app.Service() {
             android.app.PendingIntent.FLAG_IMMUTABLE
         )
         val b = builder()
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(android.R.drawable.stat_sys_download).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
             .setContentTitle(text("title", "Dosya alımı açık"))
             .setContentText(text("body", "Güvenilen cihazlar şifreli dosya gönderebilir"))
             .setOngoing(true)
@@ -198,7 +198,7 @@ class AktarAlServisi : android.app.Service() {
     }
 
     private fun info(title: String, body: String) {
-        val b = builder().setSmallIcon(android.R.drawable.stat_sys_download_done)
+        val b = builder().setSmallIcon(android.R.drawable.stat_sys_download_done).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
             .setContentTitle(title).setContentText(body).setAutoCancel(true)
         openApp()?.let { b.setContentIntent(it) }
         try {

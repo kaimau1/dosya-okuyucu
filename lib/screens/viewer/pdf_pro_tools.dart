@@ -1224,10 +1224,14 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       end: Gap.md,
       top: ReadingChrome.insetsOf(context).top + Gap.sm,
       child: Center(
+        // Tostla aynı kart dili (2026-11-22).
         child: Material(
-          color: scheme.inverseSurface,
+          color: scheme.surfaceContainerLow,
           elevation: 3,
-          borderRadius: BorderRadius.circular(Radii.sheet),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.sheet),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(
                 Gap.md, Gap.xs, Gap.xs, Gap.xs),
@@ -1240,7 +1244,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.type.small
-                        .copyWith(color: scheme.onInverseSurface),
+                        .copyWith(color: scheme.onSurface),
                   ),
                 ),
                 const SizedBox(width: Gap.xs),
@@ -1248,7 +1252,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
                   key: const ValueKey('pse-guide-close'),
                   visualDensity: VisualDensity.compact,
                   iconSize: AppIcons.small,
-                  color: scheme.onInverseSurface,
+                  color: scheme.onSurfaceVariant,
                   tooltip: context.t('common.close'),
                   onPressed: close,
                   icon: const Icon(AppIcons.close),

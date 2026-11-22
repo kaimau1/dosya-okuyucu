@@ -444,7 +444,7 @@ object Extras {
         runCatching {
             manager.notify(
                 id,
-                builder.setSmallIcon(ctx.applicationInfo.icon)
+                builder.setSmallIcon(ctx.applicationInfo.icon).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
                     .setContentTitle(title)
                     .setContentText(body)
                     .setStyle(android.app.Notification.BigTextStyle().bigText(body))

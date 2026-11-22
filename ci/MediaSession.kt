@@ -445,7 +445,7 @@ object MediaBridge {
         }
         builder.setContentTitle(title)
             .setContentText(subtitle)
-            .setSmallIcon(context.applicationInfo.icon)
+            .setSmallIcon(context.applicationInfo.icon).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
             .setContentIntent(contentIntent(context))
             .setDeleteIntent(actionIntent(context, ACTION_STOP))
             .setOngoing(playing)
