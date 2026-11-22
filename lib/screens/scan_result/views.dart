@@ -413,6 +413,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                                         bytes,
                                         fit: BoxFit.cover,
                                         width: double.infinity,
+                                        cacheWidth: 180,
                                         gaplessPlayback: true,
                                       ),
                               ),

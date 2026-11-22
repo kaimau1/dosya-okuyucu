@@ -2,18 +2,12 @@
  "lib/core/edit/edit_session.dart": {
   "dialogs": 1
  },
- "lib/core/page_transitions.dart": {
-  "durations": 1
- },
  "lib/core/user_error.dart": {
   "dialogs": 1
  },
  "lib/screens/editors/slides/actions.dart": {
   "dialogs": 1,
   "sheets": 1
- },
- "lib/screens/editors/slides/views.dart": {
-  "sheets": 2
  },
  "lib/screens/editors/spreadsheet/cells.dart": {
   "dialogs": 1
@@ -56,22 +50,10 @@
  "lib/screens/editors/word_mobile/word_format_ui.dart": {
   "font_size": 1
  },
- "lib/screens/fm/ai_actions.dart": {
-  "sheets": 2
- },
  "lib/screens/fm/analysis/actions.dart": {
   "durations": 1
  },
  "lib/screens/fm/analysis/widgets.dart": {
-  "hex_colors": 1
- },
- "lib/screens/fm/browser/actions.dart": {
-  "sheets": 1
- },
- "lib/screens/fm/browser/views.dart": {
-  "sheets": 1
- },
- "lib/screens/fm/dashboard/cards.dart": {
   "hex_colors": 1
  },
  "lib/screens/fm/dashboard/external_open.dart": {
@@ -97,30 +79,22 @@
   "sheets": 1
  },
  "lib/screens/fm/entry_actions/properties.dart": {
-  "dialogs": 2
+  "dialogs": 1
  },
  "lib/screens/fm/entry_actions/sheet.dart": {
   "sheets": 2
  },
  "lib/screens/fm/image_gallery/widgets.dart": {
-  "hex_colors": 2
+  "hex_colors": 1
  },
  "lib/screens/fm/image_gallery_screen.dart": {
   "hex_colors": 2
  },
  "lib/screens/fm/installed_apps/views.dart": {
-  "dialogs": 1,
   "sheets": 1
  },
  "lib/screens/fm/media_player/actions.dart": {
   "durations": 2
- },
- "lib/screens/fm/photos/toolbar.dart": {
-  "sheets": 1
- },
- "lib/screens/fm/remote/peer_share_screen.dart": {
-  "dialogs": 1,
-  "sheets": 1
  },
  "lib/screens/fm/remote/remote_browser/actions.dart": {
   "dialogs": 2
@@ -134,34 +108,17 @@
  "lib/screens/fm/search_screen.dart": {
   "durations": 1
  },
- "lib/screens/fm/similar_screen.dart": {
-  "dialogs": 1
- },
- "lib/screens/fm/smart_folders_screen.dart": {
-  "dialogs": 1
- },
  "lib/screens/fm/swipe_pager.dart": {
   "durations": 2
  },
  "lib/screens/fm/usb_diagnostics_screen.dart": {
   "dialogs": 1
  },
- "lib/screens/fm/vault_screen.dart": {
-  "sheets": 1
- },
  "lib/screens/image_edit_screen.dart": {
-  "hex_colors": 7,
-  "dialogs": 1,
-  "sheets": 1
+  "hex_colors": 7
  },
  "lib/screens/image_edit_screen/parts.dart": {
   "hex_colors": 1
- },
- "lib/screens/pdf_editor/actions.dart": {
-  "dialogs": 1
- },
- "lib/screens/pdf_editor/views.dart": {
-  "dialogs": 1
  },
  "lib/screens/pdf_ink/input.dart": {
   "dialogs": 2
@@ -181,17 +138,13 @@
   "hex_colors": 6
  },
  "lib/screens/scan_result/actions.dart": {
-  "durations": 1,
-  "sheets": 2
+  "durations": 1
  },
  "lib/screens/settings/settings_catalog.dart": {
   "hex_colors": 1
  },
  "lib/screens/settings/tiles_ai.dart": {
   "durations": 1
- },
- "lib/screens/settings/tiles_appearance.dart": {
-  "sheets": 2
  },
  "lib/screens/settings/tiles_backup.dart": {
   "sheets": 1
@@ -215,9 +168,6 @@
  "lib/screens/viewer/pdf_selection.dart": {
   "durations": 1,
   "sheets": 1
- },
- "lib/screens/viewer/pending_save.dart": {
-  "dialogs": 1
  },
  "lib/screens/viewer/shell_menus.dart": {
   "sheets": 2
@@ -298,12 +248,6 @@
  "lib/widgets/ai_rewrite_sheet.dart": {
   "sheets": 1
  },
- "lib/widgets/slides_flow.dart": {
-  "sheets": 2
- },
- "lib/widgets/ai_summary_flow.dart": {
-  "sheets": 2
- },
  "lib/widgets/app_error_screen.dart": {
   "hex_colors": 5
  },
@@ -320,9 +264,6 @@
  },
  "lib/widgets/docx_editor/docx_editor_view.dart": {
   "font_size": 1
- },
- "lib/widgets/docx_view.dart": {
-  "hex_colors": 1
  },
  "lib/widgets/file_type_icon.dart": {
   "hex_colors": 3
@@ -359,15 +300,9 @@
  "lib/widgets/fm/fm_fast_scroller.dart": {
   "durations": 1
  },
- "lib/widgets/fm/fm_filter_sheet.dart": {
-  "sheets": 1
- },
  "lib/widgets/fm/fm_glyph.dart": {
   "hex_colors": 4,
   "font_size": 2
- },
- "lib/widgets/fm/fm_layout_sheet.dart": {
-  "sheets": 1
  },
  "lib/widgets/fm/media_resize_sheet.dart": {
   "sheets": 1
@@ -412,7 +347,7 @@
   "dialogs": 1
  },
  "lib/widgets/pdf_select_layer.dart": {
-  "durations": 5
+  "durations": 4
  },
  "lib/widgets/pdf_select_layer_chrome.dart": {
   "hex_colors": 1
@@ -435,9 +370,11 @@
   "dialogs": 1
  },
  "lib/widgets/slide_canvas.dart": {
-  "hex_colors": 2,
   "font_size": 3,
-  "durations": 2
+  "durations": 1
+ },
+ "lib/widgets/slides_flow.dart": {
+  "sheets": 1
  },
  "lib/widgets/translate_flow.dart": {
   "dialogs": 1,

@@ -40,6 +40,8 @@ void main() {
   testWidgets('"Aç" editör kapandıktan sonra da dosyayı açar', (tester) async {
     await openEditorThenClose(tester);
     await tester.tap(find.text(AppStrings.current.t('ps.open')));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text(notFound()), findsOneWidget);
@@ -48,6 +50,8 @@ void main() {
   testWidgets('bildirimin gövdesine dokunmak da açar', (tester) async {
     await openEditorThenClose(tester);
     await tester.tap(find.textContaining('belge (2).pdf'));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text(notFound()), findsOneWidget);

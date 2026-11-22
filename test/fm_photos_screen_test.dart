@@ -259,7 +259,9 @@ void main() {
     ]));
     await tester.pump();
     await tester.tap(find.byType(FmEntryIcon).first);
-    await tester.pump(); // SIFIR süre: çift dokunuş zaman aşımı beklenmiyor
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)));
+    await tester.pump(); // çift dokunuş zaman aşımı (~300 ms) beklenmiyor
     expect(find.textContaining('Dosya bulunamadı'), findsOneWidget);
   });
 

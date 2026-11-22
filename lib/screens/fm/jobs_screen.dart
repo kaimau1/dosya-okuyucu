@@ -50,14 +50,11 @@ class JobsScreen extends StatelessWidget {
   List<Widget> _actions(BuildContext context) => [
         // Geri alınabilir taşıma/kopyalama geçmişi (eski "Son işlemler"
         // kutusu, 2026-10-21'de Geçmiş > İşlemler'e katıldı).
-        Tooltip(
-          message: context.t('oph.title'),
-          child: TextButton.icon(
-            icon: const Icon(AppIcons.history, size: 18),
-            label: Text(context.t('oph.title')),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const OpHistoryScreen())),
-          ),
+        IconButton(
+          tooltip: context.t('oph.title'),
+          icon: const Icon(AppIcons.history),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const OpHistoryScreen())),
         ),
         AnimatedBuilder(
           animation: JobQueue.instance,
