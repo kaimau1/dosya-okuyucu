@@ -12,6 +12,7 @@ import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/trash_service.dart';
+import '../../widgets/fm/fm_bar_title.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
@@ -300,7 +301,22 @@ class _TrashScreenState extends State<TrashScreen> {
               ),
             )
           : AppBar(
-              title: Text(context.t('trash.title')),
+              // Sayı + boyut başlığın altında (2026-11-22, kullanıcı: "üst
+              // alan gereksiz büyük") — ayrı özet satırı kalktı.
+              title: FmBarTitle(
+                title: context.t('trash.title'),
+                subtitle: _items.isEmpty
+                    ? null
+                    : (_query.trim().isEmpty && _types.isEmpty
+                        ? context.t('tr.count_size', {
+                            'n': _items.length,
+                            'size': FsPaths.humanSize(total),
+                          })
+                        : context.t('trash.filtered', {
+                            'n': shown.length,
+                            'total': _items.length,
+                          })),
+              ),
               actions: [
                 if (_items.isNotEmpty)
                   IconButton(
@@ -408,9 +424,9 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
-  /// Özet şeridi: kaç öğe / ne kadar yer + **otomatik temizleme bilgisi**.
-  /// Kullanıcı "çöpteki dosya ne zaman gidiyor" sorusunun cevabını ayarlara
-  /// girmeden göremiyordu; kapalıysa ayara kısayol verilir.
+  /// Tek satırlık şerit: **otomatik temizleme bilgisi** + Tümünü geri yükle
+  /// (2026-11-22: sayı/boyut başlığa taşındı, büyük düğme metin düğmesi
+  /// oldu — üç satırlık bant tek satıra indi). Kapalıysa ayara kısayol.
   Widget _summaryBand(int total, int shownCount) {
     final scheme = Theme.of(context).colorScheme;
     final days = context.watchBrowse().fmTrashAutoDays;
@@ -419,60 +435,34 @@ class _TrashScreenState extends State<TrashScreen> {
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,
-      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsetsDirectional.only(start: hPad, end: hPad - Gap.sm),
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(AppIcons.deleteSweep, size: 20),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Text(_query.trim().isEmpty && _types.isEmpty
-                    ? context.t('tr.count_size', {
-                        'n': _items.length,
-                        'size': FsPaths.humanSize(total),
-                      })
-                    : context.t('trash.filtered', {
-                        'n': shownCount,
-                        'total': _items.length,
-                      })),
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.xs),
-          Row(
-            children: [
-              Icon(AppIcons.schedule, size: 14, color: Paper.faint(context)),
-              const SizedBox(width: Gap.xs),
-              Expanded(
-                child: Text(
-                  days > 0
-                      ? context.t('trash.auto_days', {'n': days})
-                      : context.t('trash.auto_off'),
-                  style:
-                      context.type.small.copyWith(color: Paper.faint(context)),
-                ),
-              ),
-              if (days <= 0)
-                TextButton(
-                  // Ana ayar listesine değil, ayarın KENDİ sayfasına gider.
-                  onPressed: () => openSettingsCategory(context, 'trash'),
-                  child: Text(context.t('common.settings')),
-                ),
-            ],
-          ),
-          if (_items.isNotEmpty) ...[
-            const SizedBox(height: Gap.sm),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: OutlinedButton.icon(
-                onPressed: _restoreAll,
-                icon: const Icon(AppIcons.restore, size: 18),
-                label: Text(context.t('trash.restore_all')),
-              ),
+          Icon(AppIcons.schedule, size: 16, color: Paper.faint(context)),
+          const SizedBox(width: Gap.xs),
+          Expanded(
+            child: Text(
+              days > 0
+                  ? context.t('trash.auto_days', {'n': days})
+                  : context.t('trash.auto_off'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.type.small.copyWith(color: Paper.faint(context)),
             ),
-          ],
+          ),
+          if (days <= 0)
+            TextButton(
+              // Ana ayar listesine değil, ayarın KENDİ sayfasına gider.
+              onPressed: () => openSettingsCategory(context, 'trash'),
+              child: Text(context.t('common.settings')),
+            ),
+          if (_items.isNotEmpty)
+            TextButton.icon(
+              key: const ValueKey('trash-restore-all'),
+              onPressed: _restoreAll,
+              icon: const Icon(AppIcons.restore, size: 18),
+              label: Text(context.t('trash.restore_all')),
+            ),
         ],
       ),
     );
