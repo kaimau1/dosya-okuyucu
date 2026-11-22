@@ -71,8 +71,8 @@ abstract final class ScanKindOps {
   /// A4 oranı (210×297) — kimlik sayfasının tuval boyu buna göre.
   static const a4Ratio = 297 / 210;
 
-  /// Kimlik tuvalinin genişliği (≈150 dpi A4; kart ~85 mm → ~500 px).
-  static const idCanvasWidth = 1240;
+  /// Kimlik tuvalinin genişliği (≈300 dpi A4; kart ~85 mm → ~1000 px).
+  static const idCanvasWidth = 2480;
 
   /// Kimlik/ehliyet: ön + arka yüz **tek A4** sayfada, üst üste, gerçek
   /// boyutlarına yakın (kart genişliği sayfanın ~%40'ı), beyaz zemin.

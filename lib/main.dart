@@ -72,6 +72,7 @@ import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/remote/transfer_keeper.dart';
 import 'services/fm/open_history.dart';
+import 'services/fm/activity_log.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
 import 'services/ai_pool.dart';
@@ -252,6 +253,7 @@ Future<void> _main() async {
     await OpenHistory.movePath(from, to);
     await FmColorsStore.moveFolder(from, to); // Faz 41 / 6
     await SmartSort.movePath(from, to); // B2 dilim 2: kategori taşınır
+    await ActivityLog.movePath(from, to);
   });
   // İş listesi artık diske yazılıyor (kullanıcı hatası 2026-07-31: "uygulamayı
   // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen

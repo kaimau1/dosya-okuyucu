@@ -1,25 +1,49 @@
 part of '../scan_result_screen.dart';
 
 extension _ScanResultScreenActionsPart on _ScanResultScreenState {
+  static const autoSaveDelay = Duration(milliseconds: 1500);
+
   /// Sayfa listesini değiştirir: önceki hâli geri alma yığınına koyar ve
-  /// kaydı (kısa bir beklemeyle — art arda döndürmeler tek yazım olsun)
-  /// planlar.
+  /// kaydı planlar.
   void _commit(List<ScanPage> next, {int? index}) {
     _history.add(_pages);
-    if (_history.length > _ScanResultScreenState._historyLimit) _history.removeAt(0);
+    if (_history.length > _ScanResultScreenState._historyLimit) {
+      _history.removeAt(0);
+    }
     _partSetState(() {
       _pages = next;
       if (index != null) _index = index;
       _index = _index.clamp(0, _pages.length - 1);
+      _comparingOriginal = false;
       _dirty = true;
     });
+    _scrollThumbTo(_index);
     _scheduleSave();
     unawaited(_measureVisible());
+    if (_filterStripOpen && _pages.isNotEmpty) {
+      unawaited(_ensurePreviews(_pages[_index].source));
+    }
   }
 
   void _scheduleSave() {
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 500), _save);
+    final delay = widget.saver != null ? autoSaveDelay ~/ 3 : autoSaveDelay;
+    _saveTimer = Timer(delay, _save);
+  }
+
+  void _scrollThumbTo(int index) {
+    if (!_thumbScroll.hasClients || _pages.isEmpty) return;
+    const itemWidth = 62.0; // 54 genişlik + 8 boşluk
+    final pos = _thumbScroll.position;
+    final target = (index * itemWidth - (pos.viewportDimension - 54) / 2)
+        .clamp(0.0, pos.maxScrollExtent);
+    final duration = Motion.of(context, Motion.short);
+    if (duration == Duration.zero) {
+      _thumbScroll.jumpTo(target);
+    } else {
+      unawaited(
+          _thumbScroll.animateTo(target, duration: duration, curve: Curves.easeOut));
+    }
   }
 
   /// Bekleyen değişikliği yazar. Yazımlar sıraya girer (aynı dosyaya iki
@@ -47,7 +71,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         _dirty = true;
         if (mounted) {
           _partSetState(() => _saveState = _SaveState.failed);
-          showSnack(context, context.t('sf.save_failed', {'error': userErrorText(e)}),
+          showSnack(
+              context, context.t('sf.save_failed', {'error': userErrorText(e)}),
               copyable: true);
         }
       }
@@ -85,8 +110,6 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     );
     await _flush();
     busy.close();
-    // Yazım başarısız olsa da kullanıcı ekranda HAPSOLMAZ: hata bildirimi
-    // zaten gösterildi, diskteki PDF son başarılı hâlinde duruyor.
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -109,7 +132,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       }
     } catch (e) {
       if (mounted) {
-        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+        showSnack(
+            context, context.t('scr.add_failed', {'error': userErrorText(e)}),
             copyable: true);
       }
     } finally {
@@ -120,28 +144,28 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   Future<void> _crop() async {
     if (_busy || _pages.isEmpty) return;
     final page = _pages[_index];
-    final quad = await ScanEditScreen.open(context, page.source);
-    if (quad == null || !mounted) return;
+    final res = await ScanEditScreen.open(context, page.source);
+    if (!res.isCropped || !mounted) return;
+    final quad = res.corners!;
     await _runOnPage(context.t('ss.working_crop'), (page) async {
       final cropped = await ScanPageOps.warp(page.source, quad);
       return _ScanResultScreenState._withFilter(cropped, page.filter);
     });
   }
 
-  Future<void> _rotate() => _runOnPage(context.t('ss.working_rotate'),
-          (page) async {
-        final source = await ScanPageOps.rotate(page.source, 1);
+  Future<void> _rotate() => _rotateBy(1);
+
+  Future<void> _rotateLeft() => _rotateBy(3);
+
+  Future<void> _rotateBy(int quarterTurns) =>
+      _runOnPage(context.t('ss.working_rotate'), (page) async {
+        final source = await ScanPageOps.rotate(page.source, quarterTurns);
         if (page.filter == ScanFilter.original) return ScanPage.raw(source);
-        // Filtrelenmiş görseli de döndür: filtreyi baştan koşturmaktan
-        // hızlı ve sonuç birebir aynı.
-        final display = await ScanPageOps.rotate(page.display, 1);
+        final display = await ScanPageOps.rotate(page.display, quarterTurns);
         return ScanPage(source: source, display: display, filter: page.filter);
       });
 
-  /// Filtreyi TEK dokunuşla kaldırır (2026-11-12, kullanıcı: *"uygulanan
-  /// filtreyi kaldırmak zor, aynı menüye girmek gerekiyor ve kaldır seçeneği
-  /// yok"*). Sayfa göstergesindeki ✕ ve levhadaki düğme buraya gelir; geri
-  /// al düğmesi filtreyi geri getirir.
+  /// Filtreyi TEK dokunuşla kaldırır.
   Future<void> _clearFilter() async {
     if (_busy || _pages.isEmpty) return;
     if (_pages[_index].filter == ScanFilter.original) return;
@@ -151,39 +175,42 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
             page.source, ScanFilter.original));
   }
 
+  /// Yerinde canlı filtre şeridini açar/kapatır ve aktif sayfanın 6 filtre
+  /// önizlemesini `page.source` bazında önbellekten yükler.
   Future<void> _filter() async {
     if (_busy || _pages.isEmpty) return;
-    final page = _pages[_index];
-    final choice = await showModalBottomSheet<_FilterChoice>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      builder: (_) => _FilterSheet(
-        source: page.source,
-        current: page.filter,
-        pageCount: _pages.length,
-      ),
-    );
-    if (choice == null || !mounted) return;
-    if (choice.straighten) {
-      await _straighten();
+    _partSetState(() {
+      if (_grid) {
+        _grid = false;
+        _resetPager();
+        _filterStripOpen = true;
+      } else {
+        _filterStripOpen = !_filterStripOpen;
+      }
+    });
+    if (_filterStripOpen) {
+      unawaited(_ensurePreviews(_pages[_index].source));
+    }
+  }
+
+  /// Yerinde canlı filtre şeridinden seçilen filtreyi uygular.
+  Future<void> _applyLiveFilter(ScanFilter filter) async {
+    if (_busy || _pages.isEmpty) return;
+    if (!_applyFilterToAll) {
+      if (filter == _pages[_index].filter) return;
+      await _runOnPage(
+          context.t('ss.working_filter'),
+          (page) => _ScanResultScreenState._withFilter(page.source, filter));
       return;
     }
-    if (!choice.all) {
-      if (choice.filter == page.filter) return;
-      await _runOnPage(context.t('ss.working_filter'),
-          (page) => _ScanResultScreenState._withFilter(page.source, choice.filter));
-      return;
-    }
-    // Tüm sayfalar: sırayla (aynı anda tek büyük görsel bellekte).
+    if (_pages.every((p) => p.filter == filter)) return;
     _partSetState(() => _work = context.t('ss.working_filter'));
     try {
       final next = <ScanPage>[];
       for (final page in _pages) {
-        next.add(page.filter == choice.filter
+        next.add(page.filter == filter
             ? page
-            : await _ScanResultScreenState._withFilter(page.source, choice.filter));
+            : await _ScanResultScreenState._withFilter(page.source, filter));
       }
       if (mounted) _commit(next);
     } finally {
@@ -209,28 +236,27 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     }
   }
 
-  /// Görünen sayfayı yeniden çeker (tek sayfalık tarama, yerine konur).
+  /// Görünen sayfayı yeniden çeker (tek sayfalık tarama, önceki filtre korunarak
+  /// yerine konur).
   Future<void> _retake() async {
     if (_busy || _pages.isEmpty) return;
     List<String>? shot;
     try {
       shot = await DocumentScanner.scanPages(maxPages: 1);
     } catch (e) {
-      if (mounted) _snack(context.t('sf.scanner_failed', {'error': userErrorText(e)}));
+      if (mounted) {
+        _snack(context.t('sf.scanner_failed', {'error': userErrorText(e)}));
+      }
       return;
     }
     if (shot == null || shot.isEmpty || !mounted) return;
-    final index = _index;
-    _commit([
-      for (var i = 0; i < _pages.length; i++)
-        i == index ? ScanPage.raw(shot.first) : _pages[i],
-    ]);
+    final prevFilter = _pages[_index].filter;
+    await _runOnPage(context.t('ss.working_filter'), (_) async {
+      return _ScanResultScreenState._withFilter(shot!.first, prevFilter);
+    });
   }
 
-  /// **AI ile kalite kontrolü** (B2 dilim 4): görünen sayfanın küçük
-  /// önizlemesi Decisions'a sorulur (okunaklı mı · parlama · kesik kenar);
-  /// sorun varsa kalite şeridi "Yeniden çek" önerir. Kullanıcı başlatır —
-  /// sayfa ancak o isterse gönderilir (kota + gizlilik).
+  /// **AI ile kalite kontrolü** (B2 dilim 4).
   Future<void> _aiQualityCheck() async {
     if (_busy || _pages.isEmpty) return;
     final str = AppStrings.of(context);
@@ -245,7 +271,11 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         return;
       }
       final r = await GeminiDecisions.ask(keys: keys, input: [
-        {'type': 'image', 'mime_type': 'image/jpeg', 'data': base64Encode(bytes)}
+        {
+          'type': 'image',
+          'mime_type': 'image/jpeg',
+          'data': base64Encode(bytes)
+        }
       ], questions: ScanAiQuality.questions);
       if (!mounted) return;
       final hint = ScanAiQuality.hintFrom(r.answers);
@@ -255,7 +285,9 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       });
       if (hint == null) _snack(str.t('sq.ai_ok'));
     } catch (e) {
-      if (mounted) _snack(str.t('common.smart_failed', {'error': userErrorText(e)}));
+      if (mounted) {
+        _snack(str.t('common.smart_failed', {'error': userErrorText(e)}));
+      }
     }
   }
 
@@ -282,12 +314,15 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
 
   void _undo() {
     if (_history.isEmpty || _busy) return;
+    _resetZoom();
     _partSetState(() {
       _pages = _history.removeLast();
       _index = _index.clamp(0, _pages.length - 1);
+      _comparingOriginal = false;
       _dirty = true;
     });
     if (_pager.hasClients) _pager.jumpToPage(_index);
+    _scrollThumbTo(_index);
     _scheduleSave();
   }
 
@@ -301,9 +336,9 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     if (_pager.hasClients) _pager.jumpToPage(to);
   }
 
-  /// Belge türünü uygular (Faz 35 / madde 1). Ağır işler izolatta, sayfa
-  /// sayfa sırayla (aynı anda tek büyük görsel bellekte); her adım "Geri
-  /// al" yığınına girer.
+  /// Belge türünü uygular (Faz 35 / madde 1). Kimlik ve Kitap kiplerinde
+  /// birleştirme/bölme + varsayılan filtre **TEK atomik geri al adımı**
+  /// olarak uygulanır.
   Future<void> _applyKind(ScanKind kind) async {
     if (_busy || _pages.isEmpty) return;
     final label = context.t(kind.labelKey);
@@ -314,63 +349,89 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     _partSetState(() => _work = context.t('sk.working'));
     String? done;
     try {
+      if (kind == ScanKind.businessCard) {
+        done = await _saveContactCard();
+        if (!mounted) return;
+        _partSetState(() {
+          _kind = kind;
+          _kindExplicit = true;
+          _dirty = true;
+        });
+        _scheduleSave();
+        if (done.isNotEmpty) _snack(done);
+        return;
+      }
+
+      var working = List<ScanPage>.of(_pages);
+      var targetIndex = _index;
+      var structureChanged = false;
+
       switch (kind) {
         case ScanKind.idCard:
           final merged = await ScanKindOps.combineId(
-              _pages[0].source, _pages[1].source);
+              working[0].source, working[1].source);
           if (!mounted) return;
-          _commit([ScanPage.raw(merged), ..._pages.skip(2)], index: 0);
+          working = [ScanPage.raw(merged), ...working.skip(2)];
+          targetIndex = 0;
+          structureChanged = true;
           done = context.t('sk.id_combined');
         case ScanKind.book:
-          final next = <ScanPage>[];
-          for (final page in _pages) {
+          final splitPages = <ScanPage>[];
+          for (final page in working) {
             final parts = await ScanKindOps.splitBook(page.source);
             if (parts.length == 1) {
-              next.add(page);
+              splitPages.add(page);
               continue;
             }
             for (final part in parts) {
-              next.add(page.filter == ScanFilter.original
-                  ? ScanPage.raw(part)
-                  : await _ScanResultScreenState._withFilter(part, page.filter));
+              splitPages.add(ScanPage.raw(part));
             }
           }
           if (!mounted) return;
-          if (next.length != _pages.length) {
-            _commit(next, index: 0);
-            done = context.t('sk.book_split', {'n': next.length});
+          if (splitPages.length != working.length) {
+            working = splitPages;
+            targetIndex = 0;
+            structureChanged = true;
+            done = context.t('sk.book_split', {'n': working.length});
           }
-        case ScanKind.businessCard:
-          done = await _saveContactCard();
         case ScanKind.document:
         case ScanKind.receipt:
         case ScanKind.whiteboard:
         case ScanKind.photo:
+        case ScanKind.businessCard:
           break;
       }
-      if (!mounted) return;
-      // Filtre varsayılanı (kimlikte birleşik sayfa da dahil).
+
       final filter = kind.defaultFilter;
-      if (kind != ScanKind.businessCard &&
-          _pages.any((page) => page.filter != filter)) {
-        final next = <ScanPage>[];
-        for (final page in _pages) {
-          next.add(page.filter == filter
+      final filterNeeded = working.any((page) => page.filter != filter);
+      if (filterNeeded) {
+        final filtered = <ScanPage>[];
+        for (final page in working) {
+          filtered.add(page.filter == filter
               ? page
               : await _ScanResultScreenState._withFilter(page.source, filter));
         }
         if (!mounted) return;
-        _commit(next);
+        working = filtered;
       }
+
       if (!mounted) return;
-      _partSetState(() => _kind = kind);
-      // Sayfa düzeni (A4 / görsel oranı) değişti → PDF yeniden yazılsın.
-      _partSetState(() => _dirty = true);
-      _scheduleSave();
+      _partSetState(() {
+        _kind = kind;
+        _kindExplicit = true;
+      });
+      if (structureChanged || filterNeeded) {
+        _commit(working, index: targetIndex);
+        if (_pager.hasClients) _pager.jumpToPage(_index);
+      } else {
+        _partSetState(() => _dirty = true);
+        _scheduleSave();
+      }
       _snack(done ?? context.t('sk.applied', {'type': label}));
     } catch (e) {
       if (mounted) {
-        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+        showSnack(
+            context, context.t('scr.add_failed', {'error': userErrorText(e)}),
             copyable: true);
       }
     } finally {
@@ -378,8 +439,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     }
   }
 
-  /// Kartvizit: görünen sayfanın metninden kişi kartı (.vcf) üretir, PDF'in
-  /// yanına yazar. Metin cihazda tanınır, hiçbir yere gönderilmez.
+  /// Kartvizit: görünen sayfanın metninden kişi kartı (.vcf) üretir; diske
+  /// yazmadan önce kısa önizleme + onay penceresi gösterir.
   Future<String> _saveContactCard() async {
     final page = _pages[_index];
     var lines = _ocr[page.source];
@@ -392,18 +453,35 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         BusinessCard.parse(lines.map((line) => line.text).join('\n'));
     if (!mounted) return '';
     if (card.isEmpty) return context.t('sk.card_none');
-    final name = card.name ?? card.company ?? p.basenameWithoutExtension(_pdfPath);
+    final name =
+        card.name ?? card.company ?? p.basenameWithoutExtension(_pdfPath);
+    final summary = <String>[
+      if (card.name != null) card.name!,
+      if (card.company != null) card.company!,
+      ...card.phones,
+      ...card.emails,
+      if (card.web != null) card.web!,
+    ].join('\n');
+
+    final ok = await showAppConfirm(
+      context,
+      title: context.t('sk.card_preview_title'),
+      message: summary,
+      confirmLabel: context.t('sk.card_save_action'),
+    );
+    if (!ok || !mounted) return '';
+
     final safe = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
     final path = FileOps.uniquePath(p.join(_folder, '$safe.vcf'));
     await File(path).writeAsString(card.toVcf(), flush: true);
     FsEvents.changed();
+    unawaited(ActivityLog.add(ActivityKind.scan, path));
     if (!mounted) return '';
     return context.t('sk.card_saved', {'name': name});
   }
 
   /// **Akıllı çıktı** (Faz 35 / madde 3): Word · Excel (tablo algılama) ·
-  /// TXT · seçilen kalitede PDF. İş kuyruğunda izlenir (ilerleme, iptal,
-  /// bitince bildirim — `TrackedTask`); çıktı PDF'in yanına yazılır.
+  /// TXT · Görsel (JPEG/PNG) · seçilen kalitede PDF.
   Future<void> _export() async {
     if (_busy || _pages.isEmpty) return;
     await _flush();
@@ -416,9 +494,54 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     );
     if (choice == null || !mounted) return;
     final str = AppStrings.current;
-    final task = TrackedTask(title: str.t('sx.title'), name: p.basename(_pdfPath));
+    final task =
+        TrackedTask(title: str.t('sx.title'), name: p.basename(_pdfPath));
     _partSetState(() => _work = context.t('sx.working'));
     try {
+      final base = p.basenameWithoutExtension(_pdfPath);
+      if (choice.format == 'jpg' || choice.format == 'png') {
+        final created = <String>[];
+        for (var i = 0; i < displays.length; i++) {
+          if (task.cancelRequested) break;
+          task.report(
+            done: i,
+            total: displays.length,
+            detail: '${i + 1} / ${displays.length}',
+          );
+          final fileName = displays.length == 1
+              ? '$base.${choice.format}'
+              : '${base}_${i + 1}.${choice.format}';
+          final out = FileOps.uniquePath(p.join(_folder, fileName));
+          await compute(
+            ScanExport.exportImageFile,
+            (source: displays[i], target: out, format: choice.format),
+          );
+          created.add(out);
+          unawaited(ActivityLog.add(ActivityKind.scan, out));
+        }
+        if (task.cancelRequested) {
+          await task.stopped();
+          return;
+        }
+        FsEvents.changed();
+        task.target = FmJobTarget.files(created);
+        final firstOut = created.first;
+        await task.complete(
+            detail: str.t('job.op_created', {'name': p.basename(firstOut)}));
+        if (!mounted) return;
+        showSnack(
+          context,
+          context.t('sx.saved', {'name': p.basename(firstOut)}),
+          action: SnackBarAction(
+            label: context.t('common.open'),
+            onPressed: () {
+              if (mounted) EntryOpener.open(context, firstOut);
+            },
+          ),
+        );
+        return;
+      }
+
       // Metin gereken her çıktı için eksik sayfalar tanınır (bir kez).
       final total = _pages.length;
       for (var i = 0; i < total; i++) {
@@ -426,25 +549,33 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
         final page = _pages[i];
         if (_ocr.containsKey(page.source)) continue;
         task.report(
-            done: i, total: total, detail: str.t('sf.ocr_progress', {'n': i + 1, 'total': total}));
-        final lines = await DocumentScanner.recognizePages([page.display]);
+            done: i,
+            total: total,
+            detail: str.t('sf.ocr_progress', {'n': i + 1, 'total': total}));
+        final lines = await DocumentScanner.recognizePages(
+          [page.source],
+          isCancelled: () => task.cancelRequested,
+        );
         _ocr[page.source] = lines.isEmpty ? const [] : lines.first;
       }
       if (task.cancelRequested) {
         await task.stopped();
         return;
       }
-      final ocr = [for (final page in _pages) _ocr[page.source] ?? const <OcrLine>[]];
-      final base = p.basenameWithoutExtension(_pdfPath);
+      final ocr = [
+        for (final page in _pages) _ocr[page.source] ?? const <OcrLine>[]
+      ];
       final Uint8List bytes;
       final String ext;
       var suffix = '';
       switch (choice.format) {
         case 'docx':
-          bytes = ScanExport.toDocx(ocr);
+          bytes = await Isolate.run(() => ScanExport.toDocx(ocr));
           ext = 'docx';
         case 'xlsx':
-          bytes = ScanExport.toXlsx(ocr, sheetPrefix: str.t('sx.sheet'));
+          final sheetPrefix = str.t('sx.sheet');
+          bytes = await Isolate.run(
+              () => ScanExport.toXlsx(ocr, sheetPrefix: sheetPrefix));
           ext = 'xlsx';
         case 'txt':
           bytes = ScanExport.toTxt(ocr);
@@ -468,8 +599,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
                 ScanExport.scaleLines(ocr[i], packed[i].ratio),
             ],
             uniformA4: _kind.uniformA4,
+            ocrSourcePaths: [for (final page in _pages) page.source],
           );
-          // Ham sıkıştırılmış sayfalar iş bitince silinir.
           for (final c in packed) {
             unawaited(File(c.path).delete().then((_) {}, onError: (_) {}));
           }
@@ -479,8 +610,10 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       final out = FileOps.uniquePath(p.join(_folder, '$base$suffix.$ext'));
       await File(out).writeAsBytes(bytes, flush: true);
       FsEvents.changed();
+      unawaited(ActivityLog.add(ActivityKind.scan, out));
       task.target = FmJobTarget.files([out]);
-      await task.complete(detail: str.t('job.op_created', {'name': p.basename(out)}));
+      await task.complete(
+          detail: str.t('job.op_created', {'name': p.basename(out)}));
       if (!mounted) return;
       showSnack(
         context,
@@ -495,7 +628,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     } catch (e) {
       await task.fail(e);
       if (mounted) {
-        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+        showSnack(
+            context, context.t('scr.add_failed', {'error': userErrorText(e)}),
             copyable: true);
       }
     } finally {
@@ -504,7 +638,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   }
 
   /// Kimlik taraması şifreli kasaya: PDF kasaya girer, aslı silinir, stüdyo
-  /// kapanır (kasadaki dosya oradan açılır).
+  /// kapanır.
   Future<void> _moveToVault() async {
     await _flush();
     if (!mounted) return;
@@ -514,7 +648,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     Navigator.of(context).pop();
   }
 
-  /// Fiş/fatura → `Giderler.csv` satırı (tarih, satıcı, toplam, dosya adı).
+  /// Fiş/fatura → `Giderler.csv` satırı.
   Future<void> _addExpense() async {
     final text = _text.map((page) => page.text).join('\n');
     final info = ReceiptInfo.parse(text);
@@ -540,18 +674,20 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       );
     } catch (e) {
       if (mounted) {
-        showSnack(context, context.t('scr.add_failed', {'error': userErrorText(e)}),
+        showSnack(
+            context, context.t('scr.add_failed', {'error': userErrorText(e)}),
             copyable: true);
       }
     }
   }
 
-  /// Izgaradaki sayfa menüsü: işler "görünen sayfa"ya uygulandığı için önce
-  /// [index] seçilir.
+  /// Izgaradaki sayfa menüsü.
   Future<void> _gridAction(int index, String action) async {
     if (_busy) return;
     _partSetState(() => _index = index);
     switch (action) {
+      case 'rotate_left':
+        await _rotateLeft();
       case 'rotate':
         await _rotate();
       case 'filter':
@@ -564,9 +700,17 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   }
 
   void _goTo(int index) {
-    _partSetState(() => _index = index);
+    _resetZoom();
+    _partSetState(() {
+      _index = index;
+      _comparingOriginal = false;
+    });
+    _scrollThumbTo(index);
     if (_pager.hasClients) {
       Motion.toPage(context, _pager, index);
+    }
+    if (_filterStripOpen && index >= 0 && index < _pages.length) {
+      unawaited(_ensurePreviews(_pages[index].source));
     }
   }
 
@@ -592,7 +736,9 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       try {
         more = await DocumentScanner.scanPages();
       } catch (e) {
-        if (mounted) _snack(context.t('sf.scanner_failed', {'error': userErrorText(e)}));
+        if (mounted) {
+          _snack(context.t('sf.scanner_failed', {'error': userErrorText(e)}));
+        }
         return;
       }
       if (more == null || more.isEmpty || !mounted) return;
@@ -606,30 +752,43 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     await _addFromGallery();
   }
 
-  /// Galeriden fotoğraf ekler. Fotoğraf HAM çekimdir (tarayıcı kırpmadı):
-  /// tek fotoğrafta kırpma ekranı kâğıt kenarı bulunmuş olarak hemen açılır.
-  /// Tarayıcının resimli sayfayı yanlış kırptığı durumda kullanıcının
-  /// elindeki tam denetimli yol budur.
+  /// Galeriden fotoğraf ekler: önce EXIF/HEIC/WebP normalizasyonundan
+  /// geçirilir; tek fotoğrafta `ScanEditScreen` açılır. Kullanıcı X (Vazgeç)
+  /// tuşuna basarsa (`res.isCancelled`) fotoğraf eklenmez.
   Future<void> _addFromGallery() async {
-    final res = await AppFilePicker
-        .pickFiles(type: FileType.image, allowMultiple: true);
-    final paths = [
+    final res = await AppFilePicker.pickFiles(
+        type: FileType.image, allowMultiple: true);
+    final rawPaths = [
       for (final f in res?.files ?? const <PickedFile>[])
         if (f.path != null) f.path!,
     ];
+    if (rawPaths.isEmpty || !mounted) return;
+    _partSetState(() => _work = context.t('ss.working_crop'));
+    List<String> paths;
+    try {
+      paths = await ScanPageOps.normalizeAll(rawPaths);
+    } finally {
+      if (mounted) _partSetState(() => _work = null);
+    }
     if (paths.isEmpty || !mounted) return;
     final first = _pages.length;
     var added = [for (final path in paths) ScanPage.raw(path)];
     if (paths.length == 1) {
-      final quad =
+      final cropRes =
           await ScanEditScreen.open(context, paths.first, autoDetect: true);
-      if (!mounted) return;
-      if (quad != null) {
+      if (!mounted || cropRes.isCancelled) return;
+      if (cropRes.isCropped) {
         _partSetState(() => _work = context.t('ss.working_crop'));
         try {
-          added = [ScanPage.raw(await ScanPageOps.warp(paths.first, quad))];
+          added = [
+            ScanPage.raw(
+                await ScanPageOps.warp(paths.first, cropRes.corners!)),
+          ];
         } catch (e) {
-          if (mounted) _snack(context.t('se.failed', {'error': userErrorText(e)}));
+          if (mounted) {
+            _snack(context.t('se.failed', {'error': userErrorText(e)}));
+          }
+          return;
         } finally {
           if (mounted) _partSetState(() => _work = null);
         }
@@ -648,14 +807,12 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       _snack(context.t('ss.save_failed'));
       return;
     }
-    await SharePlus.instance.share(ShareParams(files: [XFile(_pdfPath)], text: p.basename(_pdfPath)));
+    await SharePlus.instance.share(
+        ShareParams(files: [XFile(_pdfPath)], text: p.basename(_pdfPath)));
   }
 
-  /// **Kaydet** (2026-11-10, kullanıcı: *"PDF'i aç dedik, kişi eee diye
-  /// kalıyor; kaydet seçeneği olmalı, kaydedildiği konum açılıp belgeye
-  /// odaklanmalı"*). PDF zaten arka planda yazılıyor; burada son yazım
-  /// beklenir, tarama ekranı kapanır ve belgenin klasörü açılıp dosya
-  /// hafif bir çerçeveyle vurgulanır (BrowserScreen.focusPath).
+  /// **Kaydet**: son yazım beklenir, tarama ekranı kapanır ve belgenin
+  /// klasörü açılıp dosya vurgulanır.
   Future<void> _saveAndReveal() async {
     final busy = showBusyDialog(
       context,
@@ -673,8 +830,6 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     await _flush();
     busy.close();
     if (!mounted) return;
-    // Son yazım başarısızsa (disk dolu, izin gitti) "kaydedildi" DEME:
-    // ekran açık kalır, başlıktaki "kaydedilemedi" şeridi yeniden denetir.
     if (_dirty || _saveState == _SaveState.failed) {
       _snack(context.t('ss.save_failed'));
       return;
@@ -699,23 +854,104 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     await EntryOpener.open(context, _pdfPath);
   }
 
-  Future<void> _recognize() async {
+  Future<void> _recognize({bool force = false}) async {
+    if (_busy || _pages.isEmpty) return;
     _partSetState(() => _work = context.t('vw.ocr_running'));
+    var modelNotReady = false;
     try {
-      for (final page in _pages) {
-        if (_ocr.containsKey(page.source)) continue;
-        final lines = await DocumentScanner.recognizePages([page.display]);
-        _ocr[page.source] = lines.isEmpty ? const [] : lines.first;
+      final targets = <ScanPage>[
+        for (final page in _pages)
+          if (force || !_ocr.containsKey(page.source)) page,
+      ];
+      if (targets.isNotEmpty) {
+        final recognized = await DocumentScanner.recognizePages(
+          [for (final page in targets) page.display],
+          onModelNotReady: (_) => modelNotReady = true,
+        );
+        for (var i = 0; i < targets.length && i < recognized.length; i++) {
+          _ocr[targets[i].source] = recognized[i];
+        }
       }
       if (!mounted) return;
-      _dirty = true;
+      _partSetState(() => _dirty = true);
       _scheduleSave(); // görünmez metin katmanı PDF'e de girsin
-      if (_text.isEmpty) _snack(context.t('vw.ocr_none'));
+      if (modelNotReady) {
+        _snack(const OcrModelNotReady().toString());
+      } else if (_text.isEmpty) {
+        _snack(context.t('vw.ocr_none'));
+      }
     } catch (e) {
-      if (mounted) _snack(context.t('vw.ocr_failed', {'error': userErrorText(e)}));
+      if (mounted) {
+        _snack(context.t('vw.ocr_failed', {'error': userErrorText(e)}));
+      }
     } finally {
       if (mounted) _partSetState(() => _work = null);
     }
+  }
+
+  /// Çevrimdışı Türkçe OCR düzeltici (`ScanTextFix`) ile tüm sayfaların
+  /// metin satırlarını iyileştirir.
+  void _fixOcrText() {
+    if (_busy || _pages.isEmpty) return;
+    var fixedCount = 0;
+    for (final page in _pages) {
+      final lines = _ocr[page.source];
+      if (lines == null || lines.isEmpty) continue;
+      final raw = [for (final l in lines) l.text];
+      final fixed = ScanTextFix.lines(raw);
+      var pageChanged = false;
+      final updated = <OcrLine>[];
+      for (var i = 0; i < lines.length; i++) {
+        final text = i < fixed.length ? fixed[i] : lines[i].text;
+        if (text != lines[i].text) {
+          fixedCount++;
+          pageChanged = true;
+        }
+        if (text.trim().isNotEmpty) {
+          updated.add(OcrLine(text, lines[i].box));
+        }
+      }
+      if (pageChanged) {
+        _ocr[page.source] = updated;
+      }
+    }
+    if (fixedCount == 0) {
+      _snack(context.t('st.fix_noop'));
+      return;
+    }
+    _partSetState(() => _dirty = true);
+    _scheduleSave();
+    _snack(context.t('st.fix_done', {'n': fixedCount}));
+  }
+
+  /// Tek sayfanın OCR metnini elle düzenleme levhasında açar ve kaydeder.
+  Future<void> _editPageText(int pageIndex, String currentText) async {
+    if (_busy || pageIndex < 0 || pageIndex >= _pages.length) return;
+    final edited = await showAppSheet<String>(
+      context,
+      title: context.t('st.edit_page', {'n': pageIndex + 1}),
+      builder: (_) => _PageTextEditSheet(initial: currentText),
+    );
+    if (edited == null || !mounted) return;
+    final page = _pages[pageIndex];
+    final oldLines = _ocr[page.source] ?? const <OcrLine>[];
+    final newRaw = edited
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    final updated = <OcrLine>[];
+    for (var i = 0; i < newRaw.length; i++) {
+      final box = i < oldLines.length
+          ? oldLines[i].box
+          : Rect.fromLTWH(20, 20.0 + i * 24.0, 400, 20);
+      updated.add(OcrLine(newRaw[i], box));
+    }
+    _partSetState(() {
+      _ocr[page.source] = updated;
+      _dirty = true;
+    });
+    _scheduleSave();
   }
 
   Future<void> _translate() async {
@@ -736,15 +972,14 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     );
   }
 
-  /// Dosya adını değiştirir (uzantı sabit kalır). Ad OCR'dan kendiliğinden
-  /// gelir; burası "beğenmedim" yolu.
+  /// Dosya adını değiştirir (uzantı sabit kalır).
   Future<void> _rename() async {
     await _flush();
     if (!mounted) return;
     final name = await showAppPrompt(
-        context,
-        title: context.t('scr.rename'),
-        initial: p.basenameWithoutExtension(_pdfPath),
+      context,
+      title: context.t('scr.rename'),
+      initial: p.basenameWithoutExtension(_pdfPath),
     );
     final clean = name?.trim();
     if (clean == null || clean.isEmpty || !mounted) return;
@@ -753,11 +988,11 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       final newPath = await FileOps.rename(_pdfPath, '$clean.pdf');
       if (!mounted) return;
       _partSetState(() => _pdfPath = newPath);
-      // "Son belgeler" kaydı yolla eşleşir; ad değişince eski kayıt ölü
-      // bağlantıya dönerdi.
       await EntryOpener.rememberFile(context, newPath, previousPath: old);
     } catch (e) {
-      if (mounted) _snack(context.t('scr.rename_failed', {'error': userErrorText(e)}));
+      if (mounted) {
+        _snack(context.t('scr.rename_failed', {'error': userErrorText(e)}));
+      }
     }
   }
 
@@ -785,9 +1020,6 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     try {
       await Directory(target).create(recursive: true);
     } catch (e) {
-      // Kullanıcı eylemi: klasör kurulamadıysa taşıma DENENMEZ ve nedeni
-      // söylenir (eskiden hata yutuluyor, ardından taşıma boşuna deneniyordu
-      // — FAZ_PLANI I5).
       if (mounted) showUserError(context, e);
       return;
     }

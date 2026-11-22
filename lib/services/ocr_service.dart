@@ -190,6 +190,62 @@ class OcrService {
     return await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines;
   }
 
+  /// Birden çok görselden metni satır satır, kutularıyla birlikte tanır.
+  ///
+  /// Tüm sayfalar boyunca **TEK [TextRecognizer]** paylaşır (her sayfa için
+  /// yerel motoru açıp kapatmaz). İlk sayfada [OcrModelNotReady] yakalanırsa
+  /// kalan sayfalar için 15 sn × N tekrar yapmadan döngüyü hemen sonlandırır
+  /// ve [onModelNotReady] ile bildirir.
+  static Future<List<List<OcrLine>>> recognizeImagesLines(
+    List<String> paths, {
+    bool allowCloud = false,
+    void Function(int done, int total)? onProgress,
+    bool Function()? isCancelled,
+    void Function(OcrModelNotReady)? onModelNotReady,
+  }) async {
+    if (paths.isEmpty) return const [];
+    final out = <List<OcrLine>>[];
+    TextRecognizer? recognizer;
+    try {
+      for (var i = 0; i < paths.length; i++) {
+        if (isCancelled?.call() ?? false) break;
+        onProgress?.call(i, paths.length);
+        final path = paths[i];
+        try {
+          final forced = await _forcedCloud(path, allowCloud);
+          if (forced != null) {
+            out.add(forced);
+            continue;
+          }
+          recognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
+          final result = await _process(recognizer, path);
+          final lines = [
+            for (final block in result.blocks)
+              for (final line in block.lines)
+                if (line.text.trim().isNotEmpty)
+                  OcrLine(line.text, line.boundingBox),
+          ];
+          out.add(
+            await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines,
+          );
+        } on OcrModelNotReady catch (e) {
+          out.add(const []);
+          onModelNotReady?.call(e);
+          break;
+        } catch (_) {
+          out.add(const []);
+        }
+      }
+      while (out.length < paths.length) {
+        out.add(const []);
+      }
+      onProgress?.call(paths.length, paths.length);
+      return out;
+    } finally {
+      await recognizer?.close();
+    }
+  }
+
   /// Bir görselden metni SÖZCÜK SÖZCÜK, satır yapısı korunarak tanır
   /// (satır başına sözcük listesi; kutular resim piksel koordinatında).
   ///

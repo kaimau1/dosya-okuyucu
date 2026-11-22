@@ -3,7 +3,8 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter/services.dart' show MethodChannel, PlatformException, MissingPluginException;
+import 'package:flutter/services.dart'
+    show MethodChannel, PlatformException, MissingPluginException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdf/pdf.dart' show PdfPageFormat;
@@ -13,6 +14,8 @@ import 'docs_home.dart';
 import 'fm/file_ops.dart';
 import 'fm/fs_events.dart';
 import 'ocr_service.dart';
+import 'scan_page_ops.dart';
+import 'scan_title.dart';
 
 /// **Belge tarayıcı** — kamerayla çekilen sayfayı masaüstü tarayıcıdan çıkmış
 /// gibi (kenar tespiti, perspektif düzeltme, kontrast/gri filtre) belgeye
@@ -20,7 +23,7 @@ import 'ocr_service.dart';
 ///
 /// Kenar bulma/kırpma/filtre işini **Google ML Kit `GmsDocumentScanner`** yapıyor
 /// (Faz 35 / adım 0, 2026-11-05): `ci/DocScan.kt` köprüsü, kanal `dosya/docscan`,
-/// SCANNER_MODE_FULL, sonuç JPEG (+PDF). `cunning_document_scanner` bırakıldı.
+/// SCANNER_MODE_FULL, sonuç JPEG. `cunning_document_scanner` bırakıldı.
 /// Play Hizmetleri yoksa/hata verirse (ya da `scan_engine_v2` bayrağı kapalıysa)
 /// **yedek akış**: galeriden içe aktar; kırpma/döndürme stüdyoda (`scan_edit_screen`).
 ///
@@ -44,11 +47,27 @@ class DocumentScanner {
     }
   }
 
+  /// Düşük bellekte kamera açıkken Activity yeniden yaratıldıysa (`pending == null`),
+  /// `cacheDir/docscan/pending_result.json` içine yazılan sayfa yollarını kurtarır.
+  static Future<List<String>?> takePendingResult() async {
+    try {
+      final res =
+          await _chan.invokeMapMethod<String, dynamic>('takePendingResult');
+      if (res == null) return null;
+      final pages = (res['pages'] as List?)?.cast<String>() ?? const [];
+      return pages.isEmpty ? null : pages;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Tarama arayüzünü açar; kullanıcı vazgeçerse `null`, aksi hâlde taranan
   /// sayfaların (JPEG) yolları döner. Kamera izni gerekmez (Play Hizmetleri).
   /// Tembel: köprü ilk kullanımda çağrılır, açılışta hiçbir şey kurulmaz.
   static Future<List<String>?> scanPages({int maxPages = 30}) async {
     if (await _engineV2()) {
+      final recovered = await takePendingResult();
+      if (recovered != null && recovered.isNotEmpty) return recovered;
       try {
         final res = await _chan.invokeMapMethod<String, dynamic>('start', {
           'maxPages': maxPages,
@@ -59,6 +78,7 @@ class DocumentScanner {
         final pages = (res['pages'] as List?)?.cast<String>() ?? const [];
         return pages.isEmpty ? null : pages;
       } on PlatformException catch (e) {
+        if (e.code == 'canceled' || e.code == 'cancelled') return null;
         // `unavailable`: Play Hizmetleri yok / model inemedi → yedek akış.
         if (e.code != 'unavailable') rethrow;
       } on MissingPluginException {
@@ -69,7 +89,8 @@ class DocumentScanner {
   }
 
   /// **Yedek akış:** galeriden görsel seç (otomatik kenar yok; kırpma/döndürme
-  /// tarama stüdyosunda). Vazgeçilirse `null`.
+  /// tarama stüdyosunda). Seçilen görseller EXIF/HEIC/WebP normalizasyonundan
+  /// geçirilir. Vazgeçilirse `null`.
   static Future<List<String>?> importFromGallery({int maxPages = 30}) async {
     final r = await FilePicker.pickFiles(type: FileType.image);
     final paths = [
@@ -77,7 +98,9 @@ class DocumentScanner {
         if (f.path != null) f.path!,
     ];
     if (paths.isEmpty) return null;
-    return paths.length > maxPages ? paths.sublist(0, maxPages) : paths;
+    final capped =
+        paths.length > maxPages ? paths.sublist(0, maxPages) : paths;
+    return ScanPageOps.normalizeAll(capped);
   }
 
   /// Taranan sayfalardan PDF üretip **Belgeler dizinine** yazar, yolunu döndürür.
@@ -100,30 +123,22 @@ class DocumentScanner {
 
   /// Sayfaları OCR'lar — satır **kutularıyla** birlikte.
   ///
-  /// Ayrı bir adım olması gerekiyor: aynı sonuç iki yerde kullanılıyor —
-  /// PDF'in görünmez metin katmanı **ve** tarama sonucu ekranındaki "Metin"
-  /// sekmesi (kullanıcı isteği 2026-07-31: *"bir sayfada belge, bir sayfada
-  /// yazılar düzgün formatta"*). İki kez taramak süreyi ikiye katlardı.
+  /// Tüm sayfalar boyunca **TEK `TextRecognizer`** paylaşır ([OcrService.recognizeImagesLines]).
+  /// [OcrModelNotReady] yakalandığında kalan sayfalar için 15 sn × N tekrar
+  /// yapmadan döngüyü hemen sonlandırır ve [onModelNotReady] ile bildirir.
   static Future<List<List<OcrLine>>> recognizePages(
     List<String> imagePaths, {
     void Function(int done, int total)? onProgress,
-  }) async {
-    final out = <List<OcrLine>>[];
-    for (var i = 0; i < imagePaths.length; i++) {
-      onProgress?.call(i, imagePaths.length);
-      // Metin tanıma EN İYİ ÇABA: model henüz inmediyse (ilk kurulum,
-      // çevrimdışı) ya da tek sayfa okunamadıysa tarama KAYBOLMASIN —
-      // sayfa metinsiz kaydedilir, stüdyodaki "Metni tanı" sonra dener.
-      try {
-        out.add(await OcrService.recognizeImageLines(imagePaths[i],
-            allowCloud: true));
-      } catch (_) {
-        out.add(const []);
-      }
-    }
-    onProgress?.call(imagePaths.length, imagePaths.length);
-    return out;
-  }
+    bool Function()? isCancelled,
+    void Function(OcrModelNotReady)? onModelNotReady,
+  }) =>
+      OcrService.recognizeImagesLines(
+        imagePaths,
+        allowCloud: true,
+        onProgress: onProgress,
+        isCancelled: isCancelled,
+        onModelNotReady: onModelNotReady,
+      );
 
   /// Sayfa görsellerinden PDF baytları üretir (diske yazmaz).
   ///
@@ -136,11 +151,15 @@ class DocumentScanner {
     List<String> imagePaths, {
     List<List<OcrLine>> ocrLinesPerPage = const [],
     bool uniformA4 = true,
+    List<({int width, int height})?> ocrSourceSizes = const [],
+    List<String>? ocrSourcePaths,
   }) =>
       ConversionService().imagesToPdf(
         imagePaths,
         ocrLinesPerPage: ocrLinesPerPage,
         uniformPage: uniformA4 ? PdfPageFormat.a4 : null,
+        ocrSourceSizes: ocrSourceSizes,
+        ocrSourcePaths: ocrSourcePaths,
       );
 
   /// PDF'i diske yazar ve yolunu döner. [dir] verilmezse Belgeler dizini
@@ -154,13 +173,8 @@ class DocumentScanner {
     final target = dir ?? (await defaultDir()).path;
     await Directory(target).create(recursive: true);
     final path = FileOps.uniquePath(
-        p.join(target, fileName ?? 'Tarama ${_stamp()}.pdf'));
+        p.join(target, fileName ?? scanFileName(null, DateTime.now())));
     await File(path).writeAsBytes(bytes, flush: true);
-    // Pano/gezgin ANINDA tazelensin (kullanıcı bulgusu 2026-08-06: *"benim
-    // eklediğim taramalar hemen düşmüyor"*). Tarama sonucu süreç boyunca
-    // önbellekli; kimse "değişti" demezse yeni PDF ancak aşağı çekince ya da
-    // uygulama yeniden açılınca görünüyordu. Sinyal BURADA, çünkü her tarama
-    // kaydı — akıştan da, sonuç ekranından da — bu tek noktadan geçiyor.
     FsEvents.changed();
     return path;
   }
@@ -193,12 +207,5 @@ class DocumentScanner {
     } catch (_) {
       return home;
     }
-  }
-
-  static String _stamp() {
-    final d = DateTime.now();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${d.year}-${two(d.month)}-${two(d.day)} '
-        '${two(d.hour)}${two(d.minute)}${two(d.second)}';
   }
 }

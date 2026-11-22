@@ -7,19 +7,24 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import org.json.JSONArray
 import java.io.File
 import java.io.FileOutputStream
 
 /**
  * **Belge tarayıcı v2** (Faz 35 / adım 0, bayrak `scan_engine_v2`) —
  * `lib/services/document_scanner.dart`taki `DocScanNative`in Kotlin yüzü.
- * Kanal `dosya/docscan`, tek iş:
+ * Kanal `dosya/docscan`, iki iş:
  *
  * **start** — Google ML Kit `GmsDocumentScanner` (Play Hizmetleri): canlı kenar,
  * otomatik çekim, parmak/gölge/leke silme, otomatik döndürme, galeri içe aktarma.
  * Arayüz + model Play Hizmetleri'nden gelir (APK'ya ~0 MB, kamera izni gerekmez).
- * Dönüş: sayfa JPEG yolları (+ varsa Google'ın ürettiği PDF yolu). Play
- * Hizmetleri yoksa/başarısızsa `unavailable` hatası döner → Dart eski yedek akışa düşer.
+ * Dönüş: sayfa JPEG yolları. Play Hizmetleri yoksa/başarısızsa `unavailable`
+ * hatası döner → Dart eski yedek akışa düşer.
+ *
+ * **takePendingResult** — Düşük bellekte kamera açıkken Activity yeniden
+ * yaratıldıysa (`pending == null`), `cacheDir/docscan/pending_result.json`
+ * dosyasına yazılan sayfa yollarını kurtarır.
  *
  * Ağır iş yok: sonuç URI'leri uygulama önbelleğine akışla kopyalanır (Dispatchers
  * yerine ayrı iş parçacığı — ana iş parçacığı bloklanmaz).
@@ -28,6 +33,7 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
     companion object {
         const val CHANNEL = "dosya/docscan"
         const val REQ_SCAN = 7351
+        private const val PENDING_FILE = "pending_result.json"
     }
 
     private var pending: MethodChannel.Result? = null
@@ -40,6 +46,7 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
                 call.argument<String>("mode") ?: "full",
                 result,
             )
+            "takePendingResult" -> takePendingResult(result)
             else -> result.notImplemented()
         }
     }
@@ -57,10 +64,7 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
         val options = GmsDocumentScannerOptions.Builder()
             .setGalleryImportAllowed(gallery)
             .setPageLimit(maxPages.coerceIn(1, 100))
-            .setResultFormats(
-                GmsDocumentScannerOptions.RESULT_FORMAT_JPEG,
-                GmsDocumentScannerOptions.RESULT_FORMAT_PDF,
-            )
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
             .setScannerMode(scanMode)
             .build()
         pending = result
@@ -73,7 +77,11 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
                     fail("unavailable", e.message)
                 }
             }
-            .addOnCanceledListener { fail("canceled", null) }
+            .addOnCanceledListener {
+                val p = pending
+                pending = null
+                p?.success(null)
+            }
             .addOnFailureListener { e -> fail("unavailable", e.message) }
     }
 
@@ -83,18 +91,41 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
         p.error(code, msg ?: code, null)
     }
 
+    private fun takePendingResult(result: MethodChannel.Result) {
+        try {
+            val file = File(File(activity.cacheDir, "docscan"), PENDING_FILE)
+            if (!file.exists()) {
+                result.success(null)
+                return
+            }
+            val raw = file.readText()
+            file.delete()
+            val arr = JSONArray(raw)
+            val pages = ArrayList<String>(arr.length())
+            for (i in 0 until arr.length()) {
+                val path = arr.optString(i)
+                if (path.isNotEmpty() && File(path).exists()) {
+                    pages.add(path)
+                }
+            }
+            result.success(if (pages.isEmpty()) null else mapOf("pages" to pages))
+        } catch (_: Exception) {
+            result.success(null)
+        }
+    }
+
     /** MainActivity.onActivityResult'tan çağrılır; bizim istek değilse false. */
     fun handleResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode != REQ_SCAN) return false
-        val p = pending ?: return true
+        val p = pending
         pending = null
         if (resultCode != Activity.RESULT_OK) {
-            p.success(null) // vazgeçildi
+            p?.success(null) // vazgeçildi
             return true
         }
         val res = GmsDocumentScanningResult.fromActivityResultIntent(data)
         if (res == null) {
-            p.success(null)
+            p?.success(null)
             return true
         }
         Thread {
@@ -110,19 +141,17 @@ class DocScan(private val activity: Activity) : MethodChannel.MethodCallHandler 
                         jpgs.add(out.absolutePath)
                     }
                 }
-                var pdf: String? = null
-                res.pdf?.uri?.let { uri ->
-                    val out = File(dir, "p$stamp.pdf")
-                    activity.contentResolver.openInputStream(uri)?.use { ins ->
-                        FileOutputStream(out).use { ins.copyTo(it) }
-                        pdf = out.absolutePath
+                if (p != null) {
+                    activity.runOnUiThread {
+                        p.success(mapOf("pages" to jpgs))
                     }
-                }
-                activity.runOnUiThread {
-                    p.success(mapOf("pages" to jpgs, "pdf" to pdf))
+                } else if (jpgs.isNotEmpty()) {
+                    File(dir, PENDING_FILE).writeText(JSONArray(jpgs).toString())
                 }
             } catch (e: Exception) {
-                activity.runOnUiThread { p.error("io", e.message ?: "io", null) }
+                if (p != null) {
+                    activity.runOnUiThread { p.error("io", e.message ?: "io", null) }
+                }
             }
         }.start()
         return true

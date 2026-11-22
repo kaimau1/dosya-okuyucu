@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
+import 'path_side_index.dart' show movedPathFor;
 
 /// Kullanıcının uygulamayla **yaptığı iş** türü.
 ///
@@ -139,6 +140,49 @@ abstract final class ActivityLog {
       ...(await load()).where((r) => !(r.path == path && r.kind == kind)),
     ];
     _cache = all.length > maxRecords ? all.sublist(0, maxRecords) : all;
+    if (FmEnv.appSupportDir.isEmpty) return;
+    try {
+      final tmp = File('$_path.tmp');
+      await tmp.writeAsString(
+          jsonEncode([for (final r in _cache!) r.toJson()]),
+          flush: true);
+      await tmp.rename(_path);
+    } catch (_) {
+      // Defter yazılamazsa iş yine yapıldı; sessiz geçilir.
+    }
+  }
+
+  /// Dosya ya da klasör uygulama içinden taşındı/adlandırıldı → defterdeki
+  /// kayıtların yollarını yeni yola taşı (`PathSideIndex` kancası).
+  static Future<void> movePath(String from, String to) async {
+    if (from.isEmpty || to.isEmpty || from == to) return;
+    final all = await load();
+    if (all.isEmpty) return;
+    var changed = false;
+    final updated = <ActivityRecord>[];
+    for (final r in all) {
+      final next = movedPathFor(path: r.path, from: from, to: to);
+      if (next != null && next != r.path) {
+        changed = true;
+        updated.add(ActivityRecord(
+          kind: r.kind,
+          whenMs: r.whenMs,
+          path: next,
+          detail: r.detail,
+        ));
+      } else {
+        updated.add(r);
+      }
+    }
+    if (!changed) return;
+    // Hedef yolda aynı kind ile mükerrer kayıt oluşursa en yenisi kalsın.
+    final deduped = <ActivityRecord>[];
+    final seen = <String>{};
+    for (final r in updated) {
+      final key = '${r.kind.name}:${r.path}';
+      if (seen.add(key)) deduped.add(r);
+    }
+    _cache = deduped;
     if (FmEnv.appSupportDir.isEmpty) return;
     try {
       final tmp = File('$_path.tmp');

@@ -399,20 +399,12 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     }
   }
 
-  /// **Buraya tara** (Faz 6 / U7): ortak tarama akışı PDF'i Belgeler'e
-  /// yazar; sonuç bu klasöre TAŞINIR (aynı ad varsa yeni ad alır).
+  /// **Buraya tara** (Faz 6 / U7): ortak tarama akışı PDF'i doğrudan bu
+  /// klasöre yazar ve Tarama Stüdyosunu açar (`recentFiles` ve `ActivityLog`
+  /// doğrudan hedef yolla kaydedilir).
   Future<void> _scanHere() async {
-    final strings = AppStrings.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final made = await ScanFlow.run(context, open: false);
+    final made = await ScanFlow.run(context, targetDir: widget.path);
     if (made == null || !mounted) return;
-    final result = await FileOps.moveAll([made], widget.path);
-    if (!mounted) return;
-    showSnackOn(
-        messenger,
-        result.hasError
-            ? strings.t('fm.transfer_partial', {'error': result.errors.first})
-            : strings.t('create.scanned'));
     _load();
   }
 

@@ -50,23 +50,31 @@ class ScanQualityReport {
 abstract final class ScanQualityCheck {
   static const sampleEdge = 640;
 
-  static Future<ScanQualityReport?> measure(String path) =>
-      compute(measureFile, path);
+  static Future<ScanQualityReport?> measure(String path,
+          {double? knownSkew}) =>
+      compute(_measureRequest, (path: path, knownSkew: knownSkew));
 
-  static ScanQualityReport? measureFile(String path) {
+  static ScanQualityReport? _measureRequest(
+          ({String path, double? knownSkew}) req) =>
+      measureFile(req.path, knownSkew: req.knownSkew);
+
+  static ScanQualityReport? measureFile(String path, {double? knownSkew}) {
     try {
       final image = ScanPageOps.decode(File(path).readAsBytesSync());
       if (image == null) return null;
-      return measureImage(image);
+      return measureImage(image, knownSkew: knownSkew);
     } catch (_) {
       return null;
     }
   }
 
-  static ScanQualityReport measureImage(img.Image source) {
+  static ScanQualityReport measureImage(img.Image source,
+      {double? knownSkew}) {
     // Eğim, Düzleştir düğmesinin boru hattıyla ölçülür (aksi hâlde uyarı
     // "eğik" deyip düğme "zaten düz" diyebiliyordu — 2026-11-10).
-    final skew = ScanDewarp.measureSkew(source);
+    // Aynı kaynağın filtreli kopyalarında [knownSkew] geçirilir; eğim
+    // yeniden hesaplanmaz.
+    final skew = knownSkew ?? ScanDewarp.measureSkew(source);
     var image = source;
     final long = math.max(image.width, image.height);
     if (long > sampleEdge) {

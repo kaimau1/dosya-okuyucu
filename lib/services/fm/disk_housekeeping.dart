@@ -101,14 +101,16 @@ abstract final class TempSweep {
     'pdf_editor', // PDF düzenleyici çalışma kopyası + geri alma noktaları
     'slayt-pdf', // slayt → PDF aktarımı
     'peer-zip', // yakındaki cihaza gönderme
-    'docscan', // ML Kit tarayıcı ham sayfaları (Faz 35, ci/DocScan.kt)
   ];
 
   /// İçindekiler tek tek yaşlandırılan kalıcı klasörler.
-  static const ownContainers = ['arsiv_onizleme'];
+  static const ownContainers = [
+    'arsiv_onizleme',
+    'docscan', // ML Kit tarayıcı ham sayfaları (Faz 35, ci/DocScan.kt)
+  ];
 
   static final RegExp _ownFile = RegExp(
-    r'(^ocr_page_.+\.png$)|'
+    r'(^ocr_page_.+\.(png|jpg)$)|'
     r'(_(duzeltildi|kirpildi|donduruldu|duzlestirildi|kimlik|kitap_\d+|kalite_\d+|'
     '${ScanFilter.values.map((f) => f.name).join('|')}'
     r')_\d+\.(png|jpg)$)',
