@@ -328,6 +328,7 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   /// Kabuktan: bu tek dokunuş çekik çubukları getirsin mi? Sayfa sayfa
   /// kipinde kenar dokunuşu sayfa çevirir, çubuk getirmez.
   bool _tapShowsBars(Offset global) {
+    if (_pdfTapStoppedFling) return false;
     if (!_pagedLocked) return true;
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.hasSize) return true;
@@ -338,6 +339,11 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   void _pagedPointerDown(PointerDownEvent e) {
     _pagedPointers++;
     if (_pagedPointers == 1) {
+      // pdfrx fırlatmayı parmak değince durdurur (yama 3); görünüm son
+      // karede kıpırdadıysa bu dokunuş akışı durdurmak içindir.
+      final at = _pdfMatrixAt;
+      _pdfTapStoppedFling = at != null &&
+          DateTime.now().difference(at) < const Duration(milliseconds: 60);
       _pagedMulti = false;
       _pagedDownAt = e.position;
       _pagedDownTime = DateTime.now();

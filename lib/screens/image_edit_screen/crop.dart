@@ -213,20 +213,19 @@ extension _ImageEditCrop on _ImageEditScreenState {
   void _setRatio(double? ratio) {
     _update(() => _ratio = ratio);
     if (ratio == null) return;
-    // Var olan kırpmanın ortasına sığan en büyük oranlı dikdörtgen.
+    // Görselin TAMAMINA sığan en büyük oranlı dikdörtgen (eski kırpmaya
+    // göre değil — yoksa her oran dokunuşu bir öncekini küçültüyordu).
+    // Mevcut kırpmanın ortasına yerleşir, taşarsa içeri kaydırılır.
     final c = _e.crop;
-    final pw = c.width * _full.width, ph = c.height * _full.height;
+    final pw = _full.width, ph = _full.height;
     var w = pw, h = pw / ratio;
     if (h > ph) {
       h = ph;
       w = ph * ratio;
     }
-    _push(_e.copyWith(
-      crop: Rect.fromCenter(
-        center: c.center,
-        width: w / _full.width,
-        height: h / _full.height,
-      ),
-    ));
+    final nw = (w / pw).clamp(0.0, 1.0), nh = (h / ph).clamp(0.0, 1.0);
+    final l = (c.center.dx - nw / 2).clamp(0.0, 1.0 - nw);
+    final t = (c.center.dy - nh / 2).clamp(0.0, 1.0 - nh);
+    _push(_e.copyWith(crop: Rect.fromLTWH(l, t, nw, nh)));
   }
 }

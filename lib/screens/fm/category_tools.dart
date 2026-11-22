@@ -48,6 +48,10 @@ Future<void> showCategoryTools(
   required List<FsEntry> visible,
   required Future<void> Function() onChanged,
   VoidCallback? onSelectAll,
+  // Üst çubuktan ⋮'ye taşınanlar (2026-11-22 "üst alanları toparla").
+  VoidCallback? onLayout,
+  IconData? layoutIcon,
+  VoidCallback? onFolderView,
 }) async {
   final n = visible.where((e) => !e.isDir).length;
   // **Belge grubu** (2026-11-20, kullanıcı: "Belgeler sayfasında bir menü
@@ -105,6 +109,16 @@ Future<void> showCategoryTools(
               hint: context.t('ui.ct_smart_hint')),
         ]),
       AppActionGroup(title: context.t('ui.ct_list'), actions: [
+        if (onLayout != null)
+          AppAction(
+              value: 'layout',
+              icon: layoutIcon ?? AppIcons.layoutGrid,
+              label: context.t('ph.view')),
+        if (onFolderView != null)
+          AppAction(
+              value: 'folder_view',
+              icon: AppIcons.accountTree,
+              label: context.t('downloads.folder_view')),
         if (onSelectAll != null)
           AppAction(
               value: 'select_all',
@@ -171,6 +185,10 @@ Future<void> showCategoryTools(
       await ScanFlow.run(context);
     case 'new_doc':
       await showNewDocumentSheet(context);
+    case 'layout':
+      onLayout?.call();
+    case 'folder_view':
+      onFolderView?.call();
     case 'select_all':
       onSelectAll?.call();
     case 'share_all':

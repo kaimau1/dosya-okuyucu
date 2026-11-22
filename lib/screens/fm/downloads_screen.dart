@@ -17,6 +17,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
 import '../../core/app_icons.dart';
 import '../../widgets/side_menu_view.dart';
+import '../../widgets/fm/fm_bar_title.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_layout_sheet.dart';
@@ -208,6 +209,16 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             _selected.addAll(files.map((e) => e.path));
           }
         }),
+        // Klasör görünümü + yerleşim ⋮'de (2026-11-22 "üst alanları toparla").
+        layoutIcon: fmLayoutIcon(_layout),
+        onLayout: () async {
+          final picked = await showFmLayoutSheet(context, current: _layout);
+          if (picked != null && mounted) _setLayout(picked);
+        },
+        onFolderView: () => Navigator.of(context).push(
+          browserRoute(BrowserScreen(
+              path: widget.path, title: context.t('downloads.title'))),
+        ),
         onChanged: _load,
       );
 
@@ -295,47 +306,21 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                   // KENDİSİ değil, alt klasörler dahil TÜM dosyaların yaş
                   // odaklı listesi. Kullanıcı "ilginç, kullanışsız bir klasör"
                   // dedi (2026-07-29) — çünkü klasör sandı.
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(context.t('downloads.title')),
-                      Text(
-                        // Sayı + boyut tek satırda (2026-11-20, kullanıcı:
-                        // "üstte de altta da 54 dosya yazıyor") — alttaki
-                        // ayrı özet satırı kalktı.
-                        context.t('count.files_size', {
-                          'n': _files.length,
-                          'size': FsPaths.humanSize(total),
-                        }),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                  // Sayı + boyut tek satırda (2026-11-20, kullanıcı:
+                  // "üstte de altta da 54 dosya yazıyor").
+                  titleSpacing: 0,
+                  title: FmBarTitle(
+                    title: context.t('downloads.title'),
+                    subtitle: context.t('count.files_size', {
+                      'n': _files.length,
+                      'size': FsPaths.humanSize(total),
+                    }),
                   ),
                   actions: [
                     IconButton(
                       tooltip: context.t('downloads.search'),
                       icon: const Icon(AppIcons.search),
                       onPressed: () => setState(() => _searching = true),
-                    ),
-                    IconButton(
-                      tooltip: context.t('downloads.folder_view'),
-                      icon: const Icon(AppIcons.accountTree),
-                      onPressed: () => Navigator.of(context).push(
-                        browserRoute(BrowserScreen(
-                              path: widget.path, title: context.t('downloads.title')),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      key: const ValueKey('downloads-layout'),
-                      tooltip: context.t('fm.layout', {'name': _layout.label}),
-                      icon: Icon(fmLayoutIcon(_layout)),
-                      onPressed: () async {
-                        final picked =
-                            await showFmLayoutSheet(context, current: _layout);
-                        if (picked != null && mounted) _setLayout(picked);
-                      },
                     ),
                     FmFilterButton(
                         filter: _filter, onPressed: _openFilterSheet),

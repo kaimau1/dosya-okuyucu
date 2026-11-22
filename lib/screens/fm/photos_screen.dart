@@ -34,6 +34,7 @@ import '../../services/fm/open_history.dart';
 import '../../services/fm/photo_albums.dart';
 import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/fm/drag_select.dart';
+import '../../widgets/fm/fm_bar_title.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_fast_scroller.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';

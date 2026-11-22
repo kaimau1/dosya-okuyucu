@@ -533,6 +533,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   bool _pagedMulti = false;
   Offset? _pagedDownAt;
   DateTime? _pagedDownTime;
+  // Son matris değişimi + bu dokunuş süren bir fırlatmayı mı durdurdu
+  // (durduran dokunuş çubukları açıp kapamaz — 2026-11-22).
+  DateTime? _pdfMatrixAt;
+  bool _pdfTapStoppedFling = false;
 
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
@@ -543,6 +547,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// çubuklara dokunmaz.
   void _onPdfMatrix() {
     if (!_pdfController.isReady) return;
+    _pdfMatrixAt = DateTime.now();
     final m = _pdfController.value;
     final ty = m.getTranslation().y;
     final zoom = m.getMaxScaleOnAxis();

@@ -102,7 +102,6 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         bottom: strip,
       );
     }
-    final theme = Theme.of(context);
     final shown = visible.length;
     final total = _files.length;
     final subtitle = shown == total
@@ -115,27 +114,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       toolbarHeight: _PhotosScreenState._toolbarHeight,
       // Sol üstte her zaman ☰ yan menü (2026-11-15, kullanıcı isteği).
       leading: const SideMenuButton(),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _scopeTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
-      ),
+      titleSpacing: 0,
+      title: FmBarTitle(title: _scopeTitle, subtitle: subtitle),
       actions: [
         if (_scopeActive)
           IconButton(
@@ -143,27 +123,13 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             tooltip: context.t('ph.show_all'),
             icon: const Icon(AppIcons.close),
             onPressed: _clearScope,
-          )
-        // Albüm düğmesi alan gizliyken de kalır (2026-11-15, kullanıcı: "albüm
-        // alanı gizlenince simgesi de gizleniyor, geri açamıyorum").
-        else
-          IconButton(
-            key: const ValueKey('ph-albums'),
-            tooltip: context.t('ph.albums'),
-            icon: const Icon(AppIcons.folderCopy),
-            onPressed: _showAlbums,
           ),
+        // Albümler + Görünüm ⋮'de (2026-11-22, kullanıcı: "üst alanları
+        // toparla" — 5 simgeyle başlık "Fotoğr…" diye kesiliyordu).
         IconButton(
           tooltip: context.t('ph.search_in', {'title': widget.title}),
           icon: const Icon(AppIcons.search),
           onPressed: () => _partSetState(() => _searching = true),
-        ),
-        IconButton(
-          key: const ValueKey('ph-view'),
-          tooltip: context.t('ph.view'),
-          icon: Icon(_PhotosScreenState._columnsIcon(
-              appState.fmPhotoLayout.columns)),
-          onPressed: _showViewSheet,
         ),
         FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
         // Nadir işler tek katmanlı levhada (2 katlı "Analiz ve düzenle"
@@ -178,6 +144,11 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
               title: widget.title,
               groups: [
                 AppActionGroup(title: context.t('ui.ct_list'), actions: [
+                  if (!_scopeActive)
+                    AppAction(
+                        value: 'albums',
+                        icon: AppIcons.folderCopy,
+                        label: context.t('ph.albums')),
                   if (visible.isNotEmpty)
                     AppAction(
                         value: 'select',
@@ -219,6 +190,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             );
             if (!mounted) return;
             switch (v) {
+              case 'albums':
+                await _showAlbums();
               case 'view':
                 _showViewSheet();
               case 'similar':
