@@ -843,8 +843,9 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                 final hit = hitPdfBlock(rects, at, slop: 6 * px);
                 if (hit == null) return;
                 AppHaptics.selection();
+                // Basılı tut = seç: taşı/genişlet tutamaçları + blok yongaları
+                // (Biçim, Renk, Kopyala, Sil, Daha fazla). Menü yongadan açılır.
                 c.select(pageIndex, hit);
-                widget.events.onBlockMenu(pageIndex, blocks[hit]);
               },
             ))
             ..add(Positioned.fill(
@@ -981,14 +982,16 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           AppHaptics.selection();
           c.select(pageIndex, hit);
           widget.events.onLocked(pageIndex, blocks[hit]);
-        } else if (hit == selected) {
+        } else {
+          // 2026-11-22 (kullanıcı: "düzenlemeye başlamak çok zor"): TEK
+          // dokunuş doğrudan yazmaya geçer, imleç dokunulan harfte. Taşıma /
+          // genişlik tutamaçları ve blok yongaları basılı tutunca çıkar — böylece
+          // ⊕ tutamacı yazmaya başlarken üstteki metni örtmez.
           if (c.busy) return;
+          if (hit != selected) c.select(pageIndex, hit);
           final p = _p(local);
           widget.events.onEdit(pageIndex, blocks[hit],
               offset: blocks[hit].map.offsetAt(p.x, p.y));
-        } else {
-          AppHaptics.selection();
-          c.select(pageIndex, hit);
         }
       case PdfProTool.markup:
         final a = _annotAt(local);

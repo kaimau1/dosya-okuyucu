@@ -69,6 +69,9 @@ abstract final class EditorTopBar {
     Widget undoRedo(bool isUndo) {
       Widget button() {
         final cb = (isUndo ? undo : redo)?.call();
+        // 2026-11-22 (kullanıcı): yapılacak bir şey yoksa düğme HİÇ görünmez —
+        // başlık yer kazanır; yinele ancak geri alındıktan sonra çıkar.
+        if (cb == null) return const SizedBox.shrink();
         return IconButton(
           key: isUndo ? undoKey : redoKey,
           tooltip: context.t(isUndo ? 'word.undo' : 'word.redo'),

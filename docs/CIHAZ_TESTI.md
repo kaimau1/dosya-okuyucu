@@ -1664,3 +1664,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Grup: tek tutamaçla hepsi birlikte taşınır; Sola / Yatay ortala / Sağa / Üste / Dikey ortala / Alta hizala, (3+ nesnede) Yatay / Dikey dağıt, Sil — her biri tek geri alma adımı, sonrasında seçim kalır.
 - [ ] Katmanlar: katmanlı bir PDF'te Araçlar → Pro araçlar → Katmanlar → bir katmanı kapat → Tamam → o katmanın çizimi görünmez; yeniden aç → geri gelir; başka okuyucuda (Acrobat/Chrome) da gizli açılır. Katmansız PDF'te "Bu belgede katman yok".
 - [ ] Kamera: Düzenle → Görsel → Görsel ekle → "Kameradan çek" → tarayıcı açılır, çek → görsel sayfanın ortasına gelir. Vazgeçince hiçbir şey eklenmez.
+
+## Editör kolaylıkları + geri dönüş geçişi (2026-11-22, main) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF → Düzenle → Metin: düzenlenebilir metne TEK dokunuş → klavye açılır, imleç dokunulan harfte; üstte ⊕ tutamacı çıkmaz. Basılı tut → tutamaçlar + Biçim/Renk/Kopyala yongaları; "Metni düzenle" yongası okunur (koyu zemin, açık yazı).
+- [ ] Geri al / yinele: hiç değişiklik yokken üst çubukta görünmez; bir değişiklikten sonra geri al çıkar; geri alınca yinele çıkar (Word, Excel, Slayt, PDF Pro, görsel, video, kalem, kod).
+- [ ] Word sayfa görünümü: alt çubukta "Sayfada düzenle" → sayfa düzeni bozulmadan yazı değiştirilebilir/silinebilir; Mobil editörde Gözden Geçir → ilk yonga "Sayfa görünümü".
+- [ ] PDF'ten ve Word'den geri tuşuyla Belgeler'e dön: sayfa sağa tam kayarak çıkar, liste kademeli açılır, son karede sıçrama yok. A/B (kare p99 ≤ 24 ms) C2'de.

@@ -342,21 +342,19 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
           title: Text(p.basename(widget.path),
               overflow: TextOverflow.ellipsis),
           actions: [
+            if (history != null && history.canUndo)
             IconButton(
               key: const ValueKey('pdf-undo'),
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
-              onPressed: history == null || !history.canUndo || _busy
-                  ? null
-                  : _undoLast,
+              onPressed: _busy ? null : _undoLast,
             ),
+            if (history != null && history.canRedo)
             IconButton(
               key: const ValueKey('pdf-redo'),
               tooltip: context.t('common.redo'),
               icon: const Icon(AppIcons.redo),
-              onPressed: history == null || !history.canRedo || _busy
-                  ? null
-                  : _redoLast,
+              onPressed: _busy ? null : _redoLast,
             ),
             IconButton(
               tooltip: context.t('common.save'),

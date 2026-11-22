@@ -16,9 +16,9 @@ const Map<String, (String, String, String)> _t33 = {
   'pse.step_paragraph': ('Paragraf düzenlendi', 'Paragraph edited', 'تم تحرير الفقرة'),
   'pse.step_detail': ('{name}: “{detail}”', '{name}: “{detail}”', '{name}: «{detail}»'),
   'pse.hint_tap': (
-    'Bir paragrafa dokunup seçin; yeniden dokununca olduğu yerde yazarsınız.',
-    'Tap a paragraph to select it; tap again to type right on the page.',
-    'اضغط على فقرة لتحديدها، ثم اضغط مرة أخرى للكتابة في مكانها.',
+    'Yazmak için metne dokunun; taşımak ya da biçimlemek için basılı tutun.',
+    'Tap text to type; press and hold to move or style it.',
+    'اضغط على النص للكتابة؛ اضغط مطولاً لنقله أو تنسيقه.',
   ),
   'pse.hint_scanned': (
     'Bu sayfa taranmış bir görüntü, seçilecek metin yok. Yazı eklemek için “Metin kutusu”na, metni tanıtmak için “Metni tanı (OCR)”a dokunun.',

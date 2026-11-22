@@ -117,7 +117,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
       _snack(scanned);
       return;
     }
-    if (!await OnceHints.take('pdf_edit_tap')) return;
+    if (!await OnceHints.take('pdf_edit_tap2')) return;
     if (!mounted || _pro != pro) return;
     _snack(tap);
   }
@@ -217,23 +217,22 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     final live = pro.live != null;
     final canSave = pro.session.dirty || (pro.live?.changed ?? false);
     return [
+      // Yapılacak adım yoksa düğme görünmez (2026-11-22).
+      if (undo != null)
       IconButton(
         key: const ValueKey('pse-undo'),
         visualDensity: VisualDensity.compact,
-        tooltip: undo == null
-            ? context.t('common.undo')
-            : context.t('pse.undo_named', {'name': _proStepName(undo)}),
+        tooltip: context.t('pse.undo_named', {'name': _proStepName(undo)}),
         icon: const Icon(AppIcons.undo),
-        onPressed: pro.busy || live || undo == null ? null : _proUndo,
+        onPressed: pro.busy || live ? null : _proUndo,
       ),
+      if (redo != null)
       IconButton(
         key: const ValueKey('pse-redo'),
         visualDensity: VisualDensity.compact,
-        tooltip: redo == null
-            ? context.t('common.redo')
-            : context.t('pse.redo_named', {'name': _proStepName(redo)}),
+        tooltip: context.t('pse.redo_named', {'name': _proStepName(redo)}),
         icon: const Icon(AppIcons.redo),
-        onPressed: pro.busy || live || redo == null ? null : _proRedo,
+        onPressed: pro.busy || live ? null : _proRedo,
       ),
       Padding(
         padding: const EdgeInsetsDirectional.only(start: Gap.xs),

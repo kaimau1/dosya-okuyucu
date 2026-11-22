@@ -114,7 +114,8 @@ void main() {
 
     final bi = blocks.indexWhere((b) => b.lines.length >= 3 && b.editable);
     final b = blocks[bi];
-    await tester.tapAt(
+    // Basılı tut = seç (tek dokunuş doğrudan yazmaya geçer — 2026-11-22).
+    await tester.longPressAt(
         Offset((b.left + b.right) / 2, page.height - (b.top + b.bottom) / 2));
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.selectedBlock, bi);

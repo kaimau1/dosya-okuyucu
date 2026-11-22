@@ -98,7 +98,10 @@ class PdfProContextBar extends StatelessWidget {
                         ? FontWeight.w600
                         : FontWeight.w500,
                   ),
+                  // KÖK (2026-11-22): M3'te tema `color`'ı backgroundColor'ı
+                  // ezer → birincil yonga beyaz zeminde beyaz yazı kalıyordu.
                   backgroundColor: bg,
+                  color: WidgetStatePropertyAll(bg),
                   side: BorderSide(color: borderColor),
                   onPressed: c.onTap,
                 );

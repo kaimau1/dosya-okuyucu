@@ -99,6 +99,11 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   bool _plainMode = false;
   bool _editing = false;
 
+  /// true → düzenleme SAYFA görünümünde kalır (akışa geçmez). 2026-11-22
+  /// (kullanıcı): "isterse normal bilgisayar görünümünde de yazı değiştirip
+  /// silip yeniden yazabilmeli".
+  bool _editKeepPage = false;
+
   /// Okuma kipi (Faz 18 / G20) — düzenleme kapalıyken.
   final ReadingBars _readingBars = ReadingBars();
 

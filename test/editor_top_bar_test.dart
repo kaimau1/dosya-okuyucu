@@ -46,7 +46,7 @@ void main() {
             onSave: () => saved++,
             history: history,
             undo: () => history.value > 0 ? () {} : null,
-            redo: () => null,
+            redo: () => history.value > 1 ? () {} : null,
             extras: [
               IconButton(
                   tooltip: 'ara', icon: const Icon(AppIcons.search), onPressed: () {}),
@@ -60,6 +60,16 @@ void main() {
             ],
           ),
         )));
+    // Yapılacak bir şey yokken geri al/yinele HİÇ görünmez (2026-11-22).
+    expect(find.byIcon(AppIcons.undo), findsNothing);
+    expect(find.byIcon(AppIcons.redo), findsNothing);
+    history.value = 1;
+    await tester.pump();
+    expect(find.byIcon(AppIcons.undo), findsOneWidget);
+    expect(find.byIcon(AppIcons.redo), findsNothing,
+        reason: 'yinele ancak geri alınacak bir şey olunca');
+    history.value = 2;
+    await tester.pump();
     final xs = [
       for (final tip in ['Kaydet', 'Geri al', 'Yinele', 'ara', 'Daha fazla'])
         tester.getCenter(find.byTooltip(tip)).dx,
@@ -67,13 +77,6 @@ void main() {
     for (var i = 1; i < xs.length; i++) {
       expect(xs[i], greaterThan(xs[i - 1]));
     }
-    // Geri al başta kapalı; geçmiş değişince yalnız o düğme açılır.
-    IconButton undo() => tester.widget<IconButton>(find.ancestor(
-        of: find.byIcon(AppIcons.undo), matching: find.byType(IconButton)));
-    expect(undo().onPressed, isNull);
-    history.value = 1;
-    await tester.pump();
-    expect(undo().onPressed, isNotNull);
 
     await tester.tap(find.byTooltip('Kaydet'));
     expect(saved, 1);

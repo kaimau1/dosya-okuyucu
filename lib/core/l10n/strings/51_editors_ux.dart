@@ -57,6 +57,8 @@ const Map<String, (String, String, String)> _t51 = {
   'word.words_n': ('{n} sözcük', '{n} words', '{n} كلمة'),
 
   // ── Excel UX ve kısa etiketler ──
+  'word.edit_on_page': ('Sayfada düzenle', 'Edit on page', 'تحرير في الصفحة'),
+  'word.review_page': ('Sayfa görünümü', 'Page view', 'عرض الصفحة'),
   'excel.cell_menu': ('Hücre menüsü', 'Cell menu', 'قائمة الخلية'),
   'excel.quick_actions': ('Hızlı işlemler', 'Quick actions', 'إجراءات سريعة'),
   'excel.paste_special_group': ('Özel yapıştır', 'Paste special', 'لصق خاص'),

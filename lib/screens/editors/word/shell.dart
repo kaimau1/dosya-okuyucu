@@ -144,6 +144,19 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                 // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar.
                 DocAction(AppIcons.edit, context.t('common.edit'),
                     editor == null ? null : _openMobileEditor),
+              // 2026-11-22 (kullanıcı): sayfa görünümünü bozmadan yazı
+              // değiştirme / silip yeniden yazma (canlı sayfa düzenleme).
+              if (!_plainMode)
+                DocAction(
+                  AppIcons.newWord,
+                  context.t('word.edit_on_page'),
+                  editor == null
+                      ? null
+                      : () {
+                          _editKeepPage = true;
+                          unawaited(_toggleEdit());
+                        },
+                ),
               DocAction(
                 AppIcons.translate,
                 context.t('common.translate'),

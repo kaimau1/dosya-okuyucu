@@ -324,6 +324,16 @@ class WordFormatUi {
             onTap: onNavigate),
       ]),
       RibbonTab(_t('word.tab_review'), [
+        // 2026-11-22 (kullanıcı): gözden geçirirken belge gerçek sayfa
+        // düzeninde görülsün — ilk yonga sayfa görünümüne geçer.
+        RibbonChip(
+          key: const ValueKey('word-rev-page'),
+          icon: AppIcons.newWord,
+          label: _t('word.review_page'),
+          tooltip: _t('word.page_layout'),
+          onTap: onPageLayout,
+        ),
+        const RibbonSep(),
         if (onFind != null)
           chip('word-find', OfficeIcons.search, 'word.search_short',
               tipKey: 'word.find', onTap: onFind),

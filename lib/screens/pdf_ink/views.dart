@@ -15,11 +15,13 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
       appBar: AppBar(
         title: Text(context.t('ink.title')),
         actions: [
+          if (_undo.isNotEmpty)
           IconButton(
             tooltip: context.t('common.undo'),
             icon: const Icon(AppIcons.undo),
             onPressed: _undo.isEmpty || _busy ? null : _undoLast,
           ),
+          if (_redo.isNotEmpty)
           IconButton(
             tooltip: context.t('ink.redo'),
             icon: const Icon(AppIcons.redo),

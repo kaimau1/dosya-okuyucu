@@ -693,6 +693,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                   ),
                 ),
               ),
+            if (_history.canUndo)
             IconButton(
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
@@ -703,6 +704,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                       })
                   : null,
             ),
+            if (_history.canRedo)
             IconButton(
               tooltip: context.t('common.redo'),
               icon: const Icon(AppIcons.redo),

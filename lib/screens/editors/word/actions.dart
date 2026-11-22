@@ -156,7 +156,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
     if (!mounted || on == _editing) return;
     // Yazı okunur boyutta düzenlenir (W6): sayfa görünümü ~0,5 ölçekte
     // (11 pt ≈ 5–6 px) — düzenlerken mobil akışa geçilir, çıkışta dönülür.
-    if (on && !_flow && !_plainMode) {
+    if (on && !_flow && !_plainMode && !_editKeepPage) {
       view?.setFlow(true);
       _flowForEdit = true;
       _flow = true;
@@ -165,7 +165,10 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       _flowForEdit = false;
       _flow = false;
     }
-    if (!on) _panel.close();
+    if (!on) {
+      _panel.close();
+      _editKeepPage = false;
+    }
     view?.setEditing(on, spellcheck: EditPrefs.wordSpellcheck);
     _partSetState(() => _editing = on);
     if (caret >= 0) view?.focusParagraph(caret);
