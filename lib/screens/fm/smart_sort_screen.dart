@@ -20,6 +20,7 @@ import '../../services/fm/smart_folder_prefs.dart';
 import '../../services/fm/smart_folders.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_quota.dart';
+import '../../services/fm/smart_scope_pick.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_bg.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
@@ -35,6 +36,7 @@ import 'entry_actions.dart' show showUndoToast;
 import 'folder_picker_screen.dart';
 import 'smart_clutter_screen.dart';
 import 'smart_folders_screen.dart';
+import 'smart_scope_screen.dart';
 import 'smart_user_cat_screen.dart';
 
 /// **Akıllı düzen** ana ekranı (2026-11-18): aç/kapat ve gizlilik metni,
@@ -1124,13 +1126,25 @@ class SmartSortSettings extends StatelessWidget {
                     child: Text(context.t('smo.learn_reset')),
                   ),
           ),
-        SwitchListTile(
-          key: const ValueKey('ss-camera'),
-          secondary: const Icon(AppIcons.photoCamera),
-          title: Text(context.t('sm.camera')),
-          subtitle: Text(context.t('sm.camera_sub')),
-          value: SmartSort.includeCamera,
-          onChanged: (v) => unawaited(SmartSort.setSettings(camera: v)),
+        // Kamera anahtarı "Neyi düzenleyelim?" ekranındaki Yerler'e taşındı
+        // (2026-11-22, Aşama 1).
+        ListTile(
+          key: const ValueKey('ss-scope'),
+          leading: const Icon(AppIcons.tune),
+          title: Text(context.t('scp.title')),
+          subtitle: Text(context.t('scp.tile_sub', {
+            'g': SmartGroup.values.where(SmartScopePick.groupOn).length,
+            'gt': SmartGroup.values.length,
+            's': SmartSource.values.where(SmartScopePick.sourceOn).length,
+            'st': SmartSource.values.length,
+          })),
+          trailing: const Icon(AppIcons.chevron),
+          onTap: () async {
+            await SmartScopePick.read();
+            if (!context.mounted) return;
+            await Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => const SmartScopeScreen()));
+          },
         ),
         SwitchListTile(
           key: const ValueKey('ss-auto'),

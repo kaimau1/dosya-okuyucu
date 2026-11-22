@@ -26,6 +26,7 @@ import 'path_side_index.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
 import 'smart_quota.dart';
+import 'smart_scope_pick.dart';
 import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
 import 'smart_user_cats.dart';
@@ -1538,10 +1539,16 @@ abstract final class SmartSort {
     final done = <String>[];
     try {
       final fresh = await FsScan.freshFiles(roots, limit: scan);
-      final todo = [
+      // "Neyi düzenleyelim?" seçimi + önce değerli dosyalar (2026-11-22).
+      await SmartScopePick.read();
+      final todo = SmartScopePick.ordered([
         for (final e in fresh)
-          if (supports(e) && needs(e) && scope.allowsFile(e)) e
-      ].take(limit).toList();
+          if (supports(e) &&
+              needs(e) &&
+              scope.allowsFile(e) &&
+              SmartScopePick.allows(e.path))
+            e
+      ]).take(limit).toList();
       progress.value = SmartProgress(0, todo.length);
       // İstekteki "bugün" tur boyunca sabit (tarih aralıkları buna göre).
       final today = DateTime.now();
