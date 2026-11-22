@@ -209,11 +209,13 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
             if (widget.embedded) ...[
               IconButton(
                 tooltip: context.t('important.search'),
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(AppIcons.search),
                 onPressed: () => setState(() => _searching = true),
               ),
               PopupMenuButton<ImpSort>(
                 tooltip: context.t('ig.sort'),
+                padding: EdgeInsets.zero,
                 icon: const Icon(AppIcons.sort),
                 initialValue: _filter.sort,
                 onSelected: (s) => _set(_filter.copyWith(sort: s)),
@@ -226,6 +228,7 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
                     ),
                 ],
               ),
+              const SizedBox(width: Gap.xs),
             ],
           ]),
           if (!_filter.isEmpty)

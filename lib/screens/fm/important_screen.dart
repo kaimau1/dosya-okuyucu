@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
-import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
@@ -27,6 +26,7 @@ import 'custom_card_screen.dart';
 import 'entry_actions.dart';
 import 'important_gallery_screen.dart';
 import 'photos_screen.dart';
+import 'pick_file_screen.dart';
 import 'search_screen.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
@@ -72,6 +72,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
   List<FsEntry> _subFolders = const [];
   bool _loading = true;
   bool _exists = false;
+  bool _showEmptyFolders = false;
 
 
   @override
@@ -185,6 +186,39 @@ class _ImportantScreenState extends State<ImportantScreen> {
     await _load();
   }
 
+  Future<void> _pickAndAddFiles() async {
+    final res = await AppFilePicker.pickFiles(
+      dialogTitle: context.t('important.title'),
+      allowMultiple: true,
+    );
+    if (res == null || !mounted) return;
+    final sources = [
+      for (final f in res.files)
+        if (f.path != null) f.path!,
+    ];
+    if (sources.isEmpty) return;
+    await Directory(_root).create(recursive: true);
+    if (!mounted) return;
+    final result = await showFmProgress<FmOpResult>(
+      context,
+      title: context.t('fm.copying'),
+      name: context.t('fm.copying_name'),
+      task: (report, isCancelled) => FileOps.copyAll(
+        sources,
+        _root,
+        onProgress: report,
+        isCancelled: isCancelled,
+        renameTo: ImportantFiles.markedNameFor,
+      ),
+    );
+    if (!mounted) return;
+    if (result.hasError) {
+      _snack(context.t('fm.transfer_partial', {'error': result.errors.first}));
+    }
+    FsEvents.changed();
+    await _load();
+  }
+
   void _snack(String message) {
     if (!mounted) return;
     showSnack(context, message);
@@ -217,6 +251,15 @@ class _ImportantScreenState extends State<ImportantScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final categoryTiles = _categoryTiles();
+    final nonEmptyFolders = [
+      for (final f in _plainSubFolders)
+        if (_countIn(f.path) > 0) f,
+    ];
+    final emptyFolders = [
+      for (final f in _plainSubFolders)
+        if (_countIn(f.path) == 0) f,
+    ];
     // İki sekme (2026-11-20, kullanıcı: "Önemli galeri sekme olarak
     // bulunsun, sağa kaydırınca galeriye geçsin"): Klasör · Galeri. Eski
     // klasör sayfasındaki 12'lik galeri önizlemesi kalktı (sekme var).
@@ -225,7 +268,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
       child: Scaffold(
       appBar: AppBar(
         leading: const SideMenuButton(),
-        title: const Text(ImportantScreen.folderName),
+        title: Text(context.t('important.title')),
         bottom: TabBar(tabs: [
           Tab(text: context.t('imp.tab_folder')),
           Tab(text: context.t('imp.tab_gallery')),
@@ -237,7 +280,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
               icon: const Icon(AppIcons.search),
               onPressed: () => _push(SearchScreen(
                 root: _root,
-                rootLabel: ImportantScreen.folderName,
+                rootLabel: context.t('important.title'),
               )),
             ),
           IconButton(
@@ -251,7 +294,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
               icon: const Icon(AppIcons.emptyFolder),
               onPressed: () => _push(BrowserScreen(
                 path: _root,
-                title: ImportantScreen.folderName,
+                title: context.t('important.title'),
               )),
             ),
         ],
@@ -266,13 +309,15 @@ class _ImportantScreenState extends State<ImportantScreen> {
             if (_loading) const LinearProgressIndicator(minHeight: 3),
             if (!_exists && !_loading) _emptyCard(),
             if (_exists) ...[
-              _summaryCard(),
+              _summaryCard(appState),
               const SizedBox(height: Gap.md),
-              Text(context.t('important.by_type'),
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: Gap.sm),
-              FmCategoryGrid(tiles: _categoryTiles()),
-              const SizedBox(height: Gap.md),
+              if (_files.isNotEmpty && categoryTiles.isNotEmpty) ...[
+                Text(context.t('important.by_type'),
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: Gap.sm),
+                FmCategoryGrid(tiles: categoryTiles),
+                const SizedBox(height: Gap.md),
+              ],
               ..._cardsSection(context),
               const SizedBox(height: Gap.md),
               Row(
@@ -293,57 +338,64 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   padding: const EdgeInsets.symmetric(vertical: Gap.sm),
                   child: Text(context.t('important.no_subfolder')),
                 ),
-              for (final f in _plainSubFolders)
+              for (final f in nonEmptyFolders) _subFolderTile(f),
+              if (emptyFolders.isNotEmpty) ...[
                 ListTile(
+                  key: const ValueKey('imp-empty-folders-toggle'),
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(AppIcons.folder, color: context.fmFolderColor ?? FmColors.folder),
-                  title: Text(f.name,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(
-                    '${context.t('count.files', {'n': _countIn(f.path)})} · '
-                    '${FsPaths.humanSize(_bytesIn(f.path))}',
+                  leading: Icon(AppIcons.emptyFolder,
+                      color: Paper.faint(context)),
+                  title: Text(
+                    context.t(
+                        'ux47.imp_empty_folders', {'n': emptyFolders.length}),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
-                  trailing: PopupMenuButton<String>(
-                    onSelected: (v) => v == 'rename'
-                        ? _renameCategory(f)
-                        : _deleteCategory(f),
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                          value: 'rename',
-                          child: Text(ctx.t('important.rename_category'))),
-                      PopupMenuItem(
-                          value: 'delete',
-                          child: Text(ctx.t('important.delete_category'))),
-                    ],
-                  ),
-                  onTap: () => _push(BrowserScreen(path: f.path)),
-                  onLongPress: () => _renameCategory(f),
+                  trailing: Icon(_showEmptyFolders
+                      ? AppIcons.expandLess
+                      : AppIcons.expandMore),
+                  onTap: () =>
+                      setState(() => _showEmptyFolders = !_showEmptyFolders),
                 ),
+                if (_showEmptyFolders)
+                  for (final f in emptyFolders) _subFolderTile(f),
+              ],
             ],
           ],
         ),
       ),
       const ImportantGalleryScreen(embedded: true),
       ]),
-      floatingActionButton: !_exists
-          ? null
-          // Pano ayrı bildirici (A4.2).
-          : ListenableBuilder(
-              listenable: appState.clipboardState,
-              builder: (context, _) => appState.hasClipboard
-              ? FloatingActionButton.extended(
-                  onPressed: _paste,
-                  icon: const Icon(AppIcons.paste),
-                  label: Text(appState.clipboardCut ? context.t('fm.move') : context.t('fm.paste')),
-                )
-              : FloatingActionButton(
-                  onPressed: _newSubFolder,
-                  tooltip: context.t('important.new_subfolder'),
-                  child: const Icon(AppIcons.newFolder),
-                )),
     ),
     );
   }
+
+  Widget _subFolderTile(FsEntry f) => ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(AppIcons.folder,
+            color: context.fmFolderColor ?? FmColors.folder),
+        title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          '${context.t('count.files', {'n': _countIn(f.path)})} · '
+          '${FsPaths.humanSize(_bytesIn(f.path))}',
+        ),
+        trailing: PopupMenuButton<String>(
+          onSelected: (v) =>
+              v == 'rename' ? _renameCategory(f) : _deleteCategory(f),
+          itemBuilder: (ctx) => [
+            PopupMenuItem(
+                value: 'rename',
+                child: Text(ctx.t('important.rename_category'))),
+            PopupMenuItem(
+                value: 'delete',
+                child: Text(ctx.t('important.delete_category'))),
+          ],
+        ),
+        onTap: () => _push(BrowserScreen(path: f.path)),
+        onLongPress: () => _renameCategory(f),
+      );
 
   // ── Kartlar (2026-11-13) ───────────────────────────────────────────────
 
@@ -379,31 +431,25 @@ class _ImportantScreenState extends State<ImportantScreen> {
           ),
         ],
       ),
-      const SizedBox(height: Gap.sm),
-      FmCategoryGrid(tiles: [
-        for (final c in cards)
-          FmTileData(
-            id: c.tileId,
-            icon: cardIconOf(c),
-            color: Color(c.color),
-            label: c.name,
-            subtitle: _countIn(c.path) == 0
-                ? context.t('card.tile_sub_empty')
-                : '${FsPaths.humanSize(_bytesIn(c.path))} (${_countIn(c.path)})',
-            onTap: () async {
-              await openCustomCard(context, c);
-              await _load();
-            },
-          ),
-        FmTileData(
-          id: 'new_card',
-          icon: AppIcons.add,
-          color: AppHues.steel,
-          label: context.t('card.new'),
-          subtitle: context.t('card.new_tile_sub'),
-          onTap: _newCard,
-        ),
-      ]),
+      if (cards.isNotEmpty) ...[
+        const SizedBox(height: Gap.sm),
+        FmCategoryGrid(tiles: [
+          for (final c in cards)
+            FmTileData(
+              id: c.tileId,
+              icon: cardIconOf(c),
+              color: Color(c.color),
+              label: c.name,
+              subtitle: _countIn(c.path) == 0
+                  ? context.t('card.tile_sub_empty')
+                  : '${FsPaths.humanSize(_bytesIn(c.path))} (${_countIn(c.path)})',
+              onTap: () async {
+                await openCustomCard(context, c);
+                await _load();
+              },
+            ),
+        ]),
+      ],
     ];
   }
 
@@ -477,31 +523,75 @@ class _ImportantScreenState extends State<ImportantScreen> {
       .where((f) => FsPaths.isInside(dir, f.path))
       .fold<int>(0, (sum, f) => sum + f.sizeBytes);
 
-  Widget _summaryCard() => Card(
+  Widget _summaryCard(AppState appState) => Card(
         child: Padding(
           padding: const EdgeInsets.all(Gap.md),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(AppIcons.star, color: FmColors.folder, size: 32),
-              const SizedBox(width: Gap.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${context.t('count.files', {'n': _files.length})} · '
-                      '${FsPaths.humanSize(_files.fold<int>(0, (s, f) => s + f.sizeBytes))}',
-                      style: Theme.of(context).textTheme.titleMedium,
+              Row(
+                children: [
+                  const Icon(AppIcons.star, color: FmColors.folder, size: 32),
+                  const SizedBox(width: Gap.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${context.t('count.files', {'n': _files.length})} · '
+                          '${FsPaths.humanSize(_files.fold<int>(0, (s, f) => s + f.sizeBytes))}',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          context.t('ux47.imp_location'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _root,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.xs,
+                children: [
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('imp-add-file'),
+                    onPressed: _pickAndAddFiles,
+                    icon: const Icon(AppIcons.addFile, size: 18),
+                    label: Text(context.t('ux47.imp_add_file')),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('imp-open-folder'),
+                    onPressed: () => _push(BrowserScreen(
+                      path: _root,
+                      title: context.t('important.title'),
+                    )),
+                    icon: const Icon(AppIcons.emptyFolder, size: 18),
+                    label: Text(context.t('ux47.imp_open_folder')),
+                  ),
+                  ListenableBuilder(
+                    listenable: appState.clipboardState,
+                    builder: (context, _) => !appState.hasClipboard
+                        ? const SizedBox.shrink()
+                        : FilledButton.icon(
+                            onPressed: _paste,
+                            icon: const Icon(AppIcons.paste, size: 18),
+                            label: Text(appState.clipboardCut
+                                ? context.t('fm.move')
+                                : context.t('fm.paste')),
+                          ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -169,9 +169,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
   late final TextEditingController _textCtrl =
       TextEditingController(text: widget.sendText)..addListener(_onTextEdited);
 
-  /// Sistem panosunda bulunan, henüz eklenmemiş yazı (öneri çipi).
-  String? _clipSuggestion;
-  String? _clipDismissed;
+  /// Sistem panosunda metin var mı? (`Clipboard.hasStrings()` — Android 12+
+  /// pano okuma tostunu tetiklemez; veri yalnız kullanıcı "Panodan yapıştır"
+  /// düğmesine bastığında okunur.)
+  bool _hasClipText = false;
   AppLifecycleListener? _life;
 
   void _onTextEdited() {
@@ -180,30 +181,34 @@ class _NearbyScreenState extends State<NearbyScreen> {
     if (next != _text) setState(() => _text = next);
   }
 
-  /// Panodaki yazıyı yoklar (açılışta ve uygulamaya dönüşte).
+  /// Panoda metin var mı yoklar (açılışta ve uygulamaya dönüşte).
+  /// KESİNLİKLE `Clipboard.getData` çağırmaz (Android 12+ tostunu önler).
   Future<void> _probeClipboard() async {
-    String? clip;
+    var has = false;
     try {
-      clip = await Clipboard.hasStrings()
-          ? (await Clipboard.getData(Clipboard.kTextPlain))?.text
-          : null;
+      has = await Clipboard.hasStrings();
     } catch (_) {
-      clip = null; // pano okunamadı — öneri gösterilmez
+      has = false;
     }
     if (!mounted) return;
-    final c = (clip == null || clip.trim().isEmpty) ? null : clip;
-    final show = c != null && c != _text && c != _clipDismissed ? c : null;
-    if (show != _clipSuggestion) setState(() => _clipSuggestion = show);
+    if (has != _hasClipText) setState(() => _hasClipText = has);
   }
 
-  void _useClipboardText() {
-    final c = _clipSuggestion;
-    if (c == null) return;
-    _textCtrl.text = _text == null ? c : '$_text\n$c';
-    setState(() {
-      _clipDismissed = c;
-      _clipSuggestion = null;
-    });
+  Future<void> _useClipboardText() async {
+    String? clip;
+    try {
+      clip = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+    } catch (_) {
+      clip = null;
+    }
+    if (!mounted) return;
+    final c = clip?.trim() ?? '';
+    if (c.isEmpty) {
+      setState(() => _hasClipText = false);
+      showSnack(context, context.t('ux47.clip_empty'));
+      return;
+    }
+    _textCtrl.text = (_text == null || _text!.isEmpty) ? c : '$_text\n$c';
   }
 
   /// Klavyeden (Gboard panosu, çıkartma, GIF) gelen görseli dosyaya yazıp
@@ -723,27 +728,83 @@ class _NearbyScreenState extends State<NearbyScreen> {
     }
   }
 
-  /// Yazı ekler/düzenler; panodaki metin hazır gelir.
+  /// Yazı ekler/düzenler; kullanıcı isterse levhadaki "Panodan yapıştır"
+  /// düğmesiyle panoyu okur (otomatik `Clipboard.getData` çağrılmaz).
   Future<void> _editText() async {
-    var initial = _text ?? '';
-    if (initial.isEmpty) {
-      try {
-        initial = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
-      } catch (_) {
-        // Pano okunamadı: kutu boş açılır, kullanıcı yazar — söylenecek bir şey yok.
-      }
+    final draft = TextEditingController(text: _text ?? '');
+    try {
+      final res = await showAppSheet<String>(
+        context,
+        title: context.t('near.text_title'),
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: const ValueKey('near-paste-field'),
+                controller: draft,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 6,
+                keyboardType: TextInputType.multiline,
+                contentInsertionConfiguration: ContentInsertionConfiguration(
+                  onContentInserted: _onKeyboardContent,
+                ),
+                decoration: InputDecoration(
+                  hintText: ctx.t('near.text_hint'),
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              Row(
+                children: [
+                  TextButton.icon(
+                    key: const ValueKey('near-sheet-paste'),
+                    onPressed: () async {
+                      String? clip;
+                      try {
+                        clip = (await Clipboard.getData(Clipboard.kTextPlain))
+                            ?.text;
+                      } catch (_) {
+                        clip = null;
+                      }
+                      final c = clip?.trim() ?? '';
+                      if (c.isEmpty) {
+                        if (ctx.mounted) {
+                          showSnack(ctx, ctx.t('ux47.clip_empty'));
+                        }
+                        return;
+                      }
+                      final cur = draft.text.trim();
+                      draft.text = cur.isEmpty ? c : '$cur\n$c';
+                      draft.selection = TextSelection.collapsed(
+                          offset: draft.text.length);
+                    },
+                    icon: const Icon(AppIcons.paste, size: 18),
+                    label: Text(ctx.t('ux47.paste_clipboard')),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(ctx.t('common.cancel')),
+                  ),
+                  const SizedBox(width: Gap.xs),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, draft.text.trim()),
+                    child: Text(ctx.t('common.ok')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+      if (res == null || !mounted) return;
+      _textCtrl.text = res;
+    } finally {
+      draft.dispose();
     }
-    if (!mounted) return;
-    final text = await showAppPrompt(
-      context,
-      title: context.t('near.text_title'),
-      label: context.t('near.text_hint'),
-      initial: initial,
-      confirmLabel: context.t('common.ok'),
-      multiline: true,
-    );
-    if (text == null || !mounted) return;
-    _textCtrl.text = text;
   }
 
   Future<bool> _sendText(Peer peer) async {

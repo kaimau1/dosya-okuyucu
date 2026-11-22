@@ -56,33 +56,50 @@ class PinTile extends StatelessWidget {
 /// **Uygulama kilidi** — açılışta PIN sorar (2026-09-06 denetim turu).
 ///
 /// Klasör kilidinin PIN'iyle aynı: iki ayrı PIN ezberletmek yerine tek bir
-/// sayı. PIN kurulu değilse anahtar açılamaz ve altındaki satır bunu SÖYLER —
-/// sessizce kapalı kalan bir anahtar "bozuk" görünürdü.
+/// sayı. PIN kurulu değilse ölü devre dışı anahtar yerine doğrudan "PIN belirle"
+/// düğmesi sunulur ve PIN belirlenince kilit tek akışta açılır.
 class AppLockTile extends StatelessWidget {
   const AppLockTile({super.key});
+
+  Future<void> _setupAndEnable(BuildContext context) async {
+    await setupPin(context);
+    if (!context.mounted) return;
+    final state = context.read<AppState>();
+    if (state.fmHasLockPin && !state.appLock) {
+      await state.setAppLock(true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    return SwitchListTile(
-      secondary: const Icon(AppIcons.phonelinkLock),
-      title: Text(context.t('lock.app_title')),
-      subtitle: Text(
-        !appState.fmHasLockPin
-            ? context.t('lock.app_needs_pin')
-            : context.t(
-                appState.appLock ? 'lock.app_sub_on' : 'lock.app_sub_off'),
-      ),
+    if (!appState.fmHasLockPin) {
+      return SettingTile(
+        icon: AppIcons.phonelinkLock,
+        title: context.t('lock.app_title'),
+        subtitle: context.t('lock.app_needs_pin'),
+        wrapSubtitle: true,
+        trailing: FilledButton.tonal(
+          key: const ValueKey('app-lock-set-pin'),
+          onPressed: () => _setupAndEnable(context),
+          child: Text(context.t('ux47.set_pin_now')),
+        ),
+        onTap: () => _setupAndEnable(context),
+      );
+    }
+    return SettingSwitch(
+      icon: AppIcons.phonelinkLock,
+      title: context.t('lock.app_title'),
+      subtitle: context.t(
+          appState.appLock ? 'lock.app_sub_on' : 'lock.app_sub_off'),
       value: appState.appLock,
-      onChanged: !appState.fmHasLockPin
-          ? null
-          : (value) async {
-              // Kilidi KAPATIRKEN de PIN sorulur: telefonu eline alan biri
-              // ayarlardan tek dokunuşla kapatabilseydi kilit anlamsız olurdu.
-              if (!value && !await askPin(context)) return;
-              if (!context.mounted) return;
-              await context.read<AppState>().setAppLock(value);
-            },
+      onChanged: (value) async {
+        // Kilidi KAPATIRKEN de PIN sorulur: telefonu eline alan biri
+        // ayarlardan tek dokunuşla kapatabilseydi kilit anlamsız olurdu.
+        if (!value && !await askPin(context)) return;
+        if (!context.mounted) return;
+        await context.read<AppState>().setAppLock(value);
+      },
     );
   }
 }
@@ -98,11 +115,10 @@ class LockedFoldersTile extends StatelessWidget {
     return Column(
       children: [
         for (final path in appState.fmLockedFolders)
-          ListTile(
-            dense: true,
-            leading: const Icon(AppIcons.folderOff),
-            title: Text(p.basename(path)),
-            subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis),
+          SettingTile(
+            icon: AppIcons.folderOff,
+            title: p.basename(path),
+            subtitle: path,
             trailing: IconButton(
               tooltip: context.t('fmset.unlock'),
               icon: const Icon(AppIcons.unlock),
@@ -125,12 +141,11 @@ class OfflineModeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final on = context.select<AppState, bool>((s) => s.offlineMode);
-    return SwitchListTile(
+    return SettingSwitch(
       key: const ValueKey('offline-mode'),
-      secondary: Icon(on ? AppIcons.cloudOff : AppIcons.cloud),
-      title: Text(context.t('offline.title')),
-      subtitle: Text(context.t(on ? 'offline.on' : 'offline.sub')),
-      isThreeLine: true,
+      icon: on ? AppIcons.cloudOff : AppIcons.cloud,
+      title: context.t('offline.title'),
+      subtitle: context.t(on ? 'offline.on' : 'offline.sub'),
       value: on,
       onChanged: (v) => context.read<AppState>().setOfflineMode(v),
     );
@@ -145,10 +160,10 @@ class AiSendAskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     context.dependOnAi();
     final ask = !context.select<AppState, bool>((s) => s.aiSendConsent);
-    return SwitchListTile(
-      secondary: const Icon(AppIcons.ai),
-      title: Text(context.t('aisend.setting')),
-      subtitle: Text(context.t('aisend.setting_sub')),
+    return SettingSwitch(
+      icon: AppIcons.ai,
+      title: context.t('aisend.setting'),
+      subtitle: context.t('aisend.setting_sub'),
       value: ask,
       onChanged: (v) {
         if (v) AiSendConsent.forget();
@@ -179,12 +194,11 @@ class _PiiMaskTileState extends State<PiiMaskTile> {
   }
 
   @override
-  Widget build(BuildContext context) => SwitchListTile(
+  Widget build(BuildContext context) => SettingSwitch(
         key: const ValueKey('pii-mask'),
-        secondary: const Icon(AppIcons.lock),
-        title: Text(context.t('pii.setting')),
-        subtitle: Text(context.t('pii.setting_sub')),
-        isThreeLine: true,
+        icon: AppIcons.lock,
+        title: context.t('pii.setting'),
+        subtitle: context.t('pii.setting_sub'),
         value: _on,
         onChanged: (v) async {
           setState(() => _on = v);
@@ -229,10 +243,9 @@ class _SafFoldersTileState extends State<SafFoldersTile> {
           wrapSubtitle: true,
         ),
         for (final r in roots)
-          ListTile(
-            dense: true,
-            leading: const Icon(AppIcons.folder),
-            title: Text(r.name),
+          SettingTile(
+            icon: AppIcons.folder,
+            title: r.name,
             trailing: TextButton(
               onPressed: () async {
                 await AppStorageService.safForget(r.uri);
@@ -362,11 +375,12 @@ class PrivacyWipeTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => ListTile(
+  Widget build(BuildContext context) => SettingTile(
         key: const ValueKey('privacy-wipe'),
-        leading: const Icon(AppIcons.deleteSweep),
-        title: Text(context.t('wipe.title')),
-        subtitle: Text(context.t('wipe.sub')),
+        icon: AppIcons.deleteSweep,
+        title: context.t('wipe.title'),
+        subtitle: context.t('wipe.sub'),
+        wrapSubtitle: true,
         onTap: () => _run(context),
       );
 }

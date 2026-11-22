@@ -84,15 +84,15 @@ class HomeQuickRow extends StatelessWidget {
   Widget build(BuildContext context) {
     DockExtras.ensureLoaded();
     final scaler = MediaQuery.textScalerOf(context);
-    // 52 dp taban yükseklik; büyük yazı ölçeğinde (1,3×–2×) simge + etiket
+    // 54 dp taban yükseklik; büyük yazı ölçeğinde (1,3×–2×) simge + etiket
     // taşmasın diye satır yüksekliği esner.
-    final rowH = math.max(52.0, 32.0 + scaler.scale(16));
+    final rowH = math.max(54.0, 34.0 + scaler.scale(16));
     return Semantics(
       hint: context.t('dock.long_press'),
       child: GestureDetector(
         onLongPress: () => showDockEditor(context),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs + 2, Gap.sm, Gap.xs),
+          padding: const EdgeInsets.fromLTRB(Gap.xs, Gap.xs, Gap.xs, Gap.xs),
           child: SizedBox(
             height: rowH,
             child: ValueListenableBuilder<(List<String>, List<String>)>(
@@ -202,43 +202,49 @@ class _DockItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  if (iconWidget != null)
-                    IconTheme.merge(
-                      data: IconThemeData(
+              SizedBox(
+                width: 28,
+                height: 22,
+                child: Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    if (iconWidget != null)
+                      IconTheme.merge(
+                        data: IconThemeData(
+                            size: 22, color: color ?? scheme.onSurfaceVariant),
+                        child: iconWidget!,
+                      )
+                    else
+                      Icon(icon,
                           size: 22, color: color ?? scheme.onSurfaceVariant),
-                      child: iconWidget!,
-                    )
-                  else
-                    Icon(icon, size: 22, color: color ?? scheme.onSurfaceVariant),
-                  if (count > 0)
-                    PositionedDirectional(
-                      top: -5,
-                      start: 13,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 0.5),
-                        decoration: BoxDecoration(
-                          color: color ?? scheme.error,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: scheme.surfaceContainer, width: 1.5),
-                        ),
-                        child: Text(
-                          count > 99 ? '99+' : '$count',
-                          textScaler: TextScaler.noScaling,
-                          style: text?.merge(context.type.micro).copyWith(
-                              height: 1.2,
-                              color: scheme.surface,
-                              fontWeight: FontWeight.w700),
+                    if (count > 0)
+                      PositionedDirectional(
+                        top: -4,
+                        end: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 0.5),
+                          decoration: BoxDecoration(
+                            color: color ?? scheme.error,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: scheme.surfaceContainer, width: 1.5),
+                          ),
+                          child: Text(
+                            count > 99 ? '99+' : '$count',
+                            textScaler: TextScaler.noScaling,
+                            style: text?.merge(context.type.micro).copyWith(
+                                height: 1.2,
+                                color: scheme.surface,
+                                fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
@@ -283,7 +289,7 @@ class _TransferButton extends StatelessWidget {
       excludeSemantics: true,
       child: Container(
         height: 44,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           gradient: LinearGradient(
@@ -309,7 +315,7 @@ class _TransferButton extends StatelessWidget {
             splashFactory: InkSplash.splashFactory,
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              padding: const EdgeInsets.symmetric(horizontal: Gap.sm + 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

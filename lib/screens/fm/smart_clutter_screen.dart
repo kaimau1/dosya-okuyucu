@@ -87,23 +87,51 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
     if (mounted) setState(() => _alive = alive);
   }
 
-  List<SmartRecord> get _items {
+  List<SmartRecord> get _allClutter {
     final alive = _alive;
-    final list = _hiddenTab ? SmartSort.hiddenRecords() : SmartSort.clutter();
     return [
-      for (final r in list)
-        if ((alive == null || alive.contains(r.path)) &&
-            (_hiddenTab || _reason == null || SmartSort.reasonOf(r) == _reason))
-          r
+      for (final r in SmartSort.clutter())
+        if (alive == null || alive.contains(r.path)) r,
     ];
   }
 
-  /// İşlenecekler: seçim varsa o, yoksa görünen hepsi.
+  List<SmartRecord> get _allHidden {
+    final alive = _alive;
+    return [
+      for (final r in SmartSort.hiddenRecords())
+        if (alive == null || alive.contains(r.path)) r,
+    ];
+  }
+
+  Map<String, int> get _reasonCounts {
+    final out = <String, int>{};
+    for (final r in _allClutter) {
+      final reason = SmartSort.reasonOf(r);
+      if (reason != null) {
+        out[reason] = (out[reason] ?? 0) + 1;
+      }
+    }
+    return out;
+  }
+
+  List<SmartRecord> get _items {
+    if (_hiddenTab) return _allHidden;
+    final list = _allClutter;
+    final reason = _reason;
+    if (reason == null || (_reasonCounts[reason] ?? 0) == 0) return list;
+    return [
+      for (final r in list)
+        if (SmartSort.reasonOf(r) == reason) r,
+    ];
+  }
+
+  /// İşlenecekler: yalnız kullanıcının seçtiği öğeler.
   List<String> get _targets {
     final items = _items;
-    return _selected.isEmpty
-        ? [for (final r in items) r.path]
-        : [for (final r in items) if (_selected.contains(r.path)) r.path];
+    return [
+      for (final r in items)
+        if (_selected.contains(r.path)) r.path,
+    ];
   }
 
   Future<void> _hideOrRestore() async {
@@ -146,7 +174,9 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
     }
   }
 
-  Future<void> _keep(SmartRecord r) async {
+  Future<void> _keepSelected() async {
+    final paths = _targets;
+    if (paths.isEmpty) return;
     final s = AppStrings.of(context);
     final ok = await showAppConfirm(
       context,
@@ -155,7 +185,10 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
       confirmLabel: s.t('sm.keep'),
     );
     if (!ok) return;
-    await SmartSort.keep(r.path);
+    for (final path in paths) {
+      await SmartSort.keep(path);
+    }
+    if (mounted) setState(_selected.clear);
   }
 
   void _toggle(String path) => setState(() {
@@ -164,6 +197,15 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final clutterAll = _allClutter;
+    final hiddenAll = _allHidden;
+    final reasonCounts = _reasonCounts;
+    final activeReasons = [
+      for (final r in _reasons)
+        if ((reasonCounts[r] ?? 0) > 0) r,
+    ];
+    final effectiveReason =
+        (_reason != null && (reasonCounts[_reason] ?? 0) > 0) ? _reason : null;
     final items = _items;
     final selecting = _selected.isNotEmpty;
     return Scaffold(
@@ -172,6 +214,13 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
             ? context.t('sm.selected', {'n': _selected.length})
             : context.t('sm.clutter')),
         actions: [
+          if (selecting && !_hiddenTab)
+            IconButton(
+              key: const ValueKey('sm-keep'),
+              tooltip: context.t('sm.keep'),
+              icon: const Icon(AppIcons.check),
+              onPressed: () => unawaited(_keepSelected()),
+            ),
           // Ayıkla 2: düzenlenmiş kişisel fotoğraflarda benzer kare grupları,
           // en net kare ⭐ (bkz. SimilarFinder.orderBest).
           if (!selecting)
@@ -216,12 +265,12 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
                     value: false,
                     icon: const Icon(AppIcons.cleanEmpty),
                     label: Text(context.t('sm.tab_clutter',
-                        {'n': SmartSort.clutter().length}))),
+                        {'n': clutterAll.length}))),
                 ButtonSegment(
                     value: true,
                     icon: const Icon(AppIcons.hiddenOff),
                     label: Text(context.t('sm.tab_hidden',
-                        {'n': SmartSort.hiddenRecords().length}))),
+                        {'n': hiddenAll.length}))),
               ],
               selected: {_hiddenTab},
               onSelectionChanged: (v) => setState(() {
@@ -230,32 +279,45 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
               }),
             ),
           ),
-          // Neden çipleri: yükseklik iki sekmede de sabit (liste zıplamasın).
-          SizedBox(
-            height: 48,
-            child: _hiddenTab
-                ? const SizedBox.shrink()
-                : ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                    children: [
-                      for (final reason in [null, ..._reasons])
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(end: Gap.xs),
-                          child: ChoiceChip(
-                            label: Text(context.t(reason == null
-                                ? 'sm.r_all'
-                                : 'sm.r_$reason')),
-                            selected: _reason == reason,
-                            onSelected: (_) => setState(() {
-                              _reason = reason;
-                              _selected.clear();
-                            }),
-                          ),
-                        ),
-                    ],
+          // Gizlenenler sekmesinde 48dp ölü şerit yok; yalnız aktif nedenler
+          // sayılarıyla çizilir.
+          if (!_hiddenTab && activeReasons.isNotEmpty)
+            SizedBox(
+              height: 48,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                children: [
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+                    child: ChoiceChip(
+                      label: Text(
+                          '${context.t('sm.r_all')} (${clutterAll.length})'),
+                      selected: effectiveReason == null,
+                      onSelected: (_) => setState(() {
+                        _reason = null;
+                        _selected.clear();
+                      }),
+                    ),
                   ),
-          ),
+                  for (final reason in activeReasons)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+                      child: ChoiceChip(
+                        label: Text(
+                            '${context.t('sm.r_$reason')} (${reasonCounts[reason]})'),
+                        selected: effectiveReason == reason,
+                        onSelected: (_) => setState(() {
+                          _reason = reason;
+                          _selected.clear();
+                        }),
+                      ),
+                    ),
+                ],
+              ),
+            )
+          else
+            const SizedBox(height: Gap.sm),
           Expanded(
             child: items.isEmpty
                 ? Center(
@@ -288,9 +350,8 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
                           onTap: () => selecting
                               ? _toggle(r.path)
                               : unawaited(EntryOpener.open(context, r.path)),
-                          onLongPress: () => selecting
-                              ? _toggle(r.path)
-                              : (_hiddenTab ? _toggle(r.path) : unawaited(_keep(r))),
+                          // Uzun basma her iki sekmede de seçim açar.
+                          onLongPress: () => _toggle(r.path),
                           onCheck: () => _toggle(r.path),
                         ),
                       );
@@ -304,39 +365,68 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(Gap.md),
-                child: Row(children: [
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      key: const ValueKey('ss-hide'),
-                      onPressed: () => unawaited(_hideOrRestore()),
-                      icon: Icon(_hiddenTab ? AppIcons.hidden : AppIcons.hiddenOff),
-                      label: Text(
-                        context.t(
-                          _hiddenTab
-                              ? (selecting ? 'sm.restore_sel' : 'sm.restore_all')
-                              : (selecting ? 'sm.hide_sel' : 'sm.hide_all'),
-                          {'n': selecting ? _selected.length : items.length},
+                child: !selecting
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              context.t('ux47.clutter_select_hint'),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: Gap.sm),
+                          TextButton.icon(
+                            key: const ValueKey('ss-select-all-btn'),
+                            onPressed: () => setState(() {
+                              _selected
+                                ..clear()
+                                ..addAll(items.map((r) => r.path));
+                            }),
+                            icon: const Icon(AppIcons.selectAll, size: 18),
+                            label: Text(context.t('sm.select_all')),
+                          ),
+                        ],
+                      )
+                    : Row(children: [
+                        Expanded(
+                          child: FilledButton.tonalIcon(
+                            key: const ValueKey('ss-hide'),
+                            onPressed: () => unawaited(_hideOrRestore()),
+                            icon: Icon(_hiddenTab
+                                ? AppIcons.hidden
+                                : AppIcons.hiddenOff),
+                            label: Text(
+                              context.t(
+                                _hiddenTab ? 'sm.restore_sel' : 'sm.hide_sel',
+                                {'n': _selected.length},
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      key: const ValueKey('ss-delete'),
-                      onPressed: () => unawaited(_delete()),
-                      icon: const Icon(AppIcons.delete),
-                      label: Text(
-                        context.t(selecting ? 'sm.delete_sel' : 'sm.delete_all',
-                            {'n': selecting ? _selected.length : items.length}),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ]),
+                        const SizedBox(width: Gap.sm),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            key: const ValueKey('ss-delete'),
+                            onPressed: () => unawaited(_delete()),
+                            icon: const Icon(AppIcons.delete),
+                            label: Text(
+                              context.t(
+                                  'sm.delete_sel', {'n': _selected.length}),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ]),
               ),
             ),
     );

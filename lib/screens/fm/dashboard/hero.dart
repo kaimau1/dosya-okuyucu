@@ -299,15 +299,19 @@ class _StorageHero extends StatelessWidget {
                           child: SizedBox(
                             height: 6,
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 for (final part in parts)
                                   Expanded(
-                                    flex: part.bytes,
+                                    flex: ((part.bytes * 10000) ~/ capacity)
+                                        .clamp(1, 10000),
                                     child: ColoredBox(color: part.color),
                                   ),
                                 if (volume.freeBytes > 0)
                                   Expanded(
-                                    flex: volume.freeBytes,
+                                    flex: ((volume.freeBytes * 10000) ~/
+                                            capacity)
+                                        .clamp(1, 10000),
                                     child: ColoredBox(
                                         color:
                                             scheme.surfaceContainerHighest),
@@ -328,7 +332,7 @@ class _StorageHero extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.xs + 2),
+              padding: const EdgeInsets.fromLTRB(Gap.sm, 0, Gap.sm, Gap.sm),
               child: Row(
                 children: [
                   Expanded(
@@ -388,30 +392,33 @@ class _HeroAction extends StatelessWidget {
     return Material(
       color: highlight
           ? scheme.primary
-          : scheme.surface.withValues(alpha: 0.75),
+          : scheme.surface.withValues(alpha: 0.85),
       borderRadius: BorderRadius.circular(radius),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(radius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: fg),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: highlight ? scheme.onPrimary : scheme.onSurface,
-                    fontWeight: FontWeight.w600,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: fg),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: highlight ? scheme.onPrimary : scheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -460,6 +467,7 @@ class _StyledHero extends StatelessWidget {
     final has = volume.hasStats;
     final capacity = volume.capacityBytes <= 0 ? 1 : volume.capacityBytes;
     final ratio = has ? (volume.usedBytes / capacity).clamp(0.0, 1.0) : 0.0;
+    final full = ratio >= 0.9;
     final filled = style != HomeStyle.calm;
     final fg = filled ? scheme.onPrimary : scheme.onSurface;
     final soft = filled
@@ -474,9 +482,6 @@ class _StyledHero extends StatelessWidget {
                 {'v': FsPaths.humanCapacity(volume.freeBytes)})
             : volume.displayLabel(context.t),
         maxLines: 1,
-        // 2026-11-15 (kullanıcı: bellek kartı %20 alçalsın, düğmelerle
-        // birlikte): headlineMedium → headlineSmall, iç boşluklar ve düğme
-        // yüksekliği orantılı küçüldü (~175 → ~140 dp).
         style: theme.textTheme.headlineSmall
             ?.copyWith(fontWeight: FontWeight.w800, color: fg, height: 1.1),
       ),
@@ -487,22 +492,12 @@ class _StyledHero extends StatelessWidget {
             'total': FsPaths.humanCapacity(volume.capacityBytes),
           })
         : '';
-    final used = has
-        ? Text(
-            usedText,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(color: soft),
-          )
-        : const SizedBox.shrink();
-    final volumeLink = Row(
-      mainAxisSize: MainAxisSize.min,
+    final headerRow = Row(
       children: [
-        if (filled) ...[
-          Icon(volumeIcon(volume), size: 18, color: fg),
-          const SizedBox(width: Gap.xs),
-        ],
-        Flexible(
+        Icon(volumeIcon(volume),
+            size: 16, color: filled ? fg : scheme.primary),
+        const SizedBox(width: Gap.xs),
+        Expanded(
           child: Text(
             volume.displayLabel(context.t),
             maxLines: 1,
@@ -512,75 +507,133 @@ class _StyledHero extends StatelessWidget {
                 color: filled ? fg : scheme.primary),
           ),
         ),
-        if (!filled) Icon(AppIcons.chevron, size: 18, color: scheme.primary),
+        if (has) ...[
+          const SizedBox(width: Gap.sm),
+          Text(
+            usedText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: soft,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+        const SizedBox(width: 2),
+        Icon(AppIcons.chevron,
+            size: 18, color: filled ? fg : scheme.primary),
       ],
     );
     final bar = ClipRRect(
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(5),
       child: LinearProgressIndicator(
         value: ratio,
-        minHeight: 6,
+        minHeight: 7,
         color: filled ? scheme.onPrimary : scheme.primary,
         backgroundColor: filled
             ? scheme.onPrimary.withValues(alpha: 0.28)
             : scheme.surfaceContainerHighest,
       ),
     );
-    Widget action(String key, VoidCallback onTap) {
-      final label = FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Text(
-          context.t(key),
-          maxLines: 1,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
+    Widget action({
+      required IconData icon,
+      required String key,
+      required VoidCallback onTap,
+      bool highlight = false,
+    }) {
+      final child = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 17),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              context.t(key),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       );
       return Expanded(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Gap.xs / 2),
           child: filled
-              ? OutlinedButton(
-                  onPressed: onTap,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: scheme.onPrimary,
-                    side: BorderSide(
-                        color: scheme.onPrimary.withValues(alpha: 0.7)),
-                    shape: const StadiumBorder(),
-                    minimumSize: const Size(0, 34),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.xs, vertical: Gap.xs),
-                  ),
-                  child: label,
-                )
-              : FilledButton.tonal(
-                  onPressed: onTap,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: scheme.primaryContainer,
-                    foregroundColor: scheme.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                            AppSkinData.of(context).metrics.radiusControl)),
-                    minimumSize: const Size(0, 34),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.xs, vertical: Gap.xs),
-                  ),
-                  child: label,
-                ),
+              ? (highlight
+                  ? FilledButton(
+                      onPressed: onTap,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: scheme.onPrimary,
+                        foregroundColor: scheme.primary,
+                        shape: const StadiumBorder(),
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.sm, vertical: Gap.xs),
+                      ),
+                      child: child,
+                    )
+                  : OutlinedButton(
+                      onPressed: onTap,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: scheme.onPrimary,
+                        backgroundColor:
+                            scheme.onPrimary.withValues(alpha: 0.12),
+                        side: BorderSide(
+                            color: scheme.onPrimary.withValues(alpha: 0.65)),
+                        shape: const StadiumBorder(),
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.sm, vertical: Gap.xs),
+                      ),
+                      child: child,
+                    ))
+              : (highlight
+                  ? FilledButton(
+                      onPressed: onTap,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: scheme.primary,
+                        foregroundColor: scheme.onPrimary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppSkinData.of(context).metrics.radiusControl)),
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.sm, vertical: Gap.xs),
+                      ),
+                      child: child,
+                    )
+                  : FilledButton.tonal(
+                      onPressed: onTap,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: scheme.primaryContainer,
+                        foregroundColor: scheme.primary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppSkinData.of(context).metrics.radiusControl)),
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.sm, vertical: Gap.xs),
+                      ),
+                      child: child,
+                    )),
         ),
       );
     }
 
     final actions = Row(children: [
-      action('home.browse', onBrowse),
-      action('home.analysis', onAnalysis),
-      action('home.free_space', onFreeSpace),
+      action(icon: AppIcons.emptyFolder, key: 'home.browse', onTap: onBrowse),
+      action(icon: AppIcons.donutLarge, key: 'home.analysis', onTap: onAnalysis),
+      action(
+        icon: AppIcons.cleanEmpty,
+        key: 'home.free_space',
+        onTap: onFreeSpace,
+        highlight: full,
+      ),
     ]);
 
     if (style == HomeStyle.band) {
       final content = Padding(
-        // %6 alçak (2026-11-15): halka 64 → 58, aralar 16 → 12.
         padding: const EdgeInsets.only(top: Gap.xs, bottom: Gap.sm + 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -670,49 +723,17 @@ class _StyledHero extends StatelessWidget {
         onTap: onBrowse,
         onLongPress: onLongPress,
         child: Padding(
-          // %5 alçak (2026-11-15): dikey boşluklar 12 → 9, ara 10 → 9.
           padding: const EdgeInsets.fromLTRB(
-              Gap.md + 4, Gap.sm + 1, Gap.md + 4, Gap.sm + 1),
+              Gap.md + 4, Gap.sm + 4, Gap.md + 4, Gap.sm + 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (filled) ...[
-                // Tek satır (2026-11-20, kullanıcı: "yukarıdaki alanlar daha
-                // da daraltılabilir, çok yer kaplıyorlar"): büyük "199 GB boş"
-                // solda, birim adı + doluluk sağda iki küçük satır.
-                Row(
-                  children: [
-                    Expanded(child: free),
-                    const SizedBox(width: Gap.sm),
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [volumeLink, used],
-                      ),
-                    ),
-                    Icon(AppIcons.chevron, color: fg),
-                  ],
-                ),
-              ] else ...[
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: free),
-                    const SizedBox(width: Gap.xs),
-                    Flexible(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: Gap.xs),
-                        child: volumeLink,
-                      ),
-                    ),
-                  ],
-                ),
-                used,
-              ],
-              const SizedBox(height: Gap.sm + 1),
+              headerRow,
+              const SizedBox(height: Gap.xs),
+              free,
+              const SizedBox(height: Gap.sm),
               bar,
-              const SizedBox(height: Gap.sm + 1),
+              const SizedBox(height: Gap.sm + 2),
               actions,
             ],
           ),

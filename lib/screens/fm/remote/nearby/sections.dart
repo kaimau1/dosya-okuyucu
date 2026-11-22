@@ -40,9 +40,9 @@ extension _NearbySections on _NearbyScreenState {
     );
   }
 
-  /// **1 · Ne gönderilecek?** — üç büyük kutu (Dosya / Klasör / Yazı), altında
-  /// seçilenler. 2026-11-03 yeniden tasarım: eskiden iki çerçeveli düğme ve
-  /// uzun bir açıklama vardı; "yazı" yolu yoktu.
+  /// **1 · Ne gönderilecek?** — üç temiz kutu (Dosya ekle · Klasör ekle ·
+  /// Yazı / Pano), altında seçilenler. Üst üste binen metin alanı kalktı;
+  /// `2 · Kime?` ve `QR ile paylaş` ilk ekranda ferah görünür.
   Widget _selectionCard(BuildContext context) {
     final text = _text;
     final count = _selection.length + (text == null ? 0 : 1);
@@ -56,7 +56,7 @@ extension _NearbySections on _NearbyScreenState {
             _StepHeader(
               title: context.t('near.step_what'),
               sub: count == 0
-                  ? context.t('near.pick_sub')
+                  ? null
                   : context.t('near.selected', {'n': count}),
             ),
             Row(
@@ -83,70 +83,46 @@ extension _NearbySections on _NearbyScreenState {
                   child: _ActionTile(
                     key: const ValueKey('near-add-text'),
                     icon: AppIcons.textSnippet,
-                    label: context.t('near.add_text'),
+                    label: context.t('ux47.text_or_clip'),
                     onTap: _editText,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: Gap.xs),
-            TextField(
-              key: const ValueKey('near-paste-field'),
-              controller: _textCtrl,
-              minLines: 1,
-              maxLines: 5,
-              keyboardType: TextInputType.multiline,
-              // Android klavyesinden görsel/GIF/çıkartma yapıştırma.
-              contentInsertionConfiguration: ContentInsertionConfiguration(
-                onContentInserted: _onKeyboardContent,
-              ),
-              decoration: InputDecoration(
-                hintText: context.t('near.paste_hint'),
-                prefixIcon: const Icon(AppIcons.paste),
-                suffixIcon: text == null
-                    ? null
-                    : IconButton(
-                        tooltip: context.t('common.clear'),
-                        icon: const Icon(AppIcons.close),
-                        onPressed: _textCtrl.clear,
-                      ),
-                border: const OutlineInputBorder(),
-                // Sıkı: ilk sekme (hızlı aktar + QR) 360×780'e kaydırmasız sığar.
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: Gap.sm, vertical: Gap.sm),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 40, minHeight: 36),
-              ),
-            ),
-            if (_clipSuggestion != null ||
-                _appClip.hasItems) ...[
+            if (text != null || _hasClipText || _appClip.hasItems) ...[
               const SizedBox(height: Gap.xs),
               Wrap(
                 spacing: Gap.xs,
                 runSpacing: Gap.xs,
                 children: [
-                  if (_clipSuggestion != null)
-                    ActionChip(
-                      key: const ValueKey('near-clip-text'),
-                      avatar: const Icon(AppIcons.paste, size: AppIcons.small),
+                  if (text != null)
+                    InputChip(
+                      key: const ValueKey('near-selected-text'),
+                      avatar: const Icon(AppIcons.textSnippet,
+                          size: AppIcons.small),
                       label: Text(
-                        context.t('near.clip_text', {
-                          'text': _clipSuggestion!.length > 40
-                              ? '${_clipSuggestion!.substring(0, 40)}…'
-                              : _clipSuggestion!.replaceAll('\n', ' '),
-                        }),
+                        text.length > 36
+                            ? '${text.substring(0, 36).replaceAll('\n', ' ')}…'
+                            : text.replaceAll('\n', ' '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      onPressed: _useClipboardText,
+                      onPressed: _editText,
+                      onDeleted: _textCtrl.clear,
+                    ),
+                  if (_hasClipText)
+                    ActionChip(
+                      key: const ValueKey('near-clip-text'),
+                      avatar: const Icon(AppIcons.paste, size: AppIcons.small),
+                      label: Text(context.t('ux47.paste_clipboard')),
+                      onPressed: () => unawaited(_useClipboardText()),
                     ),
                   if (_appClip.hasItems)
                     ActionChip(
                       key: const ValueKey('near-clip-files'),
                       avatar: const Icon(AppIcons.copy, size: AppIcons.small),
-                      label: Text(context.t('near.clip_files',
-                          {'n': _appClip.length})),
+                      label: Text(
+                          context.t('near.clip_files', {'n': _appClip.length})),
                       onPressed: _addAppClipboard,
                     ),
                 ],

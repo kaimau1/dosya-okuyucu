@@ -121,7 +121,9 @@ extension _NearbyTabs on _NearbyScreenState {
                       ],
                     ),
                     Text(
-                      context.t(visible || bleOk ? 'near.visible' : 'near.starting'),
+                      context.t(visible || bleOk
+                          ? 'ux47.near_visible'
+                          : 'near.starting'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall

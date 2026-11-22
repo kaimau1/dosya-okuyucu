@@ -441,6 +441,7 @@ class FmCategoryGrid extends StatelessWidget {
               (constraints.maxWidth - Gap.xs * (columns - 1)) / columns;
           final withSub = tiles.any((t) => t.subtitle.isNotEmpty);
           return GridView.builder(
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -504,6 +505,7 @@ class FmToolGrid extends StatelessWidget {
         final columns =
             FmCategoryGrid.columnsFor(constraints.maxWidth, textScale: scale);
         return GridView.builder(
+          padding: EdgeInsets.zero,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(

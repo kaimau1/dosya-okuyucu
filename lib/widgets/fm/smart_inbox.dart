@@ -138,6 +138,14 @@ class _SmartInboxState extends State<SmartInbox> {
       for (final e in widget.events)
         if (!SmartInbox._dismissedEvents.contains(e.id)) e,
     ];
+    final alertJobs = [
+      for (final j in finished)
+        if (j.status != JobStatus.done) j,
+    ];
+    final doneJobs = [
+      for (final j in finished)
+        if (j.status == JobStatus.done) j,
+    ];
     final rows = <Widget>[
       for (final j in running) _JobRow(job: j),
       for (final e in events)
@@ -148,13 +156,31 @@ class _SmartInboxState extends State<SmartInbox> {
             setState(() => SmartInbox._dismissedEvents.add(e.id));
           },
         ),
-      for (final j in finished) _JobRow(job: j),
+      for (final j in alertJobs) _JobRow(job: j),
+      if (doneJobs.isNotEmpty) _DoneJobPill(jobs: doneJobs),
     ];
     if (rows.isEmpty) return const SizedBox.shrink();
-    final shown = rows.take(widget.maxRows).toList();
-    final hidden = rows.length - shown.length;
     final scheme = Theme.of(context).colorScheme;
     final radius = context.fmCardRadius;
+    // Yalnız tamamlanmış rutin iş varsa: koca bir kart yerine tek satırlık
+    // kompakt bilgi hapı.
+    if (running.isEmpty && events.isEmpty && alertJobs.isEmpty) {
+      return Padding(
+        key: const ValueKey('smart-inbox'),
+        padding: const EdgeInsets.only(bottom: Gap.sm),
+        child: Material(
+          color: scheme.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _DoneJobPill(jobs: doneJobs),
+        ),
+      );
+    }
+    final shown = rows.take(widget.maxRows).toList();
+    final hidden = rows.length - shown.length;
     return Padding(
       key: const ValueKey('smart-inbox'),
       padding: const EdgeInsets.only(bottom: Gap.sm),
@@ -176,7 +202,7 @@ class _SmartInboxState extends State<SmartInbox> {
                     color: scheme.outlineVariant.withValues(alpha: 0.6)),
               shown[i],
             ],
-            if (hidden > 0 || finished.length > 1)
+            if (hidden > 0 || alertJobs.length > 1)
               _Footer(
                 hidden: hidden,
                 onClear: finished.isEmpty
@@ -188,6 +214,73 @@ class _SmartInboxState extends State<SmartInbox> {
                       },
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tamamlanmış rutin işler için kompakt tek satırlı zarif bilgi hapı:
+/// maks 1 satır, kısa özet + "Göster" + "✕".
+class _DoneJobPill extends StatelessWidget {
+  final List<FmJob> jobs;
+  const _DoneJobPill({required this.jobs});
+
+  @override
+  Widget build(BuildContext context) {
+    final job = jobs.first;
+    final theme = Theme.of(context);
+    final summary =
+        job.detail.isEmpty ? context.t(job.status.labelKey) : job.detail;
+    final extra = jobs.length > 1 ? ' (+${jobs.length - 1})' : '';
+    final line = summary.isEmpty
+        ? '${job.shownTitle}$extra'
+        : '${job.shownTitle} · $summary$extra';
+    return InkWell(
+      onTap: () => openJobTarget(context, job),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 40),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              Gap.md, Gap.xs, Gap.xs, Gap.xs),
+          child: Row(
+            children: [
+              Icon(AppIcons.checkCircle,
+                  size: 18, color: Paper.success(context)),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  line,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (jobHasDestination(job))
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                  ),
+                  onPressed: () => openJobTarget(context, job),
+                  child: Text(context.t('jp.show')),
+                ),
+              IconButton(
+                tooltip: context.t('common.close'),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(AppIcons.close, size: 18),
+                onPressed: () {
+                  for (final j in jobs) {
+                    JobQueue.instance.dismiss(j.id);
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

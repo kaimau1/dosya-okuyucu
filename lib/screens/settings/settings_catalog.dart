@@ -549,9 +549,12 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         subtitleKey: 'set.cat_privacy_sub',
         summary: (context) {
           final s = context.watchBrowse();
-          return s.fmHasLockPin
-              ? context.t('fmset.pin_sub_locked', {'n': s.fmLockedFolders.length})
-              : context.t('fmset.pin_sub_unset');
+          final appLock = context.select<AppState, bool>((a) => a.appLock);
+          if (!s.fmHasLockPin) return context.t('ux47.privacy_unset');
+          return context.t(
+            appLock ? 'ux47.privacy_lock_on' : 'ux47.privacy_lock_off',
+            {'n': s.fmLockedFolders.length},
+          );
         },
         sections: const [
           SettingsSection('settings.privacy_policy', [

@@ -314,40 +314,111 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     ];
   }
 
-  /// Üstteki tek satırlık durum: "240 dosya · 16 kategori" ve düzenleme
-  /// sürüyorsa ince ilerleme. Dokununca en alttaki ayrıntılı karta kaydırmaz;
-  /// düğme ve kullanım bilgisi orada.
-  Widget _statusStrip(BuildContext context, int catCount, SmartProgress? prog) {
+  /// Üstteki birleşik özet + eylem kartı: "382 dosya · 18 kategori",
+  /// altında kısaca çalışma notu, yanında/altında "Şimdi düzenle" (`ss-run`).
+  Widget _statusCard(
+    BuildContext context,
+    int catCount,
+    SmartProgress? prog,
+    SmartUsage? usage,
+  ) {
     final theme = Theme.of(context);
-    return Padding(
-      key: const ValueKey('ss-strip'),
-      padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
-      child: Row(children: [
-        Icon(AppIcons.ai, size: AppIcons.small, color: theme.colorScheme.primary),
-        const SizedBox(width: Gap.sm),
-        Expanded(
-          child: Text(
-            context.t('sm.status',
-                {'n': SmartSort.records.length, 'c': catCount}),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleSmall,
-          ),
-        ),
-        if (prog != null) ...[
-          SizedBox.square(
-            dimension: 14,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              value: prog.total == 0 ? null : prog.done / prog.total,
+    return Card(
+      key: const ValueKey('ss-status'),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(AppIcons.ai, color: theme.colorScheme.primary),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.t('sm.status',
+                            {'n': SmartSort.records.length, 'c': catCount}),
+                        key: const ValueKey('ss-strip'),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        context.t('sm.status_sub'),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (prog == null) ...[
+                  const SizedBox(width: Gap.sm),
+                  FilledButton.icon(
+                    key: const ValueKey('ss-run'),
+                    onPressed: _run,
+                    icon: const Icon(AppIcons.ai, size: 18),
+                    label: Text(context.t('sm.run')),
+                  ),
+                ],
+              ],
             ),
-          ),
-          const SizedBox(width: Gap.xs),
-          Text('${prog.done}/${prog.total}', style: theme.textTheme.labelSmall),
-        ],
-      ]),
+            if (usage != null) ...[
+              const SizedBox(height: Gap.xs),
+              Text(
+                context.t('sm.usage', {
+                  'n': usage.requests,
+                  't': usage.tokensPerFile,
+                  'q': usage.questionsPerFile,
+                }),
+                key: const ValueKey('ss-usage'),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+            if (prog != null) ...[
+              const SizedBox(height: Gap.sm),
+              LinearProgressIndicator(
+                  value: prog.total == 0 ? null : prog.done / prog.total),
+              const SizedBox(height: Gap.xs),
+              Text(context.t(
+                  'sm.progress', {'done': prog.done, 'total': prog.total})),
+            ],
+          ],
+        ),
+      ),
     );
   }
+
+  Future<void> _openSettingsSheet() => showAppSheet<void>(
+        context,
+        title: context.t('sm.settings'),
+        builder: (ctx) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SmartSortSettings(learning: true),
+            if (SmartSort.enabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+                child: TextButton.icon(
+                  key: const ValueKey('ss-disable'),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    unawaited(SmartSort.setSettings(enabled: false));
+                  },
+                  icon: const Icon(AppIcons.close),
+                  label: Text(ctx.t('sm.disable')),
+                ),
+              ),
+          ],
+        ),
+      );
 
   Future<void> _rename(String cat) async {
     final def = SmartCatStyle.defaultLabel(context, cat);
@@ -440,7 +511,17 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.t('sm.title'))),
+      appBar: AppBar(
+        title: Text(context.t('sm.title')),
+        actions: [
+          IconButton(
+            key: const ValueKey('ss-settings-btn'),
+            tooltip: context.t('sm.settings'),
+            icon: const Icon(AppIcons.settings),
+            onPressed: _openSettingsSheet,
+          ),
+        ],
+      ),
       body: !_ready
           ? const Center(child: CircularProgressIndicator())
           : ListenableBuilder(
@@ -525,12 +606,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     return ListView(
       padding: withNavInset(context, const EdgeInsets.all(Gap.md)),
       children: [
-        // Tek satırlık durum (kullanıcı 2026-11-20: üstteki kartlar çok yer
-        // kaplıyordu, klasörler aşağıda kalıyordu). Ayrıntı + düğme en altta.
-        _statusStrip(context, cats.length, prog),
+        // En üstte tek net özet + eylem kartı.
+        _statusCard(context, cats.length, prog, usage),
         SectionHeader(context.t('sm.folders'),
             trailing: cats.isEmpty ? null : _layoutMenu(context, cats),
-            padding: const EdgeInsets.only(top: Gap.sm, bottom: Gap.xs)),
+            padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
         if (cats.isEmpty && extras.isEmpty)
           Text(context.t('sm.folders_empty'))
         else ...[
@@ -544,6 +624,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           // ya da boy animasyonu yok).
           GridView.builder(
             key: const ValueKey('ss-grid'),
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -563,7 +644,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         ],
         // Kayıtlı akıllı aramalar (U4): eskiden yalnız Akıllı dosya
         // asistanının menüsündeydi; asıl yeri akıllı klasörlerin yanı.
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.md),
         Card(
           margin: EdgeInsets.zero,
           child: ListTile(
@@ -580,65 +661,6 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           ),
         ),
         ..._userCats(context),
-        const SizedBox(height: Gap.lg),
-        Card(
-          key: const ValueKey('ss-status'),
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  context.t('sm.status',
-                      {'n': SmartSort.records.length, 'c': cats.length}),
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: Gap.xs),
-                Text(context.t('sm.status_sub'),
-                    style: theme.textTheme.bodySmall),
-                if (usage != null) ...[
-                  const SizedBox(height: Gap.xs),
-                  Text(
-                    context.t('sm.usage', {
-                      'n': usage.requests,
-                      't': usage.tokensPerFile,
-                      'q': usage.questionsPerFile,
-                    }),
-                    key: const ValueKey('ss-usage'),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ],
-                const SizedBox(height: Gap.sm),
-                if (prog != null) ...[
-                  LinearProgressIndicator(
-                      value: prog.total == 0 ? null : prog.done / prog.total),
-                  const SizedBox(height: Gap.xs),
-                  Text(context.t('sm.progress',
-                      {'done': prog.done, 'total': prog.total})),
-                ] else
-                  FilledButton.icon(
-                    key: const ValueKey('ss-run'),
-                    onPressed: _run,
-                    icon: const Icon(AppIcons.ai),
-                    label: Text(context.t('sm.run')),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        SectionHeader(context.t('sm.settings'),
-            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.sm)),
-        const Card(
-            margin: EdgeInsets.zero, child: SmartSortSettings(learning: true)),
-        const SizedBox(height: Gap.sm),
-        TextButton.icon(
-          key: const ValueKey('ss-disable'),
-          onPressed: () => unawaited(SmartSort.setSettings(enabled: false)),
-          icon: const Icon(AppIcons.close),
-          label: Text(context.t('sm.disable')),
-        ),
       ],
     );
   }

@@ -131,16 +131,21 @@ class _ThemeGalleryState extends State<ThemeGallery> {
       const groupGap = Gap.md;
       var offset = 0.0;
       var found = false;
+      var flatIndex = 0;
       for (final (_, members) in groups) {
+        final cardsW = members.length * (cardWidth + Gap.sm) - Gap.sm;
+        final blockW = cardsW < 112.0 ? 112.0 : cardsW;
         final i = members.indexOf(current);
         if (i >= 0) {
+          flatIndex += i;
           offset += i * (cardWidth + Gap.sm);
           found = true;
           break;
         }
-        offset += members.length * (cardWidth + Gap.sm) + groupGap;
+        flatIndex += members.length;
+        offset += blockW + groupGap;
       }
-      if (!found || offset < cardWidth) offset = 0;
+      if (!found || flatIndex <= 1 || offset < cardWidth) offset = 0;
       return SizedBox(
         height: ThemeSkinCard.heightOf(context) + labelH + Gap.xs,
         child: ListView.separated(
@@ -150,18 +155,22 @@ class _ThemeGalleryState extends State<ThemeGallery> {
             initialScrollOffset: offset <= 0 ? 0 : offset - cardWidth / 2,
           ),
           itemCount: groups.length,
-          separatorBuilder: (_, _) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: groupGap / 2 - 1),
-            child: VerticalDivider(
-                width: 1, color: theme.colorScheme.outlineVariant),
+          separatorBuilder: (_, _) => SizedBox(
+            width: groupGap,
+            child: Center(
+              child: VerticalDivider(
+                  width: 1, color: theme.colorScheme.outlineVariant),
+            ),
           ),
           itemBuilder: (_, g) {
             final (key, members) = groups[g];
+            final cardsW = members.length * (cardWidth + Gap.sm) - Gap.sm;
+            final blockW = cardsW < 112.0 ? 112.0 : cardsW;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: members.length * (cardWidth + Gap.sm) - Gap.sm,
+                  width: blockW,
                   child: groupLabel(key),
                 ),
                 const SizedBox(height: Gap.xs),

@@ -151,21 +151,21 @@ class _VolumeCard extends StatelessWidget {
           child: SizedBox(
             height: 6,
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final part in parts)
                   Expanded(
-                    flex: part.bytes,
+                    flex: ((part.bytes * 10000) ~/ total).clamp(1, 10000),
                     child: ColoredBox(color: part.color),
                   ),
                 if (free > 0)
                   Expanded(
-                    flex: free,
+                    flex: ((free * 10000) ~/ total).clamp(1, 10000),
                     child: ColoredBox(color: scheme.outlineVariant),
                   ),
                 // Sıfır genişlikli satır olmasın (tüm paylar 0 ise).
                 if (parts.isEmpty && free <= 0)
                   Expanded(
-                    flex: total,
                     child: ColoredBox(color: scheme.outlineVariant),
                   ),
               ],
