@@ -65,6 +65,7 @@ const Map<String, (String, String, String)> _t16 = {
   'word.margin_narrow': ('Dar', 'Narrow', 'ضيق'),
   'word.margin_moderate': ('Orta', 'Moderate', 'متوسط'),
   'word.margin_wide': ('Geniş', 'Wide', 'واسع'),
+  'word.margin_custom': ('Özel', 'Custom', 'مخصص'),
   'word.orientation': ('Yönlendirme', 'Orientation', 'الاتجاه'),
   'word.portrait': ('Dikey', 'Portrait', 'عمودي'),
   'word.landscape': ('Yatay', 'Landscape', 'أفقي'),
