@@ -16,6 +16,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       tapShowsBars: _tapShowsBars,
       // Tam ekranda sistem çubukları zaten gizli (H3.6).
       hideStatusBar: _isPdf && _hideStatusBar && !_fullscreen,
+      hideBottomBar: _pdfBarShown && _pro == null,
+      hideKindPrefix: _pro != null,
       subtitle: _pro != null
           ? _proStatus(_pro!)
           : _isPdf && _pageCount > 0
@@ -88,7 +90,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         if (_textController != null || doc.kind == DocKind.pdf)
           IconButton(
             tooltip: context.t('vw.reading_settings'),
-            icon: const Icon(AppIcons.textFormat),
+            icon: Icon(
+              doc.kind == DocKind.pdf ? AppIcons.tune : AppIcons.textFormat,
+            ),
             onPressed: doc.kind == DocKind.pdf
                 ? _showPdfReadingSettings
                 : _showReadingSettings,
@@ -428,12 +432,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
-        // Faz 8 — tek düzenleme kapısı: Metin · Kalem · İmza · Form ·
-        // Sayfalar · AI (bkz. [showPdfEditModes]).
+        // Doğrudan birleşik PDF düzenleme kipine girer (ek mod seçici
+        // katmanı yok — Metin, Görsel, İşaretle, İmza, Form ve Sayfalar
+        // tek alt çubukta elin altında).
         DocAction(AppIcons.editNote, context.t('common.edit'),
-            _showPdfEditModes),
-        // "Araçlar" kalktı (2026-11-15): Düzenle › Sayfaları düzenle ile
-        // AYNI ekranı açıyordu — aynı iş iki düğmede.
+            _openPdfEditor),
       ],
       if (isImage) ...[
         DocAction(AppIcons.ocr, context.t('vw.ocr_short'),
@@ -460,30 +463,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     ]);
   }
 
-  /// Alt çubuktaki "Düzenle": kipi sorar, seçilen ekranı açar.
-  void _showPdfEditModes() {
-    showPdfEditModes(context, (mode) {
-      switch (mode) {
-        case PdfEditMode.text:
-          _openPdfEditor();
-        case PdfEditMode.pen:
-          _openInk();
-        case PdfEditMode.sign:
-          _signPdf();
-        case PdfEditMode.form:
-          _fillPdfForm();
-        case PdfEditMode.pages:
-          _openPdfTools();
-        case PdfEditMode.ai:
-          _aiEditPdf();
-      }
-    });
-  }
-
-  /// **PDF'in "Aa" levhası** (Faz 8): okuma görünümü, gece modu, sütun düzeni
-  /// ve "kaldığım yerden aç" tek yerde. Eskiden bunlar "Daha fazla"
-  /// sayfasının Görünüm grubuna dağılmıştı; metin belgelerindeki "Aa" ile
-  /// aynı yerde, aynı simgeyle duruyor.
+  /// **PDF okuma ve görünüm ayarları**: sayfa düzeni, gece modu, kenar
+  /// boşluğu kırpma ve tam ekran tercihleri.
   void _showPdfReadingSettings() {
     showModalBottomSheet<void>(
       context: context,

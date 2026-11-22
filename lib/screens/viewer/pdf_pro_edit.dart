@@ -129,6 +129,10 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<void> _closePro({bool keepRecovery = false, bool reload = true}) async {
     final pro = _pro;
     if (pro == null) return;
+    pro
+      ..armTextBox = false
+      ..armLasso = false
+      ..clearMarkup();
     pro.removeListener(_onProChanged);
     _pro = null;
     _pdfSelecting = false;
@@ -215,6 +219,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     return [
       IconButton(
         key: const ValueKey('pse-undo'),
+        visualDensity: VisualDensity.compact,
         tooltip: undo == null
             ? context.t('common.undo')
             : context.t('pse.undo_named', {'name': _proStepName(undo)}),
@@ -223,6 +228,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
       ),
       IconButton(
         key: const ValueKey('pse-redo'),
+        visualDensity: VisualDensity.compact,
         tooltip: redo == null
             ? context.t('common.redo')
             : context.t('pse.redo_named', {'name': _proStepName(redo)}),
@@ -233,12 +239,18 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         padding: const EdgeInsetsDirectional.only(start: Gap.xs),
         child: FilledButton(
           key: const ValueKey('pse-save'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 34),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            visualDensity: VisualDensity.compact,
+          ),
           onPressed: pro.busy || !canSave ? null : _proSave,
           child: Text(context.t('common.save')),
         ),
       ),
       IconButton(
         key: const ValueKey('pse-more'),
+        visualDensity: VisualDensity.compact,
         tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
         icon: const Icon(AppIcons.more),
         onPressed: pro.busy ? null : _proMore,
@@ -273,11 +285,12 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
               value: 'ai',
               icon: AppIcons.ai,
               label: context.t('pse.tool_ai')),
-          AppAction(
-              value: 'legacy',
-              icon: AppIcons.editNote,
-              label: context.t('pse.tool_legacy'),
-              hint: context.t('pse.tool_legacy_hint')),
+          if (context.read<AppState>().labWordEditor)
+            AppAction(
+                value: 'legacy',
+                icon: AppIcons.editNote,
+                label: context.t('pse.tool_legacy'),
+                hint: context.t('pse.tool_legacy_hint')),
           AppAction(
               value: 'tools',
               icon: AppIcons.construction,

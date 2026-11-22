@@ -53,6 +53,7 @@ part 'strings/47_ux_home.dart';
 part 'strings/48_ux_filters.dart';
 part 'strings/49_pdf_excel.dart';
 part 'strings/50_scan.dart';
+part 'strings/51_editors_ux.dart';
 
 /// Uygulama metinleri — Türkçe / İngilizce / Arapça.
 ///
@@ -205,4 +206,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t48,
   ..._t49,
   ..._t50,
+  ..._t51,
 };

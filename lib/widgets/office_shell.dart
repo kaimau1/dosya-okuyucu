@@ -234,6 +234,14 @@ class OfficeShell extends StatefulWidget {
   /// ("Kaydediliyor… / Kaydedildi 14:32 / Kaydedilmedi") ve [dirty] yok sayılır.
   final EditSession? session;
 
+  /// Seçim çubuğu gibi üst katmanlar açıldığında alt dock'u gövde ölçüsünü
+  /// bozmadan geçici olarak gizler.
+  final bool hideBottomBar;
+
+  /// [subtitle] doluyken bilgi satırında tür adını gizler (ör. PDF düzenleme
+  /// kipinde "PDF · Düzenleme kipi" yerine doğrudan "Düzenleme kipi").
+  final bool hideKindPrefix;
+
   const OfficeShell({
     super.key,
     required this.kind,
@@ -250,6 +258,8 @@ class OfficeShell extends StatefulWidget {
     this.tapShowsBars,
     this.hideStatusBar = false,
     this.session,
+    this.hideBottomBar = false,
+    this.hideKindPrefix = false,
   });
 
   @override
@@ -356,6 +366,7 @@ class _OfficeShellState extends State<OfficeShell>
               title: widget.title,
               dirty: widget.dirty,
               subtitle: widget.subtitle,
+              hideKindPrefix: widget.hideKindPrefix,
             )
           : ListenableBuilder(
               listenable: widget.session!,
@@ -365,6 +376,7 @@ class _OfficeShellState extends State<OfficeShell>
                 dirty: widget.session!.isDirty,
                 subtitle: widget.subtitle,
                 status: widget.session!.statusText(AppStrings.of(context)),
+                hideKindPrefix: widget.hideKindPrefix,
               ),
             ),
       actions: [...widget.actions, const SizedBox(width: 4)],
@@ -394,7 +406,7 @@ class _OfficeShellState extends State<OfficeShell>
         body: widget.session == null
             ? widget.body
             : EditorPerfOverlay(child: widget.body),
-        bottomNavigationBar: bottom,
+        bottomNavigationBar: widget.hideBottomBar ? null : bottom,
         floatingActionButton: widget.fab,
       );
     }
@@ -507,11 +519,22 @@ class _OfficeShellState extends State<OfficeShell>
                   ),
                   builder: (context, child) {
                     final t = _shown.value;
+                    final hidden = t < 0.5 || widget.hideBottomBar;
                     return IgnorePointer(
-                      ignoring: t < 0.5,
-                      child: Transform.translate(
-                        offset: Offset(0, bottomH * (1 - t)),
-                        child: child,
+                      ignoring: hidden,
+                      child: ExcludeSemantics(
+                        excluding: hidden,
+                        child: AnimatedSlide(
+                          offset: widget.hideBottomBar
+                              ? const Offset(0, 1.15)
+                              : Offset.zero,
+                          duration: Motion.of(context, Motion.short),
+                          curve: Motion.standard,
+                          child: Transform.translate(
+                            offset: Offset(0, bottomH * (1 - t)),
+                            child: child,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -593,6 +616,7 @@ class DocTitle extends StatelessWidget {
   /// Kaydetme durumu metni ([EditSession.statusText]); verilmezse kirliyken
   /// "Kaydedilmedi".
   final String? status;
+  final bool hideKindPrefix;
 
   const DocTitle({
     super.key,
@@ -601,6 +625,7 @@ class DocTitle extends StatelessWidget {
     this.dirty = false,
     this.subtitle,
     this.status,
+    this.hideKindPrefix = false,
   });
 
   @override
@@ -608,14 +633,15 @@ class DocTitle extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final brand = OfficeColors.tint(context, kind);
+    final hasSub = subtitle != null && subtitle!.isNotEmpty;
     final info = [
-      context.t(kind.labelKey),
-      if (subtitle != null && subtitle!.isNotEmpty) subtitle!,
+      if (!hideKindPrefix || !hasSub) context.t(kind.labelKey),
+      if (hasSub) subtitle!,
     ].join(' · ');
     return Row(
       children: [
-        FileTypeIcon(kind: kind, size: 36, framed: true),
-        const SizedBox(width: 12),
+        FileTypeIcon(kind: kind, size: hideKindPrefix ? 32 : 36, framed: true),
+        SizedBox(width: hideKindPrefix ? 8 : 12),
         Expanded(
           child: Column(
             mainAxisSize: MainAxisSize.min,

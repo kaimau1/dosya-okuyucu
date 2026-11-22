@@ -120,6 +120,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   DocxEditController? _ctrl;
   String? _error;
   int _seenRevision = 0;
+  int _wordsCached = 0;
+  int _wordsCachedRev = -1;
   final _panel = FormatPanelController();
 
   /// Faz 37: yapısal (paket düzeyi) işlemlerin geri alma yığını — her biri
@@ -250,6 +252,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     _doc = doc;
     _ctrl = DocxEditController(doc)..addListener(_onEdit);
     _seenRevision = 0;
+    _wordsCachedRev = -1;
     if (doc.trackChanges) unawaited(_loadRevAuthor(doc));
   }
 
@@ -433,6 +436,14 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   }
 
   final _viewKey = GlobalKey<DocxEditorViewState>();
+
+  int _liveWordCount(DocxEditController c) {
+    if (_wordsCachedRev != c.revision) {
+      _wordsCachedRev = c.revision;
+      _wordsCached = c.counts().words;
+    }
+    return _wordsCached;
+  }
 
   WordFormatUi _ui(DocxEditController c) => WordFormatUi(
         context: context,
@@ -847,7 +858,10 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           kind: DocKind.word,
           title: widget.name,
           session: _session,
-          subtitle: context.t('word.mobile_view'),
+          hideKindPrefix: true,
+          subtitle: c == null
+              ? context.t('word.mobile_view')
+              : context.t('word.words_n', {'n': _liveWordCount(c)}),
           // ↶ ↷ hep üst çubukta (§5 madde 5); Sayfa düzeni M365'teki gibi
           // tepede — şerit yazı işlerine kalır.
           // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · düzen · ⋮).
@@ -860,6 +874,15 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 : (_proUndo.isNotEmpty && !_proBusy ? _proUndoLast : null),
             redo: () => c != null && c.canRedo ? c.redo : null,
             extras: [
+              IconButton(
+                key: const ValueKey('word-top-find'),
+                tooltip: context.t('word.find_replace'),
+                isSelected: _findOpen,
+                icon: Icon(_findOpen ? AppIcons.searchOff : AppIcons.search),
+                onPressed: c == null
+                    ? null
+                    : () => setState(() => _findOpen = !_findOpen),
+              ),
               IconButton(
                 key: const ValueKey('word-page-layout'),
                 tooltip: context.t('word.page_layout'),

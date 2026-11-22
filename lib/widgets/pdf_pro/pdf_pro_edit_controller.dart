@@ -343,6 +343,31 @@ class PdfLiveEdit {
     }
     return true;
   }
+
+  int? _intAt(int? Function(PdfStyleSpan) get, int i) {
+    final p = pending == null ? null : get(pending!);
+    if (p != null && selStart == selEnd) return p;
+    final at = math.max(0, (selStart == selEnd ? i - 1 : i));
+    int? v;
+    for (final s in spans) {
+      if (at >= s.start && at < s.end) v = get(s) ?? v;
+    }
+    return v;
+  }
+
+  /// [i]. karakterin ya da bloğun metin rengi (ARGB).
+  int? colorAt(int i) {
+    final v = _intAt((s) => s.color, i) ?? color;
+    if (v != null) return v;
+    final b = block;
+    if (b == null || b.lines.isEmpty || b.lines.first.objects.isEmpty) {
+      return null;
+    }
+    return b.lines.first.objects.first.fill;
+  }
+
+  /// [i]. karakterin vurgu rengi (ARGB); yoksa null.
+  int? highlightAt(int i) => _intAt((s) => s.highlight, i);
 }
 
 /// **Düzenleme kipinin durumu** (PDF Pro Faz 54–60, PK3 — tek yüzey).
@@ -470,7 +495,20 @@ class PdfProEditController extends ChangeNotifier {
   int markupColor = 0xFFFFD54F;
   double markupWidth = 2;
   void setMarkupColor(int argb) {
+    if (markupColor == argb) return;
     markupColor = argb;
+    _notify();
+  }
+
+  void setMarkupWidth(double w) {
+    if (markupWidth == w) return;
+    markupWidth = w;
+    _notify();
+  }
+
+  void clearMarkup() {
+    if (_markup == PdfMarkupKind.none) return;
+    _markup = PdfMarkupKind.none;
     _notify();
   }
 
@@ -903,6 +941,22 @@ class PdfProEditController extends ChangeNotifier {
     live.spans = [...live.spans, make(a, b)];
     _scheduleLive();
     _notify();
+  }
+
+  /// Seçim varsa seçili aralığa, seçim yoksa tüm bloğa ve bundan sonra
+  /// yazılacak metne biçim uygular (örn. metin rengi / vurgu).
+  void liveStyleBlock(PdfStyleSpan Function(int start, int end) make) {
+    final live = _live;
+    if (live == null) return;
+    if (!live.collapsed) {
+      liveStyle(make);
+      return;
+    }
+    if (live.length > 0) {
+      live.spans = [...live.spans, make(0, live.length)];
+    }
+    liveStyle(make);
+    _scheduleLive();
   }
 
   /// Yazı tipi seçimi: seçili aralığa; seçim yoksa bütün bloğa ve sonra

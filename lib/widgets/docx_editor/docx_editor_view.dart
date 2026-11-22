@@ -987,9 +987,16 @@ class DocxEditorViewState extends State<DocxEditorView>
   }
 
   Widget _handle(Offset at, bool startHandle) {
-    const size = 22.0;
+    const hitSize = 44.0;
+    const dotSize = 16.0;
+    final scheme = Theme.of(context).colorScheme;
     return Positioned.fromRect(
-      rect: Rect.fromLTWH(at.dx - size / 2, at.dy, size, size),
+      rect: Rect.fromLTWH(
+        at.dx - hitSize / 2,
+        at.dy - (hitSize - dotSize) / 2,
+        hitSize,
+        hitSize,
+      ),
       child: GestureDetector(
         key: ValueKey(startHandle ? 'docx-handle-a' : 'docx-handle-b'),
         behavior: HitTestBehavior.opaque,
@@ -1009,12 +1016,21 @@ class DocxEditorViewState extends State<DocxEditorView>
           c.selectionFinished();
           setState(() {});
         },
-        child: Container(
-          width: size,
-          height: size,
-          decoration: const BoxDecoration(
-            color: AppColors.slideSelection,
-            shape: BoxShape.circle,
+        child: Center(
+          child: Container(
+            width: dotSize,
+            height: dotSize,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              shape: BoxShape.circle,
+              border: Border.all(color: scheme.onPrimary, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: scheme.shadow.withValues(alpha: 0.22),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1103,18 +1119,23 @@ class DocxEditorViewState extends State<DocxEditorView>
     final items = _menuItems();
     final scheme = Theme.of(context).colorScheme;
     const h = 44.0;
-    final top = sel.top - h - 8 >= 0 ? sel.top - h - 8 : sel.bottom + _handleH + 28;
+    final top = math.max(
+        8.0, sel.top - h - 8 >= 8 ? sel.top - h - 8 : sel.bottom + _handleH + 28);
     return Positioned.fromRect(
       rect: Rect.fromLTWH(8, top, width - 16, h),
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: Material(
           key: const ValueKey('docx-toolbar'),
-          elevation: 3,
+          elevation: 4,
           color: scheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Radii.sheet),
+            side: BorderSide(color: scheme.outlineVariant),
+          ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

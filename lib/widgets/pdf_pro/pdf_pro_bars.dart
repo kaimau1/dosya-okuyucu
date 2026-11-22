@@ -10,11 +10,16 @@ import 'pdf_pro_edit_controller.dart';
 /// Bağlamsal çubuğun tek yongası.
 class PdfProChip {
   const PdfProChip(this.icon, this.label, this.onTap,
-      {this.active = false, this.danger = false, this.tapKey});
+      {this.active = false,
+      this.danger = false,
+      this.primary = false,
+      this.swatch,
+      this.tapKey});
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
-  final bool active, danger;
+  final bool active, danger, primary;
+  final Color? swatch;
   final Key? tapKey;
 }
 
@@ -36,35 +41,69 @@ class PdfProContextBar extends StatelessWidget {
       child: Material(
         color: scheme.surfaceContainerHigh,
         elevation: 2,
-        child: SizedBox(
-          height: PdfEditTokens.contextBar,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: Gap.sm, vertical: Gap.sm),
-            itemCount: chips.length,
-            separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
-            itemBuilder: (context, i) {
-              final c = chips[i];
-              final fg = c.danger
-                  ? scheme.error
-                  : c.active
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurface;
-              return ActionChip(
-                key: c.tapKey,
-                avatar: Icon(c.icon, size: AppIcons.small, color: fg),
-                label: Text(c.label),
-                labelStyle: context.type.small.copyWith(color: fg),
-                backgroundColor:
-                    c.active ? scheme.primaryContainer : scheme.surface,
-                side: BorderSide(
-                    color: c.active
-                        ? scheme.primary
-                        : scheme.outlineVariant),
-                onPressed: c.onTap,
-              );
-            },
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.6)),
+            ),
+          ),
+          child: SizedBox(
+            height: PdfEditTokens.contextBar,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: Gap.md, vertical: Gap.sm),
+              itemCount: chips.length,
+              separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
+              itemBuilder: (context, i) {
+                final c = chips[i];
+                final fg = c.primary
+                    ? scheme.onPrimary
+                    : c.danger
+                        ? scheme.error
+                        : c.active
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurface;
+                final bg = c.primary
+                    ? scheme.primary
+                    : c.active
+                        ? scheme.primaryContainer
+                        : scheme.surface;
+                final borderColor = c.primary || c.active
+                    ? scheme.primary
+                    : scheme.outlineVariant;
+                final avatar = c.swatch != null
+                    ? Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: c.swatch,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: c.primary
+                                ? scheme.onPrimary.withValues(alpha: 0.7)
+                                : scheme.outline,
+                          ),
+                        ),
+                      )
+                    : Icon(c.icon, size: AppIcons.small, color: fg);
+                return ActionChip(
+                  key: c.tapKey,
+                  avatar: avatar,
+                  label: Text(c.label),
+                  labelStyle: context.type.small.copyWith(
+                    color: fg,
+                    fontWeight: c.primary || c.active
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                  ),
+                  backgroundColor: bg,
+                  side: BorderSide(color: borderColor),
+                  onPressed: c.onTap,
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -161,9 +200,33 @@ class PdfProFormatBar extends StatelessWidget {
               key: key,
               tooltip: tip,
               isSelected: on,
+              style: on
+                  ? IconButton.styleFrom(
+                      backgroundColor: scheme.primaryContainer,
+                      foregroundColor: scheme.onPrimaryContainer,
+                    )
+                  : null,
               icon: Icon(icon),
               onPressed: onTap,
             );
+        Widget colorIcon(IconData icon, Color bar) => Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 17),
+                const SizedBox(height: 1),
+                Container(
+                  width: 16,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: bar,
+                    borderRadius: BorderRadius.circular(1.5),
+                  ),
+                ),
+              ],
+            );
+        final textColorArgb = live.colorAt(a);
+        final hlColorArgb = live.highlightAt(a);
         final alignIcon =
             _aligns.firstWhere((e) => e.$1 == live.align).$2;
         void paste() async {
@@ -306,7 +369,17 @@ class PdfProFormatBar extends StatelessWidget {
                                   borderRadius:
                                       BorderRadius.circular(Radii.control),
                                 ),
-                                child: Text(badge, style: context.type.small),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(badge, style: context.type.small),
+                                    if (onPickFont != null) ...[
+                                      const SizedBox(width: Gap.xs),
+                                      const Icon(AppIcons.dropDown,
+                                          size: AppIcons.small),
+                                    ],
+                                  ],
+                                ),
                               ),
                               ),
                             ),
@@ -368,13 +441,23 @@ class PdfProFormatBar extends StatelessWidget {
                           IconButton(
                             key: const ValueKey('pse-color'),
                             tooltip: labels.color,
-                            icon: const Icon(AppIcons.formatColorText),
+                            icon: colorIcon(
+                              AppIcons.formatColorText,
+                              textColorArgb != null
+                                  ? Color(textColorArgb | 0xFF000000)
+                                  : scheme.onSurface,
+                            ),
                             onPressed: onPickColor,
                           ),
                           IconButton(
                             key: const ValueKey('pse-highlight'),
                             tooltip: labels.highlight,
-                            icon: const Icon(AppIcons.highlighter),
+                            icon: colorIcon(
+                              AppIcons.highlighter,
+                              hlColorArgb != null
+                                  ? Color(hlColorArgb | 0xFF000000)
+                                  : scheme.primary,
+                            ),
                             onPressed: onPickHighlight,
                           ),
                           IconButton(

@@ -733,3 +733,197 @@ class _SensitiveBodyState extends State<_SensitiveBody> {
     );
   }
 }
+
+/// Seçili metin bloğunun biçim levhası: punto, hizalama, listeler ve stil
+/// kopyala/yapıştır tek düzenli panelde.
+Future<void> showPdfBlockStyleSheet(
+  BuildContext context, {
+  required PdfTextBlock block,
+  required bool hasStyleClip,
+  required ValueChanged<String> onAction,
+}) =>
+    showAppSheet<void>(
+      context,
+      title: context.t('pse.style_sheet_title'),
+      builder: (sheetCtx) {
+        final scheme = Theme.of(sheetCtx).colorScheme;
+        void run(String cmd) {
+          Navigator.of(sheetCtx).pop();
+          onAction(cmd);
+        }
+
+        Widget chip(IconData icon, String label, String cmd,
+                {bool active = false, Key? key}) =>
+            ActionChip(
+              key: key,
+              avatar: Icon(icon,
+                  size: AppIcons.small,
+                  color: active ? scheme.onPrimaryContainer : null),
+              label: Text(label),
+              backgroundColor: active ? scheme.primaryContainer : null,
+              side: active ? BorderSide(color: scheme.primary) : null,
+              onPressed: () => run(cmd),
+            );
+        return Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(
+              Gap.lg, Gap.xs, Gap.lg, Gap.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text(context.t('pse.fmt_size'),
+                      style: sheetCtx.type.small
+                          .copyWith(color: scheme.onSurfaceVariant)),
+                  const Spacer(),
+                  IconButton.outlined(
+                    key: const ValueKey('pse-sheet-smaller'),
+                    tooltip: context.t('pse.fmt_smaller'),
+                    icon: const Icon(AppIcons.textDecrease),
+                    onPressed: () => run('smaller'),
+                  ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.symmetric(
+                        horizontal: Gap.md),
+                    child: Text(
+                      context.t(
+                          'pse.font_size_pt', {'n': block.size.round()}),
+                      style: sheetCtx.type.large
+                          .copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton.outlined(
+                    key: const ValueKey('pse-sheet-bigger'),
+                    tooltip: context.t('pse.fmt_larger'),
+                    icon: const Icon(AppIcons.textIncrease),
+                    onPressed: () => run('bigger'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              Text(context.t('pse.fmt_align'),
+                  style: sheetCtx.type.small
+                      .copyWith(color: scheme.onSurfaceVariant)),
+              const SizedBox(height: Gap.xs),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  chip(AppIcons.formatAlignLeft, context.t('pse.al_left'),
+                      'left',
+                      active: block.align == PdfBlockAlign.left),
+                  chip(AppIcons.formatAlignCenter, context.t('pse.al_center'),
+                      'center',
+                      active: block.align == PdfBlockAlign.center),
+                  chip(AppIcons.formatAlignRight, context.t('pse.al_right'),
+                      'right',
+                      active: block.align == PdfBlockAlign.right),
+                  chip(AppIcons.formatAlignJustify, context.t('pse.al_justify'),
+                      'justify',
+                      active: block.align == PdfBlockAlign.justify),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  chip(AppIcons.formatListBulleted,
+                      context.t('pse.list_bullets'), 'bullets'),
+                  chip(AppIcons.formatListNumbered,
+                      context.t('pse.list_numbers'), 'numbers'),
+                  chip(AppIcons.formatPaint, context.t('pse.style_copy'),
+                      'stylecopy'),
+                  if (hasStyleClip)
+                    chip(AppIcons.style, context.t('pse.style_paste'),
+                        'stylepaste'),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+/// İşaretleme aracı için renk ve çizgi kalınlığı levhası.
+Future<void> showPdfStrokeSheet(
+  BuildContext context, {
+  required int color,
+  required double width,
+  List<int> colors = PdfProSwatches.text,
+  required ValueChanged<int> onColor,
+  required ValueChanged<double> onWidth,
+}) =>
+    showAppSheet<void>(
+      context,
+      title: context.t('pse.stroke_title'),
+      builder: (sheetCtx) {
+        var pickedColor = color;
+        var pickedWidth = width;
+        const widths = <(double, String)>[
+          (1.5, 'pse.stroke_thin'),
+          (2.5, 'pse.stroke_medium'),
+          (4.0, 'pse.stroke_thick'),
+          (7.0, 'pse.stroke_bold'),
+        ];
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final scheme = Theme.of(context).colorScheme;
+            final previewColor = Color(pickedColor | 0xFF000000);
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PdfProSwatches(
+                  colors: colors,
+                  selected: pickedColor,
+                  onPick: (c) {
+                    setState(() => pickedColor = c);
+                    onColor(c);
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsetsDirectional.symmetric(
+                      horizontal: Gap.lg),
+                  child: Text(
+                    context.t('pse.stroke_width'),
+                    style: context.type.small
+                        .copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(
+                      Gap.lg, 0, Gap.lg, Gap.lg),
+                  child: Wrap(
+                    spacing: Gap.sm,
+                    runSpacing: Gap.sm,
+                    children: [
+                      for (final (w, key) in widths)
+                        FilterChip(
+                          key: ValueKey('pse-stroke-${w.toString()}'),
+                          selected: (pickedWidth - w).abs() < 0.4,
+                          avatar: Container(
+                            width: 18,
+                            height: w.clamp(1.5, 7.0),
+                            decoration: BoxDecoration(
+                              color: previewColor,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          label: Text(context.t(key)),
+                          onSelected: (_) {
+                            setState(() => pickedWidth = w);
+                            onWidth(w);
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );

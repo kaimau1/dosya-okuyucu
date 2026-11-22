@@ -208,33 +208,60 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     _partSetState(() {});
   }
 
-  /// Excel'in durum çubuğu: seçili aralığın ortalaması / sayısı / toplamı.
+  /// Excel'in durum çubuğu: seçili aralığın kopyalanabilir istatistikleri
+  /// veya tek hücrede hızlı hücre menüsü düğmesi + sayfa konumu.
   Widget _statusBar() {
     final sheet = _sheet;
     if (sheet == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    String text;
     if (!_hasRange) {
       final fmt = sheet.numFmtCode(_selRow, _selCol);
-      text = context.t('excel.cell_label',
+      final text = context.t('excel.cell_label',
               {'ref': '${XlsxRange.colName(_selCol)}${_selRow + 1}'}) +
           (fmt == 'General' ? '' : '  ·  $fmt');
+      return _statusRow(
+        scheme,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.type.caption.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
+        trailing: [
+          InkWell(
+            key: const ValueKey('xl-status-menu'),
+            onTap: _showCellMenu,
+            borderRadius: BorderRadius.circular(Radii.control),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Text(
+                context.t('excel.cell_menu'),
+                style: context.type.caption.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final engine = _engineFor(sheet);
+    final memoKey = (sheet.name, _anchorRow, _anchorCol, _selRow, _selCol,
+        _calcStamp, context.language);
+    _RangeStatusData? stats;
+    final memo = _statusMemo;
+    if (memo != null && memo.$1 == memoKey) {
+      stats = memo.$2;
     } else {
-      final engine = _engineFor(sheet);
-      // Seçim ve hesap değişmediyse toplam yeniden taranmaz (Faz 26).
-      final memoKey = (sheet.name, _anchorRow, _anchorCol, _selRow, _selCol,
-          _calcStamp, context.language);
-      final memo = _statusMemo;
-      if (memo != null && memo.$1 == memoKey) {
-        return _statusText(memo.$2, scheme);
-      }
       final r1 = math.min(_anchorRow, _selRow);
       final r2 = math.max(_anchorRow, _selRow);
       final c1 = math.min(_anchorCol, _selCol);
       final c2 = math.max(_anchorCol, _selCol);
       final cellCount = (r2 - r1 + 1) * (c2 - c1 + 1);
-      // Çok büyük seçimde (tümünü seç) hücre hücre hesap ekranı dondurur;
-      // Excel de yalnız sayıyı gösterir.
       if (cellCount > 200000) {
         return _statusText(
             context.t('excel.selection_cells', {'n': cellCount}), scheme);
@@ -242,6 +269,8 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
       var sum = 0.0;
       var count = 0;
       var filled = 0;
+      var minVal = double.infinity;
+      var maxVal = -double.infinity;
       for (var r = r1; r <= r2; r++) {
         for (var c = c1; c <= c2; c++) {
           final raw = engine.displayValue(r, c);
@@ -251,29 +280,96 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           if (v == null) continue;
           sum += v;
           count++;
+          if (v < minVal) minVal = v;
+          if (v > maxVal) maxVal = v;
         }
       }
-      text = count == 0
-          ? context.t(
-              'excel.selection_filled', {'n': cellCount, 'filled': filled})
-          : context.t('excel.selection_stats', {
-              'avg': generalNumber(sum / count),
-              'count': count,
-              'sum': generalNumber(sum),
-            });
-      _statusMemo = (memoKey, text);
+      stats = _RangeStatusData(
+        cellCount: cellCount,
+        filled: filled,
+        count: count,
+        sum: sum,
+        avg: count == 0 ? 0 : sum / count,
+        min: count == 0 ? 0 : minVal,
+        max: count == 0 ? 0 : maxVal,
+      );
+      _statusMemo = (memoKey, stats);
     }
-    return _statusText(text, scheme);
+    if (stats.count == 0) {
+      return _statusText(
+        context.t('excel.selection_filled',
+            {'n': stats.cellCount, 'filled': stats.filled}),
+        scheme,
+      );
+    }
+    Widget statChip(String key, String rawValue) {
+      final label = context.t(key, {'v': rawValue});
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(end: 6),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(Radii.sheet),
+          onTap: () async {
+            await Clipboard.setData(ClipboardData(text: rawValue));
+            if (mounted) _snack(context.t('excel.copied_stat', {'v': rawValue}));
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(Radii.sheet),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Text(
+              label,
+              style: context.type.caption.copyWith(color: scheme.onSurface),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _statusRow(
+      scheme,
+      Expanded(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              statChip('excel.stat_sum_short', generalNumber(stats.sum)),
+              statChip('excel.stat_avg_short', generalNumber(stats.avg)),
+              statChip('excel.stat_count_short', '${stats.count}'),
+              statChip('excel.stat_min_short', generalNumber(stats.min)),
+              statChip('excel.stat_max_short', generalNumber(stats.max)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  /// Durum çubuğu — solda seçim bilgisi, sağda **kaçıncı sayfadayız**
-  /// (2026-08-01 kullanıcı isteği: toplam sayfa sayısı her belgede görünsün).
-  /// Excel'in "sayfa"sı çalışma sayfasıdır; gizli sayfalar sayılmaz çünkü
-  /// sekmelerde de görünmezler.
-  Widget _statusText(String text, ColorScheme scheme) {
+  Widget _statusText(String text, ColorScheme scheme) => _statusRow(
+        scheme,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.type.caption.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
+      );
+
+  /// Durum çubuğu satırı — solda seçim bilgisi/istatistikler, sağda ek + sayfa konumu.
+  Widget _statusRow(
+    ColorScheme scheme,
+    Widget body, {
+    List<Widget> trailing = const [],
+  }) {
     final sheets =
         _editor?.sheets.where((s) => !s.layout.hidden).toList() ?? const [];
-    final at = _sheet == null ? -1 : sheets.indexWhere((s) => s.name == _sheet!.name);
+    final at = _sheet == null
+        ? -1
+        : sheets.indexWhere((s) => s.name == _sheet!.name);
     final style = context.type.caption.copyWith(color: scheme.onSurfaceVariant);
     return Container(
       width: double.infinity,
@@ -281,10 +377,8 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       child: Row(
         children: [
-          Expanded(
-            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: style),
-          ),
+          body,
+          ...trailing,
           if (at >= 0) ...[
             const SizedBox(width: 8),
             Text(

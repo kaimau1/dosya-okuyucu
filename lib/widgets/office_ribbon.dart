@@ -148,6 +148,7 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
     // hedeflemesi kolay. Şerit zemini kabukla aynı yüzeyde + alt cetvel.
     return RibbonStyle(
       onBrand: widget.onBrand,
+      compact: widget.compact,
       child: Container(
         color: widget.onBrand ? Colors.transparent : scheme.surface,
         // Cetvel ÖN süslemede: `decoration` kenarlığı yüksekliğe 1 px ekler
@@ -247,18 +248,28 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
 /// tek tek bayrak geçirmek yerine.
 class RibbonStyle extends InheritedWidget {
   final bool onBrand;
-  const RibbonStyle({super.key, required this.onBrand, required super.child});
+  final bool compact;
+  const RibbonStyle({
+    super.key,
+    required this.onBrand,
+    this.compact = false,
+    required super.child,
+  });
 
   static bool of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<RibbonStyle>()?.onBrand ??
       false;
 
+  static bool compactOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<RibbonStyle>()?.compact ??
+      false;
+
   @override
   bool updateShouldNotify(RibbonStyle oldWidget) =>
-      oldWidget.onBrand != onBrand;
+      oldWidget.onBrand != onBrand || oldWidget.compact != compact;
 }
 
-/// Şerit düğmesi (simge + isteğe bağlı etkin durum).
+/// Şerit düğmesi (simge + isteğe bağlı etkin durum + renk göstergesi).
 ///
 /// [active] verilen düğme bir **aç/kapa** düğmesidir: TalkBack onu "Kalın,
 /// açık / kapalı" diye okur (Faz 33 / madde 3). Verilmeyen (null) düğme düz
@@ -267,6 +278,7 @@ class RibbonButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final bool? active;
+  final Color? indicator;
   final VoidCallback? onTap;
 
   const RibbonButton(
@@ -274,6 +286,7 @@ class RibbonButton extends StatelessWidget {
     this.tooltip, {
     super.key,
     this.active,
+    this.indicator,
     this.onTap,
   });
 
@@ -282,6 +295,27 @@ class RibbonButton extends StatelessWidget {
     final onBrand = RibbonStyle.of(context);
     final scheme = Theme.of(context).colorScheme;
     final on = active == true;
+    final iconColor = onBrand
+        ? AppColors.onBrand
+        : (on ? scheme.onPrimaryContainer : scheme.onSurface);
+    final Widget iconWidget = indicator == null
+        ? Icon(icon)
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17),
+              const SizedBox(height: 1),
+              Container(
+                width: 16,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: indicator,
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+              ),
+            ],
+          );
     return Semantics(
       button: true,
       toggled: active,
@@ -301,10 +335,8 @@ class RibbonButton extends StatelessWidget {
           tooltip: tooltip,
           visualDensity: VisualDensity.compact,
           iconSize: 20,
-          color: onBrand
-              ? AppColors.onBrand
-              : (on ? scheme.onPrimaryContainer : scheme.onSurface),
-          icon: Icon(icon),
+          color: iconColor,
+          icon: iconWidget,
           onPressed: onTap,
         ),
       ),
@@ -345,6 +377,7 @@ class RibbonChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final String tooltip;
+  final bool? active;
   final VoidCallback? onTap;
 
   const RibbonChip({
@@ -352,14 +385,22 @@ class RibbonChip extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.tooltip,
+    this.active,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final onBrand = RibbonStyle.of(context);
+    final compact = RibbonStyle.compactOf(context);
     final scheme = Theme.of(context).colorScheme;
-    final fg = onBrand ? AppColors.onBrand : scheme.onSurface;
+    final on = active == true;
+    final bg = onBrand
+        ? (on ? AppColors.onBrand : AppColors.onBrandWell)
+        : (on ? scheme.primaryContainer : scheme.surfaceContainerHigh);
+    final fg = onBrand
+        ? AppColors.onBrand
+        : (on ? scheme.onPrimaryContainer : scheme.onSurface);
     // [onTap] null ise HİÇ jest kurulmaz: bu çip çoğu zaman bir
     // `PopupMenuButton`ın çocuğudur ve araya giren bir `InkWell` dokunuşu
     // yutup menüyü açtırmazdı (Word'ün yazı tipi/punto menüleri).
@@ -370,34 +411,41 @@ class RibbonChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(Radii.control),
             child: child,
           );
-    return Tooltip(
-      message: tooltip,
-      child: wrap(
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: onBrand ? AppColors.onBrandWell : scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(10),
-            border: onBrand ? null : Border.all(color: scheme.outlineVariant),
-          ),
-          constraints: const BoxConstraints(maxWidth: 150),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: fg),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.type.compact.copyWith(
-                      fontWeight: FontWeight.w600,
+    return Semantics(
+      toggled: active,
+      child: Tooltip(
+        message: tooltip,
+        child: wrap(
+          Container(
+            margin: EdgeInsets.symmetric(
+                horizontal: 2, vertical: compact ? 4 : 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(10),
+              border: onBrand
+                  ? null
+                  : Border.all(
+                      color: on ? scheme.primary : scheme.outlineVariant),
+            ),
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: fg),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.type.compact.copyWith(
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w600,
                       color: fg,
                     ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

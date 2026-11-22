@@ -109,6 +109,36 @@ class PdfProBlockLayer extends StatefulWidget {
   @visibleForTesting
   static int debugBuilds = 0;
 
+  /// Seçili metin bloğunun taşıma tutamacı merkezi.
+  ///
+  /// Blok üstünde yeterli yer varsa metnin **dışına** (20 px yukarı) yerleşir;
+  /// böylece "BASO%" gibi dar tablo hücrelerinde metni kapatmaz ve dokunuşu
+  /// çalmaz. Üst kenara yapışıksa bloğun hemen altına konur.
+  @visibleForTesting
+  static Offset blockMoveAnchor(Rect r, Size pageSize) {
+    const dy = 20.0;
+    const marginX = 16.0;
+    final maxX = math.max(marginX, pageSize.width - marginX);
+    final cx = r.center.dx.clamp(marginX, maxX).toDouble();
+    if (r.top >= 36.0) return Offset(cx, r.top - dy);
+    return Offset(cx, math.min(pageSize.height - marginX, r.bottom + dy));
+  }
+
+  /// Seçili metin bloğunun sağ genişlik tutamacı merkezi.
+  ///
+  /// Sağda yer varsa bloğun hemen dışına (+14 px) yerleşerek kısa hücre
+  /// metinlerine dokunuşun karışmasını önler.
+  @visibleForTesting
+  static Offset blockWidthAnchor(Rect r, Size pageSize) {
+    if (r.right + 28.0 <= pageSize.width) {
+      return Offset(r.right + 14.0, r.center.dy);
+    }
+    if (r.right + 14.0 <= pageSize.width) {
+      return Offset(r.right + 8.0, r.center.dy);
+    }
+    return Offset(math.max(12.0, pageSize.width - 12.0), r.center.dy);
+  }
+
   @override
   State<PdfProBlockLayer> createState() => _PdfProBlockLayerState();
 }
@@ -859,7 +889,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               ),
             );
         const hs = PdfEditTokens.gripHit;
-        // Seçili blok: üst tutamaç = taşı; sağ tutamaç = genişlik.
+        // Seçili blok: tutamaçlar çerçevenin DIŞINDA — kısa satırlarda metni
+        // örtmez, "yazmaya başla" dokunuşunu çalmaz.
         if (live == null &&
             tool == PdfProTool.text &&
             selected != null &&
@@ -869,16 +900,19 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           final b = blocks[selected];
           final exact = rects[selected];
           final r = exact.inflate(2 * px);
+          final moveAt = PdfProBlockLayer.blockMoveAnchor(r, widget.pageSize);
+          final widthAt = PdfProBlockLayer.blockWidthAnchor(r, widget.pageSize);
           children
-            ..add(grip(r.topCenter, hs,
+            ..add(grip(moveAt, 34,
                 key: const ValueKey('pse-grip-move'),
                 onStart: () => _preview.begin(exact,
-                    grip: Offset.zero, targets: _targets(block: selected)),
+                    grip: moveAt - exact.topCenter,
+                    targets: _targets(block: selected)),
                 onUpdate: (e) {
                   if (_preview.move(e.delta)) AppHaptics.selection();
                 },
                 onEnd: () => _dropBlock(b)))
-            ..add(grip(r.centerRight, hs,
+            ..add(grip(widthAt, 28,
                 key: const ValueKey('pse-grip-width'),
                 onStart: () => _preview.begin(exact),
                 onUpdate: (e) => _preview.widen(e.delta.dx),

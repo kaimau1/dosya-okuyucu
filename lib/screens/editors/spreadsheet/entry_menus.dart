@@ -135,39 +135,109 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
     final picked = await showAppSheet<String>(
       context,
       title: _selectionLabel,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (id, icon, key) in [
-            ('cut', AppIcons.cut, 'excel.cut'),
-            ('copy', AppIcons.copy, 'common.copy'),
-            ('paste', AppIcons.paste, 'common.paste'),
-            ('paste_values', AppIcons.paste, 'excel.paste_values'),
-            ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
-            ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
-            ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
-            ('clear', AppIcons.backspace, 'excel.clear_contents'),
-            ('clear_formats', AppIcons.formatClear, 'excel.clear_formats'),
-            ('fill_down', AppIcons.arrowDown, 'excel.fill_down'),
-            ('fill_right', AppIcons.arrowForward, 'excel.fill_right'),
-            ('insert_row', OfficeIcons.insertRow, 'excel.insert_row'),
-            ('delete_row', OfficeIcons.deleteCells, 'excel.delete_row'),
-            ('insert_col', OfficeIcons.insertColumn, 'excel.insert_col'),
-            ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
-            ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
-            ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
-            ('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
-            ('note', AppIcons.comment, 'excel.note_new'),
-          ])
-            ListTile(
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget quickTile(String id, IconData icon, String key) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+                child: Material(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  child: InkWell(
+                    key: ValueKey('cellmenu-$id'),
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    onTap: () => Navigator.pop(ctx, id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.xs, vertical: Gap.sm),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, size: 20, color: scheme.onSurface),
+                          const SizedBox(height: Gap.xs),
+                          Text(
+                            ctx.t(key),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.type.caption
+                                .copyWith(color: scheme.onSurface),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+        Widget groupHeader(String key) => Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                  Gap.lg, Gap.md, Gap.lg, Gap.xs),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  ctx.t(key),
+                  style: ctx.type.caption.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            );
+        Widget row(String id, IconData icon, String key) => ListTile(
               key: ValueKey('cellmenu-$id'),
               dense: true,
               leading: Icon(icon),
               title: Text(ctx.t(key)),
               onTap: () => Navigator.pop(ctx, id),
+            );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            groupHeader('excel.quick_actions'),
+            Padding(
+              padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: Gap.md, vertical: Gap.xs),
+              child: Row(
+                children: [
+                  quickTile('cut', AppIcons.cut, 'excel.cut'),
+                  quickTile('copy', AppIcons.copy, 'common.copy'),
+                  quickTile('paste', AppIcons.paste, 'common.paste'),
+                  quickTile('clear', AppIcons.backspace, 'excel.clear_contents'),
+                ],
+              ),
             ),
-        ],
-      ),
+            row('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
+            row('note', AppIcons.comment, 'excel.note_new'),
+            groupHeader('excel.paste_special_group'),
+            for (final (id, icon, key) in const [
+              ('paste_values', AppIcons.paste, 'excel.paste_values'),
+              ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
+              ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
+              ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
+              ('clear_formats', AppIcons.formatClear, 'excel.clear_formats'),
+            ])
+              row(id, icon, key),
+            groupHeader('excel.fill_sort_group'),
+            for (final (id, icon, key) in const [
+              ('fill_down', AppIcons.arrowDown, 'excel.fill_down'),
+              ('fill_right', AppIcons.arrowForward, 'excel.fill_right'),
+              ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
+              ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
+            ])
+              row(id, icon, key),
+            groupHeader('excel.rows_cols_group'),
+            for (final (id, icon, key) in const [
+              ('insert_row', OfficeIcons.insertRow, 'excel.insert_row'),
+              ('delete_row', OfficeIcons.deleteCells, 'excel.delete_row'),
+              ('insert_col', OfficeIcons.insertColumn, 'excel.insert_col'),
+              ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
+            ])
+              row(id, icon, key),
+            const SizedBox(height: Gap.sm),
+          ],
+        );
+      },
     );
     if (picked == null || !mounted) return;
     switch (picked) {

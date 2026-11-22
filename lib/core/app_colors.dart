@@ -281,7 +281,7 @@ abstract final class PdfEditTokens {
 
   // ── vurgu oranları (vurgu rengine `withValues(alpha:)`) ──────────────────
   /// Dinlenmedeki blok kılavuzu — "her satırı gri kutuya boğma" YOK.
-  static const frameIdleAlpha = 0.14;
+  static const frameIdleAlpha = 0.11;
 
   /// Seçili blok dolgusu.
   static const frameFillAlpha = 0.06;

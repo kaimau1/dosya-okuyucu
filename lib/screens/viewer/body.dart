@@ -450,9 +450,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                     },
                   ),
                 if (_pdfSelection.trim().isNotEmpty && !_pdfSelBarTop)
-                  ReadingFloat(
+                  PositionedDirectional(
                     start: 8,
                     end: 8,
+                    bottom: 12 + MediaQuery.paddingOf(context).bottom,
                     child: Center(child: _selectionBar()),
                   ),
                 // PS5: kaydırarak açılamayan seçimde (sayfa sonu, uzun seçim)

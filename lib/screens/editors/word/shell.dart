@@ -16,13 +16,22 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · ara · ⋮).
       actions: EditorTopBar.actions(
         context,
+        showSave: _editing || _plainMode || _session.isDirty,
         onSave: editor == null ? null : _save,
-        // Geri al / yinele: yapısal işlemler (paragraf ekle/sil) için —
-        // paragraf silmenin geri dönüşü yoktu.
-        undo: () => !_canUndo ? null : _undoAny,
-        redo: () => !_canRedo ? null : _redoAny,
+        // Geri al / yinele yalnızca etkin düzenleme kipinde anlamlı;
+        // salt okunur sayfa görünümünde gri/ölü düğme kalabalığı yapmaz.
+        undo: _editing || _plainMode ? () => !_canUndo ? null : _undoAny : null,
+        redo: _editing || _plainMode ? () => !_canRedo ? null : _redoAny : null,
         extras: [
-          // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
+          if (!_plainMode)
+            IconButton(
+              key: const ValueKey('word-flow-toggle'),
+              tooltip:
+                  context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
+              isSelected: _flow,
+              icon: Icon(_flow ? AppIcons.newWord : AppIcons.device),
+              onPressed: editor == null ? null : _toggleFlow,
+            ),
           if (!_plainMode)
             IconButton(
               tooltip: context.t('common.search'),
@@ -31,44 +40,35 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               onPressed: editor == null ? null : _toggleFind,
             ),
         ],
-        // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
-        // altında Word'e özel işler ayrı renkte. Eskiden simgesiz küçük
-        // açılır menüydü; "Mobil" ve seçim işleri alt çubuğu yana
-        // kaydırıyordu (6+ düğme) — buraya indiler.
+        // ⋮ = ortak dosya levhası.
         filePath: widget.path,
         menuTitle: context.t('dm.word'),
         menu: [
-          if (!_plainMode)
+          if (_plainMode)
             EditorMenuItem(
-              id: 'flow',
-              icon: _flow ? AppIcons.newWord : AppIcons.device,
-              label: context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
-              onTap: editor == null ? null : _toggleFlow,
+              id: 'page',
+              icon: AppIcons.newWord,
+              label: context.t('word.page_view'),
+              onTap: () async {
+                if (_dirty) await _save();
+                if (!mounted) return;
+                // Yedek editördeki değişiklikler görünüme taşınsın.
+                _partSetState(() {
+                  _viewBytes = _editor?.viewBytes();
+                  _plainMode = false;
+                });
+              },
+            )
+          else if (context.read<AppState>().labWordEditor)
+            EditorMenuItem(
+              id: 'plain',
+              icon: AppIcons.textFields,
+              label: context.t('word.text_editor'),
+              onTap: () => _partSetState(() {
+                _plainMode = true;
+                _editing = false;
+              }),
             ),
-          _plainMode
-              ? EditorMenuItem(
-                  id: 'page',
-                  icon: AppIcons.newWord,
-                  label: context.t('word.page_view'),
-                  onTap: () async {
-                    if (_dirty) await _save();
-                    if (!mounted) return;
-                    // Yedek editördeki değişiklikler görünüme taşınsın.
-                    _partSetState(() {
-                      _viewBytes = _editor?.viewBytes();
-                      _plainMode = false;
-                    });
-                  },
-                )
-              : EditorMenuItem(
-                  id: 'plain',
-                  icon: AppIcons.textFields,
-                  label: context.t('word.text_editor'),
-                  onTap: () => _partSetState(() {
-                    _plainMode = true;
-                    _editing = false;
-                  }),
-                ),
           if (!_plainMode)
             EditorMenuItem(
               id: 'night',

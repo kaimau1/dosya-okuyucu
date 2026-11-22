@@ -50,14 +50,14 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
   Widget _cellBar() {
     final scheme = Theme.of(context).colorScheme;
     final pending = _hasPendingInput;
+    final showCommit = pending || _editing;
     return Container(
       color: scheme.surfaceContainerHigh,
       padding: const EdgeInsetsDirectional.fromSTEB(6, 2, 2, 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Ad Kutusu: dokununca "Hücreye git" (Excel'de de yazılabilir bir
-          // alandır; telefonda diyalog daha güvenli).
+          // Ad Kutusu: dokununca "Hücreye git".
           InkWell(
             onTap: _editor == null ? null : _showGoTo,
             borderRadius: BorderRadius.circular(Radii.control),
@@ -78,7 +78,38 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 4),
+          SizedBox(
+            height: 20,
+            child: VerticalDivider(
+              width: 6,
+              thickness: 1,
+              color: scheme.outlineVariant,
+            ),
+          ),
+          Tooltip(
+            message: context.t('excel.fx_library'),
+            child: InkWell(
+              key: const ValueKey('xl-bar-fx'),
+              onTap: _editor == null ? null : _showFunctionLibrary,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                child: Text(
+                  'fx',
+                  style: context.type.small.copyWith(
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w700,
+                    color: _editor == null
+                        ? scheme.onSurface.withValues(alpha: 0.38)
+                        : scheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: TextField(
               controller: _cellField,
@@ -118,9 +149,8 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               padding: EdgeInsets.zero,
               onPressed: _pickFromValidation,
             ),
-          // ✗ / ✓ yalnız onaylanmamış giriş varken. (Kaydetmek için ✓'e basmak
-          // ZORUNLU DEĞİL — başka hücreye geçmek de yazar, bkz. `_endEdit`.)
-          if (pending) ...[
+          // ✗ / ✓ yazma sırasında ya da onaylanmamış giriş varken.
+          if (showCommit) ...[
             IconButton(
               tooltip: context.t('common.cancel'),
               visualDensity: VisualDensity.compact,

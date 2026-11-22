@@ -61,8 +61,8 @@ class _LayerPainter extends CustomPainter {
   @override
   bool hitTest(Offset position) => false;
 
-  void _selection(Canvas canvas, Rect r) =>
-      _paintSelection(canvas, r, accent, px);
+  void _selection(Canvas canvas, Rect r, {bool corners = true}) =>
+      _paintSelection(canvas, r, accent, px, corners: corners);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -80,21 +80,49 @@ class _LayerPainter extends CustomPainter {
       if (i < locked.length && locked[i]) {
         _dashed(canvas, r, lockPaint);
       } else {
-        canvas.drawRect(r, idle);
+        canvas.drawRRect(
+            RRect.fromRectAndRadius(r, Radius.circular(2 * px)), idle);
       }
     }
     final s = selected;
     if (s != null && s < rects.length) {
       final r = rects[s].inflate(2 * px);
-      _selection(canvas, r);
-      // Genişlik tutamacı (sağ kenarın ortası).
+      _selection(canvas, r, corners: false);
+      final widthAt = PdfProBlockLayer.blockWidthAnchor(r, size);
+      if (widthAt.dx > r.right + 2 * px) {
+        canvas.drawLine(
+          r.centerRight,
+          widthAt,
+          Paint()
+            ..color = accent.withValues(alpha: 0.45)
+            ..strokeWidth = 1.5 * px,
+        );
+      }
+      // Genişlik tutamacı: dışta konumlanan beyaz halka + vurgulu kapsül.
       canvas.drawRRect(
           RRect.fromRectAndRadius(
-              Rect.fromCenter(
-                  center: r.centerRight, width: 6 * px, height: 22 * px),
-              Radius.circular(3 * px)),
+              Rect.fromCenter(center: widthAt, width: 9 * px, height: 22 * px),
+              Radius.circular(4.5 * px)),
+          Paint()..color = onAccent);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromCenter(center: widthAt, width: 7 * px, height: 20 * px),
+              Radius.circular(3.5 * px)),
           Paint()..color = accent);
-      if (movable) _moveGrip(canvas, r.topCenter);
+      if (movable) {
+        final moveAt = PdfProBlockLayer.blockMoveAnchor(r, size);
+        final stemX = moveAt.dx.clamp(r.left, r.right).toDouble();
+        final stemStart =
+            moveAt.dy < r.top ? Offset(stemX, r.top) : Offset(stemX, r.bottom);
+        canvas.drawLine(
+          stemStart,
+          moveAt,
+          Paint()
+            ..color = accent.withValues(alpha: 0.5)
+            ..strokeWidth = 1.5 * px,
+        );
+        _moveGrip(canvas, moveAt);
+      }
     }
     final ir = itemRect;
     if (ir != null) _selection(canvas, ir);
@@ -165,34 +193,42 @@ class _LayerPainter extends CustomPainter {
   bool shouldRepaint(_LayerPainter old) => true;
 }
 
-/// Seçim çerçevesi: hafif dolgu, kontur, dört köşe tutamacı.
-void _paintSelection(Canvas canvas, Rect r, Color accent, double px) {
-  canvas.drawRect(
-      r, Paint()..color = accent.withValues(alpha: PdfEditTokens.frameFillAlpha));
-  canvas.drawRect(
-      r,
+/// Seçim çerçevesi: hafif dolgu, kontur ve isteğe bağlı dört köşe tutamacı.
+void _paintSelection(Canvas canvas, Rect r, Color accent, double px,
+    {bool corners = true}) {
+  final rr = RRect.fromRectAndRadius(r, Radius.circular(3 * px));
+  canvas.drawRRect(
+      rr, Paint()..color = accent.withValues(alpha: PdfEditTokens.frameFillAlpha));
+  canvas.drawRRect(
+      rr,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = PdfEditTokens.frameActiveWidth * px
         ..color = accent);
+  if (!corners) return;
   final handle = Paint()..color = accent;
   for (final c in [r.topLeft, r.topRight, r.bottomLeft, r.bottomRight]) {
     canvas.drawCircle(c, PdfEditTokens.handle / 2 * px, handle);
   }
 }
 
-/// Taşıma tutamacı: dolu daire + dört yön oku.
+/// Taşıma tutamacı: ince gölge, beyaz halka, vurgulu daire ve dört yön oku.
 void _paintMoveGrip(
     Canvas canvas, Offset at, Color accent, Color onAccent, double px) {
-  final rad = PdfEditTokens.grip / 2 * px;
+  final rad = 10.5 * px;
+  canvas.drawCircle(
+      at + Offset(0, 1.5 * px),
+      rad + 1.5 * px,
+      Paint()..color = accent.withValues(alpha: 0.22));
+  canvas.drawCircle(at, rad + 1.5 * px, Paint()..color = onAccent);
   canvas.drawCircle(at, rad, Paint()..color = accent);
   final p = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.6 * px
+    ..strokeWidth = 1.55 * px
     ..strokeCap = StrokeCap.round
     ..strokeJoin = StrokeJoin.round
     ..color = onAccent;
-  final arm = rad * 0.58, head = rad * 0.24;
+  final arm = rad * 0.56, head = rad * 0.24;
   for (final d in const [
     Offset(1, 0),
     Offset(-1, 0),

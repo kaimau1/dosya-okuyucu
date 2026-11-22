@@ -52,7 +52,9 @@ class DocActionBar extends StatelessWidget {
       {super.key, this.contextual = const [], this.contextLabel});
 
   /// Bir düğmenin en az genişliği; altına inilirse kaydırmaya geçilir.
-  static const double _minSlot = 68;
+  /// 58 dp seçimi, 360 dp telefonda 6 PDF eyleminin tümünün kesilmeden
+  /// tek bakışta görünmesini sağlar.
+  static const double _minSlot = 58;
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +64,15 @@ class DocActionBar extends StatelessWidget {
           : MediaQuery.sizeOf(context).width;
       if (contextual.isNotEmpty) return _withContext(context, width);
       final n = actions.isEmpty ? 1 : actions.length;
+      final compact = n >= 6;
       final fits = width / n >= _minSlot;
       if (fits) {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           child: Row(
             children: [
-              for (final a in actions) Expanded(child: _DockButton(a)),
+              for (final a in actions)
+                Expanded(child: _DockButton(a, compact: compact)),
             ],
           ),
         );
@@ -82,7 +86,7 @@ class DocActionBar extends StatelessWidget {
         child: Row(
           children: [
             for (final a in actions)
-              SizedBox(width: slot, child: _DockButton(a)),
+              SizedBox(width: slot, child: _DockButton(a, compact: compact)),
           ],
         ),
       );
@@ -132,7 +136,8 @@ extension on DocActionBar {
 
 class _DockButton extends StatelessWidget {
   final DocAction action;
-  const _DockButton(this.action);
+  final bool compact;
+  const _DockButton(this.action, {this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -152,25 +157,26 @@ class _DockButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         // Dalga simgenin hapına benzesin diye köşeli değil yuvarlak.
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+          padding:
+              EdgeInsets.symmetric(horizontal: compact ? 1 : 2, vertical: 4),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
                 duration: Motion.of(context, Motion.short),
-                width: 52,
-                height: 30,
+                width: compact ? 44 : 52,
+                height: compact ? 28 : 30,
                 decoration: BoxDecoration(
                   color: action.active
                       ? scheme.primaryContainer
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(action.icon, size: 22, color: fg),
+                child: Icon(action.icon, size: compact ? 21 : 22, color: fg),
               ),
               const SizedBox(height: 3),
-              SizedBox(
-                height: 28,
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 28),
                 child: Text(
                   action.label,
                   maxLines: 2,

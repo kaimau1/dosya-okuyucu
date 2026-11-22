@@ -215,7 +215,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// önbellekleri bununla geçersiz olur.
   int _calcStamp = 0;
   final Map<XlsxCondRule, _CondStats> _condCache = {};
-  (Object, String)? _statusMemo;
+  (Object, _RangeStatusData)? _statusMemo;
 
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
   /// Kaynak = kaydetme HEDEFİ (eski .xls açıldıysa yeni .xlsx; o dosya henüz
@@ -570,6 +570,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
       kind: DocKind.spreadsheet,
       title: widget.name,
       session: _session,
+      hideKindPrefix: true,
       subtitle: visibleSheets.length >= 2
           ? context.t('shell.sheets', {'n': visibleSheets.length})
           : null,
@@ -657,7 +658,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
       bottomBar: _editing ? null : Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
+          if (visibleSheets.isNotEmpty) _sheetTabs(visibleSheets),
           DocActionBar(
             // Faz 40 / 1: aralık seçiliyken seçim eylemleri şeridin başında.
             contextual: _anchorRow != _selRow || _anchorCol != _selCol
@@ -788,4 +789,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
+}
+
+class _RangeStatusData {
+  const _RangeStatusData({
+    required this.cellCount,
+    required this.filled,
+    required this.count,
+    required this.sum,
+    required this.avg,
+    required this.min,
+    required this.max,
+  });
+  final int cellCount, filled, count;
+  final double sum, avg, min, max;
 }

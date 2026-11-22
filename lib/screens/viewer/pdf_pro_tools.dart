@@ -588,11 +588,18 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     if (pro == null) return;
     final ink = pro.markup == PdfMarkupKind.ink ||
         pro.markup.index >= PdfMarkupKind.rect.index;
-    final c = await showPdfColorSheet(context,
-        title: context.t('pse.fmt_color'),
-        colors: ink ? PdfProSwatches.text : PdfProSwatches.marker,
-        selected: pro.markupColor);
-    if (c != null && _pro == pro) pro.setMarkupColor(c);
+    await showPdfStrokeSheet(
+      context,
+      color: pro.markupColor,
+      width: pro.markupWidth,
+      colors: ink ? PdfProSwatches.text : PdfProSwatches.marker,
+      onColor: (c) {
+        if (_pro == pro) pro.setMarkupColor(c);
+      },
+      onWidth: (w) {
+        if (_pro == pro) pro.setMarkupWidth(w);
+      },
+    );
   }
 
   Future<void> _proComments() async {
@@ -663,7 +670,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         title: context.t(highlight ? 'pse.fmt_highlight' : 'pse.fmt_color'),
         colors: highlight ? PdfProSwatches.marker : PdfProSwatches.text);
     if (c == null || _pro != pro || pro.live == null) return;
-    pro.liveStyle((a, b) => highlight
+    pro.liveStyleBlock((a, b) => highlight
         ? PdfStyleSpan(a, b, highlight: c)
         : PdfStyleSpan(a, b, color: c | 0xFF000000));
     _proFocus.requestFocus();
@@ -800,8 +807,6 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           pro.busy ? null : () => unawaited(commitThen(_fillPdfForm))),
       DocAction(AppIcons.thumbnails, context.t('pse.tool_pages'),
           pro.busy ? null : () => unawaited(commitThen(_proPages))),
-      DocAction(AppIcons.moreHoriz, context.t('pse.tool_more'),
-          pro.busy ? null : () => unawaited(commitThen(_proMore))),
     ]);
   }
 
@@ -858,30 +863,31 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             ];
           }
           return [
-            // Sık kullanılanlar başta: yaz, sil, kopyala, boyut, renk.
-            act(AppIcons.edit, t('common.edit'), 'edit',
-                key: const ValueKey('pse-chip-edit')),
+            PdfProChip(AppIcons.edit, t('pse.edit_text'),
+                () => _proBlockAction('edit', page, block),
+                primary: true, tapKey: const ValueKey('pse-chip-edit')),
+            PdfProChip(
+              AppIcons.tune,
+              t('pse.style'),
+              () => unawaited(showPdfBlockStyleSheet(
+                context,
+                block: block,
+                hasStyleClip: pro.styleClip != null,
+                onAction: (a) => _proBlockAction(a, page, block),
+              )),
+              tapKey: const ValueKey('pse-chip-style'),
+            ),
+            act(AppIcons.formatColorText, t('pse.fmt_color'), 'color',
+                key: const ValueKey('pse-chip-color')),
+            act(AppIcons.copy, t('pse.copy'), 'copy',
+                key: const ValueKey('pse-chip-copy')),
+            act(AppIcons.copyAll, t('pse.duplicate'), 'dup',
+                key: const ValueKey('pse-chip-dup')),
             act(AppIcons.delete, t('common.delete'), 'del',
                 danger: true, key: const ValueKey('pse-chip-delete')),
-            act(AppIcons.copy, t('pse.copy'), 'copy'),
-            act(AppIcons.copyAll, t('pse.duplicate'), 'dup'),
-            act(AppIcons.textIncrease, t('pse.fmt_larger'), 'bigger'),
-            act(AppIcons.textDecrease, t('pse.fmt_smaller'), 'smaller'),
-            act(AppIcons.formatColorText, t('pse.fmt_color'), 'color'),
-            act(AppIcons.formatAlignLeft, t('pse.al_left'), 'left'),
-            act(AppIcons.formatAlignCenter, t('pse.al_center'), 'center'),
-            act(AppIcons.formatAlignRight, t('pse.al_right'), 'right'),
-            act(AppIcons.formatAlignJustify, t('pse.al_justify'), 'justify'),
-            act(AppIcons.formatListBulleted, t('pse.list_bullets'), 'bullets'),
-            act(AppIcons.formatListNumbered, t('pse.list_numbers'), 'numbers'),
-            act(AppIcons.link, t('pse.link'), 'link',
-                key: const ValueKey('pse-chip-link')),
-            act(AppIcons.formatPaint, t('pse.style_copy'), 'stylecopy'),
-            if (pro.styleClip != null)
-              act(AppIcons.style, t('pse.style_paste'), 'stylepaste'),
-            if (block.lines.length > 1)
-              act(AppIcons.split, t('pse.block_split'), 'split'),
-            act(AppIcons.join, t('pse.block_merge'), 'merge'),
+            PdfProChip(AppIcons.moreHoriz, t('pse.block_more'),
+                () => _proBlockMenu(page, block),
+                tapKey: const ValueKey('pse-chip-more')),
           ];
         }
         // Metin yok (taranmış sayfa): OCR ve metin kutusu önerilir (§9).
@@ -892,15 +898,15 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             PdfProChip(AppIcons.ocr, t('pse.ocr_run'),
                 () => _runOcr(onlyPage: shown + 1),
                 tapKey: const ValueKey('pse-chip-ocr')),
-          PdfProChip(AppIcons.textFields, t('pse.textbox_add'),
+          PdfProChip(AppIcons.textFields, t('pse.add_text'),
               () => pro.armTextBox = !pro.armTextBox,
               active: pro.armTextBox,
               tapKey: const ValueKey('pse-chip-textbox')),
           PdfProChip(
               AppIcons.lines,
               t(pro.mode == PdfBlockMode.paragraph
-                  ? 'pse.mode_line'
-                  : 'pse.mode_paragraph'),
+                  ? 'pse.mode_label_para'
+                  : 'pse.mode_label_line'),
               () => pro.mode = pro.mode == PdfBlockMode.paragraph
                   ? PdfBlockMode.line
                   : PdfBlockMode.paragraph,
@@ -915,34 +921,13 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         final item = pro.selectedItem;
         final group = pro.selectedItems;
         if (group.length >= 2) {
-          PdfProChip align(IconData i, String key, PdfAxisAlign mode,
-                  {required bool vertical}) =>
-              PdfProChip(i, t(key), () {
-                if (pro.busy) return;
-                pro
-                    .alignSelected(mode,
-                        vertical: vertical, label: 'pse.step_align')
-                    .catchError(_proRefused);
-              }, tapKey: ValueKey('pse-$key'));
           return [
-            align(AppIcons.alignHorizontalLeft, 'pse.obj_align_left',
-                PdfAxisAlign.start, vertical: false),
-            align(AppIcons.alignHorizontalCenter, 'pse.obj_align_hcenter',
-                PdfAxisAlign.center, vertical: false),
-            align(AppIcons.alignHorizontalRight, 'pse.obj_align_right',
-                PdfAxisAlign.end, vertical: false),
-            align(AppIcons.alignVerticalTop, 'pse.obj_align_top',
-                PdfAxisAlign.end, vertical: true),
-            align(AppIcons.alignVerticalCenter, 'pse.obj_align_vcenter',
-                PdfAxisAlign.center, vertical: true),
-            align(AppIcons.alignVerticalBottom, 'pse.obj_align_bottom',
-                PdfAxisAlign.start, vertical: true),
-            if (group.length >= 3) ...[
-              align(AppIcons.horizontalDistribute, 'pse.obj_distribute_h',
-                  PdfAxisAlign.distribute, vertical: false),
-              align(AppIcons.verticalDistribute, 'pse.obj_distribute_v',
-                  PdfAxisAlign.distribute, vertical: true),
-            ],
+            PdfProChip(
+              AppIcons.alignHorizontalLeft,
+              t('pse.align_group'),
+              () => unawaited(_proPickGroupAlign(pro, group.length)),
+              tapKey: const ValueKey('pse-chip-align-group'),
+            ),
             PdfProChip(AppIcons.delete, t('common.delete'), () {
               final page = pro.selectedPage;
               if (page == null || pro.busy) return;
@@ -968,10 +953,12 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
                   () => _proItemAction('color')),
             PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
                 () => _proItemAction('rotate')),
-            PdfProChip(AppIcons.flipToFront, t('pse.img_front'),
-                () => _proItemAction('front')),
-            PdfProChip(AppIcons.flipToBack, t('pse.img_back'),
-                () => _proItemAction('back')),
+            PdfProChip(
+              AppIcons.flipToFront,
+              t('pse.order'),
+              () => unawaited(_proPickItemOrder()),
+              tapKey: const ValueKey('pse-chip-order'),
+            ),
             PdfProChip(AppIcons.delete, t('common.delete'),
                 () => _proItemAction('delete'),
                 danger: true),
@@ -988,27 +975,54 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         PdfProChip kind(PdfMarkupKind k, IconData i, String key) =>
             PdfProChip(i, t(key), () => pro.markup = k,
                 active: pro.markup == k, tapKey: ValueKey('pse-mk-${k.name}'));
+        const shapes = <(PdfMarkupKind, IconData, String)>[
+          (PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),
+          (PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
+          (PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
+          (PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
+        ];
+        const textLines = <(PdfMarkupKind, IconData, String)>[
+          (PdfMarkupKind.underline, AppIcons.formatUnderlined, 'pse.mk_underline'),
+          (PdfMarkupKind.strikeout, AppIcons.strikethroughS, 'pse.mk_strikeout'),
+          (PdfMarkupKind.squiggly, AppIcons.gesture, 'pse.mk_squiggly'),
+        ];
+        final activeShape = shapes.where((e) => e.$1 == pro.markup).firstOrNull;
+        final activeLine =
+            textLines.where((e) => e.$1 == pro.markup).firstOrNull;
         return [
+          PdfProChip(
+            AppIcons.lineWeight,
+            t('pse.stroke_title'),
+            _proMarkupColor,
+            swatch: Color(pro.markupColor | 0xFF000000),
+            tapKey: const ValueKey('pse-chip-stroke'),
+          ),
           kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
-          kind(PdfMarkupKind.underline, AppIcons.formatUnderlined,
-              'pse.mk_underline'),
-          kind(PdfMarkupKind.strikeout, AppIcons.strikethroughS,
-              'pse.mk_strikeout'),
-          kind(PdfMarkupKind.squiggly, AppIcons.gesture, 'pse.mk_squiggly'),
-          kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
-          kind(PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),
-          kind(PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
-          kind(PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
-          kind(PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
-          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
+          kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
+          PdfProChip(
+            activeShape?.$2 ?? AppIcons.rectTool,
+            t(activeShape?.$3 ?? 'pse.shapes'),
+            () => unawaited(_proPickMarkupKind(pro, 'pse.shapes', shapes)),
+            active: activeShape != null,
+            tapKey: const ValueKey('pse-chip-shapes'),
+          ),
+          PdfProChip(
+            activeLine?.$2 ?? AppIcons.formatUnderlined,
+            t(activeLine?.$3 ?? 'pse.text_lines'),
+            () => unawaited(
+                _proPickMarkupKind(pro, 'pse.text_lines', textLines)),
+            active: activeLine != null,
+            tapKey: const ValueKey('pse-chip-lines'),
+          ),
           kind(PdfMarkupKind.redact, AppIcons.pdfRedact, 'pse.mk_redact'),
           PdfProChip(AppIcons.shield, t('pse.kvkk_title'), _proSensitive,
               tapKey: const ValueKey('pse-chip-kvkk')),
-          PdfProChip(AppIcons.palette, t('pse.fmt_color'), _proMarkupColor),
+          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
           PdfProChip(AppIcons.comment, t('pse.comments'), _proComments,
               tapKey: const ValueKey('pse-chip-comments')),
-          PdfProChip(AppIcons.pdfFlatten, t('pse.flatten'), _proFlatten),
+          PdfProChip(AppIcons.pdfFlatten, t('pse.flatten'), _proFlatten,
+              tapKey: const ValueKey('pse-chip-flatten')),
         ];
       default:
         return const [];
@@ -1079,7 +1093,9 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       ];
     }
     final chips = _proChips(pro);
+    final guide = _proGuideBanner(pro);
     return [
+      ?guide,
       if (chips.isNotEmpty)
         ReadingFloat(
           gap: 0,
@@ -1087,5 +1103,159 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
               chips: chips, label: context.t('pse.context_bar')),
         ),
     ];
+  }
+
+  /// Blok menüsünden veya çoklu seçimden açılan yardımcı levhalar + aktif mod
+  /// rehber şeridi.
+  Future<void> _proPickGroupAlign(
+      PdfProEditController pro, int count) async {
+    final choices = <(PdfAxisAlign, bool, IconData, String)>[
+      (PdfAxisAlign.start, false, AppIcons.alignHorizontalLeft,
+          'pse.obj_align_left'),
+      (PdfAxisAlign.center, false, AppIcons.alignHorizontalCenter,
+          'pse.obj_align_hcenter'),
+      (PdfAxisAlign.end, false, AppIcons.alignHorizontalRight,
+          'pse.obj_align_right'),
+      (PdfAxisAlign.end, true, AppIcons.alignVerticalTop, 'pse.obj_align_top'),
+      (PdfAxisAlign.center, true, AppIcons.alignVerticalCenter,
+          'pse.obj_align_vcenter'),
+      (PdfAxisAlign.start, true, AppIcons.alignVerticalBottom,
+          'pse.obj_align_bottom'),
+      if (count >= 3) ...[
+        (PdfAxisAlign.distribute, false, AppIcons.horizontalDistribute,
+            'pse.obj_distribute_h'),
+        (PdfAxisAlign.distribute, true, AppIcons.verticalDistribute,
+            'pse.obj_distribute_v'),
+      ],
+    ];
+    final pick = await showAppActionSheet<int>(
+      context,
+      title: context.t('pse.align_group'),
+      groups: [
+        AppActionGroup(actions: [
+          for (var i = 0; i < choices.length; i++)
+            AppAction(
+                value: i,
+                icon: choices[i].$3,
+                label: context.t(choices[i].$4)),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted || _pro != pro || pro.busy) return;
+    final (_, vertical, _, _) = choices[pick];
+    final mode = choices[pick].$1;
+    await pro
+        .alignSelected(mode, vertical: vertical, label: 'pse.step_align')
+        .catchError(_proRefused);
+  }
+
+  Future<void> _proPickItemOrder() async {
+    final pick = await showAppActionSheet<String>(
+      context,
+      title: context.t('pse.order'),
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+              value: 'front',
+              icon: AppIcons.flipToFront,
+              label: context.t('pse.img_front')),
+          AppAction(
+              value: 'back',
+              icon: AppIcons.flipToBack,
+              label: context.t('pse.img_back')),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted) return;
+    await _proItemAction(pick);
+  }
+
+  Future<void> _proPickMarkupKind(
+    PdfProEditController pro,
+    String titleKey,
+    List<(PdfMarkupKind, IconData, String)> options,
+  ) async {
+    final pick = await showAppActionSheet<PdfMarkupKind>(
+      context,
+      title: context.t(titleKey),
+      groups: [
+        AppActionGroup(actions: [
+          for (final (k, ic, labelKey) in options)
+            AppAction(value: k, icon: ic, label: context.t(labelKey)),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted || _pro != pro) return;
+    pro.markup = pick;
+  }
+
+  Widget? _proGuideBanner(PdfProEditController pro) {
+    String? text;
+    VoidCallback? close;
+    if (pro.armTextBox) {
+      text = context.t('pse.textbox_guide');
+      close = () => pro.armTextBox = false;
+    } else if (pro.armLasso) {
+      text = context.t('pse.lasso_guide');
+      close = () => pro.armLasso = false;
+    } else if (pro.drawing) {
+      final toolName = context.t(switch (pro.markup) {
+        PdfMarkupKind.highlight => 'pse.mk_highlight',
+        PdfMarkupKind.underline => 'pse.mk_underline',
+        PdfMarkupKind.strikeout => 'pse.mk_strikeout',
+        PdfMarkupKind.squiggly => 'pse.mk_squiggly',
+        PdfMarkupKind.ink => 'pse.mk_ink',
+        PdfMarkupKind.rect => 'pse.mk_rect',
+        PdfMarkupKind.ellipse => 'pse.mk_ellipse',
+        PdfMarkupKind.line => 'pse.mk_line',
+        PdfMarkupKind.arrow => 'pse.mk_arrow',
+        PdfMarkupKind.redact => 'pse.mk_redact',
+        _ => 'pse.tool_markup',
+      });
+      text = context.t('pse.draw_guide', {'tool': toolName});
+      close = pro.clearMarkup;
+    }
+    if (text == null || close == null) return null;
+    final scheme = Theme.of(context).colorScheme;
+    return PositionedDirectional(
+      start: Gap.md,
+      end: Gap.md,
+      top: ReadingChrome.insetsOf(context).top + Gap.sm,
+      child: Center(
+        child: Material(
+          color: scheme.inverseSurface,
+          elevation: 3,
+          borderRadius: BorderRadius.circular(Radii.sheet),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                Gap.md, Gap.xs, Gap.xs, Gap.xs),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.type.small
+                        .copyWith(color: scheme.onInverseSurface),
+                  ),
+                ),
+                const SizedBox(width: Gap.xs),
+                IconButton(
+                  key: const ValueKey('pse-guide-close'),
+                  visualDensity: VisualDensity.compact,
+                  iconSize: AppIcons.small,
+                  color: scheme.onInverseSurface,
+                  tooltip: context.t('common.close'),
+                  onPressed: close,
+                  icon: const Icon(AppIcons.close),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
