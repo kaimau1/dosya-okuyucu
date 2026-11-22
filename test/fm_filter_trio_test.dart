@@ -142,7 +142,13 @@ void main() {
 
     await t.tap(find.byKey(const ValueKey('source-pill')));
     await t.pumpAndSettle();
+    // Akıllı kategoriler en altta, katlı başlar (2026-11-22).
+    expect(find.byKey(const ValueKey('smartcat-invoice')), findsNothing);
+    await t.ensureVisible(find.byKey(const ValueKey('src-smart-toggle')));
+    await t.tap(find.byKey(const ValueKey('src-smart-toggle')));
+    await t.pumpAndSettle();
     expect(find.byKey(const ValueKey('smartcat-invoice')), findsOneWidget);
+    await t.ensureVisible(find.byKey(const ValueKey('smartcat-invoice')));
     await t.tap(find.byKey(const ValueKey('smartcat-invoice')));
     await t.pumpAndSettle();
     expect(filter.smartCats, {'invoice'});

@@ -18,7 +18,7 @@ import '../app_dialog.dart';
 import 'pin_dialog.dart';
 import 'smart_cat_style.dart';
 import 'fm_type_chips.dart'
-    show FmChoiceTile, FmSheetFooter, FmSheetSectionTitle;
+    show FmSheetFooter, FmSheetSectionTitle;
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -680,6 +680,8 @@ Future<void> showFmSourceSheet(
   required bool showBuckets,
 }) {
   var f = filter;
+  // Akıllı kategoriler EN ALTTA ve katlanır; seçili olan varsa açık başlar.
+  var smartOpen = filter.smartCats.isNotEmpty;
   return showAppSheet<void>(
     context,
     title: context.t('src.title'),
@@ -694,33 +696,24 @@ Future<void> showFmSourceSheet(
         final smartCats = _smartCounts(source, f);
         final months = untouchedDays ~/ 30;
         final scheme = Theme.of(ctx).colorScheme;
-        Widget section(String title, List<Widget Function(double)> tiles) {
+        // 2026-11-22 (kullanıcı: "akıllı kategori bazen çok yer kaplıyor,
+        // diğer şeyleri örtüyor"): büyük 3 sütunlu kutular yerine içeriği
+        // kadar geniş hap — bir satıra çok daha fazlası sığar.
+        Widget section(String title, List<Widget> tiles) {
           if (tiles.isEmpty) return const SizedBox.shrink();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               FmSheetSectionTitle(title),
-              LayoutBuilder(builder: (ctx, box) {
-                final scale = MediaQuery.textScalerOf(ctx).scale(1);
-                final effective =
-                    scale > 1.0 ? box.maxWidth / scale : box.maxWidth;
-                final cols = effective < 310 ? 2 : 3;
-                final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
-                return Wrap(
-                  spacing: Gap.sm,
-                  runSpacing: Gap.sm,
-                  children: [for (final t in tiles) t(w)],
-                );
-              }),
+              Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: tiles),
             ],
           );
         }
 
-        final smartTiles = <Widget Function(double)>[
+        final smartTiles = <Widget>[
           for (final (cat, n) in smartCats)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: ValueKey('smartcat-$cat'),
-                  width: w,
                   icon: SmartCatStyle.icon(cat),
                   color: SmartCatStyle.color(cat),
                   label: SmartCatStyle.label(ctx, cat),
@@ -739,11 +732,10 @@ Future<void> showFmSourceSheet(
                 ),
         ];
 
-        final where = <Widget Function(double)>[
+        final where = <Widget>[
           for (final (v, n) in c.volumes)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: ValueKey('src-vol-${v.path}'),
-                  width: w,
                   icon: AppIcons.sdCard,
                   color: scheme.primary,
                   label: v.displayLabel(ctx.t),
@@ -752,9 +744,8 @@ Future<void> showFmSourceSheet(
                   onTap: () => apply(f.toggleVolumeRoot(v.path)),
                 ),
           for (final (b, n) in c.buckets)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: ValueKey('src-${b.name}'),
-                  width: w,
                   icon: _bucketIcon(b),
                   color: _bucketColor(b, scheme),
                   label: ctx.t(b.labelKey),
@@ -763,11 +754,10 @@ Future<void> showFmSourceSheet(
                   onTap: () => apply(f.toggleBucket(b)),
                 ),
         ];
-        final when = <Widget Function(double)>[
+        final when = <Widget>[
           if (c.openedWithin > 0 || f.openedWithinDays != null)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: const ValueKey('src-opened'),
-                  width: w,
                   icon: AppIcons.history,
                   color: scheme.primary,
                   label: ctx.t('fm.quick_opened_within', {'n': months}),
@@ -777,9 +767,8 @@ Future<void> showFmSourceSheet(
                       f.openedWithinDays == null ? untouchedDays : null)),
                 ),
           if (c.untouched > 0 || f.untouchedDays != null)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: const ValueKey('src-untouched'),
-                  width: w,
                   icon: AppIcons.historyToggleOff,
                   color: scheme.tertiary,
                   label: ctx.t('fm.quick_untouched', {'n': months}),
@@ -789,9 +778,8 @@ Future<void> showFmSourceSheet(
                       f.untouchedDays == null ? untouchedDays : null)),
                 ),
           if (c.large > 0 || f.sizeRange == FmSizeRange.large)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: const ValueKey('src-large'),
-                  width: w,
                   icon: AppIcons.storage,
                   color: scheme.error,
                   label: ctx.t(FmSizeRange.large.labelKey),
@@ -819,11 +807,10 @@ Future<void> showFmSourceSheet(
         }
         final tagNames = tagsHere.keys.toList()
           ..sort((a, b) => tagsHere[b]!.compareTo(tagsHere[a]!));
-        final tagTiles = <Widget Function(double)>[
+        final tagTiles = <Widget>[
           for (final t in tagNames)
-            (w) => FmChoiceTile(
+            _SrcChip(
                   key: ValueKey('src-tag-$t'),
-                  width: w,
                   icon: AppIcons.labelOutline,
                   color: scheme.secondary,
                   label: '#$t',
@@ -848,10 +835,23 @@ Future<void> showFmSourceSheet(
                       style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant)),
                 ),
-                section(ctx.t('sm.filter_title'), smartTiles),
                 section(ctx.t('src.where'), where),
                 section(ctx.t('src.when'), when),
                 section(ctx.t('more.tags'), tagTiles),
+                if (smartTiles.isNotEmpty) ...[
+                  _SmartToggle(
+                    title: ctx.t('sm.filter_title'),
+                    total: smartTiles.length,
+                    selected: f.smartCats.length,
+                    open: smartOpen,
+                    onTap: () => setSheet(() => smartOpen = !smartOpen),
+                  ),
+                  if (smartOpen)
+                    Wrap(
+                        spacing: Gap.sm,
+                        runSpacing: Gap.sm,
+                        children: smartTiles),
+                ],
                 const SizedBox(height: Gap.md),
                 FmSheetFooter(
                   doneKey: const ValueKey('src-done'),
@@ -987,6 +987,150 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
           ),
         ...widget.trailing,
       ],
+    );
+  }
+}
+
+/// Kaynak levhasının **sıkı hapı**: simge · ad · sayı tek satırda, içeriği
+/// kadar geniş (2026-11-22). Sayı son metindir (testler onu okur).
+class _SrcChip extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _SrcChip({
+    super.key,
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final pal = AppSkinData.of(context).palette;
+    final empty = count == 0 && !selected;
+    final tint = empty ? color.withValues(alpha: 0.45) : color;
+    final radius = BorderRadius.circular(99);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: AnimatedContainer(
+        duration: Motion.of(context, Motion.short),
+        curve: Motion.standard,
+        constraints: const BoxConstraints(minHeight: 40),
+        decoration: BoxDecoration(
+          color: selected ? scheme.primaryContainer : pal.card,
+          borderRadius: radius,
+          border: Border.all(
+            color: selected ? scheme.primary : pal.rule,
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                  Gap.sm, Gap.xs, Gap.md, Gap.xs),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(selected ? AppIcons.checkCircle : icon,
+                      size: 18, color: selected ? scheme.primary : tint),
+                  const SizedBox(width: Gap.xs + 2),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w600,
+                        color: selected
+                            ? scheme.onPrimaryContainer
+                            : (empty
+                                ? scheme.onSurfaceVariant
+                                : scheme.onSurface),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: Gap.xs + 2),
+                  Text(
+                    '$count',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: selected
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Akıllı kategori" bölümünün aç/kapa başlığı: kaç kategori, kaçı seçili.
+class _SmartToggle extends StatelessWidget {
+  final String title;
+  final int total;
+  final int selected;
+  final bool open;
+  final VoidCallback onTap;
+
+  const _SmartToggle({
+    required this.title,
+    required this.total,
+    required this.selected,
+    required this.open,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Semantics(
+      button: true,
+      expanded: open,
+      child: InkWell(
+        key: const ValueKey('src-smart-toggle'),
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Row(
+          children: [
+            Expanded(child: FmSheetSectionTitle(title)),
+            Text(
+              selected > 0 ? '$selected / $total' : '$total',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: selected > 0 ? scheme.primary : scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(
+                  start: Gap.xs, top: Gap.sm),
+              child: Icon(open ? AppIcons.expandLess : AppIcons.expandMore,
+                  color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
