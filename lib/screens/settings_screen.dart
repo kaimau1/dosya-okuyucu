@@ -388,6 +388,8 @@ class _Suggestions extends StatelessWidget {
             if (r.id == id) r,
     ];
     if (rows.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: Semantics(
@@ -402,8 +404,20 @@ class _Suggestions extends StatelessWidget {
               Padding(
                 padding: const EdgeInsetsDirectional.only(end: Gap.sm),
                 child: Center(
-                  child: Icon(AppIcons.ai,
-                      size: 18, color: Theme.of(context).colorScheme.primary),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(AppIcons.ai, size: 16, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        context.t('set.suggested'),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               for (final r in rows)
@@ -412,9 +426,10 @@ class _Suggestions extends StatelessWidget {
                   child: ActionChip(
                     key: ValueKey('suggest-${r.id}'),
                     label: Text(context.t(r.titleKey)),
+                    // Alt levhada çift başlık olmasın: bileşen kendi
+                    // başlığını (SettingTile / SettingChoice) zaten çizer.
                     onPressed: () => showAppSheet<void>(
                       context,
-                      title: context.t(r.titleKey),
                       builder: r.builder,
                     ),
                   ),

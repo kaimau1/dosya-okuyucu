@@ -54,7 +54,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
     final query = await _askText(context,
         title: context.t('smart.create'), hint: context.t('smart.query_hint'));
     if (query == null || query.trim().isEmpty || !mounted) return;
-    final folder = await SmartFolders.instance.add(query);
+    final folder = await SmartFolders.instance.add(query.trim());
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => SmartFolderScreen(folderId: folder.id)));
@@ -172,11 +172,11 @@ class _FolderRow extends StatelessWidget {
                   ],
                 ),
               ),
-              // İlk üç dosyanın küçük resmi: klasörün ne içerdiği adı
-              // okumadan görülsün. Hassas belge PIN'siz gösterilmez.
+              // İlk iki (geniş ekranda üç) dosyanın küçük resmi: klasörün ne
+              // içerdiği adı okumadan görülsün. Hassas belge PIN'siz gösterilmez.
               for (final r in items
                   .where((r) => !SmartFolders.isSensitive(r))
-                  .take(3))
+                  .take(MediaQuery.sizeOf(context).width < 400 ? 2 : 3))
                 Padding(
                   padding: const EdgeInsetsDirectional.only(start: 4),
                   child: ClipRRect(
@@ -231,7 +231,8 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
   Future<void> _rename(SmartFolder folder) async {
     final name = await _askText(context,
         title: context.t('smart.rename'), initial: folder.name);
-    if (name != null) await SmartFolders.instance.rename(folder.id, name);
+    if (name == null || name.trim().isEmpty) return;
+    await SmartFolders.instance.rename(folder.id, name.trim());
   }
 
   Future<void> _delete(SmartFolder folder) async {
@@ -334,27 +335,20 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
 }
 
 /// Tek satırlık metin sorar (yeni klasör sorgusu, yeniden adlandırma).
-Future<String?> _askText(BuildContext context,
-    {required String title, String? hint, String? initial}) {
-  final controller = TextEditingController(text: initial);
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(hintText: hint),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.t('common.cancel'))),
-        FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(ctx.t('common.ok'))),
-      ],
-    ),
-  ).whenComplete(controller.dispose);
+/// Boşluk-only adları reddeder.
+Future<String?> _askText(
+  BuildContext context, {
+  required String title,
+  String? hint,
+  String? initial,
+}) async {
+  final res = await showAppPrompt(
+    context,
+    title: title,
+    label: hint,
+    initial: initial ?? '',
+    confirmLabel: context.t('common.ok'),
+  );
+  final trimmed = res?.trim() ?? '';
+  return trimmed.isEmpty ? null : trimmed;
 }

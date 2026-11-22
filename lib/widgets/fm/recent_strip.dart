@@ -366,8 +366,8 @@ class _RecentStripState extends State<RecentStrip> {
 
   @override
   Widget build(BuildContext context) {
-    // Canlı şerit boş olsa da yerini korur (yeniler gelince zıplamasın).
-    if (_items.isEmpty && !_live) return const SizedBox.shrink();
+    // Kayıt yoksa 108dp boşluk ayrılmaz (gizle / sıfır yükseklik).
+    if (_items.isEmpty) return const SizedBox.shrink();
     final items = _items;
     final thumb = _thumb;
     // Yazı ölçeğiyle büyüyen yükseklik: 2,0× yazıda ad satırı kesilmesin.

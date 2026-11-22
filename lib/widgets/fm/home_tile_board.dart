@@ -505,7 +505,10 @@ class _BentoBig extends StatelessWidget {
   final FmTileData data;
   const _BentoBig({required this.data});
 
-  static final _startsWithDigit = RegExp(r'^\d');
+  static final _leadNumber = RegExp(
+    r'^([+-]?\d[\d.,]*(?:\s*(?:KB|MB|GB|TB|B))?)\s*(.*)$',
+    caseSensitive: false,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -513,11 +516,17 @@ class _BentoBig extends StatelessWidget {
     final c = _tint(context, data.color);
     final parts = data.subtitle.split(' · ');
     final first = parts.first.trim();
-    // "120 GB · 3.093 dosya" gibi sayısal özetlerde ilk parça büyük rakamdır;
-    // "Henüz dosya yok" gibi düz metinlerde 24 sp manşet puntosu metni devleştirip
-    // "Henüz dosy..." diye kesiyordu.
-    final numericHeadline =
-        parts.length > 1 || _startsWithDigit.hasMatch(first);
+    // "120 GB · 3.093 dosya" veya "382 dosya düzenli" gibi sayısal özetlerde
+    // yalnız baştaki sayı/boyut ("120 GB", "382") büyük rakamdır; kalan metin
+    // ("dosya düzenli") temiz gövde stiliyle ayrılır.
+    final m = _leadNumber.firstMatch(first);
+    final leadNum = m?.group(1)?.trim() ?? '';
+    final leadRest = m?.group(2)?.trim() ?? '';
+    final tailParts = parts.skip(1).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    final restText = [
+      if (leadRest.isNotEmpty) leadRest,
+      ...tailParts,
+    ].join(' · ');
     return Material(
       color: c.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(context.fmCardRadius),
@@ -547,26 +556,36 @@ class _BentoBig extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: AlignmentDirectional.centerStart,
-                  child: Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                        text: parts.first,
-                        style: numericHeadline
-                            ? theme.textTheme.headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.w800)
-                            : theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurfaceVariant,
+                  child: leadNum.isNotEmpty
+                      ? Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                              text: leadNum,
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
                               ),
-                      ),
-                      if (parts.length > 1)
-                        TextSpan(
-                            text: '  ${parts.skip(1).join(' · ')}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
-                    ]),
-                    maxLines: 1,
-                  ),
+                            ),
+                            if (restText.isNotEmpty)
+                              TextSpan(
+                                text: leadRest.isNotEmpty
+                                    ? ' $restText'
+                                    : '  $restText',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ]),
+                          maxLines: 1,
+                        )
+                      : Text(
+                          data.subtitle,
+                          maxLines: 1,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                 ),
             ],
           ),
