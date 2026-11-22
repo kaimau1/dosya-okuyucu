@@ -343,7 +343,7 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
       // karede kıpırdadıysa bu dokunuş akışı durdurmak içindir.
       final at = _pdfMatrixAt;
       _pdfTapStoppedFling = at != null &&
-          DateTime.now().difference(at) < const Duration(milliseconds: 60);
+          DateTime.now().difference(at) < Motion.flingStopWindow;
       _pagedMulti = false;
       _pagedDownAt = e.position;
       _pagedDownTime = DateTime.now();
