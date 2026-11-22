@@ -3,6 +3,7 @@ import '../../models/fs_entry.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/safe_insets.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
@@ -336,18 +337,31 @@ class _TrashScreenState extends State<TrashScreen> {
                   children: [
                     _summaryBand(total, shown.length),
                     const Divider(height: 1),
-                    FmFilterBar(
-                      children: FmTypeChips.build(
-                        context,
-                        counts: _typeCounts,
-                        selected: _types,
-                        onChanged: (t) => setState(() => _types = t),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: FmFilterBar(
+                          children: FmTypeChips.build(
+                            context,
+                            counts: _typeCounts,
+                            selected: _types,
+                            onChanged: (t) => setState(() => _types = t),
+                          ),
+                        ),
                       ),
                     ),
                     Expanded(
                       // Kart yerine 1px ayraç: liste ekranlarında kağıt
                       // temasının kuralı (kart yalnız pano ve son belgelerde).
                       child: ListView.separated(
+                        padding: withNavInset(
+                          context,
+                          EdgeInsets.symmetric(
+                            horizontal: MediaQuery.sizeOf(context).width > 960
+                                ? (MediaQuery.sizeOf(context).width - 960) / 2
+                                : 0,
+                          ),
+                        ),
                         itemCount: shown.length,
                         separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, i) {
@@ -400,10 +414,12 @@ class _TrashScreenState extends State<TrashScreen> {
   Widget _summaryBand(int total, int shownCount) {
     final scheme = Theme.of(context).colorScheme;
     final days = context.watchBrowse().fmTrashAutoDays;
+    final w = MediaQuery.sizeOf(context).width;
+    final hPad = w > 960 ? (w - 960) / 2 + Gap.md : Gap.md;
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.all(Gap.md),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

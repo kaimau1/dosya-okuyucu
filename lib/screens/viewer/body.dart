@@ -3,6 +3,13 @@ part of '../viewer_screen.dart';
 /// Geniş ekrandaki sayfa küçük resimleri şeridinin genişliği (dp).
 const double _kSidePanelWidth = 148;
 
+/// Açılışta pdfrx'in `_goToPage` çağrısı sayfanın üst kenarını `y = 0`a
+/// (üst çubuğun arkasına) hizalar; kaydırmayı çubuk boyu kadar geri çeker.
+double pdfCenterYBelowChrome(double centerY, double topChrome, double zoom) {
+  if (topChrome <= 0 || !zoom.isFinite || zoom <= 0) return centerY;
+  return centerY - topChrome / zoom;
+}
+
 extension _ViewerScreenBodyPart on _ViewerScreenState {
   Widget _buildBody(LoadedDoc doc) {
     switch (doc.kind) {
@@ -147,7 +154,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // değişmez (pdfrx boy değişince sayfa başına
                         // atlıyordu, HAFIZA 2026-10-23 (14)).
                         layoutPages: (pages, params) {
-                          var viewW = MediaQuery.sizeOf(context).width;
+                          final viewSize = MediaQuery.sizeOf(context);
+                          var viewW = viewSize.width;
                           if (_pdfDoc != null &&
                               _pdfSidePanel &&
                               viewW >= 840) {
@@ -161,6 +169,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                             paged: _pdfPaged,
                             chrome: chrome,
                             viewW: viewW,
+                            viewH: viewSize.height,
                           );
                           final cached = _pdfLayoutCache;
                           if (cached != null && _pdfLayoutKey == key) {
@@ -288,7 +297,11 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // Açılış köprüsü: ilk sayfaya çizim payı, sonra solar.
                           _markPdfOpened();
                           // Sayfa sayfa kipi: açılışta sayfa ekrana sığar.
-                          if (_pdfPaged) _fitPagedSoon();
+                          if (_pdfPaged) {
+                            _fitPagedSoon();
+                          } else if (chrome.top > 0) {
+                            _alignPdfTopBelowChrome(controller, chrome.top);
+                          }
                           // Açılışta sayfa sayısı bir an görünsün (H3.7).
                           _pokePageBadge();
                           unawaited(_proCheckRecovery());
@@ -722,12 +735,24 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
   PdfPageLayout _insetPdfLayout(
       PdfPageLayout base, BuildContext context, EdgeInsets chrome) {
     if (chrome.top == 0 && chrome.bottom == 0) return base;
-    var viewW = MediaQuery.sizeOf(context).width;
+    final size = MediaQuery.sizeOf(context);
+    var viewW = size.width;
     if (_pdfDoc != null && _pdfSidePanel && viewW >= 840) {
       viewW -= _kSidePanelWidth + 1; // yan küçük resimler + ayraç
     }
-    if (viewW <= 0) return base;
-    final k = base.documentSize.width / viewW;
+    if (viewW <= 0 || base.documentSize.width <= 0) return base;
+    var scale = viewW / base.documentSize.width;
+    // Tablette başlangıç yakınlaştırması sayfa yüksekliğine sığdırır (fitZoom):
+    // üst kenarın AppBar altında kalmaması için dikey ölçeği de hesaba kat.
+    if (size.shortestSide >= 600 && base.pageLayouts.isNotEmpty) {
+      final pageH = base.pageLayouts.first.height;
+      final availH = size.height - chrome.vertical;
+      if (pageH > 0 && availH > 120) {
+        final fitH = availH / pageH;
+        if (fitH < scale) scale = fitH;
+      }
+    }
+    final k = 1 / scale;
     final top = (chrome.top * k).roundToDouble();
     final bottom = (chrome.bottom * k).roundToDouble();
     return PdfPageLayout(
@@ -735,6 +760,22 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
       documentSize: Size(base.documentSize.width,
           base.documentSize.height + top + bottom),
     );
+  }
+
+  void _alignPdfTopBelowChrome(
+      PdfViewerController controller, double topChrome) {
+    if (!controller.isReady || topChrome <= 0) return;
+    final zoom = controller.currentZoom;
+    if (!zoom.isFinite || zoom <= 0) return;
+    final pos = controller.centerPosition;
+    final target = Offset(
+      pos.dx,
+      pdfCenterYBelowChrome(pos.dy, topChrome, zoom),
+    );
+    unawaited(controller.goTo(
+      controller.calcMatrixFor(target, zoom: zoom),
+      duration: Duration.zero,
+    ));
   }
 
   /// **Geniş ekranda sayfa küçük resimleri** (Faz 18 / G17): ≥ 840 dp'de

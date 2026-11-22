@@ -951,12 +951,17 @@ class _BentoGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
-      final unit = (box.maxWidth - 3 * _gap) / 4;
+      final cols = box.maxWidth >= 460 &&
+              items.length == 5 &&
+              items.every((e) => e.span == 1)
+          ? 5
+          : 4;
+      final unit = (box.maxWidth - (cols - 1) * _gap) / cols;
       final rows = <List<_BentoEntry>>[];
       var cur = <_BentoEntry>[];
       var used = 0;
       for (final it in items) {
-        if (used + it.span > 4) {
+        if (used + it.span > cols) {
           rows.add(cur);
           cur = [];
           used = 0;
@@ -978,7 +983,7 @@ class _BentoGrid extends StatelessWidget {
                   final w = it.span * unit + (it.span - 1) * _gap;
                   rowH = math.max(rowH, it.measure(w));
                 }
-                final full = row.fold<int>(0, (n, e) => n + e.span) == 4;
+                final full = row.fold<int>(0, (n, e) => n + e.span) == cols;
                 return SizedBox(
                   height: rowH,
                   child: Row(
@@ -1119,9 +1124,7 @@ class _BentoRowTile extends StatelessWidget {
                   if (a.checked != null) ...[
                     const SizedBox(width: 8),
                     Icon(
-                      a.checked!
-                          ? AppIcons.checkCircle
-                          : AppIcons.checkCircleOutline,
+                      a.checked! ? AppIcons.checkCircle : AppIcons.circle,
                       size: 22,
                       color: a.checked! ? fg : scheme.onSurfaceVariant,
                     ),

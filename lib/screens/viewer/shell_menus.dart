@@ -447,7 +447,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       if (doc.isEditableText) ...[
         DocAction(AppIcons.edit, context.t('common.edit'),
             _textFocus.requestFocus),
-        DocAction(AppIcons.save, context.t('common.save'), _save),
+        DocAction(
+            AppIcons.save, context.t('common.save'), _dirty ? _save : null),
       ],
       // İndir varken Çevir "Daha fazla › Dosya"ya iner (en çok 5 eylem).
       if (!showDownloadAction(widget.doc.path))

@@ -263,180 +263,213 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             if (v < -250) _skipTo(_index + 1);
             if (v > 250) _skipTo(_index - 1);
           },
-          child: Column(
-            children: [
-              const SizedBox(height: Gap.lg),
-              // **Kapak resmi** dosyanın kendi etiketinden (ID3 `APIC` / MP4
-              // `covr`). Yoksa eski nota simgesi — kutu ölçüsü DEĞİŞMEZ, yoksa
-              // kapak geldiğinde bütün ekran zıplardı.
-              SizedBox(
-                width: 160,
-                height: 160,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Radii.sheet),
-                  child: _tags.cover != null
-                      ? Image.memory(
-                          _tags.cover!,
-                          fit: BoxFit.cover,
-                          // Kapaklar 1500 piksele kadar çıkabiliyor; 160 dp'lik
-                          // kutuya tam çözünürlükte açmak boşuna bellek
-                          // (bkz. core/image_budget.dart dersi).
-                          cacheWidth: 480,
-                          gaplessPlayback: true,
-                          errorBuilder: (_, _, _) => _coverFallback(scheme),
-                        )
-                      : _coverFallback(scheme),
-                ),
-              ),
-              const SizedBox(height: Gap.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
-                child: Text(
-                  // Etikette parça adı varsa o gösterilir: "03 - track.mp3"
-                  // yerine gerçek ad.
-                  _tags.title.isNotEmpty
-                      ? _tags.title
-                      : p.basenameWithoutExtension(_current),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              if (_tags.subtitle.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
-                  child: Text(
-                    _tags.subtitle,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: scheme.onSurfaceVariant),
-                  ),
-                ),
-              Text(
-                _playlist.length > 1
-                    ? '${_index + 1}/${_playlist.length} · ${p.basename(p.dirname(_current))}'
-                    : p.basename(p.dirname(_current)),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-              ),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.all(Gap.md),
-                  child: Text(_error!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: scheme.error)),
-                ),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                // Yalnız bu satır konumla yeniden kurulur (saniyede ~5 kez);
-                // ekranın geri kalanı durum değişince.
-                child: ValueListenableBuilder<Duration>(
-                  valueListenable: _p.positionListenable,
-                  builder: (context, _, _) => Row(
-                    children: [
-                      Text(_fmt(_position), style: theme.textTheme.bodySmall),
-                      Expanded(
-                        child: Slider(
-                          value: _position.inMilliseconds
-                              .clamp(0, max(_duration.inMilliseconds, 1))
-                              .toDouble(),
-                          max: max(_duration.inMilliseconds, 1).toDouble(),
-                          onChangeStart: (_) {
-                            // Sürüklerken servis konumu ekrana yansımasın, yoksa
-                            // parmak çubuğu çekerken çubuk geri zıplar.
-                            _dragging = true;
-                            _p.setDragging(true);
-                          },
-                          onChanged: (v) => setState(() => _dragPosition =
-                              Duration(milliseconds: v.round())),
-                          onChangeEnd: (v) async {
-                            _dragging = false;
-                            _p.setDragging(false);
-                            await _p.seek(Duration(milliseconds: v.round()));
-                          },
-                        ),
-                      ),
-                      Text(_fmt(_duration), style: theme.textTheme.bodySmall),
-                    ],
-                  ),
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+          child: LayoutBuilder(builder: (context, constraints) {
+            final coverSize = constraints.maxHeight < 500 ? 120.0 : 160.0;
+            final player = _playerPanel(theme, scheme, coverSize: coverSize);
+            if (constraints.maxWidth >= 720 && _playlist.length > 1) {
+              final leftW = (constraints.maxWidth * 0.46).clamp(360.0, 480.0);
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  IconButton(
-                    tooltip: context.t('mp.shuffle'),
-                    isSelected: _shuffle,
-                    icon: const Icon(AppIcons.shuffle),
-                    selectedIcon: Icon(AppIcons.shuffle, color: scheme.primary),
-                    onPressed: () => _p.setShuffle(!_shuffle),
-                  ),
-                  IconButton(
-                    tooltip: context.t('common.previous'),
-                    icon: const Icon(AppIcons.skipPrevious),
-                    onPressed: _index > 0 ? () => _skipTo(_index - 1) : null,
-                  ),
-                  IconButton(
-                    tooltip: context.t('mp.back10'),
-                    icon: const Icon(AppIcons.replay10),
-                    onPressed: () => _seekBy(-10),
-                  ),
-                  IconButton(
-                    tooltip: context.t(_playing ? 'mp.pause' : 'mp.play'),
-                    iconSize: 56,
-                    icon:
-                        Icon(_playing ? AppIcons.pauseCircle : AppIcons.playCircle),
-                    color: scheme.primary,
-                    onPressed: _toggle,
-                  ),
-                  IconButton(
-                    tooltip: context.t('mp.forward10'),
-                    icon: const Icon(AppIcons.forward10),
-                    onPressed: () => _seekBy(10),
-                  ),
-                  IconButton(
-                    tooltip: context.t('common.next'),
-                    icon: const Icon(AppIcons.skipNext),
-                    onPressed: _index < _playlist.length - 1
-                        ? () => _skipTo(_index + 1)
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: switch (_repeat) {
-                      AudioRepeatMode.off => context.t('mp.repeat_off'),
-                      AudioRepeatMode.one => context.t('mp.repeat_one'),
-                      AudioRepeatMode.all => context.t('mp.repeat_all'),
-                    },
-                    isSelected: _repeat != AudioRepeatMode.off,
-                    icon: Icon(_repeat == AudioRepeatMode.one
-                        ? AppIcons.repeatOne
-                        : AppIcons.repeat),
-                    selectedIcon: Icon(
-                      _repeat == AudioRepeatMode.one
-                          ? AppIcons.repeatOne
-                          : AppIcons.repeat,
-                      color: scheme.primary,
-                    ),
-                    onPressed: () => _p.setRepeat(switch (_repeat) {
-                      AudioRepeatMode.off => AudioRepeatMode.all,
-                      AudioRepeatMode.all => AudioRepeatMode.one,
-                      AudioRepeatMode.one => AudioRepeatMode.off,
-                    }),
-                  ),
+                  SizedBox(width: leftW, child: player),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: _playlistView(expanded: true)),
                 ],
-              ),
-              if (_playlist.length > 1) _playlistView(),
-              const SizedBox(height: Gap.sm),
-            ],
-          ),
+              );
+            }
+            if (constraints.maxWidth >= 720) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: player,
+                ),
+              );
+            }
+            return Column(
+              children: [
+                Expanded(child: player),
+                if (_playlist.length > 1) _playlistView(),
+                const SizedBox(height: Gap.sm),
+              ],
+            );
+          }),
         ),
       ),
     );
   }
+
+  Widget _playerPanel(
+    ThemeData theme,
+    ColorScheme scheme, {
+    double coverSize = 160,
+  }) =>
+      Column(
+        children: [
+          const SizedBox(height: Gap.lg),
+          // **Kapak resmi** dosyanın kendi etiketinden (ID3 `APIC` / MP4
+          // `covr`). Yoksa eski nota simgesi — kutu ölçüsü DEĞİŞMEZ, yoksa
+          // kapak geldiğinde bütün ekran zıplardı.
+          SizedBox(
+            width: coverSize,
+            height: coverSize,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.sheet),
+              child: _tags.cover != null
+                  ? Image.memory(
+                      _tags.cover!,
+                      fit: BoxFit.cover,
+                      // Kapaklar 1500 piksele kadar çıkabiliyor; 160 dp'lik
+                      // kutuya tam çözünürlükte açmak boşuna bellek
+                      // (bkz. core/image_budget.dart dersi).
+                      cacheWidth: 480,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, _, _) => _coverFallback(scheme),
+                    )
+                  : _coverFallback(scheme),
+            ),
+          ),
+          const SizedBox(height: Gap.lg),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+            child: Text(
+              // Etikette parça adı varsa o gösterilir: "03 - track.mp3"
+              // yerine gerçek ad.
+              _tags.title.isNotEmpty
+                  ? _tags.title
+                  : p.basenameWithoutExtension(_current),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          if (_tags.subtitle.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
+              child: Text(
+                _tags.subtitle,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+            ),
+          Text(
+            _playlist.length > 1
+                ? '${_index + 1}/${_playlist.length} · ${p.basename(p.dirname(_current))}'
+                : p.basename(p.dirname(_current)),
+            style:
+                theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Text(_error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.error)),
+            ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            // Yalnız bu satır konumla yeniden kurulur (saniyede ~5 kez);
+            // ekranın geri kalanı durum değişince.
+            child: ValueListenableBuilder<Duration>(
+              valueListenable: _p.positionListenable,
+              builder: (context, _, _) => Row(
+                children: [
+                  Text(_fmt(_position), style: theme.textTheme.bodySmall),
+                  Expanded(
+                    child: Slider(
+                      value: _position.inMilliseconds
+                          .clamp(0, max(_duration.inMilliseconds, 1))
+                          .toDouble(),
+                      max: max(_duration.inMilliseconds, 1).toDouble(),
+                      onChangeStart: (_) {
+                        // Sürüklerken servis konumu ekrana yansımasın, yoksa
+                        // parmak çubuğu çekerken çubuk geri zıplar.
+                        _dragging = true;
+                        _p.setDragging(true);
+                      },
+                      onChanged: (v) => setState(() =>
+                          _dragPosition = Duration(milliseconds: v.round())),
+                      onChangeEnd: (v) async {
+                        _dragging = false;
+                        _p.setDragging(false);
+                        await _p.seek(Duration(milliseconds: v.round()));
+                      },
+                    ),
+                  ),
+                  Text(_fmt(_duration), style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                tooltip: context.t('mp.shuffle'),
+                isSelected: _shuffle,
+                icon: const Icon(AppIcons.shuffle),
+                selectedIcon: Icon(AppIcons.shuffle, color: scheme.primary),
+                onPressed: () => _p.setShuffle(!_shuffle),
+              ),
+              IconButton(
+                tooltip: context.t('common.previous'),
+                icon: const Icon(AppIcons.skipPrevious),
+                onPressed: _index > 0 ? () => _skipTo(_index - 1) : null,
+              ),
+              IconButton(
+                tooltip: context.t('mp.back10'),
+                icon: const Icon(AppIcons.replay10),
+                onPressed: () => _seekBy(-10),
+              ),
+              IconButton(
+                tooltip: context.t(_playing ? 'mp.pause' : 'mp.play'),
+                iconSize: 56,
+                icon: Icon(_playing ? AppIcons.pauseCircle : AppIcons.playCircle),
+                color: scheme.primary,
+                onPressed: _toggle,
+              ),
+              IconButton(
+                tooltip: context.t('mp.forward10'),
+                icon: const Icon(AppIcons.forward10),
+                onPressed: () => _seekBy(10),
+              ),
+              IconButton(
+                tooltip: context.t('common.next'),
+                icon: const Icon(AppIcons.skipNext),
+                onPressed:
+                    _index < _playlist.length - 1 ? () => _skipTo(_index + 1) : null,
+              ),
+              IconButton(
+                tooltip: switch (_repeat) {
+                  AudioRepeatMode.off => context.t('mp.repeat_off'),
+                  AudioRepeatMode.one => context.t('mp.repeat_one'),
+                  AudioRepeatMode.all => context.t('mp.repeat_all'),
+                },
+                isSelected: _repeat != AudioRepeatMode.off,
+                icon: Icon(_repeat == AudioRepeatMode.one
+                    ? AppIcons.repeatOne
+                    : AppIcons.repeat),
+                selectedIcon: Icon(
+                  _repeat == AudioRepeatMode.one
+                      ? AppIcons.repeatOne
+                      : AppIcons.repeat,
+                  color: scheme.primary,
+                ),
+                onPressed: () => _p.setRepeat(switch (_repeat) {
+                  AudioRepeatMode.off => AudioRepeatMode.all,
+                  AudioRepeatMode.all => AudioRepeatMode.one,
+                  AudioRepeatMode.one => AudioRepeatMode.off,
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
+      );
 
   /// Sıradaki parçalar (dokununca o parçaya atlar).
   /// Çalma listesini `.m3u8` olarak yazar (parçaların yanına).
@@ -508,14 +541,20 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
   // ad, TEK satır boyut → yükseklik yalnız yazı ölçeğine bağlı, satıra değil.
   // Prototip gerçek satır olduğundan 2× yazıda da birebir doğru; liste
   // uzun çalma listesinde satırları ölçmeden konumlar.
-  Widget _playlistView() => SizedBox(
-        height: 132,
-        child: ListView.builder(
-          itemCount: _playlist.length,
-          prototypeItem: _playlist.isEmpty ? null : _playlistRow(0),
-          itemBuilder: (context, i) => _playlistRow(i),
-        ),
+  Widget _playlistView({bool expanded = false}) {
+    final list = ListView.builder(
+      itemCount: _playlist.length,
+      prototypeItem: _playlist.isEmpty ? null : _playlistRow(0),
+      itemBuilder: (context, i) => _playlistRow(i),
+    );
+    if (expanded) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.sm),
+        child: list,
       );
+    }
+    return SizedBox(height: 132, child: list);
+  }
 
   Widget _playlistRow(int i) {
     final path = _playlist[i];

@@ -30,9 +30,28 @@ abstract final class FsScan {
     '.DosyaOkuyucuGizli',
     'vault_open',
     '.thumbnails',
+    '.hwthumbnails',
+    '.Gallery2',
+    '.ringtones2',
+    '.face',
+    '.android_secure',
     '.trashed',
     'lost+found',
   };
+
+  /// Sistemin henüz yazmayı bitirmediği veya çöpe taşıdığı geçici medya dosyaları
+  /// (Android MediaStore `.pending-*`, `.trashed-*`).
+  static bool isTransientMediaName(String name) =>
+      name.startsWith('.pending-') || name.startsWith('.trashed-');
+
+  /// Yol içinde atlanması gereken gizli/sistem klasörü varsa true döner.
+  static bool hasSkippedDir(String path) {
+    if (!path.contains('/.') && !path.contains(r'\.')) return false;
+    for (final part in p.split(path)) {
+      if (skipDirNames.contains(part)) return true;
+    }
+    return false;
+  }
 
   /// Bir klasörün içeriğini listeler. Okunamayan girdi atlanır, klasörün
   /// kendisi okunamıyorsa hata yukarı taşınır (kullanıcıya "izin yok" denir).
@@ -507,6 +526,10 @@ List<FsEntry> _collectFromIndexSync(_CollectArgs args) {
   final hits = <FsEntry>[];
   forEachIndexRow(path, (entry) {
     if (entry.isDir) return true;
+    if (FsScan.isTransientMediaName(entry.name) ||
+        FsScan.hasSkippedDir(entry.path)) {
+      return true;
+    }
     if (category != null && entry.category != category) return true;
     if (rootPrefix != null && !FsPaths.isInside(rootPrefix, entry.path)) {
       return true;
@@ -727,6 +750,10 @@ class _IndexAccumulator {
     // Klasörler yalnız arama dizinine girer: kategori sayıları ve
     // "en büyük/en yeni" listeleri DOSYA listeleridir.
     if (entry.isDir) return;
+    if (FsScan.isTransientMediaName(entry.name) ||
+        FsScan.hasSkippedDir(entry.path)) {
+      return;
+    }
     final c = entry.category;
     _counts[c] = (_counts[c] ?? 0) + 1;
     _bytes[c] = (_bytes[c] ?? 0) + entry.sizeBytes;
@@ -923,7 +950,7 @@ void walkFiles(
         stop: stop,
         depth: depth + 1,
       );
-    } else {
+    } else if (!FsScan.isTransientMediaName(entry.name)) {
       onFile(entry);
     }
   }

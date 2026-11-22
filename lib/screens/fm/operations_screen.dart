@@ -87,9 +87,10 @@ class _OperationsScreenState extends State<OperationsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final activeTab = OpsTab.values[_tabs.index];
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.t('jb.title')),
+        title: Text(_spec(context, activeTab).$2),
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,

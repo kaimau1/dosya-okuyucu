@@ -493,12 +493,13 @@ class _StripTile extends StatelessWidget {
                       )
                     else
                       PositionedDirectional(
-                        bottom: 2,
-                        end: 2,
+                        top: 2,
+                        start: 2,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: scheme.surface,
                             shape: BoxShape.circle,
+                            border: Border.all(color: scheme.outlineVariant),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(2),

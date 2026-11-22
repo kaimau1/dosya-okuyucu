@@ -2,49 +2,63 @@ part of '../spreadsheet_editor_screen.dart';
 
 extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState {
   Widget _sheetTabs(List<XlsxSheet> sheets) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final s in sheets)
-            Padding(
-              padding: const EdgeInsets.all(4),
-              child: _draggableTab(s, ChoiceChip(
-                avatar: s.layout.tabColorArgb == null
-                    ? null
-                    : CircleAvatar(
-                        radius: 6,
-                        backgroundColor: Color(s.layout.tabColorArgb!)),
-                label: Text(s.name),
-                selected: _sheet?.name == s.name,
-                onSelected: (_) {
-                  _endEdit();
-                  final idx = _editor?.sheets.indexOf(s) ?? 0;
-                  _partSetState(() {
-                    _sheetIndex = idx < 0 ? 0 : idx;
-                    _selRow = 0;
-                    _selCol = 0;
-                    _anchorRow = 0;
-                    _anchorCol = 0;
-                    _firstCol = 0;
-                    _lastCol = 0;
-                    _hits = const []; // eşleşmeler sayfaya özgü
-                    _hitIndex = -1;
-                  });
-                  _syncField();
-                  WidgetsBinding.instance
-                      .addPostFrameCallback((_) => _updateColWindow());
-                },
-              )),
-            ),
-          // Yeni sayfa — sekmelerin sonunda, Excel'deki "+" gibi.
-          IconButton(
-            tooltip: context.t('excel.add_sheet'),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(AppIcons.add, size: 20),
-            onPressed: _addSheet,
+    final scheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+              horizontal: Gap.sm, vertical: Gap.xs),
+          child: Row(
+            children: [
+              for (final s in sheets)
+                Padding(
+                  padding: const EdgeInsetsDirectional.only(end: Gap.xs),
+                  child: _draggableTab(s, ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    avatar: s.layout.tabColorArgb == null
+                        ? null
+                        : CircleAvatar(
+                            radius: 6,
+                            backgroundColor: Color(s.layout.tabColorArgb!)),
+                    label: Text(s.name),
+                    selected: _sheet?.name == s.name,
+                    onSelected: (_) {
+                      _endEdit();
+                      final idx = _editor?.sheets.indexOf(s) ?? 0;
+                      _partSetState(() {
+                        _sheetIndex = idx < 0 ? 0 : idx;
+                        _selRow = 0;
+                        _selCol = 0;
+                        _anchorRow = 0;
+                        _anchorCol = 0;
+                        _firstCol = 0;
+                        _lastCol = 0;
+                        _hits = const []; // eşleşmeler sayfaya özgü
+                        _hitIndex = -1;
+                      });
+                      _syncField();
+                      WidgetsBinding.instance
+                          .addPostFrameCallback((_) => _updateColWindow());
+                    },
+                  )),
+                ),
+              // Yeni sayfa — sekmelerin sonunda, Excel'deki "+" gibi.
+              IconButton(
+                tooltip: context.t('excel.add_sheet'),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(AppIcons.add, size: 20),
+                onPressed: _addSheet,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

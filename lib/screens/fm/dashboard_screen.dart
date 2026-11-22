@@ -411,14 +411,19 @@ class _DashboardScreenState extends State<DashboardScreen>
     ];
     final size = MediaQuery.sizeOf(context);
     final wide = DashboardScreen.twoColumns(size);
-    const rightIds = {'categories', 'tools'};
+    final landscapeWide = size.width >= 840;
+    const rightIds = {'categories'};
     // Son dosyalar şeridi iki sütunun ÜSTÜNDE tam genişlik (U7): yatay şerit
     // dar sol sütunda 2–3 öğeye sıkışıyor, bellek kartının altında sütunu
     // uzatıp sağda boşluk bırakıyordu.
     final top = ids.contains('recent');
+    final bottomTools = !landscapeWide && ids.contains('tools');
     final left = [
       for (final id in ids)
-        if (!rightIds.contains(id) && id != 'recent') id
+        if (!rightIds.contains(id) &&
+            id != 'recent' &&
+            (!bottomTools || id != 'tools'))
+          id
     ];
     final right = [for (final id in ids) if (rightIds.contains(id)) id];
     if (!wide || left.isEmpty || right.isEmpty) {
@@ -431,11 +436,11 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         );
     // **Geniş ekran** (2026-11-02): eşit iki sütun yerine bellek/son
-    // açılanlar/favoriler SOL şeritte sabit-orantılı (kartlar 360–440 dp'den
-    // fazla uzamasın), kutu ızgarası ve araçlar kalan alanı alır (sütun sayısı
-    // genişliğe göre artar). Çok geniş ekranda içerik ortalanıp sınırlanır —
-    // 2000 dp'lik bir tabloda kartlar bir uçtan bir uca gerilmesin.
-    final leftWidth = (size.width * 0.34).clamp(360.0, 440.0);
+    // açılanlar/araçlar SOL şeritte sabit-orantılı (yatayda %40 [360–440],
+    // dikey tablette %45 [270–320] + altta tam genişlik 4×2 araçlar).
+    final leftWidth = landscapeWide
+        ? (size.width * 0.40).clamp(360.0, 440.0)
+        : (size.width * 0.45).clamp(270.0, 320.0);
     return [
       if (top) ..._dashSection('recent', volumes, appState),
       Center(
@@ -452,6 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
         ),
       ),
+      if (bottomTools) ..._dashSection('tools', volumes, appState),
     ];
   }
 

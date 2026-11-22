@@ -250,8 +250,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               // Seçim çubuğu listenin ÜSTÜNE biniyor (Stack); alt boşluk onun
               // boyu kadar büyümezse son satırlar çubuğun altında kalıp
               // seçilemiyordu.
-              padding: withNavInset(context, EdgeInsets.fromLTRB(
-                  Gap.md, Gap.md, Gap.md, _selecting ? 96 : Gap.xl)),
+              padding: withNavInset(
+                context,
+                EdgeInsets.fromLTRB(
+                  MediaQuery.sizeOf(context).width > 960
+                      ? (MediaQuery.sizeOf(context).width - 960) / 2 + Gap.md
+                      : Gap.md,
+                  Gap.md,
+                  MediaQuery.sizeOf(context).width > 960
+                      ? (MediaQuery.sizeOf(context).width - 960) / 2 + Gap.md
+                      : Gap.md,
+                  _selecting ? 96 : Gap.xl,
+                ),
+              ),
               children: [
                 _searchField(),
                 if (_searching) ...[
