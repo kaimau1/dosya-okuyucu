@@ -320,6 +320,10 @@ abstract final class CrashLog {
     }
   }
 
+  /// Bildirimlere eklenen tek satır cihaz bilgisi (kimlik yok).
+  static String deviceLine() =>
+      '${Platform.operatingSystem} ${Platform.operatingSystemVersion}';
+
   /// Paylaşılacak/kopyalanacak düz metin. Kullanıcı bunu ekranda AYNEN görür.
   static String asShareText(List<CrashRecord> records) {
     final buffer = StringBuffer()

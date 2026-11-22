@@ -793,6 +793,11 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
                 subtitleKey: 'help.tile_sub',
                 builder: _helpTile),
             SettingRow(
+                id: 'feedback',
+                titleKey: 'fb.title',
+                subtitleKey: 'fb.tile_sub',
+                builder: _feedbackTile),
+            SettingRow(
                 id: 'hints_reset',
                 titleKey: 'set.hints_reset',
                 subtitleKey: 'set.hints_reset_sub',
@@ -971,5 +976,6 @@ Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();
 Widget _crashLogTile(BuildContext _) => const CrashLogTile();
 Widget _helpTile(BuildContext _) => const HelpTile();
+Widget _feedbackTile(BuildContext _) => const FeedbackTile();
 Widget _hintsResetTile(BuildContext _) => const HintsResetTile();
 Widget _privacyPolicyTile(BuildContext _) => const PrivacyPolicyTile();

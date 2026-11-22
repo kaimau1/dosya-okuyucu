@@ -484,6 +484,17 @@ Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
   10000 → 200 TL). Video yalnız kapak karesi (main'de). Önkoşul: kendi sunucumuz (anahtar uygulamaya GÖMÜLMEZ —
   çalınır), Play Billing satın alma doğrulaması sunucuda, dosya başı belirteç tavanı (PDF ilk N sayfa), satın
   almadan önce "≈ N dosya, video kapak karesiyle" bilgilendirmesi, kur değişince fiyat gözden geçirme. Karar sende.
+  **Ücretsiz hak + kapsam (taslak):** Pro'da ilk 500 dosya ücretsiz (hesaba bir kez, sayaç sunucuda); "Neyi
+  düzenleyelim?" ekranı (tür + klasör aç/kapa, sayılar cihazda, canlı "N dosya · 500 ücretsiz · kalan → paket").
+  **GÜVENLİK SÖZLEŞMESİ (kullanıcı 2026-11-22, bağlayıcı):** (1) şirket anahtarı APK'ya, depoya, cihaza ASLA girmez;
+  yalnız sunucuda (Secret Manager). (2) İki ayrı yol: `kendi anahtarı` ↔ `kredi` — kullanıcı AÇIKÇA seçer;
+  kendi anahtarı 401/403/429 verirse tur DURUR ("anahtarının kotası doldu"), krediye OTOMATİK GEÇİŞ YOK; kredi
+  yolu ayrı düğmeyle, onayla başlar. (3) Sunucu her istekte: Play Integrity doğrulaması + satın alma belirteci
+  doğrulaması + sunucudaki hak sayacından düşüm (cihazdaki sayıya güvenilmez) + kişi başı dakika/gün hız sınırı +
+  dosya başı belirteç tavanı. (4) Proje düzeyi: Google Cloud bütçe uyarısı + günlük sert harcama tavanı (aşılınca
+  sunucu kapanır, kullanıcıya "geçici olarak kapalı"), anahtar API kısıtlı (yalnız Generative Language) ve
+  döndürülebilir. (5) Ücretsiz 500 hesap/cihaz başına bir kez; yeniden kurulumda yenilenmez. (6) Testler: kendi
+  anahtarı 429 → kredi çağrısı SIFIR; kredi bitti → istek SIFIR.
 - **K15 Sürümler:** Pro fiyatı, uygulama adları (Lite/Pro), taramanın hangi sürümde olacağı, "Tüm dosyalar" izni reddedilince ne olacağı → P30 açılır.
 - **K16 Play izin varyantı (B5.3):** Play derlemesinden hangi izinler çıksın (QUERY_ALL_PACKAGES, READ_MEDIA_*, APK kurma)?
 - **K17 Levha birliği (P25):** her parti için önce/sonra görüntüye "tamam" demen gerekecek — başlayayım mı?

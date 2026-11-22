@@ -26,6 +26,7 @@ import '../fm/sd_union_screen.dart';
 import '../fm/usb_diagnostics_screen.dart';
 import 'app_footprint_screen.dart';
 import 'crash_log_screen.dart';
+import 'feedback_screen.dart';
 import 'help_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
@@ -370,6 +371,22 @@ class HelpTile extends StatelessWidget {
         wrapSubtitle: true,
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const HelpScreen()),
+        ),
+      );
+}
+
+/// Hata / istek bildir (2026-11-22).
+class FeedbackTile extends StatelessWidget {
+  const FeedbackTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: AppIcons.send,
+        title: context.t('fb.title'),
+        subtitle: context.t('fb.tile_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const FeedbackScreen()),
         ),
       );
 }

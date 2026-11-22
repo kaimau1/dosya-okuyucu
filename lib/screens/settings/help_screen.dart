@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
-import '../../core/app_version.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../services/crash_log.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../widgets/permission_gate.dart';
+import 'feedback_screen.dart';
 
 /// **Yardım / SSS** (Faz 5 iskeleti, 2026-10-21 — FAZ_PLANI N11).
 ///
@@ -32,15 +30,11 @@ class HelpScreen extends StatelessWidget {
     'video',
   ];
 
-  /// "Sorun bildir": sürüm + cihaz + son hata kayıtları, paylaşım
-  /// sayfasıyla (e-posta, mesajlaşma — kullanıcı seçer; adres gömülü değil).
-  static Future<void> reportProblem(BuildContext context) async {
-    final ask = AppStrings.of(context).t('help.report_body');
-    final records = await CrashLog.load();
-    final text =
-        '${CrashLog.asShareText(records.take(5).toList())}\n$ask';
-    await SharePlus.instance.share(ShareParams(text: text, subject: 'Dosya Okuyucu $appVersionFull'));
-  }
+  /// "Sorun bildir" → Hata / istek bildir ekranı (2026-11-22).
+  static Future<void> reportProblem(BuildContext context) =>
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const FeedbackScreen()),
+      );
 
   @override
   Widget build(BuildContext context) {
