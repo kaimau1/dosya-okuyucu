@@ -29,8 +29,12 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     GeminiService.filePollInterval = Duration.zero;
     SmartSortInput.clipVideo = (_) async => null;
+    // Bu dosya eski (kesit / Files API) video yolunu sınar; kapak karesi
+    // yolu ayrı testte.
+    SmartSortInput.videoCoverOnly = false;
   });
   tearDown(() {
+    SmartSortInput.videoCoverOnly = true;
     GeminiService.debugClient = null;
     tmp.deleteSync(recursive: true);
   });
@@ -441,6 +445,40 @@ void main() {
       expect(old.quality, '');
       expect(r.toJson().containsKey('lg'), isTrue);
       expect(old.toJson().containsKey('lg'), isFalse);
+    });
+  });
+
+  group('video = yalnız kapak karesi (2026-11-22)', () {
+    test('kare görsel blok olarak satır içi gider, kare silinir; yükleme yok',
+        () async {
+      SmartSortInput.videoCoverOnly = true;
+      final frame = File('${tmp.path}/kare.jpg')
+        ..writeAsBytesSync([0xFF, 0xD8, 0xFF, 1, 2, 3]);
+      final video = File('${tmp.path}/v.mp4')
+        ..writeAsBytesSync(List.filled(64, 7));
+      SmartSortInput.coverFrame = (_) async => frame.path;
+      SmartSortInput.clipVideo =
+          (_) async => throw StateError('kesit çağrılmamalı');
+      GeminiService.debugClient =
+          MockClient((_) async => throw StateError('ağ çağrılmamalı'));
+      final prep = await SmartSortInput.prepare(
+          entry(video.path, 200 * 1024 * 1024), const ['k1', 'k2']);
+      expect(prep.block['type'], 'image');
+      expect(prep.block['mime_type'], 'image/jpeg');
+      expect(prep.block['data'], base64Encode(const [0xFF, 0xD8, 0xFF, 1, 2, 3]));
+      expect(prep.keys, ['k1', 'k2']);
+      expect(frame.existsSync(), isFalse);
+    });
+
+    test('kare alınamazsa gönderilmez (durum -1, tur durmaz)', () async {
+      SmartSortInput.videoCoverOnly = true;
+      SmartSortInput.coverFrame = (_) async => null;
+      final video = File('${tmp.path}/v.mp4')..writeAsBytesSync([1]);
+      await expectLater(
+        SmartSortInput.prepare(entry(video.path, 1), const ['k']),
+        throwsA(isA<GeminiException>()
+            .having((e) => e.statusCode, 'statusCode', -1)),
+      );
     });
   });
 }

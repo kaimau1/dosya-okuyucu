@@ -45,7 +45,8 @@ enum SmartInputKind {
   /// Ses kaydı: `audio` bloğu (≤ 14 MB satır içi, üstü Files API).
   audio,
 
-  /// Video: `video` bloğu, düşük çözünürlük, yalnız ilk 60 sn.
+  /// Video: varsayılan yalnız kapak karesi (görsel blok,
+  /// [SmartSortInput.videoCoverOnly]); eski yol `video` bloğu, ilk 60 sn.
   video,
 }
 
@@ -211,6 +212,9 @@ abstract final class SmartSortInput {
   /// yalnız `file_uri` gider. Öteki türler [blockFor] ile, anahtarlar aynen.
   static Future<SmartPrepared> prepare(FsEntry e, List<String> keys) async {
     final kind = kindOf(e.path);
+    if (kind == SmartInputKind.video && videoCoverOnly) {
+      return _coverPrepared(e, keys);
+    }
     final av = kind == SmartInputKind.audio || kind == SmartInputKind.video;
     if (!av || e.sizeBytes <= GeminiDecisions.maxInlineBytes) {
       final block = await blockFor(e);
@@ -247,6 +251,51 @@ abstract final class SmartSortInput {
     }
     final mime = GeminiDecisions.mediaFor(e.path)!.mime;
     return _upload(e.path, mime, video: video, keys: keys);
+  }
+
+  /// **Video = yalnız kapak karesi** (2026-11-22, kullanıcı: "videoyu sadece
+  /// kapak karesi olarak yapmak gerekiyor" — maliyet doğru hesaplansın).
+  /// Video bloğu dakikada ~15–20 bin belirteç; tek JPEG kare bir görselle
+  /// aynı (~260). Kare satır içi gider, yükleme/kesit yok; geçici kare
+  /// silinir. Kare alınamazsa dosya gönderilmez ("yapılamadı").
+  /// false = eski yol (ilk dakika kesiti / Files API) — testler ve ileride
+  /// "ayrıntılı video" seçeneği için duruyor.
+  static bool videoCoverOnly = true;
+
+  /// Kapak karesinin zamanı (ilk karedeki siyah geçişi atlar) ve genişliği.
+  static const coverAtMs = 1500;
+  static const coverWidth = 768;
+
+  /// Videonun kapak karesini geçici JPEG olarak çıkarır; olmazsa null.
+  static Future<String?> Function(String path) coverFrame = _defaultCover;
+
+  static Future<String?> _defaultCover(String path) async {
+    final dir = p.join(Directory.systemTemp.path, 'smart_cover');
+    Directory(dir).createSync(recursive: true);
+    return await VideoTranscoder.frameAt(path,
+            dir: dir, ms: coverAtMs, width: coverWidth) ??
+        await VideoTranscoder.frameAt(path,
+            dir: dir, ms: 0, width: coverWidth);
+  }
+
+  static Future<SmartPrepared> _coverPrepared(
+      FsEntry e, List<String> keys) async {
+    String? frame;
+    try {
+      frame = await coverFrame(e.path);
+    } catch (_) {
+      frame = null;
+    }
+    if (frame == null) {
+      throw GeminiException('video karesi alınamadı', statusCode: -1);
+    }
+    try {
+      final data = await _b64File(frame);
+      return SmartPrepared(
+          {'type': 'image', 'mime_type': 'image/jpeg', 'data': data}, keys);
+    } finally {
+      _deleteQuietly(frame);
+    }
   }
 
   /// Files API yüklemesi: anahtarlar sırayla; kota/yetki hatasında

@@ -479,6 +479,11 @@ Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
 - **K12 AI tek belgelik maske kapatma:** istersen "ekle" de (şu an yok, en güvenli).
 - **K13 OneDrive / Dropbox eklensin mi?** Uygulamasız alıcıya "tarayıcıda çöz" bağlantısı yapılsın mı?
 - **K14 Dependabot PR'ları** #82 setup-gradle 6, #83 upload-artifact 7, #84 cache 6 → "birleştir"?
+- **K15a Akıllı düzen kredisi (taslak 2026-11-22, kullanıcı önerisi):** yalnız Pro (tek seferlik, öneri 39 TL);
+  kendi Gemini anahtarı = ücretsiz; anahtarsız kullanıcıya tek seferlik paket (1000 dosya 25 TL · 5000 → 100 TL ·
+  10000 → 200 TL). Video yalnız kapak karesi (main'de). Önkoşul: kendi sunucumuz (anahtar uygulamaya GÖMÜLMEZ —
+  çalınır), Play Billing satın alma doğrulaması sunucuda, dosya başı belirteç tavanı (PDF ilk N sayfa), satın
+  almadan önce "≈ N dosya, video kapak karesiyle" bilgilendirmesi, kur değişince fiyat gözden geçirme. Karar sende.
 - **K15 Sürümler:** Pro fiyatı, uygulama adları (Lite/Pro), taramanın hangi sürümde olacağı, "Tüm dosyalar" izni reddedilince ne olacağı → P30 açılır.
 - **K16 Play izin varyantı (B5.3):** Play derlemesinden hangi izinler çıksın (QUERY_ALL_PACKAGES, READ_MEDIA_*, APK kurma)?
 - **K17 Levha birliği (P25):** her parti için önce/sonra görüntüye "tamam" demen gerekecek — başlayayım mı?
