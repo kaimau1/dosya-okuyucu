@@ -182,7 +182,7 @@ void main() {
       }
 
       final path = '${dir.path}/doc.docx';
-      await File(path).writeAsBytes(
+      File(path).writeAsBytesSync(
           File('test/fixtures/office/stiller_basliklar.docx').readAsBytesSync());
 
       tester.view.physicalSize = const Size(1080, 2340);
@@ -231,7 +231,7 @@ void main() {
       }
 
       final path = '${dir.path}/sheet.xlsx';
-      await File(path).writeAsBytes(
+      File(path).writeAsBytesSync(
           File('test/fixtures/rich_sheet.xlsx').readAsBytesSync());
 
       await tester.pumpWidget(_app(SpreadsheetEditorScreen(
