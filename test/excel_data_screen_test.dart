@@ -58,6 +58,8 @@ void main() {
     await pump(t);
     expect(find.text('ayşe'), findsOneWidget);
     await tab(t, 'Veri');
+    await t.ensureVisible(find.byKey(const ValueKey('xl-dedup')));
+    await t.pump();
     await t.tap(find.byKey(const ValueKey('xl-dedup')));
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('dup-run')));

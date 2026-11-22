@@ -876,7 +876,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
             extras: [
               IconButton(
                 key: const ValueKey('word-top-find'),
-                tooltip: context.t('word.find_replace'),
+                tooltip: context.t('word.find'),
                 isSelected: _findOpen,
                 icon: Icon(_findOpen ? AppIcons.searchOff : AppIcons.search),
                 onPressed: c == null

@@ -174,6 +174,13 @@ void main() {
 
     testWidgets('Word Mobil: üst Bul, sözcük sayacı ve renk seçici levhası',
         (tester) async {
+      // İmleç yanıp söndüğünden pumpAndSettle hiç durmaz; sınırlı pompala.
+      Future<void> settle() async {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pump(const Duration(milliseconds: 350));
+      }
+
       final path = '${dir.path}/doc.docx';
       await File(path).writeAsBytes(
           File('test/fixtures/office/stiller_basliklar.docx').readAsBytesSync());
@@ -193,7 +200,7 @@ void main() {
             () => Future<void>.delayed(const Duration(milliseconds: 50)));
         await tester.pump();
       }
-      await tester.pumpAndSettle();
+      await settle();
 
       // Canlı sözcük sayısı alt başlıkta, tür öneki ("Word ·") gizli.
       expect(find.textContaining('sözcük'), findsOneWidget);
@@ -201,22 +208,28 @@ void main() {
 
       // Üst çubuktan Bul açılır/kapanır.
       await tester.tap(find.byKey(const ValueKey('word-top-find')));
-      await tester.pumpAndSettle();
+      await settle();
       expect(find.byKey(const ValueKey('word-find-bar')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('word-top-find')));
-      await tester.pumpAndSettle();
+      await settle();
       expect(find.byKey(const ValueKey('word-find-bar')), findsNothing);
 
       // Görsel renk levhası açılır, ham hex kodu metin olarak gösterilmez.
       await tester.ensureVisible(find.byKey(const ValueKey('word-color')));
       await tester.tap(find.byKey(const ValueKey('word-color')));
-      await tester.pumpAndSettle();
+      await settle();
       expect(find.text('Yazı rengi'), findsOneWidget);
       expect(find.text('#C00000'), findsNothing);
     });
 
     testWidgets('Excel: alt çizgi, fx çubuğu, hücre menüsü ve Formüller yongaları',
         (tester) async {
+      Future<void> settle() async {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pump(const Duration(milliseconds: 350));
+      }
+
       final path = '${dir.path}/sheet.xlsx';
       await File(path).writeAsBytes(
           File('test/fixtures/rich_sheet.xlsx').readAsBytesSync());
@@ -245,16 +258,19 @@ void main() {
 
       // Durum çubuğundan hücre menüsü açılır.
       await tester.tap(find.byKey(const ValueKey('xl-status-menu')));
-      await tester.pumpAndSettle();
+      await settle();
       expect(find.byKey(const ValueKey('cellmenu-copy')), findsOneWidget);
       Navigator.of(tester.element(find.byKey(const ValueKey('cellmenu-copy'))))
           .pop();
-      await tester.pumpAndSettle();
+      await settle();
 
       // Formüller sekmesinde etiketli RibbonChip yongaları görünür.
-      await tester.tap(find.descendant(
-          of: find.byType(OfficeRibbon), matching: find.text('Formüller')));
-      await tester.pumpAndSettle();
+      final formulas = find.descendant(
+          of: find.byType(OfficeRibbon), matching: find.text('Formüller'));
+      await tester.ensureVisible(formulas);
+      await tester.pump();
+      await tester.tap(formulas);
+      await settle();
       for (final key in const [
         'xl-fn-SUM',
         'xl-fn-AVERAGE',

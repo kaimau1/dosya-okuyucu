@@ -230,17 +230,21 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           ),
         ),
         trailing: [
-          InkWell(
-            key: const ValueKey('xl-status-menu'),
-            onTap: _showCellMenu,
-            borderRadius: BorderRadius.circular(Radii.control),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              child: Text(
-                context.t('excel.cell_menu'),
-                style: context.type.caption.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w600,
+          Flexible(
+            child: InkWell(
+              key: const ValueKey('xl-status-menu'),
+              onTap: _showCellMenu,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: Text(
+                  context.t('excel.cell_menu'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.caption.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -381,10 +385,14 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           ...trailing,
           if (at >= 0) ...[
             const SizedBox(width: 8),
-            Text(
-              context.t('excel.sheet_pos',
-                  {'n': at + 1, 'total': sheets.length}),
-              style: style,
+            Flexible(
+              child: Text(
+                context.t('excel.sheet_pos',
+                    {'n': at + 1, 'total': sheets.length}),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
             ),
           ],
         ],
