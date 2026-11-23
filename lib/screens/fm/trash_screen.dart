@@ -8,8 +8,11 @@ import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_type.dart';
+import '../../services/fm/ai_index.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/trash_service.dart';
 import '../../widgets/fm/fm_bar_title.dart';
@@ -392,8 +395,15 @@ class _TrashScreenState extends State<TrashScreen> {
                             ),
                             selected: false,
                             selecting: false,
-                            subtitle: '${FsPaths.humanDate(item.deletedAtMs)} · '
-                                '${item.originalPath}',
+                            subtitle: FmLocation.label(
+                                item.originalPath, context.t,
+                                volumes: FmEnv.volumes),
+                            dateText: FmLocation.shortDate(item.deletedAtMs),
+                            subtitleEnd: item.isDir
+                                ? null
+                                : FsPaths.humanSize(item.sizeBytes),
+                            alias: AiIndex.aliasOf(item.originalPath),
+                            tags: FileTags.forPath(item.originalPath),
                             onTap: () {
                               if (!item.isDir) _preview(shown, item);
                             },

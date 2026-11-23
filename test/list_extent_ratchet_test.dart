@@ -14,7 +14,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// Kural: sabit sayı (`itemExtent: 64`) yalnız yüksekliği yazı ölçeğinden
 /// bağımsız satırda (ör. `Container(height: …)`); metinli satırda
 /// `prototypeItem` (gerçek satır → 2× yazıda da birebir).
-const _floor = 11; // B12 m.6: 9 → 11 (tablo görünümü, çalma listesi)
+// 2026-11-23 satır yenilemesi: `fm_file_list_view.dart` satırları artık
+// bilinçli olarak değişken yükseklikli (2 satıra kadar dosya adı + ayrı ikinci
+// ad satırı + renkli etiket hapları + kesilmeyen tarih/boyut şeridi); sabit
+// prototip yüksekliği değişken satırları kırpacağı için kaldırıldı (11 → 9).
+const _floor = 9;
 
 /// Dosya başına beklenen en az kullanım — biri kaybolursa adıyla yakalanır.
 const _required = {
@@ -25,7 +29,6 @@ const _required = {
   'lib/screens/fm/audio_player_screen.dart': 1,
   'lib/screens/fm/photos_screen.dart': 1,
   'lib/screens/fm/dual_pane_screen.dart': 1,
-  'lib/widgets/fm/fm_file_list_view.dart': 2,
 };
 
 final _extent =

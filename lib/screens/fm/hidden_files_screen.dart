@@ -11,6 +11,9 @@ import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
+import '../../services/fm/fs_scan.dart';
 import '../../services/fm/hidden_vault.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import 'entry_actions.dart';
@@ -132,34 +135,43 @@ class _HiddenFilesScreenState extends State<HiddenFilesScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(color: scheme.onSurfaceVariant)),
                   ),
-                for (final item in items)
-                  FmEntryRow(
-                    entry: FsEntry.fromEntity(item.isDir
+                for (var i = 0; i < items.length; i++)
+                  Builder(builder: (context) {
+                    final item = items[i];
+                    final entry = FsEntry.fromEntity(item.isDir
                         ? Directory(item.path)
-                        : File(item.path)),
-                    selected: false,
-                    selecting: false,
-                    subtitle: context.t(
-                        'hv.from', {'path': File(item.original).parent.path}),
-                    onTap: () => item.isDir
-                        ? null
-                        : EntryOpener.open(context, item.path),
-                    badge: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: context.t('hv.restore'),
-                          icon: const Icon(AppIcons.restore),
-                          onPressed: () => _restore([item]),
-                        ),
-                        IconButton(
-                          tooltip: context.t('common.delete'),
-                          icon: Icon(AppIcons.delete, color: scheme.error),
-                          onPressed: () => _delete(item),
-                        ),
-                      ],
-                    ),
-                  ),
+                        : File(item.path));
+                    return FmEntryRow(
+                      entry: entry,
+                      selected: false,
+                      selecting: false,
+                      subtitle: FmLocation.label(item.original, context.t,
+                          volumes: FmEnv.volumes),
+                      dateText: FmLocation.shortDate(entry.modifiedMs),
+                      subtitleEnd: entry.isDir
+                          ? null
+                          : FsPaths.humanSize(entry.sizeBytes),
+                      showDivider: i < items.length - 1,
+                      onTap: () => item.isDir
+                          ? null
+                          : EntryOpener.open(context, item.path),
+                      badge: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: context.t('hv.restore'),
+                            icon: const Icon(AppIcons.restore),
+                            onPressed: () => _restore([item]),
+                          ),
+                          IconButton(
+                            tooltip: context.t('common.delete'),
+                            icon: Icon(AppIcons.delete, color: scheme.error),
+                            onPressed: () => _delete(item),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
               ],
             ),
     );

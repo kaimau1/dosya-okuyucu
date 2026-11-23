@@ -18,11 +18,13 @@ import '../../services/fm/custom_cards.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/important_files.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import 'browser_screen.dart';
 import 'important_screen.dart' show ImportantGalleryTile;
@@ -699,14 +701,19 @@ class _CustomCardScreenState extends State<CustomCardScreen> {
       itemCount: _top.length,
       itemBuilder: (context, i) {
         final e = _top[i];
-        return ListTile(
-          leading: FmEntryIcon(entry: e),
-          title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(e.isDir
+        return FmEntryRow(
+          entry: e,
+          selected: false,
+          selecting: false,
+          showChevron: true,
+          showDivider: i < _top.length - 1,
+          subtitle: e.isDir
               ? context.t('count.files', {
                   'n': _all.where((f) => FsPaths.isInside(e.path, f.path)).length
                 })
-              : FsPaths.humanSize(e.sizeBytes)),
+              : FmLocation.label(e.path, context.t, volumes: FmEnv.volumes),
+          dateText: FmLocation.shortDate(e.modifiedMs),
+          subtitleEnd: e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
           onTap: () async {
             if (e.isDir) {
               await Navigator.of(context)

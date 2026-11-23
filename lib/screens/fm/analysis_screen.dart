@@ -24,6 +24,7 @@ import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
@@ -516,51 +517,38 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     ),
                   ),
                 // 200 sınırı [_visible]da (U4): seçim/"Tümünü seç" de onu görür.
-                for (final e in visible)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    selected: _selected.contains(e.path),
-                    leading: FmSelectableIcon(
-                      entry: e,
-                      selecting: _selecting,
-                      selected: _selected.contains(e.path),
-                      onCheck: () => _toggle(e),
-                    ),
-                    title: Text(e.name,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    // Tam yol yerine KAYNAK ("WhatsApp", "İndirilenler"): yolun
-                    // ekrana sığan kısmı hep aynı başlangıçtı (bkz. [FmLocation]).
-                    subtitle: Text(
-                      FmLocation.subtitle(
-                          e.path, e.sizeBytes, e.modifiedMs, context.t,
-                          volumes: FmEnv.volumes),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                for (var i = 0; i < visible.length; i++)
+                  FmEntryRow(
+                    entry: visible[i],
+                    selected: _selected.contains(visible[i].path),
+                    selecting: _selecting,
+                    subtitle: FmLocation.label(visible[i].path, context.t,
+                        volumes: FmEnv.volumes),
+                    dateText: FmLocation.shortDate(visible[i].modifiedMs),
+                    subtitleEnd: visible[i].isDir
+                        ? null
+                        : FsPaths.humanSize(visible[i].sizeBytes),
+                    showDivider: i < visible.length - 1,
+                    onCheck: () => _toggle(visible[i]),
                     // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
                     // ekranında aynı kural.
                     onTap: () => _selecting
-                        ? _toggle(e)
-                        : EntryOpener.open(context, e.path),
-                    onLongPress: () => _toggle(e),
-                    trailing: _selecting
+                        ? _toggle(visible[i])
+                        : EntryOpener.open(context, visible[i].path),
+                    onLongPress: () => _toggle(visible[i]),
+                    onMore: _selecting
                         ? null
-                        : IconButton(
-                            tooltip: MaterialLocalizations.of(context)
-                                .moreButtonTooltip,
-                            icon: const Icon(AppIcons.more),
-                            onPressed: () async {
-                              await showEntryActions(
-                                context,
-                                e,
-                                allowReveal: true,
-                                onReveal: (path) => Navigator.of(context).push(
-                                  browserRoute(BrowserScreen(path: path)),
-                                ),
-                              );
-                              await _refreshAlive();
-                            },
-                          ),
+                        : () async {
+                            await showEntryActions(
+                              context,
+                              visible[i],
+                              allowReveal: true,
+                              onReveal: (path) => Navigator.of(context).push(
+                                browserRoute(BrowserScreen(path: path)),
+                              ),
+                            );
+                            await _refreshAlive();
+                          },
                   ),
               ],
             ),

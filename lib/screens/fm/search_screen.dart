@@ -33,6 +33,7 @@ import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../models/fm_layout.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
@@ -298,22 +299,21 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   /// Sonuç satırının alt yazısı: içerik aramasında eşleşme, ad aramasında
-  /// boyut ve klasör.
+  /// kaynak/konum; tarih ve boyut sağda ayrı sabit alanlarda kesilmeden görünür.
   String _subtitleFor(FsEntry e) {
-    if (e.isDir) return p.dirname(e.path);
+    final t = AppStrings.of(context).t;
+    final loc = FmLocation.label(e.path, t, volumes: FmEnv.volumes);
+    if (e.isDir) return loc;
     final terms = _meaning ? _meaningMatched[e.path] : null;
     if (terms != null && terms.isNotEmpty) {
-      return '≈ ${terms.join(', ')} · ${FmLocation.subtitle(e.path, e.sizeBytes, e.modifiedMs, AppStrings.of(context).t, volumes: FmEnv.volumes)}';
+      return '≈ ${terms.join(', ')} · $loc';
     }
     final hit = _inContent ? _contentHitOf(e.path) : null;
     if (hit != null) {
-      final head = AppStrings.of(context)
-          .t('srch.content_hits', {'n': hit.total, 'line': hit.line});
+      final head = t('srch.content_hits', {'n': hit.total, 'line': hit.line});
       return '$head · ${hit.snippet}';
     }
-    return FmLocation.subtitle(
-        e.path, e.sizeBytes, e.modifiedMs, AppStrings.of(context).t,
-        volumes: FmEnv.volumes);
+    return loc;
   }
 
   List<FsEntry> get _filtered {

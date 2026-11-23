@@ -432,10 +432,11 @@ extension _SearchScreenStateParts on _SearchScreenState {
           }
         }
       }),
-      // İçerik aramasında alt satır **eşleşmeyi** gösteriyor:
-      // "3 eşleşme · 12. satır · …fatura no: 2024/17…". Boyut ve
-      // klasör orada işe yaramaz; kullanıcı METNİ arıyor.
+      // İçerik aramasında alt satır eşleşmeyi gösterir; tarih ve boyut sağda
+      // kesilmeden sabitlenir.
       subtitle: _subtitleFor,
+      dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+      subtitleEnd: (e) => e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
       onMore: (e) async {
         await showEntryActions(
           context,
@@ -506,31 +507,31 @@ extension _SearchScreenStateParts on _SearchScreenState {
             ],
           ),
         ),
-      for (final (o, e) in shown)
-        ListTile(
-          key: ValueKey('opened-${e.path}'),
-          contentPadding: EdgeInsets.zero,
-          leading: FmEntryIcon(entry: e, size: 44),
-          title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(
-            [
-              if (o.query.isNotEmpty) '“${o.query}”',
-              FsPaths.humanDate(o.openedMs),
-            ].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: IconButton(
+      for (var i = 0; i < shown.length; i++)
+        FmEntryRow(
+          key: ValueKey('opened-${shown[i].$2.path}'),
+          entry: shown[i].$2,
+          selected: false,
+          selecting: false,
+          subtitle: shown[i].$1.query.isNotEmpty
+              ? '“${shown[i].$1.query}”'
+              : FmLocation.label(shown[i].$2.path, context.t,
+                  volumes: FmEnv.volumes),
+          dateText: FmLocation.shortDate(shown[i].$1.openedMs),
+          subtitleEnd: FsPaths.humanSize(shown[i].$2.sizeBytes),
+          showDivider: i < shown.length - 1,
+          badge: IconButton(
             tooltip: context.t('common.delete'),
             icon: const Icon(AppIcons.close, size: 20),
             onPressed: () async {
-              await SearchHistory.removeOpened(e.path);
+              await SearchHistory.removeOpened(shown[i].$2.path);
               if (mounted) _update(() {});
             },
           ),
           onTap: () async {
-            unawaited(SearchHistory.recordOpened(e.path, o.query));
-            await EntryOpener.open(context, e.path, siblings: paths);
+            final item = shown[i];
+            unawaited(SearchHistory.recordOpened(item.$2.path, item.$1.query));
+            await EntryOpener.open(context, item.$2.path, siblings: paths);
             if (mounted) _update(() {});
           },
         ),

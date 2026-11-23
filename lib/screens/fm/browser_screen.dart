@@ -19,6 +19,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/empty_folders.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/folder_size_cache.dart';
 import '../../services/fm/folder_sort_memory.dart';
 import '../../services/fm/folder_report.dart';

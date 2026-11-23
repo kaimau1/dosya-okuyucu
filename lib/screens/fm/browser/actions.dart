@@ -24,15 +24,14 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   /// Ölçüm ekranda görünen klasör için İSTENİYOR (bkz. [FolderSizeCache]);
   /// gelene kadar yalnız tarih yazıyor — "…" gibi bir yer tutucu, listede
   /// her kaydırmada titreşen bir metin demek olurdu.
-  String _folderSubtitle(FsEntry entry) {
-    final date = FsPaths.humanDate(entry.modifiedMs);
-    if (!context.read<AppState>().fmFolderSizes) return date;
+  String? _folderSizeEnd(FsEntry entry) {
+    if (!context.read<AppState>().fmFolderSizes) return null;
     final size = FolderSizeCache.sizeOf(entry.path);
     if (size == null) {
       FolderSizeCache.request(entry.path);
-      return date;
+      return null;
     }
-    return '${FsPaths.humanSize(size)} · $date';
+    return FsPaths.humanSize(size);
   }
 
   /// Kilit denetimi: klasör kilitliyse PIN sorulur, yanlışsa geri çıkılır.

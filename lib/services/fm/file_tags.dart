@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -40,9 +40,12 @@ abstract final class FileTags {
   /// gelinebiliyor ve bir kez boş kilitlenmek tüm etiketleri kaybettirirdi.
   static Future<void>? _loadFuture;
 
-  /// Etiketler her değiştiğinde (yükleme dahil) artar — süzgeç sayım
-  /// önbellekleri bununla tazelenir (Faz 42 süzgeç cilası).
-  static int revision = 0;
+  /// Etiketler her değiştiğinde (yükleme dahil) artar — liste satırları ve
+  /// süzgeç sayım önbellekleri bununla tazelenir.
+  static final ValueNotifier<int> changes = ValueNotifier<int>(0);
+
+  /// Süzgeç önbellek anahtarı için mevcut sürüm numarası.
+  static int get revision => changes.value;
 
   static String get _path => p.join(FmEnv.appSupportDir, _fileName);
 
@@ -70,7 +73,7 @@ abstract final class FileTags {
         };
         if (tags.isNotEmpty) _byPath[key] = tags;
       }
-      revision++;
+      changes.value++;
       // Ölü kayıtlar burada diske YAZILMAZ: temizlik bir sonraki gerçek
       // değişiklikte (add/remove/setTags) kendiliğinden diske iner.
     } catch (_) {
@@ -105,7 +108,7 @@ abstract final class FileTags {
   /// Çözüm: yazmalar zincire alınır. Her yazma o anki **tam** durumu
   /// serileştirdiği için sıradaki yazma her zaman en güncel hâli diske indirir.
   static Future<void> _save() {
-    revision++;
+    changes.value++;
     if (FmEnv.appSupportDir.isEmpty) return Future<void>.value();
     final previous = _saving ?? Future<void>.value();
     final next = previous.then((_) => _writeNow());
@@ -234,5 +237,6 @@ abstract final class FileTags {
     // Yazma zinciri de sıfırlanır: önceki testten sarkan bir yazma, yeni
     // testin ilk kaydını bekletir ve sırayı yanıltırdı.
     _saving = null;
+    changes.value++;
   }
 }

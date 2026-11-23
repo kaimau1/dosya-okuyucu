@@ -32,10 +32,13 @@ import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/ai_report.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../app_dialog.dart';
 import 'fm_entry_icon.dart';
+import 'fm_entry_tiles.dart';
 
 /// Önerileri uygulamadan ÖNCE ne olacağını gösteren levha.
 ///
@@ -271,30 +274,96 @@ class _AiFileListState extends State<AiFileList> {
 
   Widget _row(AiRecord record) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final faint = Paper.faint(context);
     final entry = AiBuckets.entryOf(record);
     final picked = _selected.contains(record.path);
     final important = record.importance >= AiImportance.important;
-    final meta = <String>[
+    final alias = AiIndex.aliasOf(record.path);
+    final tags = FileTags.forPath(record.path);
+    final loc =
+        FmLocation.label(record.path, context.t, volumes: FmEnv.volumes);
+    final leftMeta = <String>[
       if (record.docType.isNotEmpty)
         AiBuckets.label(AiBuckets.canonicalDocType(record.docType)),
-      FsPaths.humanSize(record.sizeBytes),
-      // Klasör adı: aynı adlı iki dosyayı ayırt etmenin tek yolu.
-      p.basename(p.dirname(record.path)),
+      loc,
     ].join(' · ');
-    final hasTitle = record.title.isNotEmpty && record.title != record.name;
+    final date = FmLocation.shortDate(record.modifiedMs);
+    final size = FsPaths.humanSize(record.sizeBytes);
+    final hasAlias = alias.isNotEmpty && alias != record.name;
 
     final lines = <Widget>[
-      Text(meta,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.type.small.copyWith(color: faint)),
-      if (widget.showSuggestion && record.hasSuggestion) ...[
-        if (hasTitle)
-          Text(record.name,
+      if (hasAlias)
+        Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: 13,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.78),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  alias,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.small.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (tags.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: FmTagPills(tags: tags),
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                leftMeta,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.type.small.copyWith(color: faint),
+              ),
+            ),
+            const SizedBox(width: Gap.sm),
+            Text.rich(
+              TextSpan(children: [
+                if (date.isNotEmpty)
+                  TextSpan(
+                    text: date,
+                    style: context.type.small.copyWith(
+                      color: scheme.onSurface.withValues(alpha: 0.76),
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                if (date.isNotEmpty) const TextSpan(text: ' · '),
+                TextSpan(text: size),
+              ]),
               maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.type.small.copyWith(color: faint)),
+              softWrap: false,
+              style: context.type.small.copyWith(
+                color: faint,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (widget.showSuggestion && record.hasSuggestion) ...[
         if (record.hasNameSuggestion)
           _suggestLine(AppIcons.rename,
               context.t('aih2.sug_name', {'name': record.suggestedName})),
@@ -307,10 +376,13 @@ class _AiFileListState extends State<AiFileList> {
                     record.suggestedFolder)
               })),
       ] else if (record.summary.isNotEmpty)
-        Text(record.summary,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.type.small.copyWith(color: faint)),
+        Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Text(record.summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.type.small.copyWith(color: faint)),
+        ),
     ];
 
     return ListTile(
@@ -321,17 +393,23 @@ class _AiFileListState extends State<AiFileList> {
         onCheck: () => _toggle(record),
       ),
       title: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
+          Expanded(
             child: Text(
-              hasTitle ? record.title : record.name,
-              maxLines: 1,
+              record.name,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontSize: 15,
+                height: 1.24,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           if (important) ...[
             const SizedBox(width: Gap.xs),
-            _ImportantTag(color: theme.colorScheme.primary),
+            _ImportantTag(color: scheme.primary),
           ],
         ],
       ),

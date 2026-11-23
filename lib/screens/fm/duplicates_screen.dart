@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
-import 'package:path/path.dart' as p;
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
@@ -9,6 +8,8 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_search_field.dart';
@@ -333,14 +334,18 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   Widget _fileRow(FsEntry file, {required bool keep}) {
     final selected = _selected.contains(file.path);
+    final loc =
+        FmLocation.label(file.path, context.t, volumes: FmEnv.volumes);
     return FmEntryRow(
       entry: file,
       selected: selected,
       // Bu ekranda onay kutusu HEP görünür: kullanıcı kopyaları işaretliyor.
       selecting: true,
       subtitle: keep && !selected
-          ? '${context.t('common.oldest')} · ${p.dirname(file.path)}'
-          : p.dirname(file.path),
+          ? '${context.t('common.oldest')} · $loc'
+          : loc,
+      dateText: FmLocation.shortDate(file.modifiedMs),
+      subtitleEnd: FsPaths.humanSize(file.sizeBytes),
       onTap: () => EntryOpener.open(context, file.path),
       onCheck: () => setState(() {
         if (!_selected.remove(file.path)) _selected.add(file.path);

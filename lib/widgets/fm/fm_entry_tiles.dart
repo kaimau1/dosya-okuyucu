@@ -11,12 +11,15 @@ import '../../models/fm_layout.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
+import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_colors_store.dart';
+import '../../services/fm/smart_sort.dart';
 import 'fm_entry_icon.dart';
 import 'fm_inline_play.dart';
 import '../motion.dart';
 
-/// Dosya/klasör satırı ve ızgara hücresi — gözatıcı, kategori ve arama
-/// ekranlarının ORTAK öğeleri.
+/// Dosya/klasör satırı ve ızgara hücresi — gözatıcı, kategori, arama ve
+/// diğer dosya listesi ekranlarının ORTAK öğeleri.
 ///
 /// *Niye ortak:* aynı tile üç ekranda ayrı ayrı yazılmıştı; ikon boyu ya da
 /// seçim rozeti biri değişince diğerleri geride kalıyordu (2026-07-24
@@ -34,32 +37,152 @@ Widget fmHero(String? tag, Widget child) {
   );
 }
 
-/// Liste satırı — **kendi `Row`umuz** (Faz 6 / U4, 2026-10-21).
+/// Dosya etiketlerini kompakt, renkli haplar olarak çizer.
 ///
-/// KÖK NEDEN: `ListTile` `leading` yuvasını 56 dp ile
-/// sınırlıyordu; 68 dp'lik önizleme (kullanıcı 2026-08-17: *"simgeleri
-/// olabildiğince büyüt"*) bu tavana çarpıp sıkışıyor, alt satır da tek
-/// aralıklı yazıyla "teknik" görünüyordu. Şimdi:
-/// * önizleme boyu yerleşimden gelir ([FmLayout.iconSizeFor] × tema ölçeği),
-///   satır boyu ondan türer — tavan yok;
-/// * ad tek satır, alt satır **orantılı** yazıyla "boyut · tarih";
-/// * sağda 48 dp dokunma alanlı ⋮ (erişilebilirlik);
+/// [FmEntryRow] ve AI dosya listesi tarafından ortak kullanılır.
+/// Renkli etiketlerde (`FmColorsStore.tagColor`) hafif tonlu zemin + renkli
+/// nokta; renksiz etiketlerde sakin yüzey tonu + küçük etiket simgesi çizilir.
+class FmTagPills extends StatelessWidget {
+  final Iterable<String> tags;
+  final int maxVisible;
+
+  const FmTagPills({
+    super.key,
+    required this.tags,
+    this.maxVisible = 4,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = tags.where((t) => t.trim().isNotEmpty).toList()..sort();
+    if (sorted.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final shown =
+        sorted.length > maxVisible ? sorted.sublist(0, maxVisible) : sorted;
+    final overflow = sorted.length - shown.length;
+    final baseStyle = theme.textTheme.labelSmall?.copyWith(
+      fontSize: 11.5,
+      height: 1.15,
+      fontWeight: FontWeight.w600,
+    );
+
+    Widget pill(String tag) {
+      final accent = FmColorsStore.tagColor(tag);
+      final bg = accent != null
+          ? accent.withValues(alpha: isDark ? 0.22 : 0.12)
+          : scheme.surfaceContainerHighest;
+      final border = accent != null
+          ? accent.withValues(alpha: isDark ? 0.45 : 0.30)
+          : scheme.outlineVariant;
+      final fg = accent != null
+          ? (isDark
+              ? Color.lerp(accent, Colors.white, 0.45)!
+              : Color.lerp(accent, Colors.black, 0.28)!)
+          : scheme.onSurfaceVariant;
+      return Container(
+        padding: const EdgeInsetsDirectional.symmetric(
+          horizontal: 6,
+          vertical: 2,
+        ),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: border, width: 0.75),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (accent != null)
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else
+              Icon(AppIcons.tag, size: 10.5, color: fg.withValues(alpha: 0.85)),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                tag,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: baseStyle?.copyWith(color: fg),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 5,
+      runSpacing: 4,
+      children: [
+        for (final tag in shown) pill(tag),
+        if (overflow > 0)
+          Container(
+            padding: const EdgeInsetsDirectional.symmetric(
+              horizontal: 6,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: scheme.outlineVariant, width: 0.75),
+            ),
+            child: Text(
+              '+$overflow',
+              maxLines: 1,
+              style: baseStyle?.copyWith(
+                color: scheme.onSurfaceVariant,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Liste satırı — **dört katmanlı, nokta atışı okunabilir tasarım**
+/// (2026-11-23 yenilemesi).
 ///
-/// Ferrari H4.1 (2026-11-14, kullanıcı: *"satır simgeleri 48–56 dp
-/// olabilir"*): önizleme 52 dp, ad `titleMedium`, alt satırda bilgi solda,
-/// [subtitleEnd] (boyut) SAĞA hizalı; satır ≥ 64 dp (≥ 840 dp'de 72).
-/// ⋮ soluk (H4.9 — uzun basış + seçim çubuğu asıl yol).
-/// * seçimde önizleme durur, üstüne onay rozeti biner ([FmSelectableIcon]).
+/// KÖK NEDEN: eskiden ikinci ad (AI/Akıllı düzen), kaynak ("WhatsApp") ve
+/// tarih tek bir `Text.rich` içinde birleştiriliyordu; ikinci ad uzayınca
+/// tarih kesiliyor (`1...`, `18 K...` ya da tamamen kayıp), uzun dosya adları
+/// tek satırda kırpılıyor ve kullanıcı etiketleri satırda hiç görünmüyordu.
+///
+/// Şimdi her bilgi kendi net katmanında durur:
+/// 1. **Dosya adı** — 2 satıra kadar, güçlü kontrastlı `w600` başlık;
+/// 2. **İkinci ad** (varsa) — solunda ince vurgu çizgili ayrı satır;
+/// 3. **Etiketler** (varsa) — kompakt renkli haplar ([FmTagPills]);
+/// 4. **Alt bilgi şeridi** — kaynak/konum solda esner, **tarih ve boyut**
+///    sağda kesilmeden sabitlenir (büyük yazı ölçeğinde taşmadan alt satıra
+///    iner).
 class FmEntryRow extends StatelessWidget {
   final FsEntry entry;
   final bool selected;
   final bool selecting;
   final FmLayout layout;
+
+  /// Alt bilgi şeridinin solundaki konum / kaynak / bağlam metni.
   final String subtitle;
+
+  /// Alt bilgi şeridinde **kesinlikle kesilmeden** gösterilen tarih metni
+  /// (ör. "20 Kas", "19 Kas 2025"). `null` = tarih ayrı geçilmedi.
+  final String? dateText;
 
   /// Alt satırın SAĞINA hizalanan kısa bilgi (genelde boyut); null = yok.
   final String? subtitleEnd;
   final VoidCallback onTap;
+
+  /// Uzun basış (yalnız [DragSelectArea] kullanmayan ekranlarda).
+  final VoidCallback? onLongPress;
 
   /// Onay kutusuna dokunma (uzun basış [DragSelectArea]'da yakalanır).
   final VoidCallback? onCheck;
@@ -84,8 +207,16 @@ class FmEntryRow extends StatelessWidget {
   /// (simgenin yerinde onay kutusu var).
   final String? heroTag;
 
-  /// Üst listeden hazır geçirilen AI ikinci adı, küçük resim ayarı ve DPR.
+  /// Üst listeden hazır geçirilen AI/elle ikinci ad, etiketler, küçük resim
+  /// ayarı ve DPR.
   final String? alias;
+  final Iterable<String>? tags;
+
+  /// Etiket hapları gösterilsin mi? Sanal arşiv girdilerinde `false`.
+  final bool showTags;
+
+  /// Satır altında metin hizasından başlayan ince ayırıcı çizgi çizilsin mi?
+  final bool showDivider;
   final bool? thumbsOn;
   final double? dpr;
 
@@ -95,7 +226,9 @@ class FmEntryRow extends StatelessWidget {
     required this.selected,
     required this.selecting,
     required this.onTap,
+    this.onLongPress,
     required this.subtitle,
+    this.dateText,
     this.subtitleEnd,
     this.layout = FmLayout.list,
     this.onCheck,
@@ -106,66 +239,220 @@ class FmEntryRow extends StatelessWidget {
     this.audioQueue,
     this.heroTag,
     this.alias,
+    this.tags,
+    this.showTags = true,
+    this.showDivider = false,
     this.thumbsOn,
     this.dpr,
   });
+
+  static final Listenable _metaListenable = Listenable.merge([
+    AiIndex.revision,
+    SmartSort.revision,
+    FileTags.changes,
+    FmColorsStore.revision,
+  ]);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    // Tema ailesi simge ölçeğini de belirler (2026-08-25): "İş programı"nda
-    // %22 küçük, "Modern"de %12 büyük — kullanıcı temayı seçerken boyutu da
-    // seçmiş oluyor.
     final iconSize = layout.iconSizeFor(0) * context.fmIconScale;
-    final vPad = layout == FmLayout.detail ? Gap.sm : 6.0;
-    // Satır ≥ 64 dp; geniş ekranda (≥ 840 dp) 72 — ferah liste (H4.1).
+    final vPad = layout == FmLayout.detail ? 12.0 : 10.0;
     final minRow = MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0;
-    final end = subtitleEnd;
     final more = _trailing(context, scheme);
     final visibleName = NameSpoof.visible(entry.name);
     final deceptiveExt = NameSpoof.deceptiveExtension(entry.name);
     final preAlias = alias;
+    final preTags = showTags ? tags : const <String>[];
+    final needsListen = preAlias == null || (showTags && preTags == null);
 
-    Widget buildSubtitle(String currentAlias) {
-      final meta = theme.textTheme.bodySmall?.copyWith(
+    Widget buildMetaBar() {
+      final left = subtitle.trim();
+      final date = (dateText ?? '').trim();
+      final size = (subtitleEnd ?? '').trim();
+      if (left.isEmpty && date.isEmpty && size.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final baseStyle = theme.textTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        height: 1.25,
         color: scheme.onSurfaceVariant,
         fontFeatures: const [FontFeature.tabularFigures()],
       );
-      final start = Text.rich(
-        TextSpan(children: [
-          if (currentAlias.isNotEmpty)
-            TextSpan(
-              text: '$currentAlias · ',
-              style: TextStyle(
-                color: scheme.primary,
-                fontWeight: FontWeight.w500,
+      final dateStyle = baseStyle?.copyWith(
+        color: scheme.onSurface.withValues(alpha: 0.76),
+        fontWeight: FontWeight.w600,
+      );
+      final largeText = MediaQuery.textScalerOf(context).scale(12) > 17.5;
+
+      Widget leftText() => Text(
+            bidiParts(context, left),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: baseStyle,
+          );
+
+      Widget trailingDateAndSize() {
+        if (date.isNotEmpty && size.isNotEmpty) {
+          return Text.rich(
+            TextSpan(children: [
+              TextSpan(text: bidiParts(context, date), style: dateStyle),
+              TextSpan(text: ' · ${bidiParts(context, size)}'),
+            ]),
+            maxLines: 1,
+            softWrap: false,
+            style: baseStyle,
+          );
+        }
+        if (date.isNotEmpty) {
+          return Text(
+            bidiParts(context, date),
+            maxLines: 1,
+            softWrap: false,
+            style: dateStyle,
+          );
+        }
+        return Text(
+          bidiParts(context, size),
+          maxLines: 1,
+          softWrap: false,
+          style: baseStyle,
+        );
+      }
+
+      // Çok büyük erişilebilirlik yazı ölçeğinde (≥ 1,5×) tarih ve boyut
+      // taşmasın/kesilmesin diye konumun altına sarılır.
+      if (largeText) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (left.isNotEmpty) leftText(),
+            if (date.isNotEmpty || size.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(top: left.isNotEmpty ? 2 : 0),
+                child: Wrap(
+                  spacing: Gap.xs,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (date.isNotEmpty)
+                      Text(bidiParts(context, date), style: dateStyle),
+                    if (date.isNotEmpty && size.isNotEmpty)
+                      Text('·', style: baseStyle),
+                    if (size.isNotEmpty)
+                      Text(bidiParts(context, size), style: baseStyle),
+                  ],
+                ),
+              ),
+          ],
+        );
+      }
+
+      // Konum boşsa: tarih solda, boyut sağda (ör. klasör gezgini).
+      if (left.isEmpty) {
+        if (date.isNotEmpty && size.isNotEmpty) {
+          return Row(children: [
+            Expanded(
+              child: Text(
+                bidiParts(context, date),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: dateStyle,
               ),
             ),
-          TextSpan(text: bidiParts(context, subtitle)),
-        ]),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: meta,
+            const SizedBox(width: Gap.sm),
+            Text(bidiParts(context, size),
+                maxLines: 1, softWrap: false, style: baseStyle),
+          ]);
+        }
+        return trailingDateAndSize();
+      }
+
+      if (date.isEmpty && size.isEmpty) return leftText();
+
+      // Standart görünüm: kaynak/konum solda esner; tarih ve boyut sağda
+      // KESİLMEDEN sabitlenir.
+      return Row(
+        children: [
+          Expanded(child: leftText()),
+          const SizedBox(width: Gap.sm),
+          trailingDateAndSize(),
+        ],
       );
-      if (end == null) return start;
-      return Row(children: [
-        Expanded(child: start),
-        const SizedBox(width: Gap.sm),
-        Text(bidiParts(context, end), maxLines: 1, style: meta),
-      ]);
     }
+
+    Widget buildDetails(String currentAlias, Iterable<String> currentTags) {
+      final hasAlias = currentAlias.isNotEmpty;
+      final hasTags = showTags && currentTags.isNotEmpty;
+      final hasMeta = subtitle.trim().isNotEmpty ||
+          (dateText ?? '').trim().isNotEmpty ||
+          (subtitleEnd ?? '').trim().isNotEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (hasAlias)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Row(
+                children: [
+                  Container(
+                    width: 3,
+                    height: 13,
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.78),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      bidiParts(context, currentAlias),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontSize: 12.5,
+                        height: 1.25,
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (hasTags)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: FmTagPills(tags: currentTags),
+            ),
+          if (hasMeta)
+            Padding(
+              padding: EdgeInsets.only(top: hasTags ? 5 : 4),
+              child: buildMetaBar(),
+            ),
+        ],
+      );
+    }
+
+    final semParts = [
+      if (subtitle.trim().isNotEmpty) subtitle.trim(),
+      if ((dateText ?? '').trim().isNotEmpty) dateText!.trim(),
+      if ((subtitleEnd ?? '').trim().isNotEmpty) subtitleEnd!.trim(),
+    ].join(' · ');
 
     return Semantics(
       selected: selected,
       button: true,
-      // TalkBack: "PDF, Kira sözleşmesi, 117 KB · dün" (Faz 16 / madde 4).
-      // Ad ve alt satır metinleri aşağıda ayrıca okunmasın diye dışlanır.
+      // TalkBack: "PDF, Kira sözleşmesi, fatura, WhatsApp · 20 Kas · 117 KB".
       label: fmEntrySemanticsLabel(
         context,
         entry,
-        end == null ? subtitle : '$subtitle · $end',
+        semParts,
         alias: preAlias,
+        tags: preTags,
         visibleName: visibleName,
         deceptiveExt: deceptiveExt,
         deceptiveChecked: true,
@@ -173,82 +460,133 @@ class FmEntryRow extends StatelessWidget {
       customSemanticsActions: fmSelectAction(context, selected, onCheck),
       // Basılınca satır hafifçe içe çöker (H4.8) — uzun basışın seçim
       // başlatacağını parmak altında hissettirir; titreşim [DragSelectArea]'da.
-      child: PressScale(
-        scale: 0.98,
-        child: Material(
-        color: selected
-            ? scheme.primaryContainer.withValues(alpha: 0.4)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(Radii.card),
-        clipBehavior: Clip.none,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(Radii.card),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minRow),
-            child: Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(Gap.md, vPad,
-                  more == null && badge == null ? Gap.md : Gap.xs, vPad),
-              child: Row(
-                children: [
-                  _withPlay(
-                      fmHero(
-                          selecting ? null : heroTag,
-                          FmSelectableIcon(
-                            entry: entry,
-                            size: iconSize,
-                            selecting: selecting,
-                            selected: selected,
-                            onCheck: onCheck,
-                            thumbnails: thumbnails,
-                            thumbsOn: thumbsOn,
-                            dpr: dpr,
-                          )),
-                      iconSize),
-                  const SizedBox(width: Gap.md),
-                  Expanded(
-                    child: ExcludeSemantics(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FmEntryName(
-                            entry.name,
-                            visibleName: visibleName,
-                            deceptiveExt: deceptiveExt,
-                            deceptiveChecked: true,
-                            maxLines: 1,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: selected ? scheme.primary : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PressScale(
+            scale: 0.985,
+            child: Material(
+              color: selected
+                  ? scheme.primaryContainer.withValues(alpha: 0.45)
+                  : Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.card),
+                side: selected
+                    ? BorderSide(
+                        color: scheme.primary.withValues(alpha: 0.32),
+                        width: 1,
+                      )
+                    : BorderSide.none,
+              ),
+              clipBehavior: Clip.none,
+              child: InkWell(
+                onTap: onTap,
+                onLongPress: onLongPress,
+                borderRadius: BorderRadius.circular(Radii.card),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: minRow),
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                      Gap.md,
+                      vPad,
+                      more == null && badge == null ? Gap.md : Gap.xs,
+                      vPad,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: _withPlay(
+                            fmHero(
+                              selecting ? null : heroTag,
+                              FmSelectableIcon(
+                                entry: entry,
+                                size: iconSize,
+                                selecting: selecting,
+                                selected: selected,
+                                onCheck: onCheck,
+                                thumbnails: thumbnails,
+                                thumbsOn: thumbsOn,
+                                dpr: dpr,
+                              ),
+                            ),
+                            iconSize,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: ExcludeSemantics(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: iconSize),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FmEntryName(
+                                    entry.name,
+                                    visibleName: visibleName,
+                                    deceptiveExt: deceptiveExt,
+                                    deceptiveChecked: true,
+                                    maxLines: 2,
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
+                                      fontSize: 15,
+                                      height: 1.24,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: -0.15,
+                                      color: selected
+                                          ? scheme.primary
+                                          : scheme.onSurface,
+                                    ),
+                                  ),
+                                  if (!needsListen)
+                                    buildDetails(preAlias, preTags ?? const [])
+                                  else
+                                    ListenableBuilder(
+                                      listenable: _metaListenable,
+                                      builder: (context, _) => buildDetails(
+                                        preAlias ?? AiIndex.aliasOf(entry.path),
+                                        showTags
+                                            ? (preTags ??
+                                                FileTags.forPath(entry.path))
+                                            : const [],
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          // İkinci ad (AI, 2026-11-08) alt satırın başında;
-                          // tek satır kalır → satır yüksekliği sabit (G14).
-                          if (preAlias != null)
-                            buildSubtitle(preAlias)
-                          else
-                            ValueListenableBuilder<int>(
-                              valueListenable: AiIndex.revision,
-                              builder: (context, _, _) =>
-                                  buildSubtitle(AiIndex.aliasOf(entry.path)),
-                            ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: Gap.sm),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: badge!,
+                          ),
                         ],
-                      ),
+                        ?more,
+                      ],
                     ),
                   ),
-                  if (badge != null) ...[
-                    const SizedBox(width: Gap.sm),
-                    badge!,
-                  ],
-                  ?more,
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+          if (showDivider && !selected)
+            Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: Gap.md + iconSize + 14,
+                end: Gap.md,
+              ),
+              child: Divider(
+                height: 0.5,
+                thickness: 0.5,
+                color: scheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -324,6 +662,7 @@ class FmEntryCard extends StatelessWidget {
   /// Bkz. [FmEntryRow.heroTag].
   final String? heroTag;
   final String? alias;
+  final Iterable<String>? tags;
   final bool? thumbsOn;
   final double? dpr;
 
@@ -339,6 +678,7 @@ class FmEntryCard extends StatelessWidget {
     this.layout = FmLayout.grid3,
     this.heroTag,
     this.alias,
+    this.tags,
     this.thumbsOn,
     this.dpr,
   });
@@ -348,6 +688,10 @@ class FmEntryCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final visibleName = NameSpoof.visible(entry.name);
     final deceptiveExt = NameSpoof.deceptiveExtension(entry.name);
+    final resolvedTags = tags ?? FileTags.forPath(entry.path);
+    final firstTag = resolvedTags.isEmpty ? null : resolvedTags.first;
+    final tagAccent =
+        firstTag == null ? null : FmColorsStore.tagColor(firstTag);
     // Basınca hafifçe çöker; seçim kipinde değil (sürükleyerek seçerken
     // hücreler "nefes almasın").
     return Semantics(
@@ -358,6 +702,7 @@ class FmEntryCard extends StatelessWidget {
         entry,
         null,
         alias: alias,
+        tags: resolvedTags,
         visibleName: visibleName,
         deceptiveExt: deceptiveExt,
         deceptiveChecked: true,
@@ -428,6 +773,27 @@ class FmEntryCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (!selecting && firstTag != null)
+                      PositionedDirectional(
+                        top: 4,
+                        start: 4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: scheme.surface.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: tagAccent ?? scheme.primary,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Icon(
+                            AppIcons.tag,
+                            size: 10,
+                            color: tagAccent ?? scheme.primary,
+                          ),
+                        ),
+                      ),
                     if (selecting)
                       PositionedDirectional(
                         top: 0,
@@ -449,7 +815,7 @@ class FmEntryCard extends StatelessWidget {
   }
 }
 
-/// Dosya satırının TalkBack metni: tür, ad ve (varsa) alt satır.
+/// Dosya satırının TalkBack metni: tür, ad, ikinci ad, etiketler ve alt satır.
 /// Klasörde tür söylenmez — simge ve "›" zaten klasör olduğunu anlatıyor,
 /// "Klasörler, Faturalar" kulağa yanlış geliyordu.
 String fmEntrySemanticsLabel(
@@ -457,12 +823,14 @@ String fmEntrySemanticsLabel(
   FsEntry entry,
   String? subtitle, {
   String? alias,
+  Iterable<String>? tags,
   String? visibleName,
   String? deceptiveExt,
   bool deceptiveChecked = false,
 }) {
   final type = FmType.of(entry);
   final resolvedAlias = alias ?? AiIndex.aliasOf(entry.path);
+  final resolvedTags = tags ?? FileTags.forPath(entry.path);
   final shown = visibleName ?? NameSpoof.visible(entry.name);
   final ext = deceptiveChecked
       ? deceptiveExt
@@ -472,6 +840,7 @@ String fmEntrySemanticsLabel(
     shown,
     if (ext != null) context.t('fm.name_spoof_warn', {'ext': ext}),
     if (resolvedAlias.isNotEmpty) resolvedAlias,
+    for (final tag in resolvedTags) '#$tag',
     if (subtitle != null && subtitle.isNotEmpty) subtitle,
   ];
   return parts.join(', ');

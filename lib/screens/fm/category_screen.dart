@@ -655,16 +655,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
               onOpen: _open,
               onToggle: _toggle,
               onSelectRange: (a, b, sel) => _selectRange(files, a, b, sel),
-              // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
-              // bkz. [FmLocation] (2026-09-23 tasarım turu).
-              // Kaynak · tarih solda, boyut sağda (Ferrari H4.1).
+              // Kaynak solda esner, tarih ve boyut sağda kesilmeden sabitlenir;
+              // ikinci ad ve etiketler kendi katmanlarında görünür.
               subtitle: (e) =>
                   _modeSubs[e.path] ??
-                  FmLocation.meta(e.path, e.modifiedMs, context.t,
-                      volumes: FmEnv.volumes),
-              subtitleEnd: (e) => _modeSubs[e.path] != null || e.isDir
-                  ? null
-                  : FsPaths.humanSize(e.sizeBytes),
+                  FmLocation.label(e.path, context.t, volumes: FmEnv.volumes),
+              dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+              subtitleEnd: (e) =>
+                  e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
               onMore: (e) async {
                 await showEntryActions(context, e,
                     allowReveal: true, onReveal: _reveal);

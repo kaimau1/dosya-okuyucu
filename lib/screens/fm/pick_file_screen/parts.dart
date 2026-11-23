@@ -469,12 +469,12 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
       showChevron: true,
       // Ana sayfada ve arama sonucunda dosyanın NEREDE olduğu kritik:
       // aynı adlı iki dosyayı ayırt etmenin tek yolu bu.
-      subtitle: entry.isDir
-          ? FsPaths.humanDate(entry.modifiedMs)
-          : (_view == _PickView.folder
-              ? FsPaths.humanSize(entry.sizeBytes)
-              : '${FsPaths.humanSize(entry.sizeBytes)} · '
-                  '${p.basename(p.dirname(entry.path))}'),
+      subtitle: entry.isDir || _view == _PickView.folder
+          ? ''
+          : FmLocation.label(entry.path, context.t, volumes: FmEnv.volumes),
+      dateText: FmLocation.shortDate(entry.modifiedMs),
+      subtitleEnd: entry.isDir ? null : FsPaths.humanSize(entry.sizeBytes),
+      showDivider: true,
       onCheck: () => _onTapEntry(entry),
       onTap: () => _onTapEntry(entry),
     );

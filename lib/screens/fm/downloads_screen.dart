@@ -12,6 +12,7 @@ import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
@@ -392,6 +393,8 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                           }
                         }),
                         subtitle: _subtitle,
+                        dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+                        subtitleEnd: (e) => FsPaths.humanSize(e.sizeBytes),
                         badge: _ageBadge,
                         empty: FmEmptyState(
                           icon: AppIcons.noMatch,
@@ -490,15 +493,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     );
   }
 
-  /// Satırın alt yazısı: boyut · (alt klasör) · indirilme · son açılma.
+  /// Satırın alt yazısı: (alt klasör) · son açılma; tarih ve boyut ayrı
+  /// sabit alanlarda kesilmeden görünür.
   String _subtitle(FsEntry entry) => [
-        FsPaths.humanSize(entry.sizeBytes),
         // Liste alt klasörleri de kapsıyor; dosyanın hangi alt klasörde
         // olduğu yazılmazsa aynı adlı iki dosya ayırt edilemiyordu.
         if (p.dirname(entry.path) != widget.path)
-          '📁 ${p.basename(p.dirname(entry.path))}',
-        context.t('dls.downloaded_at',
-            {'when': FsPaths.humanDate(entry.modifiedMs)}),
+          p.basename(p.dirname(entry.path)),
         if (entry.hasAccessInfo)
           context.t('dls.last_opened', {
             'when': relativeDays(daysBetween(entry.accessedMs, _now)),
