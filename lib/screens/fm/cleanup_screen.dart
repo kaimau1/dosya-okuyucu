@@ -3,45 +3,50 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
-import '../../services/fm/empty_folders.dart';
-import '../../services/fm/important_files.dart';
+import '../../models/fs_entry.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/cleanup_ignore.dart';
 import '../../services/fm/duplicate_finder.dart';
+import '../../services/fm/empty_folders.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/important_files.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
+import '../../services/fm/smart_sort.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
+import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/motion.dart' show FmEmptyState;
+import 'chat_cleanup_screen.dart';
 import 'entry_actions.dart' show trashWithUndo;
 import 'smart_clutter_screen.dart';
 import 'trash_screen.dart';
-import '../../services/fm/smart_sort.dart';
-import '../../core/safe_insets.dart';
-import '../../widgets/app_dialog.dart';
-import '../../widgets/motion.dart' show FmEmptyState;
 
 /// **Yer açma asistanı** — "3 GB yer aç" isteğinin karşılığı.
 ///
 /// Tarama sonuçlarından (kategori istatistikleri, indirilenlerin yaşı,
-/// yinelenenler, çöp kutusu) öneriler üretir; kullanıcı hangilerini istediğini
-/// seçer ve tek dokunuşla temizler.
+/// yinelenenler, geçici/yarım dosyalar, sohbet gönderilen kopyaları, boş
+/// klasörler ve çöp kutusu) öneriler üretir; kullanıcı ister kategori ister
+/// dosya bazında seçer ve tek dokunuşla temizler.
 ///
 /// Tasarım kararları:
 /// - Öneriler **saf bir fonksiyondan** gelir (`adviseCleanup`) → birim testli;
 ///   "yanlış dosyayı önerdi" sınıfı hatalar testte yakalanır.
-/// - **Hiçbir şey otomatik silinmez.** Güvenli öneriler (çöp, kopyalar, APK)
-///   açık gelir; fotoğraf/video içeren öneriler kapalı gelir ve tek tek
-///   seçilmeleri beklenir — yanlışlıkla silinen anı geri gelmez.
-/// - Silme **çöp kutusuna** gider (ayarlarda kapatılmadıysa): asistanın kendisi
-///   bir hata yaparsa bile dosya kurtarılabilir.
+/// - **Hiçbir şey otomatik silinmez.** Güvenli öneriler (çöp, kopyalar, APK,
+///   geçici artıklar, boş klasörler) açık gelir; fotoğraf/video içeren öneriler
+///   kapalı gelir ve tek tek seçilmeleri beklenir.
+/// - Dosyalar **çöp kutusuna** taşınır (ayarlarda kapatılmadıysa); boş
+///   klasörler ise `EmptyFolders.deleteAll` ile içten dışa, özyinelemesiz
+///   silinir.
 class CleanupScreen extends StatefulWidget {
   /// Panonun/analiz ekranının elindeki hazır indeks.
   ///
@@ -49,7 +54,7 @@ class CleanupScreen extends StatefulWidget {
   /// (İşlemler kartı, alt şerit, sistem bildirimi — bkz.
   /// `screens/fm/job_navigation.dart`) ve orada elde indeks yok. O durumda
   /// tarama indeksi kendisi kurar; hazır indeksle açıldığında (yaygın yol)
-  /// hiçbir şey değişmez, ikinci bir tam tarama YAPILMAZ.
+  /// ilk çözümlemede ikinci bir tam tarama YAPILMAZ.
   final StorageIndex? index;
 
   /// İşlemler merkezinin sekmesi mi? (bkz. `OperationsScreen`)
@@ -76,14 +81,27 @@ int? lastCleanupRecoverable() {
   return result is CleanupScanResult ? cleanupTotal(result.suggestions) : null;
 }
 
+enum _CleanupFilter { all, safe, review }
+
 class _CleanupScreenState extends State<CleanupScreen> {
   /// Çözümleme ve temizleme işlerinin kuyruktaki kararlı kimlikleri.
   static const _scanJobId = 'cleanup_scan';
   static const _applyJobId = 'cleanup_apply';
 
-  final Set<String> _selected = {};
+  /// Dosyasız öneriler (`trash`) için seçim.
+  final Set<String> _selectedFileless = {};
+
+  /// Dosyalı öneriler için öneri kimliği → seçili dosya yolları (tek tek seçim).
+  final Map<String, Set<String>> _selectedFiles = {};
+
   final Set<String> _expanded = {};
   final Set<String> _showAllFiles = {};
+
+  /// Kart içi dosya sıralaması: kümede varsa tarihe göre (eskiden yeniye),
+  /// yoksa boyuta göre (büyükten küçüğe).
+  final Set<String> _sortByDate = {};
+
+  _CleanupFilter _filter = _CleanupFilter.all;
 
   /// Kullanıcı seçimi bir kez kurulur; sonuç tazelenince yeniden kurulmalı.
   String? _seedSignature;
@@ -99,18 +117,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final job = JobQueue.instance.find(_scanJobId);
     final hasResult = job?.result is CleanupScanResult;
     // Sonuç varsa yeniden taramıyoruz: kullanıcı geri döndüğünde beklemesin.
-    //
-    // Sonucu OLMAYAN ve artık koşmayan iş (başarısız **ya da iptal edilmiş**)
-    // yeniden taranır: eskiden yalnız `failed` bakılıyordu ve iptalden sonra
-    // ekran "Temizlenecek belirgin bir şey bulunamadı 🎉 / Depolaman düzenli
-    // görünüyor" diye tam ters bir güvence veriyordu — çözümleme hiç bitmemiş
-    // olduğu hâlde (2026-07-29 sadakat denetimi, 2. tur).
+    // Sonucu OLMAYAN ve artık koşmayan iş (başarısız ya da iptal edilmiş)
+    // yeniden taranır.
     if (job == null || (!hasResult && !job.status.isActive)) {
       _analyze();
     } else if (hasResult) {
-      // Geri dönüşte varsayılan seçim burada kurulur: `_onQueue` yalnız kuyruk
-      // bildiriminde çalışıyor, bitmiş bir iş bir daha bildirim üretmiyor →
-      // "Güvenli öneriler açık gelir" sözü ikinci girişte tutulmuyordu.
       _seedSelection();
     }
   }
@@ -145,12 +156,14 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
   Future<void> _trashOne(String path) async {
     // Ortak uç: "Geri al" kartı (B13 m.5 bekçisi `undo_paths_guard_test`).
-    // ponytail: "Geri al" sonrası dosya yeniden taramaya dek listede görünmez.
     final ok = await trashWithUndo(context, [path]);
     FsEvents.changed();
     if (!ok || !mounted) return;
     setState(() {
       _trashed.add(path);
+      for (final set in _selectedFiles.values) {
+        set.remove(path);
+      }
       _seedSignature = null;
       _seedSelection();
     });
@@ -160,64 +173,193 @@ class _CleanupScreenState extends State<CleanupScreen> {
   /// kullanıcının kaldırdığı işaret her kuyruk bildiriminde geri gelirdi.
   void _seedSelection() {
     final list = _suggestions;
-    final signature = list.map((s) => '${s.id}:${s.bytes}').join('|');
+    final signature = list.map((s) => '${s.id}:${s.bytes}:${s.files.length}').join('|');
     if (signature == _seedSignature) return;
     _seedSignature = signature;
-    _selected
-      ..clear()
-      ..addAll(list.where((s) => s.safeByDefault).map((s) => s.id));
+    _selectedFileless.clear();
+    _selectedFiles.clear();
+    for (final s in list) {
+      if (s.files.isEmpty) {
+        if (s.safeByDefault) _selectedFileless.add(s.id);
+      } else {
+        _selectedFiles[s.id] = s.safeByDefault
+            ? {for (final f in s.files) f.path}
+            : <String>{};
+      }
+    }
+  }
+
+  /// Bir önerideki seçili dosya sayısı (`trash` gibi dosyasızlarda 1 ya da 0).
+  int _selectedCountOf(CleanupSuggestion s) {
+    if (s.files.isEmpty) return _selectedFileless.contains(s.id) ? 1 : 0;
+    final set = _selectedFiles[s.id];
+    if (set == null || set.isEmpty) return 0;
+    var n = 0;
+    for (final f in s.files) {
+      if (set.contains(f.path)) n++;
+    }
+    return n;
+  }
+
+  /// Bir önerideki seçili dosyaların toplam baytı.
+  int _selectedBytesOf(CleanupSuggestion s) {
+    if (s.files.isEmpty) return _selectedFileless.contains(s.id) ? s.bytes : 0;
+    final set = _selectedFiles[s.id];
+    if (set == null || set.isEmpty) return 0;
+    var sum = 0;
+    for (final f in s.files) {
+      if (set.contains(f.path)) sum += f.sizeBytes;
+    }
+    return sum;
+  }
+
+  /// Bir önerinin üç durumlu onay değeri: `true` (tümü), `false` (hiçbiri),
+  /// `null` (kısmi).
+  bool? _triStateOf(CleanupSuggestion s) {
+    if (s.files.isEmpty) return _selectedFileless.contains(s.id);
+    final sel = _selectedCountOf(s);
+    if (sel == 0) return false;
+    if (sel >= s.files.length) return true;
+    return null;
+  }
+
+  void _toggleSuggestion(CleanupSuggestion s) {
+    setState(() {
+      if (s.files.isEmpty) {
+        if (!_selectedFileless.remove(s.id)) _selectedFileless.add(s.id);
+      } else {
+        final cur = _selectedCountOf(s);
+        if (cur >= s.files.length) {
+          _selectedFiles[s.id] = <String>{};
+        } else {
+          _selectedFiles[s.id] = {for (final f in s.files) f.path};
+        }
+      }
+    });
+  }
+
+  void _toggleFile(CleanupSuggestion s, String path) {
+    setState(() {
+      final set = _selectedFiles.putIfAbsent(s.id, () => <String>{});
+      if (!set.remove(path)) set.add(path);
+    });
+  }
+
+  void _selectAllSafe() {
+    setState(() {
+      for (final s in _suggestions) {
+        if (!s.safeByDefault) continue;
+        if (s.files.isEmpty) {
+          _selectedFileless.add(s.id);
+        } else {
+          _selectedFiles[s.id] = {for (final f in s.files) f.path};
+        }
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedFileless.clear();
+      for (final s in _suggestions) {
+        if (s.files.isNotEmpty) _selectedFiles[s.id] = <String>{};
+      }
+    });
+  }
+
+  /// Kullanıcının o an seçtiği (kısmi dosya seçimleri kırpılmış) öneri listesi.
+  List<CleanupSuggestion> get _chosen {
+    final out = <CleanupSuggestion>[];
+    for (final s in _suggestions) {
+      if (s.files.isEmpty) {
+        if (_selectedFileless.contains(s.id)) out.add(s);
+      } else {
+        final set = _selectedFiles[s.id];
+        if (set == null || set.isEmpty) continue;
+        final picked = [
+          for (final f in s.files)
+            if (set.contains(f.path)) f,
+        ];
+        if (picked.isEmpty) continue;
+        out.add(CleanupSuggestion(
+          id: s.id,
+          titleKey: s.titleKey,
+          detailKey: s.detailKey,
+          detailVars: s.detailVars.containsKey('n')
+              ? {...s.detailVars, 'n': picked.length}
+              : s.detailVars,
+          bytes: picked.fold<int>(0, (a, f) => a + f.sizeBytes),
+          files: picked,
+          safeByDefault: s.safeByDefault,
+        ));
+      }
+    }
+    return out;
+  }
+
+  int _chosenItemCount(List<CleanupSuggestion> chosen) {
+    var n = 0;
+    for (final s in chosen) {
+      if (s.files.isEmpty) {
+        final raw = s.detailVars['n'];
+        n += raw is int ? raw : 1;
+      } else {
+        n += s.files.length;
+      }
+    }
+    return n;
   }
 
   /// Çözümlemeyi **arka plan kuyruğuna** verir.
   ///
-  /// Kullanıcı isteği (2026-07-29): *"yer aç ve bunun gibi işlemler arka planda
-  /// çalışabilmeli"*. Eskiden tarama ekranın içinde koşuyordu; kullanıcı geri
-  /// tuşuna basınca (ya da başka bir işe geçince) dakikalar süren kopya
-  /// taraması çöpe gidiyordu.
-  void _analyze() {
-    // İş kuyruğu geri çağrısı ekran kapandıktan SONRA da koşabilir; metinler
-    // bu yüzden şimdi alınıyor (`context` orada kullanılamaz).
-    // `AppStrings.current` (bağlamsız): bu yöntem `initState`ten de
-    // çağrılıyor ve orada `AppStrings.of(context)` = `Localizations`a
-    // bağımlılık kurmak yasak (hata ayıklamada kırmızı ekran). Kuyruk işinin
-    // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
+  /// [forceRescan] true iken (Yenile düğmesi ya da temizlik sonrası) `widget.index`
+  /// yerine diskten taze tarama yapılır — silinen dosyalar öneride asılı kalmaz.
+  void _analyze({bool forceRescan = false}) {
+    if (forceRescan) {
+      _trashed.clear();
+      _seedSignature = null;
+    }
     final strings = AppStrings.current;
+    final useCachedIndex = !forceRescan && widget.index != null;
     JobQueue.instance.enqueue(
       id: _scanJobId,
       title: strings.t('clean.analyzing'),
       name: strings.t('clean.analyzing_name'),
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
-        // İndeks yoksa (bildirimden/işlem kartından açıldı) burada kurulur:
-        // `adviseCleanup` APK ve büyük video önerilerini indeksten okuyor,
-        // boş indeksle koşmak o önerileri sessizce yok sayardı.
-        // Adım sayacı ("2/4 · Çöp kutusu okunuyor…"): adımlar eşit sürmediği
-        // için yüzde/kalan süre UYDURULMAZ (kopya araması hepsinden uzun) —
-        // ama kullanıcı nerede olduğunu ve kaç adım kaldığını görür.
         String step(int n, String key) =>
             strings.t('job.step', {'n': n, 'total': 4, 'text': strings.t(key)});
         handle.report(detail: step(1, 'clean.reading_index'));
-        final index = widget.index ??
-            await FsScan.index(FmEnv.volumeRoots);
+        final index = useCachedIndex
+            ? widget.index!
+            : await FsScan.index(FmEnv.volumeRoots);
         handle.throwIfCancelled();
 
+        // Çöp, İndirilenler (tüm birimler) ve boş klasörler paralel okunur.
         handle.report(detail: step(2, 'clean.reading_trash'));
-        final trash = await FmEnv.trash.list();
+        final downloadPaths = [
+          for (final root in FmEnv.volumeRoots) p.join(root, 'Download'),
+        ];
+        final pre = await Future.wait([
+          FmEnv.trash.list(),
+          FsScan.collect(downloadPaths),
+          EmptyFolders.find(FmEnv.primaryRoot,
+              isCancelled: () => handle.cancelled),
+        ]);
         handle.throwIfCancelled();
-        final trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+
+        final trash = pre[0] as List<dynamic>;
+        final downloads = pre[1] as List<FsEntry>;
+        final empty = pre[2] as List<String>;
+        final trashBytes =
+            trash.fold<int>(0, (sum, i) => sum + (i.sizeBytes as int));
 
         handle.report(detail: step(3, 'clean.reading_downloads'));
-        final downloadPath = p.join(FmEnv.primaryRoot, 'Download');
-        final downloads = await FsScan.collect([downloadPath]);
         handle.throwIfCancelled();
 
         handle.report(detail: step(4, 'clean.finding_dupes'));
         // Kopya taraması pahalıdır; yalnız burada, bir kez.
         final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
-        handle.throwIfCancelled();
-        // Faz 41 / 5: boş klasörler (ana bellek; ucuz yürüyüş).
-        final empty = await EmptyFolders.find(FmEnv.primaryRoot,
-            isCancelled: () => handle.cancelled);
         handle.throwIfCancelled();
 
         final list = adviseCleanup(
@@ -244,59 +386,54 @@ class _CleanupScreenState extends State<CleanupScreen> {
     setState(() {});
   }
 
-  List<CleanupSuggestion> get _chosen =>
-      _suggestions.where((s) => _selected.contains(s.id)).toList();
-
   Future<void> _apply() async {
     final chosen = _chosen;
     if (chosen.isEmpty) return;
     final total = cleanupTotal(chosen);
     final ok = await showAppConfirm(
-        context,
-        title: context.t('clean.confirm_title'),
-        message: '${context.t('clean.confirm_lead', {
-                'n': chosen.length,
-                'size': FsPaths.humanSize(total),
-              })}'
+      context,
+      title: context.t('clean.confirm_title'),
+      message: '${context.t('clean.confirm_lead', {
+            'n': chosen.length,
+            'size': FsPaths.humanSize(total),
+          })}'
           '${context.t('clean.confirm_tail')}',
-        confirmLabel: context.t('common.clear'),
-        destructive: true,
+      confirmLabel: context.t('common.clear'),
+      destructive: true,
     );
     if (ok != true || !mounted) return;
 
-    // Silme de kuyrukta koşar: 8 bin dosyayı çöpe taşımak dakikalar sürebilir
-    // ve kullanıcı bu sürede ekranda tutulmamalı.
+    // Silme de kuyrukta koşar: binlerce dosyayı çöpe taşımak sürebilir.
     final strings = AppStrings.of(context);
     JobQueue.instance.enqueue(
       id: _applyJobId,
-      title: strings
-          .t('clean.cleaning', {'size': FsPaths.humanSize(total)}),
-      name: strings
-          .t('clean.cleaning_name', {'size': FsPaths.humanSize(total)}),
+      title: strings.t('clean.cleaning', {'size': FsPaths.humanSize(total)}),
+      name: strings.t('clean.cleaning_name', {'size': FsPaths.humanSize(total)}),
       total: chosen.length,
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
         var done = 0;
-        // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA — gerekçesi ve kök nedeni
-        // (veri kaybı) `cleanupApplyOrder`ın başında yazılı, kilidi
-        // `test/fm_smart_features_test.dart`te.
+        // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA — bkz. `cleanupApplyOrder`.
         for (final suggestion in cleanupApplyOrder(chosen)) {
           handle.throwIfCancelled();
-          handle.report(
-              done: done, detail: strings.t(suggestion.titleKey));
+          handle.report(done: done, detail: strings.t(suggestion.titleKey));
           if (suggestion.id == 'trash') {
             await FmEnv.trash.empty();
+          } else if (suggestion.id == 'empty_folders') {
+            // Boş klasörler çöpe taşınmaz; içten dışa güvenli ve özyinelemesiz
+            // silinir (arada dosya gelmiş klasör otomatik atlanır).
+            final dirPaths = [for (final f in suggestion.files) f.path];
+            if (dirPaths.isNotEmpty) {
+              await EmptyFolders.deleteAll(dirPaths,
+                  isCancelled: () => handle.cancelled);
+            }
           } else if (suggestion.files.isNotEmpty) {
-            // Onay ekranda alındı; kuyruktaki iş diyalog açamaz. Bu yüzden
-            // ÖNEMLİ dosyalar (Önemli Dosyalar klasörü, `_onemli` ekli
-            // kopyalar) toplu temizlikte hiç silinmez — onlar yalnız kendi
-            // onay penceresiyle silinir (kullanıcı isteği 2026-11-04).
+            // ÖNEMLİ dosyalar toplu temizlikte hiç silinmez.
             final paths = [
               for (final f in suggestion.files)
                 if (!ImportantFiles.isImportant(f.path)) f.path,
             ];
             if (paths.isNotEmpty) {
-              // A5: çöpe atılanlar iş kaydına — kartından "Geri yükle".
               final result = await FmEnv.trash.moveToTrash(paths);
               handle.addChanges(jobChangesOf(result));
             }
@@ -305,29 +442,52 @@ class _CleanupScreenState extends State<CleanupScreen> {
           handle.report(done: done);
         }
         FsEvents.changed();
-        // BİTMİŞ işin özeti: eskiden "Temizlendi. Yeniden çözümleniyor…"
-        // yazıyordu — çözümleme ayrı bir iş olduğu için bu satır İşlemler
-        // geçmişinde sonsuza dek "sürüyor" gibi duruyordu (2026-10-18).
         handle.report(detail: strings.t('clean.cleaned_detail', {
           'size': FsPaths.humanSize(total),
           'n': chosen.length,
         }));
       },
     );
-    // Temizlik bitince öneriler bayat: çözümleme kuyruğa arkasından eklenir
-    // (kuyruk tek tek çalıştığı için sıra doğru).
-    _analyze();
+    // Temizlik bitince öneriler bayat: taze disk taraması kuyruğa arkasından
+    // eklenir (eski `widget.index` kullanılmaz!).
+    _analyze(forceRescan: true);
   }
 
   Widget _reanalyzeButton() => IconButton(
         tooltip: context.t('clean.reanalyze'),
         icon: const Icon(AppIcons.refresh),
-        onPressed: _loading ? null : _analyze,
+        onPressed: _loading ? null : () => _analyze(forceRescan: true),
       );
+
+  IconData _iconFor(String id) => switch (id) {
+        'trash' => AppIcons.deleteSweep,
+        'duplicates' => AppIcons.copyAll,
+        'temp_junk' => AppIcons.autoDelete,
+        'apk' => AppIcons.android,
+        'app_backup' => AppIcons.backup,
+        'chat_sent' => AppIcons.send,
+        'big_videos' => AppIcons.video,
+        'stale_downloads' => AppIcons.download,
+        'old_screenshots' => AppIcons.screenshot,
+        'old_large' => AppIcons.folderSpecial,
+        'empty_folders' => AppIcons.emptyFolder,
+        _ => AppIcons.cleanEmpty,
+      };
 
   @override
   Widget build(BuildContext context) {
+    final all = _suggestions;
     final chosen = _chosen;
+    final safeCount = all.where((s) => s.safeByDefault).length;
+    final reviewCount = all.length - safeCount;
+    final effectiveFilter =
+        (safeCount == 0 || reviewCount == 0) ? _CleanupFilter.all : _filter;
+    final visible = switch (effectiveFilter) {
+      _CleanupFilter.all => all,
+      _CleanupFilter.safe => all.where((s) => s.safeByDefault).toList(),
+      _CleanupFilter.review => all.where((s) => !s.safeByDefault).toList(),
+    };
+
     return Scaffold(
       appBar: widget.embedded
           ? null
@@ -336,25 +496,14 @@ class _CleanupScreenState extends State<CleanupScreen> {
               actions: [_reanalyzeButton()],
             ),
       body: _loading
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: Gap.md),
-                  Text(_step),
-                  const SizedBox(height: Gap.sm),
-                  Text(context.t('clean.dupes_note'),
-                      textAlign: TextAlign.center),
-                ],
-              ),
-            )
-          : _suggestions.isEmpty
+          ? _loadingView(context)
+          : all.isEmpty
               ? FmEmptyState(
                   icon: AppIcons.cleanEmpty,
                   title: context.t('clean.nothing_body'),
                   action: FilledButton.tonalIcon(
-                    onPressed: _loading ? null : _analyze,
+                    onPressed:
+                        _loading ? null : () => _analyze(forceRescan: true),
                     icon: const Icon(AppIcons.refresh, size: 18),
                     label: Text(context.t('clean.reanalyze')),
                   ),
@@ -374,31 +523,20 @@ class _CleanupScreenState extends State<CleanupScreen> {
                     ),
                   ),
                   children: [
-                    _summaryBanner(chosen),
+                    _summaryBanner(all, chosen),
+                    if (safeCount > 0 && reviewCount > 0) ...[
+                      const SizedBox(height: Gap.sm),
+                      _filterStrip(
+                          context, all.length, safeCount, reviewCount, effectiveFilter),
+                    ],
                     const SizedBox(height: Gap.sm + 2),
-                    // Akıllı düzenin (Decisions modeli) "Ayıkla" bulguları
-                    // Yer aç'ta da (2026-11-20, kullanıcı: "yer aç gibi
-                    // şeylerde bu yeni model kullanılabilir"). Silme Ayıkla
-                    // ekranında tek tek onayla — burada otomatik seçilmez.
+                    // Akıllı düzenin "Ayıkla" bulguları Yer aç'ta da.
                     if (_clutterCount > 0) ...[
-                      Card(
-                        margin: EdgeInsets.zero,
-                        child: ListTile(
-                          key: const ValueKey('clean-smart-clutter'),
-                          leading: const Icon(AppIcons.ai),
-                          title: Text(context
-                              .t('sm.clutter_title', {'n': _clutterCount})),
-                          subtitle: Text(context.t('sm.clutter_sub')),
-                          trailing: const Icon(AppIcons.chevron),
-                          onTap: () async {
-                            await SmartClutterScreen.open(context);
-                            if (mounted) setState(() {});
-                          },
-                        ),
-                      ),
+                      _clutterBanner(context),
                       const SizedBox(height: Gap.sm + 2),
                     ],
-                    for (final s in _suggestions) _card(s),
+                    for (final s in visible) _card(s),
+                    if (!widget.embedded) _moreToolsCard(context),
                     if (CleanupIgnore.instance.count > 0)
                       Center(
                         child: TextButton(
@@ -409,76 +547,407 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       ),
                   ],
                 ),
-      bottomNavigationBar: _loading || _suggestions.isEmpty
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.md),
-                child: FilledButton.icon(
-                  onPressed: chosen.isEmpty ? null : _apply,
-                  icon: const Icon(AppIcons.cleanEmpty),
-                  label: Text(chosen.isEmpty
-                      ? context.t('clean.pick_one')
-                      : context.t('clean.free_amount', {
-                          'size': FsPaths.humanSize(cleanupTotal(chosen)),
-                        })),
-                ),
-              ),
-            ),
+      bottomNavigationBar:
+          _loading || all.isEmpty ? null : _bottomBar(context, chosen),
     );
   }
 
-  Widget _summaryBanner(List<CleanupSuggestion> chosen) {
+  Widget _loadingView(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final total = cleanupTotal(_suggestions);
+    final cs = theme.colorScheme;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.lg),
+          child: Material(
+            color: cs.surfaceContainerHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.card),
+              side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(Gap.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(strokeWidth: 3),
+                  ),
+                  const SizedBox(height: Gap.md),
+                  Text(
+                    _step.isEmpty ? context.t('clean.reading_index') : _step,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    context.t('clean.dupes_note'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    context.t('clean.bg_safe'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: cs.primary),
+                  ),
+                  const SizedBox(height: Gap.md),
+                  OutlinedButton.icon(
+                    key: const ValueKey('clean-cancel-scan'),
+                    onPressed: () => JobQueue.instance.cancel(_scanJobId),
+                    icon: const Icon(AppIcons.close, size: 18),
+                    label: Text(context.t('common.cancel')),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomBar(BuildContext context, List<CleanupSuggestion> chosen) {
+    final cs = Theme.of(context).colorScheme;
     final selectedBytes = cleanupTotal(chosen);
-    final safeIds = {
-      for (final s in _suggestions)
-        if (s.safeByDefault) s.id,
-    };
-    final allSafeSelected =
-        safeIds.isNotEmpty && safeIds.every(_selected.contains);
-    return Card(
-      margin: EdgeInsets.zero,
-      color: scheme.surfaceContainerLow,
+    final items = _chosenItemCount(chosen);
+    final onlyEmptyFolders = chosen.isNotEmpty &&
+        selectedBytes == 0 &&
+        chosen.every((s) => s.id == 'empty_folders');
+    final label = chosen.isEmpty
+        ? context.t('clean.pick_one')
+        : (onlyEmptyFolders
+            ? context.t('clean.empty_folders_only', {'n': items})
+            : context.t('clean.free_items', {
+                'size': FsPaths.humanSize(selectedBytes),
+                'n': items,
+              }));
+    return Material(
+      color: cs.surface,
+      elevation: 3,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.md),
+          child: FilledButton.icon(
+            key: const ValueKey('clean-apply-btn'),
+            onPressed: chosen.isEmpty ? null : _apply,
+            icon: const Icon(AppIcons.cleanEmpty),
+            label: Text(label),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryBanner(
+      List<CleanupSuggestion> all, List<CleanupSuggestion> chosen) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final total = cleanupTotal(all);
+    final safeBytes = cleanupTotal(all.where((s) => s.safeByDefault));
+    final reviewBytes = total > safeBytes ? total - safeBytes : 0;
+    final selectedBytes = cleanupTotal(chosen);
+    final safeList = all.where((s) => s.safeByDefault).toList();
+    final allSafeSelected = safeList.isNotEmpty &&
+        safeList.every((s) => _triStateOf(s) == true);
+    final hasAnySelected = chosen.isNotEmpty;
+    final safeColor = Paper.success(context);
+    final reviewColor = AppHues.orange;
+
+    return Material(
+      key: const ValueKey('clean-summary'),
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              context.t('clean.summary_line', {
-                'total': FsPaths.humanSize(total),
-                'selected': FsPaths.humanSize(selectedBytes),
-              }),
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(AppIcons.cleanEmpty,
+                      color: cs.onPrimaryContainer, size: 24),
+                ),
+                const SizedBox(width: Gap.sm + 2),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.t('clean.recoverable',
+                            {'size': FsPaths.humanSize(total)}),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        context.t('clean.summary_line', {
+                          'total': FsPaths.humanSize(total),
+                          'selected': FsPaths.humanSize(selectedBytes),
+                        }),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
+            if (total > 0) ...[
+              const SizedBox(height: Gap.sm + 2),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: SizedBox(
+                  height: 7,
+                  child: Row(
+                    children: [
+                      if (safeBytes > 0)
+                        Expanded(
+                          flex: safeBytes.clamp(1, 1 << 30),
+                          child: ColoredBox(color: safeColor),
+                        ),
+                      if (reviewBytes > 0)
+                        Expanded(
+                          flex: reviewBytes.clamp(1, 1 << 30),
+                          child: ColoredBox(color: reviewColor),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: Gap.xs),
+              Wrap(
+                spacing: Gap.md,
+                runSpacing: 2,
+                children: [
+                  if (safeBytes > 0)
+                    _legendDot(context, safeColor,
+                        '${context.t('clean.badge_safe')}: ${FsPaths.humanSize(safeBytes)}'),
+                  if (reviewBytes > 0)
+                    _legendDot(context, reviewColor,
+                        '${context.t('clean.badge_review')}: ${FsPaths.humanSize(reviewBytes)}'),
+                ],
+              ),
+            ],
             const SizedBox(height: Gap.sm),
             Wrap(
-              spacing: Gap.sm,
+              spacing: Gap.xs,
               runSpacing: Gap.xs,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (safeIds.isNotEmpty && !allSafeSelected)
+                if (safeList.isNotEmpty && !allSafeSelected)
                   FilledButton.tonal(
-                    onPressed: () => setState(() => _selected.addAll(safeIds)),
+                    key: const ValueKey('clean-select-safe'),
+                    onPressed: _selectAllSafe,
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
                     child: Text(context.t('clean.select_safe')),
                   ),
-                if (_selected.isNotEmpty)
+                if (hasAnySelected)
                   OutlinedButton(
-                    onPressed: () => setState(_selected.clear),
+                    key: const ValueKey('clean-deselect-all'),
+                    onPressed: _clearSelection,
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
                     child: Text(context.t('clean.deselect_all')),
                   ),
                 TextButton.icon(
-                  onPressed: _loading ? null : _analyze,
-                  icon: const Icon(AppIcons.refresh, size: 18),
+                  onPressed:
+                      _loading ? null : () => _analyze(forceRescan: true),
+                  icon: const Icon(AppIcons.refresh, size: 17),
                   label: Text(context.t('common.refresh')),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendDot(BuildContext context, Color color, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      );
+
+  Widget _filterStrip(
+    BuildContext context,
+    int allCount,
+    int safeCount,
+    int reviewCount,
+    _CleanupFilter active,
+  ) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final items = [
+      (_CleanupFilter.all, 'clean-filter-all', context.t('clean.filter_all'), allCount),
+      (_CleanupFilter.safe, 'clean-filter-safe', context.t('clean.filter_safe'), safeCount),
+      (_CleanupFilter.review, 'clean-filter-review', context.t('clean.filter_review'), reviewCount),
+    ];
+    return SizedBox(
+      key: const ValueKey('clean-filters'),
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: Gap.xs),
+        itemBuilder: (context, i) {
+          final (f, key, label, count) = items[i];
+          final selected = f == active;
+          return Material(
+            color: selected ? cs.primaryContainer : cs.surfaceContainerHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(99),
+              side: BorderSide(
+                color: selected
+                    ? cs.primary.withValues(alpha: 0.55)
+                    : cs.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: ValueKey(key),
+              onTap: () => setState(() => _filter = f),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected
+                            ? cs.onPrimaryContainer
+                            : cs.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '$count',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: selected
+                            ? cs.primary
+                            : cs.onSurfaceVariant.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _clutterBanner(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.secondaryContainer.withValues(alpha: 0.45),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+        side: BorderSide(color: cs.secondary.withValues(alpha: 0.28)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        key: const ValueKey('clean-smart-clutter'),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: cs.secondaryContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(AppIcons.ai, color: cs.onSecondaryContainer, size: 20),
+        ),
+        title: Text(context.t('sm.clutter_title', {'n': _clutterCount}),
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        subtitle: Text(context.t('sm.clutter_sub')),
+        trailing: const Icon(AppIcons.chevron),
+        onTap: () async {
+          await SmartClutterScreen.open(context);
+          if (mounted) setState(() {});
+        },
+      ),
+    );
+  }
+
+  Widget _moreToolsCard(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.sm),
+      child: Material(
+        color: cs.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.card),
+          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ListTile(
+          key: const ValueKey('clean-chat-tool'),
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppHues.teal.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(AppIcons.chat, color: AppHues.teal, size: 20),
+          ),
+          title: Text(context.t('clean.chat_tool'),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          subtitle: Text(context.t('clean.chat_tool_sub')),
+          trailing: const Icon(AppIcons.chevron),
+          onTap: () => unawaited(openChatCleanupScreen(context)),
         ),
       ),
     );
@@ -501,23 +970,27 @@ class _CleanupScreenState extends State<CleanupScreen> {
         builder: (_) => const TrashScreen(),
       ));
 
+  List<FsEntry> _orderedFiles(CleanupSuggestion s) {
+    if (!_sortByDate.contains(s.id)) return s.files;
+    return [...s.files]
+      ..sort((a, b) => a.lastTouchedMs.compareTo(b.lastTouchedMs));
+  }
+
   Widget _card(CleanupSuggestion s) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final selected = _selected.contains(s.id);
+    final cs = theme.colorScheme;
+    final tri = _triStateOf(s);
+    final anySelected = tri != false;
+    final selCount = _selectedCountOf(s);
+    final selBytes = _selectedBytesOf(s);
     final isTrash = s.id == 'trash';
+    final isEmptyDirs = s.id == 'empty_folders';
     final canExpand = !isTrash && s.files.isNotEmpty;
     final expanded = canExpand && _expanded.contains(s.id);
     final showAll = _showAllFiles.contains(s.id);
-    final statusColor =
-        s.safeByDefault ? Paper.success(context) : scheme.error;
-    final statusIcon = s.safeByDefault ? AppIcons.verified : AppIcons.warning;
+    final statusColor = s.safeByDefault ? Paper.success(context) : AppHues.orange;
     final badgeLabel =
         context.t(s.safeByDefault ? 'clean.badge_safe' : 'clean.badge_review');
-
-    void toggleSelect() => setState(() {
-          if (!_selected.remove(s.id)) _selected.add(s.id);
-        });
 
     void onBodyTap() {
       if (isTrash) {
@@ -527,243 +1000,370 @@ class _CleanupScreenState extends State<CleanupScreen> {
           if (!_expanded.remove(s.id)) _expanded.add(s.id);
         });
       } else {
-        toggleSelect();
+        _toggleSuggestion(s);
       }
     }
 
     final statusBadge = Container(
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Radii.control),
+        color: statusColor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(11),
       ),
-      child: Icon(statusIcon, size: 20, color: statusColor),
+      child: Icon(_iconFor(s.id), size: 21, color: statusColor),
     );
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: Gap.sm + 2),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: onBodyTap,
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(
-                        Gap.md, Gap.md, Gap.xs, Gap.md),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        s.safeByDefault
-                            ? statusBadge
-                            : Tooltip(
-                                message: context.t('clean.personal_warning'),
-                                child: statusBadge,
-                              ),
-                        const SizedBox(width: Gap.sm + 4),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      context.t(s.titleKey),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(fontWeight: FontWeight.w700),
-                                    ),
-                                  ),
-                                  const SizedBox(width: Gap.xs),
-                                  DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(
-                                          Radii.control),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
+    final ordered = expanded ? _orderedFiles(s) : const <FsEntry>[];
+    final byDate = _sortByDate.contains(s.id);
+    final partial = s.files.isNotEmpty && selCount > 0 && selCount < s.files.length;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.sm + 2),
+      child: Material(
+        key: ValueKey('clean-card-${s.id}'),
+        color: anySelected
+            ? cs.surfaceContainerLow
+            : cs.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.card),
+          side: BorderSide(
+            color: anySelected
+                ? cs.primary.withValues(alpha: 0.40)
+                : cs.outlineVariant.withValues(alpha: 0.55),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: onBodyTap,
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                          Gap.md, Gap.md, Gap.xs, Gap.md),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          s.safeByDefault
+                              ? statusBadge
+                              : Tooltip(
+                                  message: context.t('clean.personal_warning'),
+                                  child: statusBadge,
+                                ),
+                          const SizedBox(width: Gap.sm + 4),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
                                       child: Text(
-                                        badgeLabel,
+                                        context.t(s.titleKey),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.titleSmall
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                    const SizedBox(width: Gap.xs),
+                                    DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color:
+                                            statusColor.withValues(alpha: 0.13),
+                                        borderRadius: BorderRadius.circular(
+                                            Radii.control),
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        child: Text(
+                                          badgeLabel,
+                                          style: theme.textTheme.labelSmall
+                                              ?.copyWith(
+                                            color: statusColor,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  context.t(s.detailKey, s.detailVars),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: cs.onSurfaceVariant),
+                                ),
+                                const SizedBox(height: Gap.sm),
+                                Wrap(
+                                  spacing: Gap.sm,
+                                  runSpacing: Gap.xs,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (!isEmptyDirs)
+                                      DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: cs.primaryContainer
+                                              .withValues(alpha: 0.72),
+                                          borderRadius: BorderRadius.circular(
+                                              Radii.control),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 3),
+                                          child: Text(
+                                            partial
+                                                ? '${FsPaths.humanSize(selBytes)} / ${FsPaths.humanSize(s.bytes)}'
+                                                : FsPaths.humanSize(s.bytes),
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                              color: cs.onPrimaryContainer,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    if (partial)
+                                      Text(
+                                        context.t('clean.selected_partial', {
+                                          'sel': selCount,
+                                          'total': s.files.length,
+                                        }),
                                         style: theme.textTheme.labelSmall
                                             ?.copyWith(
-                                          color: statusColor,
+                                          color: cs.primary,
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                context.t(s.detailKey, s.detailVars),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant),
-                              ),
-                              const SizedBox(height: Gap.sm),
-                              Wrap(
-                                spacing: Gap.sm,
-                                runSpacing: Gap.xs,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: scheme.primaryContainer
-                                          .withValues(alpha: 0.7),
-                                      borderRadius: BorderRadius.circular(
-                                          Radii.control),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      child: Text(
-                                        FsPaths.humanSize(s.bytes),
-                                        style: theme.textTheme.labelMedium
-                                            ?.copyWith(
-                                          color: scheme.onPrimaryContainer,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                    if (isTrash)
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            context.t('clean.open_trash'),
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                              color: cs.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Icon(AppIcons.chevron,
+                                              size: 16, color: cs.primary),
+                                        ],
+                                      )
+                                    else if (canExpand)
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            expanded
+                                                ? context.t('clean.hide_files')
+                                                : context.t(
+                                                    'clean.inspect_files',
+                                                    {'n': s.files.length}),
+                                            style: theme.textTheme.labelMedium
+                                                ?.copyWith(
+                                              color: cs.primary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Icon(
+                                            expanded
+                                                ? AppIcons.expandLess
+                                                : AppIcons.expandMore,
+                                            size: 18,
+                                            color: cs.primary,
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ),
-                                  if (isTrash)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          context.t('clean.open_trash'),
-                                          style: theme.textTheme.labelMedium
-                                              ?.copyWith(
-                                            color: scheme.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 2),
-                                        Icon(AppIcons.chevron,
-                                            size: 16, color: scheme.primary),
-                                      ],
-                                    )
-                                  else if (canExpand)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          expanded
-                                              ? context.t('clean.hide_files')
-                                              : context.t(
-                                                  'clean.inspect_files',
-                                                  {'n': s.files.length}),
-                                          style: theme.textTheme.labelMedium
-                                              ?.copyWith(
-                                            color: scheme.primary,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 2),
-                                        Icon(
-                                          expanded
-                                              ? AppIcons.expandLess
-                                              : AppIcons.expandMore,
-                                          size: 18,
-                                          color: scheme.primary,
-                                        ),
-                                      ],
-                                    ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsetsDirectional.only(top: Gap.xs, end: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      key: ValueKey('clean-ignore-${s.id}'),
-                      tooltip: context.t('clean.never_suggest'),
-                      icon: const Icon(AppIcons.hiddenOff, size: 20),
-                      onPressed: () => _ignore(
-                          () => CleanupIgnore.instance.ignoreSuggestion(s.id)),
-                    ),
-                    SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Checkbox(
-                        value: selected,
-                        onChanged: (_) => toggleSelect(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (expanded) ...[
-            const Divider(height: 1),
-            for (final f in showAll ? s.files : s.files.take(20))
-              ListTile(
-                dense: true,
-                leading: FmEntryIcon(entry: f, size: 32),
-                title:
-                    Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(
-                  '${FsPaths.humanSize(f.sizeBytes)} · '
-                  '${FmLocation.label(f.path, context.t, volumes: FmEnv.volumes)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                // Dokun = aç, bak; gereksizse satırdaki çöp düğmesi.
-                onTap: () => EntryOpener.open(context, f.path),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: context.t('clean.never_suggest_file'),
-                      icon: const Icon(AppIcons.hiddenOff, size: 20),
-                      onPressed: () => _ignore(
-                          () => CleanupIgnore.instance.ignoreFile(f.path)),
-                    ),
-                    if (!ImportantFiles.isImportant(f.path))
+                Padding(
+                  padding:
+                      const EdgeInsetsDirectional.only(top: Gap.xs, end: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       IconButton(
-                        key: ValueKey('clean-trash-${f.path}'),
-                        tooltip: context.t('jr.trash_created'),
-                        icon: const Icon(AppIcons.delete, size: 20),
-                        onPressed: () => _trashOne(f.path),
+                        key: ValueKey('clean-ignore-${s.id}'),
+                        tooltip: context.t('clean.never_suggest'),
+                        icon: const Icon(AppIcons.hiddenOff, size: 20),
+                        onPressed: () => _ignore(() =>
+                            CleanupIgnore.instance.ignoreSuggestion(s.id)),
                       ),
-                  ],
-                ),
-              ),
-            if (!showAll && s.files.length > 20)
-              Padding(
-                padding: const EdgeInsets.only(bottom: Gap.xs),
-                child: Center(
-                  child: TextButton(
-                    onPressed: () => setState(() => _showAllFiles.add(s.id)),
-                    child: Text(context.t('clean.show_all_more',
-                        {'n': s.files.length - 20})),
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Checkbox(
+                          key: ValueKey('clean-cb-${s.id}'),
+                          tristate: s.files.isNotEmpty,
+                          value: tri,
+                          onChanged: (_) => _toggleSuggestion(s),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ],
+            ),
+            if (expanded) ...[
+              const Divider(height: 1),
+              if (s.files.length > 3)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.xs),
+                  child: Row(
+                    children: [
+                      TextButton(
+                        key: ValueKey('clean-all-${s.id}'),
+                        onPressed: () => setState(() => _selectedFiles[s.id] = {
+                              for (final f in s.files) f.path,
+                            }),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: Text(context.t('clean.select_all_in')),
+                      ),
+                      TextButton(
+                        key: ValueKey('clean-none-${s.id}'),
+                        onPressed: () => setState(
+                            () => _selectedFiles[s.id] = <String>{}),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: Text(context.t('clean.clear_in')),
+                      ),
+                      const Spacer(),
+                      if (!isEmptyDirs)
+                        ActionChip(
+                          key: ValueKey('clean-sort-${s.id}'),
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(AppIcons.sort, size: 15),
+                          label: Text(context.t(
+                              byDate ? 'clean.sort_date' : 'clean.sort_size')),
+                          onPressed: () => setState(() {
+                            if (!_sortByDate.remove(s.id)) {
+                              _sortByDate.add(s.id);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                ),
+              for (final f in showAll ? ordered : ordered.take(20))
+                _fileRow(context, s, f),
+              if (!showAll && s.files.length > 20)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Gap.xs),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: () => setState(() => _showAllFiles.add(s.id)),
+                      child: Text(context.t('clean.show_all_more',
+                          {'n': s.files.length - 20})),
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fileRow(BuildContext context, CleanupSuggestion s, FsEntry f) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final checked = _selectedFiles[s.id]?.contains(f.path) ?? false;
+    final loc = FmLocation.label(f.path, context.t, volumes: FmEnv.volumes);
+    final date = f.modifiedMs > 0 ? FmLocation.shortDate(f.modifiedMs) : '';
+    final meta = [
+      if (!f.isDir) FsPaths.humanSize(f.sizeBytes),
+      if (loc.isNotEmpty) loc,
+      if (date.isNotEmpty) date,
+    ].join(' · ');
+
+    return InkWell(
+      onTap: f.isDir
+          ? () => _toggleFile(s, f.path)
+          : () => EntryOpener.open(context, f.path),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            Gap.xs, Gap.xs, Gap.xs, Gap.xs),
+        child: Row(
+          children: [
+            Checkbox(
+              key: ValueKey('clean-file-cb-${f.path}'),
+              visualDensity: VisualDensity.compact,
+              value: checked,
+              onChanged: (_) => _toggleFile(s, f.path),
+            ),
+            FmEntryIcon(entry: f, size: 32),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    f.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: cs.onSurfaceVariant),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: context.t('clean.never_suggest_file'),
+              icon: const Icon(AppIcons.hiddenOff, size: 19),
+              visualDensity: VisualDensity.compact,
+              onPressed: () =>
+                  _ignore(() => CleanupIgnore.instance.ignoreFile(f.path)),
+            ),
+            if (!f.isDir && !ImportantFiles.isImportant(f.path))
+              IconButton(
+                key: ValueKey('clean-trash-${f.path}'),
+                tooltip: context.t('jr.trash_created'),
+                icon: const Icon(AppIcons.delete, size: 19),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _trashOne(f.path),
               ),
           ],
-        ],
+        ),
       ),
     );
   }

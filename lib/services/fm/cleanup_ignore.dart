@@ -96,11 +96,14 @@ class CleanupIgnore {
           if (!paths.contains(f.path)) f,
       ];
       if (kept.isEmpty) continue;
+      final vars = s.detailVars.containsKey('n')
+          ? {...s.detailVars, 'n': kept.length}
+          : s.detailVars;
       out.add(CleanupSuggestion(
         id: s.id,
         titleKey: s.titleKey,
         detailKey: s.detailKey,
-        detailVars: s.detailVars,
+        detailVars: vars,
         bytes: kept.fold<int>(0, (a, f) => a + f.sizeBytes),
         files: kept,
         safeByDefault: s.safeByDefault,

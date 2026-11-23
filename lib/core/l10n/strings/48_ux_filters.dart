@@ -34,4 +34,66 @@ const Map<String, (String, String, String)> _t48 = {
     'الاستكشاف والتحليل الذكي',
   ),
   'ct.group_quick_create': ('Hızlı oluştur', 'Quick create', 'إنشاء سريع'),
+  'cln.temp_junk': (
+    'Geçici ve yarım dosyalar',
+    'Temporary & partial files',
+    'ملفات مؤقتة وغير مكتملة',
+  ),
+  'cln.temp_junk_detail': (
+    '{n} dosya · .tmp, .part, yarım indirme ve artıklar',
+    '{n} files · .tmp, .part, partial downloads & junk',
+    '{n} ملف · ملفات مؤقتة وتنزيلات غير مكتملة',
+  ),
+  'cln.chat_sent': (
+    'Sohbetten gönderilen kopyalar',
+    'Sent chat copies',
+    'نسخ المحادثات المرسلة',
+  ),
+  'cln.chat_sent_detail': (
+    '{n} dosya · WhatsApp/Telegram Sent klasörü',
+    '{n} files · WhatsApp/Telegram Sent folder',
+    '{n} ملف · مجلد المرسلات في واتساب/تيليجرام',
+  ),
+  'clean.filter_all': ('Tümü', 'All', 'الكل'),
+  'clean.filter_safe': ('Güvenli', 'Safe', 'آمن'),
+  'clean.filter_review': ('İncele', 'Review', 'مراجعة'),
+  'clean.selected_partial': (
+    '{sel}/{total} seçili',
+    '{sel}/{total} selected',
+    '{sel}/{total} محدد',
+  ),
+  'clean.select_all_in': ('Tümünü seç', 'Select all', 'تحديد الكل'),
+  'clean.clear_in': ('Hiçbiri', 'None', 'لا شيء'),
+  'clean.sort_size': ('Boyut', 'Size', 'الحجم'),
+  'clean.sort_date': ('Tarih', 'Date', 'التاريخ'),
+  'clean.free_items': (
+    '{size} yer aç · {n} öğe',
+    'Free {size} · {n} items',
+    'تحرير {size} · {n} عنصر',
+  ),
+  'clean.empty_folders_only': (
+    '{n} boş klasörü temizle',
+    'Clean {n} empty folders',
+    'تنظيف {n} مجلد فارغ',
+  ),
+  'clean.bg_safe': (
+    'Çıkarsan da tarama arka planda sürer',
+    'Scanning continues in the background if you leave',
+    'يستمر الفحص في الخلفية إذا غادرت',
+  ),
+  'clean.more_tools': (
+    'Daha fazla temizlik',
+    'More cleanup tools',
+    'المزيد من أدوات التنظيف',
+  ),
+  'clean.chat_tool': (
+    'Sohbet medyası temizliği',
+    'Chat media cleanup',
+    'تنظيف وسائط المحادثات',
+  ),
+  'clean.chat_tool_sub': (
+    'WhatsApp ve Telegram çıkartma, GIF ve eski medyaları',
+    'WhatsApp & Telegram stickers, GIFs and old media',
+    'ملصقات وGIF ووسائط قديمة من واتساب وتيليجرام',
+  ),
 };
