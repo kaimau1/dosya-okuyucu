@@ -6,7 +6,9 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:image/image.dart' as imglib;
 import 'package:path/path.dart' as p;
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:xml/xml_events.dart';
 
 import '../../models/fs_entry.dart';
@@ -90,19 +92,30 @@ class SmartPrepared {
 /// ODF/EPUB/RTF/HTML için burada küçük, sınırlı okuyucular (zip + XML olay
 /// akışı, `archive`/`xml` zaten bağımlılık).
 abstract final class SmartSortInput {
-  /// Yazı bloğunun en çok karakteri (~5 bin girdi belirteci).
-  static const maxTextChars = 20000;
+  /// Yazı bloğunun en çok karakteri (~1500 girdi belirteci — baş + son korunur).
+  static const maxTextChars = 6000;
 
   /// Tablodan gönderilen en çok satır (boş satırlar sayılmaz).
-  static const maxSheetRows = 200;
+  static const maxSheetRows = 60;
 
   /// Tabloda en çok sütun (geniş sayfalar kesilir).
-  static const maxSheetCols = 64;
+  static const maxSheetCols = 24;
+
+  /// Görsel yeniden boyutlandırma tavanı (uzun kenar px): 1024px yazıyı net
+  /// okuturken görsel belirteç ve yükleme boyutunu ~8–15× düşürür.
+  static const maxImageDim = 1024;
+  static const imageJpegQuality = 78;
+  static const imageOptimizeThresholdBytes = 120 * 1024;
+
+  /// Metin katmanlı PDF'lerde yerel metin çıkarımı (sayfa başına ~258 görsel
+  /// belirteç yerine kompakt metin bloğu — %70–90 belirteç tasarrufu).
+  static const maxPdfTextPages = 6;
+  static const minPdfTextChars = 180;
 
   /// İçeriği okunacak en büyük kaynak dosya (zip/OLE belleğe alınır).
   static const maxExtractBytes = 40 * 1024 * 1024;
 
-  /// Düz yazı dosyalarında okunan baş kısım (20 bin karaktere fazlasıyla
+  /// Düz yazı dosyalarında okunan baş kısım (metin tavanına fazlasıyla
   /// yeter; HTML'de etiket payı).
   static const _headBytes = 512 * 1024;
 
@@ -164,16 +177,21 @@ abstract final class SmartSortInput {
     };
   }
 
-  /// Dosyanın Decisions girdi bloğu. Yazı izolatta çıkarılır; okunamayan
-  /// ya da boş çıkan belgede [GeminiException] (durum -1: tur durmaz, dosya
-  /// "yapılamadı" sayılır).
+  /// Dosyanın Decisions girdi bloğu. Yazı, görsel küçültme ve PDF metin
+  /// çıkarımı izolatta yapılır; okunamayan ya da boş çıkan belgede
+  /// [GeminiException] (durum -1: tur durmaz, dosya "yapılamadı" sayılır).
   static Future<Map<String, Object?>> blockFor(FsEntry e) async {
     final kind = kindOf(e.path);
     switch (kind) {
       case null:
         throw GeminiException('desteklenmeyen tür', statusCode: -1);
       case SmartInputKind.media:
-        return GeminiDecisions.fileBlock(e.path);
+        final path = e.path;
+        final media = GeminiDecisions.mediaFor(path);
+        if (media == null) {
+          throw GeminiException('desteklenmeyen tür', statusCode: -1);
+        }
+        return Isolate.run(() => _prepareMediaBlock(path, media.type, media.mime));
       case SmartInputKind.audio:
       case SmartInputKind.video:
         if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
@@ -430,8 +448,142 @@ abstract final class SmartSortInput {
 
   // ── Saf yardımcılar (test edilir) ──────────────────────────────────────
 
+  /// Görsel/PDF bloğunu izolatta hazırlar:
+  /// * PDF'de yeterli gömülü metin (>= [minPdfTextChars]) varsa ham PDF yerine
+  ///   kompakt metin bloğu gönderilir (çok sayfalı PDF'lerde %70–90 tasarruf).
+  /// * Görsel büyükse uzun kenar <= [maxImageDim] px JPEG olarak sıkıştırılır.
+  static Map<String, Object?> _prepareMediaBlock(
+      String path, String type, String mime) {
+    final raw = File(path).readAsBytesSync();
+    if (raw.isEmpty) {
+      throw GeminiException('Dosya boş.', statusCode: -1);
+    }
+    if (type == 'document' && mime == 'application/pdf') {
+      final text = extractPdfText(raw);
+      if (text.isNotEmpty) {
+        return GeminiDecisions.textBlock(_header(SmartInputKind.text) + text);
+      }
+      return {
+        'type': 'document',
+        'mime_type': mime,
+        'data': base64Encode(raw),
+      };
+    }
+    if (type == 'image') {
+      final opt = optimizeImageBytes(raw, mime: mime);
+      return {
+        'type': 'image',
+        'mime_type': opt.mime,
+        'data': base64Encode(opt.bytes),
+      };
+    }
+    return {
+      'type': type,
+      'mime_type': mime,
+      'data': base64Encode(raw),
+    };
+  }
+
+  /// Görseli model için optimize eder: uzun kenarı [maxDim] px üstündeyse ya da
+  /// [imageOptimizeThresholdBytes] üstündeyse yeniden boyutlandırıp JPEG
+  /// ([quality]) kodlar. Küçük ve zaten sınırı aşmayan görsellerde sıfır CPU
+  /// için ham bayt döner; çözülemezse ham bayta düşer.
+  static ({Uint8List bytes, String mime}) optimizeImageBytes(
+    Uint8List raw, {
+    required String mime,
+    int maxDim = maxImageDim,
+    int quality = imageJpegQuality,
+  }) {
+    try {
+      final decoder = imglib.findDecoderForData(raw);
+      if (decoder == null) return (bytes: raw, mime: mime);
+      final info = decoder.startDecode(raw);
+      if (info == null || info.width <= 0 || info.height <= 0) {
+        return (bytes: raw, mime: mime);
+      }
+      final needsResize = info.width > maxDim || info.height > maxDim;
+      if (!needsResize && raw.length <= imageOptimizeThresholdBytes) {
+        return (bytes: raw, mime: mime);
+      }
+      final decoded = decoder.decode(raw);
+      if (decoded == null) return (bytes: raw, mime: mime);
+      final target = needsResize
+          ? (decoded.width >= decoded.height
+              ? imglib.copyResize(decoded,
+                  width: maxDim, interpolation: imglib.Interpolation.linear)
+              : imglib.copyResize(decoded,
+                  height: maxDim, interpolation: imglib.Interpolation.linear))
+          : decoded;
+      final jpg = Uint8List.fromList(imglib.encodeJpg(target, quality: quality));
+      if (needsResize || jpg.length < raw.length) {
+        return (bytes: jpg, mime: 'image/jpeg');
+      }
+      return (bytes: raw, mime: mime);
+    } catch (_) {
+      return (bytes: raw, mime: mime);
+    }
+  }
+
+  /// Metin katmanlı PDF'ten ilk [maxPages] sayfa (+ varsa son sayfa: toplam
+  /// tutar, imza, son ödeme tarihi için) metnini çıkarır. Yeterli harf/rakam
+  /// ([minPdfTextChars]) yoksa boş döner → çağıran taranmış PDF olarak ham
+  /// `document` bloğuna düşer.
+  static String extractPdfText(
+    Uint8List bytes, {
+    int maxPages = maxPdfTextPages,
+  }) {
+    PdfDocument? doc;
+    try {
+      doc = PdfDocument(inputBytes: bytes);
+      final total = doc.pages.count;
+      if (total <= 0) return '';
+      final extractor = PdfTextExtractor(doc);
+      final buf = StringBuffer();
+      final headCount = total < maxPages ? total : maxPages;
+      for (var i = 0; i < headCount; i++) {
+        final pageText =
+            extractor.extractText(startPageIndex: i, endPageIndex: i).trim();
+        if (pageText.isNotEmpty) {
+          if (buf.isNotEmpty) buf.write('\n\n');
+          buf.write(pageText);
+        }
+        if (buf.length > maxTextChars * 2) break;
+      }
+      if (total > headCount) {
+        final lastText = extractor
+            .extractText(startPageIndex: total - 1, endPageIndex: total - 1)
+            .trim();
+        if (lastText.isNotEmpty) {
+          if (buf.isNotEmpty) buf.write('\n\n');
+          buf.write(lastText);
+        }
+      }
+      final cleaned = clip(buf.toString());
+      if (_alnumCount(cleaned) < minPdfTextChars) return '';
+      return cleaned;
+    } catch (_) {
+      return '';
+    } finally {
+      doc?.dispose();
+    }
+  }
+
+  static int _alnumCount(String text) {
+    var count = 0;
+    for (var i = 0; i < text.length; i++) {
+      final c = text.codeUnitAt(i);
+      final isAscii = (c >= 0x30 && c <= 0x39) ||
+          (c >= 0x41 && c <= 0x5A) ||
+          (c >= 0x61 && c <= 0x7A);
+      if (isAscii || c >= 0x00C0) count++;
+    }
+    return count;
+  }
+
   /// Yazıyı sadeleştirip (satır sonu, fazla boş satır/boşluk) en çok [max]
-  /// karaktere keser; vekil çifti ortadan bölünmez.
+  /// karaktere keser; vekil çifti ortadan bölünmez. Uzun belgelerde ([max] >=
+  /// 400) baş (%78) + son (%22) korunur: fatura toplamı, son ödeme tarihi ve
+  /// imza alt kısımda olsa da kaybolmaz.
   static String clip(String text, [int max = maxTextChars]) {
     var s = text
         .replaceAll('\r\n', '\n')
@@ -443,6 +595,24 @@ abstract final class SmartSortInput {
         .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
         .trim();
     if (s.length <= max) return s;
+    if (max >= 400) {
+      const sep = '\n…\n';
+      final avail = max - sep.length;
+      var headEnd = (avail * 0.78).floor();
+      var tailLen = avail - headEnd;
+      if (headEnd > 0) {
+        final last = s.codeUnitAt(headEnd - 1);
+        if (last >= 0xD800 && last <= 0xDBFF) headEnd--;
+      }
+      var tailStart = s.length - tailLen;
+      if (tailStart < s.length) {
+        final first = s.codeUnitAt(tailStart);
+        if (first >= 0xDC00 && first <= 0xDFFF) tailStart++;
+      }
+      final head = s.substring(0, headEnd).trimRight();
+      final tail = s.substring(tailStart).trimLeft();
+      return '$head$sep$tail';
+    }
     var end = max;
     final last = s.codeUnitAt(end - 1);
     if (last >= 0xD800 && last <= 0xDBFF) end--;

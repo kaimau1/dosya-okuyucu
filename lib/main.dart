@@ -135,14 +135,12 @@ Future<void> _main() async {
   // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
   FmFilter.aliasOf = (path) {
     if (!SmartSort.isLoaded) unawaited(SmartSort.ensureLoaded());
-    if (!AiIndex.isLoaded) {
-      unawaited(AiIndex.ensureLoaded());
-      return '';
-    }
-    // Aramada akıllı düzenin üç dildeki adları da bulunur ("invoice",
-    // "fatura", "فاتورة" aynı dosyayı bulur).
-    final smart = SmartSort.keywordsOf(path);
-    final alias = AiIndex.aliasOf(path);
+    if (!AiIndex.isLoaded) unawaited(AiIndex.ensureLoaded());
+    // Aramada akıllı düzenin ikinci adı ve üç dildeki adları da bulunur
+    // ("invoice", "fatura", "فاتورة" aynı dosyayı bulur).
+    final alias = AiIndex.isLoaded ? AiIndex.aliasOf(path) : SmartSort.aliasOf(path);
+    final smart = SmartSort.isLoaded ? SmartSort.keywordsOf(path) : '';
+    if (alias.isEmpty) return smart;
     return smart.isEmpty ? alias : '$alias $smart';
   };
   // Akıllı düzen (2026-11-18): ikinci ad yedeği + AI kategori süzgeci.

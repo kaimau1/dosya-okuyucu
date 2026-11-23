@@ -14,6 +14,8 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../models/fs_entry.dart';
+import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folder_prefs.dart';
@@ -40,8 +42,9 @@ import 'smart_scope_screen.dart';
 import 'smart_user_cat_screen.dart';
 
 /// **Akıllı düzen** ana ekranı (2026-11-18): aç/kapat ve gizlilik metni,
-/// "Şimdi düzenle", akıllı klasörler (AI kategorileri, dosyalar yerinde),
-/// Ayıkla kapısı ve ayarlar. Bkz. [SmartSort].
+/// "Şimdi düzenle", anlık arama, akıllı süzgeçler (yaklaşan/geçmiş ödeme,
+/// süre, tutar, belge yılı, kurum, düşük güven, Ayıkla), grup süzgeçli
+/// akıllı klasörler ve ayarlar. Bkz. [SmartSort].
 ///
 /// **Klasör düzeni (2026-11-18, kullanıcı):** akıllı klasörler yeniden
 /// adlandırılır, sırası değiştirilir (basılı tut → menü ya da "Sırala ve
@@ -60,6 +63,9 @@ class SmartSortScreen extends StatefulWidget {
 
 class _SmartSortScreenState extends State<SmartSortScreen> {
   bool _ready = false;
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+  SmartCatGroup _group = SmartCatGroup.all;
 
   // İki parmak sıkıştırma → sütun sayısı.
   final Map<int, Offset> _pointers = {};
@@ -116,6 +122,12 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     }));
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _enable() async {
     if (!await ensureAiKey(context) || !mounted) return;
     await SmartSort.setSettings(enabled: true);
@@ -149,6 +161,10 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
               ? s.t('sm.nothing_new')
               : s.t('sm.done', {'n': r.processed})),
     };
+    // Yerelden 0 belirteçle eşlenen kopya varsa bildir.
+    if (r.reused > 0 && r.hold == null) {
+      msg += ' · ${s.t('sm.reused_n', {'n': r.reused})}';
+    }
     // Yapılamayanlar da söylenir (eskiden sessizdi: "300'den 27 çıktı").
     if (r.failed > 0 && r.stoppedBy == null) {
       msg += ' · ${s.t('sm.failed', {'n': r.failed})}'
@@ -233,12 +249,36 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     });
   }
 
-  Future<void> _openCat(String cat) => _openList(
-      SmartCatStyle.label(context, cat), 'smart.$cat',
-      () => SmartSort.pathsOf(cat));
+  Future<void> _openCat(String cat) async {
+    final nav = Navigator.of(context);
+    final title = SmartCatStyle.label(context, cat);
+    final list = SmartSort.pathsOf(cat);
+    if (list.any(_isSensitive) && !await unlockSensitiveCats(context)) return;
+    final hasDrill = SmartSort.subtypeCounts(cat).isNotEmpty ||
+        SmartSort.yearsOf(cat).length > 1 ||
+        SmartSort.institutionsOf(cat).isNotEmpty;
+    final files = await FsScan.statPaths(list);
+    if (!mounted) return;
+    await nav.push(MaterialPageRoute(
+      builder: (_) => hasDrill
+          ? _SmartCatDetailScreen(
+              cat: cat,
+              title: title,
+              initialFiles: files,
+            )
+          : CategoryScreen(
+              title: title,
+              files: files,
+              loadAll: () => FsScan.statPaths(SmartSort.pathsOf(cat)),
+              replaceOnLoad: true,
+              memoryId: 'smart.$cat',
+              header: const _FixHint(),
+            ),
+    ));
+  }
 
-  /// Akıllı düzen listesi (kategori, rozet ya da tutar süzgeci): yollar her
-  /// açılışta kayıttan yeniden alınır.
+  /// Akıllı düzen listesi (rozet, tutar, yıl, kurum ya da düşük güven süzgeci):
+  /// yollar her açılışta kayıttan yeniden alınır.
   Future<void> _openList(
       String title, String memoryId, List<String> Function() paths) async {
     final nav = Navigator.of(context);
@@ -259,31 +299,51 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     ));
   }
 
+  Future<void> _openSearchHit(SmartRecord r) async {
+    if (_isSensitive(r.path) && !await unlockSensitiveCats(context)) return;
+    if (!mounted) return;
+    await EntryOpener.open(context, r.path);
+  }
+
   static bool _isSensitive(String path) =>
       SmartTaxonomy.sensitive.contains(SmartSort.of(path)?.cat);
 
   static List<String> _paths(List<SmartRecord> list) =>
       [for (final r in list) r.path];
 
-  /// Şema 2.0 rozetleri ("Ödemesi geçmiş fatura", "Süresi dolmuş belge"),
-  /// tutar süzgeci ve "Ayıkla" — eskiden her biri kocaman bir satırdı;
-  /// kullanıcı 2026-11-20: *"normal klasörlerin arasında yeni bir klasör gibi
-  /// olabilir"*. Artık akıllı klasör ızgarasında kutu. Boşsa hiç çizilmez.
-  List<_ExtraTile> _extraTiles(BuildContext context, int clutter, int hidden) {
+  /// Akıllı süzgeç şeridi öğeleri: acil ödeme/süre uyarıları, yaklaşanlar,
+  /// gözden geçirilecek düşük güvenli dosyalar, tutar aralıkları, belge yılları,
+  /// kurum/bankalar ve Ayıkla. Boş olanlar hiç gösterilmez.
+  List<_ExtraTile> _filterChips(BuildContext context, int clutter, int hidden) {
     final overdue = SmartSort.overdue().length;
+    final upcoming = SmartSort.upcomingDue().length;
     final expired = SmartSort.expired().length;
+    final expiring = SmartSort.expiringSoon().length;
+    final lowConf = SmartSort.lowConfidence().length;
     final amounts = SmartSort.amountCounts();
+    final years = SmartSort.yearCounts();
+    final insts = SmartSort.institutionCounts();
     final error = Theme.of(context).colorScheme.error;
     return [
       if (overdue > 0)
         _ExtraTile(
           key: 'ss-overdue',
-          icon: AppIcons.topicInvoice,
+          icon: AppIcons.warning,
           color: error,
           label: context.t('sm.overdue'),
           n: overdue,
           onTap: () => unawaited(_openList(context.t('sm.overdue'),
               'smart.overdue', () => _paths(SmartSort.overdue()))),
+        ),
+      if (upcoming > 0)
+        _ExtraTile(
+          key: 'ss-upcoming-due',
+          icon: AppIcons.schedule,
+          color: AppHues.orange,
+          label: context.t('sm.upcoming_due'),
+          n: upcoming,
+          onTap: () => unawaited(_openList(context.t('sm.upcoming_due'),
+              'smart.upcoming_due', () => _paths(SmartSort.upcomingDue()))),
         ),
       if (expired > 0)
         _ExtraTile(
@@ -294,6 +354,26 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           n: expired,
           onTap: () => unawaited(_openList(context.t('sm.expired'),
               'smart.expired', () => _paths(SmartSort.expired()))),
+        ),
+      if (expiring > 0)
+        _ExtraTile(
+          key: 'ss-expiring-soon',
+          icon: AppIcons.eventNote,
+          color: AppHues.amber,
+          label: context.t('sm.expiring_soon'),
+          n: expiring,
+          onTap: () => unawaited(_openList(context.t('sm.expiring_soon'),
+              'smart.expiring_soon', () => _paths(SmartSort.expiringSoon()))),
+        ),
+      if (lowConf > 0)
+        _ExtraTile(
+          key: 'ss-low-conf',
+          icon: AppIcons.rule,
+          color: AppHues.indigo,
+          label: context.t('sm.low_conf'),
+          n: lowConf,
+          onTap: () => unawaited(_openList(context.t('sm.low_conf'),
+              'smart.low_conf', () => _paths(SmartSort.lowConfidence()))),
         ),
       for (final b in SmartTaxonomy.amountOrder)
         if ((amounts[b] ?? 0) > 0)
@@ -308,6 +388,30 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 'smart.amount.$b',
                 () => _paths(SmartSort.withAmount(b)))),
           ),
+      for (final entry in years.entries.take(4))
+        _ExtraTile(
+          key: 'ss-year-${entry.key}',
+          icon: AppIcons.calendarMonth,
+          color: AppHues.teal,
+          label: '${entry.key}',
+          n: entry.value,
+          onTap: () => unawaited(_openList(
+              context.t('sm.year_title', {'y': entry.key}),
+              'smart.year.${entry.key}',
+              () => _paths(SmartSort.withYear(entry.key)))),
+        ),
+      for (final entry in insts.entries.take(5))
+        _ExtraTile(
+          key: 'ss-inst-${entry.key}',
+          icon: AppIcons.topicBank,
+          color: AppHues.blue,
+          label: entry.key,
+          n: entry.value,
+          onTap: () => unawaited(_openList(
+              context.t('sm.inst_title', {'name': entry.key}),
+              'smart.inst.${entry.key}',
+              () => _paths(SmartSort.withInstitution(entry.key)))),
+        ),
       if (clutter > 0 || hidden > 0)
         _ExtraTile(
           key: 'ss-clutter',
@@ -320,8 +424,9 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     ];
   }
 
-  /// Üstteki birleşik özet + eylem kartı: "382 dosya · 18 kategori",
-  /// altında kısaca çalışma notu, yanında/altında "Şimdi düzenle" (`ss-run`).
+  /// Üstteki birleşik özet + eylem kartı: "470 dosya · 19 kategori",
+  /// altında belirteç/tasarruf özeti, yanında "Şimdi düzenle" (`ss-run`)
+  /// ya da çalışırken canlı ilerleme + "Durdur" (`ss-stop`).
   Widget _statusCard(
     BuildContext context,
     int catCount,
@@ -329,9 +434,17 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     SmartUsage? usage,
   ) {
     final theme = Theme.of(context);
-    return Card(
+    final cs = theme.colorScheme;
+    final pct = (prog != null && prog.total > 0)
+        ? ((prog.done / prog.total) * 100).round().clamp(0, 100)
+        : null;
+    return Material(
       key: const ValueKey('ss-status'),
-      margin: EdgeInsets.zero,
+      color: cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+        side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(Gap.md),
         child: Column(
@@ -340,7 +453,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(AppIcons.ai, color: theme.colorScheme.primary),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(AppIcons.ai,
+                      color: cs.onPrimaryContainer, size: 22),
+                ),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Column(
@@ -357,7 +479,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                       Text(
                         context.t('sm.status_sub'),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -375,25 +497,85 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
               ],
             ),
             if (usage != null) ...[
-              const SizedBox(height: Gap.xs),
-              Text(
-                context.t('sm.usage', {
-                  'n': usage.requests,
-                  't': usage.tokensPerFile,
-                  'q': usage.questionsPerFile,
-                }),
-                key: const ValueKey('ss-usage'),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: Gap.xs,
+                runSpacing: Gap.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (usage.requests > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        context.t('sm.usage', {
+                          'n': usage.requests,
+                          't': usage.tokensPerFile,
+                          'q': usage.questionsPerFile,
+                        }),
+                        key: const ValueKey('ss-usage'),
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                    ),
+                  if (usage.reused > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppHues.green.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        context.t('sm.reused_n', {'n': usage.reused}),
+                        key: const ValueKey('ss-reused'),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppHues.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
             if (prog != null) ...[
               const SizedBox(height: Gap.sm),
-              LinearProgressIndicator(
-                  value: prog.total == 0 ? null : prog.done / prog.total),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  minHeight: 6,
+                  value: prog.total == 0 ? null : prog.done / prog.total,
+                ),
+              ),
               const SizedBox(height: Gap.xs),
-              Text(context.t(
-                  'sm.progress', {'done': prog.done, 'total': prog.total})),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      pct != null
+                          ? '${context.t('sm.progress', {'done': prog.done, 'total': prog.total})} · %$pct'
+                          : context.t('sm.progress',
+                              {'done': prog.done, 'total': prog.total}),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('ss-stop'),
+                    onPressed: SmartSort.cancelRun,
+                    icon: const Icon(AppIcons.stop, size: 16),
+                    label: Text(context.t('sm.stop')),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
@@ -602,16 +784,30 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     // "Diğer" de klasör (U4, B15 m.4): Akıllı düzenin yerleştiremediği
     // dosyalar eskiden hiçbir yerde görünmüyordu — kullanıcı onları bulup
     // "Kategori yanlış mı?" ile öğretebilsin. Varsayılan sırada en sonda.
-    final cats = SmartFolderPrefs.arrange([
+    final allCats = SmartFolderPrefs.arrange([
       for (final c in SmartTaxonomy.categoryIds)
         if ((counts[c] ?? 0) > 0) c
     ]);
+    final availableGroups = <SmartCatGroup>{
+      for (final c in allCats) ?SmartTaxonomy.groupOf(c),
+    };
+    final activeGroup =
+        _group != SmartCatGroup.all && !availableGroups.contains(_group)
+            ? SmartCatGroup.all
+            : _group;
+    final visibleCats = activeGroup == SmartCatGroup.all
+        ? allCats
+        : [
+            for (final c in allCats)
+              if (SmartTaxonomy.groupOf(c) == activeGroup) c,
+          ];
     final cols = SmartFolderPrefs.columns;
     final clutter = SmartSort.clutter().length;
     final hidden = SmartSort.hiddenRecords().length;
     final prog = SmartSort.progress.value;
     final usage = SmartSort.lastUsage.value;
-    final extras = _extraTiles(context, clutter, hidden);
+    final filters = _filterChips(context, clutter, hidden);
+    final query = _query.trim();
     final w = MediaQuery.sizeOf(context).width;
     final hPad = w > 960 ? (w - 960) / 2 + Gap.md : Gap.md;
     return ListView(
@@ -619,61 +815,374 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           context, EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.md)),
       children: [
         // En üstte tek net özet + eylem kartı.
-        _statusCard(context, cats.length, prog, usage),
-        SectionHeader(context.t('sm.folders'),
-            trailing: cats.isEmpty ? null : _layoutMenu(context, cats),
-            padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
-        if (cats.isEmpty && extras.isEmpty)
-          Text(context.t('sm.folders_empty'))
-        else ...[
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: Text(context.t('smo.hint'),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          ),
-          // Sütun değişimi TEK ADIMDA (kasma listesi m.1/6: ızgarada opaklık
-          // ya da boy animasyonu yok).
-          GridView.builder(
-            key: const ValueKey('ss-grid'),
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cols,
-              mainAxisExtent: _tileExtent(context, cols),
-              crossAxisSpacing: Gap.sm,
-              mainAxisSpacing: Gap.sm,
-            ),
-            itemCount: cats.length + extras.length,
-            itemBuilder: (context, i) => RepaintBoundary(
-              child: i < cats.length
-                  ? _catTile(
-                      context, cats[i], counts[cats[i]] ?? 0, cols, cats)
-                  : _tile(context, extras[i - cats.length], cols),
-            ),
-          ),
+        _statusCard(context, allCats.length, prog, usage),
+        if (SmartSort.records.isNotEmpty) ...[
+          const SizedBox(height: Gap.sm),
+          _searchBar(context),
         ],
-        // Kayıtlı akıllı aramalar (U4): eskiden yalnız Akıllı dosya
-        // asistanının menüsündeydi; asıl yeri akıllı klasörlerin yanı.
-        const SizedBox(height: Gap.md),
-        Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            key: const ValueKey('ss-searches'),
-            leading: const Icon(AppIcons.savedSearch),
-            title: Text(context.t('smart.title')),
-            subtitle: Text(SmartFolders.instance.folders.isEmpty
-                ? context.t('smart.entry_sub')
-                : context.t('smart.entry_n',
-                    {'n': SmartFolders.instance.folders.length})),
-            trailing: const Icon(AppIcons.chevron),
-            onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const SmartFoldersScreen())),
+        if (query.isNotEmpty) ...[
+          const SizedBox(height: Gap.sm),
+          ..._searchResults(context, query),
+        ] else ...[
+          if (filters.isNotEmpty) ...[
+            SectionHeader(context.t('sm.filters_section'),
+                padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
+            _smartFiltersStrip(context, filters),
+          ],
+          SectionHeader(context.t('sm.folders'),
+              trailing: allCats.isEmpty ? null : _layoutMenu(context, allCats),
+              padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
+          if (allCats.isEmpty && filters.isEmpty)
+            Text(context.t('sm.folders_empty'))
+          else if (allCats.isNotEmpty) ...[
+            if (availableGroups.length >= 2) ...[
+              _groupFilterBar(context, allCats, counts, activeGroup),
+              const SizedBox(height: Gap.sm),
+            ],
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.sm),
+              child: Text(context.t('smo.hint'),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ),
+            // Sütun değişimi TEK ADIMDA (kasma listesi m.1/6: ızgarada opaklık
+            // ya da boy animasyonu yok).
+            GridView.builder(
+              key: const ValueKey('ss-grid'),
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: cols,
+                mainAxisExtent: _tileExtent(context, cols),
+                crossAxisSpacing: Gap.sm,
+                mainAxisSpacing: Gap.sm,
+              ),
+              itemCount: visibleCats.length,
+              itemBuilder: (context, i) => RepaintBoundary(
+                child: _catTile(context, visibleCats[i],
+                    counts[visibleCats[i]] ?? 0, cols, allCats),
+              ),
+            ),
+          ],
+          // Kayıtlı akıllı aramalar (U4): eskiden yalnız Akıllı dosya
+          // asistanının menüsündeydi; asıl yeri akıllı klasörlerin yanı.
+          const SizedBox(height: Gap.md),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              key: const ValueKey('ss-searches'),
+              leading: const Icon(AppIcons.savedSearch),
+              title: Text(context.t('smart.title')),
+              subtitle: Text(SmartFolders.instance.folders.isEmpty
+                  ? context.t('smart.entry_sub')
+                  : context.t('smart.entry_n',
+                      {'n': SmartFolders.instance.folders.length})),
+              trailing: const Icon(AppIcons.chevron),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const SmartFoldersScreen())),
+            ),
+          ),
+          ..._userCats(context),
+        ],
+      ],
+    );
+  }
+
+  Widget _searchBar(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return TextField(
+      key: const ValueKey('ss-search'),
+      controller: _searchCtrl,
+      onChanged: (v) => setState(() => _query = v),
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: context.t('sm.search_hint'),
+        prefixIcon: const Icon(AppIcons.search, size: 20),
+        suffixIcon: _query.isEmpty
+            ? null
+            : IconButton(
+                key: const ValueKey('ss-search-clear'),
+                tooltip: context.t('common.close'),
+                icon: const Icon(AppIcons.close, size: 18),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() => _query = '');
+                },
+              ),
+        filled: true,
+        fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.6),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _searchResults(BuildContext context, String query) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final hits = SmartSort.matches(query, limit: 80);
+    if (hits.isEmpty) {
+      return [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.xl),
+          child: Column(
+            children: [
+              Icon(AppIcons.searchOff, size: 36, color: cs.onSurfaceVariant),
+              const SizedBox(height: Gap.sm),
+              Text(
+                context.t('sm.search_empty'),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ],
           ),
         ),
-        ..._userCats(context),
-      ],
+      ];
+    }
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: Gap.xs),
+        child: Text(
+          context.t('sm.search_results', {'n': hits.length}),
+          style: theme.textTheme.labelMedium
+              ?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600),
+        ),
+      ),
+      for (final r in hits) _searchHitRow(context, r),
+    ];
+  }
+
+  Widget _searchHitRow(BuildContext context, SmartRecord r) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final color = SmartCatStyle.color(r.cat);
+    final alias = SmartSort.aliasOf(r.path, AppStrings.of(context));
+    final fileName = p.basename(r.path);
+    final catLabel = SmartCatStyle.label(context, r.cat);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Gap.xs),
+      child: Material(
+        color: cs.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.card),
+          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => unawaited(_openSearchHit(r)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+                horizontal: Gap.sm, vertical: Gap.sm),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(SmartCatStyle.icon(r.cat), color: color, size: 20),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          height: 1.2,
+                        ),
+                      ),
+                      if (alias.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          alias,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Gap.xs),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    catLabel,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _smartFiltersStrip(BuildContext context, List<_ExtraTile> items) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      key: const ValueKey('ss-filters'),
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: Gap.xs),
+        itemBuilder: (context, i) {
+          final t = items[i];
+          return Material(
+            color: t.color.withValues(alpha: 0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: t.color.withValues(alpha: 0.28)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: ValueKey(t.key),
+              onTap: t.onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(t.icon, size: 16, color: t.color),
+                    const SizedBox(width: 6),
+                    Text(
+                      t.label,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: t.color.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        '${t.n}',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: t.color,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _groupFilterBar(
+    BuildContext context,
+    List<String> allCats,
+    Map<String, int> counts,
+    SmartCatGroup active,
+  ) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final groups = <SmartCatGroup>[
+      SmartCatGroup.all,
+      for (final g in SmartCatGroup.values)
+        if (g != SmartCatGroup.all &&
+            allCats.any((c) => SmartTaxonomy.groupOf(c) == g))
+          g,
+    ];
+    String labelOf(SmartCatGroup g) => switch (g) {
+          SmartCatGroup.all => context.t('sm.group_all'),
+          SmartCatGroup.finance => context.t('sm.group_finance'),
+          SmartCatGroup.docs => context.t('sm.group_docs'),
+          SmartCatGroup.images => context.t('sm.group_images'),
+          SmartCatGroup.media => context.t('sm.group_media'),
+        };
+    int countOf(SmartCatGroup g) => g == SmartCatGroup.all
+        ? allCats.length
+        : allCats.where((c) => SmartTaxonomy.groupOf(c) == g).length;
+    return SizedBox(
+      key: const ValueKey('ss-groups'),
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: groups.length,
+        separatorBuilder: (_, _) => const SizedBox(width: Gap.xs),
+        itemBuilder: (context, i) {
+          final g = groups[i];
+          final selected = g == active;
+          return Material(
+            color: selected ? cs.primaryContainer : cs.surfaceContainerHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(99),
+              side: BorderSide(
+                color: selected
+                    ? cs.primary.withValues(alpha: 0.5)
+                    : cs.outlineVariant.withValues(alpha: 0.45),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: ValueKey('ss-group-${g.name}'),
+              onTap: () => setState(() => _group = g),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      labelOf(g),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected
+                            ? cs.onPrimaryContainer
+                            : cs.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${countOf(g)}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: selected
+                            ? cs.primary
+                            : cs.onSurfaceVariant.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -876,11 +1385,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   static double _tileExtent(BuildContext context, int cols) {
     final sc = MediaQuery.textScalerOf(context);
     return switch (cols) {
-      2 => math.max(84.0, 20 + sc.scale(14) * 1.3 * 2 + sc.scale(12) * 1.4),
+      2 => math.max(88.0, 24 + sc.scale(14) * 1.3 * 2 + sc.scale(12) * 1.4),
       3 => math.max(
-          100.0, 20 + 26 + 4 + sc.scale(12) * 1.3 * 2 + sc.scale(11) * 1.4),
+          112.0, 28 + 34 + 6 + sc.scale(12) * 1.3 * 2 + sc.scale(11) * 1.4),
       _ => math.max(
-          92.0, 20 + 22 + 4 + sc.scale(11) * 1.3 * 2 + sc.scale(11) * 1.4),
+          104.0, 26 + 30 + 6 + sc.scale(11) * 1.3 * 2 + sc.scale(11) * 1.4),
     };
   }
 
@@ -904,14 +1413,19 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   Widget _tile(BuildContext context, _ExtraTile t, int cols) {
     final theme = Theme.of(context);
     final color = t.color;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(Radii.card),
+      side: BorderSide(color: color.withValues(alpha: 0.24)),
+    );
     if (cols >= 3) {
       final small = cols >= 4;
+      final iconBox = small ? 30.0 : 34.0;
       return Material(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Radii.card),
+        color: color.withValues(alpha: 0.10),
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           key: ValueKey(t.key),
-          borderRadius: BorderRadius.circular(Radii.card),
           onTap: t.onTap,
           onLongPress: t.onLongPress,
           child: Padding(
@@ -920,8 +1434,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(t.icon, color: color, size: small ? 22 : 26),
-                const SizedBox(height: 4),
+                Container(
+                  width: iconBox,
+                  height: iconBox,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(t.icon, color: color, size: small ? 18 : 20),
+                ),
+                const SizedBox(height: 5),
                 Text(t.label,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -929,8 +1451,24 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                     style: (small
                             ? theme.textTheme.labelSmall
                             : theme.textTheme.labelMedium)
-                        ?.copyWith(fontWeight: FontWeight.w600, height: 1.2)),
-                Text('${t.n}', style: theme.textTheme.labelSmall),
+                        ?.copyWith(fontWeight: FontWeight.w600, height: 1.18)),
+                const SizedBox(height: 3),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    '${t.n}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -938,17 +1476,25 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
       );
     }
     return Material(
-      color: color.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(Radii.card),
+      color: color.withValues(alpha: 0.10),
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: ValueKey(t.key),
-        borderRadius: BorderRadius.circular(Radii.card),
         onTap: t.onTap,
         onLongPress: t.onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(Gap.sm),
           child: Row(children: [
-            Icon(t.icon, color: color),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(t.icon, color: color, size: 22),
+            ),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(
@@ -958,8 +1504,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                   Text(t.label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge),
-                  Text('${t.n}', style: theme.textTheme.bodySmall),
+                      style: theme.textTheme.labelLarge
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${t.n}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1009,6 +1563,188 @@ class _FixHint extends StatelessWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ),
       ]),
+    );
+  }
+}
+
+/// Alt türü, belge yılı ya da kurumu olan akıllı klasörün etkileşimli süzgeçli
+/// görünümü: tek dokunuşla alt tür (`Tahlil sonucu`, `Reçete`, `Bordro`…),
+/// belge yılı (`2026`, `2025`…) ve kurum/bankaya göre anında daraltır.
+class _SmartCatDetailScreen extends StatefulWidget {
+  final String cat;
+  final String title;
+  final List<FsEntry> initialFiles;
+
+  const _SmartCatDetailScreen({
+    required this.cat,
+    required this.title,
+    required this.initialFiles,
+  });
+
+  @override
+  State<_SmartCatDetailScreen> createState() => _SmartCatDetailScreenState();
+}
+
+class _SmartCatDetailScreenState extends State<_SmartCatDetailScreen> {
+  String? _sub;
+  int? _year;
+  String? _inst;
+
+  List<FsEntry> _filterEntries(List<FsEntry> all) {
+    if (_sub == null && _year == null && _inst == null) return all;
+    final allowed = SmartSort.pathsOfFiltered(
+      widget.cat,
+      sub: _sub,
+      year: _year,
+      institution: _inst,
+    ).toSet();
+    return [
+      for (final e in all)
+        if (allowed.contains(e.path)) e,
+    ];
+  }
+
+  Widget _chip({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+    int? count,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Material(
+      color: selected
+          ? accent.withValues(alpha: 0.20)
+          : cs.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(99),
+        side: BorderSide(
+          color: selected
+              ? accent.withValues(alpha: 0.65)
+              : cs.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: key,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? accent : cs.onSurfaceVariant,
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '$count',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: selected
+                        ? accent
+                        : cs.onSurfaceVariant.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final subs = SmartSort.subtypeCounts(widget.cat);
+    final years = SmartSort.yearsOf(widget.cat);
+    final insts = SmartSort.institutionsOf(widget.cat);
+    final accent = SmartCatStyle.color(widget.cat);
+    final hasAny = _sub != null || _year != null || _inst != null;
+
+    final chips = <Widget>[
+      if (hasAny)
+        _chip(
+          key: const ValueKey('ss-sub-clear'),
+          label: context.t('sm.sub_all'),
+          selected: false,
+          accent: accent,
+          onTap: () => setState(() {
+            _sub = null;
+            _year = null;
+            _inst = null;
+          }),
+        ),
+      for (final e in subs.entries)
+        _chip(
+          key: ValueKey('ss-sub-${e.key}'),
+          label: context.t('sm.s_${e.key}'),
+          count: e.value,
+          selected: _sub == e.key,
+          accent: accent,
+          onTap: () => setState(() => _sub = _sub == e.key ? null : e.key),
+        ),
+      if (years.length > 1)
+        for (final y in years)
+          _chip(
+            key: ValueKey('ss-cat-year-$y'),
+            label: '$y',
+            selected: _year == y,
+            accent: AppHues.teal,
+            onTap: () => setState(() => _year = _year == y ? null : y),
+          ),
+      for (final inst in insts)
+        _chip(
+          key: ValueKey('ss-cat-inst-$inst'),
+          label: inst,
+          selected: _inst == inst,
+          accent: AppHues.blue,
+          onTap: () => setState(() => _inst = _inst == inst ? null : inst),
+        ),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (chips.isNotEmpty)
+          SizedBox(
+            height: 40,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              scrollDirection: Axis.horizontal,
+              itemCount: chips.length,
+              separatorBuilder: (_, _) => const SizedBox(width: Gap.xs),
+              itemBuilder: (_, i) => Center(child: chips[i]),
+            ),
+          ),
+        const _FixHint(),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filterKey = '${_sub ?? ''}|${_year ?? ''}|${_inst ?? ''}';
+    return CategoryScreen(
+      key: ValueKey('smart-cat-${widget.cat}-$filterKey'),
+      title: widget.title,
+      files: _filterEntries(widget.initialFiles),
+      loadAll: () => FsScan.statPaths(SmartSort.pathsOfFiltered(
+        widget.cat,
+        sub: _sub,
+        year: _year,
+        institution: _inst,
+      )),
+      replaceOnLoad: true,
+      memoryId: 'smart.${widget.cat}',
+      header: _buildHeader(context),
     );
   }
 }

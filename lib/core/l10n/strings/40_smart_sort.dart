@@ -415,4 +415,62 @@ const Map<String, (String, String, String)> _t40 = {
     'I named it: {name} · Tag: {tag}',
     'سمّيته: {name} · الوسم: {tag}',
   ),
+  'sm.stop': ('Durdur', 'Stop', 'إيقاف'),
+  'sm.reused_n': (
+    '{n} kopya yerelden (0 birim)',
+    '{n} local copies reused (0 units)',
+    '{n} نسخ محلية (0 وحدة)',
+  ),
+  'sm.search_hint': (
+    'Akıllı düzende ara (ad, kurum, yıl, tür…)',
+    'Search smart organize (name, issuer, year, type…)',
+    'ابحث في التنظيم الذكي (الاسم، الجهة، السنة، النوع…)',
+  ),
+  'sm.search_results': (
+    '{n} sonuç',
+    '{n} results',
+    '{n} نتيجة',
+  ),
+  'sm.search_empty': (
+    'Eşleşen düzenli dosya bulunamadı',
+    'No matching organized files',
+    'لا توجد ملفات منظمة مطابقة',
+  ),
+  'sm.filters_section': (
+    'Akıllı süzgeçler',
+    'Smart filters',
+    'مرشحات ذكية',
+  ),
+  'sm.upcoming_due': (
+    'Yaklaşan ödeme',
+    'Due soon',
+    'مستحق قريبًا',
+  ),
+  'sm.expiring_soon': (
+    'Süresi yaklaşan',
+    'Expiring soon',
+    'تنتهي قريبًا',
+  ),
+  'sm.low_conf': (
+    'Gözden geçir',
+    'Review',
+    'مراجعة',
+  ),
+  'sm.year_title': (
+    'Belge yılı: {y}',
+    'Document year: {y}',
+    'سنة المستند: {y}',
+  ),
+  'sm.inst_title': (
+    'Kurum: {name}',
+    'Issuer: {name}',
+    'الجهة: {name}',
+  ),
+  'sm.group_all': ('Tümü', 'All', 'الكل'),
+  'sm.group_finance': ('Finans', 'Finance', 'مالية'),
+  'sm.group_docs': ('Belgeler', 'Documents', 'مستندات'),
+  'sm.group_images': ('Görseller', 'Images', 'صور'),
+  'sm.group_media': ('Medya', 'Media', 'وسائط'),
+  'sm.sub_all': ('Tümü', 'All', 'الكل'),
+  'sm.clear_filter': ('Süzgeci temizle', 'Clear filter', 'مسح المرشح'),
 };

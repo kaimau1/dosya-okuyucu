@@ -473,10 +473,24 @@ class FmFilter {
     Set<String> Function(String path)? tagsOf,
     int? Function(String path)? openedAtOf,
   }) {
-    final q = turkishFold(query.trim());
-    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) {
-      final alias = aliasOf?.call(entry.path) ?? '';
-      if (alias.isEmpty || !turkishFold(alias).contains(q)) return false;
+    final trimmed = query.trim();
+    if (trimmed.isNotEmpty) {
+      final terms = turkishFold(trimmed)
+          .split(RegExp(r'\s+'))
+          .where((t) => t.isNotEmpty)
+          .toList();
+      final nameFold = turkishFold(entry.name);
+      if (!terms.every(nameFold.contains)) {
+        final alias = aliasOf?.call(entry.path) ?? '';
+        final combinedTr = '$nameFold ${turkishFold(alias)}';
+        if (!terms.every(combinedTr.contains)) {
+          final asciiTerms = asciiFold(trimmed)
+              .split(RegExp(r'\s+'))
+              .where((t) => t.isNotEmpty);
+          final combinedAscii = asciiFold('${entry.name} $alias');
+          if (!asciiTerms.every(combinedAscii.contains)) return false;
+        }
+      }
     }
     if (!matchesVolume(entry.path)) return false;
     if (types.isNotEmpty && !types.contains(FmType.of(entry))) return false;

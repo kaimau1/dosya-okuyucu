@@ -32,67 +32,41 @@ import '../gemini_decisions.dart';
 /// * Tutar aralığı ([amountBuckets]) — Akıllı düzen ekranındaki süzgeç.
 /// * APK/arşiv → yalnız [package] kategorisi ve alt türü (kurulum · yedek ·
 ///   indirme); içerik okunmaz, tek soru.
+/// Akıllı klasör grupları (ekrandaki hızlı grup süzgeci için).
+enum SmartCatGroup { all, finance, docs, images, media }
+
 abstract final class SmartTaxonomy {
   /// Belge kategorileri (ikinci ad alır).
   static const docCategories = <String, String>{
-    'invoice': 'An invoice or utility bill: electricity, water, natural gas, '
-        'phone, internet/TV, rent or building dues.',
-    'receipt': 'A shop receipt, POS slip, order confirmation, e-commerce '
-        'invoice for a purchase, or other proof of purchase.',
-    'bank': 'A banking document: money transfer receipt, account statement, '
-        'credit card statement, loan or deposit document.',
-    'tax_salary': 'A tax, social security, pension, payroll or salary '
-        'document.',
-    'contract': 'A contract, agreement, lease, terms and conditions, power of '
-        'attorney or other legal agreement.',
-    'official': 'An official or government document: e-Government printout, '
-        'court or notary paper, petition, official letter, certificate of '
-        'residence or registry record.',
-    'id': 'An identity document or card: national ID card, passport, driving '
-        'licence, residence permit, or a bank/credit card.',
-    'health': 'A medical document: lab or blood test result, prescription, '
-        "doctor's report, discharge summary, imaging report, vaccination or "
-        'appointment record.',
-    'insurance_vehicle': 'An insurance policy or claim, or a vehicle '
-        'document: registration, inspection, traffic fine.',
-    'travel': 'A travel document: flight, bus or train ticket, boarding pass, '
-        'hotel or car reservation, visa, itinerary.',
-    'education': 'School or university material: diploma, certificate, '
-        'transcript, exam paper or result, homework, lecture notes, course '
-        'book.',
-    'work': 'Work material: CV/résumé, business report, presentation, '
-        'spreadsheet, meeting notes, offer or business letter.',
-    'manual': 'A product manual, warranty card, user guide, installation '
-        'guide or technical datasheet.',
-    'reading': 'A book, e-book, magazine, article or other long reading '
-        'material.',
-    'email': 'A printed or saved e-mail message or newsletter (for example a '
-        'mail printed to PDF from Gmail or Outlook), or a saved web page.',
+    'invoice': 'Invoice/utility bill: electricity, water, gas, phone, internet/TV, rent, dues.',
+    'receipt': 'Shop receipt, POS slip, order confirmation or e-commerce purchase proof.',
+    'bank': 'Banking doc: transfer receipt, account/card statement, loan or deposit.',
+    'tax_salary': 'Tax, social security, pension, payroll or salary doc.',
+    'contract': 'Contract, lease, agreement, terms or power of attorney.',
+    'official': 'Official/gov doc: e-Gov printout, court, notary, petition, registry.',
+    'id': 'ID card, passport, licence, residence permit or bank/credit card.',
+    'health': 'Medical doc: lab/blood test, prescription, doctor report, imaging, epicrisis, vaccine, appointment.',
+    'insurance_vehicle': 'Insurance policy/claim or vehicle doc: registration, inspection, traffic fine.',
+    'travel': 'Travel doc: flight/bus/train ticket, boarding pass, hotel/car booking, visa.',
+    'education': 'School/uni: diploma, certificate, transcript, exam, homework, lecture notes.',
+    'work': 'Work: CV, business report, slides, spreadsheet, meeting notes, quote/letter.',
+    'manual': 'Product manual, warranty, user/install guide or datasheet.',
+    'reading': 'Book, e-book, magazine, article or long reading.',
+    'email': 'Printed/saved e-mail, newsletter or saved web page.',
     // 2026-11-20: davetiye / etkinlik duyurusu eskiden "kutlama" (Ayıkla
     // = silme önerisi) ya da "diğer"e düşüyordu.
-    'event': 'An invitation (wedding, engagement, ceremony, reception, '
-        'opening, graduation), an event poster or public announcement '
-        '(concert, conference, course, blood donation call, charity), or a '
-        'concert, cinema, theatre, match or museum ticket.',
-    'note': 'A handwritten note, whiteboard, sticky note or a photo of a '
-        'paper that fits none of the other document categories.',
+    'event': 'Invitation (wedding/ceremony/graduation), event poster/announcement, or concert/cinema/match/museum ticket.',
+    'note': 'Handwritten note, whiteboard, sticky note or uncategorized paper photo.',
   };
 
   /// Görsel/ekran kategorileri.
   static const imageCategories = <String, String>{
-    'screenshot_chat': 'A screenshot of a messaging app or social media '
-        'conversation.',
-    'screenshot': 'Any other screenshot of a phone or computer screen: app, '
-        'website, map, settings, game.',
-    'greeting': 'A greeting or celebration image card: good morning / good '
-        'night, religious or national holiday wishes, Friday blessing, '
-        'birthday or anniversary card, inspirational quote image. NOT an '
-        'invitation, event poster or announcement.',
-    'meme': 'A meme, joke image, cartoon, sticker-like image or viral picture.',
-    'photo_people': 'A personal camera photo in which people are the main '
-        'subject.',
-    'photo_other': 'A personal camera photo of a place, food, object, pet, '
-        'vehicle or nature, with no document in it.',
+    'screenshot_chat': 'Chat or messaging app conversation screenshot.',
+    'screenshot': 'Other phone/PC screenshot: app, web, map, settings, game.',
+    'greeting': 'Greeting/holiday/blessing/quote image card (NOT invitation, poster or event).',
+    'meme': 'Meme, joke, cartoon, sticker or viral picture.',
+    'photo_people': 'Personal photo with people as main subject.',
+    'photo_other': 'Personal photo of place, food, object, pet, vehicle or nature (no document).',
   };
 
   /// Kurulum dosyası / arşiv (APK ve sıkıştırılmış arşivler YALNIZ bu
@@ -109,6 +83,17 @@ abstract final class SmartTaxonomy {
 
   /// Uzantıdan kesin kategoriler (kategori sorulmaz; öğrenme çevirmez).
   static const fixedCategories = {package, audio, video};
+
+  /// Kategori → ekran grubu (`other` yalnız "Tümü"nde).
+  static SmartCatGroup? groupOf(String cat) {
+    if (const {'invoice', 'receipt', 'bank', 'tax_salary'}.contains(cat)) {
+      return SmartCatGroup.finance;
+    }
+    if (docCategories.containsKey(cat)) return SmartCatGroup.docs;
+    if (imageCategories.containsKey(cat)) return SmartCatGroup.images;
+    if (fixedCategories.contains(cat)) return SmartCatGroup.media;
+    return null;
+  }
 
   /// Bütün kategori kimlikleri (sıralı: belge → görsel → ses/video →
   /// kurulum → diğer).
@@ -140,158 +125,143 @@ abstract final class SmartTaxonomy {
   /// (çeviri anahtarı `sm.s_<kimlik>`; test denetler).
   static const subtypes = <String, Map<String, String>>{
     'invoice': {
-      'electricity': 'Electricity bill.',
-      'water': 'Water bill.',
-      'natural_gas': 'Natural gas or heating bill.',
-      'mobile_phone': 'Mobile or landline phone bill.',
-      'internet_tv': 'Internet, cable or TV subscription bill.',
-      'rent_dues': 'Rent, building dues or maintenance fee.',
-      'other': 'Another kind of invoice or bill.',
+      'electricity': 'Electricity bill',
+      'water': 'Water bill',
+      'natural_gas': 'Gas/heating bill',
+      'mobile_phone': 'Phone bill',
+      'internet_tv': 'Internet/TV bill',
+      'rent_dues': 'Rent/building dues',
+      'other': 'Other bill',
     },
     'receipt': {
-      'grocery': 'A supermarket or grocery store receipt.',
-      'restaurant': 'A restaurant, cafe or food delivery receipt.',
-      'fuel': 'A fuel station receipt.',
-      'online_order': 'An online shopping order, e-commerce invoice or '
-          'delivery confirmation.',
-      'pharmacy': 'A pharmacy receipt.',
-      'other': 'Another kind of receipt.',
+      'grocery': 'Grocery/supermarket receipt',
+      'restaurant': 'Restaurant/cafe/food delivery receipt',
+      'fuel': 'Fuel station receipt',
+      'online_order': 'Online order/e-commerce invoice',
+      'pharmacy': 'Pharmacy receipt',
+      'other': 'Other receipt',
     },
     'bank': {
-      'transfer': 'A money transfer / payment receipt (EFT, wire, FAST, '
-          'remittance).',
-      'account_statement': 'A bank account statement.',
-      'card_statement': 'A credit card statement.',
-      'loan': 'A loan, mortgage or installment document.',
-      'other': 'Another banking document.',
+      'transfer': 'Transfer receipt (EFT/wire/FAST)',
+      'account_statement': 'Bank account statement',
+      'card_statement': 'Credit card statement',
+      'loan': 'Loan/mortgage/installment doc',
+      'other': 'Other banking doc',
     },
     'tax_salary': {
-      'payslip': 'A payslip or payroll statement.',
-      'tax_certificate': 'A tax registration certificate, tax return or tax '
-          'assessment.',
-      'service_record': 'A social security service record or contribution '
-          'statement.',
-      'pension': 'A pension or retirement document.',
-      'other': 'Another tax or social security document.',
+      'payslip': 'Payslip/payroll',
+      'tax_certificate': 'Tax certificate/return/assessment',
+      'service_record': 'Social security service record',
+      'pension': 'Pension/retirement doc',
+      'other': 'Other tax/SS doc',
     },
     'contract': {
-      'rental': 'A rental or lease agreement.',
-      'employment': 'An employment contract.',
-      'sales': 'A sales or purchase agreement.',
-      'subscription': 'A subscription or service agreement (phone, internet, '
-          'gym and similar).',
-      'power_of_attorney': 'A power of attorney.',
-      'other': 'Another kind of contract.',
+      'rental': 'Rental/lease agreement',
+      'employment': 'Employment contract',
+      'sales': 'Sales/purchase agreement',
+      'subscription': 'Subscription/service agreement',
+      'power_of_attorney': 'Power of attorney',
+      'other': 'Other contract',
     },
     'official': {
-      'e_government': 'An e-Government printout or online official '
-          'certificate.',
-      'court': 'A court, enforcement or bailiff document.',
-      'notary': 'A notary document.',
-      'land_registry': 'A land registry or title deed document.',
-      'civil_registry': 'A civil registry, population or residence '
-          'certificate.',
-      'military': 'A military service document.',
-      'petition': 'A petition or formal application letter to an '
-          'institution.',
-      'other': 'Another official document.',
+      'e_government': 'e-Gov printout/certificate',
+      'court': 'Court/enforcement doc',
+      'notary': 'Notary doc',
+      'land_registry': 'Land registry/title deed',
+      'civil_registry': 'Civil registry/residence cert',
+      'military': 'Military service doc',
+      'petition': 'Petition/application letter',
+      'other': 'Other official doc',
     },
     'health': {
-      'lab_result': 'A laboratory or blood test result.',
-      'prescription': 'A prescription.',
-      'medical_report': "A doctor's report, medical certificate or sick note.",
-      'imaging': 'A radiology / imaging report or image (X-ray, MRI, CT, '
-          'ultrasound).',
-      'discharge': 'A hospital discharge summary or epicrisis.',
-      'vaccination': 'A vaccination card or vaccination record.',
-      'appointment': 'A hospital or doctor appointment slip or reminder.',
-      'other': 'Another medical document.',
+      'lab_result': 'Lab/blood test result',
+      'prescription': 'Prescription',
+      'medical_report': 'Doctor report/sick note',
+      'imaging': 'Radiology/X-ray/MRI/CT/US report',
+      'discharge': 'Discharge summary/epicrisis',
+      'vaccination': 'Vaccination record',
+      'appointment': 'Appointment slip/reminder',
+      'other': 'Other medical doc',
     },
     'id': {
-      'id_card': 'A national identity card.',
-      'passport': 'A passport.',
-      'driving_licence': 'A driving licence.',
-      'residence_permit': 'A residence or work permit.',
-      'bank_card': 'A bank, debit or credit card.',
-      'other': 'Another identity document.',
+      'id_card': 'National ID card',
+      'passport': 'Passport',
+      'driving_licence': 'Driving licence',
+      'residence_permit': 'Residence/work permit',
+      'bank_card': 'Bank/credit card',
+      'other': 'Other ID doc',
     },
     'insurance_vehicle': {
-      'traffic_insurance': 'A compulsory motor (traffic) insurance policy.',
-      'casco': 'A comprehensive car insurance (casco) policy.',
-      'health_insurance': 'A health or life insurance policy.',
-      'vehicle_registration': 'A vehicle registration certificate.',
-      'vehicle_inspection': 'A vehicle inspection report.',
-      'traffic_fine': 'A traffic fine or penalty notice.',
-      'other': 'Another insurance or vehicle document.',
+      'traffic_insurance': 'Traffic insurance policy',
+      'casco': 'Comprehensive car insurance (casco)',
+      'health_insurance': 'Health/life insurance policy',
+      'vehicle_registration': 'Vehicle registration',
+      'vehicle_inspection': 'Vehicle inspection report',
+      'traffic_fine': 'Traffic fine notice',
+      'other': 'Other insurance/vehicle doc',
     },
     'travel': {
-      'flight': 'A flight ticket or boarding pass.',
-      'bus': 'A bus or coach ticket.',
-      'train': 'A train or metro ticket.',
-      'hotel': 'A hotel or accommodation reservation.',
-      'visa': 'A visa or entry permit.',
-      'other': 'Another travel document.',
+      'flight': 'Flight ticket/boarding pass',
+      'bus': 'Bus/coach ticket',
+      'train': 'Train/metro ticket',
+      'hotel': 'Hotel reservation',
+      'visa': 'Visa/entry permit',
+      'other': 'Other travel doc',
     },
     'education': {
-      'diploma': 'A diploma, degree or certificate of completion.',
-      'transcript': 'A transcript, report card or grade list.',
-      'exam': 'An exam paper, test or exam result.',
-      'homework': 'Homework or an assignment.',
-      'lecture_notes': 'Lecture notes or study notes.',
-      'other': 'Other education material.',
+      'diploma': 'Diploma/certificate',
+      'transcript': 'Transcript/grade list',
+      'exam': 'Exam paper/result',
+      'homework': 'Homework/assignment',
+      'lecture_notes': 'Lecture/study notes',
+      'other': 'Other education material',
     },
     'work': {
-      'cv': 'A CV or résumé.',
-      'report': 'A business report or analysis.',
-      'presentation': 'A business presentation or slide deck.',
-      'spreadsheet': 'A business spreadsheet, list or table.',
-      'quote_order': 'A price quote, offer, proposal or purchase order.',
-      'meeting': 'Meeting notes, minutes or an agenda.',
-      'other': 'Other work material.',
+      'cv': 'CV/résumé',
+      'report': 'Business report/analysis',
+      'presentation': 'Presentation/slides',
+      'spreadsheet': 'Spreadsheet/table',
+      'quote_order': 'Quote/offer/purchase order',
+      'meeting': 'Meeting notes/agenda',
+      'other': 'Other work material',
     },
     'manual': {
-      'user_manual': 'A product user manual or user guide.',
-      'warranty': 'A warranty card or warranty certificate.',
-      'installation': 'An installation or assembly guide.',
-      'other': 'Another manual or technical document.',
+      'user_manual': 'User manual/guide',
+      'warranty': 'Warranty card/cert',
+      'installation': 'Installation/assembly guide',
+      'other': 'Other manual',
     },
     'screenshot': {
-      'map': 'A screenshot of a map, route or location.',
-      'shopping': 'A screenshot of a shopping app, product page or cart.',
-      'social': 'A screenshot of a social media post or profile (not a '
-          'chat).',
-      'settings': 'A screenshot of phone or app settings.',
-      'game': 'A screenshot of a game.',
-      'ticket_qr': 'A screenshot of a ticket, QR code, pass or booking.',
-      'bank_app': 'A screenshot of a banking, payment or wallet app '
-          '(balance, transfer, card).',
-      'doc_page': 'A screenshot of a document, PDF, article or text page.',
-      'other': 'Another kind of screenshot.',
+      'map': 'Map/route',
+      'shopping': 'Shopping app/product/cart',
+      'social': 'Social media post/profile (not chat)',
+      'settings': 'Phone/app settings',
+      'game': 'Game',
+      'ticket_qr': 'Ticket/QR/booking',
+      'bank_app': 'Banking/payment/wallet app',
+      'doc_page': 'Document/PDF/article page',
+      'other': 'Other screenshot',
     },
     'event': {
-      'wedding': 'A wedding, engagement or henna night invitation.',
-      'ceremony': 'An invitation to a ceremony, reception, opening, '
-          'graduation or meeting.',
-      'announcement': 'An event poster or public announcement (concert, '
-          'conference, course, blood donation call, charity).',
-      'event_ticket': 'A concert, cinema, theatre, match or museum ticket.',
-      'other': 'Another kind of event material.',
+      'wedding': 'Wedding/engagement invitation',
+      'ceremony': 'Ceremony/opening/graduation invite',
+      'announcement': 'Event poster/public announcement',
+      'event_ticket': 'Concert/cinema/theatre/match/museum ticket',
+      'other': 'Other event',
     },
     'photo_other': {
-      'food': 'A photo of food or drink.',
-      'landscape': 'A photo of a landscape, city or nature.',
-      'product': 'A photo of a product or object.',
-      'pet': 'A photo of a pet or animal.',
-      'vehicle': 'A photo of a car or other vehicle.',
-      'other': 'Another kind of photo.',
+      'food': 'Food/drink',
+      'landscape': 'Landscape/city/nature',
+      'product': 'Product/object',
+      'pet': 'Pet/animal',
+      'vehicle': 'Car/vehicle',
+      'other': 'Other photo',
     },
     package: {
-      'installer': 'An app installer package, downloaded to install an app.',
-      'backup': 'A backup: chat, app or phone backup, or an archive of older '
-          'files kept for safety.',
-      'download': 'An archive downloaded from the web or received from '
-          'someone (documents, photos, project files).',
-      'other': 'None of these.',
+      'installer': 'App installer package',
+      'backup': 'Chat/app/phone backup archive',
+      'download': 'Downloaded/shared archive',
+      'other': 'Other',
     },
     audio: _audioSubs,
     video: _videoSubs,
@@ -310,40 +280,37 @@ abstract final class SmartTaxonomy {
     'fa': 'Persian',
     'es': 'Spanish',
     'az': 'Azerbaijani',
-    'other': 'Another language.',
-    'none': 'There is no speech (music only, silence or noise).',
+    'other': 'Other language',
+    'none': 'No speech (music/silence/noise)',
   };
 
   /// Ses kalitesi / gürültü.
   static const audioQualities = <String, String>{
-    'clear': 'Clear: speech or music is easy to hear, little background '
-        'noise.',
-    'noisy': 'Noisy: strong background noise (street, wind, crowd, music) '
-        'but still understandable.',
-    'poor': 'Poor: very hard to understand, distorted, cut off, mostly '
-        'silence or recorded by accident (for example in a pocket).',
+    'clear': 'Clear speech/music, low noise',
+    'noisy': 'Noisy background, still intelligible',
+    'poor': 'Distorted, cut off, mostly silence or pocket recording',
   };
 
   /// Alt tür sorusu yalnız görselde sorulan kategoriler.
   static const _imageOnlySubs = {'screenshot', 'photo_other'};
 
   static const _subjects = {
-    'invoice': 'an invoice or bill',
-    'receipt': 'a receipt or proof of purchase',
-    'bank': 'a banking document',
-    'tax_salary': 'a tax, social security or payroll document',
-    'contract': 'a contract or agreement',
-    'official': 'an official or government document',
-    'health': 'a medical document',
-    'id': 'an identity document or card',
-    'insurance_vehicle': 'an insurance or vehicle document',
-    'travel': 'a travel document',
-    'education': 'school or education material',
+    'invoice': 'invoice/bill',
+    'receipt': 'receipt',
+    'bank': 'banking doc',
+    'tax_salary': 'tax/payroll doc',
+    'contract': 'contract',
+    'official': 'official doc',
+    'health': 'medical doc',
+    'id': 'ID/card',
+    'insurance_vehicle': 'insurance/vehicle doc',
+    'travel': 'travel doc',
+    'education': 'education material',
     'work': 'work material',
-    'manual': 'a manual, guide or warranty',
-    'event': 'an invitation, event announcement or event ticket',
-    'screenshot': 'a screenshot (not of a chat)',
-    'photo_other': 'a personal photo without people or documents',
+    'manual': 'manual/warranty',
+    'event': 'event/invite/ticket',
+    'screenshot': 'screenshot',
+    'photo_other': 'personal photo',
   };
 
   /// Alt türün kategorisi (yoksa null).
@@ -466,36 +433,35 @@ abstract final class SmartTaxonomy {
 
   /// Belgedeki ay (1–12) + yok.
   static const months = {
-    '1': 'January', '2': 'February', '3': 'March', '4': 'April', '5': 'May',
-    '6': 'June', '7': 'July', '8': 'August', '9': 'September',
-    '10': 'October', '11': 'November', '12': 'December',
-    'none': 'No clear document date is visible.',
+    '1': 'Jan', '2': 'Feb', '3': 'Mar', '4': 'Apr', '5': 'May',
+    '6': 'Jun', '7': 'Jul', '8': 'Aug', '9': 'Sep',
+    '10': 'Oct', '11': 'Nov', '12': 'Dec',
+    'none': 'None',
   };
 
   /// Belgedeki yıl: son 8 yıl + daha eski + yok.
   static Map<String, String> years(int now) => {
         for (var y = now; y > now - 8; y--) '$y': '$y',
-        'older': 'Before ${now - 7}.',
-        'none': 'No clear document year is visible.',
+        'older': '<${now - 7}',
+        'none': 'None',
       };
 
   /// Son ödeme tarihi — istekteki BUGÜNE göre aralık ([SmartDates.overdue]).
   static const dueBuckets = <String, String>{
-    'past': 'The payment due date is before today.',
-    'week': 'The payment due date is today or within the next 7 days.',
-    'month': 'The payment due date is 8 to 31 days after today.',
-    'later': 'The payment due date is more than 31 days after today.',
-    'none': 'No payment due date is visible.',
+    'past': 'Before today',
+    'week': 'Today..+7d',
+    'month': '+8..+31d',
+    'later': '>31d',
+    'none': 'None',
   };
 
   /// Geçerlilik / bitiş tarihi — istekteki bugüne göre aralık.
   static const validBuckets = <String, String>{
-    'past': 'It has already expired: its expiry or validity end date is '
-        'before today.',
-    'month': 'It expires today or within the next 31 days.',
-    'year': 'It expires 32 days to one year after today.',
-    'later': 'It expires more than one year after today.',
-    'none': 'No expiry or validity end date is visible.',
+    'past': 'Expired (<today)',
+    'month': 'Today..+31d',
+    'year': '+32d..1y',
+    'later': '>1y',
+    'none': 'None',
   };
 
   /// Son ödeme tarihi anlamlı kategoriler.
@@ -509,11 +475,11 @@ abstract final class SmartTaxonomy {
 
   /// Tutar aralığı (toplam ödenecek / ödenen).
   static const amountBuckets = <String, String>{
-    'lt100': 'The total amount is less than 100 (in the currency shown).',
-    '100_500': 'The total amount is between 100 and 500.',
-    '500_2000': 'The total amount is between 500 and 2000.',
-    'gt2000': 'The total amount is more than 2000.',
-    'none': 'No total amount is visible.',
+    'lt100': '<100',
+    '100_500': '100-500',
+    '500_2000': '500-2000',
+    'gt2000': '>2000',
+    'none': 'None',
   };
 
   /// Tutar sorulan kategoriler.
@@ -559,8 +525,7 @@ abstract final class SmartTaxonomy {
         DecisionQuestion.choice(
           'sub_$package',
           'sub_$package',
-          'Only the name, type, size and folder of this app package or '
-              'archive are known. What is it most likely?',
+          'App package or archive metadata only. Most likely type?',
           subtypes[package]!,
         ),
       ];
@@ -574,16 +539,13 @@ abstract final class SmartTaxonomy {
         'cat',
         'cat',
         (image
-                ? 'What kind of file is this? Judge by its content (whatever '
-                    'its language), not by the file name.'
-                : 'This is a document file (PDF or text). What kind of '
-                    'document is it? Judge by its content (whatever its '
-                    'language), not by the file name or how the pages look.') +
+                ? 'Classify by content (any language), ignore filename.'
+                : 'Document file. Classify by content (any language), ignore filename.') +
             tail,
         {
           ...docCategories,
           if (image) ...imageCategories,
-          other: 'None of the above.',
+          other: 'None',
         },
       ),
       for (final e in subtypes.entries)
@@ -591,75 +553,61 @@ abstract final class SmartTaxonomy {
           DecisionQuestion.choice(
             'sub_${e.key}',
             'sub_${e.key}',
-            'If this is ${_subjects[e.key]}, which kind is it? If it is not, '
-                'choose "other".',
+            'If ${_subjects[e.key]}, subtype? Else "other".',
             e.value,
           ),
       const DecisionQuestion.choice(
         'bank_name',
         'bank_name',
-        'If this is a banking document, which bank issued it?',
+        'If banking doc, issuing bank? Else "other".',
         banks,
       ),
       const DecisionQuestion.choice(
         'provider',
         'provider',
-        'If this is an invoice or bill (phone, internet/TV, electricity, '
-            'natural gas or water), which company issued it? If it is not a '
-            'bill, choose "other".',
+        'If utility/telecom bill, provider? Else "other".',
         providers,
       ),
       const DecisionQuestion.choice(
         'month',
         'month',
-        'In which month is the document dated (issue, invoice or statement '
-            'date)? Use the date printed in the content, not the file date.',
+        'Printed document month (content date, not file date).',
         months,
       ),
       DecisionQuestion.choice(
         'year',
         'year',
-        'In which year is the document dated? Use the date printed in the '
-            'content, not the file date.',
+        'Printed document year (content date, not file date).',
         years(year),
       ),
       DecisionQuestion.choice(
         'due',
         'due',
-        'Today is $day. If this is a bill or invoice with a payment due date '
-            '(last payment date) printed on it, when is that date compared '
-            'with today? Otherwise choose "none".',
+        'Today is $day. If bill has a payment due date, when vs today? Else "none".',
         dueBuckets,
       ),
       DecisionQuestion.choice(
         'valid',
         'valid',
-        'Today is $day. If this document has an expiry or validity end date '
-            '(ID card, passport, licence, insurance policy, contract end, '
-            'warranty, visa, permit, report validity), when is that date '
-            'compared with today? Otherwise choose "none".',
+        'Today is $day. If doc has an expiry/validity end date, when vs today? Else "none".',
         validBuckets,
       ),
       const DecisionQuestion.choice(
         'amount',
         'amount',
-        'If this is a bill, receipt or banking document, what is the total '
-            'amount to pay or paid (the grand total, not a single line)?',
+        'If bill/receipt/bank doc, grand total amount? Else "none".',
         amountBuckets,
       ),
       if (image) ...const [
         DecisionQuestion.yesNo(
           'blurry',
           'blurry',
-          'Is the image clearly blurry, out of focus or motion-blurred so '
-              'that its main subject is hard to see?',
+          'Clearly blurry/out-of-focus so main subject is hard to see?',
         ),
         DecisionQuestion.yesNo(
           'accidental',
           'accidental',
-          'Does this look like an accidental shot: pocket photo, finger over '
-              'the lens, almost completely black or white, floor or ceiling, '
-              'or nothing recognisable?',
+          'Accidental shot (pocket, finger on lens, blank/dark, floor/ceiling)?',
         ),
       ],
     ];
@@ -670,20 +618,19 @@ abstract final class SmartTaxonomy {
     DecisionQuestion.choice(
       'sub_$audio',
       'sub_$audio',
-      'This is an audio recording. Listen to it: what kind of recording is '
-          'it? Judge by the sound, not by the file name.',
+      'Audio recording type (by sound, ignore filename).',
       _audioSubs,
     ),
     DecisionQuestion.choice(
       'speech_lang',
       'speech_lang',
-      'Which language is mainly spoken in this recording?',
+      'Main spoken language?',
       speechLanguages,
     ),
     DecisionQuestion.choice(
       'quality',
       'quality',
-      'How is the sound quality of this recording?',
+      'Audio quality?',
       audioQualities,
     ),
   ];
@@ -693,44 +640,33 @@ abstract final class SmartTaxonomy {
     DecisionQuestion.choice(
       'sub_$video',
       'sub_$video',
-      'This is the beginning of a video. What kind of video is it? Judge by '
-          'what is seen and heard, not by the file name.',
+      'Video type (by visual/audio, ignore filename).',
       _videoSubs,
     ),
     DecisionQuestion.yesNo(
       'accidental',
       'accidental',
-      'Does this look like an accidental or useless recording: filmed in a '
-          'pocket, almost completely dark or black, pointing at the floor or '
-          'ceiling, only a second or two long, or nothing recognisable?',
+      'Accidental/useless clip (pocket, dark/blank, floor/ceiling, 1-2s)?',
     ),
   ];
 
   // [subtypes] ve soru listeleri aynı sabit haritaları paylaşır.
   static const _audioSubs = {
-    'voice_note': 'A personal voice note or voice memo: one person '
-        'speaking to themselves (reminder, idea, list).',
-    'whatsapp_voice': 'A voice message sent in a messaging app (WhatsApp, '
-        'Telegram…): short, informal, spoken to another person.',
-    'meeting_recording': 'A recording of a meeting, interview or group discussion '
-        'with several speakers.',
-    'lecture': 'A recording of a lesson, lecture, seminar, sermon, talk or '
-        'podcast.',
-    'call_recording': 'A recording of a phone call: two sides, narrow '
-        'telephone sound.',
-    'music': 'Music or a song (with or without singing), or a ringtone.',
-    'other': 'None of these.',
+    'voice_note': 'Personal voice note/memo (1 speaker to self)',
+    'whatsapp_voice': 'Messaging voice message (short, informal)',
+    'meeting_recording': 'Meeting/interview/group discussion',
+    'lecture': 'Lesson, lecture, seminar, talk or podcast',
+    'call_recording': 'Phone call recording (2 sides)',
+    'music': 'Music, song or ringtone',
+    'other': 'Other',
   };
   static const _videoSubs = {
-    'family_video': 'A personal or family video: people, children, a '
-        'celebration, a trip, pets or daily life.',
-    'screen_recording': 'A screen recording of a phone or computer screen.',
-    'lecture_video': 'A lesson, lecture, tutorial, course or talk.',
-    'clip_meme': 'A forwarded clip, meme, funny or viral video, greeting '
-        'video or social media video.',
-    'document_video': 'A video of a document, whiteboard, blackboard, '
-        'slides or a paper being shown.',
-    'other': 'None of these.',
+    'family_video': 'Personal/family/trip/pet/daily life video',
+    'screen_recording': 'Phone/PC screen recording',
+    'lecture_video': 'Lesson, lecture, tutorial or course',
+    'clip_meme': 'Forwarded clip, meme, viral/greeting/social video',
+    'document_video': 'Document, whiteboard or slides video',
+    'other': 'Other',
   };
 
   /// Ekranda gösterilen her kategori için arama eşanlamları (dilden bağımsız,
@@ -751,8 +687,8 @@ abstract final class SmartTaxonomy {
     'manual': ['kılavuz', 'garanti', 'manual', 'warranty', 'دليل'],
     'reading': ['kitap', 'makale', 'book', 'article', 'كتاب'],
     'email': ['e-posta', 'eposta', 'mail', 'gmail', 'email', 'bülten', 'newsletter', 'بريد'],
-    'note': ['not', 'tahta', 'whiteboard', 'note', 'ملاحظة'],
     'event': ['davetiye', 'davet', 'düğün', 'nişan', 'tören', 'etkinlik', 'afiş', 'duyuru', 'konser', 'invitation', 'event', 'دعوة'],
+    'note': ['not', 'tahta', 'whiteboard', 'note', 'ملاحظة'],
     'screenshot_chat': ['ekran görüntüsü', 'sohbet', 'screenshot', 'chat', 'whatsapp'],
     'screenshot': ['ekran görüntüsü', 'screenshot', 'لقطة شاشة'],
     'greeting': ['günaydın', 'iyi geceler', 'bayram', 'kandil', 'cuma', 'kutlama', 'greeting', 'تهنئة'],
@@ -784,6 +720,12 @@ abstract final class SmartDates {
         _ => false,
       };
 
+  /// Son ödeme tarihi yaklaşan fatura mı (henüz geçmemiş, 31 gün içinde)?
+  static bool upcomingDue(String bucket, int asked, int today) {
+    if (overdue(bucket, asked, today)) return false;
+    return bucket == 'week' || bucket == 'month';
+  }
+
   /// Geçerlilik tarihi [today] itibarıyla kesin dolmuş mu?
   static bool expired(String bucket, int asked, int today) => switch (bucket) {
         'past' => true,
@@ -791,4 +733,11 @@ abstract final class SmartDates {
         'year' => asked > 0 && today - asked > 366,
         _ => false,
       };
+
+  /// Geçerlilik tarihi yaklaşan belge mi (henüz dolmamış, ~31 gün içinde)?
+  static bool expiringSoon(String bucket, int asked, int today) {
+    if (expired(bucket, asked, today)) return false;
+    if (bucket == 'month') return true;
+    return bucket == 'year' && asked > 0 && today - asked >= 335;
+  }
 }
