@@ -8,16 +8,52 @@ library;
 /// Bu fonksiyon `İ→i`, `I→ı` eşler ve her karakteri **tek** karaktere
 /// indirger → kaynak metinle indeksler hizalı kalır (eşleşme konumu doğru).
 String turkishFold(String s) {
+  final len = s.length;
+  if (len == 0) return s;
+  // Hızlı yol: zaten küçük ASCII/rakam/noktalama ise hiç bellek ayırmadan dön.
+  var firstDiff = -1;
+  for (var i = 0; i < len; i++) {
+    final c = s.codeUnitAt(i);
+    if ((c >= 0x41 && c <= 0x5A) || c >= 0x80) {
+      firstDiff = i;
+      break;
+    }
+  }
+  if (firstDiff < 0) return s;
+
   final sb = StringBuffer();
-  for (final ch in s.split('')) {
-    if (ch == 'İ') {
-      sb.write('i');
-    } else if (ch == 'I') {
-      sb.write('ı');
+  if (firstDiff > 0) sb.write(s.substring(0, firstDiff));
+  for (var i = firstDiff; i < len; i++) {
+    final c = s.codeUnitAt(i);
+    if (c == 0x0049) {
+      // 'I' → 'ı'
+      sb.writeCharCode(0x0131);
+    } else if (c == 0x0130) {
+      // 'İ' → 'i'
+      sb.writeCharCode(0x0069);
+    } else if (c >= 0x41 && c <= 0x5A) {
+      // ASCII A-Z (I hariç)
+      sb.writeCharCode(c + 32);
+    } else if (c < 0x80) {
+      sb.writeCharCode(c);
     } else {
-      final low = ch.toLowerCase();
-      // 1:1 kalmalı; çok-karakterli nadir durumda orijinali koru.
-      sb.write(low.length == 1 ? low : ch);
+      switch (c) {
+        case 0x00C7: // Ç → ç
+          sb.writeCharCode(0x00E7);
+        case 0x011E: // Ğ → ğ
+          sb.writeCharCode(0x011F);
+        case 0x00D6: // Ö → ö
+          sb.writeCharCode(0x00F6);
+        case 0x015E: // Ş → ş
+          sb.writeCharCode(0x015F);
+        case 0x00DC: // Ü → ü
+          sb.writeCharCode(0x00FC);
+        default:
+          final ch = s[i];
+          final low = ch.toLowerCase();
+          // 1:1 kalmalı; çok-karakterli nadir durumda orijinali koru.
+          sb.write(low.length == 1 ? low : ch);
+      }
     }
   }
   return sb.toString();
@@ -33,14 +69,52 @@ String turkishFold(String s) {
 /// (AI'nın verdiği "fotoğraf" ile "fotograf" türlerinin aynı kovaya düşmesi,
 /// "sözleşme" yazan kullanıcının "sozlesme.pdf" dosyasını bulması).
 String asciiFold(String s) {
-  const map = {
-    'ğ': 'g', 'ü': 'u', 'ş': 's', 'ı': 'i', 'ö': 'o', 'ç': 'c',
-    'â': 'a', 'î': 'i', 'û': 'u', 'ê': 'e', 'é': 'e', 'á': 'a',
-  };
-  final folded = turkishFold(s);
+  final len = s.length;
+  if (len == 0) return s;
+  // Hızlı yol: zaten küçük ASCII ise tek geçişte doğrudan dön.
+  var firstDiff = -1;
+  for (var i = 0; i < len; i++) {
+    final c = s.codeUnitAt(i);
+    if ((c >= 0x41 && c <= 0x5A) || c >= 0x80) {
+      firstDiff = i;
+      break;
+    }
+  }
+  if (firstDiff < 0) return s;
+
   final sb = StringBuffer();
-  for (final ch in folded.split('')) {
-    sb.write(map[ch] ?? ch);
+  if (firstDiff > 0) sb.write(s.substring(0, firstDiff));
+  for (var i = firstDiff; i < len; i++) {
+    final c = s.codeUnitAt(i);
+    if (c >= 0x41 && c <= 0x5A) {
+      // ASCII A-Z (I dahil → 'i', çünkü 'I' → 'ı' → 'i')
+      sb.writeCharCode(c + 32);
+    } else if (c < 0x80) {
+      sb.writeCharCode(c);
+    } else {
+      switch (c) {
+        case 0x0130 || 0x0131 || 0x00CE || 0x00EE: // İ, ı, Î, î → i
+          sb.writeCharCode(0x0069);
+        case 0x011E || 0x011F: // Ğ, ğ → g
+          sb.writeCharCode(0x0067);
+        case 0x00DC || 0x00FC || 0x00DB || 0x00FB: // Ü, ü, Û, û → u
+          sb.writeCharCode(0x0075);
+        case 0x015E || 0x015F: // Ş, ş → s
+          sb.writeCharCode(0x0073);
+        case 0x00D6 || 0x00F6: // Ö, ö → o
+          sb.writeCharCode(0x006F);
+        case 0x00C7 || 0x00E7: // Ç, ç → c
+          sb.writeCharCode(0x0063);
+        case 0x00C2 || 0x00E2 || 0x00C1 || 0x00E1: // Â, â, Á, á → a
+          sb.writeCharCode(0x0061);
+        case 0x00CA || 0x00EA || 0x00C9 || 0x00E9: // Ê, ê, É, é → e
+          sb.writeCharCode(0x0065);
+        default:
+          final ch = s[i];
+          final low = ch.toLowerCase();
+          sb.write(low.length == 1 ? low : ch);
+      }
+    }
   }
   return sb.toString();
 }

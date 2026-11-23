@@ -580,6 +580,11 @@ abstract final class SmartSortInput {
     return count;
   }
 
+  static final RegExp _reTrailWsNl = RegExp(r'[ \t]+\n');
+  static final RegExp _reLeadNlWs = RegExp(r'\n[ \t]+');
+  static final RegExp _reManyNl = RegExp(r'\n{3,}');
+  static final RegExp _reMultiWs = RegExp(r'[ \t]{2,}');
+
   /// Yazıyı sadeleştirip (satır sonu, fazla boş satır/boşluk) en çok [max]
   /// karaktere keser; vekil çifti ortadan bölünmez. Uzun belgelerde ([max] >=
   /// 400) baş (%78) + son (%22) korunur: fatura toplamı, son ödeme tarihi ve
@@ -589,10 +594,10 @@ abstract final class SmartSortInput {
         .replaceAll('\r\n', '\n')
         .replaceAll('\r', '\n')
         .replaceAll('\u00a0', ' ')
-        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
-        .replaceAll(RegExp(r'\n[ \t]+'), '\n')
-        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-        .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
+        .replaceAll(_reTrailWsNl, '\n')
+        .replaceAll(_reLeadNlWs, '\n')
+        .replaceAll(_reManyNl, '\n\n')
+        .replaceAll(_reMultiWs, ' ')
         .trim();
     if (s.length <= max) return s;
     if (max >= 400) {

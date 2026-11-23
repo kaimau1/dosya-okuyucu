@@ -1005,12 +1005,14 @@ abstract final class SmartSort {
     }.join(' ');
   }
 
+  static final RegExp _wsRe = RegExp(r'\s+');
+
   /// Genel arama: bütün terimler dosya adında, ikinci adda ya da üç dildeki
   /// adlarda geçen kayıtlar (katlanmış karşılaştırma). Ayıkla'da gizlenenler
   /// girmez (U4: tek yerde — arama ve akıllı aramalar aynı kapıdan geçer).
   static List<SmartRecord> matches(String query, {int limit = 200}) {
     final terms = asciiFold(query)
-        .split(RegExp(r'\s+'))
+        .split(_wsRe)
         .where((t) => t.isNotEmpty)
         .toList();
     if (terms.isEmpty || limit <= 0) return const [];

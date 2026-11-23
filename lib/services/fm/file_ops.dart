@@ -513,6 +513,11 @@ abstract final class FileOps {
         for (final t in transfers) ...[t.dest, if (move) t.source],
       ];
 
+  static final RegExp _sepRe = RegExp(r'[/\\]');
+  static final RegExp _badCharsRe = RegExp(r'[/\\\x00-\x1f]');
+  static final RegExp _dotsOnlyRe = RegExp(r'^\.+$');
+  static final RegExp _trailDotSpaceRe = RegExp(r'[. ]+$');
+
   /// [dir] + [name]; ayırıcı olarak [dir]'deki SON ayırıcı kullanılır.
   /// p.join platform ayırıcısı basar: Android'de fark yok ama Windows'ta
   /// '/'lu gelen yol '\'ya döner, yan kayıt (etiket/geçmiş) anahtarları ve
@@ -521,7 +526,7 @@ abstract final class FileOps {
     final trimmed = (dir.endsWith('/') || dir.endsWith(r'\'))
         ? dir.substring(0, dir.length - 1)
         : dir;
-    final i = trimmed.lastIndexOf(RegExp(r'[/\\]'));
+    final i = trimmed.lastIndexOf(_sepRe);
     final sep = i < 0 ? p.separator : trimmed[i];
     return '$trimmed$sep$name';
   }
@@ -531,7 +536,7 @@ abstract final class FileOps {
     final clean = sanitizeName(newName);
     if (clean.isEmpty) throw const FileSystemException('ad boş olamaz');
     // p.dirname+p.join değil: girdinin ayırıcı stili korunur (üstteki not).
-    final cut = path.lastIndexOf(RegExp(r'[/\\]')) + 1;
+    final cut = path.lastIndexOf(_sepRe) + 1;
     final target = '${path.substring(0, cut)}$clean';
     if (p.normalize(target) == p.normalize(path)) return path;
     // YALNIZ BÜYÜK/KÜÇÜK HARF değişiyorsa "zaten var" hatası verilmez.
@@ -626,14 +631,14 @@ abstract final class FileOps {
   /// "a/b" yazarsa yanlışlıkla başka klasöre yazmayı engeller.
   static String sanitizeName(String name) => name
       .trim()
-      .replaceAll(RegExp(r'[/\\\x00-\x1f]'), '_')
-      .replaceAll(RegExp(r'^\.+$'), '')
+      .replaceAll(_badCharsRe, '_')
+      .replaceAll(_dotsOnlyRe, '')
       // **Sondaki nokta ve boşluklar kırpılır** (2026-09-06 denetim turu):
       // FAT32/exFAT (USB bellek, SD kart) ve Windows böyle bir adı KABUL
       // ETMİYOR. "Rapor." adlı bir dosyayı belleğe kopyalamak sessizce
       // başarısız oluyordu; ad Android tarafında geçerli olduğu için de
       // sorunun nereden geldiği anlaşılmıyordu.
-      .replaceAll(RegExp(r'[. ]+$'), '');
+      .replaceAll(_trailDotSpaceRe, '');
 
   /// Kopyalanacak dosya sayısı — ilerleme çubuğunun paydası.
   ///
