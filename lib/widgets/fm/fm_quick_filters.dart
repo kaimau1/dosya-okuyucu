@@ -9,16 +9,17 @@ import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_colors_store.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/storage_stats.dart';
 import '../app_dialog.dart';
+import 'fm_filter_widgets.dart';
 import 'pin_dialog.dart';
 import 'smart_cat_style.dart';
-import 'fm_type_chips.dart'
-    show FmSheetFooter, FmSheetSectionTitle;
+import 'fm_type_chips.dart' show FmSheetFooter;
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -623,44 +624,65 @@ Future<void> showSmartCatSheet(
   var f = filter;
   return showAppSheet<void>(
     context,
-    title: context.t('sm.filter_title'),
+    scrollable: false,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSheet) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
-        child: Wrap(
-          spacing: Gap.xs,
-          runSpacing: Gap.xs,
-          children: [
-            for (final (cat, n) in cats)
-              FilterChip(
-                key: ValueKey('smartcat-$cat'),
-                avatar: Icon(SmartCatStyle.icon(cat),
-                    size: AppIcons.small, color: SmartCatStyle.color(cat)),
-                label: Text('${SmartCatStyle.label(ctx, cat)} ($n)'),
-                selected: f.smartCats.contains(cat),
-                onSelected: (on) async {
-                  // B2: hassas kategori seçilince oturumda bir kez PIN.
-                  if (on &&
-                      SmartTaxonomy.sensitive.contains(cat) &&
-                      !await unlockSensitiveCats(ctx)) {
-                    return;
-                  }
-                  if (!ctx.mounted) return;
-                  f = f.toggleSmartCat(cat);
-                  setSheet(() {});
-                  onChanged(f);
-                },
-              ),
-            if (f.smartCats.isNotEmpty)
-              ActionChip(
-                label: Text(ctx.t('common.clear')),
-                onPressed: () {
+      builder: (ctx, setSheet) => FmFilterSheetScaffold(
+        title: ctx.t('sm.filter_title'),
+        activeCount: f.smartCats.length,
+        trailing: TextButton.icon(
+          onPressed: f.smartCats.isEmpty
+              ? null
+              : () {
                   f = f.withSmartCats(const {});
                   setSheet(() {});
                   onChanged(f);
                 },
-              ),
-          ],
+          icon: const Icon(AppIcons.clearAll, size: 18),
+          label: Text(ctx.t('common.clear')),
+        ),
+        body: FmFilterSectionCard(
+          icon: AppIcons.ai,
+          title: ctx.t('sm.filter_title'),
+          badgeText: f.smartCats.isNotEmpty
+              ? '${f.smartCats.length} / ${cats.length}'
+              : '${cats.length}',
+          badgeActive: f.smartCats.isNotEmpty,
+          child: Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final (cat, n) in cats)
+                FmFilterOptionChip(
+                  key: ValueKey('smartcat-$cat'),
+                  icon: SmartCatStyle.icon(cat),
+                  accentColor: SmartCatStyle.color(cat),
+                  label: SmartCatStyle.label(ctx, cat),
+                  count: n,
+                  selected: f.smartCats.contains(cat),
+                  onTap: () async {
+                    final adding = !f.smartCats.contains(cat);
+                    // B2: hassas kategori seçilince oturumda bir kez PIN.
+                    if (adding &&
+                        SmartTaxonomy.sensitive.contains(cat) &&
+                        !await unlockSensitiveCats(ctx)) {
+                      return;
+                    }
+                    if (!ctx.mounted) return;
+                    f = f.toggleSmartCat(cat);
+                    setSheet(() {});
+                    onChanged(f);
+                  },
+                ),
+            ],
+          ),
+        ),
+        footer: FilledButton.icon(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+          ),
+          onPressed: () => Navigator.of(ctx).pop(),
+          icon: const Icon(AppIcons.check, size: 20),
+          label: Text(ctx.t('common.ok')),
         ),
       ),
     ),
@@ -684,7 +706,7 @@ Future<void> showFmSourceSheet(
   var smartOpen = filter.smartCats.isNotEmpty;
   return showAppSheet<void>(
     context,
-    title: context.t('src.title'),
+    scrollable: false,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setSheet) {
         void apply(FmFilter next) {
@@ -696,105 +718,89 @@ Future<void> showFmSourceSheet(
         final smartCats = _smartCounts(source, f);
         final months = untouchedDays ~/ 30;
         final scheme = Theme.of(ctx).colorScheme;
-        // 2026-11-22 (kullanıcı: "akıllı kategori bazen çok yer kaplıyor,
-        // diğer şeyleri örtüyor"): büyük 3 sütunlu kutular yerine içeriği
-        // kadar geniş hap — bir satıra çok daha fazlası sığar.
-        Widget section(String title, List<Widget> tiles) {
-          if (tiles.isEmpty) return const SizedBox.shrink();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              FmSheetSectionTitle(title),
-              Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: tiles),
-            ],
-          );
-        }
 
         final smartTiles = <Widget>[
           for (final (cat, n) in smartCats)
-            _SrcChip(
-                  key: ValueKey('smartcat-$cat'),
-                  icon: SmartCatStyle.icon(cat),
-                  color: SmartCatStyle.color(cat),
-                  label: SmartCatStyle.label(ctx, cat),
-                  count: n,
-                  selected: f.smartCats.contains(cat),
-                  onTap: () async {
-                    final adding = !f.smartCats.contains(cat);
-                    if (adding &&
-                        SmartTaxonomy.sensitive.contains(cat) &&
-                        !await unlockSensitiveCats(ctx)) {
-                      return;
-                    }
-                    if (!ctx.mounted) return;
-                    apply(f.toggleSmartCat(cat));
-                  },
-                ),
+            FmFilterOptionChip(
+              key: ValueKey('smartcat-$cat'),
+              icon: SmartCatStyle.icon(cat),
+              accentColor: SmartCatStyle.color(cat),
+              label: SmartCatStyle.label(ctx, cat),
+              count: n,
+              selected: f.smartCats.contains(cat),
+              onTap: () async {
+                final adding = !f.smartCats.contains(cat);
+                if (adding &&
+                    SmartTaxonomy.sensitive.contains(cat) &&
+                    !await unlockSensitiveCats(ctx)) {
+                  return;
+                }
+                if (!ctx.mounted) return;
+                apply(f.toggleSmartCat(cat));
+              },
+            ),
         ];
 
         final where = <Widget>[
           for (final (v, n) in c.volumes)
-            _SrcChip(
-                  key: ValueKey('src-vol-${v.path}'),
-                  icon: AppIcons.sdCard,
-                  color: scheme.primary,
-                  label: v.displayLabel(ctx.t),
-                  count: n,
-                  selected: f.volumeRoots.contains(v.path),
-                  onTap: () => apply(f.toggleVolumeRoot(v.path)),
-                ),
+            FmFilterOptionChip(
+              key: ValueKey('src-vol-${v.path}'),
+              icon: AppIcons.sdCard,
+              accentColor: scheme.primary,
+              label: v.displayLabel(ctx.t),
+              count: n,
+              selected: f.volumeRoots.contains(v.path),
+              onTap: () => apply(f.toggleVolumeRoot(v.path)),
+            ),
           for (final (b, n) in c.buckets)
-            _SrcChip(
-                  key: ValueKey('src-${b.name}'),
-                  icon: _bucketIcon(b),
-                  color: _bucketColor(b, scheme),
-                  label: ctx.t(b.labelKey),
-                  count: n,
-                  selected: f.buckets.contains(b),
-                  onTap: () => apply(f.toggleBucket(b)),
-                ),
+            FmFilterOptionChip(
+              key: ValueKey('src-${b.name}'),
+              icon: _bucketIcon(b),
+              accentColor: _bucketColor(b, scheme),
+              label: ctx.t(b.labelKey),
+              count: n,
+              selected: f.buckets.contains(b),
+              onTap: () => apply(f.toggleBucket(b)),
+            ),
         ];
         final when = <Widget>[
           if (c.openedWithin > 0 || f.openedWithinDays != null)
-            _SrcChip(
-                  key: const ValueKey('src-opened'),
-                  icon: AppIcons.history,
-                  color: scheme.primary,
-                  label: ctx.t('fm.quick_opened_within', {'n': months}),
-                  count: c.openedWithin,
-                  selected: f.openedWithinDays != null,
-                  onTap: () => apply(f.withOpenedWithinDays(
-                      f.openedWithinDays == null ? untouchedDays : null)),
-                ),
+            FmFilterOptionChip(
+              key: const ValueKey('src-opened'),
+              icon: AppIcons.history,
+              accentColor: scheme.primary,
+              label: ctx.t('fm.quick_opened_within', {'n': months}),
+              count: c.openedWithin,
+              selected: f.openedWithinDays != null,
+              onTap: () => apply(f.withOpenedWithinDays(
+                  f.openedWithinDays == null ? untouchedDays : null)),
+            ),
           if (c.untouched > 0 || f.untouchedDays != null)
-            _SrcChip(
-                  key: const ValueKey('src-untouched'),
-                  icon: AppIcons.historyToggleOff,
-                  color: scheme.tertiary,
-                  label: ctx.t('fm.quick_untouched', {'n': months}),
-                  count: c.untouched,
-                  selected: f.untouchedDays != null,
-                  onTap: () => apply(f.withUntouchedDays(
-                      f.untouchedDays == null ? untouchedDays : null)),
-                ),
+            FmFilterOptionChip(
+              key: const ValueKey('src-untouched'),
+              icon: AppIcons.historyToggleOff,
+              accentColor: scheme.tertiary,
+              label: ctx.t('fm.quick_untouched', {'n': months}),
+              count: c.untouched,
+              selected: f.untouchedDays != null,
+              onTap: () => apply(f.withUntouchedDays(
+                  f.untouchedDays == null ? untouchedDays : null)),
+            ),
           if (c.large > 0 || f.sizeRange == FmSizeRange.large)
-            _SrcChip(
-                  key: const ValueKey('src-large'),
-                  icon: AppIcons.storage,
-                  color: scheme.error,
-                  label: ctx.t(FmSizeRange.large.labelKey),
-                  count: c.large,
-                  selected: f.sizeRange == FmSizeRange.large,
-                  onTap: () => apply(f.withSizeRange(
-                      f.sizeRange == FmSizeRange.large
-                          ? FmSizeRange.any
-                          : FmSizeRange.large)),
-                ),
+            FmFilterOptionChip(
+              key: const ValueKey('src-large'),
+              icon: AppIcons.storage,
+              accentColor: scheme.error,
+              label: ctx.t(FmSizeRange.large.labelKey),
+              count: c.large,
+              selected: f.sizeRange == FmSizeRange.large,
+              onTap: () => apply(f.withSizeRange(
+                  f.sizeRange == FmSizeRange.large
+                      ? FmSizeRange.any
+                      : FmSizeRange.large)),
+            ),
         ];
-        // Etiketler (kullanıcı 2026-10-30: *"etiketler oluştuğunda filtrelerde
-        // seçilebilir olmalı, sadece fotoğraflarda değil tüm dosyalar için"*).
-        // Yalnız BU listedeki dosyalarda geçen etiketler; seçili olan sıfıra
-        // düşse de kalır.
+
         final tagsHere = <String, int>{};
         for (final e in source) {
           if (e.isDir) continue;
@@ -809,60 +815,101 @@ Future<void> showFmSourceSheet(
           ..sort((a, b) => tagsHere[b]!.compareTo(tagsHere[a]!));
         final tagTiles = <Widget>[
           for (final t in tagNames)
-            _SrcChip(
-                  key: ValueKey('src-tag-$t'),
-                  icon: AppIcons.labelOutline,
-                  color: scheme.secondary,
-                  label: '#$t',
-                  count: _countWith(
-                      source, f.tags.contains(t) ? f : f.toggleTag(t)),
-                  selected: f.tags.contains(t),
-                  onTap: () => apply(f.toggleTag(t)),
-                ),
+            () {
+              final tagColor = FmColorsStore.tagColor(t);
+              return FmFilterOptionChip(
+                key: ValueKey('src-tag-$t'),
+                dotColor: tagColor,
+                icon: tagColor == null ? AppIcons.tag : null,
+                accentColor: tagColor ?? scheme.primary,
+                label: '#$t',
+                count: _countWith(
+                    source, f.tags.contains(t) ? f : f.toggleTag(t)),
+                selected: f.tags.contains(t),
+                onTap: () => apply(f.toggleTag(t)),
+              );
+            }(),
         ];
+
         final shown = _countWith(source, f);
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-                Gap.md, 0, Gap.md, Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: Gap.sm),
-                  child: Text(ctx.t('typ.hint'),
-                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant)),
-                ),
-                section(ctx.t('src.where'), where),
-                section(ctx.t('src.when'), when),
-                section(ctx.t('more.tags'), tagTiles),
-                if (smartTiles.isNotEmpty) ...[
-                  _SmartToggle(
-                    title: ctx.t('sm.filter_title'),
-                    total: smartTiles.length,
-                    selected: f.smartCats.length,
-                    open: smartOpen,
-                    onTap: () => setSheet(() => smartOpen = !smartOpen),
-                  ),
-                  if (smartOpen)
-                    Wrap(
-                        spacing: Gap.sm,
-                        runSpacing: Gap.sm,
-                        children: smartTiles),
-                ],
-                const SizedBox(height: Gap.md),
-                FmSheetFooter(
-                  doneKey: const ValueKey('src-done'),
-                  shown: shown,
-                  onClear: _sourceActive(f) == 0
-                      ? null
-                      : () => apply(_clearSource(f)),
-                  onDone: () => Navigator.of(ctx).pop(),
-                ),
-              ],
+        final active = _sourceActive(f);
+        final whereActive = f.volumeRoots.length + f.buckets.length;
+        final whenActive = (f.openedWithinDays != null ? 1 : 0) +
+            (f.untouchedDays != null ? 1 : 0) +
+            (f.sizeRange == FmSizeRange.large ? 1 : 0);
+
+        final cards = <Widget>[];
+        void addCard(Widget card) {
+          if (cards.isNotEmpty) cards.add(const SizedBox(height: Gap.sm + 2));
+          cards.add(card);
+        }
+
+        if (where.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.folder,
+              title: ctx.t('src.where'),
+              badgeText: whereActive > 0 ? '$whereActive' : null,
+              badgeActive: whereActive > 0,
+              child: Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: where),
             ),
+          );
+        }
+        if (when.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.schedule,
+              title: ctx.t('src.when'),
+              badgeText: whenActive > 0 ? '$whenActive' : null,
+              badgeActive: whenActive > 0,
+              child: Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: when),
+            ),
+          );
+        }
+        if (tagTiles.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.tag,
+              title: ctx.t('more.tags'),
+              badgeText: f.tags.isNotEmpty ? '${f.tags.length}' : null,
+              badgeActive: f.tags.isNotEmpty,
+              child:
+                  Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: tagTiles),
+            ),
+          );
+        }
+        if (smartTiles.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.ai,
+              title: ctx.t('sm.filter_title'),
+              badgeText: f.smartCats.isNotEmpty
+                  ? '${f.smartCats.length} / ${smartTiles.length}'
+                  : '${smartTiles.length}',
+              badgeActive: f.smartCats.isNotEmpty,
+              expanded: smartOpen,
+              toggleKey: const ValueKey('src-smart-toggle'),
+              onToggle: () => setSheet(() => smartOpen = !smartOpen),
+              child: Wrap(
+                  spacing: Gap.sm, runSpacing: Gap.sm, children: smartTiles),
+            ),
+          );
+        }
+
+        return FmFilterSheetScaffold(
+          title: ctx.t('src.title'),
+          hint: ctx.t('typ.hint'),
+          activeCount: active,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: cards,
+          ),
+          footer: FmSheetFooter(
+            doneKey: const ValueKey('src-done'),
+            shown: shown,
+            onClear: active == 0 ? null : () => apply(_clearSource(f)),
+            onDone: () => Navigator.of(ctx).pop(),
           ),
         );
       },
@@ -987,150 +1034,6 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
           ),
         ...widget.trailing,
       ],
-    );
-  }
-}
-
-/// Kaynak levhasının **sıkı hapı**: simge · ad · sayı tek satırda, içeriği
-/// kadar geniş (2026-11-22). Sayı son metindir (testler onu okur).
-class _SrcChip extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final int count;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _SrcChip({
-    super.key,
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.count,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final pal = AppSkinData.of(context).palette;
-    final empty = count == 0 && !selected;
-    final tint = empty ? color.withValues(alpha: 0.45) : color;
-    final radius = BorderRadius.circular(99);
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: AnimatedContainer(
-        duration: Motion.of(context, Motion.short),
-        curve: Motion.standard,
-        constraints: const BoxConstraints(minHeight: 40),
-        decoration: BoxDecoration(
-          color: selected ? scheme.primaryContainer : pal.card,
-          borderRadius: radius,
-          border: Border.all(
-            color: selected ? scheme.primary : pal.rule,
-            width: selected ? 1.6 : 1,
-          ),
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            borderRadius: radius,
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(
-                  Gap.sm, Gap.xs, Gap.md, Gap.xs),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(selected ? AppIcons.checkCircle : icon,
-                      size: 18, color: selected ? scheme.primary : tint),
-                  const SizedBox(width: Gap.xs + 2),
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w600,
-                        color: selected
-                            ? scheme.onPrimaryContainer
-                            : (empty
-                                ? scheme.onSurfaceVariant
-                                : scheme.onSurface),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: Gap.xs + 2),
-                  Text(
-                    '$count',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: selected
-                          ? scheme.onPrimaryContainer
-                          : scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "Akıllı kategori" bölümünün aç/kapa başlığı: kaç kategori, kaçı seçili.
-class _SmartToggle extends StatelessWidget {
-  final String title;
-  final int total;
-  final int selected;
-  final bool open;
-  final VoidCallback onTap;
-
-  const _SmartToggle({
-    required this.title,
-    required this.total,
-    required this.selected,
-    required this.open,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Semantics(
-      button: true,
-      expanded: open,
-      child: InkWell(
-        key: const ValueKey('src-smart-toggle'),
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Row(
-          children: [
-            Expanded(child: FmSheetSectionTitle(title)),
-            Text(
-              selected > 0 ? '$selected / $total' : '$total',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: selected > 0 ? scheme.primary : scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsetsDirectional.only(
-                  start: Gap.xs, top: Gap.sm),
-              child: Icon(open ? AppIcons.expandLess : AppIcons.expandMore,
-                  color: scheme.onSurfaceVariant),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -5,20 +5,20 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/fm_colors_store.dart';
 import '../app_dialog.dart';
+import 'fm_filter_widgets.dart';
 import 'fm_quick_filters.dart';
-import 'fm_type_chips.dart' show FmChoiceTile, FmSheetSectionTitle;
 
 /// Süzgeç şeridinin üçüncü kartı **"Analiz ve diğer"**in levhası
 /// (kullanıcı 2026-10-28: *"tüm filtre türleri tek kart sistemi altında;
 /// yukarıda en fazla 3 simge: Tür · Kaynak ve zaman · Analiz ve diğer"*).
 ///
-/// Sırala · Süzgeç (tarih/boyut) · Analiz · Etiketler · ekrana özel işler
-/// (galeri ölçeği, kopyalar, arama kapsamı …) HEPSİ burada, tür ve kaynak
-/// levhalarıyla aynı büyük kutu dilinde. Sayfa listesi her yeniden çizimde
-/// yeniden üretilir ([FmMoreChip.sections]) — seçili durum hep güncel.
+/// 2026-11-23 yenilemesi: her bölüm kendi sakin kartında ([FmFilterSectionCard]),
+/// seçenekler tek satırda çok daha fazlasını sığdıran kompakt haplarda
+/// ([FmFilterOptionChip]); başlık ve "Tamam" düğmesi sabit.
 
-/// Levhadaki tek kutu.
+/// Levhadaki tek seçenek.
 class FmMoreTile {
   final Key? key;
   final IconData icon;
@@ -26,7 +26,7 @@ class FmMoreTile {
   final Color? color;
   final bool selected;
 
-  /// Kutunun altındaki küçük sayı (yoksa gizli).
+  /// Küçük sayı rozeti (yoksa gizli).
   final int? count;
 
   /// true: dokununca levha AÇIK kalır (seçim kutuları); false: levha
@@ -87,65 +87,68 @@ Future<void> showFmMoreSheet(BuildContext context,
     List<FmMoreSection> Function(BuildContext) sections) {
   return showAppSheet<void>(
     context,
-    title: context.t('fb.more'),
+    scrollable: false,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setSheet) {
         final scheme = Theme.of(ctx).colorScheme;
-        final list = sections(context);
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-                Gap.md, 0, Gap.md, Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final s in list)
-                  if (s.tiles.isNotEmpty) ...[
-                    FmSheetSectionTitle(s.title),
-                    LayoutBuilder(builder: (ctx, box) {
-                      final cols = box.maxWidth < 300
-                          ? 2
-                          : (box.maxWidth >= 460 ? 4 : 3);
-                      final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
-                      return Wrap(
-                        spacing: Gap.sm,
-                        runSpacing: Gap.sm,
-                        children: [
-                          for (final t in s.tiles)
-                            FmChoiceTile(
-                              key: t.key,
-                              width: w,
-                              icon: t.icon,
-                              color: t.color ?? scheme.primary,
-                              label: t.label,
-                              count: t.count ?? -1,
-                              selected: t.selected,
-                              onTap: () {
-                                if (t.keepOpen) {
-                                  t.onTap();
-                                  setSheet(() {});
-                                } else {
-                                  Navigator.of(ctx).pop();
-                                  t.onTap();
-                                }
-                              },
-                            ),
-                        ],
-                      );
-                    }),
-                  ],
-                const SizedBox(height: Gap.md),
-                FilledButton.icon(
-                  key: const ValueKey('more-done'),
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50)),
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  icon: const Icon(AppIcons.check, size: 20),
-                  label: Text(ctx.t('common.ok')),
-                ),
-              ],
+        final list = sections(context).where((s) => s.tiles.isNotEmpty).toList();
+        final cards = <Widget>[];
+        for (var i = 0; i < list.length; i++) {
+          final s = list[i];
+          if (i > 0) cards.add(const SizedBox(height: Gap.sm + 2));
+          final selectedTiles = s.tiles.where((t) => t.selected).toList();
+          final badge =
+              selectedTiles.length > 1 ? '${selectedTiles.length}' : null;
+          cards.add(
+            FmFilterSectionCard(
+              icon: s.tiles.first.icon,
+              title: s.title,
+              badgeText: badge,
+              badgeActive: selectedTiles.isNotEmpty,
+              child: Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (final t in s.tiles)
+                    FmFilterOptionChip(
+                      key: t.key,
+                      icon: t.icon,
+                      accentColor: t.color ?? scheme.primary,
+                      label: t.label,
+                      count: t.count,
+                      selected: t.selected,
+                      filledSelected: t.color == null && t.count == null,
+                      onTap: () {
+                        if (t.keepOpen) {
+                          t.onTap();
+                          setSheet(() {});
+                        } else {
+                          Navigator.of(ctx).pop();
+                          t.onTap();
+                        }
+                      },
+                    ),
+                ],
+              ),
             ),
+          );
+        }
+
+        return FmFilterSheetScaffold(
+          title: ctx.t('fb.more'),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: cards,
+          ),
+          footer: FilledButton.icon(
+            key: const ValueKey('more-done'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(),
+            icon: const Icon(AppIcons.check, size: 20),
+            label: Text(ctx.t('common.ok')),
           ),
         );
       },
@@ -216,7 +219,7 @@ List<FmMoreSection> fmDateSizeSections(BuildContext context,
       ]),
     ];
 
-/// Etiket kutuları (çoklu seçim); en sık [limit] etiket.
+/// Etiket kutuları (çoklu seçim); en sık [limit] etiket (renkli).
 FmMoreSection fmTagsSection(BuildContext context,
     {required Map<String, int> counts,
     required FmFilter filter,
@@ -228,7 +231,8 @@ FmMoreSection fmTagsSection(BuildContext context,
   return FmMoreSection(context.t('more.tags'), [
     for (final e in top)
       FmMoreTile(
-        icon: AppIcons.labelOutline,
+        icon: AppIcons.tag,
+        color: FmColorsStore.tagColor(e.key),
         label: '#${e.key}',
         count: e.value,
         selected: filter.tags.contains(e.key),

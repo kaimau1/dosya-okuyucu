@@ -18,6 +18,7 @@ import '../../services/fm/important_gallery_filter.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_file_list_view.dart' show FmSelectionActions;
+import '../../widgets/fm/fm_filter_widgets.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_quick_filters.dart' show FmFilterBar, FmPill;
 import '../../widgets/fm/fm_type_chips.dart' show FmChoiceTile, FmSheetFooter;
@@ -398,50 +399,51 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
     var f = _filter;
     return showAppSheet<void>(
       context,
-      title: context.t(titleKey),
+      scrollable: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
         void apply(ImpFilter next) {
           setSheet(() => f = next);
           _set(next);
         }
 
-        final scheme = Theme.of(ctx).colorScheme;
         final now = DateTime.now();
-        return SingleChildScrollView(
-          child: Padding(
-            padding:
-                const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final (title, tiles) in sections(ctx, f, apply))
-                  if (tiles.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                          start: Gap.sm, top: Gap.sm, bottom: Gap.sm),
-                      child: Text(title,
-                          style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
-                              color: scheme.onSurfaceVariant)),
-                    ),
-                    LayoutBuilder(builder: (ctx, box) {
-                      final cols = box.maxWidth < 300 ? 2 : 3;
-                      final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
-                      return Wrap(
-                        spacing: Gap.sm,
-                        runSpacing: Gap.sm,
-                        children: [for (final t in tiles) t(w)],
-                      );
-                    }),
-                  ],
-                const SizedBox(height: Gap.md),
-                FmSheetFooter(
-                  shown: f.countIf(_items, now, f),
-                  onClear: active(f) == 0 ? null : () => apply(clear(f)),
-                  onDone: () => Navigator.of(ctx).pop(),
+        final activeCount = active(f);
+        final list = [
+          for (final s in sections(ctx, f, apply))
+            if (s.$2.isNotEmpty) s,
+        ];
+        return FmFilterSheetScaffold(
+          title: ctx.t(titleKey),
+          activeCount: activeCount,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < list.length; i++) ...[
+                if (i > 0) const SizedBox(height: Gap.sm + 2),
+                FmFilterSectionCard(
+                  icon: AppIcons.filter,
+                  title: list[i].$1,
+                  child: LayoutBuilder(builder: (ctx, box) {
+                    final scale = MediaQuery.textScalerOf(ctx).scale(1);
+                    final effective =
+                        scale > 1.0 ? box.maxWidth / scale : box.maxWidth;
+                    final cols = effective < 280 ? 2 : 3;
+                    final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
+                    return Wrap(
+                      spacing: Gap.sm,
+                      runSpacing: Gap.sm,
+                      children: [for (final t in list[i].$2) t(w)],
+                    );
+                  }),
                 ),
               ],
-            ),
+            ],
+          ),
+          footer: FmSheetFooter(
+            shown: f.countIf(_items, now, f),
+            onClear: activeCount == 0 ? null : () => apply(clear(f)),
+            onDone: () => Navigator.of(ctx).pop(),
           ),
         );
       }),
