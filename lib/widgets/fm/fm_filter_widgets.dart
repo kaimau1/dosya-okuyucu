@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
@@ -347,8 +348,8 @@ class FmFilterOptionChip extends StatelessWidget {
       bg = tint.withValues(alpha: isDark ? 0.24 : 0.13);
       border = tint;
       fg = isDark
-          ? Color.lerp(tint, Colors.white, 0.55)!
-          : Color.lerp(tint, Colors.black, 0.32)!;
+          ? Color.lerp(tint, AppColors.mixLight, 0.55)!
+          : Color.lerp(tint, AppColors.mixDark, 0.32)!;
       borderWidth = 1.5;
     } else {
       bg = scheme.surface;
@@ -400,7 +401,6 @@ class FmFilterOptionChip extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.labelLarge?.copyWith(
-              fontSize: 13,
               height: 1.15,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               color: fg,
@@ -430,7 +430,6 @@ class FmFilterOptionChip extends StatelessWidget {
               '$count',
               maxLines: 1,
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 11,
                 color: selected ? fg : scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
                 fontFeatures: const [FontFeature.tabularFigures()],
@@ -541,7 +540,6 @@ class FmSortDirectionToggle extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelLarge?.copyWith(
-                            fontSize: 13,
                             fontWeight:
                                 active ? FontWeight.w700 : FontWeight.w600,
                             color: active

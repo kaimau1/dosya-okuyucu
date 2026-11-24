@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
@@ -63,7 +64,6 @@ class FmTagPills extends StatelessWidget {
         sorted.length > maxVisible ? sorted.sublist(0, maxVisible) : sorted;
     final overflow = sorted.length - shown.length;
     final baseStyle = theme.textTheme.labelSmall?.copyWith(
-      fontSize: 11.5,
       height: 1.15,
       fontWeight: FontWeight.w600,
     );
@@ -78,8 +78,8 @@ class FmTagPills extends StatelessWidget {
           : scheme.outlineVariant;
       final fg = accent != null
           ? (isDark
-              ? Color.lerp(accent, Colors.white, 0.45)!
-              : Color.lerp(accent, Colors.black, 0.28)!)
+              ? Color.lerp(accent, AppColors.mixLight, 0.45)!
+              : Color.lerp(accent, AppColors.mixDark, 0.28)!)
           : scheme.onSurfaceVariant;
       return Container(
         padding: const EdgeInsetsDirectional.symmetric(
@@ -275,7 +275,6 @@ class FmEntryRow extends StatelessWidget {
         return const SizedBox.shrink();
       }
       final baseStyle = theme.textTheme.bodySmall?.copyWith(
-        fontSize: 12,
         height: 1.25,
         color: scheme.onSurfaceVariant,
         fontFeatures: const [FontFeature.tabularFigures()],
@@ -413,7 +412,6 @@ class FmEntryRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 12.5,
                         height: 1.25,
                         color: scheme.primary,
                         fontWeight: FontWeight.w600,
@@ -532,7 +530,6 @@ class FmEntryRow extends StatelessWidget {
                                     maxLines: 2,
                                     style:
                                         theme.textTheme.titleMedium?.copyWith(
-                                      fontSize: 15,
                                       height: 1.24,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: -0.15,

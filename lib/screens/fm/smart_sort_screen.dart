@@ -1465,7 +1465,6 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: color,
                       fontWeight: FontWeight.w700,
-                      fontSize: 10,
                     ),
                   ),
                 ),

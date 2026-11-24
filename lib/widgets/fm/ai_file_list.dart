@@ -401,7 +401,6 @@ class _AiFileListState extends State<AiFileList> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleMedium?.copyWith(
-                fontSize: 15,
                 height: 1.24,
                 fontWeight: FontWeight.w600,
               ),
