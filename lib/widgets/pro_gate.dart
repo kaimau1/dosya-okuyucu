@@ -7,6 +7,7 @@ import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import 'app_dialog.dart';
+import 'cross_app_promo_card.dart';
 
 /// **Pro kapısı** (SÜRÜM PLANI S2/S3, 2026-11-12).
 ///
@@ -27,8 +28,12 @@ abstract final class ProGate {
       !edition.has(f);
 
   /// [f] bu sürümde varsa [run]'ı çalıştırır, yoksa Pro levhasını açar.
-  static void guard(BuildContext context, Feature f, VoidCallback run,
-      {Edition edition = Edition.current}) {
+  static void guard(
+    BuildContext context,
+    Feature f,
+    VoidCallback run, {
+    Edition edition = Edition.current,
+  }) {
     if (edition.has(f)) {
       run();
     } else if (f.isPro) {
@@ -37,8 +42,12 @@ abstract final class ProGate {
   }
 
   /// [guard]'ı saran dokunma geri çağrısı (kutu `onTap`'ı için).
-  static VoidCallback wrap(BuildContext context, Feature f, VoidCallback run,
-          {Edition edition = Edition.current}) =>
+  static VoidCallback wrap(
+    BuildContext context,
+    Feature f,
+    VoidCallback run, {
+    Edition edition = Edition.current,
+  }) =>
       () => guard(context, f, run, edition: edition);
 }
 
@@ -48,8 +57,10 @@ abstract final class ProPromo {
   static const _key = 'pro_card_hidden_until';
   static const hideFor = Duration(days: 30);
 
-  static Future<bool> shouldShow(
-      {Edition edition = Edition.current, DateTime? now}) async {
+  static Future<bool> shouldShow({
+    Edition edition = Edition.current,
+    DateTime? now,
+  }) async {
     if (edition != Edition.lite) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -64,7 +75,9 @@ abstract final class ProPromo {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
-          _key, (now ?? DateTime.now()).add(hideFor).millisecondsSinceEpoch);
+        _key,
+        (now ?? DateTime.now()).add(hideFor).millisecondsSinceEpoch,
+      );
     } catch (_) {
       return; // Bilinçli: yazılamazsa kart yalnız bu oturumda kapanır.
     }
@@ -88,11 +101,11 @@ class ProBadge extends StatelessWidget {
       child: Text(
         'PRO',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: .5,
-              height: 1.1,
-              color: scheme.onTertiaryContainer,
-            ),
+          fontWeight: FontWeight.w700,
+          letterSpacing: .5,
+          height: 1.1,
+          color: scheme.onTertiaryContainer,
+        ),
       ),
     );
   }
@@ -132,7 +145,9 @@ Future<void> showProSheet(BuildContext context, [Feature? feature]) {
     context,
     title: feature == null
         ? context.t('pro.title')
-        : context.t('pro.feature_title', {'f': context.t('pro.f.${feature.name}')}),
+        : context.t('pro.feature_title', {
+            'f': context.t('pro.f.${feature.name}'),
+          }),
     builder: (ctx) => _ProSheetBody(feature: feature),
   );
 }
@@ -147,14 +162,19 @@ class _ProSheetBody extends StatelessWidget {
     final nav = Navigator.of(context);
     var ok = false;
     try {
-      ok = await launchUrl(ProListing.marketUri,
-          mode: LaunchMode.externalApplication);
+      ok = await launchUrl(
+        ProListing.marketUri,
+        mode: LaunchMode.externalApplication,
+      );
     } catch (_) {
       ok = false; // Bilinçli: Play yüklü değil → web adresine düş.
     }
     if (!ok) {
       try {
-        await launchUrl(ProListing.webUri, mode: LaunchMode.externalApplication);
+        await launchUrl(
+          ProListing.webUri,
+          mode: LaunchMode.externalApplication,
+        );
       } catch (_) {
         // Bilinçli: tarayıcı da yoksa levha açık kalır, kullanıcı kapatır.
         return;
@@ -179,8 +199,11 @@ class _ProSheetBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: Gap.xs),
               child: Row(
                 children: [
-                  Icon(AppIcons.checkCircle,
-                      size: 18, color: theme.colorScheme.primary),
+                  Icon(
+                    AppIcons.checkCircle,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(width: Gap.sm),
                   Expanded(child: Text(context.t(b))),
                 ],
@@ -206,6 +229,8 @@ class _ProSheetBody extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
             child: Text(context.t('pro.later')),
           ),
+          const SizedBox(height: Gap.sm),
+          const CrossAppPromoCard(),
         ],
       ),
     );

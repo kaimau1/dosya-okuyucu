@@ -2,8 +2,10 @@ part of '../ai_hub_screen.dart';
 
 // ── ortak: analizi başlat ───────────────────────────────────────────────────
 
-Future<void> _startAnalysis(BuildContext context,
-    {required bool reanalyze}) async {
+Future<void> _startAnalysis(
+  BuildContext context, {
+  required bool reanalyze,
+}) async {
   final state = context.read<AppState>();
   // Analiz uzun sürer ve ekran kapanabilir; state okumaları burada bitiyor.
   await AiAnalyzer.start(
@@ -27,14 +29,22 @@ class _ProgressStrip extends StatelessWidget {
     return Material(
       color: scheme.surfaceContainerHighest,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, 0),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+          Gap.md,
+          Gap.xs,
+          Gap.xs,
+          0,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Icon(progress.auto ? AppIcons.autorenew : AppIcons.ai,
-                    size: 18, color: scheme.primary),
+                Icon(
+                  progress.auto ? AppIcons.autorenew : AppIcons.ai,
+                  size: 18,
+                  color: scheme.primary,
+                ),
                 const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Text(
@@ -43,7 +53,9 @@ class _ProgressStrip extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.type.small.copyWith(
-                        color: faint, fontWeight: FontWeight.w600),
+                      color: faint,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -125,8 +137,11 @@ class _AnalysisTab extends StatelessWidget {
               ListTile(
                 leading: const Icon(AppIcons.tune),
                 title: Text(context.t('aih.analysis_scope')),
-                subtitle: Text(context.t('aih.scope_summary',
-                    {'n': state.aiScope.excludedFolders.length})),
+                subtitle: Text(
+                  context.t('aih.scope_summary', {
+                    'n': state.aiScope.excludedFolders.length,
+                  }),
+                ),
                 trailing: const Icon(AppIcons.chevron),
                 onTap: () => openSettingsCategory(context, 'ai'),
               ),
@@ -141,8 +156,9 @@ class _AnalysisTab extends StatelessWidget {
                     final ok = await showAppConfirm(
                       context,
                       title: context.t('aih.reanalyze'),
-                      message: context.t('aih2.reanalyze_confirm',
-                          {'n': AiIndex.count}),
+                      message: context.t('aih2.reanalyze_confirm', {
+                        'n': AiIndex.count,
+                      }),
                       confirmLabel: context.t('aih.start'),
                     );
                     if (ok && context.mounted) {
@@ -157,17 +173,24 @@ class _AnalysisTab extends StatelessWidget {
         const SizedBox(height: Gap.sm),
         Row(
           children: [
-            Icon(state.hasApiKey ? AppIcons.cloudDone : AppIcons.offlineBolt,
-                size: 16, color: faint),
+            Icon(
+              state.hasApiKey ? AppIcons.cloudDone : AppIcons.offlineBolt,
+              size: 16,
+              color: faint,
+            ),
             const SizedBox(width: Gap.xs),
             Expanded(
               child: Text(
-                context.t(state.hasApiKey ? 'aih.mode_cloud' : 'aih.mode_local'),
+                context.t(
+                  state.hasApiKey ? 'aih.mode_cloud' : 'aih.mode_local',
+                ),
                 style: context.type.small.copyWith(color: faint),
               ),
             ),
           ],
         ),
+        const SizedBox(height: Gap.md),
+        const CrossAppPromoCard(),
       ],
     );
   }
@@ -191,11 +214,13 @@ class _StatusCard extends StatelessWidget {
     final String title;
     final String sub;
     if (busy) {
-      title = context.t(paused
-          ? 'aih2.paused'
-          : progress.auto
-              ? 'aih2.auto_running'
-              : 'aih.analysis_running');
+      title = context.t(
+        paused
+            ? 'aih2.paused'
+            : progress.auto
+            ? 'aih2.auto_running'
+            : 'aih.analysis_running',
+      );
       sub = progress.auto ? context.t('aih2.auto_running_sub') : '';
     } else if (none) {
       title = context.t('aih2.none_title');
@@ -232,29 +257,38 @@ class _StatusCard extends StatelessWidget {
                   error
                       ? AppIcons.warning
                       : busy && progress.auto
-                          ? AppIcons.autorenew
-                          : AppIcons.ai,
+                      ? AppIcons.autorenew
+                      : AppIcons.ai,
                   size: 24,
                   color: error ? scheme.onError : scheme.onPrimary,
                 ),
               ),
               const SizedBox(width: Gap.md),
               Expanded(
-                child: Text(title,
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                child: Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               if (busy)
-                Text('${progress.done}/${progress.total}',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  '${progress.done}/${progress.total}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
           if (sub.isNotEmpty) ...[
             const SizedBox(height: Gap.sm),
-            Text(sub,
-                style: context.type.small.copyWith(
-                    color: error ? scheme.onErrorContainer : faint)),
+            Text(
+              sub,
+              style: context.type.small.copyWith(
+                color: error ? scheme.onErrorContainer : faint,
+              ),
+            ),
           ],
           if (busy) ...[
             const SizedBox(height: Gap.md),
@@ -280,8 +314,7 @@ class _StatusCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     icon: Icon(paused ? AppIcons.play : AppIcons.pause),
-                    label: Text(
-                        context.t(paused ? 'aih.resume' : 'aih.pause')),
+                    label: Text(context.t(paused ? 'aih.resume' : 'aih.pause')),
                     onPressed: paused ? AiAnalyzer.resume : AiAnalyzer.pause,
                   ),
                 ),
@@ -343,12 +376,17 @@ class _HowItWorks extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(context.t(titleKey),
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      context.t(titleKey),
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(context.t(bodyKey),
-                        style: context.type.small.copyWith(color: faint)),
+                    Text(
+                      context.t(bodyKey),
+                      style: context.type.small.copyWith(color: faint),
+                    ),
                   ],
                 ),
               ),
@@ -362,16 +400,31 @@ class _HowItWorks extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(context.t('aih.analysis_what'),
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              context.t('aih.analysis_what'),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: Gap.xs),
-            row(AppIcons.manageSearch, AppHues.sea, 'aih2.how1_title',
-                'aih2.how1_body'),
-            row(AppIcons.labelOutline, AppHues.honey, 'aih2.how2_title',
-                'aih2.how2_body'),
-            row(AppIcons.shield, AppHues.purple, 'aih2.how3_title',
-                'aih2.how3_body'),
+            row(
+              AppIcons.manageSearch,
+              AppHues.sea,
+              'aih2.how1_title',
+              'aih2.how1_body',
+            ),
+            row(
+              AppIcons.labelOutline,
+              AppHues.honey,
+              'aih2.how2_title',
+              'aih2.how2_body',
+            ),
+            row(
+              AppIcons.shield,
+              AppHues.purple,
+              'aih2.how3_title',
+              'aih2.how3_body',
+            ),
           ],
         ),
       ),
