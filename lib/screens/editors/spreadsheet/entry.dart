@@ -173,6 +173,8 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
                 _cancelEdit();
                 _autoSum();
               }),
+        ],
+        pinnedTrailing: [
           AccessoryItem(
               key: const ValueKey('acc-fx'),
               text: 'fx',
@@ -181,7 +183,9 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
           AccessoryItem(
               key: const ValueKey('acc-keypad'),
               text: _keypad ? 'ABC' : '123',
-              tooltip: context.t(_keypad ? 'excel.keyboard_abc' : 'excel.keyboard_123'),
+              selected: _keypad,
+              tooltip: context.t(
+                  _keypad ? 'excel.keyboard_abc' : 'excel.keyboard_123'),
               onPressed: _toggleKeypad),
         ],
       );

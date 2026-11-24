@@ -50,16 +50,22 @@ class KeyboardAccessoryBar extends StatelessWidget {
   /// **⌄** — klavyeyi gizler.
   final VoidCallback? onHideKeyboard;
 
+  /// Sağ kenara sabitlenen eylemler (yatay kaydırmanın dışında, her zaman görünür).
+  final List<AccessoryItem> pinnedTrailing;
+
   const KeyboardAccessoryBar({
     super.key,
     required this.items,
     this.onFormat,
     this.onHideKeyboard,
+    this.pinnedTrailing = const [],
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final hasTrailing =
+        pinnedTrailing.isNotEmpty || onFormat != null || onHideKeyboard != null;
     return Material(
       key: const ValueKey('keyboard-accessory'),
       color: scheme.surfaceContainerHigh,
@@ -74,8 +80,9 @@ class KeyboardAccessoryBar extends StatelessWidget {
                 children: [for (final it in items) _button(context, it)],
               ),
             ),
-            if (onFormat != null || onHideKeyboard != null)
+            if (hasTrailing)
               VerticalDivider(width: 1, color: scheme.outlineVariant),
+            for (final it in pinnedTrailing) _button(context, it),
             if (onFormat != null)
               _button(
                   context,

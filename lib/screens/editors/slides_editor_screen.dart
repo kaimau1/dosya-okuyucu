@@ -169,7 +169,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   // tek karede doğru sonucu verir — ölçüme dayansaydı henüz çizilmemiş bir
   // slayda atlanamazdı.
   double _baseW = 0;
-  int _currentSlide = 1;
+  final ValueNotifier<int> _currentSlideN = ValueNotifier<int>(1);
+  int get _currentSlide => _currentSlideN.value;
+  set _currentSlide(int v) => _currentSlideN.value = v;
 
   /// Kaldığın yerden devam: dosya boyutu (kayıt anahtarı, bkz. [ReadingPositions]).
   int _docSize = 0;
@@ -237,6 +239,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   @override
   void dispose() {
     _flashTimer?.cancel();
+    _currentSlideN.dispose();
     _session.dispose();
     _history.dispose();
     _textCtrl?.dispose();

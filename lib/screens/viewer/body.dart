@@ -327,7 +327,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           }
                         },
                         pageOverlaysBuilder: (context, pageRect, page) => [
-                          ?_bookmarkRibbon(page, pageRect),
+                          _bookmarkRibbon(page, pageRect),
                           // Düzenleme kipi (Faz 54): seçim katmanının yerine
                           // blok katmanı — aynı ekran, aynı yakınlaştırma.
                           if (_pro != null)
@@ -429,9 +429,6 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   ReadingFloat(
                     start: null,
                     end: 44,
-                    // Yapay zekâ düğmesi (sağdan 16 + 56 dp) görünürken onun
-                    // soluna (P28: rozet düğmenin altında kalıyordu).
-                    endShown: _pro == null && !_editingText ? 80 : null,
                     child: Align(
                       alignment: AlignmentDirectional.centerEnd,
                       child: ValueListenableBuilder<bool>(

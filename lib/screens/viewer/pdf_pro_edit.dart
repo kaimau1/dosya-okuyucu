@@ -211,7 +211,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         : context.t('pse.step_detail', {'name': name, 'detail': step.detail});
   }
 
-  /// Üst çubuk (etkileşim §5): geri al · yinele · Kaydet (dolgulu) · ⋮.
+  /// Üst çubuk (etkileşim §5): geri al · yinele · Kaydet (dolgulu) · çık · ⋮.
   List<Widget> _proActions(PdfProEditController pro) {
     final undo = pro.session.undoStep, redo = pro.session.redoStep;
     final live = pro.live != null;
@@ -219,21 +219,21 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     return [
       // Yapılacak adım yoksa düğme görünmez (2026-11-22).
       if (undo != null)
-      IconButton(
-        key: const ValueKey('pse-undo'),
-        visualDensity: VisualDensity.compact,
-        tooltip: context.t('pse.undo_named', {'name': _proStepName(undo)}),
-        icon: const Icon(AppIcons.undo),
-        onPressed: pro.busy || live ? null : _proUndo,
-      ),
+        IconButton(
+          key: const ValueKey('pse-undo'),
+          visualDensity: VisualDensity.compact,
+          tooltip: context.t('pse.undo_named', {'name': _proStepName(undo)}),
+          icon: const Icon(AppIcons.undo),
+          onPressed: pro.busy || live ? null : _proUndo,
+        ),
       if (redo != null)
-      IconButton(
-        key: const ValueKey('pse-redo'),
-        visualDensity: VisualDensity.compact,
-        tooltip: context.t('pse.redo_named', {'name': _proStepName(redo)}),
-        icon: const Icon(AppIcons.redo),
-        onPressed: pro.busy || live ? null : _proRedo,
-      ),
+        IconButton(
+          key: const ValueKey('pse-redo'),
+          visualDensity: VisualDensity.compact,
+          tooltip: context.t('pse.redo_named', {'name': _proStepName(redo)}),
+          icon: const Icon(AppIcons.redo),
+          onPressed: pro.busy || live ? null : _proRedo,
+        ),
       Padding(
         padding: const EdgeInsetsDirectional.only(start: Gap.xs),
         child: FilledButton(
@@ -246,6 +246,13 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
           onPressed: pro.busy || !canSave ? null : _proSave,
           child: Text(context.t('common.save')),
         ),
+      ),
+      IconButton(
+        key: const ValueKey('pse-exit'),
+        visualDensity: VisualDensity.compact,
+        tooltip: context.t('pdf.exit_edit'),
+        icon: const Icon(AppIcons.close),
+        onPressed: pro.busy ? null : () => unawaited(_exitProEdit()),
       ),
       IconButton(
         key: const ValueKey('pse-more'),

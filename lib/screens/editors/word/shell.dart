@@ -212,7 +212,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                             if (n != _pageCount) _partSetState(() => _pageCount = n);
                           },
                           onPage: (n) {
-                            if (n != _page) _partSetState(() => _page = n);
+                            if (n != _page) _page = n;
                             ReadingPositions.record(widget.path, n, _pageCount,
                                 size: _docSize);
                           },
@@ -294,12 +294,16 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
     );
   }
 
-  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage].
+  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage]. Yalnız [_pageN]
+  /// dinler, kaydırırken tüm ekranı yeniden kurmaz.
   Widget _pageBadge() {
-    return DocPill(
-      text: context.t('word.page_of', {'n': _page, 'total': _pageCount}),
-      icon: AppIcons.unfoldMore,
-      onTap: _showGoToPage,
+    return ValueListenableBuilder<int>(
+      valueListenable: _pageN,
+      builder: (_, page, _) => DocPill(
+        text: context.t('word.page_of', {'n': page, 'total': _pageCount}),
+        icon: AppIcons.unfoldMore,
+        onTap: _showGoToPage,
+      ),
     );
   }
 
@@ -551,47 +555,73 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
     );
   }
 
-  /// Renk seçici (yazı rengi / vurgu). Renkler biçim çubuğunun kendi
-  /// paletinden; `null` seçeneği rengi kaldırır.
+  /// Renk seçici (yazı rengi / vurgu): ham `#HEX` listesi yerine görsel
+  /// renk kartelası levhası; `null` seçeneği rengi kaldırır.
   Widget _colorMenu(IconData icon, String tip, List<String> palette,
       void Function(String?) onPick) {
-    return PopupMenuButton<String>(
+    return IconButton(
       tooltip: tip,
       icon: Icon(icon, size: 20),
-      onSelected: (v) => onPick(v == 'none' ? null : v),
-      itemBuilder: (_) => [
-        for (final hex in palette)
-          PopupMenuItem(
-            value: hex,
-            child: Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse('FF$hex', radix: 16)),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text('#$hex'),
-              ],
-            ),
-          ),
-        PopupMenuItem(
-          value: 'none',
-          child: Row(
+      onPressed: () => unawaited(_showSwatchPicker(tip, palette, onPick)),
+    );
+  }
+
+  Future<void> _showSwatchPicker(
+    String title,
+    List<String> palette,
+    void Function(String?) onPick,
+  ) async {
+    final res = await showAppSheet<String>(
+      context,
+      title: title,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(AppIcons.formatColorReset, size: 20),
-              const SizedBox(width: 10),
-              Text(context.t('excel.color_none')),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (final hex in palette)
+                    Semantics(
+                      button: true,
+                      label: hex,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(ctx, hex),
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Color(int.parse('FF$hex', radix: 16)),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: scheme.outlineVariant,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(ctx, 'none'),
+                icon: const Icon(AppIcons.formatColorReset, size: 18),
+                label: Text(ctx.t('excel.color_none')),
+              ),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
+    if (res == null || !mounted) return;
+    onPick(res == 'none' ? null : res);
   }
 
   /// Madde işareti / numaralandırma düğmesi. Aynı biçime tekrar basmak

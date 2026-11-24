@@ -990,6 +990,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         final activeLine =
             textLines.where((e) => e.$1 == pro.markup).firstOrNull;
         return [
+          // Çizim ve temel işaretleme araçları
           PdfProChip(
             AppIcons.lineWeight,
             t('pse.stroke_title'),
@@ -999,7 +1000,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           ),
           kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
-          kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
+          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
+          // Şekil, metin çizgisi ve notlar
           PdfProChip(
             activeShape?.$2 ?? AppIcons.rectTool,
             t(activeShape?.$3 ?? 'pse.shapes'),
@@ -1015,10 +1017,11 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             active: activeLine != null,
             tapKey: const ValueKey('pse-chip-lines'),
           ),
+          kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
+          // Gizlilik ve belge inceleme
           kind(PdfMarkupKind.redact, AppIcons.pdfRedact, 'pse.mk_redact'),
           PdfProChip(AppIcons.shield, t('pse.kvkk_title'), _proSensitive,
               tapKey: const ValueKey('pse-chip-kvkk')),
-          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
           PdfProChip(AppIcons.comment, t('pse.comments'), _proComments,
               tapKey: const ValueKey('pse-chip-comments')),
           PdfProChip(AppIcons.pdfFlatten, t('pse.flatten'), _proFlatten,

@@ -355,7 +355,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     }
     final next = index + 1;
     if (next != _currentSlide) {
-      _partSetState(() => _currentSlide = next);
+      _currentSlide = next;
       _followStrip(index);
       ReadingPositions.record(widget.path, next, _slideCount, size: _docSize);
     }
@@ -398,7 +398,7 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
         .clamp(0.0, _vCtrl.position.maxScrollExtent);
     await Motion.scrollTo(context, _vCtrl, target);
     if (mounted) {
-      _partSetState(() => _currentSlide = index + 1);
+      _currentSlide = index + 1;
       _followStrip(index);
     }
   }

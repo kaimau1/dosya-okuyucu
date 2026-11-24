@@ -677,18 +677,22 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
   }
 
   /// PDF sayfa rozeti: dokununca sayfa gezgini, uzun basınca yıldızla.
-  /// Yalnız [_pdfPageN] dinler — kaydırırken tam ekran yeniden kurulmaz.
+  /// Yalnız [_pdfPageN] ve [_bookmarkRevN] dinler — kaydırırken ya da
+  /// yıldızlarken tam ekran yeniden kurulmaz.
   Widget _pageBadge() {
-    return ValueListenableBuilder<int>(
-      valueListenable: _pdfPageN,
-      builder: (_, page, _) => PdfPageChip(
-        page: page,
-        count: _pageCount,
-        bookmarked:
-            PdfBookmarks.isMarked(widget.doc.path, page, size: _docSize),
-        onTap: _askGoToPage,
-        onLongPress: () => _toggleBookmark(page),
-      ),
+    return ListenableBuilder(
+      listenable: Listenable.merge([_pdfPageN, _bookmarkRevN]),
+      builder: (_, _) {
+        final page = _pdfPageN.value;
+        return PdfPageChip(
+          page: page,
+          count: _pageCount,
+          bookmarked:
+              PdfBookmarks.isMarked(widget.doc.path, page, size: _docSize),
+          onTap: _askGoToPage,
+          onLongPress: () => _toggleBookmark(page),
+        );
+      },
     );
   }
 
@@ -698,25 +702,33 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     final now =
         await PdfBookmarks.toggle(widget.doc.path, page, size: _docSize);
     if (!mounted) return now;
-    _partSetState(() {});
+    _bookmarkRevN.value++;
     _snack(context.t(now ? 'pn.starred' : 'pn.unstarred', {'n': page}));
     return now;
   }
 
-  /// Yıldızlı sayfanın sağ üst köşesindeki kurdele.
-  Widget? _bookmarkRibbon(PdfPage page, Rect pageRect) {
-    if (!PdfBookmarks.isMarked(widget.doc.path, page.pageNumber,
-        size: _docSize)) {
-      return null;
-    }
+  /// Yıldızlı sayfanın sağ üst köşesindeki kurdele (yalnız [_bookmarkRevN] dinler).
+  Widget _bookmarkRibbon(PdfPage page, Rect pageRect) {
     final w = (pageRect.width * 0.045).clamp(12.0, 28.0);
-    return Positioned(
+    return PositionedDirectional(
       top: 0,
-      right: w,
-      child: IgnorePointer(
-        child: Icon(AppIcons.bookmark,
-            size: w * 1.6,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85)),
+      end: w,
+      child: ValueListenableBuilder<int>(
+        valueListenable: _bookmarkRevN,
+        builder: (context, _, _) {
+          if (!PdfBookmarks.isMarked(widget.doc.path, page.pageNumber,
+              size: _docSize)) {
+            return const SizedBox.shrink();
+          }
+          return IgnorePointer(
+            child: Icon(
+              AppIcons.bookmark,
+              size: w * 1.6,
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
+            ),
+          );
+        },
       ),
     );
   }

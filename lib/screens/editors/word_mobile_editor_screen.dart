@@ -839,10 +839,24 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   @override
   Widget build(BuildContext context) {
     final c = _ctrl;
+    final hasLayer = _findOpen ||
+        _panel.isOpen ||
+        _review != null ||
+        (c?.painterActive ?? false);
     return EditExitGuard(
       session: _session,
-      hasOpenLayer: false,
-      closeLayer: () {},
+      hasOpenLayer: hasLayer,
+      closeLayer: () {
+        if (c != null && c.painterActive) {
+          c.cancelPainter();
+        } else if (_findOpen) {
+          setState(() => _findOpen = false);
+        } else if (_review != null) {
+          setState(() => _review = null);
+        } else if (_panel.isOpen) {
+          _panel.close();
+        }
+      },
       child: EditorShortcuts(
         save: c == null ? null : _save,
         undo: c?.undo,
@@ -890,10 +904,46 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 onPressed: c == null ? null : _pageLayout,
               ),
             ],
-            // ⋮ = ortak dosya levhası (2026-11-15 ortak düzen).
+            // ⋮ = ortak dosya levhası (2026-11-15 ortak düzen + menü araması).
             filePath: widget.path,
             menuTitle: context.t('dm.word'),
             menu: [
+              EditorMenuItem(
+                id: 'navigate',
+                icon: OfficeIcons.navigation,
+                label: context.t('word.navigation'),
+                onTap: c == null ? null : _navigate,
+              ),
+              EditorMenuItem(
+                id: 'word_count',
+                icon: OfficeIcons.wordCount,
+                label: context.t('word.word_count'),
+                onTap: c == null ? null : (_proOn ? _stats : _wordCount),
+              ),
+              EditorMenuItem(
+                id: 'page_setup',
+                icon: AppIcons.cropFree,
+                label: context.t('wp.page_setup'),
+                onTap: c == null ? null : _pageSetup,
+              ),
+              EditorMenuItem(
+                id: 'print_preview',
+                icon: AppIcons.print,
+                label: context.t('wp.print_preview'),
+                onTap: c == null ? null : _printPreview,
+              ),
+              EditorMenuItem(
+                id: 'header_footer',
+                icon: AppIcons.newWord,
+                label: context.t('word.insert_hf'),
+                onTap: c == null ? null : _headerFooter,
+              ),
+              EditorMenuItem(
+                id: 'comments',
+                icon: AppIcons.comment,
+                label: context.t('word.comments'),
+                onTap: c == null ? null : () => _comments(),
+              ),
               EditorMenuItem(
                 id: 'export',
                 icon: AppIcons.share,

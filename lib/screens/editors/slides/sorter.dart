@@ -49,6 +49,96 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
     final vertical = _stripVertical;
     final scheme = Theme.of(context).colorScheme;
     final thumbW = _stripThumbW(editor, vertical);
+    final list = ReorderableListView.builder(
+      onReorderStart: (_) => AppHaptics.longPress(),
+      onReorderEnd: (_) => AppHaptics.drop(),
+      scrollController: _stripCtrl,
+      scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
+      buildDefaultDragHandles: false,
+      padding: const EdgeInsets.all(6),
+      itemCount: editor.slides.length,
+      // onReorderItem: [to] zaten çıkarılan öğeye göre düzeltilmiş gelir.
+      onReorderItem: (from, to) {
+        if (from == to || from >= editor.slides.length) return;
+        final slide = editor.slides[from];
+        if (_mutate('sl.reorder', () => editor.moveSlideTo(slide, to))) {
+          _goToSlide(to + 1);
+        }
+      },
+      itemBuilder: (context, i) {
+        final slide = editor.slides[i];
+        return ReorderableDelayedDragStartListener(
+          key: ValueKey('thumb-${slide.fileName}'),
+          index: i,
+          enabled: editor.canEditStructure,
+          child: Padding(
+            padding: vertical
+                ? const EdgeInsets.only(bottom: 6)
+                : const EdgeInsetsDirectional.only(end: 6),
+            child: ValueListenableBuilder<int>(
+              valueListenable: _currentSlideN,
+              builder: (context, current, _) {
+                final isCurrent = i + 1 == current;
+                return InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () =>
+                      isCurrent ? _openSlideSheet(slide) : _goToSlide(i + 1),
+                  child: SizedBox(
+                    width: thumbW,
+                    child: _slideThumb(context, editor, slide,
+                        current: isCurrent),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+    final addButton = editor.canEditStructure && editor.slides.isNotEmpty
+        ? Padding(
+            padding: const EdgeInsets.all(6),
+            child: Tooltip(
+              message: context.t('sl.new_slide'),
+              child: InkWell(
+                key: const ValueKey('sl-strip-add'),
+                borderRadius: BorderRadius.circular(Radii.control),
+                onTap: () {
+                  final target = _targetSlide;
+                  if (target != null) unawaited(_openLayoutGallery(target));
+                },
+                child: Container(
+                  width: vertical ? thumbW : 52,
+                  height: vertical ? 44 : null,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(AppIcons.add,
+                          size: 18, color: scheme.onPrimaryContainer),
+                      if (!vertical)
+                        Text(
+                          context.t('sl.add_slide_short'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )
+        : null;
     return Material(
       key: const ValueKey('sl-strip'),
       color: scheme.surfaceContainerLow,
@@ -58,47 +148,20 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
       child: SizedBox(
         width: vertical ? thumbW + 12 : null,
         height: vertical ? null : _stripHeight,
-        child: ReorderableListView.builder(
-          onReorderStart: (_) => AppHaptics.longPress(),
-          onReorderEnd: (_) => AppHaptics.drop(),
-          scrollController: _stripCtrl,
-          scrollDirection: vertical ? Axis.vertical : Axis.horizontal,
-          buildDefaultDragHandles: false,
-          padding: const EdgeInsets.all(6),
-          itemCount: editor.slides.length,
-          // onReorderItem: [to] zaten çıkarılan öğeye göre düzeltilmiş gelir.
-          onReorderItem: (from, to) {
-            if (from == to || from >= editor.slides.length) return;
-            final slide = editor.slides[from];
-            if (_mutate('sl.reorder', () => editor.moveSlideTo(slide, to))) {
-              _goToSlide(to + 1);
-            }
-          },
-          itemBuilder: (context, i) {
-            final slide = editor.slides[i];
-            return ReorderableDelayedDragStartListener(
-              key: ValueKey('thumb-${slide.fileName}'),
-              index: i,
-              enabled: editor.canEditStructure,
-              child: Padding(
-                padding: vertical
-                    ? const EdgeInsets.only(bottom: 6)
-                    : const EdgeInsetsDirectional.only(end: 6),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => i + 1 == _currentSlide
-                      ? _openSlideSheet(slide)
-                      : _goToSlide(i + 1),
-                  child: SizedBox(
-                    width: thumbW,
-                    child: _slideThumb(context, editor, slide,
-                        current: i + 1 == _currentSlide),
-                  ),
-                ),
+        child: vertical
+            ? Column(
+                children: [
+                  Expanded(child: list),
+                  if (addButton != null) addButton,
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: list),
+                  if (addButton != null) addButton,
+                ],
               ),
-            );
-          },
-        ),
       ),
     );
   }
@@ -125,7 +188,10 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
         mainAxisSize: MainAxisSize.min,
         children: [
           item('new', AppIcons.add, ctx.t('sl.new_slide'), enabled: structural),
-          item('dup', AppIcons.copyAll, ctx.t('sl.duplicate'), enabled: structural),
+          item('img', AppIcons.addPhoto, ctx.t('sl.insert_image'),
+              enabled: structural),
+          item('dup', AppIcons.copyAll, ctx.t('sl.duplicate'),
+              enabled: structural),
           item('hide', hidden ? AppIcons.hidden : AppIcons.hiddenOff,
               ctx.t(hidden ? 'sl.unhide' : 'sl.hide'),
               enabled: structural),

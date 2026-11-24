@@ -216,6 +216,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   int _calcStamp = 0;
   final Map<XlsxCondRule, _CondStats> _condCache = {};
   (Object, _RangeStatusData)? _statusMemo;
+  ((String, int, int, int), List<(String, String)>)? _colTextCache;
 
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
   /// Kaynak = kaydetme HEDEFİ (eski .xls açıldıysa yeni .xlsx; o dosya henüz
@@ -597,12 +598,47 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
             onPressed: editor == null ? null : _toggleFind,
           ),
         ],
-        // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
-        // altında tabloya özel işler ayrı renkte. CSV eskiden hem burada hem
-        // alt çubuktaydı — artık yalnız burada.
+        // ⋮ = ortak dosya levhası (2026-11-15 + menü araması): üstte dosya
+        // işlemleri, altında tabloya özel yazdırma/koruma/dışa aktarma işleri.
         filePath: widget.savePath ?? widget.path,
         menuTitle: context.t('dm.sheet'),
         menu: [
+          if (_excelPro) ...[
+            EditorMenuItem(
+              id: 'print_pdf',
+              icon: AppIcons.pdf,
+              label: context.t('xp.print_pdf'),
+              onTap: editor == null ? null : _printToPdf,
+            ),
+            EditorMenuItem(
+              id: 'print_area',
+              icon: AppIcons.print,
+              label: context.t(_sheet?.printArea != null
+                  ? 'xp.print_area_clear'
+                  : 'xp.print_area_set_btn'),
+              onTap: editor == null
+                  ? null
+                  : () => _setPrintArea(clear: _sheet?.printArea != null),
+            ),
+            EditorMenuItem(
+              id: 'password',
+              icon: _filePassword == null ? AppIcons.lock : AppIcons.unlock,
+              label: context.t(_filePassword == null
+                  ? 'xp.password_set'
+                  : 'xp.password_remove'),
+              onTap: editor == null
+                  ? null
+                  : (_filePassword == null
+                      ? _protectWithPassword
+                      : _removePassword),
+            ),
+          ],
+          EditorMenuItem(
+            id: 'chart',
+            icon: AppIcons.insertChart,
+            label: context.t('chart.insert'),
+            onTap: editor == null ? null : _insertChart,
+          ),
           EditorMenuItem(
             id: 'csv',
             icon: AppIcons.tableView,
