@@ -131,9 +131,12 @@ abstract final class Gap {
 /// Köşe yarıçapı token'ları. Kağıt temasında hiyerarşi bir kademe düşürüldü
 /// (baskı hissi: yumuşak değil, kesilmiş kâğıt kenarı).
 abstract final class Radii {
+  static const xs = 4.0; // ince çerçeve, rozet
+  static const sm = 8.0; // küçük ikon yuvası
   static const control = 11.0; // buton, giriş alanı
   static const card = 14.0; // kart, liste öğesi
   static const sheet = 26.0; // bottom sheet, dialog
+  static const pill = 999.0; // kapsül rozet ve sekme
 }
 
 /// Uygulama teması: kağıt/mürekkep paleti, gölgesiz, cetvel çizgili.

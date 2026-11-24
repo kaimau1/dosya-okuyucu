@@ -24,20 +24,28 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
         redo: _editing || _plainMode ? () => !_canRedo ? null : _redoAny : null,
         extras: [
           if (!_plainMode)
-            IconButton(
-              key: const ValueKey('word-flow-toggle'),
-              tooltip:
-                  context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
-              isSelected: _flow,
-              icon: Icon(_flow ? AppIcons.newWord : AppIcons.device),
-              onPressed: editor == null ? null : _toggleFlow,
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 2),
+              child: IconButton(
+                key: const ValueKey('word-flow-toggle'),
+                tooltip:
+                    context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
+                isSelected: _flow,
+                style: EditorTopBar.iconStyle(context, selected: _flow),
+                icon: Icon(_flow ? AppIcons.newWord : AppIcons.device, size: 20),
+                onPressed: editor == null ? null : _toggleFlow,
+              ),
             ),
           if (!_plainMode)
-            IconButton(
-              tooltip: context.t('common.search'),
-              isSelected: _finding,
-              icon: const Icon(AppIcons.search),
-              onPressed: editor == null ? null : _toggleFind,
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 2),
+              child: IconButton(
+                tooltip: context.t('common.search'),
+                isSelected: _finding,
+                style: EditorTopBar.iconStyle(context, selected: _finding),
+                icon: const Icon(AppIcons.search, size: 20),
+                onPressed: editor == null ? null : _toggleFind,
+              ),
             ),
         ],
         // ⋮ = ortak dosya levhası.
@@ -142,8 +150,12 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               // seçili metin işleri ⋮'da.
               if (!_plainMode)
                 // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar.
-                DocAction(AppIcons.edit, context.t('common.edit'),
-                    editor == null ? null : _openMobileEditor),
+                DocAction(
+                  AppIcons.edit,
+                  context.t('common.edit'),
+                  editor == null ? null : _openMobileEditor,
+                  primary: true,
+                ),
               // 2026-11-22 (kullanıcı): sayfa görünümünü bozmadan yazı
               // değiştirme / silip yeniden yazma (canlı sayfa düzenleme).
               if (!_plainMode)
@@ -294,16 +306,112 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
     );
   }
 
-  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage]. Yalnız [_pageN]
-  /// dinler, kaydırırken tüm ekranı yeniden kurmaz.
+  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage], yan oklarla tek
+  /// dokunuşta önceki/sonraki sayfa. Yalnız [_pageN] dinler.
   Widget _pageBadge() {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return ValueListenableBuilder<int>(
       valueListenable: _pageN,
-      builder: (_, page, _) => DocPill(
-        text: context.t('word.page_of', {'n': page, 'total': _pageCount}),
-        icon: AppIcons.unfoldMore,
-        onTap: _showGoToPage,
-      ),
+      builder: (_, page, _) {
+        if (_pageCount <= 1) {
+          return DocPill(
+            text: context.t('word.page_of', {'n': page, 'total': _pageCount}),
+            icon: AppIcons.unfoldMore,
+            onTap: _showGoToPage,
+          );
+        }
+        final canPrev = page > 1;
+        final canNext = page < _pageCount;
+        Widget step(IconData icon, String tip, VoidCallback? onTap) => Tooltip(
+              message: tip,
+              child: InkWell(
+                onTap: onTap,
+                customBorder: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    icon,
+                    size: 18,
+                    color: onTap == null
+                        ? scheme.onSurface.withValues(alpha: 0.28)
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: scheme.surfaceContainerLowest.withValues(alpha: 0.96),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.65),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  step(
+                    AppIcons.keyboardArrowLeft,
+                    context.t('pn.prev_page'),
+                    canPrev
+                        ? () => _viewKey.currentState?.goToPage(page - 1)
+                        : null,
+                  ),
+                  InkWell(
+                    customBorder: const StadiumBorder(),
+                    onTap: _showGoToPage,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.sm, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            context.t('word.page_of',
+                                {'n': page, 'total': _pageCount}),
+                            style: context.type.small.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            AppIcons.unfoldMore,
+                            size: 15,
+                            color: scheme.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  step(
+                    AppIcons.keyboardArrowRight,
+                    context.t('pn.next_page'),
+                    canNext
+                        ? () => _viewKey.currentState?.goToPage(page + 1)
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -541,13 +649,14 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
         // düğmesi kaybolmamalı.
         trailing: Padding(
           padding: const EdgeInsetsDirectional.only(end: 8),
-          child: FilledButton.tonalIcon(
+          child: FilledButton.icon(
             style: FilledButton.styleFrom(
+              shape: const StadiumBorder(),
               minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
             ),
             onPressed: _toggleEdit,
-            icon: const Icon(AppIcons.check, size: 18),
+            icon: const Icon(AppIcons.check, size: 17),
             label: Text(context.t('word.done')),
           ),
         ),

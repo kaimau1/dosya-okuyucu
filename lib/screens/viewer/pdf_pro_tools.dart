@@ -463,7 +463,39 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           _snack(saved.replaceAll('{name}', p.basename(target)));
         case 'crop':
           await _proCropImage(page, item);
+        case 'resize':
+          await _proResizeImage(page, item);
       }
+    } catch (e) {
+      _proRefused(e);
+    }
+  }
+
+  /// Seçili görseli veya şekli merkezden hassas ölçek kaydırıcısı / ön ayarlarla boyutlandırır.
+  Future<void> _proResizeImage(int page, PdfPageItem item) async {
+    final pro = _pro;
+    final doc = _pdfDoc;
+    if (pro == null || doc == null || page < 0 || page >= doc.pages.length) {
+      return;
+    }
+    final p = doc.pages[page];
+    final rawW = p.rotation.index.isOdd ? p.height : p.width;
+    final rawH = p.rotation.index.isOdd ? p.width : p.height;
+    final scale = await showPdfImageSizeSheet(
+      context,
+      item: item,
+      pageWidth: rawW,
+      pageHeight: rawH,
+    );
+    if (scale == null || (scale - 1).abs() < 0.01 || !mounted || _pro != pro) {
+      return;
+    }
+    final cx = (item.left + item.right) / 2;
+    final cy = (item.bottom + item.top) / 2;
+    final m = [scale, 0.0, 0.0, scale, cx - scale * cx, cy - scale * cy];
+    try {
+      await pro.mutate(page, [PdfMutAction.transform([item.index], m)],
+          label: 'pse.step_resize');
     } catch (e) {
       _proRefused(e);
     }
@@ -943,22 +975,39 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           return [
             if (item.isImage) ...[
               PdfProChip(AppIcons.image, t('pse.img_replace'),
-                  () => _proItemAction('replace')),
+                  () => _proItemAction('replace'),
+                  primary: true, tapKey: const ValueKey('pse-chip-replace')),
+              PdfProChip(AppIcons.sizeScale, t('pse.resize'),
+                  () => _proItemAction('resize'),
+                  tapKey: const ValueKey('pse-chip-resize')),
               PdfProChip(
                   AppIcons.crop, t('pse.img_crop'), () => _proItemAction('crop')),
+              PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
+                  () => _proItemAction('rotate')),
+              PdfProChip(
+                AppIcons.flipToFront,
+                t('pse.order'),
+                () => unawaited(_proPickItemOrder()),
+                tapKey: const ValueKey('pse-chip-order'),
+              ),
               PdfProChip(AppIcons.download, t('pse.img_export'),
                   () => _proItemAction('export')),
-            ] else
+            ] else ...[
               PdfProChip(AppIcons.palette, t('pse.fmt_color'),
-                  () => _proItemAction('color')),
-            PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
-                () => _proItemAction('rotate')),
-            PdfProChip(
-              AppIcons.flipToFront,
-              t('pse.order'),
-              () => unawaited(_proPickItemOrder()),
-              tapKey: const ValueKey('pse-chip-order'),
-            ),
+                  () => _proItemAction('color'),
+                  primary: true),
+              PdfProChip(AppIcons.sizeScale, t('pse.resize'),
+                  () => _proItemAction('resize'),
+                  tapKey: const ValueKey('pse-chip-resize')),
+              PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
+                  () => _proItemAction('rotate')),
+              PdfProChip(
+                AppIcons.flipToFront,
+                t('pse.order'),
+                () => unawaited(_proPickItemOrder()),
+                tapKey: const ValueKey('pse-chip-order'),
+              ),
+            ],
             PdfProChip(AppIcons.delete, t('common.delete'),
                 () => _proItemAction('delete'),
                 danger: true),
@@ -966,7 +1015,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         }
         return [
           PdfProChip(AppIcons.addPhoto, t('pse.img_add'), _proInsertImage,
-              tapKey: const ValueKey('pse-chip-image')),
+              primary: true, tapKey: const ValueKey('pse-chip-image')),
           PdfProChip(AppIcons.lasso, t('pse.obj_lasso'),
               () => pro.armLasso = !pro.armLasso,
               active: pro.armLasso, tapKey: const ValueKey('pse-chip-lasso')),
@@ -990,7 +1039,6 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         final activeLine =
             textLines.where((e) => e.$1 == pro.markup).firstOrNull;
         return [
-          // Çizim ve temel işaretleme araçları
           PdfProChip(
             AppIcons.lineWeight,
             t('pse.stroke_title'),
@@ -1001,7 +1049,6 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
           kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
-          // Şekil, metin çizgisi ve notlar
           PdfProChip(
             activeShape?.$2 ?? AppIcons.rectTool,
             t(activeShape?.$3 ?? 'pse.shapes'),
@@ -1018,7 +1065,6 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             tapKey: const ValueKey('pse-chip-lines'),
           ),
           kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
-          // Gizlilik ve belge inceleme
           kind(PdfMarkupKind.redact, AppIcons.pdfRedact, 'pse.mk_redact'),
           PdfProChip(AppIcons.shield, t('pse.kvkk_title'), _proSensitive,
               tapKey: const ValueKey('pse-chip-kvkk')),
@@ -1194,8 +1240,32 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     pro.markup = pick;
   }
 
+  /// Geçerli sayfadaki seçilebilir görsel/şekil sayısı (keşif çubuğu için).
+  int? _proSelectableCount(PdfProEditController pro) {
+    final page = (_livePdfPage() ?? _pdfPage) - 1;
+    final content = pro.contentOf(page);
+    final doc = _pdfDoc;
+    if (content == null || doc == null || page < 0 || page >= doc.pages.length) {
+      return null;
+    }
+    final p = doc.pages[page];
+    final pageW = p.width, pageH = p.height;
+    return content.items
+        .where((it) =>
+            !it.mark.startsWith('DO') &&
+            !(it.isPath &&
+                it.width > pageW * 0.95 &&
+                it.height > pageH * 0.95))
+        .length;
+  }
+
   Widget? _proGuideBanner(PdfProEditController pro) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     String? text;
+    String? badge;
+    Color dotColor = scheme.primary;
     VoidCallback? close;
     if (pro.armTextBox) {
       text = context.t('pse.textbox_guide');
@@ -1219,48 +1289,106 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       });
       text = context.t('pse.draw_guide', {'tool': toolName});
       close = pro.clearMarkup;
+    } else if (pro.tool == PdfProTool.image &&
+        pro.selectedItem == null &&
+        pro.selectedItems.isEmpty) {
+      final n = _proSelectableCount(pro);
+      dotColor = PdfEditTokens.imageAccent(dark);
+      if (n == 0) {
+        text = context.t('pse.obj_none_hint');
+      } else if (n != null && n > 0) {
+        badge = context.t('pse.obj_count', {'n': n});
+        text = context.t('pse.obj_guide');
+      }
+    } else if (pro.tool == PdfProTool.text && pro.selected != null) {
+      text = context.t('pse.text_guide_rich');
     }
-    if (text == null || close == null) return null;
-    final scheme = Theme.of(context).colorScheme;
+    if (text == null) return null;
     return PositionedDirectional(
       start: Gap.md,
       end: Gap.md,
       top: ReadingChrome.insetsOf(context).top + Gap.sm,
       child: Center(
-        // Tostla aynı kart dili (2026-11-22).
-        child: Material(
-          color: scheme.surfaceContainerLow,
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.sheet),
-            side: BorderSide(color: scheme.outlineVariant),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-                Gap.md, Gap.xs, Gap.xs, Gap.xs),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    text,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.type.small
-                        .copyWith(color: scheme.onSurface),
+          child: Material(
+            color: scheme.surfaceContainerLowest.withValues(alpha: 0.96),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: dotColor.withValues(alpha: 0.42),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                12,
+                close == null ? 7 : 4,
+                close == null ? 14 : 4,
+                close == null ? 7 : 4,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: Gap.xs),
-                IconButton(
-                  key: const ValueKey('pse-guide-close'),
-                  visualDensity: VisualDensity.compact,
-                  iconSize: AppIcons.small,
-                  color: scheme.onSurfaceVariant,
-                  tooltip: context.t('common.close'),
-                  onPressed: close,
-                  icon: const Icon(AppIcons.close),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  if (badge != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: ShapeDecoration(
+                        color: dotColor.withValues(alpha: dark ? 0.25 : 0.14),
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Text(
+                        badge,
+                        style: context.type.micro.copyWith(
+                          color: dotColor,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                  ],
+                  Flexible(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.type.small.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (close != null) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      key: const ValueKey('pse-guide-close'),
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      color: scheme.onSurfaceVariant,
+                      tooltip: context.t('common.close'),
+                      onPressed: close,
+                      icon: const Icon(AppIcons.close),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),

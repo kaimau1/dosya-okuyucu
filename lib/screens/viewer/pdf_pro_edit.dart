@@ -213,52 +213,72 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
 
   /// Üst çubuk (etkileşim §5): geri al · yinele · Kaydet (dolgulu) · çık · ⋮.
   List<Widget> _proActions(PdfProEditController pro) {
+    final scheme = Theme.of(context).colorScheme;
     final undo = pro.session.undoStep, redo = pro.session.redoStep;
     final live = pro.live != null;
     final canSave = pro.session.dirty || (pro.live?.changed ?? false);
+    final circleStyle = IconButton.styleFrom(
+      backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+      foregroundColor: scheme.onSurface,
+      disabledBackgroundColor: Colors.transparent,
+      disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.34),
+      shape: const CircleBorder(),
+      side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+      visualDensity: VisualDensity.compact,
+    );
     return [
-      // Yapılacak adım yoksa düğme görünmez (2026-11-22).
       if (undo != null)
-        IconButton(
-          key: const ValueKey('pse-undo'),
-          visualDensity: VisualDensity.compact,
-          tooltip: context.t('pse.undo_named', {'name': _proStepName(undo)}),
-          icon: const Icon(AppIcons.undo),
-          onPressed: pro.busy || live ? null : _proUndo,
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: const ValueKey('pse-undo'),
+            style: circleStyle,
+            tooltip: context.t('pse.undo_named', {'name': _proStepName(undo)}),
+            icon: const Icon(AppIcons.undo, size: 20),
+            onPressed: pro.busy || live ? null : _proUndo,
+          ),
         ),
       if (redo != null)
-        IconButton(
-          key: const ValueKey('pse-redo'),
-          visualDensity: VisualDensity.compact,
-          tooltip: context.t('pse.redo_named', {'name': _proStepName(redo)}),
-          icon: const Icon(AppIcons.redo),
-          onPressed: pro.busy || live ? null : _proRedo,
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: const ValueKey('pse-redo'),
+            style: circleStyle,
+            tooltip: context.t('pse.redo_named', {'name': _proStepName(redo)}),
+            icon: const Icon(AppIcons.redo, size: 20),
+            onPressed: pro.busy || live ? null : _proRedo,
+          ),
         ),
       Padding(
-        padding: const EdgeInsetsDirectional.only(start: Gap.xs),
-        child: FilledButton(
+        padding: const EdgeInsetsDirectional.symmetric(horizontal: 4),
+        child: FilledButton.icon(
           key: const ValueKey('pse-save'),
           style: FilledButton.styleFrom(
-            minimumSize: const Size(0, 34),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            shape: const StadiumBorder(),
             visualDensity: VisualDensity.compact,
           ),
           onPressed: pro.busy || !canSave ? null : _proSave,
-          child: Text(context.t('common.save')),
+          icon: const Icon(AppIcons.save, size: 17),
+          label: Text(context.t('common.save')),
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsetsDirectional.only(end: 2),
+        child: IconButton(
+          key: const ValueKey('pse-exit'),
+          style: circleStyle,
+          tooltip: context.t('pdf.exit_edit'),
+          icon: const Icon(AppIcons.close, size: 20),
+          onPressed: pro.busy ? null : () => unawaited(_exitProEdit()),
         ),
       ),
       IconButton(
-        key: const ValueKey('pse-exit'),
-        visualDensity: VisualDensity.compact,
-        tooltip: context.t('pdf.exit_edit'),
-        icon: const Icon(AppIcons.close),
-        onPressed: pro.busy ? null : () => unawaited(_exitProEdit()),
-      ),
-      IconButton(
         key: const ValueKey('pse-more'),
-        visualDensity: VisualDensity.compact,
+        style: circleStyle,
         tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-        icon: const Icon(AppIcons.more),
+        icon: const Icon(AppIcons.more, size: 20),
         onPressed: pro.busy ? null : _proMore,
       ),
     ];

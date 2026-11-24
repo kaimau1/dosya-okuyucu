@@ -35,6 +35,7 @@ import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/sheet_overflow.dart';
 import '../../core/sheet_text_measure.dart';
@@ -592,10 +593,15 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
         undo: () => editor == null || !_undo.canUndo ? null : _undoStep,
         redo: () => editor == null || !_undo.canRedo ? null : _redoStep,
         extras: [
-          IconButton(
-            tooltip: context.t('common.search'),
-            icon: const Icon(OfficeIcons.search),
-            onPressed: editor == null ? null : _toggleFind,
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 2),
+            child: IconButton(
+              tooltip: context.t('common.search'),
+              isSelected: _finding,
+              style: EditorTopBar.iconStyle(context, selected: _finding),
+              icon: const Icon(OfficeIcons.search, size: 20),
+              onPressed: editor == null ? null : _toggleFind,
+            ),
           ),
         ],
         // ⋮ = ortak dosya levhası (2026-11-15 + menü araması): üstte dosya

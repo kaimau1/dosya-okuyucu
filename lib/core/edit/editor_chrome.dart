@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 
 import '../app_icons.dart';
 import '../l10n/app_strings.dart';
+import '../motion.dart';
 
 /// Hızlı çubuktaki tek düğme.
 class AccessoryItem {
@@ -68,54 +69,87 @@ class KeyboardAccessoryBar extends StatelessWidget {
         pinnedTrailing.isNotEmpty || onFormat != null || onHideKeyboard != null;
     return Material(
       key: const ValueKey('keyboard-accessory'),
-      color: scheme.surfaceContainerHigh,
-      child: SizedBox(
-        height: height,
-        child: Row(
-          children: [
-            Expanded(
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                children: [for (final it in items) _button(context, it)],
-              ),
+      color: scheme.surface,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.72),
             ),
-            if (hasTrailing)
-              VerticalDivider(width: 1, color: scheme.outlineVariant),
-            for (final it in pinnedTrailing) _button(context, it),
-            if (onFormat != null)
-              _button(
+            bottom: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+        child: SizedBox(
+          height: height,
+          child: Row(
+            children: [
+              Expanded(
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  children: [for (final it in items) _button(context, it)],
+                ),
+              ),
+              if (hasTrailing)
+                VerticalDivider(
+                  width: 1,
+                  indent: 8,
+                  endIndent: 8,
+                  color: scheme.outlineVariant.withValues(alpha: 0.7),
+                ),
+              for (final it in pinnedTrailing) _button(context, it),
+              if (onFormat != null)
+                _button(
                   context,
                   AccessoryItem(
-                      key: const ValueKey('accessory-format'),
-                      text: 'Aa',
-                      tooltip: context.t('edit.format_panel'),
-                      onPressed: onFormat)),
-            if (onHideKeyboard != null)
-              _button(
+                    key: const ValueKey('accessory-format'),
+                    text: 'Aa',
+                    tooltip: context.t('edit.format_panel'),
+                    onPressed: onFormat,
+                  ),
+                  accent: true,
+                ),
+              if (onHideKeyboard != null)
+                _button(
                   context,
                   AccessoryItem(
-                      key: const ValueKey('accessory-hide'),
-                      icon: AppIcons.keyboardArrowDown,
-                      tooltip: context.t('edit.hide_keyboard'),
-                      onPressed: onHideKeyboard)),
-          ],
+                    key: const ValueKey('accessory-hide'),
+                    icon: AppIcons.keyboardArrowDown,
+                    tooltip: context.t('edit.hide_keyboard'),
+                    onPressed: onHideKeyboard,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  static Widget _button(BuildContext context, AccessoryItem it) {
+  static Widget _button(
+    BuildContext context,
+    AccessoryItem it, {
+    bool accent = false,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     final on = it.selected == true;
-    final fg = on ? scheme.onSecondaryContainer : scheme.onSurface;
+    final bg = on
+        ? scheme.primaryContainer
+        : accent
+            ? scheme.primaryContainer.withValues(alpha: 0.65)
+            : Colors.transparent;
+    final fg = (on || accent) ? scheme.primary : scheme.onSurface;
     final child = it.icon != null
-        ? Icon(it.icon, size: 22, color: fg)
-        : Text(it.text!,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700, color: fg));
+        ? Icon(it.icon, size: 20, color: fg)
+        : Text(
+            it.text!,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: fg,
+                ),
+          );
     return Semantics(
       button: true,
       toggled: it.selected,
@@ -126,17 +160,29 @@ class KeyboardAccessoryBar extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
           child: Material(
-            color: on ? scheme.secondaryContainer : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               key: it.key,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(11),
               onTap: it.onPressed,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 40),
+              child: AnimatedContainer(
+                duration: Motion.of(context, Motion.short),
+                curve: Motion.standard,
+                constraints: const BoxConstraints(minWidth: 38),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(11),
+                  border: (on || accent)
+                      ? Border.all(
+                          color: scheme.primary.withValues(alpha: 0.35),
+                        )
+                      : null,
+                ),
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
                     child: child,
                   ),
                 ),
@@ -224,7 +270,8 @@ class _FormatPanelHostState extends State<FormatPanelHost> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final tabs = widget.tabs;
     final index = tabs.isEmpty ? 0 : _tab.clamp(0, tabs.length - 1);
     return Material(
@@ -235,50 +282,98 @@ class _FormatPanelHostState extends State<FormatPanelHost> {
         child: Column(
           children: [
             SizedBox(
-              height: 44,
+              height: 48,
               child: Row(
                 children: [
                   Expanded(
                     child: ListView(
                       scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 7),
                       children: [
                         for (var i = 0; i < tabs.length; i++)
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 6),
-                            child: ChoiceChip(
-                              label: Text(tabs[i].label),
-                              selected: i == index,
-                              onSelected: (_) => setState(() => _tab = i),
+                            padding: const EdgeInsetsDirectional.only(end: 6),
+                            child: Material(
+                              color: Colors.transparent,
+                              shape: const StadiumBorder(),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () => setState(() => _tab = i),
+                                child: AnimatedContainer(
+                                  duration: Motion.of(context, Motion.short),
+                                  curve: Motion.standard,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14),
+                                  alignment: Alignment.center,
+                                  decoration: ShapeDecoration(
+                                    color: i == index
+                                        ? scheme.primary
+                                        : scheme.surfaceContainerHigh,
+                                    shape: StadiumBorder(
+                                      side: BorderSide(
+                                        color: i == index
+                                            ? scheme.primary
+                                            : scheme.outlineVariant
+                                                .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tabs[i].label,
+                                    style:
+                                        theme.textTheme.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: i == index
+                                          ? scheme.onPrimary
+                                          : scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                       ],
                     ),
                   ),
-                  if (widget.side)
-                    IconButton(
-                      key: const ValueKey('format-panel-close'),
-                      tooltip: context.t('common.close'),
-                      icon: const Icon(AppIcons.close),
-                      onPressed: () => widget.controller.close(),
-                    )
-                  else
-                    IconButton(
-                      key: const ValueKey('format-panel-keyboard'),
-                      tooltip: context.t('edit.show_keyboard'),
-                      icon: const Icon(AppIcons.keyboard),
-                      onPressed: () =>
-                          widget.controller.close(showKeyboard: true),
-                    ),
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 6),
+                    child: widget.side
+                        ? IconButton(
+                            key: const ValueKey('format-panel-close'),
+                            tooltip: context.t('common.close'),
+                            icon: const Icon(AppIcons.close, size: 20),
+                            style: IconButton.styleFrom(
+                              backgroundColor: scheme.surfaceContainerHigh,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () => widget.controller.close(),
+                          )
+                        : IconButton(
+                            key: const ValueKey('format-panel-keyboard'),
+                            tooltip: context.t('edit.show_keyboard'),
+                            icon: const Icon(AppIcons.keyboard, size: 20),
+                            style: IconButton.styleFrom(
+                              backgroundColor: scheme.primaryContainer,
+                              foregroundColor: scheme.primary,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () =>
+                                widget.controller.close(showKeyboard: true),
+                          ),
+                  ),
                 ],
               ),
             ),
-            Divider(height: 1, color: scheme.outlineVariant),
+            Divider(
+              height: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.65),
+            ),
             Expanded(
               child: tabs.isEmpty
                   ? const SizedBox.shrink()
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       child: tabs[index].builder(context),
                     ),
             ),

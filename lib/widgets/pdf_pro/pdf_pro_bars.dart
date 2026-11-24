@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import 'pdf_pro_edit_controller.dart';
@@ -23,9 +24,8 @@ class PdfProChip {
   final Key? tapKey;
 }
 
-/// **Bağlamsal ikinci çubuk** (etkileşim §5): seçili araca / seçime göre
-/// değişen, yatay kaydırılabilir yongalar. Alt araç çubuğunun üstünde yüzer —
-/// gövdenin boyunu değiştirmez (yakınlaştırma/kaydırma yerinde kalır).
+/// **Belge Stüdyosu Bağlamsal Çubuğu**: seçili araca / nesneye göre
+/// canlanan, yumuşak gölgeli yüzen hap şeridi. Gövdenin boyunu değiştirmez.
 class PdfProContextBar extends StatelessWidget {
   const PdfProContextBar({super.key, required this.chips, this.label});
   final List<PdfProChip> chips;
@@ -33,80 +33,136 @@ class PdfProContextBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     if (chips.isEmpty) return const SizedBox.shrink();
+    final dur = Motion.of(context, Motion.short);
     return Semantics(
       container: true,
       label: label,
-      child: Material(
-        color: scheme.surfaceContainerHigh,
-        elevation: 2,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Color.lerp(scheme.surface, scheme.surfaceContainerLow, 0.55),
+          border: Border(
+            top: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.65),
             ),
           ),
-          child: SizedBox(
-            height: PdfEditTokens.contextBar,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsetsDirectional.symmetric(
-                  horizontal: Gap.md, vertical: Gap.sm),
-              itemCount: chips.length,
-              separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
-              itemBuilder: (context, i) {
-                final c = chips[i];
-                final fg = c.primary
-                    ? scheme.onPrimary
-                    : c.danger
-                        ? scheme.error
-                        : c.active
-                            ? scheme.onPrimaryContainer
-                            : scheme.onSurface;
-                final bg = c.primary
-                    ? scheme.primary
-                    : c.active
-                        ? scheme.primaryContainer
-                        : scheme.surface;
-                final borderColor = c.primary || c.active
-                    ? scheme.primary
-                    : scheme.outlineVariant;
-                final avatar = c.swatch != null
-                    ? Container(
-                        width: 16,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: c.swatch,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: c.primary
-                                ? scheme.onPrimary.withValues(alpha: 0.7)
-                                : scheme.outline,
-                          ),
-                        ),
-                      )
-                    : Icon(c.icon, size: AppIcons.small, color: fg);
-                return ActionChip(
-                  key: c.tapKey,
-                  avatar: avatar,
-                  label: Text(c.label),
-                  labelStyle: context.type.small.copyWith(
-                    color: fg,
-                    fontWeight: c.primary || c.active
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                  ),
-                  // KÖK (2026-11-22): M3'te tema `color`'ı backgroundColor'ı
-                  // ezer → birincil yonga beyaz zeminde beyaz yazı kalıyordu.
-                  backgroundColor: bg,
-                  color: WidgetStatePropertyAll(bg),
-                  side: BorderSide(color: borderColor),
-                  onPressed: c.onTap,
-                );
-              },
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.studioShadow(dark),
+              blurRadius: 14,
+              offset: const Offset(0, -3),
             ),
+          ],
+        ),
+        child: SizedBox(
+          height: PdfEditTokens.contextBar,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: 12, vertical: 9),
+            itemCount: chips.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, i) {
+              final c = chips[i];
+              final enabled = c.onTap != null;
+              final fg = !enabled
+                  ? scheme.onSurface.withValues(alpha: 0.36)
+                  : c.primary
+                      ? scheme.onPrimary
+                      : c.danger
+                          ? scheme.error
+                          : c.active
+                              ? scheme.onPrimaryContainer
+                              : scheme.onSurface;
+              final bg = !enabled
+                  ? scheme.surfaceContainerHigh.withValues(alpha: 0.45)
+                  : c.primary
+                      ? scheme.primary
+                      : c.danger
+                          ? scheme.errorContainer.withValues(alpha: 0.72)
+                          : c.active
+                              ? scheme.primaryContainer
+                              : scheme.surfaceContainerLowest;
+              final borderColor = !enabled
+                  ? scheme.outlineVariant.withValues(alpha: 0.35)
+                  : c.primary
+                      ? scheme.primary
+                      : c.danger
+                          ? scheme.error.withValues(alpha: 0.32)
+                          : c.active
+                              ? scheme.primary.withValues(alpha: 0.55)
+                              : scheme.outlineVariant.withValues(alpha: 0.72);
+              final leading = c.swatch != null
+                  ? Container(
+                      width: 17,
+                      height: 17,
+                      decoration: BoxDecoration(
+                        color: c.swatch,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          width: 1.8,
+                          color: c.primary
+                              ? scheme.onPrimary.withValues(alpha: 0.85)
+                              : scheme.surface,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.studioShadow(dark),
+                            blurRadius: 3,
+                          ),
+                        ],
+                      ),
+                    )
+                  : Icon(c.icon, size: 18, color: fg);
+              return Semantics(
+                button: true,
+                enabled: enabled,
+                selected: c.active,
+                label: c.label,
+                excludeSemantics: true,
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const StadiumBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: c.tapKey,
+                    onTap: c.onTap,
+                    child: AnimatedContainer(
+                      duration: dur,
+                      curve: Motion.standard,
+                      padding: const EdgeInsetsDirectional.fromSTEB(
+                          11, 0, 13, 0),
+                      alignment: Alignment.center,
+                      decoration: ShapeDecoration(
+                        color: bg,
+                        shape: StadiumBorder(
+                          side: BorderSide(color: borderColor),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          leading,
+                          const SizedBox(width: 7),
+                          Text(
+                            c.label,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: fg,
+                              fontWeight: c.primary || c.active
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -151,8 +207,8 @@ class PdfProFormatLabels {
 }
 
 /// **Klavye üstü biçim çubuğu** (etkileşim §5): ✓/✕, yazı tipi rozeti
-/// ("belge" = gömülü font kullanılıyor), punto, B · I · U · S, renk, vurgu,
-/// hizalama, pano. Yazılamayan durum (PK7) çubuğun üstünde açıkça yazar.
+/// ("belge" = gömülü font kullanılıyor), gruplu punto adımlayıcı, B · I · U · S,
+/// renk, vurgu, hizalama, pano.
 class PdfProFormatBar extends StatelessWidget {
   const PdfProFormatBar({
     super.key,
@@ -186,8 +242,9 @@ class PdfProFormatBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     return ListenableBuilder(
       listenable: controller,
       builder: (context, _) {
@@ -199,45 +256,56 @@ class PdfProFormatBar extends StatelessWidget {
             (live.map.sizes.isEmpty ? 12.0 : live.map.sizes.first);
         Widget toggle(Key key, IconData icon, String tip, bool on,
                 VoidCallback onTap) =>
-            IconButton(
-              key: key,
-              tooltip: tip,
-              isSelected: on,
-              style: on
-                  ? IconButton.styleFrom(
-                      backgroundColor: scheme.primaryContainer,
-                      foregroundColor: scheme.onPrimaryContainer,
-                    )
-                  : null,
-              icon: Icon(icon),
-              onPressed: onTap,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5, vertical: 6),
+              child: IconButton(
+                key: key,
+                tooltip: tip,
+                isSelected: on,
+                visualDensity: VisualDensity.compact,
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                      on ? scheme.primaryContainer : Colors.transparent,
+                  foregroundColor: on ? scheme.primary : scheme.onSurface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(11),
+                    side: on
+                        ? BorderSide(
+                            color: scheme.primary.withValues(alpha: 0.4))
+                        : BorderSide.none,
+                  ),
+                ),
+                icon: Icon(icon, size: 20),
+                onPressed: onTap,
+              ),
             );
         Widget colorIcon(IconData icon, Color bar) => Column(
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(icon, size: 17),
-                const SizedBox(height: 1),
+                const SizedBox(height: 1.5),
                 Container(
-                  width: 16,
-                  height: 3,
+                  width: 17,
+                  height: 3.5,
                   decoration: BoxDecoration(
                     color: bar,
-                    borderRadius: BorderRadius.circular(1.5),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ],
             );
         final textColorArgb = live.colorAt(a);
         final hlColorArgb = live.highlightAt(a);
-        final alignIcon =
-            _aligns.firstWhere((e) => e.$1 == live.align).$2;
+        final alignIcon = _aligns.firstWhere((e) => e.$1 == live.align).$2;
         void paste() async {
           final data = await Clipboard.getData(Clipboard.kTextPlain);
           final t = data?.text;
           if (t == null || t.isEmpty) return;
           final v = input.value;
-          final s = v.selection.isValid ? v.selection : TextSelection.collapsed(offset: v.text.length);
+          final s = v.selection.isValid
+              ? v.selection
+              : TextSelection.collapsed(offset: v.text.length);
           input.value = TextEditingValue(
             text: v.text.replaceRange(s.start, s.end, t),
             selection: TextSelection.collapsed(offset: s.start + t.length),
@@ -267,251 +335,333 @@ class PdfProFormatBar extends StatelessWidget {
         }
         final badge = pickName ??
             (live.fallbackChars > 0 ? labels.fallbackFont : labels.docFont);
-        return Material(
-          color: scheme.surfaceContainerHigh,
-          elevation: 3,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (err != null)
-                Container(
-                  key: const ValueKey('pse-format-error'),
-                  color: PdfEditTokens.pending(dark).withValues(alpha: 0.16),
-                  padding: const EdgeInsetsDirectional.symmetric(
-                      horizontal: Gap.md, vertical: Gap.xs),
-                  child: Row(
-                    children: [
-                      Icon(AppIcons.warning,
-                          size: AppIcons.small,
-                          color: PdfEditTokens.pending(dark)),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Text(
-                          live.glyphError ? labels.glyphError : labels.error,
-                          style: context.type.caption,
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            border: Border(
+              top: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.72),
+              ),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: 16,
+                offset: const Offset(0, -3),
+              ),
+            ],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (err != null)
+                  Container(
+                    key: const ValueKey('pse-format-error'),
+                    color: PdfEditTokens.pending(dark).withValues(alpha: 0.16),
+                    padding: const EdgeInsetsDirectional.symmetric(
+                        horizontal: Gap.md, vertical: Gap.xs),
+                    child: Row(
+                      children: [
+                        Icon(AppIcons.warning,
+                            size: AppIcons.small,
+                            color: PdfEditTokens.pending(dark)),
+                        const SizedBox(width: Gap.sm),
+                        Expanded(
+                          child: Text(
+                            live.glyphError ? labels.glyphError : labels.error,
+                            style: context.type.caption,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (err == null && live.collision != null)
-                Container(
-                  key: const ValueKey('pse-overflow'),
-                  color: PdfEditTokens.pending(dark).withValues(alpha: 0.16),
-                  padding: const EdgeInsetsDirectional.only(
-                      start: Gap.md, end: Gap.xs),
-                  child: Row(
-                    children: [
-                      Icon(AppIcons.warning,
-                          size: AppIcons.small,
-                          color: PdfEditTokens.pending(dark)),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Text(labels.overflow,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.type.caption),
-                      ),
-                      TextButton(
-                        key: const ValueKey('pse-overflow-shrink'),
-                        onPressed: () => controller.liveOverflow('shrink'),
-                        child: Text(labels.shrink),
-                      ),
-                      TextButton.icon(
-                        key: const ValueKey('pse-overflow-push'),
-                        icon: live.pushBelow
-                            ? const Icon(AppIcons.check, size: AppIcons.small)
-                            : const SizedBox.shrink(),
-                        onPressed: () => controller.liveOverflow('push'),
-                        label: Text(labels.push),
-                      ),
-                      if (controller.widenTo(live) != null)
-                        TextButton(
-                          key: const ValueKey('pse-overflow-widen'),
-                          onPressed: () => controller.liveOverflow('widen'),
-                          child: Text(labels.widen),
-                        ),
-                    ],
-                  ),
-                ),
-              SizedBox(
-                height: PdfEditTokens.formatBar,
-                child: Row(
-                  children: [
-                    IconButton(
-                      key: const ValueKey('pse-format-cancel'),
-                      tooltip: labels.cancel,
-                      icon: const Icon(AppIcons.close),
-                      onPressed: controller.busy ? null : onCancel,
+                      ],
                     ),
-                    Expanded(
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          // Yazı tipi rozeti: belgenin fontu mu, yedek mi.
-                          Center(
-                            child: Tooltip(
-                              message: badge,
-                              child: InkWell(
-                                borderRadius:
-                                    BorderRadius.circular(Radii.control),
-                                onTap: onPickFont,
-                                child: Container(
-                                key: const ValueKey('pse-font-badge'),
-                                margin: const EdgeInsetsDirectional.only(
-                                    end: Gap.sm),
-                                padding: const EdgeInsetsDirectional.symmetric(
-                                    horizontal: Gap.sm, vertical: Gap.xs),
-                                decoration: BoxDecoration(
-                                  color: live.fallbackChars > 0 &&
-                                          pick == null
-                                      ? PdfEditTokens.pending(dark)
-                                          .withValues(alpha: 0.18)
-                                      : scheme.primaryContainer,
-                                  borderRadius:
-                                      BorderRadius.circular(Radii.control),
+                  ),
+                if (err == null && live.collision != null)
+                  Container(
+                    key: const ValueKey('pse-overflow'),
+                    color: PdfEditTokens.pending(dark).withValues(alpha: 0.16),
+                    padding: const EdgeInsetsDirectional.only(
+                        start: Gap.md, end: Gap.xs),
+                    child: Row(
+                      children: [
+                        Icon(AppIcons.warning,
+                            size: AppIcons.small,
+                            color: PdfEditTokens.pending(dark)),
+                        const SizedBox(width: Gap.sm),
+                        Expanded(
+                          child: Text(labels.overflow,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.type.caption),
+                        ),
+                        TextButton(
+                          key: const ValueKey('pse-overflow-shrink'),
+                          onPressed: () => controller.liveOverflow('shrink'),
+                          child: Text(labels.shrink),
+                        ),
+                        TextButton.icon(
+                          key: const ValueKey('pse-overflow-push'),
+                          icon: live.pushBelow
+                              ? const Icon(AppIcons.check, size: AppIcons.small)
+                              : const SizedBox.shrink(),
+                          onPressed: () => controller.liveOverflow('push'),
+                          label: Text(labels.push),
+                        ),
+                        if (controller.widenTo(live) != null)
+                          TextButton(
+                            key: const ValueKey('pse-overflow-widen'),
+                            onPressed: () => controller.liveOverflow('widen'),
+                            child: Text(labels.widen),
+                          ),
+                      ],
+                    ),
+                  ),
+                SizedBox(
+                  height: PdfEditTokens.formatBar,
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(start: 6),
+                        child: IconButton(
+                          key: const ValueKey('pse-format-cancel'),
+                          tooltip: labels.cancel,
+                          visualDensity: VisualDensity.compact,
+                          style: IconButton.styleFrom(
+                            backgroundColor: scheme.surfaceContainerHigh,
+                            shape: const CircleBorder(),
+                          ),
+                          icon: const Icon(AppIcons.close, size: 19),
+                          onPressed: controller.busy ? null : onCancel,
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          children: [
+                            // Yazı tipi rozeti
+                            Center(
+                              child: Tooltip(
+                                message: badge,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: onPickFont,
+                                  child: Container(
+                                    key: const ValueKey('pse-font-badge'),
+                                    margin: const EdgeInsetsDirectional.only(
+                                        end: 6),
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                            11, 6, 8, 6),
+                                    decoration: ShapeDecoration(
+                                      color: live.fallbackChars > 0 &&
+                                              pick == null
+                                          ? PdfEditTokens.pending(dark)
+                                              .withValues(alpha: 0.18)
+                                          : scheme.primaryContainer,
+                                      shape: StadiumBorder(
+                                        side: BorderSide(
+                                          color: scheme.primary
+                                              .withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          badge,
+                                          style: context.type.small.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: scheme.onPrimaryContainer,
+                                          ),
+                                        ),
+                                        if (onPickFont != null) ...[
+                                          const SizedBox(width: 2),
+                                          Icon(AppIcons.dropDown,
+                                              size: 18,
+                                              color: scheme.onPrimaryContainer),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Gruplu punto adımlayıcı
+                            Center(
+                              child: Container(
+                                margin:
+                                    const EdgeInsetsDirectional.only(end: 6),
+                                decoration: ShapeDecoration(
+                                  color: scheme.surfaceContainerLow,
+                                  shape: StadiumBorder(
+                                    side: BorderSide(
+                                      color: scheme.outlineVariant
+                                          .withValues(alpha: 0.65),
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(badge, style: context.type.small),
-                                    if (onPickFont != null) ...[
-                                      const SizedBox(width: Gap.xs),
-                                      const Icon(AppIcons.dropDown,
-                                          size: AppIcons.small),
-                                    ],
+                                    IconButton(
+                                      key: const ValueKey('pse-size-down'),
+                                      tooltip: labels.smaller,
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(AppIcons.textDecrease,
+                                          size: 18),
+                                      onPressed: () => controller.liveParagraph(
+                                          size: (size - 1).roundToDouble()),
+                                    ),
+                                    Semantics(
+                                      label: labels.size,
+                                      child: Text(
+                                        size.round().toString(),
+                                        style: context.type.small.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures()
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      key: const ValueKey('pse-size-up'),
+                                      tooltip: labels.larger,
+                                      visualDensity: VisualDensity.compact,
+                                      icon: const Icon(AppIcons.textIncrease,
+                                          size: 18),
+                                      onPressed: () => controller.liveParagraph(
+                                          size: (size + 1).roundToDouble()),
+                                    ),
                                   ],
                                 ),
                               ),
+                            ),
+                            toggle(
+                                const ValueKey('pse-bold'),
+                                AppIcons.formatBold,
+                                labels.bold,
+                                live.has((s) => s.bold, a, b),
+                                () => controller.liveStyle((x, y) =>
+                                    PdfStyleSpan(x, y,
+                                        bold:
+                                            !live.has((s) => s.bold, a, b)))),
+                            toggle(
+                                const ValueKey('pse-italic'),
+                                AppIcons.formatItalic,
+                                labels.italic,
+                                live.has((s) => s.italic, a, b),
+                                () => controller.liveStyle((x, y) =>
+                                    PdfStyleSpan(x, y,
+                                        italic:
+                                            !live.has((s) => s.italic, a, b)))),
+                            toggle(
+                                const ValueKey('pse-underline'),
+                                AppIcons.formatUnderlined,
+                                labels.underline,
+                                live.has((s) => s.underline, a, b),
+                                () => controller.liveStyle((x, y) =>
+                                    PdfStyleSpan(x, y,
+                                        underline: !live.has(
+                                            (s) => s.underline, a, b)))),
+                            toggle(
+                                const ValueKey('pse-strike'),
+                                AppIcons.strikethroughS,
+                                labels.strike,
+                                live.has((s) => s.strike, a, b),
+                                () => controller.liveStyle((x, y) =>
+                                    PdfStyleSpan(x, y,
+                                        strike:
+                                            !live.has((s) => s.strike, a, b)))),
+                            IconButton(
+                              key: const ValueKey('pse-color'),
+                              tooltip: labels.color,
+                              visualDensity: VisualDensity.compact,
+                              icon: colorIcon(
+                                AppIcons.formatColorText,
+                                textColorArgb != null
+                                    ? Color(textColorArgb | 0xFF000000)
+                                    : scheme.onSurface,
                               ),
+                              onPressed: onPickColor,
                             ),
-                          ),
-                          IconButton(
-                            key: const ValueKey('pse-size-down'),
-                            tooltip: labels.smaller,
-                            icon: const Icon(AppIcons.textDecrease),
-                            onPressed: () => controller.liveParagraph(
-                                size: (size - 1).roundToDouble()),
-                          ),
-                          Center(
-                            child: Semantics(
-                              label: labels.size,
-                              child: Text(size.round().toString(),
-                                  style: context.type.small),
+                            IconButton(
+                              key: const ValueKey('pse-highlight'),
+                              tooltip: labels.highlight,
+                              visualDensity: VisualDensity.compact,
+                              icon: colorIcon(
+                                AppIcons.highlighter,
+                                hlColorArgb != null
+                                    ? Color(hlColorArgb | 0xFF000000)
+                                    : scheme.primary,
+                              ),
+                              onPressed: onPickHighlight,
                             ),
-                          ),
-                          IconButton(
-                            key: const ValueKey('pse-size-up'),
-                            tooltip: labels.larger,
-                            icon: const Icon(AppIcons.textIncrease),
-                            onPressed: () => controller.liveParagraph(
-                                size: (size + 1).roundToDouble()),
-                          ),
-                          toggle(
-                              const ValueKey('pse-bold'),
-                              AppIcons.formatBold,
-                              labels.bold,
-                              live.has((s) => s.bold, a, b),
-                              () => controller.liveStyle((x, y) => PdfStyleSpan(
-                                  x, y,
-                                  bold: !live.has((s) => s.bold, a, b)))),
-                          toggle(
-                              const ValueKey('pse-italic'),
-                              AppIcons.formatItalic,
-                              labels.italic,
-                              live.has((s) => s.italic, a, b),
-                              () => controller.liveStyle((x, y) => PdfStyleSpan(
-                                  x, y,
-                                  italic: !live.has((s) => s.italic, a, b)))),
-                          toggle(
-                              const ValueKey('pse-underline'),
-                              AppIcons.formatUnderlined,
-                              labels.underline,
-                              live.has((s) => s.underline, a, b),
-                              () => controller.liveStyle((x, y) => PdfStyleSpan(
-                                  x, y,
-                                  underline:
-                                      !live.has((s) => s.underline, a, b)))),
-                          toggle(
-                              const ValueKey('pse-strike'),
-                              AppIcons.strikethroughS,
-                              labels.strike,
-                              live.has((s) => s.strike, a, b),
-                              () => controller.liveStyle((x, y) => PdfStyleSpan(
-                                  x, y,
-                                  strike: !live.has((s) => s.strike, a, b)))),
-                          IconButton(
-                            key: const ValueKey('pse-color'),
-                            tooltip: labels.color,
-                            icon: colorIcon(
-                              AppIcons.formatColorText,
-                              textColorArgb != null
-                                  ? Color(textColorArgb | 0xFF000000)
-                                  : scheme.onSurface,
+                            IconButton(
+                              key: const ValueKey('pse-align'),
+                              tooltip: labels.align,
+                              visualDensity: VisualDensity.compact,
+                              icon: Icon(alignIcon, size: 20),
+                              onPressed: () {
+                                final i = _aligns
+                                    .indexWhere((e) => e.$1 == live.align);
+                                controller.liveParagraph(
+                                    align:
+                                        _aligns[(i + 1) % _aligns.length].$1);
+                              },
                             ),
-                            onPressed: onPickColor,
-                          ),
-                          IconButton(
-                            key: const ValueKey('pse-highlight'),
-                            tooltip: labels.highlight,
-                            icon: colorIcon(
-                              AppIcons.highlighter,
-                              hlColorArgb != null
-                                  ? Color(hlColorArgb | 0xFF000000)
-                                  : scheme.primary,
+                            IconButton(
+                              tooltip: labels.selectAll,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(AppIcons.selectAll, size: 20),
+                              onPressed: () => input.selection = TextSelection(
+                                  baseOffset: 0,
+                                  extentOffset: input.text.length),
                             ),
-                            onPressed: onPickHighlight,
-                          ),
-                          IconButton(
-                            key: const ValueKey('pse-align'),
-                            tooltip: labels.align,
-                            icon: Icon(alignIcon),
-                            onPressed: () {
-                              final i = _aligns
-                                  .indexWhere((e) => e.$1 == live.align);
-                              controller.liveParagraph(
-                                  align: _aligns[(i + 1) % _aligns.length].$1);
-                            },
-                          ),
-                          IconButton(
-                            tooltip: labels.selectAll,
-                            icon: const Icon(AppIcons.selectAll),
-                            onPressed: () => input.selection = TextSelection(
-                                baseOffset: 0,
-                                extentOffset: input.text.length),
-                          ),
-                          IconButton(
-                            tooltip: labels.copy,
-                            icon: const Icon(AppIcons.copy),
-                            onPressed: a == b ? null : copy,
-                          ),
-                          IconButton(
-                            tooltip: labels.cut,
-                            icon: const Icon(AppIcons.cut),
-                            onPressed: a == b ? null : () => copy(cut: true),
-                          ),
-                          IconButton(
-                            tooltip: labels.paste,
-                            icon: const Icon(AppIcons.paste),
-                            onPressed: paste,
-                          ),
-                        ],
+                            IconButton(
+                              tooltip: labels.copy,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(AppIcons.copy, size: 20),
+                              onPressed: a == b ? null : copy,
+                            ),
+                            IconButton(
+                              tooltip: labels.cut,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(AppIcons.cut, size: 20),
+                              onPressed: a == b ? null : () => copy(cut: true),
+                            ),
+                            IconButton(
+                              tooltip: labels.paste,
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(AppIcons.paste, size: 20),
+                              onPressed: paste,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                          start: Gap.xs, end: Gap.sm),
-                      child: FilledButton(
-                        key: const ValueKey('pse-format-done'),
-                        onPressed: controller.busy ? null : onDone,
-                        child: Text(labels.done),
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(
+                            start: 4, end: 10),
+                        child: FilledButton(
+                          key: const ValueKey('pse-format-done'),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 38),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: controller.busy ? null : onDone,
+                          child: Text(labels.done),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -521,9 +671,7 @@ class PdfProFormatBar extends StatelessWidget {
 
 /// **Gizli klavye girişi** (Faz 57 / 6): görünmeyen bir `EditableText` —
 /// Android IME'si (önerili Türkçe klavye, otomatik düzeltme, sesle yazma,
-/// Arapça bileşim), donanım klavyesi ve pano bununla çalışır. Metnin kendisi
-/// sayfada, PDFium'un çizdiği gerçek gliflerle görünür (PK6); bu alan yalnız
-/// girişi toplar ve [PdfProEditController.liveInput]'a aktarır.
+/// Arapça bileşim), donanım klavyesi ve pano bununla çalışır.
 class PdfProTextInput extends StatefulWidget {
   const PdfProTextInput({
     super.key,
@@ -577,7 +725,6 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     super.dispose();
   }
 
-  /// Alan → belge.
   void _onInput() {
     if (_syncing) return;
     final v = widget.input.value;
@@ -591,7 +738,6 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     );
   }
 
-  /// Belge → alan (dokunuşla imleç taşındı, yazma başladı).
   void _onController() {
     final live = widget.controller.live;
     if (live == null) return;
@@ -601,8 +747,6 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     final same = v.text == live.text &&
         v.selection.start == (a < b ? a : b) &&
         v.selection.end == (a < b ? b : a);
-    // Sayfayı kaydırmak odağı görüntüleyiciye verir (klavye kapanır): metne
-    // yeniden dokunulunca odak ve klavye geri gelir.
     if (!same || !widget.focusNode.hasFocus) {
       _editable.currentState?.requestKeyboard();
     }
@@ -611,7 +755,6 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     widget.input.value = TextEditingValue(
       text: live.text,
       selection: TextSelection(baseOffset: a, extentOffset: b),
-      // Metin aynıysa süren bileşim korunur (imleç dokunuşla taşınmadıysa).
       composing: v.text == live.text ? v.composing : TextRange.empty,
     );
     _syncing = false;
@@ -672,7 +815,6 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
               showCursor: false,
               enableInteractiveSelection: false,
               rendererIgnoresPointer: true,
-              // Öneri/otomatik düzeltme ve yazım denetimi (Faz 58 / 4) açık.
               autocorrect: true,
               enableSuggestions: true,
             ),
@@ -702,35 +844,55 @@ class PdfProSwatches extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(Gap.lg, 0, Gap.lg, Gap.lg),
       child: Wrap(
-        spacing: Gap.md,
-        runSpacing: Gap.md,
+        spacing: 12,
+        runSpacing: 12,
         children: [
           for (final c in colors)
-            Semantics(
-              button: true,
-              selected: c == selected,
-              label: '#${(c & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => onPick(c),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Color(c | 0xFF000000),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        width: c == selected ? 3 : 1,
-                        color: c == selected
-                            ? scheme.primary
-                            : scheme.outlineVariant),
+            Builder(builder: (context) {
+              final fill = Color(c | 0xFF000000);
+              final on = c == selected;
+              final checkColor = fill.computeLuminance() > 0.55
+                  ? AppColors.pageInk
+                  : AppColors.onBrand;
+              return Semantics(
+                button: true,
+                selected: on,
+                label: '#${(c & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => onPick(c),
+                  child: AnimatedContainer(
+                    duration: Motion.of(context, Motion.short),
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: fill,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        width: on ? 3 : 1.2,
+                        color: on ? scheme.primary : scheme.outlineVariant,
+                      ),
+                      boxShadow: on
+                          ? [
+                              BoxShadow(
+                                color: AppColors.studioShadow(dark),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: on
+                        ? Icon(AppIcons.check, size: 20, color: checkColor)
+                        : null,
                   ),
                 ),
-              ),
-            ),
+              );
+            }),
         ],
       ),
     );

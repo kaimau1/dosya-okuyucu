@@ -28,81 +28,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // düğmesi (küçült/büyüt/yazı tipi) buradan kalktı: sütunlar ve
       // yakınlaştırma "Daha fazla" sayfasının Görünüm grubunda, yazı ayarları
       // tek bir "Aa" düğmesinin açtığı okuma ayarları sayfasında.
-      actions: _pro != null ? _proActions(_pro!) : [
-        if (doc.kind == DocKind.pdf) ...[
-          // Ferrari H11.1: telefonda en çok 3 eylem + ⋮. Kaydedilmemiş
-          // düzenleme varken ilk yuva Kaydet'in (İçindekiler "Daha fazla"ya,
-          // Form alttaki Düzenle'de de var).
-          if (_hasUnsaved)
-            IconButton(
-              tooltip: context.t('vw.save_edits'),
-              icon: const Icon(AppIcons.save),
-              onPressed: _savePendingPdf,
-            )
-          // Form belgesinde "Formu doldur" İçindekiler'in yerine geçer (Ferrari
-          // H1.2): açılışta alt kenarı kapatan SnackBar yerine kalıcı, sessiz
-          // düğme. İçindekiler o zaman "Daha fazla"da.
-          else if (_pdfIsForm)
-            IconButton(
-              key: const ValueKey('pdf-form-action'),
-              tooltip: context.t('vw.fill_form'),
-              icon: const Icon(AppIcons.assignment),
-              onPressed: _fillPdfForm,
-            )
-          else
-            IconButton(
-              tooltip: context.t('vw.toc'),
-              icon: const Icon(AppIcons.toc),
-              onPressed: _showOutline,
-            ),
-          // Tablette sayfa küçük resimleri şeridi (Ferrari H1.3) — varsayılan
-          // kapalı, tercih kalıcı.
-          if (_wideForSidePanel)
-            IconButton(
-              key: const ValueKey('pdf-side-toggle'),
-              tooltip: context.t('vw.side_panel'),
-              isSelected: _pdfSidePanel,
-              icon: const Icon(AppIcons.thumbnails),
-              onPressed: _toggleSidePanel,
-            ),
-        ],
-        if (_isMarkdown)
-          IconButton(
-            key: const ValueKey('md-preview-toggle'),
-            tooltip: _mdPreview ? context.t('md.edit') : context.t('md.preview'),
-            icon: Icon(_mdPreview ? AppIcons.edit : AppIcons.hidden),
-            onPressed: () => _partSetState(() => _mdPreview = !_mdPreview),
-          ),
-        if (_textController != null || doc.kind == DocKind.pdf)
-          IconButton(
-            tooltip: context.t('vw.find_in_doc_short'),
-            isSelected: _findOpen,
-            icon: Icon(_findOpen ? AppIcons.searchOff : AppIcons.search),
-            onPressed: _toggleFind,
-          ),
-        if (doc.kind == DocKind.image)
-          IconButton(
-            tooltip: context.t('vw.rotate'),
-            icon: const Icon(AppIcons.rotateRight),
-            onPressed: () =>
-                _partSetState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
-          ),
-        if (_textController != null || doc.kind == DocKind.pdf)
-          IconButton(
-            tooltip: context.t('vw.reading_settings'),
-            icon: Icon(
-              doc.kind == DocKind.pdf ? AppIcons.tune : AppIcons.textFormat,
-            ),
-            onPressed: doc.kind == DocKind.pdf
-                ? _showPdfReadingSettings
-                : _showReadingSettings,
-          ),
-        IconButton(
-          tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-          icon: const Icon(AppIcons.more),
-          onPressed: () => _showMore(doc),
-        ),
-      ],
+      actions: _pro != null ? _proActions(_pro!) : _viewerTopActions(doc),
       // Konuşma çubuğu belgenin ALTINA eklenmez, üstünde yüzer: eklenince
       // gövdenin boyu değişir, PDF sayfa başına atlardı.
       body: _ttsTotal == 0 && _pro == null
@@ -136,6 +62,112 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       // kullanıcı: *"AI düğmesi ile sayfa sayısı üst üste biniyor, AI
       // düğmesini alt panele al"*). Bkz. [_actionBar].
     );
+  }
+
+  List<Widget> _viewerTopActions(LoadedDoc doc) {
+    final scheme = Theme.of(context).colorScheme;
+    ButtonStyle style({bool accent = false}) => IconButton.styleFrom(
+          backgroundColor: accent
+              ? scheme.primaryContainer
+              : scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+          foregroundColor: accent ? scheme.primary : scheme.onSurface,
+          shape: const CircleBorder(),
+          side: accent
+              ? BorderSide(color: scheme.primary.withValues(alpha: 0.36))
+              : BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.45)),
+          visualDensity: VisualDensity.compact,
+        );
+    Widget btn({
+      Key? key,
+      required String tooltip,
+      required IconData icon,
+      required VoidCallback onPressed,
+      bool accent = false,
+      bool? isSelected,
+    }) =>
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: key,
+            tooltip: tooltip,
+            isSelected: isSelected,
+            icon: Icon(icon, size: 20),
+            style: style(accent: accent),
+            onPressed: onPressed,
+          ),
+        );
+    return [
+      if (doc.kind == DocKind.pdf) ...[
+        if (_hasUnsaved)
+          btn(
+            tooltip: context.t('vw.save_edits'),
+            icon: AppIcons.save,
+            accent: true,
+            onPressed: _savePendingPdf,
+          )
+        else if (_pdfIsForm)
+          btn(
+            key: const ValueKey('pdf-form-action'),
+            tooltip: context.t('vw.fill_form'),
+            icon: AppIcons.assignment,
+            accent: true,
+            onPressed: _fillPdfForm,
+          )
+        else
+          btn(
+            tooltip: context.t('vw.toc'),
+            icon: AppIcons.toc,
+            onPressed: _showOutline,
+          ),
+        if (_wideForSidePanel)
+          btn(
+            key: const ValueKey('pdf-side-toggle'),
+            tooltip: context.t('vw.side_panel'),
+            isSelected: _pdfSidePanel,
+            accent: _pdfSidePanel,
+            icon: AppIcons.thumbnails,
+            onPressed: _toggleSidePanel,
+          ),
+      ],
+      if (_isMarkdown)
+        btn(
+          key: const ValueKey('md-preview-toggle'),
+          tooltip: _mdPreview ? context.t('md.edit') : context.t('md.preview'),
+          icon: _mdPreview ? AppIcons.edit : AppIcons.hidden,
+          accent: _mdPreview,
+          onPressed: () => _partSetState(() => _mdPreview = !_mdPreview),
+        ),
+      if (_textController != null || doc.kind == DocKind.pdf)
+        btn(
+          tooltip: context.t('vw.find_in_doc_short'),
+          isSelected: _findOpen,
+          accent: _findOpen,
+          icon: _findOpen ? AppIcons.searchOff : AppIcons.search,
+          onPressed: _toggleFind,
+        ),
+      if (doc.kind == DocKind.image)
+        btn(
+          tooltip: context.t('vw.rotate'),
+          icon: AppIcons.rotateRight,
+          onPressed: () =>
+              _partSetState(() => _imgQuarterTurns = (_imgQuarterTurns + 1) % 4),
+        ),
+      if (_textController != null || doc.kind == DocKind.pdf)
+        btn(
+          tooltip: context.t('vw.reading_settings'),
+          icon: doc.kind == DocKind.pdf ? AppIcons.tune : AppIcons.textFormat,
+          onPressed: doc.kind == DocKind.pdf
+              ? _showPdfReadingSettings
+              : _showReadingSettings,
+        ),
+      IconButton(
+        tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+        icon: const Icon(AppIcons.more, size: 20),
+        style: style(),
+        onPressed: () => _showMore(doc),
+      ),
+    ];
   }
 
   /// PDF'in üstünde seçim çubuğu açık mı?
@@ -432,40 +464,32 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
-        // Doğrudan birleşik PDF düzenleme kipine girer (ek mod seçici
-        // katmanı yok — Metin, Görsel, İşaretle, İmza, Form ve Sayfalar
-        // tek alt çubukta elin altında).
-        DocAction(AppIcons.editNote, context.t('common.edit'),
-            _openPdfEditor),
+        DocAction(AppIcons.editNote, context.t('common.edit'), _openPdfEditor,
+            primary: true),
       ],
       if (isImage) ...[
-        DocAction(AppIcons.ocr, context.t('vw.ocr_short'),
-            _runOcr),
-        DocAction(
-            AppIcons.pdf, context.t('vw.to_pdf'), _exportPdf),
+        DocAction(AppIcons.ocr, context.t('vw.ocr_short'), _runOcr,
+            primary: true),
+        DocAction(AppIcons.pdf, context.t('vw.to_pdf'), _exportPdf),
       ],
       if (doc.isEditableText) ...[
         DocAction(AppIcons.edit, context.t('common.edit'),
-            _textFocus.requestFocus),
+            _textFocus.requestFocus,
+            primary: true),
         DocAction(
             AppIcons.save, context.t('common.save'), _dirty ? _save : null),
       ],
-      // İndir varken Çevir "Daha fazla › Dosya"ya iner (en çok 5 eylem).
       if (!showDownloadAction(widget.doc.path))
         DocAction(AppIcons.translate, context.t('common.translate'),
             _translateDocument),
       DocAction(AppIcons.share, context.t('common.share'), _share),
-      // Başka uygulamadan açılan dosya özel önbellekte duruyor; paylaş
-      // dolambacı olmadan İndirilenler'e (bkz. [SaveToDownloads]).
       if (showDownloadAction(widget.doc.path))
-        DocAction(
-            AppIcons.download, context.t('common.download'), _download),
-      // Yazdır "Daha fazla › Dosya"da. 2026-11-19 (B15): AI sohbeti budandı.
+        DocAction(AppIcons.download, context.t('common.download'), _download),
     ]);
   }
 
-  /// **PDF okuma ve görünüm ayarları**: sayfa düzeni, gece modu, kenar
-  /// boşluğu kırpma ve tam ekran tercihleri.
+  /// **PDF okuma ve görünüm ayarları**: görsel düzen kartları, gece/sepya,
+  /// kenar kırpma, otomatik kaydırma ve ekran tercihleri.
   void _showPdfReadingSettings() {
     showModalBottomSheet<void>(
       context: context,
@@ -483,101 +507,225 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           final scheme = theme.colorScheme;
           final app = context.read<AppState>();
           Widget label(String text) => Padding(
-                padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
+                padding: const EdgeInsetsDirectional.fromSTEB(4, 16, 4, 8),
                 child: Text(
                   text,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               );
+          Widget iconBadge(IconData icon, {bool active = false}) => Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: active
+                      ? scheme.primaryContainer
+                      : scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(
+                  icon,
+                  size: 19,
+                  color: active ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+              );
           Widget sectionCard(List<Widget> rows) => Material(
-                // Material (Container değil): satırların dokunma dalgası zeminin
-                // altında kalmasın.
                 color: scheme.surfaceContainerLow,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(Radii.card),
+                  borderRadius: BorderRadius.circular(20),
                   side: BorderSide(
-                    color: scheme.outlineVariant.withValues(alpha: 0.7),
+                    color: scheme.outlineVariant.withValues(alpha: 0.58),
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
                     for (var i = 0; i < rows.length; i++) ...[
-                      if (i > 0) const Divider(height: 1),
+                      if (i > 0)
+                        Divider(
+                          height: 1,
+                          indent: 64,
+                          color: scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
                       rows[i],
                     ],
                   ],
                 ),
               );
+
+          final layouts = [
+            (1, AppIcons.layoutDetail, context.t('vw.one_column')),
+            (2, AppIcons.viewColumn, context.t('vw.two_columns')),
+            (4, AppIcons.layoutGrid, context.t('vw.four_columns')),
+            (kPdfBookLayout, AppIcons.pdfBook, context.t('pp.book_view')),
+          ];
+
           return SafeArea(
             top: false,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    context.t('vw.reading_settings'),
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(AppIcons.tune,
+                            size: 20, color: scheme.primary),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          context.t('vw.reading_settings'),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  // E-kitap okuma görünümü (2026-08-06): taranmış PDF'te
-                  // bile sayfanın METNİ akar.
-                  FilledButton.tonalIcon(
-                    onPressed: _pdfDoc == null
-                        ? null
-                        : () {
-                            Navigator.of(sheetContext).pop();
-                            ReaderScreen.open(this.context,
-                                document: _pdfDoc!, title: widget.doc.name);
-                          },
-                    icon: const Icon(AppIcons.chromeReaderMode),
-                    label: Text(context.t('reader.open')),
+                  const SizedBox(height: 14),
+                  // E-kitap akış görünümü kartı
+                  Material(
+                    color: scheme.primaryContainer.withValues(alpha: 0.75),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(
+                        color: scheme.primary.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: _pdfDoc == null
+                          ? null
+                          : () {
+                              Navigator.of(sheetContext).pop();
+                              ReaderScreen.open(this.context,
+                                  document: _pdfDoc!, title: widget.doc.name);
+                            },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: scheme.primary,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(AppIcons.chromeReaderMode,
+                                  size: 20, color: scheme.onPrimary),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                context.t('reader.open'),
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: scheme.onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                            Icon(AppIcons.chevron,
+                                color: scheme.onPrimaryContainer),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
+
                   // ── 1 · Görünüm ve düzen ──
                   label(context.t('pdf.sec_look')),
-                  SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment(
-                          value: 1,
-                          icon: const Icon(AppIcons.layoutDetail),
-                          label: Text(context.t('vw.one_column'))),
-                      ButtonSegment(
-                          value: 2,
-                          icon: const Icon(AppIcons.viewColumn),
-                          label: Text(context.t('vw.two_columns'))),
-                      ButtonSegment(
-                          value: 4,
-                          icon: const Icon(AppIcons.layoutGrid),
-                          label: Text(context.t('vw.four_columns'))),
-                      ButtonSegment(
-                          value: kPdfBookLayout,
-                          icon: const Icon(AppIcons.pdfBook),
-                          label: Text(context.t('pp.book_view'))),
+                  Row(
+                    children: [
+                      for (var i = 0; i < layouts.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        Expanded(
+                          child: () {
+                            final (val, ico, txt) = layouts[i];
+                            final on = _pdfColumns == val;
+                            return Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                              clipBehavior: Clip.antiAlias,
+                              child: InkWell(
+                                onTap: () {
+                                  _setPdfColumns(val);
+                                  setSheet(() {});
+                                },
+                                child: AnimatedContainer(
+                                  duration: Motion.of(context, Motion.short),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: on
+                                        ? scheme.primaryContainer
+                                        : scheme.surfaceContainerLow,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: on
+                                          ? scheme.primary
+                                          : scheme.outlineVariant
+                                              .withValues(alpha: 0.6),
+                                      width: on ? 1.7 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        ico,
+                                        size: 21,
+                                        color: on
+                                            ? scheme.primary
+                                            : scheme.onSurfaceVariant,
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        txt,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: on
+                                              ? scheme.onPrimaryContainer
+                                              : scheme.onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }(),
+                        ),
+                      ],
                     ],
-                    selected: {_pdfColumns},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (v) {
-                      _setPdfColumns(v.first);
-                      setSheet(() {});
-                    },
                   ),
                   const SizedBox(height: 10),
                   sectionCard([
                     SwitchListTile(
-                      secondary: const Icon(AppIcons.dark),
+                      secondary: iconBadge(AppIcons.dark, active: _pdfNight),
                       title: Text(context.t('vw.night_on')),
                       value: _pdfNight,
                       onChanged: (v) => apply(() => _pdfNight = v),
                     ),
                     if (_isPdf)
                       SwitchListTile(
-                        secondary: const Icon(AppIcons.pdfSepia),
+                        secondary:
+                            iconBadge(AppIcons.pdfSepia, active: _pdfSepia),
                         title: Text(context.t('pp.sepia')),
                         subtitle: Text(context.t('pp.sepia_hint')),
                         value: _pdfSepia,
@@ -585,11 +733,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                             ? null
                             : (v) => apply(() => _pdfSepia = v),
                       ),
-                    // Sayfa sayfa çevirme (Ferrari H3.5): tek sütunda.
                     if (_isPdf)
                       SwitchListTile(
                         key: const ValueKey('pdf-paged'),
-                        secondary: const Icon(AppIcons.pdfFitPage),
+                        secondary:
+                            iconBadge(AppIcons.pdfFitPage, active: _pdfPaged),
                         title: Text(context.t('pp.paged')),
                         subtitle: Text(context.t(_pdfColumns == 1
                             ? 'pp.paged_hint'
@@ -602,11 +750,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                                 setSheet(() {});
                               },
                       ),
-                    // Kenar boşluğu kırpma (Ferrari H3.4): tek sütunda.
                     if (_isPdf)
                       SwitchListTile(
                         key: const ValueKey('pdf-margin-crop'),
-                        secondary: const Icon(AppIcons.cropFree),
+                        secondary: iconBadge(AppIcons.cropFree,
+                            active: _pdfCrop != null),
                         title: Text(context.t('pp.crop_margins')),
                         subtitle: Text(context.t(_pdfColumns == 1
                             ? 'pp.crop_margins_hint'
@@ -630,7 +778,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     label(context.t('pdf.sec_comfort')),
                     sectionCard([
                       SwitchListTile(
-                        secondary: const Icon(AppIcons.pdfPanLock),
+                        secondary: iconBadge(AppIcons.pdfPanLock,
+                            active: _pdfScrollLock),
                         title: Text(context.t('pp.scroll_lock')),
                         subtitle: Text(context.t('pp.scroll_lock_hint')),
                         value: _pdfScrollLock,
@@ -638,7 +787,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                       ),
                       SwitchListTile(
                         key: const ValueKey('pdf-keep-awake'),
-                        secondary: const Icon(AppIcons.lightMode),
+                        secondary: iconBadge(AppIcons.lightMode,
+                            active: _keepAwake),
                         title: Text(context.t('pp.keep_awake')),
                         subtitle: Text(context.t('pp.keep_awake_hint')),
                         value: _keepAwake,
@@ -649,7 +799,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                       ),
                       SwitchListTile(
                         key: const ValueKey('pdf-volume-keys'),
-                        secondary: const Icon(AppIcons.volumeUp),
+                        secondary: iconBadge(AppIcons.volumeUp,
+                            active: _volumeKeys),
                         title: Text(context.t('pp.volume_keys')),
                         subtitle: Text(context.t('pp.volume_keys_hint')),
                         value: _volumeKeys,
@@ -662,7 +813,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           ListTile(
-                            leading: const Icon(AppIcons.autoScroll),
+                            leading: iconBadge(AppIcons.autoScroll,
+                                active: _autoScroll > 0),
                             title: Text(context.t('pp.auto_scroll')),
                             subtitle: Text(context.t('pp.auto_scroll_hint')),
                           ),
@@ -689,7 +841,6 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                               onSelectionChanged: (v) {
                                 _setAutoScroll(v.first);
                                 setSheet(() {});
-                                // Başlayınca levha kapanır: belge görünsün.
                                 if (v.first > 0) {
                                   Navigator.of(sheetContext).pop();
                                 }
@@ -699,7 +850,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                         ],
                       ),
                       ListTile(
-                        leading: const Icon(AppIcons.pdfNotes),
+                        leading: iconBadge(AppIcons.pdfNotes),
                         title: Text(context.t('pp.notes_booklet')),
                         subtitle: Text(context.t('pp.notes_booklet_sub')),
                         trailing: Icon(AppIcons.chevron,
@@ -715,7 +866,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                   label(context.t('pdf.sec_screen')),
                   sectionCard([
                     SwitchListTile(
-                      secondary: const Icon(AppIcons.bookmarkOutline),
+                      secondary: iconBadge(AppIcons.bookmarkOutline,
+                          active: app.resumePosition),
                       title: Text(context.t('pdfm.resume')),
                       value: app.resumePosition,
                       onChanged: (v) async {
@@ -723,12 +875,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                         setSheet(() {});
                       },
                     ),
-                    // Sürükleyici okuma (Ferrari H3.6): çubuklar çekilince
-                    // durum çubuğu da gizlenir; tam ekranda gereksiz.
                     if (_isPdf)
                       SwitchListTile(
                         key: const ValueKey('pdf-hide-status'),
-                        secondary: const Icon(AppIcons.fitScreen),
+                        secondary: iconBadge(AppIcons.fitScreen,
+                            active: _hideStatusBar),
                         title: Text(context.t('pp.hide_status')),
                         subtitle: Text(context.t('pp.hide_status_hint')),
                         value: _hideStatusBar,
@@ -741,7 +892,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                       ),
                     SwitchListTile(
                       key: const ValueKey('reading-fullscreen'),
-                      secondary: const Icon(AppIcons.fullscreen),
+                      secondary: iconBadge(AppIcons.fullscreen,
+                          active: _fullscreen),
                       title: Text(context.t('vw.fullscreen')),
                       subtitle: Text(context.t('vw.fullscreen_hint')),
                       value: _fullscreen,

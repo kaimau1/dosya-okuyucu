@@ -523,46 +523,48 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     }
   }
 
-  /// Kaydırma çubuğunun topuzu.
-  ///
-  /// 2026-09-27: eskiden sağ üstte büyük, dolu mavi bir sekmeydi ve alttaki
-  /// rozetle AYNI numarayı gösteriyordu (kullanıcının ekran görüntülerinde
-  /// "5" iki kez). Şimdi ince, yarı saydam bir tutamaç: yakalanabileceği
-  /// biçiminden (⇕) belli, numara küçük.
-  Widget _scrollThumb(int? pageNumber) {
-    final scheme = Theme.of(context).colorScheme;
+  /// Kaydırma çubuğunun ince tutamacı: dururken belgeyi örtmez, sürüklenirken
+  /// canlı sayfa/yüzde balonu [PdfInsetScrollThumb] içinde açılır.
+  Widget _scrollThumb(int? pageNumber, {bool dragging = false}) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     return RepaintBoundary(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-          borderRadius: const BorderRadius.horizontal(
-            left: Radius.circular(14),
-            right: Radius.circular(4),
-          ),
-          border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.7)),
-          boxShadow: const [
-            BoxShadow(
-              color: AppColors.shadow,
-              blurRadius: 4,
-              offset: Offset(0, 1),
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: AnimatedContainer(
+          duration: Motion.of(context, Motion.short),
+          curve: Motion.standard,
+          width: dragging ? 24 : 18,
+          height: dragging ? 50 : 44,
+          decoration: BoxDecoration(
+            color: dragging
+                ? scheme.primary
+                : scheme.surfaceContainerLowest.withValues(alpha: 0.92),
+            borderRadius: const BorderRadiusDirectional.horizontal(
+              start: Radius.circular(14),
+              end: Radius.circular(3),
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(AppIcons.unfoldMore, size: 16, color: scheme.primary),
-            Text(
-              '${pageNumber ?? _pdfPage}',
-              maxLines: 1,
-              style: context.type.micro.copyWith(
-                color: scheme.onSurface,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
+            border: Border.all(
+              color: dragging
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.75),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: dragging ? 10 : 6,
+                offset: const Offset(-1, 2),
               ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              AppIcons.unfoldMore,
+              size: 16,
+              color: dragging ? scheme.onPrimary : scheme.primary,
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -676,9 +678,21 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     );
   }
 
-  /// PDF sayfa rozeti: dokununca sayfa gezgini, uzun basınca yıldızla.
-  /// Yalnız [_pdfPageN] ve [_bookmarkRevN] dinler — kaydırırken ya da
-  /// yıldızlarken tam ekran yeniden kurulmaz.
+  /// Yüzen kapsüldeki ‹ / › ile yumuşak tek sayfa geçişi.
+  Future<void> _stepPdfPage(int delta) async {
+    final total = _pageCount;
+    if (total <= 1) return;
+    final target = (_pdfPageN.value + delta).clamp(1, total);
+    if (target == _pdfPageN.value) return;
+    AppHaptics.step();
+    final ok = await _tryGoToPage(target, animate: true);
+    if (ok && mounted && _pdfPage != target) {
+      _pdfPage = target;
+    }
+  }
+
+  /// PDF sayfa rozeti: tek dokunuşla ‹/› sayfa geçişi, ortaya dokununca
+  /// görsel sayfa gezgini, uzun basınca yıldızla.
   Widget _pageBadge() {
     return ListenableBuilder(
       listenable: Listenable.merge([_pdfPageN, _bookmarkRevN]),
@@ -691,6 +705,8 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
               PdfBookmarks.isMarked(widget.doc.path, page, size: _docSize),
           onTap: _askGoToPage,
           onLongPress: () => _toggleBookmark(page),
+          onPrev: _pageCount > 1 ? () => unawaited(_stepPdfPage(-1)) : null,
+          onNext: _pageCount > 1 ? () => unawaited(_stepPdfPage(1)) : null,
         );
       },
     );

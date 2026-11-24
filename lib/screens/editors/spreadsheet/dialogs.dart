@@ -212,22 +212,39 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
         child: Padding(
           padding: const EdgeInsetsDirectional.only(start: 6),
           child: Material(
-            color: scheme.primaryContainer.withValues(alpha: 0.65),
-            borderRadius: BorderRadius.circular(Radii.control),
+            color: scheme.primaryContainer.withValues(alpha: 0.72),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: scheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
             child: InkWell(
               key: const ValueKey('xl-status-menu'),
               onTap: _showCellMenu,
-              borderRadius: BorderRadius.circular(Radii.control),
+              customBorder: const StadiumBorder(),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                child: Text(
-                  context.t('excel.cell_menu'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.type.caption.copyWith(
-                    color: scheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w700,
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      AppIcons.tune,
+                      size: 13,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        context.t('excel.cell_menu'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.type.caption.copyWith(
+                          color: scheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -253,7 +270,11 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: context.type.caption.copyWith(color: scheme.onSurfaceVariant),
+            style: context.type.caption.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ),
         trailing: [_cellMenuPill(scheme)],
@@ -317,22 +338,31 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
       final label = context.t(key, {'v': rawValue});
       return Padding(
         padding: const EdgeInsetsDirectional.only(end: 6),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(Radii.sheet),
-          onTap: () async {
-            await Clipboard.setData(ClipboardData(text: rawValue));
-            if (mounted) _snack(context.t('excel.copied_stat', {'v': rawValue}));
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(Radii.sheet),
-              border: Border.all(color: scheme.outlineVariant),
+        child: Material(
+          color: scheme.surfaceContainerLowest,
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.65),
             ),
-            child: Text(
-              label,
-              style: context.type.caption.copyWith(color: scheme.onSurface),
+          ),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: rawValue));
+              if (mounted) {
+                _snack(context.t('excel.copied_stat', {'v': rawValue}));
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              child: Text(
+                label,
+                style: context.type.caption.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
             ),
           ),
         ),
@@ -366,7 +396,10 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: context.type.caption.copyWith(color: scheme.onSurfaceVariant),
+            style: context.type.caption.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         trailing: [_cellMenuPill(scheme)],
@@ -383,24 +416,39 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     final at = _sheet == null
         ? -1
         : sheets.indexWhere((s) => s.name == _sheet!.name);
-    final style = context.type.caption.copyWith(color: scheme.onSurfaceVariant);
     return Container(
       width: double.infinity,
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(
+          top: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       child: Row(
         children: [
           body,
           ...trailing,
           if (at >= 0) ...[
             const SizedBox(width: 8),
-            Flexible(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(Radii.pill),
+              ),
               child: Text(
                 context.t('excel.sheet_pos',
                     {'n': at + 1, 'total': sheets.length}),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: style,
+                style: context.type.caption.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ],

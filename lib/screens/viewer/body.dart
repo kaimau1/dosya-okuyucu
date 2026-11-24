@@ -233,13 +233,14 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // (kullanıcı 2026-11-14).
                           PdfInsetScrollThumb(
                             controller: _pdfController,
-                            thumbSize: const Size(34, 46),
+                            pageCount: _pageCount,
+                            thumbSize: const Size(26, 52),
                             insets: EdgeInsets.only(
-                              top: chrome.top + 4,
-                              bottom: chrome.bottom + 4,
+                              top: chrome.top + 6,
+                              bottom: chrome.bottom + 6,
                             ),
-                            builder: (ctx, pageNumber) =>
-                                _scrollThumb(pageNumber),
+                            dragBuilder: (ctx, pageNumber, dragging) =>
+                                _scrollThumb(pageNumber, dragging: dragging),
                           ),
                         ],
                         // Çift dokunma yakınlaştırır (Ferrari H3.1).

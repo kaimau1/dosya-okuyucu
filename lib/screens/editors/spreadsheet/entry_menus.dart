@@ -152,30 +152,63 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
       title: _selectionLabel,
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
-        Widget quickTile(String id, IconData icon, String key) => Expanded(
+        Widget quickTile(String id, IconData icon, String key,
+                {bool danger = false}) =>
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+                padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: Material(
-                  color: scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(Radii.control),
+                  color: danger
+                      ? scheme.errorContainer.withValues(alpha: 0.4)
+                      : scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(Radii.card),
                   child: InkWell(
                     key: ValueKey('cellmenu-$id'),
-                    borderRadius: BorderRadius.circular(Radii.control),
+                    borderRadius: BorderRadius.circular(Radii.card),
                     onTap: () => Navigator.pop(ctx, id),
-                    child: Padding(
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: Gap.xs, vertical: Gap.sm),
+                          horizontal: Gap.xs, vertical: Gap.sm + 2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        border: Border.all(
+                          color: danger
+                              ? scheme.error.withValues(alpha: 0.25)
+                              : scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(icon, size: 20, color: scheme.onSurface),
-                          const SizedBox(height: Gap.xs),
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: danger
+                                  ? scheme.error.withValues(alpha: 0.14)
+                                  : scheme.primaryContainer
+                                      .withValues(alpha: 0.7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 18,
+                              color: danger
+                                  ? scheme.error
+                                  : scheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
                           Text(
                             ctx.t(key),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: ctx.type.caption
-                                .copyWith(color: scheme.onSurface),
+                            style: ctx.type.caption.copyWith(
+                              color: danger
+                                  ? scheme.error
+                                  : scheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ],
                       ),
@@ -201,9 +234,47 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         Widget row(String id, IconData icon, String key) => ListTile(
               key: ValueKey('cellmenu-$id'),
               dense: true,
-              leading: Icon(icon),
-              title: Text(ctx.t(key)),
+              leading: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                ),
+                child: Icon(icon, size: 17, color: scheme.primary),
+              ),
+              title: Text(
+                ctx.t(key),
+                style: ctx.type.body.copyWith(fontWeight: FontWeight.w500),
+              ),
               onTap: () => Navigator.pop(ctx, id),
+            );
+        Widget groupCard(List<Widget> children) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: Material(
+                color: scheme.surfaceContainerLow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  side: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < children.length; i++) ...[
+                      children[i],
+                      if (i < children.length - 1)
+                        Divider(
+                          height: 1,
+                          indent: 56,
+                          color: scheme.outlineVariant.withValues(alpha: 0.4),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
             );
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -218,38 +289,48 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
                   quickTile('cut', AppIcons.cut, 'excel.cut'),
                   quickTile('copy', AppIcons.copy, 'common.copy'),
                   quickTile('paste', AppIcons.paste, 'common.paste'),
-                  quickTile('clear', AppIcons.backspace, 'excel.clear_contents'),
+                  quickTile('clear', AppIcons.backspace, 'excel.clear_contents',
+                      danger: true),
                 ],
               ),
             ),
-            row('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
-            row('note', AppIcons.comment, 'excel.note_new'),
+            const SizedBox(height: Gap.xs),
+            groupCard([
+              row('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
+              row('note', AppIcons.comment, 'excel.note_new'),
+            ]),
             groupHeader('excel.paste_special_group'),
-            for (final (id, icon, key) in const [
-              ('paste_values', AppIcons.paste, 'excel.paste_values'),
-              ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
-              ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
-              ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
-              ('clear_formats', AppIcons.formatClear, 'excel.clear_formats'),
-            ])
-              row(id, icon, key),
+            groupCard([
+              for (final (id, icon, key) in const [
+                ('paste_values', AppIcons.paste, 'excel.paste_values'),
+                ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
+                ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
+                ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
+                ('clear_formats', AppIcons.formatClear, 'excel.clear_formats'),
+              ])
+                row(id, icon, key),
+            ]),
             groupHeader('excel.fill_sort_group'),
-            for (final (id, icon, key) in const [
-              ('fill_down', AppIcons.arrowDown, 'excel.fill_down'),
-              ('fill_right', AppIcons.arrowForward, 'excel.fill_right'),
-              ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
-              ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
-            ])
-              row(id, icon, key),
+            groupCard([
+              for (final (id, icon, key) in const [
+                ('fill_down', AppIcons.arrowDown, 'excel.fill_down'),
+                ('fill_right', AppIcons.arrowForward, 'excel.fill_right'),
+                ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
+                ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
+              ])
+                row(id, icon, key),
+            ]),
             groupHeader('excel.rows_cols_group'),
-            for (final (id, icon, key) in const [
-              ('insert_row', OfficeIcons.insertRow, 'excel.insert_row'),
-              ('delete_row', OfficeIcons.deleteCells, 'excel.delete_row'),
-              ('insert_col', OfficeIcons.insertColumn, 'excel.insert_col'),
-              ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
-            ])
-              row(id, icon, key),
-            const SizedBox(height: Gap.sm),
+            groupCard([
+              for (final (id, icon, key) in const [
+                ('insert_row', OfficeIcons.insertRow, 'excel.insert_row'),
+                ('delete_row', OfficeIcons.deleteCells, 'excel.delete_row'),
+                ('insert_col', OfficeIcons.insertColumn, 'excel.insert_col'),
+                ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
+              ])
+                row(id, icon, key),
+            ]),
+            const SizedBox(height: Gap.md),
           ],
         );
       },

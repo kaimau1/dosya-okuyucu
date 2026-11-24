@@ -1,12 +1,23 @@
 part of 'pdf_block_layer.dart';
 
-/// Düzenleme katmanının boyayıcısı: blok kılavuzları, seçim çerçevesi,
-/// tutamaçlar ve yazma kipinin imleci/seçimi.
+/// Görsel/nesne ölçeklemede tutulan köşe.
+enum _ScaleCorner { topLeft, topRight, bottomLeft, bottomRight }
+
+/// Düzenleme katmanının boyayıcısı: blok kılavuzları, seçilebilir görsel/şekil
+/// çerçeveleri, seçim tutamaçları ve yazma kipinin imleci/seçimi.
 class _LayerPainter extends CustomPainter {
   _LayerPainter({
     required this.rects,
     required this.locked,
     required this.selected,
+    required this.itemRects,
+    required this.itemIsImage,
+    required this.selectedItemPos,
+    required this.selectedItemIsImage,
+    required this.imageAccent,
+    required this.shapeAccent,
+    required this.badgeImageLabel,
+    required this.badgeShapeLabel,
     required this.accent,
     required this.pending,
     required this.px,
@@ -31,6 +42,15 @@ class _LayerPainter extends CustomPainter {
   final List<Rect> rects;
   final List<bool> locked;
   final int? selected;
+
+  /// Görsel kipinde sayfadaki TÜM seçilebilir görsel/şekiller (sıfır tahmin).
+  final List<Rect> itemRects;
+  final List<bool> itemIsImage;
+  final int? selectedItemPos;
+  final bool? selectedItemIsImage;
+  final Color imageAccent, shapeAccent;
+  final String badgeImageLabel, badgeShapeLabel;
+
   final Color accent, pending, onAccent;
   final Offset? itemGrip;
   final bool movable;
@@ -46,15 +66,15 @@ class _LayerPainter extends CustomPainter {
   final Offset Function(double x, double y) toWidget;
   final ValueNotifier<bool> caretOn;
 
-  void _addDashedRect(Path path, Rect r) {
-    final dash = 5 * px, gap = 3 * px;
+  void _addDashedRect(Path path, Rect r, {double dash = 5, double gap = 3}) {
+    final dLen = dash * px, gLen = gap * px;
     void line(Offset a, Offset b) {
       final len = (b - a).distance;
       if (len <= 0) return;
       final inv = 1 / len;
       final ux = (b.dx - a.dx) * inv, uy = (b.dy - a.dy) * inv;
-      for (var d = 0.0; d < len; d += dash + gap) {
-        final e = math.min(len, d + dash);
+      for (var d = 0.0; d < len; d += dLen + gLen) {
+        final e = math.min(len, d + dLen);
         path
           ..moveTo(a.dx + ux * d, a.dy + uy * d)
           ..lineTo(a.dx + ux * e, a.dy + uy * e);
@@ -67,16 +87,37 @@ class _LayerPainter extends CustomPainter {
     line(r.bottomLeft, r.topLeft);
   }
 
-  void _moveGrip(Canvas canvas, Offset at) =>
-      _paintMoveGrip(canvas, at, accent, onAccent, px);
+  /// Köşe L-braketleri: seçilebilir görsel/şekli metinden anında ayırır.
+  void _addCornerBrackets(Path path, Rect r) {
+    final arm = math.min(11 * px, math.min(r.width, r.height) * 0.28);
+    if (arm < 3 * px) return;
+    path
+      ..moveTo(r.left, r.top + arm)
+      ..lineTo(r.left, r.top)
+      ..lineTo(r.left + arm, r.top)
+      ..moveTo(r.right - arm, r.top)
+      ..lineTo(r.right, r.top)
+      ..lineTo(r.right, r.top + arm)
+      ..moveTo(r.right, r.bottom - arm)
+      ..lineTo(r.right, r.bottom)
+      ..lineTo(r.right - arm, r.bottom)
+      ..moveTo(r.left + arm, r.bottom)
+      ..lineTo(r.left, r.bottom)
+      ..lineTo(r.left, r.bottom - arm);
+  }
+
+  void _moveGrip(Canvas canvas, Offset at, {Color? color}) =>
+      _paintMoveGrip(canvas, at, color ?? accent, onAccent, px);
 
   /// **Bu boyayıcı dokunuşu YUTMAZ** (sınıf açıklamasındaki kök neden;
   /// `CustomPainter.hitTest` null dönerse `CustomPaint` her dokunuşu yutar).
   @override
   bool hitTest(Offset position) => false;
 
-  void _selection(Canvas canvas, Rect r, {bool corners = true}) =>
-      _paintSelection(canvas, r, accent, px, corners: corners);
+  void _selection(Canvas canvas, Rect r,
+          {bool corners = true, Color? color}) =>
+      _paintSelection(canvas, r, color ?? accent, onAccent, px,
+          corners: corners);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -84,36 +125,158 @@ class _LayerPainter extends CustomPainter {
       PdfProBlockLayer.debugPaints++;
       return true;
     }());
+    // ── 1 · Metin blokları (düzenlenebilir vs kilitli) ──
     if (rects.isNotEmpty) {
       Path? idlePath;
+      Path? idleFill;
       Path? lockPath;
-      final radius = Radius.circular(2 * px);
+      Path? lockFill;
+      final radius = Radius.circular(3.5 * px);
       for (var i = 0; i < rects.length; i++) {
         if (i == selected) continue;
         final r = rects[i].inflate(2 * px);
+        final rr = RRect.fromRectAndRadius(r, radius);
         if (i < locked.length && locked[i]) {
+          (lockFill ??= Path()).addRRect(rr);
           _addDashedRect(lockPath ??= Path(), r);
         } else {
-          (idlePath ??= Path()).addRRect(RRect.fromRectAndRadius(r, radius));
+          (idleFill ??= Path()).addRRect(rr);
+          (idlePath ??= Path()).addRRect(rr);
         }
+      }
+      if (idleFill != null) {
+        canvas.drawPath(
+          idleFill,
+          Paint()
+            ..color =
+                accent.withValues(alpha: PdfEditTokens.frameIdleFillAlpha),
+        );
       }
       if (idlePath != null) {
         canvas.drawPath(
-            idlePath,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = PdfEditTokens.frameIdleWidth * px
-              ..color = accent.withValues(alpha: PdfEditTokens.frameIdleAlpha));
+          idlePath,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = PdfEditTokens.frameIdleWidth * px
+            ..color = accent.withValues(alpha: PdfEditTokens.frameIdleAlpha),
+        );
+      }
+      if (lockFill != null) {
+        canvas.drawPath(
+          lockFill,
+          Paint()
+            ..color =
+                pending.withValues(alpha: PdfEditTokens.frameLockedFillAlpha),
+        );
       }
       if (lockPath != null) {
         canvas.drawPath(
-            lockPath,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = PdfEditTokens.frameIdleWidth * px
-              ..color = pending);
+          lockPath,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = PdfEditTokens.frameIdleWidth * px
+            ..color = pending.withValues(alpha: 0.78),
+        );
       }
     }
+
+    // ── 2 · Seçilebilir görsel & şekil keşif çerçeveleri (Görsel kipi) ──
+    if (itemRects.isNotEmpty) {
+      Path? imgFill, imgDash, imgCorners;
+      Path? shpFill, shpDash, shpCorners;
+      final radius = Radius.circular(4 * px);
+      for (var i = 0; i < itemRects.length; i++) {
+        if (i == selectedItemPos) continue;
+        final r = itemRects[i].inflate(1.5 * px);
+        final isImg = i < itemIsImage.length && itemIsImage[i];
+        final rr = RRect.fromRectAndRadius(r, radius);
+        if (isImg) {
+          (imgFill ??= Path()).addRRect(rr);
+          _addDashedRect(imgDash ??= Path(), r, dash: 6, gap: 4);
+          _addCornerBrackets(imgCorners ??= Path(), r);
+        } else {
+          (shpFill ??= Path()).addRRect(rr);
+          _addDashedRect(shpDash ??= Path(), r, dash: 5, gap: 4);
+          _addCornerBrackets(shpCorners ??= Path(), r);
+        }
+      }
+      if (imgFill != null) {
+        canvas.drawPath(
+          imgFill,
+          Paint()
+            ..color = imageAccent
+                .withValues(alpha: PdfEditTokens.objectIdleFillAlpha),
+        );
+      }
+      if (imgDash != null) {
+        canvas.drawPath(
+          imgDash,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.4 * px
+            ..color =
+                imageAccent.withValues(alpha: PdfEditTokens.objectIdleAlpha),
+        );
+      }
+      if (imgCorners != null) {
+        canvas.drawPath(
+          imgCorners,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..strokeWidth = 2.4 * px
+            ..color = imageAccent,
+        );
+      }
+      if (shpFill != null) {
+        canvas.drawPath(
+          shpFill,
+          Paint()
+            ..color = shapeAccent
+                .withValues(alpha: PdfEditTokens.objectIdleFillAlpha),
+        );
+      }
+      if (shpDash != null) {
+        canvas.drawPath(
+          shpDash,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.3 * px
+            ..color =
+                shapeAccent.withValues(alpha: PdfEditTokens.objectIdleAlpha),
+        );
+      }
+      if (shpCorners != null) {
+        canvas.drawPath(
+          shpCorners,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
+            ..strokeWidth = 2.2 * px
+            ..color = shapeAccent,
+        );
+      }
+      // Yeterince büyük görsellerin/şekillerin sol-üstüne mini tür rozeti.
+      for (var i = 0; i < itemRects.length; i++) {
+        if (i == selectedItemPos) continue;
+        final r = itemRects[i];
+        if (r.width < 52 * px || r.height < 28 * px) continue;
+        final isImg = i < itemIsImage.length && itemIsImage[i];
+        _paintCanvasPill(
+          canvas,
+          isImg ? badgeImageLabel : badgeShapeLabel,
+          Offset(r.left + 6 * px, r.top + 6 * px),
+          bg: (isImg ? imageAccent : shapeAccent).withValues(alpha: 0.90),
+          fg: PdfEditTokens.onBadge,
+          px: px,
+          alignTopLeft: true,
+        );
+      }
+    }
+
+    // ── 3 · Seçili metin bloğu ──
     final s = selected;
     if (s != null && s < rects.length) {
       final r = rects[s].inflate(2 * px);
@@ -124,20 +287,19 @@ class _LayerPainter extends CustomPainter {
           r.centerRight,
           widthAt,
           Paint()
-            ..color = accent.withValues(alpha: 0.45)
+            ..color = accent.withValues(alpha: 0.5)
             ..strokeWidth = 1.5 * px,
         );
       }
-      // Genişlik tutamacı: dışta konumlanan beyaz halka + vurgulu kapsül.
       canvas.drawRRect(
           RRect.fromRectAndRadius(
-              Rect.fromCenter(center: widthAt, width: 9 * px, height: 22 * px),
-              Radius.circular(4.5 * px)),
+              Rect.fromCenter(center: widthAt, width: 10 * px, height: 24 * px),
+              Radius.circular(5 * px)),
           Paint()..color = onAccent);
       canvas.drawRRect(
           RRect.fromRectAndRadius(
-              Rect.fromCenter(center: widthAt, width: 7 * px, height: 20 * px),
-              Radius.circular(3.5 * px)),
+              Rect.fromCenter(center: widthAt, width: 7.5 * px, height: 21 * px),
+              Radius.circular(3.8 * px)),
           Paint()..color = accent);
       if (movable) {
         final moveAt = PdfProBlockLayer.blockMoveAnchor(r, size);
@@ -148,14 +310,21 @@ class _LayerPainter extends CustomPainter {
           stemStart,
           moveAt,
           Paint()
-            ..color = accent.withValues(alpha: 0.5)
+            ..color = accent.withValues(alpha: 0.55)
             ..strokeWidth = 1.5 * px,
         );
         _moveGrip(canvas, moveAt);
       }
     }
+
+    // ── 4 · Seçili görsel/şekil + 4 köşe tutamacı ──
     final ir = itemRect;
-    if (ir != null) _selection(canvas, ir);
+    final itemColor = selectedItemIsImage == null
+        ? accent
+        : (selectedItemIsImage! ? imageAccent : shapeAccent);
+    if (ir != null) {
+      _selection(canvas, ir, color: itemColor);
+    }
     if (groupRects.isNotEmpty) {
       final gp = Path();
       for (final r in groupRects) {
@@ -168,9 +337,10 @@ class _LayerPainter extends CustomPainter {
             ..strokeWidth = PdfEditTokens.frameActiveWidth * px
             ..color = accent);
     }
-    // Tekli nesnenin ya da grubun taşıma tutamacı.
     final g = itemGrip;
-    if (g != null) _moveGrip(canvas, g);
+    if (g != null) {
+      _moveGrip(canvas, g, color: ir != null ? itemColor : accent);
+    }
     final ar = annotRect;
     if (ar != null) {
       final ap = Path();
@@ -183,7 +353,7 @@ class _LayerPainter extends CustomPainter {
             ..color = accent);
     }
 
-    // Yazma kipi: seçim, bileşim alt çizgisi, imleç.
+    // ── 5 · Yazma kipi: seçim, bileşim alt çizgisi, imleç ──
     final map = liveMap;
     if (map == null) return;
     final lo = math.min(liveSelStart, liveSelEnd),
@@ -217,7 +387,7 @@ class _LayerPainter extends CustomPainter {
           toWidget(x0, y0),
           toWidget(x1, y1),
           Paint()
-            ..strokeWidth = 2 * px
+            ..strokeWidth = 2.2 * px
             ..strokeCap = StrokeCap.round
             ..color = !liveHasError ? accent : pending);
     }
@@ -227,6 +397,14 @@ class _LayerPainter extends CustomPainter {
   bool shouldRepaint(_LayerPainter old) =>
       !identical(old.rects, rects) ||
       !identical(old.locked, locked) ||
+      !identical(old.itemRects, itemRects) ||
+      !identical(old.itemIsImage, itemIsImage) ||
+      old.selectedItemPos != selectedItemPos ||
+      old.selectedItemIsImage != selectedItemIsImage ||
+      old.imageAccent != imageAccent ||
+      old.shapeAccent != shapeAccent ||
+      old.badgeImageLabel != badgeImageLabel ||
+      old.badgeShapeLabel != badgeShapeLabel ||
       old.selected != selected ||
       old.accent != accent ||
       old.pending != pending ||
@@ -247,10 +425,45 @@ class _LayerPainter extends CustomPainter {
       old.caretOn != caretOn;
 }
 
-/// Seçim çerçevesi: hafif dolgu, kontur ve isteğe bağlı dört köşe tutamacı.
-void _paintSelection(Canvas canvas, Rect r, Color accent, double px,
+/// Tuval üstü kompakt hap rozet (tür etiketi veya canlı ölçek/ölçü göstergesi).
+void _paintCanvasPill(
+  Canvas canvas,
+  String text,
+  Offset anchor, {
+  required Color bg,
+  required Color fg,
+  required double px,
+  bool alignTopLeft = false,
+}) {
+  final tp = TextPainter(
+    text: TextSpan(
+      text: text,
+      style: PdfEditTokens.canvasBadgeStyle(fg, px),
+    ),
+    textDirection: TextDirection.ltr,
+    maxLines: 1,
+  )..layout();
+  final padX = 7 * px, padY = 3.5 * px;
+  final w = tp.width + padX * 2;
+  final h = tp.height + padY * 2;
+  final rect = alignTopLeft
+      ? Rect.fromLTWH(anchor.dx, anchor.dy, w, h)
+      : Rect.fromCenter(center: anchor, width: w, height: h);
+  final rr = RRect.fromRectAndRadius(rect, Radius.circular(h / 2));
+  canvas.drawRRect(
+    rr.shift(Offset(0, 1.5 * px)),
+    Paint()..color = AppColors.shadow,
+  );
+  canvas.drawRRect(rr, Paint()..color = bg);
+  tp.paint(canvas, Offset(rect.left + padX, rect.top + padY));
+  tp.dispose();
+}
+
+/// Seçim çerçevesi: hafif dolgu, belirgin kontur ve dört beyaz-halkalı köşe tutamacı.
+void _paintSelection(
+    Canvas canvas, Rect r, Color accent, Color onAccent, double px,
     {bool corners = true}) {
-  final rr = RRect.fromRectAndRadius(r, Radius.circular(3 * px));
+  final rr = RRect.fromRectAndRadius(r, Radius.circular(4 * px));
   canvas.drawRRect(
       rr, Paint()..color = accent.withValues(alpha: PdfEditTokens.frameFillAlpha));
   canvas.drawRRect(
@@ -260,25 +473,30 @@ void _paintSelection(Canvas canvas, Rect r, Color accent, double px,
         ..strokeWidth = PdfEditTokens.frameActiveWidth * px
         ..color = accent);
   if (!corners) return;
-  final handle = Paint()..color = accent;
+  final rad = PdfEditTokens.handle / 2 * px;
+  final shadow = Paint()..color = AppColors.shadow;
+  final ring = Paint()..color = onAccent;
+  final core = Paint()..color = accent;
   for (final c in [r.topLeft, r.topRight, r.bottomLeft, r.bottomRight]) {
-    canvas.drawCircle(c, PdfEditTokens.handle / 2 * px, handle);
+    canvas.drawCircle(c + Offset(0, 1 * px), rad + 2.2 * px, shadow);
+    canvas.drawCircle(c, rad + 2.0 * px, ring);
+    canvas.drawCircle(c, rad, core);
   }
 }
 
 /// Taşıma tutamacı: ince gölge, beyaz halka, vurgulu daire ve dört yön oku.
 void _paintMoveGrip(
     Canvas canvas, Offset at, Color accent, Color onAccent, double px) {
-  final rad = 10.5 * px;
+  final rad = 11.5 * px;
   canvas.drawCircle(
       at + Offset(0, 1.5 * px),
-      rad + 1.5 * px,
-      Paint()..color = accent.withValues(alpha: 0.22));
-  canvas.drawCircle(at, rad + 1.5 * px, Paint()..color = onAccent);
+      rad + 2.0 * px,
+      Paint()..color = AppColors.shadow);
+  canvas.drawCircle(at, rad + 1.8 * px, Paint()..color = onAccent);
   canvas.drawCircle(at, rad, Paint()..color = accent);
   final p = Paint()
     ..style = PaintingStyle.stroke
-    ..strokeWidth = 1.55 * px
+    ..strokeWidth = 1.65 * px
     ..strokeCap = StrokeCap.round
     ..strokeJoin = StrokeJoin.round
     ..color = onAccent;
@@ -298,28 +516,44 @@ void _paintMoveGrip(
   }
 }
 
-/// Sürükleme önizlemesi (taşı / genişlet / ölçekle). **Kasma kuralı:**
+/// Sürükleme önizlemesi (taşı / genişlet / 4 köşeden ölçekle). **Kasma kuralı:**
 /// sürükleme sırasında yalnız bu boyayıcı yeniden çizilir — katman yeniden
 /// kurulmaz, öteki blok kılavuzları boyanmaz ([_DragPainter] `repaint`).
 class _DragPreview extends ChangeNotifier {
   /// Sürüklenen çerçeve (katman pikseli); null = sürükleme yok.
   Rect? frame;
   List<Rect> members = const [];
+
   /// Taşıma tutamacının çerçevenin üst ortasına göre yeri; null = çizilmez.
   Offset? grip;
   PdfSnapTargets? targets;
+  _ScaleCorner corner = _ScaleCorner.bottomRight;
+
+  /// Özgün PDF boyutu (pt): ölçekleme sırasında canlı "%125 · 240×180 pt" rozeti için.
+  Size? pdfSize;
+  Color? colorOverride;
 
   Offset _raw = Offset.zero;
   Offset drag = Offset.zero;
   double width = 0, scale = 1;
   PdfSnap snap = PdfSnap.none;
 
-  void begin(Rect frame,
-      {List<Rect> members = const [], Offset? grip, PdfSnapTargets? targets}) {
+  void begin(
+    Rect frame, {
+    List<Rect> members = const [],
+    Offset? grip,
+    PdfSnapTargets? targets,
+    _ScaleCorner corner = _ScaleCorner.bottomRight,
+    Size? pdfSize,
+    Color? colorOverride,
+  }) {
     this.frame = frame;
     this.members = members;
     this.grip = grip;
     this.targets = targets;
+    this.corner = corner;
+    this.pdfSize = pdfSize;
+    this.colorOverride = colorOverride;
     _raw = Offset.zero;
     drag = Offset.zero;
     width = 0;
@@ -328,12 +562,39 @@ class _DragPreview extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Ölçeklemede sabit kalan karşı köşe (katman pikseli).
+  Offset anchorPoint(Rect f) => switch (corner) {
+        _ScaleCorner.bottomRight => f.topLeft,
+        _ScaleCorner.bottomLeft => f.topRight,
+        _ScaleCorner.topRight => f.bottomLeft,
+        _ScaleCorner.topLeft => f.bottomRight,
+      };
+
+  /// Geçerli önizleme dikdörtgeni (taşıma, genişletme veya 4 köşe ölçekleme).
+  Rect currentRect(Rect f) {
+    if ((scale - 1).abs() >= 0.0001) {
+      final a = anchorPoint(f);
+      final w = f.width * scale;
+      final h = f.height * scale;
+      return switch (corner) {
+        _ScaleCorner.bottomRight => Rect.fromLTWH(a.dx, a.dy, w, h),
+        _ScaleCorner.bottomLeft => Rect.fromLTWH(a.dx - w, a.dy, w, h),
+        _ScaleCorner.topRight => Rect.fromLTWH(a.dx, a.dy - h, w, h),
+        _ScaleCorner.topLeft => Rect.fromLTWH(a.dx - w, a.dy - h, w, h),
+      };
+    }
+    return Rect.fromLTWH(
+        f.left + drag.dx, f.top + drag.dy, f.width + width, f.height);
+  }
+
   /// Taşıma: ham kayma + tutunma. Kılavuz yeni belirdiyse true (titreşim).
   bool move(Offset delta) {
     _raw += delta;
     final f = frame, t = targets;
     final hadGuide = snap.xs.isNotEmpty || snap.ys.isNotEmpty;
-    snap = f == null || t == null ? PdfSnap(_raw, const [], const []) : t.snap(f, _raw);
+    snap = f == null || t == null
+        ? PdfSnap(_raw, const [], const [])
+        : t.snap(f, _raw);
     drag = snap.offset;
     notifyListeners();
     return !hadGuide && (snap.xs.isNotEmpty || snap.ys.isNotEmpty);
@@ -354,6 +615,8 @@ class _DragPreview extends ChangeNotifier {
     members = const [];
     grip = null;
     targets = null;
+    pdfSize = null;
+    colorOverride = null;
     snap = PdfSnap.none;
     notifyListeners();
   }
@@ -375,10 +638,11 @@ class _DragPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final f = preview.frame;
     if (f == null) return;
+    final activeAccent = preview.colorOverride ?? accent;
     final d = preview.drag, s = preview.scale;
     final guide = Paint()
-      ..strokeWidth = 1 * px
-      ..color = accent;
+      ..strokeWidth = 1.2 * px
+      ..color = activeAccent.withValues(alpha: 0.78);
     for (final x in preview.snap.xs) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), guide);
     }
@@ -388,22 +652,42 @@ class _DragPainter extends CustomPainter {
     final member = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = PdfEditTokens.frameActiveWidth * px
-      ..color = accent;
+      ..color = activeAccent;
     for (final m in preview.members) {
       canvas.drawRect(m.inflate(2 * px).shift(d), member);
     }
-    final r = Rect.fromLTWH(f.left + d.dx, f.top + d.dy,
-        f.width * s + preview.width, f.height * s);
-    _paintSelection(canvas, r, accent, px);
+    final r = preview.currentRect(f);
+    _paintSelection(canvas, r, activeAccent, onAccent, px);
     final g = preview.grip;
     if (g != null && s == 1) {
-      _paintMoveGrip(canvas, r.topCenter + g, accent, onAccent, px);
+      _paintMoveGrip(canvas, r.topCenter + g, activeAccent, onAccent, px);
+    }
+    // Canlı boyut / ölçek rozeti (sürükleme boyunca anında geri bildirim).
+    if ((s - 1).abs() >= 0.005) {
+      final pct = (s * 100).round();
+      final ps = preview.pdfSize;
+      final label = ps == null
+          ? '%$pct'
+          : '%$pct · ${(ps.width * s).round()}×${(ps.height * s).round()} pt';
+      final badgeY = r.top >= 26 * px ? r.top - 16 * px : r.bottom + 16 * px;
+      _paintCanvasPill(
+        canvas,
+        label,
+        Offset(r.center.dx.clamp(56 * px, math.max(56 * px, size.width - 56 * px)),
+            badgeY),
+        bg: PdfEditTokens.badgeBg,
+        fg: PdfEditTokens.onBadge,
+        px: px,
+      );
     }
   }
 
   @override
   bool shouldRepaint(_DragPainter old) =>
-      old.preview != preview || old.accent != accent || old.px != px;
+      old.preview != preview ||
+      old.accent != accent ||
+      old.onAccent != onAccent ||
+      old.px != px;
 }
 
 /// Aktif çizim / işaretleme vuruşu durumu. Sürükleme boyunca `ValueNotifier`

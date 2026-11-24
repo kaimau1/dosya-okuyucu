@@ -52,91 +52,125 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
     final pending = _hasPendingInput;
     final showCommit = pending || _editing;
     return Container(
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsetsDirectional.fromSTEB(6, 2, 2, 2),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 5, 4, 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Ad Kutusu: dokununca "Hücreye git".
-          InkWell(
-            onTap: _editor == null ? null : _showGoTo,
+          Material(
+            color: scheme.primaryContainer.withValues(alpha: 0.65),
             borderRadius: BorderRadius.circular(Radii.control),
-            child: Container(
-              width: 62,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(Radii.control),
-              ),
-              child: Text(
-                _selectionLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    context.type.small.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          SizedBox(
-            height: 20,
-            child: VerticalDivider(
-              width: 6,
-              thickness: 1,
-              color: scheme.outlineVariant,
-            ),
-          ),
-          Tooltip(
-            message: context.t('excel.fx_library'),
             child: InkWell(
-              key: const ValueKey('xl-bar-fx'),
-              onTap: _editor == null ? null : _showFunctionLibrary,
+              onTap: _editor == null ? null : _showGoTo,
               borderRadius: BorderRadius.circular(Radii.control),
               child: Container(
-                width: 30,
-                height: 30,
+                constraints: const BoxConstraints(minWidth: 58, maxWidth: 84),
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.28),
+                  ),
+                ),
                 child: Text(
-                  'fx',
+                  _selectionLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: context.type.small.copyWith(
-                    fontStyle: FontStyle.italic,
                     fontWeight: FontWeight.w700,
-                    color: _editor == null
-                        ? scheme.onSurface.withValues(alpha: 0.38)
-                        : scheme.primary,
+                    color: scheme.onPrimaryContainer,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
             ),
           ),
+          const SizedBox(width: 6),
+          Tooltip(
+            message: context.t('excel.fx_library'),
+            child: Material(
+              color: _editor == null
+                  ? Colors.transparent
+                  : scheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: InkWell(
+                key: const ValueKey('xl-bar-fx'),
+                onTap: _editor == null ? null : _showFunctionLibrary,
+                borderRadius: BorderRadius.circular(Radii.control),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    border: Border.all(
+                      color: scheme.primary.withValues(
+                          alpha: _editor == null ? 0.08 : 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    'fx',
+                    style: context.type.small.copyWith(
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w800,
+                      color: _editor == null
+                          ? scheme.onSurface.withValues(alpha: 0.38)
+                          : scheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
           Expanded(
-            child: TextField(
-              controller: _cellField,
-              focusNode: _barFocus,
-              onSubmitted: (_) {
-                final sheet = _sheet;
-                if (sheet == null) {
-                  _applyCell(_cellField.text);
-                  return;
-                }
-                _commitAndMoveDown(_rowCount(sheet));
-              },
-              onChanged: (_) => _partSetState(() {}),
-              textInputAction: TextInputAction.done,
-              minLines: 1,
-              maxLines: pending ? 3 : 1,
-              style: context.type.body,
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                filled: false,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                hintText: context.t('excel.cell_content'),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(Radii.control),
+                border: Border.all(
+                  color: showCommit
+                      ? scheme.primary.withValues(alpha: 0.45)
+                      : scheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              ),
+              child: TextField(
+                controller: _cellField,
+                focusNode: _barFocus,
+                onSubmitted: (_) {
+                  final sheet = _sheet;
+                  if (sheet == null) {
+                    _applyCell(_cellField.text);
+                    return;
+                  }
+                  _commitAndMoveDown(_rowCount(sheet));
+                },
+                onChanged: (_) => _partSetState(() {}),
+                textInputAction: TextInputAction.done,
+                minLines: 1,
+                maxLines: pending ? 3 : 1,
+                style: context.type.body,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  filled: false,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hintText: context.t('excel.cell_content'),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                ),
               ),
             ),
           ),
@@ -151,18 +185,31 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
             ),
           // ✗ / ✓ yazma sırasında ya da onaylanmamış giriş varken.
           if (showCommit) ...[
+            const SizedBox(width: 4),
             IconButton(
               tooltip: context.t('common.cancel'),
               visualDensity: VisualDensity.compact,
-              iconSize: 20,
+              iconSize: 18,
+              style: IconButton.styleFrom(
+                backgroundColor: scheme.errorContainer.withValues(alpha: 0.75),
+                foregroundColor: scheme.onErrorContainer,
+                shape: const CircleBorder(),
+                minimumSize: const Size(32, 32),
+              ),
               icon: const Icon(AppIcons.close),
               onPressed: _cancelEdit,
             ),
+            const SizedBox(width: 2),
             IconButton(
               tooltip: context.t('common.apply'),
               visualDensity: VisualDensity.compact,
-              iconSize: 20,
-              color: OfficeColors.excel,
+              iconSize: 18,
+              style: IconButton.styleFrom(
+                backgroundColor: OfficeColors.excel,
+                foregroundColor: AppColors.page,
+                shape: const CircleBorder(),
+                minimumSize: const Size(32, 32),
+              ),
               icon: const Icon(AppIcons.check),
               onPressed: () {
                 _editing = false;
@@ -179,16 +226,31 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               key: const ValueKey('xl-error-why'),
               tooltip: context.t('xp.err_why'),
               visualDensity: VisualDensity.compact,
-              iconSize: 20,
+              iconSize: 19,
+              style: IconButton.styleFrom(
+                backgroundColor: scheme.errorContainer.withValues(alpha: 0.65),
+                foregroundColor: scheme.error,
+                shape: const CircleBorder(),
+                minimumSize: const Size(32, 32),
+              ),
               icon: const Icon(AppIcons.help),
               onPressed: () => _snack(context.t(_errorKeyHere()!)),
             ),
+          const SizedBox(width: 2),
           IconButton(
-            tooltip: context.t(_ribbonOpen ? 'excel.ribbon_hide' : 'excel.ribbon_show'),
+            tooltip: context
+                .t(_ribbonOpen ? 'excel.ribbon_hide' : 'excel.ribbon_show'),
             visualDensity: VisualDensity.compact,
             iconSize: 20,
-            icon: Icon(
-                _ribbonOpen ? AppIcons.expandLess : AppIcons.expandMore),
+            style: IconButton.styleFrom(
+              backgroundColor:
+                  scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+              foregroundColor: scheme.onSurfaceVariant,
+              shape: const CircleBorder(),
+              minimumSize: const Size(32, 32),
+            ),
+            icon:
+                Icon(_ribbonOpen ? AppIcons.expandLess : AppIcons.expandMore),
             onPressed: () => _partSetState(() => _ribbonOpen = !_ribbonOpen),
           ),
         ],

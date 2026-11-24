@@ -314,18 +314,27 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
           redo: editing ? null : () => _history.canRedo ? _redoDeck : null,
           extras: [
             if (!editing)
-              IconButton(
-                key: const ValueKey('sl-outline'),
-                tooltip: context.t('sl.outline'),
-                isSelected: _outline,
-                icon: const Icon(AppIcons.outline),
-                onPressed: editor == null ? null : _toggleOutline,
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: IconButton(
+                  key: const ValueKey('sl-outline'),
+                  tooltip: context.t('sl.outline'),
+                  isSelected: _outline,
+                  style: EditorTopBar.iconStyle(context, selected: _outline),
+                  icon: const Icon(AppIcons.outline, size: 20),
+                  onPressed: editor == null ? null : _toggleOutline,
+                ),
               ),
             if (!editing && !_outline)
-              IconButton(
-                tooltip: context.t('common.search'),
-                icon: const Icon(AppIcons.search),
-                onPressed: editor == null ? null : _toggleFind,
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: IconButton(
+                  tooltip: context.t('common.search'),
+                  isSelected: _finding,
+                  style: EditorTopBar.iconStyle(context, selected: _finding),
+                  icon: const Icon(AppIcons.search, size: 20),
+                  onPressed: editor == null ? null : _toggleFind,
+                ),
               ),
           ],
           // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
@@ -458,8 +467,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                     // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —
                     // Ekle · Tasarım · Oynat · AI · Paylaş. Küçük resimler,
                     // slayt sırası, araçlar, özet, çeviri, PDF ⋮'da.
-                    DocAction(AppIcons.add, context.t('sl.insert'),
-                        editor == null ? null : _openInsert),
+                    DocAction(
+                      AppIcons.add,
+                      context.t('sl.insert'),
+                      editor == null ? null : _openInsert,
+                      primary: true,
+                    ),
                     DocAction(AppIcons.palette, context.t('sl.design'),
                         editor == null ? null : _openDesign),
                     DocAction(AppIcons.play, context.t('sl.play'),
