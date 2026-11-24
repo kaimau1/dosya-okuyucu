@@ -445,25 +445,17 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         borderRadius: BorderRadius.circular(Radii.card),
         side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
+      // Kullanıcı 2026-11-24: "üst alan çok yer kaplıyor" → simge kutusu ve
+      // açıklama paragrafı kalktı; kullanım tek satır alt yazıya indi.
       child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            Gap.md, Gap.sm, Gap.sm, Gap.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: cs.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(AppIcons.ai,
-                      color: cs.onPrimaryContainer, size: 22),
-                ),
-                const SizedBox(width: Gap.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -472,15 +464,52 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                         context.t('sm.status',
                             {'n': SmartSort.records.length, 'c': catCount}),
                         key: const ValueKey('ss-strip'),
-                        style: theme.textTheme.titleMedium
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
-                      Text(
-                        context.t('sm.status_sub'),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                      Row(
+                        children: [
+                          if (usage != null && usage.requests > 0)
+                            Flexible(
+                              child: Text(
+                                context.t('sm.usage', {
+                                  'n': usage.requests,
+                                  't': usage.tokensPerFile,
+                                  'q': usage.questionsPerFile,
+                                }),
+                                key: const ValueKey('ss-usage'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: cs.onSurfaceVariant),
+                              ),
+                            )
+                          else
+                            Flexible(
+                              child: Text(
+                                context.t('sm.status_sub'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: cs.onSurfaceVariant),
+                              ),
+                            ),
+                          if (usage != null && usage.reused > 0) ...[
+                            const SizedBox(width: Gap.xs),
+                            Text(
+                              context.t('sm.reused_n', {'n': usage.reused}),
+                              key: const ValueKey('ss-reused'),
+                              maxLines: 1,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AppHues.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -490,58 +519,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                   FilledButton.icon(
                     key: const ValueKey('ss-run'),
                     onPressed: _run,
-                    icon: const Icon(AppIcons.ai, size: 18),
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                    ),
+                    icon: const Icon(AppIcons.ai, size: 17),
                     label: Text(context.t('sm.run')),
                   ),
                 ],
               ],
             ),
-            if (usage != null) ...[
-              const SizedBox(height: Gap.sm),
-              Wrap(
-                spacing: Gap.xs,
-                runSpacing: Gap.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (usage.requests > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        context.t('sm.usage', {
-                          'n': usage.requests,
-                          't': usage.tokensPerFile,
-                          'q': usage.questionsPerFile,
-                        }),
-                        key: const ValueKey('ss-usage'),
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: cs.onSurfaceVariant),
-                      ),
-                    ),
-                  if (usage.reused > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppHues.green.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        context.t('sm.reused_n', {'n': usage.reused}),
-                        key: const ValueKey('ss-reused'),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: AppHues.green,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
             if (prog != null) ...[
               const SizedBox(height: Gap.sm),
               ClipRRect(
@@ -812,7 +799,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final hPad = w > 960 ? (w - 960) / 2 + Gap.md : Gap.md;
     return ListView(
       padding: withNavInset(
-          context, EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.md)),
+          context, EdgeInsets.fromLTRB(hPad, Gap.sm, hPad, Gap.md)),
       children: [
         // En üstte tek net özet + eylem kartı.
         _statusCard(context, allCats.length, prog, usage),
@@ -824,14 +811,14 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           const SizedBox(height: Gap.sm),
           ..._searchResults(context, query),
         ] else ...[
+          // Başlıksız şerit: ayrı "Akıllı süzgeçler" başlığı dikey yer yiyordu.
           if (filters.isNotEmpty) ...[
-            SectionHeader(context.t('sm.filters_section'),
-                padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
+            const SizedBox(height: Gap.sm),
             _smartFiltersStrip(context, filters),
           ],
           SectionHeader(context.t('sm.folders'),
               trailing: allCats.isEmpty ? null : _layoutMenu(context, allCats),
-              padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs)),
+              padding: const EdgeInsets.only(top: Gap.sm, bottom: 0)),
           if (allCats.isEmpty && filters.isEmpty)
             Text(context.t('sm.folders_empty'))
           else if (allCats.isNotEmpty) ...[
@@ -1047,7 +1034,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final theme = Theme.of(context);
     return SizedBox(
       key: const ValueKey('ss-filters'),
-      height: 40,
+      height: 36,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,

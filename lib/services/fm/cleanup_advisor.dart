@@ -469,3 +469,87 @@ bool isAppBackup(FsEntry entry) {
 /// olmalı (ters alan adı). `yedek(1).bak` gibi adlar eşleşmez.
 final _packageInName =
     RegExp(r'\(([a-zA-Z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+){1,})\)\.bak$');
+
+/// **Temizlik sonrası taramasız güncelleme** (2026-11-24, kullanıcı: "temizle'ye
+/// basınca temizlemiyor, baştan tarama yapıyor gibi oluyor").
+///
+/// Eskiden her temizlikten sonra tam disk taraması kuyruğa ekleniyordu; ekran
+/// temizlik ilerlemesi yerine "çözümleniyor" görünümüne geçiyor, kullanıcı da
+/// temizliğin olmadığını sanıyordu. Artık temizlenen yollar listeden düşer,
+/// çöp kartı yeni çöp içeriğiyle ([trashBytes]/[trashCount]) yeniden kurulur.
+///
+/// Güvenlik: aslı ([CleanupSuggestion.originals]) silinmiş bir kopya artık
+/// "aslı duruyor" kanıtını yitirdiğinden listeden de düşer.
+List<CleanupSuggestion> cleanupAfterApply(
+  List<CleanupSuggestion> list, {
+  required Set<String> removedPaths,
+  int? trashBytes,
+  int? trashCount,
+}) {
+  final out = <CleanupSuggestion>[];
+  for (final s in list) {
+    if (s.id == 'trash' && trashCount != null) continue;
+    if (s.files.isEmpty) {
+      out.add(s);
+      continue;
+    }
+    final kept = [
+      for (final f in s.files)
+        if (!removedPaths.contains(f.path) &&
+            !removedPaths.contains(s.originals[f.path]?.path))
+          f,
+    ];
+    if (kept.length == s.files.length) {
+      out.add(s);
+      continue;
+    }
+    if (kept.isEmpty) continue;
+    out.add(CleanupSuggestion(
+      id: s.id,
+      titleKey: s.titleKey,
+      detailKey: s.detailKey,
+      detailVars: s.detailVars.containsKey('n')
+          ? {...s.detailVars, 'n': kept.length}
+          : s.detailVars,
+      bytes: kept.fold<int>(0, (a, f) => a + f.sizeBytes),
+      files: kept,
+      safeByDefault: s.safeByDefault,
+      originals: s.originals.isEmpty
+          ? const {}
+          : {
+              for (final f in kept)
+                if (s.originals[f.path] case final orig?) f.path: orig,
+            },
+    ));
+  }
+  if (trashCount != null && trashCount > 0) {
+    out.insert(
+      0,
+      CleanupSuggestion(
+        id: 'trash',
+        titleKey: 'clean.trash',
+        detailKey: 'clean.trash_detail',
+        detailVars: {'n': trashCount},
+        bytes: trashBytes ?? 0,
+        safeByDefault: true,
+      ),
+    );
+  }
+  return out;
+}
+
+/// Aynı temizlikte bir kopyanın ASLI da siliniyorsa (ör. aslı "Eski
+/// indirilenler"de, kopyası "Sohbetten gönderilen"de) kopya korunur — iki
+/// öneri birlikte seçilince fotoğrafın hiçbir örneği kalmasın diye.
+Set<String> cleanupProtectedCopies(List<CleanupSuggestion> chosen) {
+  final deleting = <String>{
+    for (final s in chosen)
+      for (final f in s.files) f.path,
+  };
+  return {
+    for (final s in chosen)
+      for (final f in s.files)
+        if (s.originals[f.path] case final orig?)
+          if (deleting.contains(orig.path)) f.path,
+  };
+}

@@ -222,6 +222,68 @@ void main() {
     });
   });
 
+  group('Temizlik sonrası taramasız güncelleme', () {
+    test('temizlenen yollar düşer, çöp kartı yeni içerikle kurulur', () {
+      final a = file('/s/a.apk', 10 * mb);
+      final b = file('/s/b.apk', 5 * mb);
+      final list = [
+        const CleanupSuggestion(
+          id: 'trash',
+          titleKey: 'clean.trash',
+          detailKey: 'clean.trash_detail',
+          detailVars: {'n': 30},
+          bytes: 89 * mb,
+          safeByDefault: true,
+        ),
+        CleanupSuggestion(
+          id: 'apk',
+          titleKey: 'clean.apk',
+          detailKey: 'clean.apk_detail',
+          detailVars: const {'n': 2},
+          bytes: 15 * mb,
+          files: [a, b],
+          safeByDefault: true,
+        ),
+      ];
+      final out = cleanupAfterApply(list,
+          removedPaths: {a.path}, trashBytes: 10 * mb, trashCount: 1);
+      expect(out.map((s) => s.id), ['trash', 'apk']);
+      expect(out.first.bytes, 10 * mb);
+      expect(out.first.detailVars['n'], 1);
+      expect(out.last.files.map((f) => f.path), [b.path]);
+      expect(out.last.bytes, 5 * mb);
+
+      final emptied = cleanupAfterApply(list,
+          removedPaths: {a.path, b.path}, trashBytes: 0, trashCount: 0);
+      expect(emptied, isEmpty);
+    });
+
+    test('aslı silinen kopya listeden düşer; aslı aynı temizlikte silinen kopya korunur', () {
+      final copy = file('/s/WhatsApp/Sent/IMG-1.jpg', 3 * mb);
+      final orig = file('/s/Download/IMG_1.jpg', 3 * mb);
+      final chat = CleanupSuggestion(
+        id: 'chat_sent',
+        titleKey: 'cln.chat_sent',
+        detailKey: 'cln.chat_sent_detail',
+        detailVars: const {'n': 1},
+        bytes: 3 * mb,
+        files: [copy],
+        originals: {copy.path: orig},
+      );
+      final stale = CleanupSuggestion(
+        id: 'stale_downloads',
+        titleKey: 'clean.stale_downloads',
+        detailKey: 'clean.stale_downloads_detail',
+        detailVars: const {'n': 1},
+        bytes: 3 * mb,
+        files: [orig],
+      );
+      expect(cleanupProtectedCopies([chat, stale]), {copy.path});
+      expect(cleanupProtectedCopies([chat]), isEmpty);
+      expect(cleanupAfterApply([chat], removedPaths: {orig.path}), isEmpty);
+    });
+  });
+
   group('CleanupScreen UX: dosya bazlı seçim, filtreler ve boş klasörler', () {
     Future<void> seedSuggestions(List<CleanupSuggestion> list) async {
       final job = JobQueue.instance.enqueue(
@@ -360,6 +422,39 @@ void main() {
       expect(find.text('Aslını gör'), findsOneWidget);
     });
 
+    testWidgets('kopya satırı silinecek olanın KOPYA olduğunu söyler; kart başına temizle düğmesi var',
+        (tester) async {
+      final sentImg = file(
+          '/storage/emulated/0/WhatsApp/Media/WhatsApp Images/Sent/IMG-1.jpg',
+          3 * mb);
+      final camOrig = file('/storage/emulated/0/DCIM/Camera/IMG_1.jpg', 3 * mb);
+      await tester.runAsync(() => seedSuggestions([
+            CleanupSuggestion(
+              id: 'chat_sent',
+              titleKey: 'cln.chat_sent',
+              detailKey: 'cln.chat_sent_detail',
+              detailVars: const {'n': 1},
+              bytes: 3 * mb,
+              files: [sentImg],
+              originals: {sentImg.path: camOrig},
+              safeByDefault: false,
+            ),
+          ]));
+
+      await tester.pumpWidget(wrap(const CleanupScreen()));
+      await tester.pump();
+      // Seçim yokken kart başına düğme görünmez.
+      expect(find.byKey(const ValueKey('clean-one-chat_sent')), findsNothing);
+
+      await tester.tap(find.text('Sohbetten gönderilen kopyalar'));
+      await tester.pump();
+      expect(find.text('Silinecek: yalnız bu kopya'), findsOneWidget);
+
+      await tester.tap(find.byKey(ValueKey('clean-file-cb-${sentImg.path}')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('clean-one-chat_sent')), findsOneWidget);
+    });
+
     test('yeni Yer aç çeviri anahtarları üç dilde dolu', () {
       for (final lang in AppLanguage.values) {
         final s = AppStrings(lang);
@@ -385,6 +480,16 @@ void main() {
           'clean.more_tools',
           'clean.chat_tool',
           'clean.chat_tool_sub',
+          'clean.copy_will_go',
+          'clean.trash_copy_only',
+          'clean.clean_this',
+          'clean.clean_this_dirs',
+          'clean.empty_trash_now',
+          'clean.bg_safe_apply',
+          'clean.done_freed',
+          'clean.done_trash',
+          'clean.done_failed',
+          'clean.confirm_copies',
         ]) {
           expect(
             s.t(k, {
