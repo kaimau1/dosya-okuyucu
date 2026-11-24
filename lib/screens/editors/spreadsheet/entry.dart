@@ -141,17 +141,6 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
               icon: AppIcons.check,
               tooltip: context.t('common.apply'),
               onPressed: _acceptEntry),
-          for (final (k, icon, dr, dc) in [
-            ('left', AppIcons.keyboardArrowLeft, 0, -1),
-            ('right', AppIcons.keyboardArrowRight, 0, 1),
-            ('up', AppIcons.keyboardArrowUp, -1, 0),
-            ('down', AppIcons.keyboardArrowDown, 1, 0),
-          ])
-            AccessoryItem(
-                key: ValueKey('acc-$k'),
-                icon: icon,
-                tooltip: context.t('excel.move_$k'),
-                onPressed: () => _arrow(dr, dc)),
           AccessoryItem(
               key: const ValueKey('acc-tab'),
               icon: AppIcons.keyboardTab,
@@ -173,6 +162,17 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
                 _cancelEdit();
                 _autoSum();
               }),
+          for (final (k, icon, dr, dc) in [
+            ('left', AppIcons.keyboardArrowLeft, 0, -1),
+            ('right', AppIcons.keyboardArrowRight, 0, 1),
+            ('up', AppIcons.keyboardArrowUp, -1, 0),
+            ('down', AppIcons.keyboardArrowDown, 1, 0),
+          ])
+            AccessoryItem(
+                key: ValueKey('acc-$k'),
+                icon: icon,
+                tooltip: context.t('excel.move_$k'),
+                onPressed: () => _arrow(dr, dc)),
         ],
         pinnedTrailing: [
           AccessoryItem(

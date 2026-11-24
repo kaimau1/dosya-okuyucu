@@ -1,5 +1,4 @@
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
-import 'package:dosya_okuyucu/core/menu_search.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
 import 'package:dosya_okuyucu/widgets/menu_kit.dart';
 import 'package:flutter/material.dart';
