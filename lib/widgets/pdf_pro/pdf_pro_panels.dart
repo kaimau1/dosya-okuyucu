@@ -421,9 +421,11 @@ Future<int?> showPdfColorSheet(BuildContext context,
     );
 
 /// **Düzenlenemeyen blok** (PK7): neden + seçenekler. Dönen: 'line' (satır
-/// kipine geç) · 'box' (üstüne metin kutusu) · null.
+/// kipine geç) · 'box' (üstüne metin kutusu) · 'replace' (taranmış yazıyı
+/// tanınan metinle değiştir) · 'ai' (yapay zekâ ile okuyup değiştir) · null.
+/// [ai]: yapay zekâ ile okuma kullanılabilir (anahtar var, çevrimiçi).
 Future<String?> showPdfLockedBlockSheet(BuildContext context,
-        {required PdfBlockLock lock}) =>
+        {required PdfBlockLock lock, bool ai = false}) =>
     showAppSheet<String>(
       context,
       // Belge kilidi başlığı ("Bu belge … korunuyor") değil: kilitli olan blok.
@@ -444,6 +446,24 @@ Future<String?> showPdfLockedBlockSheet(BuildContext context,
               style: context.type.body,
             ),
             const SizedBox(height: Gap.md),
+            if (lock == PdfBlockLock.invisible) ...[
+              FilledButton.icon(
+                key: const ValueKey('pse-locked-replace'),
+                icon: const Icon(AppIcons.edit),
+                label: Text(context.t('pse.locked_replace')),
+                onPressed: () => Navigator.of(ctx).pop('replace'),
+              ),
+              const SizedBox(height: Gap.sm),
+              if (ai) ...[
+                FilledButton.tonalIcon(
+                  key: const ValueKey('pse-locked-ai'),
+                  icon: const Icon(AppIcons.ai),
+                  label: Text(context.t('pse.locked_ai')),
+                  onPressed: () => Navigator.of(ctx).pop('ai'),
+                ),
+                const SizedBox(height: Gap.sm),
+              ],
+            ],
             FilledButton.tonalIcon(
               key: const ValueKey('pse-locked-box'),
               icon: const Icon(AppIcons.textFields),

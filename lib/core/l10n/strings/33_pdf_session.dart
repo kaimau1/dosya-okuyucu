@@ -37,6 +37,11 @@ const Map<String, (String, String, String)> _t33 = {
     "The document's font lacks some of these letters; the paragraph was not changed.",
     'خط المستند لا يحتوي على بعض هذه الأحرف؛ لم تتغير الفقرة.',
   ),
+  'pse.busy_wait': (
+    'Sayfa işleniyor, birkaç saniye bekleyin…',
+    'Processing the page, please wait a few seconds…',
+    'تتم معالجة الصفحة، يرجى الانتظار بضع ثوانٍ…',
+  ),
   'pse.refused': (
     'Bu paragraf bu sürümde düzenlenemiyor; belge değiştirilmedi.',
     "This paragraph can't be edited in this version; the document was not changed.",

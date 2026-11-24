@@ -507,9 +507,34 @@ const Map<String, (String, String, String)> _t35 = {
     'التبديل إلى وضع السطر',
   ),
   'pse.locked_ocr': (
-    'Bu metin taranmış sayfanın görünmez tanıma katmanı; sayfadaki yazı bir görüntü. Üstüne metin kutusu ekleyebilirsiniz.',
-    'This text is the invisible recognition layer of a scanned page; the writing itself is an image. You can add a text box over it.',
-    'هذا النص هو طبقة التعرف غير المرئية لصفحة ممسوحة؛ الكتابة نفسها صورة. يمكنك إضافة مربع نص فوقها.',
+    'Bu metin taranmış sayfanın görünmez tanıma katmanı; sayfadaki yazı bir görüntü. Yazıyı değiştirirseniz eski yazı kâğıt rengiyle örtülür, tanınan metin düzenlenebilir bir kutuya gelir.',
+    'This text is the invisible recognition layer of a scanned page; the writing itself is an image. If you replace it, the old writing is covered with the paper colour and the recognized text goes into an editable box.',
+    'هذا النص هو طبقة التعرف غير المرئية لصفحة ممسوحة؛ الكتابة نفسها صورة. عند الاستبدال تُغطّى الكتابة القديمة بلون الورق ويوضع النص المتعرَّف عليه في مربع قابل للتحرير.',
+  ),
+  'pse.locked_replace': (
+    'Yazıyı değiştir',
+    'Replace the writing',
+    'استبدال الكتابة',
+  ),
+  'pse.locked_ai': (
+    'Yapay zekâ ile oku ve değiştir',
+    'Read with AI and replace',
+    'القراءة بالذكاء الاصطناعي والاستبدال',
+  ),
+  'pse.ocr_ai_reading': (
+    'Yapay zekâ yazıyı okuyor…',
+    'AI is reading the writing…',
+    'الذكاء الاصطناعي يقرأ الكتابة…',
+  ),
+  'pse.ocr_ai_failed': (
+    'Yapay zekâ okuyamadı; cihazın tanıdığı metin kullanıldı.',
+    "AI couldn't read it; the on-device recognized text was used.",
+    'تعذّرت القراءة بالذكاء الاصطناعي؛ استُخدم النص المتعرَّف عليه على الجهاز.',
+  ),
+  'pse.step_ocr_replace': (
+    'Taranmış yazı değiştirildi',
+    'Scanned writing replaced',
+    'تم استبدال الكتابة الممسوحة',
   ),
   'pse.locked_rtl': (
     'Sağdan sola yazılan metin (Arapça, İbranice) henüz yerinde düzenlenemiyor: harf birleştirmesi bozulurdu. Üstüne metin kutusu ekleyebilirsiniz.',

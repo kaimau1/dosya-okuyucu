@@ -104,15 +104,16 @@ class OcrService {
     return CloudOcr.lines(path);
   }
 
-  /// "Otomatik": cihazdaki sonuç zayıfsa ve Decisions API görselde Latin
-  /// dışı yazı görürse AI ile yeniden tanır. Her hata sessiz: cihazdaki
+  /// "Otomatik": cihazdaki sonuç zayıf/bozuksa ve Decisions API görselde
+  /// Latin dışı yazı ya da el yazısı görürse AI ile yeniden tanır. Her hata sessiz: cihazdaki
   /// sonuç kalır (null).
   static Future<List<OcrLine>?> _autoCloud(
       String path, String latinText, bool allowCloud) async {
     if (!allowCloud ||
         await CloudOcr.script() != OcrScript.auto ||
         !CloudOcr.available ||
-        !CloudOcr.looksWeak(latinText)) {
+        !(CloudOcr.looksWeak(latinText) ||
+            CloudOcr.looksGarbled(latinText))) {
       return null;
     }
     if (!await CloudOcr.hasNonLatinScript(path)) return null;

@@ -43,6 +43,7 @@ class PdfProLayerEvents {
     required this.onNote,
     required this.onAnnotTap,
     required this.onTextBox,
+    this.onSwitch,
   });
 
   /// Bloğu yazmaya aç (imleç [offset]'te; çift dokunuşta sözcük seçili).
@@ -65,6 +66,11 @@ class PdfProLayerEvents {
 
   /// Yeni metin kutusu noktası (sayfa uzayı).
   final void Function(int pageIndex, double x, double y) onTextBox;
+
+  /// Yazarken BAŞKA bir düzenlenebilir bloğa dokunuldu (sayfa uzayı nokta):
+  /// mevcut yazım uygulanır ve klavye kapanmadan o bloğa geçilir. Null ise
+  /// eski davranış (yalnız uygula).
+  final void Function(int pageIndex, double x, double y)? onSwitch;
 }
 
 /// **Düzenleme kipinin sayfa katmanı** (PDF Pro Faz 54–60).
@@ -389,6 +395,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
       a = live.selStart;
     }
     final t = live.text;
+    // Klavye kapatılmışsa (geri tuşu) metne dokunuş onu yeniden açar.
+    c.askKeyboard();
     c.liveInput(t, pdfUtf16Index(t, a), pdfUtf16Index(t, b));
   }
 
@@ -406,7 +414,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
       final lr = Rect.fromPoints(_w(ax, ay), _w(bx, by));
       r = r == null ? lr : r.expandToInclude(lr);
     }
-    return (r ?? Rect.zero).inflate(8 * _px);
+    // Parmak payı: satırın hemen altına/sonuna dokunuş da imleç sayılır.
+    return (r ?? Rect.zero).inflate(20 * _px);
   }
 
   (double, double, double, double) _lineCorners(
@@ -881,8 +890,24 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               context,
               onTap: (at) {
                 if (c.live != null) {
-                  if (live != null && bounds.contains(at)) {
+                  // 2026-11-24 (kullanıcı: "imleci koymak çok zor, klavye
+                  // sürekli açılıp kapanıyor"): metnin hemen dışına (satır
+                  // altı/sonu) dokunuş artık yazmayı BİTİRMEZ, imleci en yakın
+                  // harfe koyar; başka bir bloğa dokunuş klavyeyi kapatmadan
+                  // o bloğa geçer.
+                  final hit = tool == PdfProTool.text
+                      ? hitPdfBlock(rects, at, slop: 6 * px)
+                      : null;
+                  final own = live != null &&
+                      (bounds.contains(at) ||
+                          (hit != null && identical(blocks[hit], live.block)));
+                  if (own) {
                     _caretTo(at);
+                  } else if (hit != null &&
+                      blocks[hit].editable &&
+                      widget.events.onSwitch != null) {
+                    final p = _p(at);
+                    widget.events.onSwitch!(pageIndex, p.x, p.y);
                   } else {
                     widget.events.onCommit();
                   }

@@ -56,6 +56,7 @@ import '../services/fm/pdf_bookmarks.dart';
 import '../services/fm/pdf_zoom_memory.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/fm/safe_write.dart';
+import '../services/cloud_ocr.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
@@ -137,6 +138,7 @@ import '../services/pdf/pro/pdf_edit_access.dart';
 import '../services/pdf/pro/pdf_edit_bridge.dart';
 import '../services/pdf/pro/pdf_edit_recovery.dart';
 import '../services/pdf/pro/pdf_edit_session.dart';
+import '../services/pdf/pro/pdf_scan_block.dart';
 import '../services/pdf/pro/pdf_object_geometry.dart' show PdfAxisAlign;
 import '../services/pdf/pro/pdf_version_history.dart';
 part 'viewer/pending_save.dart';
@@ -217,6 +219,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final TextEditingController _proInput = TextEditingController();
   final FocusNode _proFocus = FocusNode(debugLabel: 'pdf-pro-input');
   int _proCaretSeen = -1;
+
+  /// Son görülen klavye yüksekliği + klavye oturunca imleci gösterme zamanlayıcısı.
+  double _proInsetSeen = 0;
+  Timer? _proInsetTimer;
 
   /// Düzenleme kipinde belge olayları: içeriği değişen sayfanın görüntüsü
   /// yeniden çizdirilir (pdfrx geometri aynıysa çizmiyor — third_party/pdfrx/YAMA.md).
@@ -921,6 +927,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ?..removeListener(_onProChanged)
       ..dispose();
     _proDocSub?.cancel();
+    _proInsetTimer?.cancel();
     _proInput.dispose();
     _proFocus.dispose();
     _readingBars.dispose();

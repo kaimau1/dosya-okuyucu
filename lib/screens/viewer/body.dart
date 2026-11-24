@@ -88,11 +88,26 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         pageImageColorFilter: _pdfPageColorFilter,
                         onePassRenderingSizeThreshold:
                             DeviceProfile.budget.isLight ? 1400 : 2000,
+                        // PDF Pro yerinde yazma (2026-11-24, kullanıcı:
+                        // "yazarken/silerken metin imleçten geriden
+                        // geliyor"): her tuşta sayfa yeniden çizilir; yazarken
+                        // çizim gecikmeleri sıfır ve PDFium görsel önbelleği
+                        // sınırsız (taranmış sayfanın büyük görseli her tuşta
+                        // yeniden çözülmesin). Yazma bitince eski ayar.
+                        limitRenderingCache: _pro?.live == null,
+                        // Yazarken klavye açıksa alt satırlar da klavyenin
+                        // üstüne kaydırılabilsin (belge sonu payı).
+                        boundaryMargin: _proKeyboardRoom(context),
                         behaviorControlParams: PdfViewerBehaviorControlParams(
                           // 500 ms (Motion dışı zamanlayıcı)
                           trailingPageLoadingDelay:
                               const Duration(microseconds: 500000),
-                          partialImageLoadingDelay: Motion.short,
+                          pageImageCachingDelay: _pro?.live == null
+                              ? const Duration(milliseconds: 20)
+                              : Duration.zero,
+                          partialImageLoadingDelay: _pro?.live == null
+                              ? Motion.short
+                              : Duration.zero,
                           loadPageDimensionsOnDemand:
                               _docSize > (100 << 20) || _pageCount >= 500,
                         ),

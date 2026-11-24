@@ -798,6 +798,7 @@ class PdfProEditController extends ChangeNotifier {
     } on PdfEditBridgeRefused {
       return false;
     }
+    _liveMs = 0;
     final live = PdfLiveEdit._(
       pageIndex: pageIndex,
       block: block,
@@ -823,8 +824,10 @@ class PdfProEditController extends ChangeNotifier {
 
   /// Yeni metin kutusu (Faz 58 / 1): [x], [y] sayfa noktasında; biçim çevredeki
   /// gövde metninden ("eşleşen stil").
+  /// [size]: punto (taranmış yazıyı değiştirirken özgün yazının boyu);
+  /// verilmezse çevredeki gövde metninden.
   Future<bool> beginTextBox(int pageIndex, double x, double y,
-      {double? width}) async {
+      {double? width, double? size}) async {
     if (_live != null || _busy) return false;
     final content = await _contentNow(pageIndex);
     final blocks = await _blocksNow(pageIndex);
@@ -841,7 +844,8 @@ class PdfProEditController extends ChangeNotifier {
       }
     }
     final src = near?.lines.first.objects.first;
-    final size = near?.size ?? 12.0;
+    final forced = size;
+    final sz = forced ?? near?.size ?? 12.0;
     final maxW = content.width > 0 ? content.width - x - 24 : 240.0;
     final base = PdfTypesetRequest(
       pageIndex: pageIndex,
@@ -854,14 +858,15 @@ class PdfProEditController extends ChangeNotifier {
       bodyX: x,
       base: y,
       width: math.max(60, width ?? math.min(maxW, 260)),
-      leading: near?.leading ?? size * 1.2,
-      size: src == null ? size : null,
+      leading: forced != null ? sz * 1.2 : near?.leading ?? sz * 1.2,
+      size: src == null || forced != null ? sz : null,
     );
     try {
       await session.beginLive(pageIndex);
     } on PdfEditBridgeRefused {
       return false;
     }
+    _liveMs = 0;
     final live = PdfLiveEdit._(
       pageIndex: pageIndex,
       block: null,
@@ -875,7 +880,7 @@ class PdfProEditController extends ChangeNotifier {
         obj: const [],
         chr: const [],
         bases: [y],
-        sizes: [size],
+        sizes: [sz],
         starts: [x],
       ),
       text: '',
@@ -888,6 +893,32 @@ class PdfProEditController extends ChangeNotifier {
     selectedBlock = null;
     _notify();
     return true;
+  }
+
+  /// Metne dokunuş klavyeyi (kapatılmışsa) yeniden istesin diye sayaç;
+  /// gizli giriş alanı ([PdfProTextInput]) değişimi izler.
+  int keyboardAsk = 0;
+  void askKeyboard() => keyboardAsk++;
+
+  /// [pageIndex] sayfasında ([x], [y] sayfa uzayı, y yukarı) dokunulan
+  /// düzenlenebilir blok; yoksa null. Yazım uygulandıktan SONRA çağrılır:
+  /// bloklar yeniden okunur (nesne dizinleri değişmiş olabilir).
+  Future<PdfTextBlock?> editableBlockAt(
+      int pageIndex, double x, double y) async {
+    final blocks = await _blocksNow(pageIndex);
+    PdfTextBlock? best;
+    var bestD = double.infinity;
+    for (final b in blocks) {
+      if (!b.editable) continue;
+      final dx = x < b.left ? b.left - x : (x > b.right ? x - b.right : 0.0);
+      final dy = y > b.top ? y - b.top : (y < b.bottom ? b.bottom - y : 0.0);
+      final d = dx + dy;
+      if (d <= 6 && d < bestD) {
+        bestD = d;
+        best = b;
+      }
+    }
+    return best;
   }
 
   /// Yazarken: metin ve seçim değişti (UTF-16 ofsetleri).
@@ -1016,9 +1047,32 @@ class PdfProEditController extends ChangeNotifier {
     _notify();
   }
 
+  /// Son ara dizginin süresi (ms) ve ağır sayfada tuş seyreltme zamanlayıcısı.
+  int _liveMs = 0;
+  Timer? _liveDebounce;
+
+  /// Ağır sayfa eşiği: bir dizgi bundan uzun sürdüyse (büyük taranmış görsel,
+  /// binlerce görünmez tanıma nesnesi…) her tuşta değil, yazmaya kısa ara
+  /// verilince dizilir. KÖK (2026-11-24, kullanıcı: taranmış kitap sayfasında
+  /// metin kutusuna yazarken "uygulama dondu"): her tuş PDFium'da tüm sayfa
+  /// içeriğini yeniden üretip sayfayı yeniden çizdiriyordu.
+  static const heavyLiveMs = 350;
+
   void _scheduleLive() {
     if (_liveBusy) {
       _livePending = true;
+      return;
+    }
+    if (_liveMs > heavyLiveMs) {
+      _liveDebounce?.cancel();
+      _liveDebounce = Timer(const Duration(milliseconds: 260), () {
+        _liveDebounce = null;
+        if (_liveBusy) {
+          _livePending = true;
+        } else {
+          unawaited(_runLive());
+        }
+      });
       return;
     }
     unawaited(_runLive());
@@ -1037,10 +1091,12 @@ class PdfProEditController extends ChangeNotifier {
         if (first && live.block == null && live.text.isEmpty) continue;
         final req = live.liveRequest();
         final sw = PdfProPerf.start();
+        final took = Stopwatch()..start();
         try {
           final r = await session.liveApply(
               () => PdfEditBridge.typeset(document, req, fonts: live.fonts));
           PdfProPerf.end('tus', sw);
+          _liveMs = took.elapsedMilliseconds;
           if (r.ok) {
             live._took(r, first: first);
             live.collision = _collision(live);
@@ -1159,7 +1215,20 @@ class PdfProEditController extends ChangeNotifier {
     _invalidate(page);
   }
 
-  Future<void> _settleLive() async {
+  Future<void> _settleLive({bool flush = true}) async {
+    final wait = _liveDebounce;
+    if (wait != null) {
+      wait.cancel();
+      _liveDebounce = null;
+      // Seyreltilmiş son tuşlar henüz dizilmedi: uygulamadan önce dizilir.
+      if (flush) {
+        if (_liveBusy) {
+          _livePending = true;
+        } else {
+          await _runLive();
+        }
+      }
+    }
     while (_liveBusy) {
       await (_liveIdle?.future ?? Future<void>.value());
     }
@@ -1209,7 +1278,7 @@ class PdfProEditController extends ChangeNotifier {
   Future<void> cancelEdit() async {
     final live = _live;
     if (live == null) return;
-    await _settleLive();
+    await _settleLive(flush: false);
     _live = null;
     await session.cancelLive(changed: live.applied);
     if (live.applied) _invalidate(live.pageIndex);
@@ -1820,7 +1889,7 @@ class PdfProEditController extends ChangeNotifier {
     if (_closed) return;
     final live = _live;
     if (live != null) {
-      await _settleLive();
+      await _settleLive(flush: false);
       _live = null;
       try {
         await session.cancelLive(changed: live.applied);

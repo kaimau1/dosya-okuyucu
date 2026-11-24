@@ -40,4 +40,17 @@ void main() {
         CloudOcr.looksWeak('Bu belge Türkçe yazılmış uzunca bir paragraftır.'),
         isFalse);
   });
+
+  test('el yazısı tanıma çöpü bozuk sayılır, düzgün metin sayılmaz', () {
+    expect(
+        CloudOcr.looksGarbled(
+            'deg er lend, Lmes yg olocoi te, Bi kt Sk rd ve'),
+        isTrue);
+    expect(
+        CloudOcr.looksGarbled(
+            'Yapılan son değerlendirmelere göre Ankara görülen sağanak '
+            'yağışların bugün akşam saatlerinden itibaren etkisini arttırması'),
+        isFalse);
+    expect(CloudOcr.looksGarbled('kısa'), isFalse);
+  });
 }

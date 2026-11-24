@@ -96,6 +96,30 @@ void main() {
     });
   }
 
+  testWidgets('taranmış (görünmez) blok: Yazıyı değiştir + AI seçeneği',
+      (tester) async {
+    String? pick;
+    await _host<String?>(
+        tester,
+        (c) => showPdfLockedBlockSheet(c,
+            lock: PdfBlockLock.invisible, ai: true),
+        (v) => pick = v);
+    expect(find.byKey(const ValueKey('pse-locked-replace')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pse-locked-ai')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pse-locked-replace')));
+    await tester.pumpAndSettle();
+    expect(pick, 'replace');
+  });
+
+  testWidgets('sağdan sola blokta değiştir seçeneği yok', (tester) async {
+    await _host<String?>(
+        tester,
+        (c) => showPdfLockedBlockSheet(c, lock: PdfBlockLock.rtl, ai: true),
+        (_) {});
+    expect(find.byKey(const ValueKey('pse-locked-replace')), findsNothing);
+    expect(find.byKey(const ValueKey('pse-locked-ai')), findsNothing);
+  });
+
   testWidgets('AI önerisi: eski ve yeni metin görünür; kabul true döner',
       (tester) async {
     bool? ok;

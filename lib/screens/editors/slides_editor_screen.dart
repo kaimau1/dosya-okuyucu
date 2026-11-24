@@ -64,6 +64,7 @@ import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_box_editor.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../widgets/slide_previews.dart';
 import '../../widgets/slide_text_controller.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';

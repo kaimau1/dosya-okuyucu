@@ -154,7 +154,10 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<bool> _exitProEdit() async {
     final pro = _pro;
     if (pro == null) return true;
-    if (pro.busy) return false;
+    if (pro.busy) {
+      _proBusyHint();
+      return false;
+    }
     // Geri tuşu sırası (etkileşim §8): önce yazma, sonra seçim, sonra kip.
     if (pro.live != null) {
       await _proDone();

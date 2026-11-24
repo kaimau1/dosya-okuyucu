@@ -1670,3 +1670,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Geri al / yinele: hiç değişiklik yokken üst çubukta görünmez; bir değişiklikten sonra geri al çıkar; geri alınca yinele çıkar (Word, Excel, Slayt, PDF Pro, görsel, video, kalem, kod).
 - [ ] Word sayfa görünümü: alt çubukta "Sayfada düzenle" → sayfa düzeni bozulmadan yazı değiştirilebilir/silinebilir; Mobil editörde Gözden Geçir → ilk yonga "Sayfa görünümü".
 - [ ] PDF'ten ve Word'den geri tuşuyla Belgeler'e dön: sayfa sağa tam kayarak çıkar, liste kademeli açılır, son karede sıçrama yok. A/B (kare p99 ≤ 24 ms) C2'de.
+
+## PDF Pro klavye/yazma + taranmış yazı + slayt önizlemeleri (2026-11-24, main) — yazıldı, cihazda doğrulanmadı
+- [ ] Tek sayfalık PDF'te en alttaki paragrafa dokun → klavye açılınca sayfa kendiliğinden yukarı kayar, imleç satırı biçim çubuğunun üstünde kalır. Klavye kapanınca sayfa altındaki boşluk geri çekilir.
+- [ ] Yazarken satırın hemen altına/sonuna dokun → yazma bitmez, imleç oraya gider. Başka bir paragrafa dokun → klavye KAPANMADAN o paragrafa geçilir (tek dokunuş). Geri tuşuyla klavyeyi kapat, metne dokun → klavye yeniden açılır.
+- [ ] Yazarken/silerken harf imleçten belirgin geride kalmıyor (önceki sürümle yan yana bak); taranmış sayfada da.
+- [ ] Taranmış kitap sayfası (görünmez tanıma katmanlı) → paragrafa dokun → "Yazıyı değiştir" → eski yazı kâğıt rengiyle örtülür (sarımsı kâğıtta sarımsı), tanınan metin düzenlenebilir kutuda; yazarken uygulama donmaz. Geri al → sayfa eski hâline döner. Anahtar varsa "Yapay zekâ ile oku ve değiştir" el yazısını daha doğru okur.
+- [ ] İşlem sürerken geri tuşu → "Sayfa işleniyor, birkaç saniye bekleyin…" bildirimi (sessiz kalmamalı).
+- [ ] El yazılı sayfa tara (Ayarlar → Metin tanıma dili: Otomatik, AI anahtarı var) → tanınan metin el yazısına çok daha yakın.
+- [ ] Slayt → Tasarım: geçiş kutularında her geçiş küçük slaytta birkaç kez oynar, sonra durur. "Düzeni değiştir": her düzen başlık/içerik/resim yerleriyle küçük slayt olarak görünür, şimdiki düzen seçili.

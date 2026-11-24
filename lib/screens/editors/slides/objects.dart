@@ -169,16 +169,28 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
       title: context.t(change ? 'sl.change_layout' : 'sl.new_slide'),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-        child: Wrap(
-          spacing: Gap.sm,
-          runSpacing: Gap.sm,
-          children: [
-            for (final l in list)
-              _tile(l.part == current ? AppIcons.checkCircle : AppIcons.slideshow,
-                  l.name, () => Navigator.pop(ctx, l),
-                  width: 104),
-          ],
-        ),
+        // 2026-11-24 (kullanıcı): kuru simge yerine düzenin yer tutucularıyla
+        // küçük slayt önizlemesi.
+        child: LayoutBuilder(builder: (ctx, box) {
+          final cols = box.maxWidth >= 520 ? 4 : 3;
+          final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
+          return Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final l in list)
+                SlidePreviewTile(
+                  key: ValueKey('sl-layout-${l.part}'),
+                  width: w.floorToDouble(),
+                  selected: l.part == current,
+                  label: l.name,
+                  preview: SlideLayoutThumb(
+                      boxes: l.boxes, aspect: editor.slideAspect),
+                  onTap: () => Navigator.pop(ctx, l),
+                ),
+            ],
+          );
+        }),
       ),
     );
     if (pick == null || !mounted) return;
@@ -298,14 +310,26 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
               const SizedBox(height: Gap.md),
               Text(ctx.t('sl.transition'), style: style),
               const SizedBox(height: Gap.sm),
-              Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
-                for (final k in PptxTransition.values)
-                  _tile(AppIcons.slideshow, ctx.t('sl.tr_${k.name}'), () {
-                    _mutate('sl.transition',
-                        () => editor.setTransition(slide, k));
-                    set(() {});
-                  }, selected: t == k, width: 88),
-              ]),
+              // Her geçiş kendi küçük canlandırmasıyla (A → B slaytı).
+              LayoutBuilder(builder: (ctx, box) {
+                final cols = box.maxWidth >= 520 ? 6 : 3;
+                final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
+                return Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
+                  for (final k in PptxTransition.values)
+                    SlidePreviewTile(
+                      key: ValueKey('sl-tr-${k.name}'),
+                      width: w.floorToDouble(),
+                      selected: t == k,
+                      label: ctx.t('sl.tr_${k.name}'),
+                      preview: SlideTransitionThumb(kind: k),
+                      onTap: () {
+                        _mutate('sl.transition',
+                            () => editor.setTransition(slide, k));
+                        set(() {});
+                      },
+                    ),
+                ]);
+              }),
               if (t != PptxTransition.none && slide.view != null) ...[
                 const SizedBox(height: Gap.md),
                 Text(ctx.t('sl.tr_preview'), style: style),

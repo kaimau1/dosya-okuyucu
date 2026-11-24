@@ -694,6 +694,14 @@ class PdfProTextInput extends StatefulWidget {
 
 class _PdfProTextInputState extends State<PdfProTextInput> {
   bool _syncing = false;
+
+  /// Son görülen yazım ve klavye isteği sayacı: klavye yalnız yazım
+  /// başlarken, metin/seçim dışarıdan değişince ya da metne dokununca
+  /// istenir. KÖK (2026-11-24, "klavye sürekli açılıp kapanıyor"): eskiden
+  /// odak yokken HER bildirimde (dizgi bitti, meşgul…) klavye yeniden
+  /// isteniyordu.
+  PdfLiveEdit? _seen;
+  int _ask = 0;
   final GlobalKey<EditableTextState> _editable = GlobalKey();
 
   @override
@@ -747,7 +755,11 @@ class _PdfProTextInputState extends State<PdfProTextInput> {
     final same = v.text == live.text &&
         v.selection.start == (a < b ? a : b) &&
         v.selection.end == (a < b ? b : a);
-    if (!same || !widget.focusNode.hasFocus) {
+    final fresh = !identical(live, _seen);
+    final asked = widget.controller.keyboardAsk != _ask;
+    _seen = live;
+    _ask = widget.controller.keyboardAsk;
+    if (fresh || asked || !same) {
       _editable.currentState?.requestKeyboard();
     }
     if (same) return;

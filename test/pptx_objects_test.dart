@@ -209,6 +209,27 @@ void main() {
     expect(shapes.every((x) => x.isPlaceholder), isTrue);
   });
 
+  test('düzen önizlemesi: yer tutucu kutuları slayt içinde, başlık var', () {
+    final e = _open();
+    final layouts = e.layouts();
+    final withBoxes = layouts.where((l) => l.boxes.isNotEmpty).toList();
+    expect(withBoxes, isNotEmpty);
+    for (final l in withBoxes) {
+      for (final b in l.boxes) {
+        expect(b.x, inInclusiveRange(-0.05, 1.05), reason: l.name);
+        expect(b.y, inInclusiveRange(-0.05, 1.05), reason: l.name);
+        expect(b.w, greaterThan(0), reason: l.name);
+        expect(b.h, greaterThan(0), reason: l.name);
+        expect(const {'dt', 'ftr', 'sldNum'}.contains(b.type), isFalse);
+      }
+    }
+    expect(
+        withBoxes.any((l) =>
+            l.boxes.any((b) => b.type == 'title' || b.type == 'ctrTitle')),
+        isTrue);
+    expect(e.slideAspect, greaterThan(0.5));
+  });
+
   /// Faz 29 kalanı: **Düzeni değiştir** — metin korunur, yer tutucular yeni
   /// düzene eşlenir, ilişki yeni düzene bağlanır (PowerPoint'in varsayılan
   /// şablonuyla üretilmiş örnek: 11 düzen).

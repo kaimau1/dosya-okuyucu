@@ -86,7 +86,27 @@ abstract final class CloudOcr {
     return letters < 24;
   }
 
-  /// Decisions API: görselde Latin dışı alfabeyle yazı var mı?
+  /// **El yazısı / bozuk tanıma şüphesi** (2026-11-24, kullanıcı: taranmış el
+  /// yazısı formda "deg er lend, Lmes yg olocoi te"). Cihaz modeli el yazısını
+  /// çok harfli ama anlamsız çıkarır → [looksWeak] yakalamaz. Sözcüklerin en
+  /// az %35'i 1–2 harfli ya da sesli harfsizse şüpheli sayılır; son kararı
+  /// yine görsel modeli verir ([hasNonLatinScript]).
+  static bool looksGarbled(String text) {
+    final words = RegExp(r'[A-Za-zÀ-ɏ]+')
+        .allMatches(text)
+        .map((m) => m.group(0)!)
+        .toList();
+    if (words.length < 6) return false;
+    final vowels = RegExp(r'[aeıioöuüAEIİOÖUÜâîûÂÎÛ]');
+    var odd = 0;
+    for (final w in words) {
+      if (w.length <= 2 || !vowels.hasMatch(w)) odd++;
+    }
+    return odd / words.length >= 0.35;
+  }
+
+  /// Decisions API: görselde Latin dışı alfabeyle ya da el yazısıyla yazı
+  /// var mı? (İkisinde de cihaz modeli zayıf, görsel model gerekir.)
   static Future<bool> hasNonLatinScript(String path) async {
     if (PrivateZone.active || PrivateZone.isPrivatePath(path)) return false;
     try {
@@ -101,9 +121,17 @@ abstract final class CloudOcr {
             'Does this image contain written text in a non-Latin script, such '
                 'as Arabic, Persian, Urdu, Hebrew, Cyrillic or Greek?',
           ),
+          // El yazısı: cihaz modeli (ML Kit) basılı yazı için; el yazısını
+          // görsel model çok daha doğru okur.
+          DecisionQuestion.yesNo(
+            'handwritten',
+            'handwritten',
+            'Is a significant part of the text in this image handwritten '
+                '(not printed)?',
+          ),
         ],
       );
-      return r.answers.isNotEmpty && r.answers.first.isYes;
+      return r.answers.any((a) => a.isYes);
     } catch (_) {
       return false; // Bilinçli: karar alınamazsa cihazdaki sonuç kalır.
     }

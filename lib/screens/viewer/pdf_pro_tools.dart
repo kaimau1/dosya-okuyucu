@@ -13,6 +13,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onNote: _proAddNote,
         onAnnotTap: _proAnnotTap,
         onTextBox: _proTextBox,
+        onSwitch: _proSwitch,
       );
 
   void _proRefused(Object e) {
@@ -39,11 +40,34 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     WidgetsBinding.instance.addPostFrameCallback((_) => _proRevealCaret());
   }
 
+  /// Yazarken başka bir bloğa dokunuldu: yazımı uygula, klavyeyi KAPATMADAN
+  /// dokunulan bloğa geç (imleç dokunulan harfte). Bloklar uygulamadan sonra
+  /// yeniden okunur — eski blok nesnesi bayat olabilir.
+  Future<void> _proSwitch(int pageIndex, double x, double y) async {
+    final pro = _pro;
+    if (pro == null || pro.live == null || pro.busy) return;
+    final ok = await _proDone(keepFocus: true);
+    if (!ok || !mounted || _pro != pro || pro.live != null) return;
+    final block = await pro.editableBlockAt(pageIndex, x, y);
+    if (!mounted || _pro != pro) return;
+    if (block == null || pro.live != null) {
+      _proFocus.unfocus();
+      return;
+    }
+    await _proBegin(pageIndex, block, offset: block.map.offsetAt(x, y));
+    if (mounted && _pro == pro && pro.live == null) _proFocus.unfocus();
+  }
+
   /// Yazmayı uygular (✓, dışarı dokunuş). Yazılamayan hâl varsa yazma sürer.
-  Future<void> _proDone() async {
+  /// [keepFocus]: başka bloğa geçilecek, klavye kapanmasın.
+  Future<bool> _proDone({bool keepFocus = false}) async {
     final pro = _pro;
     final live = pro?.live;
-    if (pro == null || live == null || pro.busy) return;
+    if (pro == null || live == null) return false;
+    if (pro.busy) {
+      _proBusyHint();
+      return false;
+    }
     final refusedGlyph = context.t('pse.refused_glyph');
     final refused = context.t('pse.refused');
     final label = live.block == null
@@ -52,13 +76,67 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             ? 'pse.step_delete'
             : 'pse.step_paragraph';
     final ok = await pro.commitEdit(label: label);
-    if (!mounted) return;
+    if (!mounted) return false;
     if (!ok) {
       _snack(pro.live?.glyphError ?? false ? refusedGlyph : refused);
+      return false;
+    }
+    if (!keepFocus) _proFocus.unfocus();
+    _pdfText = '';
+    return true;
+  }
+
+  /// Uzun süren işlem (büyük taranmış sayfa vb.) sırasında geri/uygula
+  /// sessizce yutulmasın: kullanıcı donma sanmasın diye bilgi verilir.
+  void _proBusyHint() {
+    if (!mounted) return;
+    _snack(context.t('pse.busy_wait'));
+  }
+
+  /// Klavye açılıp kapanınca (gövde boyu değişmez, PS4) imleç satırı yeniden
+  /// klavyenin üstüne getirilir — klavye canlandırması bitince bir kez.
+  void _proWatchInset(double inset) {
+    if (inset == _proInsetSeen) return;
+    _proInsetSeen = inset;
+    _proInsetTimer?.cancel();
+    if (_pro?.live == null) {
+      // Klavye kapandı, yazma bitti: belge sonu payında kalan görünüm
+      // (sayfanın altındaki boşluk) sayfa sınırına geri çekilir.
+      if (inset == 0) {
+        _proInsetTimer = Timer(const Duration(milliseconds: 180), () {
+          if (!mounted || !_pdfController.isReady) return;
+          try {
+            final c = _pdfController;
+            unawaited(c.goTo(
+                c.calcMatrixForClampedToNearestBoundary(c.value,
+                    viewSize: c.viewSize),
+                duration: Motion.short));
+          } catch (_) {
+            // Görüntüleyici kapanıyorsa sessizce atla.
+          }
+        });
+      }
       return;
     }
-    _proFocus.unfocus();
-    _pdfText = '';
+    _proInsetTimer = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) _proRevealCaret();
+    });
+  }
+
+  /// Yazarken klavye açıkken belgenin SONUNA eklenen kaydırma payı (belge
+  /// birimi): son sayfanın alt satırları da klavyenin üstüne kaydırılabilsin.
+  /// KÖK (2026-11-24, kullanıcı ekran görüntüsü): tek sayfalık belgede alt
+  /// paragraf klavyenin arkasında kalıyordu — görüntüleyici belge sonundan
+  /// öteye kaydırmıyordu.
+  EdgeInsets? _proKeyboardRoom(BuildContext context) {
+    if (_pro?.live == null) return null;
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    if (inset <= 0) return null;
+    final zoom = _pdfController.isReady && _pdfController.currentZoom > 0
+        ? _pdfController.currentZoom
+        : 1.0;
+    return EdgeInsets.only(
+        bottom: (inset + PdfEditTokens.formatBar + 96) / zoom);
   }
 
   /// Yazmayı bırakır (✕, Esc, geri tuşu).
@@ -109,13 +187,70 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   Future<void> _proLocked(int pageIndex, PdfTextBlock block) async {
     final pro = _pro;
     if (pro == null) return;
-    final pick = await showPdfLockedBlockSheet(context, lock: block.lock);
+    final pick = await showPdfLockedBlockSheet(context,
+        lock: block.lock,
+        ai: block.lock == PdfBlockLock.invisible && CloudOcr.available);
     if (pick == null || !mounted || _pro != pro) return;
     if (pick == 'line') {
       pro.mode = PdfBlockMode.line;
+    } else if (pick == 'replace' || pick == 'ai') {
+      await _proReplaceScanned(pageIndex, block, ai: pick == 'ai');
     } else {
       await _proTextBox(pageIndex, block.left, block.top + block.size * 0.4);
     }
+  }
+
+  /// Taranmış yazıyı değiştir: eski yazı kâğıt rengiyle örtülür, görünmez
+  /// tanıma metni silinir (tek geri alınabilir adım), tanınan (ya da [ai]
+  /// ile yapay zekânın okuduğu) metin aynı yerde düzenlenebilir kutuya gelir.
+  Future<void> _proReplaceScanned(int pageIndex, PdfTextBlock block,
+      {bool ai = false}) async {
+    final pro = _pro;
+    final doc = _pdfDoc;
+    if (pro == null || doc == null || pro.busy || pro.live != null) return;
+    if (pageIndex < 0 || pageIndex >= doc.pages.length) return;
+    final page = doc.pages[pageIndex];
+    final refused = context.t('pse.refused');
+    final aiFailed = context.t('pse.ocr_ai_failed');
+    String text = block.text.trim();
+    if (ai) {
+      _snack(context.t('pse.ocr_ai_reading'));
+      final read = await PdfScanBlock.aiRead(page, block);
+      if (!mounted || _pro != pro) return;
+      if (read == null) {
+        _snack(aiFailed);
+      } else {
+        text = read;
+      }
+    }
+    final paper = await PdfScanBlock.paperColor(page, block) ?? 0xFFFFFFFF;
+    if (!mounted || _pro != pro || pro.live != null) return;
+    final size = block.size.clamp(6.0, 48.0);
+    final pad = math.max(1.0, size * 0.2);
+    final base =
+        block.map.bases.isNotEmpty ? block.map.bases.first : block.top - size;
+    try {
+      await pro.mutate(pageIndex, [
+        PdfMutAction.delete(block.objectIndexes),
+        PdfMutAction.shape(PdfShapeKind.rect, block.left - pad,
+            block.bottom - pad, block.right + pad, block.top + pad,
+            stroke: paper, fill: paper, strokeWidth: 0.5),
+      ], label: 'pse.step_ocr_replace');
+    } catch (e) {
+      _proRefused(e);
+      return;
+    }
+    if (!mounted || _pro != pro) return;
+    final ok = await pro.beginTextBox(pageIndex, block.left, base,
+        width: math.max(40.0, block.right - block.left), size: size);
+    if (!mounted || _pro != pro) return;
+    if (!ok) {
+      _snack(refused);
+      return;
+    }
+    if (text.isNotEmpty) pro.liveInput(text, text.length, text.length);
+    _proFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _proRevealCaret());
   }
 
   Future<void> _proTextBox(int pageIndex, double x, double y) async {
@@ -1111,6 +1246,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   List<Widget> _proOverlays(PdfProEditController pro) {
     final live = pro.live;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
+    _proWatchInset(inset);
     if (live != null) {
       final bar = PdfProFormatBar(
         controller: pro,
