@@ -29,6 +29,7 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/docx_editor.dart';
 import '../../services/office_crypto.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/editor_top_bar.dart';
 import '../../widgets/state_views.dart';
@@ -136,8 +137,12 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   double _selSize = 0;
 
   /// Belgenin toplam sayfa sayısı ve görünen sayfa (canlı görünümden gelir).
+  /// Sayfa numarası [_pageN] ile yalnız rozeti yeniler — kaydırırken tam ekran
+  /// yeniden kurulmaz.
   int _pageCount = 0;
-  int _page = 1;
+  final ValueNotifier<int> _pageN = ValueNotifier<int>(1);
+  int get _page => _pageN.value;
+  set _page(int v) => _pageN.value = v;
 
   /// Mobil editörden dönüşte yeniden çizim bitince gidilecek sayfa (0: yok).
   int _resumePage = 0;
@@ -235,6 +240,7 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   @override
   void dispose() {
     unawaited(ReadingPositions.save());
+    _pageN.dispose();
     _findCtrl.dispose();
     _replaceCtrl.dispose();
     _session.dispose();

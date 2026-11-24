@@ -9,6 +9,7 @@ import '../../core/motion.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
 import '../../widgets/fm/fm_glyph.dart';
+import '../../widgets/motion.dart' show PressScale;
 
 /// **Tema galerisi** (2026-11-07, kullanıcı: *"temaların görünür biçimde
 /// seçilebilmesi örnek görseliyle beraber notlardaki gibi"*).
@@ -253,60 +254,73 @@ class ThemeSkinCard extends StatelessWidget {
       selected: selected,
       label: label,
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.card),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: Motion.short,
-              height: previewHeight,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Radii.card),
-                border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant,
-                  width: selected ? 2.5 : 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(Radii.card - 2),
-                child: RepaintBoundary(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _SkinPreview(
-                        skin: skin,
-                        brightness:
-                            skin.forcesDark ? Brightness.dark : brightness,
-                      ),
-                      if (selected)
-                        PositionedDirectional(
-                          end: 4,
-                          top: 4,
-                          child: CircleAvatar(
-                            radius: 9,
-                            backgroundColor: scheme.primary,
-                            child: Icon(AppIcons.check,
-                                size: 12, color: scheme.onPrimary),
+      child: PressScale(
+        scale: 0.96,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.card),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: Motion.of(context, Motion.short),
+                curve: Motion.enter,
+                height: previewHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  border: Border.all(
+                    color: selected ? scheme.primary : scheme.outlineVariant,
+                    width: selected ? 2.5 : 1,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: scheme.primary.withValues(alpha: 0.22),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
+                        ]
+                      : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.card - 2),
+                  child: RepaintBoundary(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _SkinPreview(
+                          skin: skin,
+                          brightness:
+                              skin.forcesDark ? Brightness.dark : brightness,
                         ),
-                    ],
+                        if (selected)
+                          PositionedDirectional(
+                            end: 4,
+                            top: 4,
+                            child: CircleAvatar(
+                              radius: 9,
+                              backgroundColor: scheme.primary,
+                              child: Icon(AppIcons.check,
+                                  size: 12, color: scheme.onPrimary),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? scheme.primary : null,
-                  ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? scheme.primary : null,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );

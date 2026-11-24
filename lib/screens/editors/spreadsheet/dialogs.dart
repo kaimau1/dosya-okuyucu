@@ -208,8 +208,35 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     _partSetState(() {});
   }
 
+  Widget _cellMenuPill(ColorScheme scheme) => Flexible(
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 6),
+          child: Material(
+            color: scheme.primaryContainer.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(Radii.control),
+            child: InkWell(
+              key: const ValueKey('xl-status-menu'),
+              onTap: _showCellMenu,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                child: Text(
+                  context.t('excel.cell_menu'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.caption.copyWith(
+                    color: scheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
   /// Excel'in durum çubuğu: seçili aralığın kopyalanabilir istatistikleri
-  /// veya tek hücrede hızlı hücre menüsü düğmesi + sayfa konumu.
+  /// ve her durumda tek dokunuşla ulaşılabilen hücre menüsü + sayfa konumu.
   Widget _statusBar() {
     final sheet = _sheet;
     if (sheet == null) return const SizedBox.shrink();
@@ -229,27 +256,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             style: context.type.caption.copyWith(color: scheme.onSurfaceVariant),
           ),
         ),
-        trailing: [
-          Flexible(
-            child: InkWell(
-              key: const ValueKey('xl-status-menu'),
-              onTap: _showCellMenu,
-              borderRadius: BorderRadius.circular(Radii.control),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                child: Text(
-                  context.t('excel.cell_menu'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.type.caption.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        trailing: [_cellMenuPill(scheme)],
       );
     }
 
@@ -348,6 +355,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           ),
         ),
       ),
+      trailing: [_cellMenuPill(scheme)],
     );
   }
 
@@ -361,6 +369,7 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             style: context.type.caption.copyWith(color: scheme.onSurfaceVariant),
           ),
         ),
+        trailing: [_cellMenuPill(scheme)],
       );
 
   /// Durum çubuğu satırı — solda seçim bilgisi/istatistikler, sağda ek + sayfa konumu.

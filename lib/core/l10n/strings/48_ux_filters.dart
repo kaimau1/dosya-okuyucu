@@ -50,9 +50,24 @@ const Map<String, (String, String, String)> _t48 = {
     'نسخ المحادثات المرسلة',
   ),
   'cln.chat_sent_detail': (
-    '{n} dosya · WhatsApp/Telegram Sent klasörü',
-    '{n} files · WhatsApp/Telegram Sent folder',
-    '{n} ملف · مجلد المرسلات في واتساب/تيليجرام',
+    '{n} dosya · Aslı cihazda doğrulandı',
+    '{n} files · Original verified on device',
+    '{n} ملف · تم التحقق من الأصل على الجهاز',
+  ),
+  'clean.verifying_sent': (
+    'Gönderilen medyaların asılları doğrulanıyor…',
+    'Verifying originals of sent media…',
+    'جارٍ التحقق من أصول الوسائط المرسلة…',
+  ),
+  'clean.original_kept': (
+    'Aslı duruyor: {loc} · {size}',
+    'Original kept: {loc} · {size}',
+    'الأصل محفوظ: {loc} · {size}',
+  ),
+  'clean.view_original': (
+    'Aslını gör',
+    'View original',
+    'عرض الأصل',
   ),
   'clean.filter_all': ('Tümü', 'All', 'الكل'),
   'clean.filter_safe': ('Güvenli', 'Safe', 'آمن'),

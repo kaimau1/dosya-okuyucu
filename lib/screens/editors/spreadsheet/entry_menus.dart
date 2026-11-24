@@ -476,6 +476,8 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
   // ── metin otomatik tamamlama (madde 10) ─────────────────────────────────
 
   /// Sütunda daha önce yazılmış ve yazılanla başlayan değer (yoksa null).
+  /// Sütun adayları (sayfa, sütun, satır, hesap damgası) başına bir kez
+  /// derlenir — her harfte 2.000 satır taranmaz.
   String? _textCompletion() {
     final t = _cellField.text;
     final sheet = _sheet;
@@ -483,16 +485,31 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
       return null;
     }
     if (double.tryParse(t.replaceAll(',', '.')) != null) return null;
+    final key = (sheet.name, _selCol, _selRow, _calcStamp);
+    final cached = _colTextCache;
+    final List<(String, String)> entries;
+    if (cached != null && cached.$1 == key) {
+      entries = cached.$2;
+    } else {
+      final seen = <String>{};
+      final built = <(String, String)>[];
+      final n = math.min(sheet.maxRows, 2000);
+      for (var r = 0; r < n; r++) {
+        if (r == _selRow) continue;
+        final v = sheet.rawAt(r, _selCol);
+        if (v.length >= 2 && !v.startsWith('=') && seen.add(v)) {
+          built.add((v, v.toLowerCase()));
+        }
+      }
+      _colTextCache = (key, built);
+      entries = built;
+    }
     final low = t.toLowerCase();
     String? hit;
-    final n = math.min(sheet.maxRows, 2000);
-    for (var r = 0; r < n; r++) {
-      if (r == _selRow) continue;
-      final v = sheet.rawAt(r, _selCol);
-      if (v.length > t.length && !v.startsWith('=') &&
-          v.toLowerCase().startsWith(low)) {
-        if (hit != null && hit != v) return null; // belirsiz → önerme
-        hit = v;
+    for (final (raw, lower) in entries) {
+      if (raw.length > t.length && lower.startsWith(low)) {
+        if (hit != null && hit != raw) return null; // belirsiz → önerme
+        hit = raw;
       }
     }
     return hit;

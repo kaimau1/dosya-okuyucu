@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/menu_look.dart';
+import '../core/menu_search.dart';
 import '../core/state/appearance_state.dart';
 import '../core/theme.dart';
 
 export '../core/menu_look.dart';
+export '../core/menu_search.dart';
 
 /// **Ortak menü dili** (2026-10-29, kullanıcı: *"görsel birlik üzerine çalış —
 /// bazı menüler farklı görünüyor: dosya içi farklı, ayarlar farklı, klasör
@@ -389,8 +391,89 @@ class _MenuTab {
   _MenuTab(this.title, this.special, this.actions);
 }
 
+/// **Ortak menü içi arama kutusu** (2026-11-24).
+///
+/// Hem normal harf/kelime hem geniş işlev/eşanlamlı sözlüğüyle arama yapan
+/// tüm menülerde ([MenuSections], [SideMenuView], [showFmMoreSheet]) ortak
+/// kullanılır.
+class MenuSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final Key? fieldKey;
+  final EdgeInsetsGeometry padding;
+
+  const MenuSearchField({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    this.fieldKey,
+    this.padding = const EdgeInsets.only(bottom: Gap.sm),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final radius = BorderRadius.circular(14);
+    final hasText = controller.text.isNotEmpty;
+    return Padding(
+      padding: padding,
+      child: TextField(
+        key: fieldKey ?? const ValueKey('menu-search-field'),
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        style: theme.textTheme.bodyMedium,
+        decoration: InputDecoration(
+          hintText: context.t('menu.search_hint'),
+          hintStyle: theme.textTheme.bodyMedium
+              ?.copyWith(color: scheme.onSurfaceVariant),
+          prefixIcon: Icon(
+            AppIcons.search,
+            size: 20,
+            color: scheme.onSurfaceVariant,
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 40, minHeight: 40),
+          suffixIcon: hasText
+              ? IconButton(
+                  tooltip: context.t('common.clear'),
+                  icon: const Icon(AppIcons.close, size: 18),
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                )
+              : null,
+          filled: true,
+          fillColor: scheme.surfaceContainerHigh,
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: radius,
+            borderSide:
+                BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: radius,
+            borderSide:
+                BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: radius,
+            borderSide: BorderSide(color: scheme.primary, width: 1.6),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// **Ortak levha gövdesi** — seçili görünüme göre ([MenuKit.lookOf]) sekmeli
-/// ya da Bento çizer. Çağıran yalnız modeli verir; kaydırmayı (levhanın
+/// ya da Bento çizer; 5+ işlemli her menüde otomatik normal + işlev araması
+/// sunar. Çağıran yalnız modeli verir; kaydırmayı (levhanın
 /// `SingleChildScrollView`ı) çağıran sağlar.
 ///
 /// * [primary] — büyük "Aç" düğmesi; [mainActions] yanındaki simge düğmeleri
@@ -412,6 +495,9 @@ class MenuSections extends StatefulWidget {
   /// Görünümü zorla (test); null = ayardan.
   final MenuLook? look;
 
+  /// Menü içi arama kutusunu zorla aç/kapa; null = 5+ işlemde otomatik açık.
+  final bool? searchable;
+
   const MenuSections({
     super.key,
     this.header,
@@ -422,6 +508,7 @@ class MenuSections extends StatefulWidget {
     this.sections = const [],
     this.preferSpecial = false,
     this.look,
+    this.searchable,
   });
 
   /// Sekme çiplerinin anahtarı (testler): `menu-tab-<sıra>`.
@@ -433,6 +520,45 @@ class MenuSections extends StatefulWidget {
 
 class _MenuSectionsState extends State<MenuSections> {
   int? _tab;
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  int get _totalActionCount {
+    var n = (widget.primary != null ? 1 : 0) +
+        widget.mainActions.length +
+        widget.quick.length;
+    for (final s in widget.sections) {
+      n += s.actions.length;
+    }
+    return n;
+  }
+
+  bool get _showSearch => widget.searchable ?? _totalActionCount >= 5;
+
+  List<(MenuKitAction, String?)> _allSearchableItems(BuildContext context) {
+    final out = <(MenuKitAction, String?)>[];
+    final common = widget.quickTitle ?? context.t('menu.tab_common');
+    if (widget.primary != null) out.add((widget.primary!, common));
+    for (final a in widget.mainActions) {
+      out.add((a, common));
+    }
+    for (final a in widget.quick) {
+      out.add((a, common));
+    }
+    for (final s in widget.sections) {
+      final group = (s.title != null && s.title!.isNotEmpty) ? s.title : null;
+      for (final a in s.actions) {
+        out.add((a, group));
+      }
+    }
+    return out;
+  }
 
   List<_MenuTab> _tabs(BuildContext context) {
     final out = <_MenuTab>[];
@@ -466,7 +592,98 @@ class _MenuSectionsState extends State<MenuSections> {
   @override
   Widget build(BuildContext context) {
     final look = widget.look ?? MenuKit.lookOf(context, listen: true);
+    if (_query.trim().isNotEmpty) {
+      return _searchView(context);
+    }
     return look == MenuLook.bento ? _bento(context) : _tabbed(context);
+  }
+
+  Widget _searchBar() => MenuSearchField(
+        controller: _searchCtrl,
+        onChanged: (v) => setState(() => _query = v),
+      );
+
+  Widget _searchView(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final items = _allSearchableItems(context);
+    final hits = MenuSearch.filter<(MenuKitAction, String?)>(
+      items,
+      _query,
+      labelOf: (e) => e.$1.label,
+      hintOf: (e) => e.$1.hint,
+      groupOf: (e) => e.$2,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.header != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Gap.sm),
+            child: widget.header,
+          ),
+        _searchBar(),
+        if (hits.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Gap.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(AppIcons.search,
+                    size: 28, color: scheme.onSurfaceVariant),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  context.t('menu.search_empty'),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          )
+        else
+          MenuGroupCard(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final hit in hits)
+                  MenuRow(
+                    key: hit.item.$1.key,
+                    icon: hit.item.$1.icon,
+                    label: hit.item.$1.label,
+                    hint: hit.item.$1.hint ??
+                        (hit.byIntent
+                            ? (hit.item.$2 != null
+                                ? '${hit.item.$2} · ${context.t('menu.search_intent')}'
+                                : context.t('menu.search_intent'))
+                            : hit.item.$2),
+                    tone: hit.item.$1.shownTone,
+                    onTap: hit.item.$1.enabled ? hit.item.$1.onTap : null,
+                    trailing: hit.item.$1.checked != null
+                        ? Icon(
+                            hit.item.$1.checked!
+                                ? AppIcons.checkCircle
+                                : AppIcons.circle,
+                            size: 20,
+                            color: hit.item.$1.checked!
+                                ? scheme.primary
+                                : scheme.onSurfaceVariant,
+                          )
+                        : (hit.item.$2 != null && hit.item.$1.hint != null
+                            ? Text(
+                                hit.item.$2!,
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: scheme.onSurfaceVariant),
+                              )
+                            : null),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 
   // ── Sekmeli ──────────────────────────────────────────────────────────────
@@ -490,6 +707,7 @@ class _MenuSectionsState extends State<MenuSections> {
             padding: const EdgeInsets.only(bottom: Gap.sm),
             child: widget.header,
           ),
+        if (_showSearch) _searchBar(),
         if (primary != null)
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.xs),
@@ -536,9 +754,13 @@ class _MenuSectionsState extends State<MenuSections> {
           decoration: BoxDecoration(
             color: scheme.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(MenuKit.cardRadius),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.5),
+            ),
           ),
           child: widget.header,
         ),
+      if (_showSearch) _searchBar(),
       if (top.isNotEmpty)
         _BentoGrid(items: [
           for (final (a, span, isPrimary) in top)
@@ -1029,7 +1251,15 @@ class _BentoTile extends StatelessWidget {
     return _semantic(
       a,
       Ink(
-        decoration: BoxDecoration(color: bg, borderRadius: radius),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: radius,
+          border: Border.all(
+            color: primary
+                ? theme.colorScheme.primary.withValues(alpha: 0.22)
+                : theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+        ),
         child: InkWell(
           borderRadius: radius,
           onTap: a.enabled ? a.onTap : null,
@@ -1082,7 +1312,13 @@ class _BentoRowTile extends StatelessWidget {
     return _semantic(
       a,
       Ink(
-        decoration: BoxDecoration(color: bg, borderRadius: radius),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: radius,
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.45),
+          ),
+        ),
         child: InkWell(
           borderRadius: radius,
           onTap: a.enabled ? a.onTap : null,

@@ -1,7 +1,7 @@
 part of '../viewer_screen.dart';
 
 extension _ViewerScreenShellMenusPart on _ViewerScreenState {
-  Widget _buildShell(LoadedDoc doc, bool hasApiKey) {
+  Widget _buildShell(LoadedDoc doc) {
     return OfficeShell(
       kind: doc.kind,
       title: doc.name,
@@ -483,13 +483,33 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           final scheme = theme.colorScheme;
           final app = context.read<AppState>();
           Widget label(String text) => Padding(
-                padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+                padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
                 child: Text(
                   text,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: scheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                   ),
+                ),
+              );
+          Widget sectionCard(List<Widget> rows) => Material(
+                // Material (Container değil): satırların dokunma dalgası zeminin
+                // altında kalmasın.
+                color: scheme.surfaceContainerLow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  side: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.7),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < rows.length; i++) ...[
+                      if (i > 0) const Divider(height: 1),
+                      rows[i],
+                    ],
+                  ],
                 ),
               );
           return SafeArea(
@@ -500,8 +520,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(context.t('vw.reading_settings'),
-                      style: theme.textTheme.titleLarge),
+                  Text(
+                    context.t('vw.reading_settings'),
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 12),
                   // E-kitap okuma görünümü (2026-08-06): taranmış PDF'te
                   // bile sayfanın METNİ akar.
@@ -516,7 +539,8 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                     icon: const Icon(AppIcons.chromeReaderMode),
                     label: Text(context.t('reader.open')),
                   ),
-                  label(context.t('vw.layout')),
+                  // ── 1 · Görünüm ve düzen ──
+                  label(context.t('pdf.sec_look')),
                   SegmentedButton<int>(
                     segments: [
                       ButtonSegment(
@@ -543,224 +567,190 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
                       setSheet(() {});
                     },
                   ),
-                  const SizedBox(height: 12),
-                  Material(
-                    // Material (Container değil): satırların dokunma dalgası zeminin
-                    // altında kalmasın.
-                    color: scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(20),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        SwitchListTile(
-                          secondary: const Icon(AppIcons.dark),
-                          title: Text(context.t('vw.night_on')),
-                          value: _pdfNight,
-                          onChanged: (v) => apply(() => _pdfNight = v),
-                        ),
-                        if (_isPdf)
-                        SwitchListTile(
-                          secondary: const Icon(AppIcons.pdfSepia),
-                          title: Text(context.t('pp.sepia')),
-                          subtitle: Text(context.t('pp.sepia_hint')),
-                          value: _pdfSepia,
-                          onChanged: _pdfNight
-                              ? null
-                              : (v) => apply(() => _pdfSepia = v),
-                        ),
-                        if (_isPdf)
-                        SwitchListTile(
-                          secondary: const Icon(AppIcons.pdfPanLock),
-                          title: Text(context.t('pp.scroll_lock')),
-                          subtitle: Text(context.t('pp.scroll_lock_hint')),
-                          value: _pdfScrollLock,
-                          onChanged: (v) => apply(() => _pdfScrollLock = v),
-                        ),
-                        // Sayfa sayfa çevirme (Ferrari H3.5): tek sütunda.
-                        if (_isPdf)
-                        SwitchListTile(
-                          key: const ValueKey('pdf-paged'),
-                          secondary: const Icon(AppIcons.pdfFitPage),
-                          title: Text(context.t('pp.paged')),
-                          subtitle: Text(context.t(_pdfColumns == 1
-                              ? 'pp.paged_hint'
-                              : 'pp.crop_one_column')),
-                          value: _pdfPaged,
-                          onChanged: _pdfColumns != 1
-                              ? null
-                              : (v) {
-                                  _setPdfPaged(v);
-                                  setSheet(() {});
-                                },
-                        ),
-                        // Kenar boşluğu kırpma (Ferrari H3.4): tek sütunda;
-                        // tercih belge başına.
-                        if (_isPdf)
-                        SwitchListTile(
-                          key: const ValueKey('pdf-margin-crop'),
-                          secondary: const Icon(AppIcons.cropFree),
-                          title: Text(context.t('pp.crop_margins')),
-                          subtitle: Text(context.t(_pdfColumns == 1
-                              ? 'pp.crop_margins_hint'
-                              : 'pp.crop_one_column')),
-                          value: _pdfCrop != null,
-                          onChanged: _pdfColumns != 1 ||
-                                  _pdfCropBusy ||
-                                  _pdfDoc == null
-                              ? null
-                              : (v) {
-                                  final sheet = context;
-                                  unawaited(_setMarginCrop(v).then((_) {
-                                    if (sheet.mounted) setSheet(() {});
-                                  }));
-                                  setSheet(() {});
-                                },
-                        ),
-                        // Okuma yardımcıları (Faz 48) — pdf_reading_aids.dart.
-                        if (_isPdf)
-                        SwitchListTile(
-                          key: const ValueKey('pdf-keep-awake'),
-                          secondary: const Icon(AppIcons.lightMode),
-                          title: Text(context.t('pp.keep_awake')),
-                          subtitle: Text(context.t('pp.keep_awake_hint')),
-                          value: _keepAwake,
-                          onChanged: (v) {
-                            _setKeepAwake(v);
-                            setSheet(() {});
-                          },
-                        ),
-                        if (_isPdf)
-                        SwitchListTile(
-                          key: const ValueKey('pdf-volume-keys'),
-                          secondary: const Icon(AppIcons.volumeUp),
-                          title: Text(context.t('pp.volume_keys')),
-                          subtitle: Text(context.t('pp.volume_keys_hint')),
-                          value: _volumeKeys,
-                          onChanged: (v) {
-                            _setVolumeKeys(v);
-                            setSheet(() {});
-                          },
-                        ),
-                        if (_isPdf)
-                        ListTile(
-                          leading: const Icon(AppIcons.autoScroll),
-                          title: Text(context.t('pp.auto_scroll')),
-                          subtitle: Text(context.t('pp.auto_scroll_hint')),
-                        ),
-                        if (_isPdf)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: SegmentedButton<int>(
-                            key: const ValueKey('pdf-auto-scroll'),
-                            showSelectedIcon: false,
-                            segments: [
-                              ButtonSegment(
-                                  value: 0, label: Text(context.t('pp.as_off'))),
-                              ButtonSegment(
-                                  value: 1, label: Text(context.t('pp.as_slow'))),
-                              ButtonSegment(
-                                  value: 2, label: Text(context.t('pp.as_mid'))),
-                              ButtonSegment(
-                                  value: 3, label: Text(context.t('pp.as_fast'))),
-                            ],
-                            selected: {_autoScroll},
-                            onSelectionChanged: (v) {
-                              _setAutoScroll(v.first);
-                              setSheet(() {});
-                              // Başlayınca levha kapanır: belge görünsün.
-                              if (v.first > 0) Navigator.of(sheetContext).pop();
-                            },
-                          ),
-                        ),
-                        if (_isPdf)
-                        ListTile(
-                          leading: const Icon(AppIcons.pdfNotes),
-                          title: Text(context.t('pp.notes_booklet')),
-                          subtitle: Text(context.t('pp.notes_booklet_sub')),
-                          onTap: () {
-                            Navigator.of(sheetContext).pop();
-                            unawaited(_exportNotesBooklet());
-                          },
-                        ),
-                        SwitchListTile(
-                          secondary: const Icon(AppIcons.bookmarkOutline),
-                          title: Text(context.t('pdfm.resume')),
-                          value: app.resumePosition,
-                          onChanged: (v) async {
-                            await app.setResumePosition(v);
-                            setSheet(() {});
-                          },
-                        ),
-                        // Satır aralığı (Faz 30 kalanı): düz metin ve
-                        // kod düzenleyicide; numara şeridi de aynı aralıkla.
-                        if (widget.doc.isEditableText)
-                          ListTile(
-                            leading: const Icon(AppIcons.formatLineSpacing),
-                            title: Text(context.t('code.line_spacing')),
-                            trailing: SegmentedButton<double>(
-                              key: const ValueKey('code-line-spacing'),
-                              showSelectedIcon: false,
-                              segments: [
-                                for (final h in const [1.2, 1.5, 1.8])
-                                  ButtonSegment(
-                                      value: h,
-                                      label: Text(h.toStringAsFixed(1))),
-                              ],
-                              selected: {_lineHeight},
-                              onSelectionChanged: (v) =>
-                                  apply(() => _lineHeight = v.first),
-                            ),
-                          ),
-                        // Girinti genişliği (Faz 30 kalanı): ⇥ ve
-                        // otomatik girinti bu kadar boşluk yazar.
-                        if (_isCodeDoc && widget.doc.isEditableText)
-                          ListTile(
-                            leading: const Icon(AppIcons.formatIndentIncrease),
-                            title: Text(context.t('code.tab_width')),
-                            trailing: SegmentedButton<int>(
-                              key: const ValueKey('code-tab-width'),
-                              showSelectedIcon: false,
-                              segments: [
-                                for (final n in const [2, 4, 8])
-                                  ButtonSegment(value: n, label: Text('$n')),
-                              ],
-                              selected: {_tabWidth},
-                              onSelectionChanged: (v) =>
-                                  apply(() => _tabWidth = v.first),
-                            ),
-                          ),
-                        // Sürükleyici okuma (Ferrari H3.6): çubuklar çekilince
-                        // durum çubuğu da gizlenir; tam ekranda gereksiz.
-                        // PDF'in Aa levhası BU (P09: metin levhasındaydı,
-                        // PDF'te hiç görünmüyordu).
-                        if (_isPdf)
-                        SwitchListTile(
-                          key: const ValueKey('pdf-hide-status'),
-                          secondary: const Icon(AppIcons.fitScreen),
-                          title: Text(context.t('pp.hide_status')),
-                          subtitle: Text(context.t('pp.hide_status_hint')),
-                          value: _hideStatusBar,
-                          onChanged: _fullscreen
-                              ? null
-                              : (v) {
-                                  _setHideStatusBar(v);
-                                  setSheet(() {});
-                                },
-                        ),
-                        SwitchListTile(
-                          key: const ValueKey('reading-fullscreen'),
-                          secondary: const Icon(AppIcons.fullscreen),
-                          title: Text(context.t('vw.fullscreen')),
-                          subtitle: Text(context.t('vw.fullscreen_hint')),
-                          value: _fullscreen,
-                          onChanged: (v) {
-                            _setFullscreen(v);
-                            setSheet(() {});
-                          },
-                        ),
-                      ],
+                  const SizedBox(height: 10),
+                  sectionCard([
+                    SwitchListTile(
+                      secondary: const Icon(AppIcons.dark),
+                      title: Text(context.t('vw.night_on')),
+                      value: _pdfNight,
+                      onChanged: (v) => apply(() => _pdfNight = v),
                     ),
-                  ),
+                    if (_isPdf)
+                      SwitchListTile(
+                        secondary: const Icon(AppIcons.pdfSepia),
+                        title: Text(context.t('pp.sepia')),
+                        subtitle: Text(context.t('pp.sepia_hint')),
+                        value: _pdfSepia,
+                        onChanged: _pdfNight
+                            ? null
+                            : (v) => apply(() => _pdfSepia = v),
+                      ),
+                    // Sayfa sayfa çevirme (Ferrari H3.5): tek sütunda.
+                    if (_isPdf)
+                      SwitchListTile(
+                        key: const ValueKey('pdf-paged'),
+                        secondary: const Icon(AppIcons.pdfFitPage),
+                        title: Text(context.t('pp.paged')),
+                        subtitle: Text(context.t(_pdfColumns == 1
+                            ? 'pp.paged_hint'
+                            : 'pp.crop_one_column')),
+                        value: _pdfPaged,
+                        onChanged: _pdfColumns != 1
+                            ? null
+                            : (v) {
+                                _setPdfPaged(v);
+                                setSheet(() {});
+                              },
+                      ),
+                    // Kenar boşluğu kırpma (Ferrari H3.4): tek sütunda.
+                    if (_isPdf)
+                      SwitchListTile(
+                        key: const ValueKey('pdf-margin-crop'),
+                        secondary: const Icon(AppIcons.cropFree),
+                        title: Text(context.t('pp.crop_margins')),
+                        subtitle: Text(context.t(_pdfColumns == 1
+                            ? 'pp.crop_margins_hint'
+                            : 'pp.crop_one_column')),
+                        value: _pdfCrop != null,
+                        onChanged: _pdfColumns != 1 ||
+                                _pdfCropBusy ||
+                                _pdfDoc == null
+                            ? null
+                            : (v) {
+                                final sheet = context;
+                                unawaited(_setMarginCrop(v).then((_) {
+                                  if (sheet.mounted) setSheet(() {});
+                                }));
+                                setSheet(() {});
+                              },
+                      ),
+                  ]),
+                  // ── 2 · Okuma konforu ──
+                  if (_isPdf) ...[
+                    label(context.t('pdf.sec_comfort')),
+                    sectionCard([
+                      SwitchListTile(
+                        secondary: const Icon(AppIcons.pdfPanLock),
+                        title: Text(context.t('pp.scroll_lock')),
+                        subtitle: Text(context.t('pp.scroll_lock_hint')),
+                        value: _pdfScrollLock,
+                        onChanged: (v) => apply(() => _pdfScrollLock = v),
+                      ),
+                      SwitchListTile(
+                        key: const ValueKey('pdf-keep-awake'),
+                        secondary: const Icon(AppIcons.lightMode),
+                        title: Text(context.t('pp.keep_awake')),
+                        subtitle: Text(context.t('pp.keep_awake_hint')),
+                        value: _keepAwake,
+                        onChanged: (v) {
+                          _setKeepAwake(v);
+                          setSheet(() {});
+                        },
+                      ),
+                      SwitchListTile(
+                        key: const ValueKey('pdf-volume-keys'),
+                        secondary: const Icon(AppIcons.volumeUp),
+                        title: Text(context.t('pp.volume_keys')),
+                        subtitle: Text(context.t('pp.volume_keys_hint')),
+                        value: _volumeKeys,
+                        onChanged: (v) {
+                          _setVolumeKeys(v);
+                          setSheet(() {});
+                        },
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ListTile(
+                            leading: const Icon(AppIcons.autoScroll),
+                            title: Text(context.t('pp.auto_scroll')),
+                            subtitle: Text(context.t('pp.auto_scroll_hint')),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: SegmentedButton<int>(
+                              key: const ValueKey('pdf-auto-scroll'),
+                              showSelectedIcon: false,
+                              segments: [
+                                ButtonSegment(
+                                    value: 0,
+                                    label: Text(context.t('pp.as_off'))),
+                                ButtonSegment(
+                                    value: 1,
+                                    label: Text(context.t('pp.as_slow'))),
+                                ButtonSegment(
+                                    value: 2,
+                                    label: Text(context.t('pp.as_mid'))),
+                                ButtonSegment(
+                                    value: 3,
+                                    label: Text(context.t('pp.as_fast'))),
+                              ],
+                              selected: {_autoScroll},
+                              onSelectionChanged: (v) {
+                                _setAutoScroll(v.first);
+                                setSheet(() {});
+                                // Başlayınca levha kapanır: belge görünsün.
+                                if (v.first > 0) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      ListTile(
+                        leading: const Icon(AppIcons.pdfNotes),
+                        title: Text(context.t('pp.notes_booklet')),
+                        subtitle: Text(context.t('pp.notes_booklet_sub')),
+                        trailing: Icon(AppIcons.chevron,
+                            color: scheme.onSurfaceVariant),
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          unawaited(_exportNotesBooklet());
+                        },
+                      ),
+                    ]),
+                  ],
+                  // ── 3 · Ekran ve kayıt ──
+                  label(context.t('pdf.sec_screen')),
+                  sectionCard([
+                    SwitchListTile(
+                      secondary: const Icon(AppIcons.bookmarkOutline),
+                      title: Text(context.t('pdfm.resume')),
+                      value: app.resumePosition,
+                      onChanged: (v) async {
+                        await app.setResumePosition(v);
+                        setSheet(() {});
+                      },
+                    ),
+                    // Sürükleyici okuma (Ferrari H3.6): çubuklar çekilince
+                    // durum çubuğu da gizlenir; tam ekranda gereksiz.
+                    if (_isPdf)
+                      SwitchListTile(
+                        key: const ValueKey('pdf-hide-status'),
+                        secondary: const Icon(AppIcons.fitScreen),
+                        title: Text(context.t('pp.hide_status')),
+                        subtitle: Text(context.t('pp.hide_status_hint')),
+                        value: _hideStatusBar,
+                        onChanged: _fullscreen
+                            ? null
+                            : (v) {
+                                _setHideStatusBar(v);
+                                setSheet(() {});
+                              },
+                      ),
+                    SwitchListTile(
+                      key: const ValueKey('reading-fullscreen'),
+                      secondary: const Icon(AppIcons.fullscreen),
+                      title: Text(context.t('vw.fullscreen')),
+                      subtitle: Text(context.t('vw.fullscreen_hint')),
+                      value: _fullscreen,
+                      onChanged: (v) {
+                        _setFullscreen(v);
+                        setSheet(() {});
+                      },
+                    ),
+                  ]),
                 ],
               ),
             ),

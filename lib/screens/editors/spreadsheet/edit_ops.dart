@@ -352,6 +352,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
     _calcStamp++;
     _condCache.clear();
     _statusMemo = null;
+    _colTextCache = null;
   }
 
   int _rowCount(XlsxSheet sheet) => math.max(

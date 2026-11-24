@@ -274,16 +274,17 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
         // HDR kontrolü initState'te hemen başlar.
         _hdrFuture = VideoTranscoder.isHdr(widget.path);
       }
-      if (!_p.needsTransitionWait(widget.path)) {
-        // ExoPlayer açılışı 320 ms geçiş sonunu beklemez; ilk kareyle yarışır.
-        _pending = false;
-        unawaited(_p.open(widget.path,
-            list: widget.playlist, hdrFuture: _hdrFuture));
-        unawaited(_loadSubtitles());
-      } else {
+      if (isVideo) {
+        // Video motorunu (ExoPlayer/mpv) açılış geçişi bitince başlat:
+        // geçiş sürerken kapak karesi akıcı büyür, native doku kurulumu
+        // animasyonu kesmez. Animasyonsuz rotada ya da testte bekleme 0 ms'dir.
         _pending = true;
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _openAfterTransition());
+      } else {
+        _pending = false;
+        unawaited(_p.open(widget.path, list: widget.playlist));
+        unawaited(_loadSubtitles());
       }
     } else {
       unawaited(_loadSubtitles());
@@ -303,7 +304,9 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
       unawaited(_loadSubtitles());
     }
 
-    if (animation == null || animation.isCompleted) {
+    if (animation == null ||
+        animation.isCompleted ||
+        Motion.reduced(context)) {
       start();
       return;
     }
@@ -622,17 +625,30 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
   }
 
 
+  static final _controlsRouteCurve =
+      CurveTween(curve: const Interval(0.32, 1.0, curve: Curves.easeOut));
+
   /// Kontrol katmanı: solarken saydamlaşır ve dokunuş almaz. Görünürken
-  /// opaklık 1 → katman açılmaz; yalnız solma süresince (Motion.long).
-  Widget _fade(Widget child) => IgnorePointer(
-        ignoring: _controlsFading,
-        child: AnimatedOpacity(
-          opacity: _controlsFading ? 0 : 1,
-          duration: Motion.of(context, Motion.long),
-          curve: Motion.exit,
-          child: child,
-        ),
+  /// opaklık 1 → katman açılmaz; yalnız solma ve açılış geçişi süresince.
+  Widget _fade(Widget child) {
+    Widget body = IgnorePointer(
+      ignoring: _controlsFading,
+      child: AnimatedOpacity(
+        opacity: _controlsFading ? 0 : 1,
+        duration: Motion.of(context, Motion.long),
+        curve: Motion.exit,
+        child: child,
+      ),
+    );
+    final routeAnim = ModalRoute.of(context)?.animation;
+    if (routeAnim != null && !Motion.reduced(context)) {
+      body = FadeTransition(
+        opacity: routeAnim.drive(_controlsRouteCurve),
+        child: body,
       );
+    }
+    return body;
+  }
 
   /// Izgaranın çözdüğü küçük resim (önbellekte ise) — açılış kapağı.
   /// Yalnız [_current] için; yol değişince yeniden bakılır.

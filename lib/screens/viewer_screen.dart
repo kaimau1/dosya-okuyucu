@@ -43,7 +43,6 @@ import '../core/edit/editor_chrome.dart';
 import '../core/edit/markdown_edit.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
-import '../core/state/focused_states.dart';
 import '../core/copy_text.dart';
 import '../core/text_search.dart';
 import '../core/theme.dart';
@@ -193,6 +192,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   // Görüntüleme durumu (okuma konforu): sayfa değişimi tüm ekranı kurmaz.
   final ValueNotifier<int> _pdfPageN = ValueNotifier<int>(1);
+  final ValueNotifier<int> _bookmarkRevN = ValueNotifier<int>(0);
   int get _pdfPage => _pdfPageN.value;
   set _pdfPage(int v) => _pdfPageN.value = v;
 
@@ -912,6 +912,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _imgDecodeTimer?.cancel();
     _captureTimer?.cancel();
     _pdfPageN.dispose();
+    _bookmarkRevN.dispose();
     _pageBadgeOnN.dispose();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();
     _pdfController.removeListener(_onPdfMatrix);
@@ -957,7 +958,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final doc = widget.doc;
-    final hasApiKey = context.watchAi().hasApiKey;
     // Bekleyen PDF düzenlemesi varken geri tuşu doğrudan çıkmaz: önce
     // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
     final textUnsaved = _dirty && doc.kind == DocKind.text;
@@ -1000,9 +1000,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               undo: _undoCtl.undo,
               redo: _undoCtl.redo,
               find: _toggleFind,
-              child: _buildShell(doc, hasApiKey),
+              child: _buildShell(doc),
             )
-          : _buildShell(doc, hasApiKey),
+          : _buildShell(doc),
     );
   }
 

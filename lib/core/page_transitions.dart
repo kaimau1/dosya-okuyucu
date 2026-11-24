@@ -225,6 +225,10 @@ class _FastPageTransition extends StatelessWidget {
     end: const Offset(0.05, 0),
   ).chain(CurveTween(curve: Motion.enter));
 
+  /// Derinlik hissi veren çok hafif ölçek (yalnız GPU dönüşümü, `saveLayer` yok).
+  static final _exitScale = Tween<double>(begin: 1.0, end: 0.982)
+      .chain(CurveTween(curve: Motion.enter));
+
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
@@ -233,11 +237,14 @@ class _FastPageTransition extends StatelessWidget {
       // `transformHitTests: false`: çıkan sayfa kaydırılmış hâldeyken
       // dokunuşları yakalamasın (geçiş sırasında yanlış öğeye basılması).
       transformHitTests: false,
-      child: _PrimarySlide(
-        animation: animation,
-        enter: rtl ? _enterRtl : _enterLtr,
-        exitSign: rtl ? -1 : 1,
-        child: child,
+      child: ScaleTransition(
+        scale: secondaryAnimation.drive(_exitScale),
+        child: _PrimarySlide(
+          animation: animation,
+          enter: rtl ? _enterRtl : _enterLtr,
+          exitSign: rtl ? -1 : 1,
+          child: child,
+        ),
       ),
     );
   }

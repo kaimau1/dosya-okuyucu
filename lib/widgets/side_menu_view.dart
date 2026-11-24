@@ -21,6 +21,7 @@ import '../services/side_menu.dart';
 import 'app_dialog.dart';
 import 'fm/fm_category_tile.dart';
 import 'fm/recent_strip.dart';
+import 'menu_kit.dart' show MenuSearch, MenuSearchField;
 
 /// **Yan menü** görünümü — bkz. [SideMenu].
 ///
@@ -184,8 +185,22 @@ Color _tint(BuildContext context, Color c) =>
         ? Color.lerp(c, AppColors.mixLight, 0.25)!
         : c;
 
-class _SideMenuPanel extends StatelessWidget {
+class _SideMenuPanel extends StatefulWidget {
   const _SideMenuPanel();
+
+  @override
+  State<_SideMenuPanel> createState() => _SideMenuPanelState();
+}
+
+class _SideMenuPanelState extends State<_SideMenuPanel> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   void _run(BuildContext context, void Function(BuildContext root) action) {
     Navigator.of(context).pop();
@@ -200,6 +215,7 @@ class _SideMenuPanel extends StatelessWidget {
     final metrics = AppSkinData.of(context).metrics;
     final fromRight = sideMenuFromRight(context);
     final r = Radius.circular(metrics.radiusSheet);
+    final searching = _query.trim().isNotEmpty;
     return Material(
         color: theme.scaffoldBackgroundColor,
         elevation: 6,
@@ -258,100 +274,120 @@ class _SideMenuPanel extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (menu.showRecents)
-                    // Ana ekranla AYNI şerit (U3 m.3, kullanıcı: "sol menüde
-                    // de aynı yapı"): karışık + sekmeler + "Yeni" etiketi;
-                    // tam tarama yok, yeniler önbellekten.
-                    RecentStrip(
-                      dense: true,
-                      scan: false,
-                      limit: 12,
-                      onOpen: (e) => _run(
-                          context, (root) => EntryOpener.open(root, e.path)),
-                      onAll: () => _run(
-                          context,
-                          (root) => Navigator.of(root).push(MaterialPageRoute(
-                              builder: (_) => const OpenHistoryScreen()))),
-                      onAllNew: () => _run(
-                          context,
-                          (root) => Navigator.of(root).push(MaterialPageRoute(
-                              builder: (_) => const NewFilesScreen()))),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                    child: Divider(
-                        height: Gap.md, color: scheme.outlineVariant),
+                  MenuSearchField(
+                    fieldKey: const ValueKey('side-menu-search'),
+                    controller: _searchCtrl,
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                        Gap.md, Gap.xs, Gap.md, Gap.xs),
+                    onChanged: (v) => setState(() => _query = v),
                   ),
-                  // Basılı tutup sürükleyerek sıra (2026-11-16, kullanıcı:
-                  // "menüde basılı tutarak yer düzeni yapılabilsin").
-                  Expanded(
-                    child: ReorderableListView.builder(
-                      padding: const EdgeInsets.fromLTRB(
-                          Gap.sm, 0, Gap.sm, Gap.md),
-                      buildDefaultDragHandles: false,
-                      header: _MenuRow(
-                        key: const ValueKey('side-menu-home'),
-                        icon: AppIcons.home,
-                        color: scheme.primary,
-                        label: context.t('side.home'),
-                        onTap: () => _run(
+                  if (searching)
+                    Expanded(child: _buildSearchResults(context, menu))
+                  else ...[
+                    if (menu.showRecents)
+                      // Ana ekranla AYNI şerit (U3 m.3, kullanıcı: "sol menüde
+                      // de aynı yapı"): karışık + sekmeler + "Yeni" etiketi;
+                      // tam tarama yok, yeniler önbellekten.
+                      RecentStrip(
+                        dense: true,
+                        scan: false,
+                        limit: 12,
+                        onOpen: (e) => _run(
+                            context, (root) => EntryOpener.open(root, e.path)),
+                        onAll: () => _run(
                             context,
-                            (root) =>
-                                Navigator.of(root).popUntil((r) => r.isFirst)),
+                            (root) => Navigator.of(root).push(
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const OpenHistoryScreen()))),
+                        onAllNew: () => _run(
+                            context,
+                            (root) => Navigator.of(root).push(
+                                MaterialPageRoute(
+                                    builder: (_) => const NewFilesScreen()))),
                       ),
-                      // **Konumlar** (U7, 2026-11-21): tabletin kaldırılan
-                      // gezinme sütunundan alındı — bellekler (dahili / SD /
-                      // USB) menüden tek dokunuşla gezginde açılır.
-                      footer: FmEnv.volumes.isEmpty ? null : Column(
-                        key: const ValueKey('side-menu-places'),
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsetsDirectional.fromSTEB(
-                                Gap.sm, Gap.md, Gap.sm, Gap.xs),
-                            child: Text(context.t('pane.places'),
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                    color: scheme.onSurfaceVariant)),
-                          ),
-                          for (final v in FmEnv.volumes)
-                            _MenuRow(
-                              icon: switch (v.kind) {
-                                StorageKind.usb => AppIcons.external,
-                                StorageKind.sdCard => AppIcons.sdCard,
-                                _ => AppIcons.device,
-                              },
-                              color: scheme.primary,
-                              label: v.displayLabel(context.t),
-                              onTap: () => _run(
-                                  context,
-                                  (root) => Navigator.of(root).push(
-                                      browserRoute(BrowserScreen(
-                                          path: v.path,
-                                          title: v.displayLabel(root.t))))),
-                            ),
-                        ],
-                      ),
-                      itemCount: tiles.length,
-                      onReorderItem: (from, to) =>
-                          unawaited(menu.moveVisible(from, to)),
-                      itemBuilder: (context, i) {
-                        final t = tiles[i];
-                        return ReorderableDelayedDragStartListener(
-                          key: ValueKey('side-menu-${t.id}'),
-                          index: i,
-                          child: _MenuRow(
-                            icon: t.icon,
-                            color: t.color,
-                            label: t.label,
-                            subtitle: t.subtitle,
-                            badge: t.badged,
-                            onTap: () =>
-                                _run(context, (root) => t.gatedTap(root)()),
-                          ),
-                        );
-                      },
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                      child: Divider(
+                          height: Gap.md, color: scheme.outlineVariant),
                     ),
-                  ),
+                    // Basılı tutup sürükleyerek sıra (2026-11-16, kullanıcı:
+                    // "menüde basılı tutarak yer düzeni yapılabilsin").
+                    Expanded(
+                      child: ReorderableListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                            Gap.sm, 0, Gap.sm, Gap.md),
+                        buildDefaultDragHandles: false,
+                        header: _MenuRow(
+                          key: const ValueKey('side-menu-home'),
+                          icon: AppIcons.home,
+                          color: scheme.primary,
+                          label: context.t('side.home'),
+                          onTap: () => _run(
+                              context,
+                              (root) => Navigator.of(root)
+                                  .popUntil((r) => r.isFirst)),
+                        ),
+                        // **Konumlar** (U7, 2026-11-21): tabletin kaldırılan
+                        // gezinme sütunundan alındı — bellekler (dahili / SD /
+                        // USB) menüden tek dokunuşla gezginde açılır.
+                        footer: FmEnv.volumes.isEmpty
+                            ? null
+                            : Column(
+                                key: const ValueKey('side-menu-places'),
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Padding(
+                                    padding:
+                                        const EdgeInsetsDirectional.fromSTEB(
+                                            Gap.sm, Gap.md, Gap.sm, Gap.xs),
+                                    child: Text(context.t('pane.places'),
+                                        style: theme.textTheme.labelLarge
+                                            ?.copyWith(
+                                                color:
+                                                    scheme.onSurfaceVariant)),
+                                  ),
+                                  for (final v in FmEnv.volumes)
+                                    _MenuRow(
+                                      icon: switch (v.kind) {
+                                        StorageKind.usb => AppIcons.external,
+                                        StorageKind.sdCard => AppIcons.sdCard,
+                                        _ => AppIcons.device,
+                                      },
+                                      color: scheme.primary,
+                                      label: v.displayLabel(context.t),
+                                      onTap: () => _run(
+                                          context,
+                                          (root) => Navigator.of(root).push(
+                                              browserRoute(BrowserScreen(
+                                                  path: v.path,
+                                                  title: v.displayLabel(
+                                                      root.t))))),
+                                    ),
+                                ],
+                              ),
+                        itemCount: tiles.length,
+                        onReorderItem: (from, to) =>
+                            unawaited(menu.moveVisible(from, to)),
+                        itemBuilder: (context, i) {
+                          final t = tiles[i];
+                          return ReorderableDelayedDragStartListener(
+                            key: ValueKey('side-menu-${t.id}'),
+                            index: i,
+                            child: _MenuRow(
+                              icon: t.icon,
+                              color: t.color,
+                              label: t.label,
+                              subtitle: t.subtitle,
+                              badge: t.badged,
+                              onTap: () => _run(
+                                  context, (root) => t.gatedTap(root)()),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               );
             },
@@ -359,6 +395,116 @@ class _SideMenuPanel extends StatelessWidget {
         ),
       );
   }
+
+  Widget _buildSearchResults(BuildContext context, SideMenu menu) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final allTiles = menu.tiles(includeHidden: true);
+    final candidates = <_SideSearchItem>[
+      _SideSearchItem(
+        icon: AppIcons.home,
+        color: scheme.primary,
+        label: context.t('side.home'),
+        onTap: () =>
+            _run(context, (root) => Navigator.of(root).popUntil((r) => r.isFirst)),
+      ),
+      for (final t in allTiles)
+        _SideSearchItem(
+          icon: t.icon,
+          color: t.color,
+          label: t.label,
+          subtitle: t.subtitle,
+          badge: t.badged,
+          onTap: () => _run(context, (root) => t.gatedTap(root)()),
+        ),
+      for (final v in FmEnv.volumes)
+        _SideSearchItem(
+          icon: switch (v.kind) {
+            StorageKind.usb => AppIcons.external,
+            StorageKind.sdCard => AppIcons.sdCard,
+            _ => AppIcons.device,
+          },
+          color: scheme.primary,
+          label: v.displayLabel(context.t),
+          subtitle: context.t('pane.places'),
+          onTap: () => _run(
+            context,
+            (root) => Navigator.of(root).push(
+              browserRoute(
+                BrowserScreen(path: v.path, title: v.displayLabel(root.t)),
+              ),
+            ),
+          ),
+        ),
+      _SideSearchItem(
+        icon: AppIcons.settings,
+        color: scheme.primary,
+        label: context.t('common.settings'),
+        onTap: () => _run(
+          context,
+          (root) => Navigator.of(root).push(
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          ),
+        ),
+      ),
+    ];
+
+    final hits = MenuSearch.filter<_SideSearchItem>(
+      candidates,
+      _query,
+      labelOf: (e) => e.label,
+      hintOf: (e) => e.subtitle,
+    );
+    if (hits.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(Gap.md),
+          child: Text(
+            context.t('menu.search_empty'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, Gap.md),
+      itemCount: hits.length,
+      itemBuilder: (context, i) {
+        final h = hits[i];
+        final e = h.item;
+        final sub = e.subtitle.isNotEmpty
+            ? e.subtitle
+            : (h.byIntent ? context.t('menu.search_intent') : '');
+        return _MenuRow(
+          icon: e.icon,
+          color: e.color,
+          label: e.label,
+          subtitle: sub,
+          badge: e.badge,
+          onTap: e.onTap,
+        );
+      },
+    );
+  }
+}
+
+class _SideSearchItem {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String subtitle;
+  final Widget Function(Widget icon)? badge;
+  final VoidCallback onTap;
+  const _SideSearchItem({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.onTap,
+    this.subtitle = '',
+    this.badge,
+  });
 }
 
 /// Tek satır: temanın simge diliyle renkli simge kutusu + ad + alt yazı.

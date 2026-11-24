@@ -1,13 +1,17 @@
 part of '../slides_editor_screen.dart';
 
 extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
-  /// "Slayt 3 / 12" rozeti — dokununca [_showGoToSlide].
+  /// "Slayt 3 / 12" rozeti — dokununca [_showGoToSlide]. Yalnız [_currentSlideN]
+  /// dinler, kaydırırken tüm ekranı yeniden kurmaz.
   Widget _slideBadge(int total) {
-    return DocPill(
-      tapKey: SlidesEditorScreen.badgeKey,
-      text: context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
-      icon: AppIcons.unfoldMore,
-      onTap: _showGoToSlide,
+    return ValueListenableBuilder<int>(
+      valueListenable: _currentSlideN,
+      builder: (_, current, _) => DocPill(
+        tapKey: SlidesEditorScreen.badgeKey,
+        text: context.t('sl.slide_of', {'n': current, 'total': total}),
+        icon: AppIcons.unfoldMore,
+        onTap: _showGoToSlide,
+      ),
     );
   }
 
