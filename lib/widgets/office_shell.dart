@@ -711,36 +711,34 @@ class DocTitle extends StatelessWidget {
                             ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
+                        // Nokta metnin İÇİNDE (WidgetSpan): dar alanda Row
+                        // taşması yerine metin kısalır.
+                        child: Text.rich(
+                          TextSpan(children: [
                             if (dirty) ...[
-                              Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: brand,
-                                  shape: BoxShape.circle,
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: brand,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 4),
+                              const WidgetSpan(child: SizedBox(width: 4)),
                             ],
-                            Flexible(
-                              child: Text(
-                                statusLabel,
-                                key: const ValueKey('doc-save-status'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: dirty
-                                      ? brand
-                                      : scheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.15,
-                                ),
-                              ),
-                            ),
-                          ],
+                            TextSpan(text: statusLabel),
+                          ]),
+                          key: const ValueKey('doc-save-status'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: dirty ? brand : scheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                            height: 1.15,
+                          ),
                         ),
                       ),
                     ),
