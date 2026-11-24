@@ -711,13 +711,31 @@ class DocTitle extends StatelessWidget {
                             ),
                           ),
                         ),
-                        // Nokta metnin İÇİNDE (WidgetSpan): dar alanda Row
-                        // taşması yerine metin kısalır.
-                        child: Text.rich(
-                          TextSpan(children: [
-                            if (dirty) ...[
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
+                        // Nokta Stack'te konumlu, metin düz Text (testler
+                        // `find.text` ile okur): dar alanda Row taşması yerine
+                        // nokta kırpılır, metin kısalır.
+                        child: Stack(
+                          alignment: AlignmentDirectional.centerStart,
+                          children: [
+                            Padding(
+                              padding: EdgeInsetsDirectional.only(
+                                  start: dirty ? 9 : 0),
+                              child: Text(
+                                statusLabel,
+                                key: const ValueKey('doc-save-status'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color:
+                                      dirty ? brand : scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.15,
+                                ),
+                              ),
+                            ),
+                            if (dirty)
+                              PositionedDirectional(
+                                start: 0,
                                 child: Container(
                                   width: 5,
                                   height: 5,
@@ -727,18 +745,7 @@ class DocTitle extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const WidgetSpan(child: SizedBox(width: 4)),
-                            ],
-                            TextSpan(text: statusLabel),
-                          ]),
-                          key: const ValueKey('doc-save-status'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: dirty ? brand : scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w700,
-                            height: 1.15,
-                          ),
+                          ],
                         ),
                       ),
                     ),
