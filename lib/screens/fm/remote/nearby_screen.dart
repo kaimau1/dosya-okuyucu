@@ -38,12 +38,14 @@ import '../../../services/fm/remote/transfer_keeper.dart';
 import '../../../services/fm/remote/transfer_history.dart';
 import '../../../services/fm/remote/trusted_peers.dart';
 import '../../../services/fm/remote/transfer_thumbs.dart';
+import '../../../widgets/app_action_sheet.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
 import '../../../widgets/fm/fm_file_image.dart';
 import '../../../widgets/fm/fresh_files_strip.dart';
 import '../../../widgets/fm/secure_badge.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
+import '../../../widgets/motion.dart';
 import '../../../widgets/qr_code.dart';
 import '../../../widgets/section_header.dart';
 import '../browser_screen.dart';
@@ -971,12 +973,23 @@ class _NearbyScreenState extends State<NearbyScreen> {
   /// Bölüm dosyaları (extension) `setState`'i doğrudan çağıramaz (korumalı üye).
   void _update(VoidCallback fn) => setState(fn);
 
+  void _clearSelection() {
+    if (_selection.isEmpty && _text == null) return;
+    setState(() {
+      _selection.clear();
+      _text = null;
+    });
+    _textCtrl.clear();
+    _scheduleWeb();
+  }
+
   /// Bu genişlikten sonra iki sütun: solda gönderme akışı, sağda QR, geçmiş
   /// ve diğer yollar (pano ile aynı eşik ve en geniş içerik).
   static const _wideFrom = 840.0;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -998,27 +1011,59 @@ class _NearbyScreenState extends State<NearbyScreen> {
             ),
             _menu(context),
           ],
-          bottom: TabBar(
-            tabs: [
-              Tab(
-                key: const ValueKey('near-tab-quick'),
-                icon: const Icon(AppIcons.bolt, size: AppIcons.small),
-                iconMargin: const EdgeInsets.only(bottom: 2),
-                text: context.t('xft.tab_quick'),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(50),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.55),
+                  ),
+                ),
+                child: TabBar(
+                  padding: const EdgeInsets.all(3),
+                  dividerColor: Colors.transparent,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(Radii.control - 3),
+                  ),
+                  labelColor: scheme.onPrimaryContainer,
+                  unselectedLabelColor: scheme.onSurfaceVariant,
+                  splashBorderRadius: BorderRadius.circular(Radii.control - 3),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+                  tabs: [
+                    Tab(
+                      key: const ValueKey('near-tab-quick'),
+                      height: 36,
+                      child: _TabPill(
+                        icon: AppIcons.bolt,
+                        label: context.t('xft.tab_quick'),
+                      ),
+                    ),
+                    Tab(
+                      key: const ValueKey('near-tab-other'),
+                      height: 36,
+                      child: _TabPill(
+                        icon: AppIcons.computer,
+                        label: context.t('near.other_ways'),
+                      ),
+                    ),
+                    Tab(
+                      key: const ValueKey('near-tab-history'),
+                      height: 36,
+                      child: _TabPill(
+                        icon: AppIcons.history,
+                        label: context.t('near.history'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              Tab(
-                key: const ValueKey('near-tab-other'),
-                icon: const Icon(AppIcons.computer, size: AppIcons.small),
-                iconMargin: const EdgeInsets.only(bottom: 2),
-                text: context.t('near.other_ways'),
-              ),
-              Tab(
-                key: const ValueKey('near-tab-history'),
-                icon: const Icon(AppIcons.history, size: AppIcons.small),
-                iconMargin: const EdgeInsets.only(bottom: 2),
-                text: context.t('near.history'),
-              ),
-            ],
+            ),
           ),
         ),
         // Güvenilenler listesi değişince (ekle/kaldır) rozetler ve bölüm tazelenir.
