@@ -77,4 +77,53 @@ const Map<String, (String, String, String)> _t51 = {
   'excel.row_below_short': ('Satır +↓', 'Row +↓', 'صف +↓'),
   'excel.col_left_short': ('Sütun +←', 'Col +←', 'عمود +←'),
   'excel.col_right_short': ('Sütun +→', 'Col +→', 'عمود +→'),
+
+  // ── Evrensel menü içi arama (2026-11-24) ──
+  'menu.search_hint': (
+    'Menüde veya işlevle ara…',
+    'Search menu or by action…',
+    'ابحث في القائمة أو بالوظيفة…',
+  ),
+  'menu.search_empty': (
+    'Eşleşen işlem bulunamadı',
+    'No matching actions found',
+    'لم يتم العثور على إجراءات مطابقة',
+  ),
+  'menu.search_intent': (
+    'İşlev eşleşmesi',
+    'By function',
+    'تطابق وظيفي',
+  ),
+
+  // ── Aktar ekranı yenilemesi ──
+  'near.clear_sel': ('Temizle', 'Clear', 'مسح'),
+  'near.sec_local': (
+    'Yerel ağ ve indirilenler',
+    'Local network & downloads',
+    'الشبكة المحلية والتنزيلات',
+  ),
+  'near.sec_prefs': (
+    'Aktarım ayarları',
+    'Transfer preferences',
+    'إعدادات النقل',
+  ),
+  'near.empty_hint': (
+    'Karşı cihazda da Aktar ekranını açın (aynı Wi-Fi ya da Bluetooth).',
+    'Open Transfer on the other device too (same Wi-Fi or Bluetooth).',
+    'افتح شاشة النقل على الجهاز الآخر أيضًا (نفس Wi-Fi أو البلوتوث).',
+  ),
+  'near.pick_to_link': (
+    'Dosya seç ve bağlantı oluştur',
+    'Pick files & create link',
+    'اختر ملفات وأنشئ رابطًا',
+  ),
+
+  // ── PDF / Word / Excel / Slayt düzeni ──
+  'pdf.sec_look': ('Görünüm ve düzen', 'Appearance & layout', 'المظهر والتخطيط'),
+  'pdf.sec_comfort': ('Okuma konforu', 'Reading comfort', 'راحة القراءة'),
+  'pdf.sec_screen': ('Ekran ve kayıt', 'Screen & session', 'الشاشة والجلسة'),
+  'pdf.exit_edit': ('Düzenlemeden çık', 'Exit editing', 'إنهاء التحرير'),
+  'sl.quick_style': ('Stil', 'Style', 'النمط'),
+  'sl.quick_arrange': ('Düzenle', 'Arrange', 'ترتيب'),
+  'sl.add_slide_short': ('Slayt', 'Slide', 'شريحة'),
 };

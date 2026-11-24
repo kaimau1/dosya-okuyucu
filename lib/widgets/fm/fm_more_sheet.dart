@@ -7,6 +7,7 @@ import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fm_colors_store.dart';
 import '../app_dialog.dart';
+import '../menu_kit.dart' show MenuSearch, MenuSearchField;
 import 'fm_filter_widgets.dart';
 import 'fm_quick_filters.dart';
 
@@ -88,72 +89,140 @@ Future<void> showFmMoreSheet(BuildContext context,
   return showAppSheet<void>(
     context,
     scrollable: false,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSheet) {
-        final scheme = Theme.of(ctx).colorScheme;
-        final list = sections(context).where((s) => s.tiles.isNotEmpty).toList();
-        final cards = <Widget>[];
-        for (var i = 0; i < list.length; i++) {
-          final s = list[i];
-          if (i > 0) cards.add(const SizedBox(height: Gap.sm + 2));
-          final selectedTiles = s.tiles.where((t) => t.selected).toList();
-          final badge =
-              selectedTiles.length > 1 ? '${selectedTiles.length}' : null;
-          cards.add(
-            FmFilterSectionCard(
-              icon: s.tiles.first.icon,
-              title: s.title,
-              badgeText: badge,
-              badgeActive: selectedTiles.isNotEmpty,
-              child: Wrap(
-                spacing: Gap.sm,
-                runSpacing: Gap.sm,
-                children: [
-                  for (final t in s.tiles)
-                    FmFilterOptionChip(
-                      key: t.key,
-                      icon: t.icon,
-                      accentColor: t.color ?? scheme.primary,
-                      label: t.label,
-                      count: t.count,
-                      selected: t.selected,
-                      filledSelected: t.color == null && t.count == null,
-                      onTap: () {
-                        if (t.keepOpen) {
-                          t.onTap();
-                          setSheet(() {});
-                        } else {
-                          Navigator.of(ctx).pop();
-                          t.onTap();
-                        }
-                      },
-                    ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return FmFilterSheetScaffold(
-          title: ctx.t('fb.more'),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: cards,
-          ),
-          footer: FilledButton.icon(
-            key: const ValueKey('more-done'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(),
-            icon: const Icon(AppIcons.check, size: 20),
-            label: Text(ctx.t('common.ok')),
-          ),
-        );
-      },
+    builder: (ctx) => _FmMoreSheetBody(
+      hostContext: context,
+      sections: sections,
     ),
   );
+}
+
+class _FmMoreSheetBody extends StatefulWidget {
+  final BuildContext hostContext;
+  final List<FmMoreSection> Function(BuildContext) sections;
+  const _FmMoreSheetBody({
+    required this.hostContext,
+    required this.sections,
+  });
+
+  @override
+  State<_FmMoreSheetBody> createState() => _FmMoreSheetBodyState();
+}
+
+class _FmMoreSheetBodyState extends State<_FmMoreSheetBody> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final raw =
+        widget.sections(widget.hostContext).where((s) => s.tiles.isNotEmpty).toList();
+    final totalTiles = raw.fold<int>(0, (sum, s) => sum + s.tiles.length);
+    final searching = _query.trim().isNotEmpty;
+    final list = !searching
+        ? raw
+        : [
+            for (final s in raw)
+              if (MenuSearch.filter<FmMoreTile>(
+                s.tiles,
+                _query,
+                labelOf: (t) => t.label,
+                groupOf: (_) => s.title,
+              )
+                  case final hits when hits.isNotEmpty)
+                FmMoreSection(s.title, [for (final h in hits) h.item]),
+          ];
+
+    final cards = <Widget>[
+      if (totalTiles >= 6)
+        MenuSearchField(
+          fieldKey: const ValueKey('more-search-field'),
+          controller: _searchCtrl,
+          onChanged: (v) => setState(() => _query = v),
+        ),
+    ];
+
+    if (list.isEmpty && searching) {
+      cards.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: Gap.lg),
+          child: Text(
+            context.t('menu.search_empty'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    } else {
+      for (var i = 0; i < list.length; i++) {
+        final s = list[i];
+        if (i > 0) cards.add(const SizedBox(height: Gap.sm + 2));
+        final selectedTiles = s.tiles.where((t) => t.selected).toList();
+        final badge =
+            selectedTiles.length > 1 ? '${selectedTiles.length}' : null;
+        cards.add(
+          FmFilterSectionCard(
+            icon: s.tiles.first.icon,
+            title: s.title,
+            badgeText: badge,
+            badgeActive: selectedTiles.isNotEmpty,
+            child: Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.sm,
+              children: [
+                for (final t in s.tiles)
+                  FmFilterOptionChip(
+                    key: t.key,
+                    icon: t.icon,
+                    accentColor: t.color ?? scheme.primary,
+                    label: t.label,
+                    count: t.count,
+                    selected: t.selected,
+                    filledSelected: t.color == null && t.count == null,
+                    onTap: () {
+                      if (t.keepOpen) {
+                        t.onTap();
+                        setState(() {});
+                      } else {
+                        Navigator.of(context).pop();
+                        t.onTap();
+                      }
+                    },
+                  ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    return FmFilterSheetScaffold(
+      title: context.t('fb.more'),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: cards,
+      ),
+      footer: FilledButton.icon(
+        key: const ValueKey('more-done'),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+        ),
+        onPressed: () => Navigator.of(context).pop(),
+        icon: const Icon(AppIcons.check, size: 20),
+        label: Text(context.t('common.ok')),
+      ),
+    );
+  }
 }
 
 // ── hazır bölümler ─────────────────────────────────────────────────────────

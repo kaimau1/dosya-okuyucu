@@ -220,7 +220,12 @@ Future<bool> showEntryActions(
           act(icon, label, which, hint: hint, tone: MenuTone.special);
       return SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          padding: EdgeInsets.fromLTRB(
+            Gap.md,
+            0,
+            Gap.md,
+            Gap.md + MediaQuery.viewInsetsOf(ctx).bottom,
+          ),
           // **Menü görünümü** (2026-11-15): sekmeli (varsayılan) ya da Bento
           // — `MenuSections` ayardan seçer; bu levha yalnız modeli verir.
           child: MenuSections(

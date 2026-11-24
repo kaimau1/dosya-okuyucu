@@ -39,10 +39,14 @@ class DocMoreSheet {
       showDragHandle: true,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (sheetContext) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           // Menü görünümü (2026-11-15): sekmeli/Bento `MenuSections`ta —
           // dosya levhasıyla aynı aile.
           child: MenuSections(
@@ -76,6 +80,7 @@ class DocMoreSheet {
             ],
           ),
         ),
+      ),
       ),
     );
   }
