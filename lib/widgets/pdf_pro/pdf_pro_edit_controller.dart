@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../core/motion.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import '../../services/pdf/pro/pdf_edit_recovery.dart';
 import '../../services/pdf/pro/pdf_pro_perf.dart';
@@ -1065,7 +1066,7 @@ class PdfProEditController extends ChangeNotifier {
     }
     if (_liveMs > heavyLiveMs) {
       _liveDebounce?.cancel();
-      _liveDebounce = Timer(const Duration(milliseconds: 260), () {
+      _liveDebounce = Timer(Motion.medium, () {
         _liveDebounce = null;
         if (_liveBusy) {
           _livePending = true;

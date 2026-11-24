@@ -103,7 +103,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       // Klavye kapandı, yazma bitti: belge sonu payında kalan görünüm
       // (sayfanın altındaki boşluk) sayfa sınırına geri çekilir.
       if (inset == 0) {
-        _proInsetTimer = Timer(const Duration(milliseconds: 180), () {
+        _proInsetTimer = Timer(Motion.medium, () {
           if (!mounted || !_pdfController.isReady) return;
           try {
             final c = _pdfController;
@@ -118,7 +118,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       }
       return;
     }
-    _proInsetTimer = Timer(const Duration(milliseconds: 180), () {
+    _proInsetTimer = Timer(Motion.medium, () {
       if (mounted) _proRevealCaret();
     });
   }

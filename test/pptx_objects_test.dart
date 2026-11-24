@@ -210,7 +210,8 @@ void main() {
   });
 
   test('düzen önizlemesi: yer tutucu kutuları slayt içinde, başlık var', () {
-    final e = _open();
+    final e = PptxEditor.parse(
+        File('test/fixtures/office/sunum_duzenler.pptx').readAsBytesSync());
     final layouts = e.layouts();
     final withBoxes = layouts.where((l) => l.boxes.isNotEmpty).toList();
     expect(withBoxes, isNotEmpty);

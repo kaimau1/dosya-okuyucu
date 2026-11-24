@@ -253,7 +253,7 @@ class SlideTransitionThumb extends StatefulWidget {
 class _SlideTransitionThumbState extends State<SlideTransitionThumb>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1700));
+      vsync: this, duration: Motion.long * 5);
   int _left = 0;
 
   @override
@@ -333,7 +333,9 @@ class _SlideTransitionThumbState extends State<SlideTransitionThumb>
           a,
           ClipRect(
             child: Align(
-              alignment: Alignment.centerLeft,
+              // Silme yönü slaytın kendisinin (fiziksel): arayüz diliyle
+              // aynalanmaz — bkz. slideTransitionFx.
+              alignment: const Alignment(-1, 0),
               widthFactor: p.clamp(0.001, 1.0),
               child: b,
             ),

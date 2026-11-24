@@ -103,7 +103,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           trailingPageLoadingDelay:
                               const Duration(microseconds: 500000),
                           pageImageCachingDelay: _pro?.live == null
-                              ? const Duration(milliseconds: 20)
+                              ? const PdfViewerBehaviorControlParams()
+                                  .pageImageCachingDelay
                               : Duration.zero,
                           partialImageLoadingDelay: _pro?.live == null
                               ? Motion.short
