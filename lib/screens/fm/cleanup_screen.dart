@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -6,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
@@ -85,6 +87,22 @@ int? lastCleanupRecoverable() {
 
 enum _CleanupFilter { all, safe, review }
 
+/// Temizlik işinin sonucu (bitiş bildirimi için).
+class CleanupApplyResult {
+  const CleanupApplyResult({
+    required this.bytes,
+    required this.movedToTrashBytes,
+    required this.items,
+  });
+
+  /// Temizlenen toplam bayt (çöpe taşınan + kalıcı silinen).
+  final int bytes;
+
+  /// Bunun çöp kutusuna taşınan kısmı (yer, çöp boşalınca açılır).
+  final int movedToTrashBytes;
+  final int items;
+}
+
 class _CleanupScreenState extends State<CleanupScreen> {
   /// Çözümleme ve temizleme işlerinin kuyruktaki kararlı kimlikleri.
   static const _scanJobId = 'cleanup_scan';
@@ -135,7 +153,24 @@ class _CleanupScreenState extends State<CleanupScreen> {
   }
 
   void _onQueue() {
-    if (mounted) setState(_seedSelection);
+    if (!mounted) return;
+    setState(_seedSelection);
+    final job = _applyJob;
+    if (_watchApply && job != null && !job.status.isActive) {
+      _watchApply = false;
+      final r = job.result;
+      if (job.status == JobStatus.done && r is CleanupApplyResult) {
+        showSnack(
+          context,
+          context.t(
+              r.movedToTrashBytes > 0 ? 'clean.done_trash' : 'clean.done_freed',
+              {'size': FsPaths.humanSize(r.bytes), 'n': r.items}),
+        );
+      } else if (job.status == JobStatus.failed) {
+        showSnack(context, job.error ?? context.t('clean.done_failed'),
+            copyable: true);
+      }
+    }
   }
 
   FmJob? get _scanJob => JobQueue.instance.find(_scanJobId);
@@ -166,10 +201,37 @@ class _CleanupScreenState extends State<CleanupScreen> {
       for (final set in _selectedFiles.values) {
         set.remove(path);
       }
+      // Sonuç kalıcı güncellensin: ekrandan çıkıp dönünce silinen geri gelmesin.
+      _rewriteScanResult(removed: {path});
       _seedSignature = null;
       _seedSelection();
     });
   }
+
+  /// Tarama sonucunu yerinde günceller (taramasız). Bkz. [cleanupAfterApply].
+  static void _rewriteScanResult({
+    required Set<String> removed,
+    int? trashBytes,
+    int? trashCount,
+  }) {
+    final job = JobQueue.instance.find(_scanJobId);
+    final result = job?.result;
+    if (job == null || result is! CleanupScanResult) return;
+    job.result = CleanupScanResult(cleanupAfterApply(
+      result.suggestions,
+      removedPaths: removed,
+      trashBytes: trashBytes,
+      trashCount: trashCount,
+    ));
+  }
+
+  FmJob? get _applyJob => JobQueue.instance.find(_applyJobId);
+
+  /// Temizlik sürüyor mu? Sürerken ekran tarama değil TEMİZLİK ilerlemesi gösterir.
+  bool get _applying => _applyJob?.status.isActive ?? false;
+
+  /// Bu ekranda başlatılan temizliğin bitişini yakalamak için.
+  bool _watchApply = false;
 
   /// Güvenli öneriler açık gelir. Yalnız sonuç DEĞİŞTİĞİNDE kurulur, yoksa
   /// kullanıcının kaldırdığı işaret her kuyruk bildiriminde geri gelirdi.
@@ -403,8 +465,12 @@ class _CleanupScreenState extends State<CleanupScreen> {
     setState(() {});
   }
 
-  Future<void> _apply() async {
-    final chosen = _chosen;
+  Future<void> _apply({String? onlyId}) async {
+    if (_applying) return;
+    final chosen = [
+      for (final s in _chosen)
+        if (onlyId == null || s.id == onlyId) s,
+    ];
     if (chosen.isEmpty) return;
     final total = cleanupTotal(chosen);
     final ok = await showAppConfirm(
@@ -414,7 +480,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
             'n': chosen.length,
             'size': FsPaths.humanSize(total),
           })}'
-          '${context.t('clean.confirm_tail')}',
+          '${context.t('clean.confirm_tail')}'
+          '${chosen.any((c) => c.originals.isNotEmpty) ? '\n\n${context.t('clean.confirm_copies')}' : ''}',
       confirmLabel: context.t('common.clear'),
       destructive: true,
     );
@@ -430,12 +497,26 @@ class _CleanupScreenState extends State<CleanupScreen> {
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
         var done = 0;
+        var freed = 0;
+        var moved = 0;
+        var items = 0;
+        final removed = <String>{};
+        var trashTouched = false;
+        // Aslı da aynı temizlikte silinen kopya korunur (bkz. advisor).
+        final protectedCopies = cleanupProtectedCopies(chosen);
+        // İptal edilse de o ana dek temizlenenler listeden düşmeli.
+        JobCancelled? cancelled;
+        try {
         // ÇÖP KUTUSU BOŞALTMA HER ZAMAN İLK SIRADA — bkz. `cleanupApplyOrder`.
         for (final suggestion in cleanupApplyOrder(chosen)) {
           handle.throwIfCancelled();
           handle.report(done: done, detail: strings.t(suggestion.titleKey));
           if (suggestion.id == 'trash') {
             await FmEnv.trash.empty();
+            trashTouched = true;
+            freed += suggestion.bytes;
+            final raw = suggestion.detailVars['n'];
+            items += raw is int ? raw : 1;
           } else if (suggestion.id == 'empty_folders') {
             // Boş klasörler çöpe taşınmaz; içten dışa güvenli ve özyinelemesiz
             // silinir (arada dosya gelmiş klasör otomatik atlanır).
@@ -443,31 +524,78 @@ class _CleanupScreenState extends State<CleanupScreen> {
             if (dirPaths.isNotEmpty) {
               await EmptyFolders.deleteAll(dirPaths,
                   isCancelled: () => handle.cancelled);
+              for (final d in dirPaths) {
+                if (!await Directory(d).exists()) {
+                  removed.add(d);
+                  items++;
+                }
+              }
             }
           } else if (suggestion.files.isNotEmpty) {
-            // ÖNEMLİ dosyalar toplu temizlikte hiç silinmez.
-            final paths = [
-              for (final f in suggestion.files)
-                if (!ImportantFiles.isImportant(f.path)) f.path,
-            ];
-            if (paths.isNotEmpty) {
-              final result = await FmEnv.trash.moveToTrash(paths);
+            // ÖNEMLİ dosyalar toplu temizlikte hiç silinmez. Kopya ise aslı
+            // şu an da diskte durmalı (tarama ile temizlik arasında silinmiş
+            // olabilir) — yoksa tek örnek silinirdi.
+            final sizes = <String, int>{};
+            for (final f in suggestion.files) {
+              if (ImportantFiles.isImportant(f.path)) continue;
+              if (protectedCopies.contains(f.path)) continue;
+              final orig = suggestion.originals[f.path];
+              if (orig != null && !await File(orig.path).exists()) continue;
+              sizes[f.path] = f.sizeBytes;
+            }
+            if (sizes.isNotEmpty) {
+              final result = await FmEnv.trash.moveToTrash(sizes.keys.toList());
               handle.addChanges(jobChangesOf(result));
+              trashTouched = true;
+              final gone = <String>{
+                for (final t in result.transfers) t.source,
+                ...result.deleted,
+              };
+              // Çöp kapalıysa (doğrudan silme) aktarım kaydı olmayabilir.
+              for (final path in sizes.keys) {
+                if (gone.contains(path) || !await File(path).exists()) {
+                  removed.add(path);
+                  items++;
+                  if (result.trashed) {
+                    moved += sizes[path]!;
+                  } else {
+                    freed += sizes[path]!;
+                  }
+                }
+              }
             }
           }
           done++;
           handle.report(done: done);
         }
+        } on JobCancelled catch (e) {
+          cancelled = e;
+        }
+        // Öneriler TARAMASIZ güncellenir; çöp kartı yeni çöp içeriğini gösterir.
+        int? trashBytes;
+        int? trashCount;
+        if (trashTouched) {
+          final trash = await FmEnv.trash.list();
+          trashCount = trash.length;
+          trashBytes = trash.fold<int>(0, (a, i) => a + i.sizeBytes);
+        }
+        _rewriteScanResult(
+            removed: removed, trashBytes: trashBytes, trashCount: trashCount);
         FsEvents.changed();
+        if (cancelled != null) throw cancelled;
+        handle.result = CleanupApplyResult(
+          bytes: freed + moved,
+          movedToTrashBytes: moved,
+          items: items,
+        );
         handle.report(detail: strings.t('clean.cleaned_detail', {
-          'size': FsPaths.humanSize(total),
+          'size': FsPaths.humanSize(freed + moved),
           'n': chosen.length,
         }));
       },
     );
-    // Temizlik bitince öneriler bayat: taze disk taraması kuyruğa arkasından
-    // eklenir (eski `widget.index` kullanılmaz!).
-    _analyze(forceRescan: true);
+    _watchApply = true;
+    setState(() {});
   }
 
   Widget _reanalyzeButton() => IconButton(
@@ -512,7 +640,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
               title: Text(context.t('clean.title')),
               actions: [_reanalyzeButton()],
             ),
-      body: _loading
+      body: _applying
+          ? _loadingView(context, applying: true)
+          : _loading
           ? _loadingView(context)
           : all.isEmpty
               ? FmEmptyState(
@@ -565,13 +695,23 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   ],
                 ),
       bottomNavigationBar:
-          _loading || all.isEmpty ? null : _bottomBar(context, chosen),
+          _applying || _loading || all.isEmpty ? null : _bottomBar(context, chosen),
     );
   }
 
-  Widget _loadingView(BuildContext context) {
+  Widget _loadingView(BuildContext context, {bool applying = false}) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final job = applying ? _applyJob : _scanJob;
+    final progress = applying && job != null && job.total > 0
+        ? (job.done / job.total).clamp(0.0, 1.0)
+        : null;
+    final stepText = applying
+        ? [
+            job?.title ?? '',
+            if ((job?.detail ?? '').isNotEmpty) job!.detail,
+          ].join('\n')
+        : (_step.isEmpty ? context.t('clean.reading_index') : _step);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
@@ -588,18 +728,21 @@ class _CleanupScreenState extends State<CleanupScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 40,
                     height: 40,
-                    child: CircularProgressIndicator(strokeWidth: 3),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 3, value: progress),
                   ),
                   const SizedBox(height: Gap.md),
                   Text(
-                    _step.isEmpty ? context.t('clean.reading_index') : _step,
+                    stepText,
+                    key: ValueKey(applying ? 'clean-applying' : 'clean-scanning'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
+                  if (!applying) ...[
                   const SizedBox(height: Gap.xs),
                   Text(
                     context.t('clean.dupes_note'),
@@ -607,17 +750,20 @@ class _CleanupScreenState extends State<CleanupScreen> {
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: cs.onSurfaceVariant),
                   ),
+                  ],
                   const SizedBox(height: Gap.xs),
                   Text(
-                    context.t('clean.bg_safe'),
+                    context.t(applying ? 'clean.bg_safe_apply' : 'clean.bg_safe'),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.labelSmall
                         ?.copyWith(color: cs.primary),
                   ),
                   const SizedBox(height: Gap.md),
                   OutlinedButton.icon(
-                    key: const ValueKey('clean-cancel-scan'),
-                    onPressed: () => JobQueue.instance.cancel(_scanJobId),
+                    key: ValueKey(
+                        applying ? 'clean-cancel-apply' : 'clean-cancel-scan'),
+                    onPressed: () => JobQueue.instance
+                        .cancel(applying ? _applyJobId : _scanJobId),
                     icon: const Icon(AppIcons.close, size: 18),
                     label: Text(context.t('common.cancel')),
                   ),
@@ -1207,6 +1353,35 @@ class _CleanupScreenState extends State<CleanupScreen> {
                                       ),
                                   ],
                                 ),
+                                // Yalnız bu bölümü temizle (kullanıcı
+                                // 2026-11-24: "her özelliği tek başına da").
+                                if (selCount > 0) ...[
+                                  const SizedBox(height: Gap.sm),
+                                  FilledButton.tonalIcon(
+                                    key: ValueKey('clean-one-${s.id}'),
+                                    onPressed: () => _apply(onlyId: s.id),
+                                    style: FilledButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                    ),
+                                    icon: Icon(
+                                        isTrash
+                                            ? AppIcons.deleteSweep
+                                            : AppIcons.cleanEmpty,
+                                        size: 17),
+                                    label: Text(isTrash
+                                        ? context.t('clean.empty_trash_now')
+                                        : (isEmptyDirs
+                                            ? context.t('clean.clean_this_dirs',
+                                                {'n': selCount})
+                                            : context.t('clean.clean_this', {
+                                                'size':
+                                                    FsPaths.humanSize(selBytes),
+                                                'n': selCount,
+                                              }))),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -1374,6 +1549,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
                   ],
                   if (orig != null) ...[
                     const SizedBox(height: 4),
+                    _copyWillGoRow(context),
+                    const SizedBox(height: 2),
                     _originalProofRow(context, f, orig),
                   ],
                 ],
@@ -1389,7 +1566,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
             if (!f.isDir && !ImportantFiles.isImportant(f.path))
               IconButton(
                 key: ValueKey('clean-trash-${f.path}'),
-                tooltip: context.t('jr.trash_created'),
+                tooltip: context.t(orig != null
+                    ? 'clean.trash_copy_only'
+                    : 'jr.trash_created'),
                 icon: const Icon(AppIcons.delete, size: 19),
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _trashOne(f.path),
@@ -1397,6 +1576,29 @@ class _CleanupScreenState extends State<CleanupScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// "Silinecek olan bu satırdaki KOPYA" (kullanıcı 2026-11-24: "aslını mı
+  /// siliyor kopyasını mı belli değil, güven vermiyor").
+  Widget _copyWillGoRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final c = AppHues.orange;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(AppIcons.delete, size: 13, color: c),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            context.t('clean.copy_will_go'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall
+                ?.copyWith(color: c, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1446,13 +1648,21 @@ class _CleanupScreenState extends State<CleanupScreen> {
               borderRadius: BorderRadius.circular(Radii.control),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              child: Text(
-                context.t('clean.view_original'),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: okColor,
-                  fontWeight: FontWeight.w700,
-                ),
+              padding: const EdgeInsetsDirectional.fromSTEB(3, 2, 6, 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Asıl dosyanın küçük resmi: kopyayla yan yana görülsün.
+                  FmEntryIcon(entry: original, size: 22),
+                  const SizedBox(width: 5),
+                  Text(
+                    context.t('clean.view_original'),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: okColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

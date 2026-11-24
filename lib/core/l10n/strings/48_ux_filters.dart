@@ -50,9 +50,9 @@ const Map<String, (String, String, String)> _t48 = {
     'نسخ المحادثات المرسلة',
   ),
   'cln.chat_sent_detail': (
-    '{n} dosya · Aslı cihazda doğrulandı',
-    '{n} files · Original verified on device',
-    '{n} ملف · تم التحقق من الأصل على الجهاز',
+    '{n} kopya · Yalnız gönderilen kopya silinir, aslı yerinde kalır',
+    '{n} copies · Only the sent copy is removed, the original stays',
+    '{n} نسخة · تُحذف النسخة المرسلة فقط ويبقى الأصل',
   ),
   'clean.verifying_sent': (
     'Gönderilen medyaların asılları doğrulanıyor…',
@@ -60,14 +60,60 @@ const Map<String, (String, String, String)> _t48 = {
     'جارٍ التحقق من أصول الوسائط المرسلة…',
   ),
   'clean.original_kept': (
-    'Aslı duruyor: {loc} · {size}',
-    'Original kept: {loc} · {size}',
-    'الأصل محفوظ: {loc} · {size}',
+    'Aslı kalır: {loc} · {size}',
+    'Original stays: {loc} · {size}',
+    'يبقى الأصل: {loc} · {size}',
   ),
   'clean.view_original': (
     'Aslını gör',
     'View original',
     'عرض الأصل',
+  ),
+  'clean.copy_will_go': (
+    'Silinecek: yalnız bu kopya',
+    'Removed: only this copy',
+    'سيُحذف: هذه النسخة فقط',
+  ),
+  'clean.trash_copy_only': (
+    'Yalnız bu kopyayı çöpe at (aslı kalır)',
+    'Move only this copy to trash (original stays)',
+    'انقل هذه النسخة فقط إلى المهملات (يبقى الأصل)',
+  ),
+  'clean.clean_this': (
+    'Bunu temizle · {size}',
+    'Clean this · {size}',
+    'نظّف هذا · {size}',
+  ),
+  'clean.clean_this_dirs': (
+    '{n} klasörü temizle',
+    'Clean {n} folders',
+    'تنظيف {n} مجلد',
+  ),
+  'clean.confirm_copies': (
+    'Kopyalarda yalnız kopya silinir; her birinin aslı cihazda kalır.',
+    'For copies, only the copy is removed; each original stays on the device.',
+    'في النسخ تُحذف النسخة فقط؛ ويبقى كل أصل على الجهاز.',
+  ),
+  'clean.empty_trash_now': ('Şimdi boşalt', 'Empty now', 'أفرغ الآن'),
+  'clean.bg_safe_apply': (
+    'Çıkarsan da temizlik arka planda sürer',
+    'Cleaning continues in the background if you leave',
+    'يستمر التنظيف في الخلفية إذا غادرت',
+  ),
+  'clean.done_freed': (
+    '{size} yer açıldı · {n} öğe',
+    '{size} freed · {n} items',
+    'تم تحرير {size} · {n} عنصر',
+  ),
+  'clean.done_trash': (
+    '{size} temizlendi · {n} öğe çöp kutusuna taşındı (geri alınabilir)',
+    '{size} cleaned · {n} items moved to trash (restorable)',
+    'تم تنظيف {size} · نُقل {n} عنصر إلى المهملات (قابل للاستعادة)',
+  ),
+  'clean.done_failed': (
+    'Temizlik tamamlanamadı',
+    'Clean-up could not finish',
+    'تعذّر إكمال التنظيف',
   ),
   'clean.filter_all': ('Tümü', 'All', 'الكل'),
   'clean.filter_safe': ('Güvenli', 'Safe', 'آمن'),
