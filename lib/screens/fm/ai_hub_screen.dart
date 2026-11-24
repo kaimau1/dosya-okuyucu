@@ -46,6 +46,7 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/cross_app_promo_card.dart';
 import '../../widgets/fm/ai_file_list.dart';
 import '../settings_screen.dart';
 import '../settings/tiles_ai_scope.dart' show AiAutoNewTile;
