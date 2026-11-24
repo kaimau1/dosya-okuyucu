@@ -68,6 +68,29 @@ enum OpenRoute {
 abstract final class EntryOpener {
   static final _fileService = FileService();
   static final _playerFade = CurveTween(curve: Curves.easeOut);
+  static final _playerScale = Tween<double>(begin: 0.90, end: 1.0);
+
+  /// Etkin rotada [tag] ile eşleşen etkin bir [Hero] var mı?
+  /// Yoksa medya rotaları (video/fotoğraf) çat diye açılmak yerine yumuşak
+  /// ölçek + solma geçişi uygular.
+  static bool _hasMatchingHero(BuildContext context, Object tag) {
+    final route = ModalRoute.of(context);
+    final root = route?.subtreeContext;
+    if (root == null) return false;
+    var found = false;
+    void visit(Element el) {
+      if (found) return;
+      final w = el.widget;
+      if (w is Hero && w.tag == tag) {
+        found = true;
+        return;
+      }
+      if (w is HeroMode && !w.enabled) return;
+      el.visitChildren(visit);
+    }
+    root.visitChildElements(visit);
+    return found;
+  }
 
   /// Dosya hangi ekrana gider?
   ///
@@ -199,10 +222,12 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.player) {
-      // Solarak gelen rota: video kapağı hücresinden büyüyerek açılır, geri
-      // dönüşte hücresine küçülür (Hero; kullanıcı 2026-11-15). Opak rota —
-      // geçiş bitince alttaki ızgara çizilmez (oynatma sırasında yük yok).
+      // Solarak gelen rota: kaynakta eşleşen Hero varsa video kapağı
+      // hücresinden büyür; Hero yoksa yumuşak ölçek + solma ile açılır
+      // (2026-11-24: çat diye açılma yok).
+      final hasHero = _hasMatchingHero(context, fmMediaHeroTag(path));
       final player = PageRouteBuilder<void>(
+        opaque: hasHero,
         transitionDuration: Motion.long,
         reverseTransitionDuration: Motion.medium,
         pageBuilder: (_, _, _) => MediaPlayerScreen(
@@ -212,11 +237,36 @@ abstract final class EntryOpener {
         ),
         transitionsBuilder: (ctx, animation, _, child) {
           if (Motion.reduced(ctx)) return child;
+          final fade = animation.drive(_playerFade);
+          if (!hasHero) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Motion.enter,
+              reverseCurve: Motion.exit,
+            );
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: FadeTransition(
+                    opacity: fade,
+                    child: const ColoredBox(color: AppColors.mediaSurface),
+                  ),
+                ),
+                FadeTransition(
+                  opacity: curved,
+                  child: ScaleTransition(
+                    scale: _playerScale.animate(curved),
+                    child: child,
+                  ),
+                ),
+              ],
+            );
+          }
           return Stack(
             children: [
               Positioned.fill(
                 child: FadeTransition(
-                  opacity: animation.drive(_playerFade),
+                  opacity: fade,
                   child: const ColoredBox(color: AppColors.mediaSurface),
                 ),
               ),
@@ -244,12 +294,13 @@ abstract final class EntryOpener {
     // açılıyor"): şerit/Geçmiş kardeş listesi vermiyordu → tek öğe →
     // belge görüntüleyicisi. OCR/PDF yap/çeviri galerinin ⋮ menüsünde.
     if (route == OpenRoute.gallery && !startInk) {
-      // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
-      // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
-      // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).
+      // Saydam, solarak gelen rota: kaynakta Hero varsa hücreden büyür,
+      // yoksa yumuşak ölçek + solma ile açılır (bkz. `imageGalleryRoute`).
+      final hasHero = _hasMatchingHero(context, fmMediaHeroTag(path));
       final gallery = imageGalleryRoute(
         paths: group,
         initialIndex: group.indexOf(path),
+        hasHero: hasHero,
       );
       final closed = Navigator.of(context).push(gallery);
       // Geçmiş kaydı galeri KAPANIP geri dönüş geçişi bitince (U1,

@@ -9,6 +9,7 @@ import 'package:dosya_okuyucu/services/fm/cleanup_ignore.dart';
 import 'package:dosya_okuyucu/services/fm/duplicate_finder.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:dosya_okuyucu/services/fm/job_queue.dart';
+import 'package:dosya_okuyucu/services/fm/sent_original_matcher.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -45,7 +46,8 @@ void main() {
   });
 
   group('CleanupAdvisor motor iyileştirmeleri', () {
-    test('çift sayım yok: aynı dosya birden çok öneriye girmez', () {
+    test('çift sayım yok: aynı dosya birden çok öneriye girmez ve aslı saklanır',
+        () {
       final oldDate = DateTime(2025, 1, 1);
       final origApk = file('/s/Download/app.apk', 50 * mb, at: oldDate);
       final dupApk = file('/s/Download/app (1).apk', 50 * mb,
@@ -75,36 +77,40 @@ void main() {
       final dup = list.firstWhere((s) => s.id == 'duplicates');
       final apk = list.firstWhere((s) => s.id == 'apk');
       expect(dup.files.map((e) => e.path), [dupApk.path]);
+      expect(dup.originals[dupApk.path]?.path, origApk.path);
       expect(apk.files.map((e) => e.path), [origApk.path]);
       expect(list.any((s) => s.id == 'stale_downloads'), isFalse);
       expect(cleanupTotal(list), 100 * mb);
     });
 
-    test('temp_junk ve chat_sent algılayıcıları doğru çalışır', () {
+    test('temp_junk ve doğrulanmış chat_sent algılayıcıları doğru çalışır', () {
       final part = file('/s/Download/film.mp4.crdownload', 12 * mb);
       final zero = file('/s/Download/yarim.pdf', 0);
       final normal = file('/s/Download/rapor.pdf', 2 * mb);
-      final sent =
+      final sentVerified =
           file('/s/WhatsApp/Media/WhatsApp Images/Sent/IMG-1.jpg', 3 * mb);
-      final recv = file('/s/WhatsApp/Media/WhatsApp Images/IMG-2.jpg', 3 * mb);
+      final sentOrphan =
+          file('/s/WhatsApp/Media/WhatsApp Video/Sent/VID-ORPHAN.mp4', 41 * mb);
+      final cameraOrig = file('/s/DCIM/Camera/IMG_20261116.jpg', 6 * mb);
 
       expect(isTempJunk(part), isTrue);
       expect(isTempJunk(zero), isTrue);
       expect(isTempJunk(normal), isFalse);
-      expect(isChatSentCopy(sent), isTrue);
-      expect(isChatSentCopy(recv), isFalse);
+      expect(isChatSentCopy(sentVerified), isTrue);
+      expect(isChatSentCopy(cameraOrig), isFalse);
 
       final index = StorageIndex(
         stats: const {},
         byCategory: {
           FmCategory.other: [part, zero],
           FmCategory.document: [normal],
-          FmCategory.image: [sent, recv],
+          FmCategory.image: [sentVerified, cameraOrig],
+          FmCategory.video: [sentOrphan],
         },
         largest: const [],
         recent: const [],
-        totalFiles: 5,
-        totalBytes: 20 * mb,
+        totalFiles: 6,
+        totalBytes: 64 * mb,
         skipped: 0,
       );
       final list = adviseCleanup(
@@ -114,15 +120,64 @@ void main() {
         trashBytes: 0,
         trashCount: 0,
         now: now,
+        verifiedSentOriginals: {sentVerified.path: cameraOrig},
       );
       final temp = list.firstWhere((s) => s.id == 'temp_junk');
       expect(temp.safeByDefault, isTrue);
       expect(temp.files.map((e) => e.name),
           containsAll(['film.mp4.crdownload', 'yarim.pdf']));
 
+      // Yalnız aslı doğrulanan Sent dosyası chat_sent'e girer; aslı olmayan
+      // VID-ORPHAN.mp4 kopya diye önerilmez.
       final chat = list.firstWhere((s) => s.id == 'chat_sent');
       expect(chat.safeByDefault, isFalse);
-      expect(chat.files.single.path, sent.path);
+      expect(chat.files.single.path, sentVerified.path);
+      expect(chat.originals[sentVerified.path]?.path, cameraOrig.path);
+    });
+
+    test('SentOriginalMatcher: video süre farkında yanlış eşleşme yapmaz', () {
+      final sentVid = file(
+          '/s/WhatsApp/Media/WhatsApp Video/Sent/VID-20261116-WA0031.mp4',
+          41 * mb,
+          at: DateTime(2026, 11, 16, 12));
+      final sameSceneDiffLen = file(
+          '/s/DCIM/Camera/VID_20261116_115000.mp4', 25 * mb,
+          at: DateTime(2026, 11, 16, 11, 50));
+      final realOrig = file('/s/DCIM/Camera/VID_20261116_115500.mp4', 110 * mb,
+          at: DateTime(2026, 11, 16, 11, 55));
+
+      final matched = SentOriginalMatcher.matchSentOriginalsSync(
+        sent: [sentVid],
+        originals: [sameSceneDiffLen, realOrig],
+        hashes: {
+          sentVid.path: 0x0F0F0F0F0F0F0F0F,
+          // Aynı odada çekilmiş ama farklı süreli video (dHash çok yakın!)
+          sameSceneDiffLen.path: 0x0F0F0F0F0F0F0F0F,
+          // Gerçek asıl (1 bit fark + aynı süre)
+          realOrig.path: 0x0F0F0F0F0F0F0F0E,
+        },
+        durationsSec: {
+          sentVid.path: 45,
+          sameSceneDiffLen.path: 18,
+          realOrig.path: 46,
+        },
+      );
+      expect(matched[sentVid.path]?.path, realOrig.path);
+
+      // Süre uymuyorsa hiç eşleşmemeli.
+      final rejected = SentOriginalMatcher.matchSentOriginalsSync(
+        sent: [sentVid],
+        originals: [sameSceneDiffLen],
+        hashes: {
+          sentVid.path: 0x0F0F0F0F0F0F0F0F,
+          sameSceneDiffLen.path: 0x0F0F0F0F0F0F0F0F,
+        },
+        durationsSec: {
+          sentVid.path: 45,
+          sameSceneDiffLen.path: 18,
+        },
+      );
+      expect(rejected, isEmpty);
     });
 
     test('cleanupTotal çakışan dosya yollarını çift saymaz', () {
@@ -144,8 +199,9 @@ void main() {
       expect(total, 10 * mb);
     });
 
-    test('CleanupIgnore.applyTo kalan dosya sayısını detailVars[n] içinde günceller',
+    test('CleanupIgnore.applyTo kalan dosya sayısını ve originals haritasını korur',
         () {
+      final orig2 = file('/orig/2.apk', 10);
       final list = [
         CleanupSuggestion(
           id: 'apk',
@@ -155,12 +211,14 @@ void main() {
           bytes: 30,
           files: [file('/a/1.apk', 10), file('/a/2.apk', 10), file('/a/3.apk', 10)],
           safeByDefault: true,
+          originals: {'/a/2.apk': orig2},
         ),
       ];
       final out = CleanupIgnore.applyTo(list, ids: const {}, paths: {'/a/1.apk'});
       expect(out.single.files.length, 2);
       expect(out.single.detailVars['n'], 2);
       expect(out.single.bytes, 20);
+      expect(out.single.originals['/a/2.apk']?.path, orig2.path);
     });
   });
 
@@ -271,6 +329,37 @@ void main() {
       expect(find.text('4 boş klasörü temizle'), findsOneWidget);
     });
 
+    testWidgets('doğrulanan kopya satırında asıl kanıtı ve Aslını gör düğmesi görünür',
+        (tester) async {
+      final sentVid = file(
+          '/storage/emulated/0/WhatsApp/Media/WhatsApp Video/Sent/VID-1.mp4',
+          41 * mb);
+      final camOrig = file(
+          '/storage/emulated/0/DCIM/Camera/VID_20261116.mp4', 110 * mb);
+      await tester.runAsync(() => seedSuggestions([
+            CleanupSuggestion(
+              id: 'chat_sent',
+              titleKey: 'cln.chat_sent',
+              detailKey: 'cln.chat_sent_detail',
+              detailVars: const {'n': 1},
+              bytes: 41 * mb,
+              files: [sentVid],
+              originals: {sentVid.path: camOrig},
+              safeByDefault: false,
+            ),
+          ]));
+
+      await tester.pumpWidget(wrap(const CleanupScreen()));
+      await tester.pump();
+
+      await tester.tap(find.text('Sohbetten gönderilen kopyalar'));
+      await tester.pump();
+
+      expect(find.text('VID-1.mp4'), findsOneWidget);
+      expect(find.byKey(ValueKey('clean-orig-${sentVid.path}')), findsOneWidget);
+      expect(find.text('Aslını gör'), findsOneWidget);
+    });
+
     test('yeni Yer aç çeviri anahtarları üç dilde dolu', () {
       for (final lang in AppLanguage.values) {
         final s = AppStrings(lang);
@@ -279,6 +368,9 @@ void main() {
           'cln.temp_junk_detail',
           'cln.chat_sent',
           'cln.chat_sent_detail',
+          'clean.verifying_sent',
+          'clean.original_kept',
+          'clean.view_original',
           'clean.filter_all',
           'clean.filter_safe',
           'clean.filter_review',
@@ -295,7 +387,13 @@ void main() {
           'clean.chat_tool_sub',
         ]) {
           expect(
-            s.t(k, {'n': 3, 'sel': 1, 'total': 3, 'size': '10 MB'}),
+            s.t(k, {
+              'n': 3,
+              'sel': 1,
+              'total': 3,
+              'size': '10 MB',
+              'loc': 'Kamera',
+            }),
             isNot(k),
             reason: '${lang.name}:$k',
           );

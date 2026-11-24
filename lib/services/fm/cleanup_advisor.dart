@@ -28,6 +28,10 @@ class CleanupSuggestion {
   /// varsayılan seçili gelmez** — yanlışlıkla anı silmek geri alınamaz.
   final bool safeByDefault;
 
+  /// Kopya/gönderilen önerilerinde silinecek dosyanın cihazda korunan aslı
+  /// (`kopya.path → asıl`). Kullanıcı satırda aslını görüp açarak emin olur.
+  final Map<String, FsEntry> originals;
+
   const CleanupSuggestion({
     required this.id,
     required this.titleKey,
@@ -36,6 +40,7 @@ class CleanupSuggestion {
     required this.bytes,
     this.files = const [],
     this.safeByDefault = false,
+    this.originals = const {},
   });
 }
 
@@ -55,6 +60,7 @@ List<CleanupSuggestion> adviseCleanup({
   required int trashCount,
   DateTime? now,
   List<String> emptyFolders = const [],
+  Map<String, FsEntry> verifiedSentOriginals = const {},
 }) {
   final today = (now ?? DateTime.now()).millisecondsSinceEpoch;
   final out = <CleanupSuggestion>[];
@@ -76,14 +82,23 @@ List<CleanupSuggestion> adviseCleanup({
   // Kopyalar: her gruptan biri KALIR, kalanlar sayılır.
   if (duplicates.isNotEmpty) {
     final extras = <FsEntry>[];
+    final dupOriginals = <String, FsEntry>{};
     var bytes = 0;
     for (final group in duplicates) {
       final sorted = [...group.files]
-        ..sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
-      // En eski kopya korunur (asıl dosya olma ihtimali en yüksek olan).
+        ..sort((a, b) {
+          // Sent klasörü dışında kopya varsa asla Sent kopyasını "asıl" seçme.
+          final sa = isChatSentCopy(a) ? 1 : 0;
+          final sb = isChatSentCopy(b) ? 1 : 0;
+          if (sa != sb) return sa.compareTo(sb);
+          return a.modifiedMs.compareTo(b.modifiedMs);
+        });
+      // En eski (ve Sent dışı) kopya korunur.
+      final kept = sorted.first;
       for (final extra in sorted.skip(1)) {
         if (!claimed.add(extra.path)) continue;
         extras.add(extra);
+        dupOriginals[extra.path] = kept;
         bytes += extra.sizeBytes;
       }
     }
@@ -97,6 +112,7 @@ List<CleanupSuggestion> adviseCleanup({
         bytes: bytes,
         files: extras,
         safeByDefault: true,
+        originals: dupOriginals,
       ));
     }
   }
@@ -171,25 +187,38 @@ List<CleanupSuggestion> adviseCleanup({
     ));
   }
 
-  // WhatsApp / Telegram gönderilen kopyalar (`.../Sent/`): aslı galeride veya
-  // belgelerde duran, gönderirken oluşan ikinci kopyalar. İnceleme gerektirir.
-  final chatSent = <FsEntry>[];
-  for (final c in FmCategory.values) {
-    for (final e in index.files(c)) {
-      if (isChatSentCopy(e) && claimed.add(e.path)) chatSent.add(e);
+  // WhatsApp / Telegram gönderilen kopyalar (`.../Sent/`): YALNIZ cihazda
+  // aslı doğrulanan dosyalar önerilir (2026-11-24: aslı yoksa kullanıcı
+  // tek kopyasını yanlışlıkla silmesin; her satırda aslı da gösterilir).
+  if (verifiedSentOriginals.isNotEmpty) {
+    final chatSent = <FsEntry>[];
+    final chatOriginals = <String, FsEntry>{};
+    for (final c in FmCategory.values) {
+      for (final e in index.files(c)) {
+        if (!isChatSentCopy(e)) continue;
+        final orig = verifiedSentOriginals[e.path];
+        if (orig == null || orig.path == e.path || isChatSentCopy(orig)) {
+          continue;
+        }
+        if (claimed.add(e.path)) {
+          chatSent.add(e);
+          chatOriginals[e.path] = orig;
+        }
+      }
     }
-  }
-  if (chatSent.isNotEmpty) {
-    chatSent.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
-    out.add(CleanupSuggestion(
-      id: 'chat_sent',
-      titleKey: 'cln.chat_sent',
-      detailKey: 'cln.chat_sent_detail',
-      detailVars: {'n': chatSent.length},
-      bytes: chatSent.fold(0, (s, e) => s + e.sizeBytes),
-      files: chatSent,
-      safeByDefault: false,
-    ));
+    if (chatSent.isNotEmpty) {
+      chatSent.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+      out.add(CleanupSuggestion(
+        id: 'chat_sent',
+        titleKey: 'cln.chat_sent',
+        detailKey: 'cln.chat_sent_detail',
+        detailVars: {'n': chatSent.length},
+        bytes: chatSent.fold(0, (s, e) => s + e.sizeBytes),
+        files: chatSent,
+        safeByDefault: false,
+        originals: chatOriginals,
+      ));
+    }
   }
 
   // En büyük videolar — kazanç burada, ama ASLA varsayılan seçili değil.

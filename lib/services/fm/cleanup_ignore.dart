@@ -107,6 +107,12 @@ class CleanupIgnore {
         bytes: kept.fold<int>(0, (a, f) => a + f.sizeBytes),
         files: kept,
         safeByDefault: s.safeByDefault,
+        originals: s.originals.isEmpty
+            ? const {}
+            : {
+                for (final f in kept)
+                  if (s.originals[f.path] case final orig?) f.path: orig,
+              },
       ));
     }
     return out;

@@ -42,15 +42,22 @@ part 'image_gallery/widgets.dart';
 
 
 final _galleryFadeCurve = CurveTween(curve: Curves.easeOut);
+final _galleryScaleTween = Tween<double>(begin: 0.90, end: 1.0);
+final _galleryChromeCurve =
+    CurveTween(curve: const Interval(0.28, 1.0, curve: Curves.easeOut));
 
-/// Galerinin rotası (2026-09-26 galeri turu).
+/// Galerinin rotası (2026-09-26 galeri turu · 2026-11-24 animasyon güvencesi).
 ///
-/// **Saydam** (`opaque: false`) ve arka plan perdesi solarak gelir: fotoğraf
-/// hücreden büyürken (Hero) tam ekran `FadeTransition` (`saveLayer`) olmadan
-/// yalnız siyah arka plan perdesi yumuşakça belirir.
+/// **Saydam** (`opaque: false`) ve arka plan perdesi solarak gelir:
+/// - Kaynak ekranda eşleşen bir `Hero` varsa ([hasHero] true) fotoğraf
+///   hücreden doğrudan büyür; tam ekran `saveLayer` açılmaz.
+/// - Kaynakta `Hero` yoksa ([hasHero] false — ör. temizlik, bildirim veya
+///   kısayol satırları) fotoğraf çat diye açılmak yerine yumuşak ölçek +
+///   solma ile açılır ve kapanır.
 PageRouteBuilder<void> imageGalleryRoute({
   required List<String> paths,
   required int initialIndex,
+  bool hasHero = true,
 }) =>
     PageRouteBuilder<void>(
       opaque: false,
@@ -59,8 +66,19 @@ PageRouteBuilder<void> imageGalleryRoute({
       pageBuilder: (_, _, _) =>
           ImageGalleryScreen(paths: paths, initialIndex: initialIndex),
       transitionsBuilder: (context, animation, _, child) {
-        if (Motion.reduced(context)) return child;
-        return child;
+        if (Motion.reduced(context) || hasHero) return child;
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Motion.enter,
+          reverseCurve: Motion.exit,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: _galleryScaleTween.animate(curved),
+            child: child,
+          ),
+        );
       },
     );
 
@@ -756,15 +774,24 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     // gövdenin ölçüsü hiç değişmez → dokununca görsel ZIPLAMAZ (kullanıcı
     // hatası 2026-07-30: "resimlerde üzerine tıklayınca zıplama oluyor" —
     // `appBar: null` ile gövde ~80 px uzuyor, görsel yeniden ölçekleniyordu).
-    Widget chrome({required Widget child}) => IgnorePointer(
-          // Gizliyken dokunuşları yutmasın: görünmez çubuğa değil resme gitsin.
-          ignoring: chromeOpacity == 0,
-          child: AnimatedOpacity(
-            opacity: chromeOpacity,
-            duration: Motion.of(context, Motion.short),
-            child: child,
-          ),
+    Widget chrome({required Widget child}) {
+      Widget body = IgnorePointer(
+        // Gizliyken dokunuşları yutmasın: görünmez çubuğa değil resme gitsin.
+        ignoring: chromeOpacity == 0,
+        child: AnimatedOpacity(
+          opacity: chromeOpacity,
+          duration: Motion.of(context, Motion.short),
+          child: child,
+        ),
+      );
+      if (routeAnim != null && !reduced) {
+        body = FadeTransition(
+          opacity: routeAnim.drive(_galleryChromeCurve),
+          child: body,
         );
+      }
+      return body;
+    }
 
     // Başlık dosya ADI, altında yalnız TARİH (kullanıcı 2026-11-15: *"tarihi
     // varsa adının altına yazsın, diğer detay bilgiler gereksiz"*). Sıra/boyut

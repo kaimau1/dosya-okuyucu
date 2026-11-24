@@ -445,18 +445,18 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   /// Video hazırlanırken: kapak resmi, en-boy oranında ortalı.
   Widget? _posterView() {
     final poster = _posterImage;
+    if (poster == null || _isAudio) return null;
     final aspect = _posterAspect;
-    if (poster == null || aspect == null || _isAudio) return null;
+    final img = Image(
+      image: poster,
+      fit: aspect != null ? BoxFit.cover : BoxFit.contain,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    );
     return Center(
-      child: _heroWrap(AspectRatio(
-        aspectRatio: aspect,
-        child: Image(
-          image: poster,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
-      )),
+      child: _heroWrap(
+        aspect != null ? AspectRatio(aspectRatio: aspect, child: img) : img,
+      ),
     );
   }
 

@@ -21,10 +21,12 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/important_files.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
+import '../../services/fm/sent_original_matcher.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart' show fmHero;
 import '../../widgets/motion.dart' show FmEmptyState;
 import 'chat_cleanup_screen.dart';
 import 'entry_actions.dart' show trashWithUndo;
@@ -291,6 +293,12 @@ class _CleanupScreenState extends State<CleanupScreen> {
           bytes: picked.fold<int>(0, (a, f) => a + f.sizeBytes),
           files: picked,
           safeByDefault: s.safeByDefault,
+          originals: s.originals.isEmpty
+              ? const {}
+              : {
+                  for (final f in picked)
+                    if (s.originals[f.path] case final orig?) f.path: orig,
+                },
         ));
       }
     }
@@ -328,7 +336,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
         String step(int n, String key) =>
-            strings.t('job.step', {'n': n, 'total': 4, 'text': strings.t(key)});
+            strings.t('job.step', {'n': n, 'total': 5, 'text': strings.t(key)});
         handle.report(detail: step(1, 'clean.reading_index'));
         final index = useCachedIndex
             ? widget.index!
@@ -362,6 +370,14 @@ class _CleanupScreenState extends State<CleanupScreen> {
         final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
         handle.throwIfCancelled();
 
+        handle.report(detail: step(5, 'clean.verifying_sent'));
+        // Sent klasöründeki medya yalnız cihazda aslı doğrulandıysa önerilir.
+        final verifiedSent = await SentOriginalMatcher.findOriginals(
+          index,
+          isCancelled: () => handle.cancelled,
+        );
+        handle.throwIfCancelled();
+
         final list = adviseCleanup(
           index: index,
           downloads: downloads,
@@ -369,6 +385,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
           trashBytes: trashBytes,
           trashCount: trash.length,
           emptyFolders: empty,
+          verifiedSentOriginals: verifiedSent,
         );
         handle.result = CleanupScanResult(list);
         // Haftalık temizlik bildirimi bu sayıyı söyler (bkz. NativeExtras).
@@ -1303,15 +1320,26 @@ class _CleanupScreenState extends State<CleanupScreen> {
       if (loc.isNotEmpty) loc,
       if (date.isNotEmpty) date,
     ].join(' · ');
+    final orig = s.originals[f.path];
+    final isVisual =
+        f.category == FmCategory.image || f.category == FmCategory.video;
+    final heroTag = isVisual ? fmMediaHeroTag(f.path) : null;
 
     return InkWell(
       onTap: f.isDir
           ? () => _toggleFile(s, f.path)
-          : () => EntryOpener.open(context, f.path),
+          : () => EntryOpener.open(
+                context,
+                f.path,
+                siblings: isVisual
+                    ? [for (final item in _orderedFiles(s)) item.path]
+                    : null,
+              ),
       child: Padding(
         padding: const EdgeInsetsDirectional.fromSTEB(
             Gap.xs, Gap.xs, Gap.xs, Gap.xs),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Checkbox(
               key: ValueKey('clean-file-cb-${f.path}'),
@@ -1319,7 +1347,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
               value: checked,
               onChanged: (_) => _toggleFile(s, f.path),
             ),
-            FmEntryIcon(entry: f, size: 32),
+            fmHero(heroTag, FmEntryIcon(entry: f, size: 36)),
             const SizedBox(width: Gap.sm),
             Expanded(
               child: Column(
@@ -1344,6 +1372,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
                           ?.copyWith(color: cs.onSurfaceVariant),
                     ),
                   ],
+                  if (orig != null) ...[
+                    const SizedBox(height: 4),
+                    _originalProofRow(context, f, orig),
+                  ],
                 ],
               ),
             ),
@@ -1365,6 +1397,67 @@ class _CleanupScreenState extends State<CleanupScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Kopya satırının altında cihazda korunan aslını kanıtlayan şerit +
+  /// tek dokunuşla aslını açma bağlantısı.
+  Widget _originalProofRow(
+      BuildContext context, FsEntry copy, FsEntry original) {
+    final theme = Theme.of(context);
+    final okColor = Paper.success(context);
+    final origLoc = FmLocation.label(original.path, context.t,
+        volumes: FmEnv.volumes);
+    final locText = origLoc.isNotEmpty ? origLoc : original.name;
+    final label = context.t('clean.original_kept', {
+      'loc': locText,
+      'size': FsPaths.humanSize(original.sizeBytes),
+    });
+    return Wrap(
+      spacing: Gap.xs,
+      runSpacing: 2,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(AppIcons.checkCircle, size: 13, color: okColor),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: okColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        InkWell(
+          key: ValueKey('clean-orig-${copy.path}'),
+          borderRadius: BorderRadius.circular(Radii.control),
+          onTap: () => EntryOpener.open(context, original.path),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: okColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(Radii.control),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              child: Text(
+                context.t('clean.view_original'),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: okColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
