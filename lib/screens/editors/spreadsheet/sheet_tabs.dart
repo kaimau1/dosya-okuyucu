@@ -2,57 +2,135 @@ part of '../spreadsheet_editor_screen.dart';
 
 extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState {
   Widget _sheetTabs(List<XlsxSheet> sheets) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        border: Border(
+          top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+          bottom:
+              BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.65)),
+        ),
       ),
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(
-              horizontal: Gap.sm, vertical: Gap.xs),
+              horizontal: Gap.sm, vertical: 6),
           child: Row(
             children: [
               for (final s in sheets)
                 Padding(
-                  padding: const EdgeInsetsDirectional.only(end: Gap.xs),
-                  child: _draggableTab(s, ChoiceChip(
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    avatar: s.layout.tabColorArgb == null
-                        ? null
-                        : CircleAvatar(
-                            radius: 6,
-                            backgroundColor: Color(s.layout.tabColorArgb!)),
-                    label: Text(s.name),
-                    selected: _sheet?.name == s.name,
-                    onSelected: (_) {
-                      _endEdit();
-                      final idx = _editor?.sheets.indexOf(s) ?? 0;
-                      _partSetState(() {
-                        _sheetIndex = idx < 0 ? 0 : idx;
-                        _selRow = 0;
-                        _selCol = 0;
-                        _anchorRow = 0;
-                        _anchorCol = 0;
-                        _hits = const []; // eşleşmeler sayfaya özgü
-                        _hitIndex = -1;
-                      });
-                      _resetColWindow();
-                      _syncField();
-                      WidgetsBinding.instance.addPostFrameCallback(
-                          (_) => _updateColWindow(force: true));
-                    },
-                  )),
+                  padding: const EdgeInsetsDirectional.only(end: 6),
+                  child: _draggableTab(
+                    s,
+                    Builder(builder: (_) {
+                      final selected = _sheet?.name == s.name;
+                      final tabColor = s.layout.tabColorArgb == null
+                          ? null
+                          : Color(s.layout.tabColorArgb!);
+                      return AnimatedContainer(
+                        duration: Motion.of(context, Motion.short),
+                        curve: Motion.standard,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? scheme.surfaceContainerLowest
+                              : scheme.surfaceContainerHigh
+                                  .withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(Radii.pill),
+                          border: Border.all(
+                            color: selected
+                                ? (tabColor ?? scheme.primary)
+                                    .withValues(alpha: 0.7)
+                                : scheme.outlineVariant.withValues(alpha: 0.45),
+                            width: selected ? 1.5 : 1,
+                          ),
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: AppColors.studioShadow(dark),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            customBorder: const StadiumBorder(),
+                            onTap: () {
+                              _endEdit();
+                              final idx = _editor?.sheets.indexOf(s) ?? 0;
+                              _partSetState(() {
+                                _sheetIndex = idx < 0 ? 0 : idx;
+                                _selRow = 0;
+                                _selCol = 0;
+                                _anchorRow = 0;
+                                _anchorCol = 0;
+                                _hits = const []; // eşleşmeler sayfaya özgü
+                                _hitIndex = -1;
+                              });
+                              _resetColWindow();
+                              _syncField();
+                              WidgetsBinding.instance.addPostFrameCallback(
+                                  (_) => _updateColWindow(force: true));
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (tabColor != null) ...[
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: tabColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Text(
+                                    s.name,
+                                    style: context.type.small.copyWith(
+                                      fontWeight: selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: selected
+                                          ? scheme.primary
+                                          : scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
                 ),
               // Yeni sayfa — sekmelerin sonunda, Excel'deki "+" gibi.
               IconButton(
                 tooltip: context.t('excel.add_sheet'),
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(AppIcons.add, size: 20),
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                      scheme.primaryContainer.withValues(alpha: 0.65),
+                  foregroundColor: scheme.primary,
+                  shape: const CircleBorder(),
+                  side: BorderSide(
+                    color: scheme.primary.withValues(alpha: 0.28),
+                  ),
+                  minimumSize: const Size(32, 32),
+                ),
+                icon: const Icon(AppIcons.add, size: 18),
                 onPressed: _addSheet,
               ),
             ],
@@ -293,31 +371,126 @@ extension _SpreadsheetEditorScreenSheetTabsPart on _SpreadsheetEditorScreenState
   }
 
   Future<void> _showGoTo() async {
+    final sheet = _sheet;
+    final lastRow = math.max(0, (sheet?.maxRows ?? 1) - 1);
+    final lastCol = math.max(0, (sheet?.maxCols ?? 1) - 1);
+    final lastRowRef = '${XlsxRange.colName(_selCol)}${lastRow + 1}';
+    final lastCellRef = '${XlsxRange.colName(lastCol)}${lastRow + 1}';
     final controller = TextEditingController(
         text: '${XlsxRange.colName(_selCol)}${_selRow + 1}');
-    final ref = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(context.t('excel.goto_cell')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textCapitalization: TextCapitalization.characters,
-          decoration: InputDecoration(
-              labelText: context.t('excel.cell_reference'),
-              hintText: context.t('excel.cell_reference_hint')),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(context.t('common.cancel'))),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(context.t('excel.go')),
+    controller.selection =
+        TextSelection(baseOffset: 0, extentOffset: controller.text.length);
+    final ref = await showAppSheet<String>(
+      context,
+      title: context.t('excel.goto_cell'),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget quickPill(IconData icon, String label, String coord) => Material(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(Radii.control),
+                onTap: () => Navigator.pop(ctx, coord),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.sm + 2),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 16, color: scheme.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: ctx.type.small.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(Radii.pill),
+                        ),
+                        child: Text(
+                          coord,
+                          style: ctx.type.caption.copyWith(
+                            color: scheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: ctx.t('excel.cell_reference'),
+                        hintText: ctx.t('excel.cell_reference_hint'),
+                        prefixIcon: const Icon(AppIcons.pageJump, size: 20),
+                      ),
+                      onSubmitted: (v) => Navigator.pop(ctx, v),
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.lg, vertical: 14),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, controller.text),
+                    child: Text(ctx.t('excel.go')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              Text(
+                ctx.t('excel.goto_quick'),
+                style: ctx.type.caption.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              Wrap(
+                spacing: Gap.xs,
+                runSpacing: Gap.xs,
+                children: [
+                  quickPill(AppIcons.home, ctx.t('excel.goto_start'), 'A1'),
+                  quickPill(AppIcons.arrowDown, ctx.t('excel.goto_last_row'),
+                      lastRowRef),
+                  quickPill(AppIcons.fitScreen, ctx.t('excel.goto_last_cell'),
+                      lastCellRef),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
     controller.dispose();
     final rc = XlsxRange.cellRef(ref?.trim());

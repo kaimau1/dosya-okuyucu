@@ -3,10 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/menu_look.dart';
 import '../core/menu_search.dart';
+import '../core/motion.dart';
 import '../core/state/appearance_state.dart';
 import '../core/theme.dart';
 
@@ -114,7 +116,7 @@ class MenuGroupTitle extends StatelessWidget {
   }
 }
 
-/// Grubun kartı: hafif yükseltilmiş zemin, yuvarlak köşe.
+/// Grubun kartı: hafif yükseltilmiş zemin, yuvarlak köşe, ince kenarlık.
 class MenuGroupCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -132,17 +134,21 @@ class MenuGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: special
-            ? Color.lerp(scheme.surfaceContainerHigh,
-                MenuKit.specialWell(scheme), 0.45)
-            : scheme.surfaceContainerHigh,
+    final specialWell = MenuKit.specialWell(scheme);
+    return Material(
+      color: special
+          ? Color.lerp(scheme.surfaceContainerLow, specialWell, 0.38)
+          : scheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(MenuKit.cardRadius),
+        side: BorderSide(
+          color: special
+              ? MenuKit.specialInk(scheme).withValues(alpha: 0.22)
+              : scheme.outlineVariant.withValues(alpha: 0.52),
+        ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }
@@ -153,7 +159,7 @@ class MenuGroupCard extends StatelessWidget {
 /// ortak dosya işlerinden ayrı renkte, bkz. [MenuKit.specialWell].
 enum MenuTone { neutral, accent, danger, disabled, selected, special }
 
-/// Simge kutusu — bütün menülerde aynı şekil.
+/// Simge kutusu — bütün menülerde aynı şekil ve ton derinliği.
 class MenuIconWell extends StatelessWidget {
   final IconData icon;
   final MenuTone tone;
@@ -173,32 +179,55 @@ class MenuIconWell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (Color bg, Color fg, bool border) = switch (tone) {
-      MenuTone.neutral => (scheme.surface, scheme.onSurface, true),
-      MenuTone.accent => (scheme.primaryContainer, scheme.onPrimaryContainer, false),
-      MenuTone.danger => (scheme.errorContainer, scheme.error, false),
-      MenuTone.selected => (scheme.primary, scheme.onPrimary, false),
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final (Color bg, Color fg, Color? rim) = switch (tone) {
+      MenuTone.neutral => (
+          scheme.surfaceContainerHighest.withValues(alpha: dark ? 0.65 : 0.72),
+          scheme.onSurface,
+          scheme.outlineVariant.withValues(alpha: 0.65)
+        ),
+      MenuTone.accent => (
+          scheme.primaryContainer,
+          scheme.onPrimaryContainer,
+          scheme.primary.withValues(alpha: 0.24)
+        ),
+      MenuTone.danger => (
+          scheme.errorContainer,
+          scheme.error,
+          scheme.error.withValues(alpha: 0.28)
+        ),
+      MenuTone.selected => (
+          scheme.primary,
+          scheme.onPrimary,
+          scheme.primary
+        ),
       MenuTone.special => (
           MenuKit.specialWell(scheme),
           MenuKit.specialInk(scheme),
-          false
+          MenuKit.specialInk(scheme).withValues(alpha: 0.24)
         ),
       MenuTone.disabled => (
-          scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          scheme.surfaceContainerHighest.withValues(alpha: 0.45),
           scheme.onSurface.withValues(alpha: 0.35),
-          false
+          null
         ),
     };
+    final bgEnd = Color.lerp(
+        bg, dark ? AppColors.mixDark : AppColors.mixLight, 0.14)!;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: bg,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [bg, bgEnd],
+        ),
         shape: circle ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: circle
             ? null
             : BorderRadius.circular(MenuKit.wellRadius * size / 48),
-        border: border ? Border.all(color: scheme.outlineVariant) : null,
+        border: rim != null ? Border.all(color: rim) : null,
       ),
       child: Icon(icon, size: size * 0.48, color: fg),
     );
@@ -310,7 +339,8 @@ class MenuTile extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                MenuIconWell(icon, tone: enabled ? tone : MenuTone.disabled, size: 48),
+                MenuIconWell(icon,
+                    tone: enabled ? tone : MenuTone.disabled, size: 48),
                 if (badge != null)
                   PositionedDirectional(end: -4, top: -4, child: badge!),
               ],
@@ -337,11 +367,6 @@ class MenuTile extends StatelessWidget {
 }
 
 // ── Menü görünümleri (2026-11-15) ─────────────────────────────────────────
-//
-// Kullanıcı levhanın baştan tasarlanmasını istedi; iki görünümden birini
-// Ayarlar'dan seçiyor (varsayılan sekmeli). MenuKit grubu kullanan HER levha
-// (dosya işlemleri, görüntüleyici ⋮'ı, "Daha fazla", ortak eylem levhası)
-// içeriğini [MenuSections]'a model olarak verir; görünümü kit seçer.
 
 /// Levhadaki tek işlem (görünümden bağımsız model).
 class MenuKitAction {
@@ -402,68 +427,127 @@ class MenuSearchField extends StatelessWidget {
   final Key? fieldKey;
   final EdgeInsetsGeometry padding;
 
+  /// Etkin aramada bulunan sonuç sayısı (isteğe bağlı rozet).
+  final int? hitCount;
+
   const MenuSearchField({
     super.key,
     required this.controller,
     required this.onChanged,
     this.fieldKey,
     this.padding = const EdgeInsets.only(bottom: Gap.sm),
+    this.hitCount,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final radius = BorderRadius.circular(14);
+    final dark = theme.brightness == Brightness.dark;
+    final radius = BorderRadius.circular(24);
     final hasText = controller.text.isNotEmpty;
     return Padding(
       padding: padding,
-      child: TextField(
-        key: fieldKey ?? const ValueKey('menu-search-field'),
-        controller: controller,
-        onChanged: onChanged,
-        textInputAction: TextInputAction.search,
-        style: theme.textTheme.bodyMedium,
-        decoration: InputDecoration(
-          hintText: context.t('menu.search_hint'),
-          hintStyle: theme.textTheme.bodyMedium
-              ?.copyWith(color: scheme.onSurfaceVariant),
-          prefixIcon: Icon(
-            AppIcons.search,
-            size: 20,
-            color: scheme.onSurfaceVariant,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.studioShadow(dark),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: TextField(
+          key: fieldKey ?? const ValueKey('menu-search-field'),
+          controller: controller,
+          onChanged: onChanged,
+          textInputAction: TextInputAction.search,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
           ),
-          prefixIconConstraints:
-              const BoxConstraints(minWidth: 40, minHeight: 40),
-          suffixIcon: hasText
-              ? IconButton(
-                  tooltip: context.t('common.clear'),
-                  icon: const Icon(AppIcons.close, size: 18),
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () {
-                    controller.clear();
-                    onChanged('');
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: scheme.surfaceContainerHigh,
-          isDense: true,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          border: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide:
-                BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide:
-                BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: radius,
-            borderSide: BorderSide(color: scheme.primary, width: 1.6),
+          decoration: InputDecoration(
+            hintText: context.t('menu.search_hint'),
+            hintStyle: theme.textTheme.bodyMedium
+                ?.copyWith(color: scheme.onSurfaceVariant),
+            prefixIcon: Padding(
+              padding: const EdgeInsetsDirectional.only(start: 8, end: 6),
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: hasText
+                      ? scheme.primary
+                      : scheme.primaryContainer.withValues(alpha: 0.72),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  AppIcons.search,
+                  size: 16,
+                  color: hasText ? scheme.onPrimary : scheme.primary,
+                ),
+              ),
+            ),
+            prefixIconConstraints:
+                const BoxConstraints(minWidth: 44, minHeight: 40),
+            suffixIcon: hasText
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hitCount != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: ShapeDecoration(
+                            color: hitCount == 0
+                                ? scheme.errorContainer
+                                : scheme.primaryContainer,
+                            shape: const StadiumBorder(),
+                          ),
+                          child: Text(
+                            context.t('menu.search_hits', {'n': hitCount}),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: hitCount == 0
+                                  ? scheme.onErrorContainer
+                                  : scheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: context.t('common.clear'),
+                        icon: const Icon(AppIcons.close, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          controller.clear();
+                          onChanged('');
+                        },
+                      ),
+                    ],
+                  )
+                : null,
+            filled: true,
+            fillColor: scheme.surfaceContainerLowest,
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: radius,
+              borderSide: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.65),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: radius,
+              borderSide: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.65),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: radius,
+              borderSide: BorderSide(color: scheme.primary, width: 1.8),
+            ),
           ),
         ),
       ),
@@ -598,10 +682,27 @@ class _MenuSectionsState extends State<MenuSections> {
     return look == MenuLook.bento ? _bento(context) : _tabbed(context);
   }
 
-  Widget _searchBar() => MenuSearchField(
+  Widget _searchBar({int? hitCount}) => MenuSearchField(
         controller: _searchCtrl,
         onChanged: (v) => setState(() => _query = v),
+        hitCount: hitCount,
       );
+
+  Widget _headerCard(BuildContext context, Widget header) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: Gap.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(MenuKit.cardRadius),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
+      child: header,
+    );
+  }
 
   Widget _searchView(BuildContext context) {
     final theme = Theme.of(context);
@@ -618,26 +719,24 @@ class _MenuSectionsState extends State<MenuSections> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.header != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: widget.header,
-          ),
-        _searchBar(),
+        if (widget.header != null) _headerCard(context, widget.header!),
+        _searchBar(hitCount: hits.length),
         if (hits.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: Gap.lg),
+          MenuGroupCard(
+            padding: const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(AppIcons.search,
-                    size: 28, color: scheme.onSurfaceVariant),
-                const SizedBox(height: Gap.xs),
+                const MenuIconWell(AppIcons.searchOff,
+                    tone: MenuTone.neutral, size: 46, circle: true),
+                const SizedBox(height: Gap.sm),
                 Text(
                   context.t('menu.search_empty'),
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -672,10 +771,20 @@ class _MenuSectionsState extends State<MenuSections> {
                                 : scheme.onSurfaceVariant,
                           )
                         : (hit.item.$2 != null && hit.item.$1.hint != null
-                            ? Text(
-                                hit.item.$2!,
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: scheme.onSurfaceVariant),
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: ShapeDecoration(
+                                  color: scheme.surfaceContainerHigh,
+                                  shape: const StadiumBorder(),
+                                ),
+                                child: Text(
+                                  hit.item.$2!,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
                               )
                             : null),
                   ),
@@ -702,22 +811,21 @@ class _MenuSectionsState extends State<MenuSections> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.header != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: Gap.sm),
-            child: widget.header,
-          ),
+        if (widget.header != null) _headerCard(context, widget.header!),
         if (_showSearch) _searchBar(),
         if (primary != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: Gap.xs),
+            padding: const EdgeInsets.only(bottom: Gap.sm),
             child: _MainRow(primary: primary, actions: widget.mainActions),
           ),
         if (tabs.length > 1)
-          _TabStrip(
-            tabs: tabs,
-            selected: selected,
-            onSelect: (i) => setState(() => _tab = i),
+          Padding(
+            padding: const EdgeInsets.only(bottom: Gap.sm),
+            child: _TabStrip(
+              tabs: tabs,
+              selected: selected,
+              onSelect: (i) => setState(() => _tab = i),
+            ),
           )
         else
           const SizedBox(height: Gap.xs),
@@ -729,12 +837,7 @@ class _MenuSectionsState extends State<MenuSections> {
   // ── Bento ────────────────────────────────────────────────────────────────
 
   Widget _bento(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final primary = widget.primary;
-    // "Aç" iki sütun kaplar — ama yalnız bir satır fazlasına mal olmuyorsa
-    // (2026-11-15, kullanıcı: *"Sil ek satır olmuş, Aç'ı küçülterek buna
-    // gerek kalmaz"*). 7 kare + geniş Aç = 9 birim → Sil tek başına 3. satıra
-    // düşüyordu; Aç tek sütun olunca iki dolu satır.
     final others = widget.mainActions.length + widget.quick.length;
     final primarySpan =
         (others + 2 + 3) ~/ 4 > (others + 1 + 3) ~/ 4 ? 1 : 2;
@@ -747,19 +850,7 @@ class _MenuSectionsState extends State<MenuSections> {
         if (a.tone == MenuTone.danger) (a, 1, false),
     ];
     final children = <Widget>[
-      if (widget.header != null)
-        Container(
-          margin: const EdgeInsets.only(bottom: Gap.sm),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(MenuKit.cardRadius),
-            border: Border.all(
-              color: scheme.outlineVariant.withValues(alpha: 0.5),
-            ),
-          ),
-          child: widget.header,
-        ),
+      if (widget.header != null) _headerCard(context, widget.header!),
       if (_showSearch) _searchBar(),
       if (top.isNotEmpty)
         _BentoGrid(items: [
@@ -782,9 +873,6 @@ class _MenuSectionsState extends State<MenuSections> {
       children.add(_BentoGrid(items: [
         for (var i = 0; i < s.actions.length; i++)
           _BentoEntry(
-            // Her grup iki sütun — türe özel olanlar da (2026-11-15,
-            // kullanıcı: *"tek sütun olmuş, 2 sütun olsun tüm türlerde"*).
-            // Tek kalan son işlem tam genişlik.
             span: i == s.actions.length - 1 && i.isEven ? 4 : 2,
             child: _BentoRowTile(action: s.actions[i]),
             measure: (w) => _measureBentoRow(context, s.actions[i], w),
@@ -866,68 +954,89 @@ class _TabStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (var i = 0; i < tabs.length; i++)
-            Padding(
-              padding: EdgeInsetsDirectional.only(end: i == tabs.length - 1 ? 0 : 6),
-              child: Builder(builder: (context) {
-                final on = i == selected;
-                final fill = !on
-                    ? null
-                    : (tabs[i].special
-                        ? MenuKit.specialInk(scheme)
-                        : scheme.onSurface);
-                return Semantics(
-                  container: true,
-                  selected: on,
-                  inMutuallyExclusiveGroup: true,
-                  button: true,
-                  child: InkWell(
-                    key: MenuSections.tabKey(i),
-                    onTap: () => onSelect(i),
-                    customBorder: const StadiumBorder(),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 48),
-                      child: Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
-                          decoration: ShapeDecoration(
-                            color: fill,
-                            shape: StadiumBorder(
-                              side: BorderSide(
-                                  color: fill ?? scheme.outlineVariant),
+    final dark = theme.brightness == Brightness.dark;
+    final dur = Motion.of(context, Motion.short);
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (var i = 0; i < tabs.length; i++)
+              Padding(
+                padding: EdgeInsetsDirectional.only(
+                    end: i == tabs.length - 1 ? 0 : 4),
+                child: Builder(builder: (context) {
+                  final on = i == selected;
+                  final fill = !on
+                      ? Colors.transparent
+                      : (tabs[i].special
+                          ? MenuKit.specialInk(scheme)
+                          : scheme.primary);
+                  final textColor = on
+                      ? (tabs[i].special ? scheme.surface : scheme.onPrimary)
+                      : scheme.onSurfaceVariant;
+                  return Semantics(
+                    container: true,
+                    selected: on,
+                    inMutuallyExclusiveGroup: true,
+                    button: true,
+                    child: InkWell(
+                      key: MenuSections.tabKey(i),
+                      onTap: () => onSelect(i),
+                      customBorder: const StadiumBorder(),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 40),
+                        child: Center(
+                          child: AnimatedContainer(
+                            duration: dur,
+                            curve: Motion.standard,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 15, vertical: 8),
+                            decoration: ShapeDecoration(
+                              color: fill,
+                              shape: const StadiumBorder(),
+                              shadows: on
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.studioShadow(dark),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
-                          ),
-                          child: Text(
-                            tabs[i].title,
-                            maxLines: 1,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: on
-                                  ? scheme.surface
-                                  : scheme.onSurfaceVariant,
+                            child: Text(
+                              tabs[i].title,
+                              maxLines: 1,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              }),
-            ),
-        ],
+                  );
+                }),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
 /// Seçili sekmenin kartı: 4 sütunlu ızgara. Yükseklik EN UZUN sekmeye göre
-/// sabit — sekme değişince levha zıplamaz (kasma-kontrol 6: boy animasyonu
-/// yok, tek adım).
+/// sabit — sekme değişince levha zıplamaz.
 class _TabBody extends StatelessWidget {
   final List<_MenuTab> tabs;
   final int selected;
@@ -943,8 +1052,6 @@ class _TabBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Hücre boyu: simge + iki satır etiket, o anki yazı ölçeğiyle. Elle
-    // ölçülüyor (GridView'in sabit oranı büyük yazıda taşardı).
     final painter = TextPainter(
       text: TextSpan(text: 'Ag', style: labelStyle(theme)),
       textDirection: Directionality.of(context),
@@ -966,8 +1073,15 @@ class _TabBody extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       child: SizedBox(
         height: maxRows * cellH + (maxRows - 1) * _rowGap,
-        child: KeyedSubtree(
+        child: TweenAnimationBuilder<double>(
           key: ValueKey(selected),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: Motion.of(context, Motion.short),
+          curve: Motion.standard,
+          builder: (context, t, child) => Opacity(
+            opacity: 0.65 + 0.35 * t,
+            child: child,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1090,24 +1204,41 @@ class _CheckBadge extends StatelessWidget {
   }
 }
 
-/// Bento renkleri: (zemin, simge, yazı).
-(Color, Color, Color) _bentoColors(
+/// Bento renkleri: (zemin, simge, yazı, simge kuyusu).
+(Color, Color, Color, Color) _bentoColors(
     ColorScheme scheme, MenuTone tone, bool primary) {
   final faded = scheme.onSurface.withValues(alpha: 0.38);
   return switch (tone) {
-    MenuTone.disabled => (scheme.surfaceContainerHigh, faded, faded),
-    MenuTone.danger => (scheme.errorContainer, scheme.error, scheme.error),
+    MenuTone.disabled => (
+        scheme.surfaceContainerLow,
+        faded,
+        faded,
+        scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      ),
+    MenuTone.danger => (
+        scheme.errorContainer.withValues(alpha: 0.72),
+        scheme.error,
+        scheme.error,
+        scheme.error.withValues(alpha: 0.14),
+      ),
     MenuTone.special => (
-        MenuKit.specialWell(scheme),
+        Color.lerp(scheme.surfaceContainerLow, MenuKit.specialWell(scheme), 0.5)!,
         MenuKit.specialInk(scheme),
-        MenuKit.specialInk(scheme)
+        MenuKit.specialInk(scheme),
+        MenuKit.specialWell(scheme),
       ),
     _ when primary => (
         scheme.primaryContainer,
         scheme.onPrimaryContainer,
-        scheme.onPrimaryContainer
+        scheme.onPrimaryContainer,
+        scheme.primary.withValues(alpha: 0.16),
       ),
-    _ => (scheme.surfaceContainerHigh, scheme.primary, scheme.onSurface),
+    _ => (
+        scheme.surfaceContainerLow,
+        scheme.primary,
+        scheme.onSurface,
+        scheme.primaryContainer.withValues(alpha: 0.65),
+      ),
   };
 }
 
@@ -1135,19 +1266,19 @@ double _measureBentoTile(BuildContext context, MenuKitAction a, double width) {
       .labelLarge
       ?.copyWith(height: 1.2, fontWeight: FontWeight.w700);
   final labelH = _measureTextHeight(context, a.label, style, width - 20);
-  return math.max(66.0, 11 + 22 + 8 + labelH + 10 + 2);
+  return math.max(76.0, 10 + 32 + 8 + labelH + 10 + 2);
 }
 
 double _measureBentoRow(BuildContext context, MenuKitAction a, double width) {
   final theme = Theme.of(context);
   final labelStyle = theme.textTheme.labelLarge
       ?.copyWith(height: 1.2, fontWeight: FontWeight.w700);
-  final textW = width - 24 - 22 - 12 - (a.checked != null ? 30 : 0);
+  final textW = width - 22 - 34 - 10 - (a.checked != null ? 28 : 0);
   final labelH = _measureTextHeight(context, a.label, labelStyle, textW);
   final hintH = a.hint == null
       ? 0.0
       : _measureTextHeight(context, a.hint!, theme.textTheme.bodySmall, textW);
-  return math.max(52.0, 20 + labelH + hintH + 2);
+  return math.max(56.0, 20 + labelH + hintH + 2);
 }
 
 class _BentoEntry {
@@ -1213,8 +1344,6 @@ class _BentoGrid extends StatelessWidget {
                     children: [
                       for (var i = 0; i < row.length; i++) ...[
                         if (i > 0) const SizedBox(width: _gap),
-                        // Satırın son karosu kalan yeri alır (yuvarlama payı);
-                        // eksik satırda boşluk sonda kalır.
                         if (i == row.length - 1 && full)
                           Expanded(child: row[i].child)
                         else
@@ -1236,7 +1365,7 @@ class _BentoGrid extends StatelessWidget {
   }
 }
 
-/// Bento kare karosu: simge üst başta, kalın etiket alt başta.
+/// Bento kare karosu: simge üst başta yumuşak kuyu içinde, kalın etiket altta.
 class _BentoTile extends StatelessWidget {
   final MenuKitAction action;
   final bool primary;
@@ -1245,8 +1374,9 @@ class _BentoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final a = action;
-    final (bg, fg, ink) = _bentoColors(theme.colorScheme, a.shownTone, primary);
+    final (bg, fg, ink, well) = _bentoColors(scheme, a.shownTone, primary);
     final radius = BorderRadius.circular(18);
     return _semantic(
       a,
@@ -1256,24 +1386,34 @@ class _BentoTile extends StatelessWidget {
           borderRadius: radius,
           border: Border.all(
             color: primary
-                ? theme.colorScheme.primary.withValues(alpha: 0.22)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+                ? scheme.primary.withValues(alpha: 0.30)
+                : a.shownTone == MenuTone.danger
+                    ? scheme.error.withValues(alpha: 0.25)
+                    : scheme.outlineVariant.withValues(alpha: 0.55),
           ),
         ),
         child: InkWell(
           borderRadius: radius,
           onTap: a.enabled ? a.onTap : null,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 66),
+            constraints: const BoxConstraints(minHeight: 76),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 11, 10, 10),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      Icon(a.icon, size: 22, color: fg),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: well,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(a.icon, size: 18, color: fg),
+                      ),
                       const Spacer(),
                       if (a.checked == true)
                         Icon(AppIcons.checkCircle, size: 18, color: fg),
@@ -1297,7 +1437,7 @@ class _BentoTile extends StatelessWidget {
   }
 }
 
-/// Bento satır karosu: simge başta, etiket + ipucu (iki sütunlu bölümler).
+/// Bento satır karosu: tonlu simge kuyusu + etiket + ipucu (iki sütunlu).
 class _BentoRowTile extends StatelessWidget {
   final MenuKitAction action;
   const _BentoRowTile({required this.action});
@@ -1307,7 +1447,7 @@ class _BentoRowTile extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final a = action;
-    final (bg, fg, ink) = _bentoColors(scheme, a.shownTone, false);
+    final (bg, fg, ink, well) = _bentoColors(scheme, a.shownTone, false);
     final radius = BorderRadius.circular(18);
     return _semantic(
       a,
@@ -1316,20 +1456,30 @@ class _BentoRowTile extends StatelessWidget {
           color: bg,
           borderRadius: radius,
           border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: 0.45),
+            color: a.shownTone == MenuTone.special
+                ? MenuKit.specialInk(scheme).withValues(alpha: 0.22)
+                : scheme.outlineVariant.withValues(alpha: 0.55),
           ),
         ),
         child: InkWell(
           borderRadius: radius,
           onTap: a.enabled ? a.onTap : null,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 52),
+            constraints: const BoxConstraints(minHeight: 56),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
               child: Row(
                 children: [
-                  Icon(a.icon, size: 22, color: fg),
-                  const SizedBox(width: 12),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: well,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(a.icon, size: 19, color: fg),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1358,10 +1508,10 @@ class _BentoRowTile extends StatelessWidget {
                     ),
                   ),
                   if (a.checked != null) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Icon(
                       a.checked! ? AppIcons.checkCircle : AppIcons.circle,
-                      size: 22,
+                      size: 20,
                       color: a.checked! ? fg : scheme.onSurfaceVariant,
                     ),
                   ],

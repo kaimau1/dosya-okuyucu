@@ -406,32 +406,183 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   Future<void> _showGoToSlide() async {
     final total = _slideCount;
     if (total == 0) return;
-    final ctrl = TextEditingController(text: '$_currentSlide');
+    final initial = _currentSlide.clamp(1, total);
+    final ctrl = TextEditingController(text: '$initial');
     // Metin SEÇİLİ açılır: kullanıcı numarayı silmeden üstüne yazabilsin.
     ctrl.selection =
         TextSelection(baseOffset: 0, extentOffset: ctrl.text.length);
-    final value = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('sl.goto')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration:
-              InputDecoration(labelText: ctx.t('sl.goto_hint', {'total': total})),
-          onSubmitted: (v) => Navigator.pop(ctx, int.tryParse(v.trim())),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(ctx, int.tryParse(ctrl.text.trim())),
-            child: Text(ctx.t('common.go')),
-          ),
-        ],
+    var target = initial;
+    final value = await showAppSheet<int>(
+      context,
+      title: context.t('sl.go_to_title'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          final pct = total <= 1
+              ? 100
+              : (((target - 1) / (total - 1)) * 100).round();
+
+          void pick(int slide) {
+            final s = slide.clamp(1, total);
+            setSheet(() {
+              target = s;
+              ctrl.text = '$s';
+              ctrl.selection =
+                  TextSelection.collapsed(offset: ctrl.text.length);
+            });
+          }
+
+          Widget quickChip(String label, int slide) {
+            final active = target == slide;
+            return Material(
+              color: active
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHigh,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: active
+                      ? scheme.primary.withValues(alpha: 0.45)
+                      : scheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () => Navigator.pop(ctx, slide),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.sm),
+                  child: Text(
+                    label,
+                    style: ctx.type.small.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: active
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(Gap.md),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: Gap.md, vertical: Gap.xs),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(Radii.pill),
+                            ),
+                            child: Text(
+                              ctx.t('sl.slide_of',
+                                  {'n': target, 'total': total}),
+                              style: ctx.type.small.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            ctx.t('pn.progress_pct', {'n': pct}),
+                            style: ctx.type.caption.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (total > 1) ...[
+                        const SizedBox(height: Gap.sm),
+                        Slider(
+                          value: target.toDouble(),
+                          min: 1,
+                          max: total.toDouble(),
+                          divisions: total - 1,
+                          onChanged: (v) => pick(v.round()),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Gap.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: ctrl,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: ctx.t('sl.goto_hint', {'total': total}),
+                          prefixIcon: const Icon(AppIcons.pageJump, size: 20),
+                        ),
+                        onChanged: (v) {
+                          final parsed = int.tryParse(v.trim());
+                          if (parsed != null &&
+                              parsed >= 1 &&
+                              parsed <= total) {
+                            setSheet(() => target = parsed);
+                          }
+                        },
+                        onSubmitted: (v) =>
+                            Navigator.pop(ctx, int.tryParse(v.trim()) ?? target),
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Gap.lg, vertical: 14),
+                      ),
+                      onPressed: () => Navigator.pop(
+                          ctx, int.tryParse(ctrl.text.trim()) ?? target),
+                      child: Text(ctx.t('common.go')),
+                    ),
+                  ],
+                ),
+                if (total > 1) ...[
+                  const SizedBox(height: Gap.md),
+                  Wrap(
+                    spacing: Gap.xs,
+                    runSpacing: Gap.xs,
+                    children: [
+                      quickChip(ctx.t('pn.first'), 1),
+                      if (total >= 4) ...[
+                        quickChip('%25', (total * 0.25).round().clamp(1, total)),
+                        quickChip('%50', (total * 0.5).round().clamp(1, total)),
+                        quickChip('%75', (total * 0.75).round().clamp(1, total)),
+                      ],
+                      quickChip(ctx.t('pn.last'), total),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
     ctrl.dispose();

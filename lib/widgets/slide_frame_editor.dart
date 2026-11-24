@@ -75,6 +75,7 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
 
   /// Etkin kılavuz çizgileri (pt; dikey çizgilerin x'i, yatayların y'si).
   double? _guideX, _guideY;
+  bool _rotating = false;
   final FocusNode _keys = FocusNode(debugLabel: 'slide-frame');
 
   static const _minSize = 12.0;
@@ -108,8 +109,11 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
 
   void _commit() {
     _raw = null;
-    if (_guideX != null || _guideY != null) {
-      setState(() => _guideX = _guideY = null);
+    if (_guideX != null || _guideY != null || _rotating) {
+      setState(() {
+        _guideX = _guideY = null;
+        _rotating = false;
+      });
     }
     widget.onCommit(_rect, _rot);
   }
@@ -232,6 +236,7 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
     // Çerçeve zaten dönmüş: "yukarı" eksenine göre kalan açı.
     final delta = math.atan2(v.dx, -v.dy) * 180 / math.pi;
     setState(() {
+      _rotating = true;
       var r = _rot + delta;
       final snapped = (r / 15).round() * 15.0;
       if ((r - snapped).abs() < 3) r = snapped;
@@ -246,7 +251,7 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
     // zaman serbest kalsın diye kısa kenarın üçte biriyle sınırlı.
     final hit = math.max(
         14 * u, math.min(40 * u, math.min(_rect.width, _rect.height) / 3));
-    final dot = 7 * u;
+    final dot = 7.5 * u;
     final rotated = _rot % 360 != 0;
     // Tutamak dokunma kutusu kenarın DIŞINA taşar, içeri yalnız 4 dp girer:
     // kutunun içindeki dokunuşlar (seç / düzenle) tutamağa takılmasın.
@@ -261,6 +266,9 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
       final (top, h) = span(hy, _rect.height);
       final cx = _rect.width * (hx + 1) / 2 - left;
       final cy = _rect.height * (hy + 1) / 2 - top;
+      final isCorner = hx != 0 && hy != 0;
+      final gw = isCorner ? dot * 2.1 : (hy != 0 ? dot * 3.0 : dot * 1.4);
+      final gh = isCorner ? dot * 2.1 : (hx != 0 ? dot * 3.0 : dot * 1.4);
       return Positioned(
         left: left,
         top: top,
@@ -271,16 +279,24 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
           gestures: _pan(onUpdate: (d) => _resize(hx, hy, d.delta)),
           child: Stack(children: [
             Positioned(
-              left: cx - dot,
-              top: cy - dot,
+              left: cx - gw / 2,
+              top: cy - gh / 2,
               child: Container(
-                width: dot * 2,
-                height: dot * 2,
+                width: gw,
+                height: gh,
                 decoration: BoxDecoration(
                   color: AppColors.page,
-                  shape: BoxShape.circle,
-                  border:
-                      Border.all(color: AppColors.slideSelection, width: 1.5 * u),
+                  shape: isCorner ? BoxShape.circle : BoxShape.rectangle,
+                  borderRadius: isCorner ? null : BorderRadius.circular(dot),
+                  border: Border.all(
+                      color: AppColors.slideSelection, width: 2.0 * u),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shade.withValues(alpha: 0.25),
+                      blurRadius: 4 * u,
+                      offset: Offset(0, 1 * u),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -289,6 +305,7 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
       );
     }
 
+    final rotKnob = dot * 3.4;
     final body = SizedBox(
       width: _rect.width,
       height: _rect.height,
@@ -326,6 +343,18 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
                 if (!(hx == 0 && hy == 0)) handle(hx, hy),
           if (!_isLine)
             Positioned(
+              left: _rect.width / 2 - 0.9 * u,
+              top: -hit / 2 - 4 * u,
+              width: 1.8 * u,
+              height: hit / 2 + 4 * u,
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: AppColors.slideSelection.withValues(alpha: 0.75),
+                ),
+              ),
+            ),
+          if (!_isLine)
+            Positioned(
               left: _rect.width / 2 - hit / 2,
               top: -hit - 4 * u,
               width: hit,
@@ -333,12 +362,68 @@ class _SlideFrameEditorState extends State<SlideFrameEditor> {
               child: RawGestureDetector(
                 behavior: HitTestBehavior.opaque,
                 gestures: _pan(
+                    onStart: (_) => setState(() => _rotating = true),
                     onUpdate: (d) => _rotate(Offset(
                         _rect.width / 2 - hit / 2 + d.localPosition.dx,
                         -hit - 4 * u + d.localPosition.dy))),
                 child: Center(
-                  child: Icon(AppIcons.rotateRight,
-                      size: dot * 3.2, color: AppColors.slideSelection),
+                  child: Container(
+                    width: rotKnob,
+                    height: rotKnob,
+                    decoration: BoxDecoration(
+                      color: _rotating
+                          ? AppColors.slideSelection
+                          : AppColors.page,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.slideSelection,
+                        width: 1.8 * u,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.shade.withValues(alpha: 0.25),
+                          blurRadius: 5 * u,
+                          offset: Offset(0, 1.5 * u),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      AppIcons.rotateRight,
+                      size: rotKnob * 0.62,
+                      color: _rotating
+                          ? AppColors.page
+                          : AppColors.slideSelection,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_rotating)
+            Positioned(
+              left: _rect.width / 2 - 36 * u,
+              top: -hit - 32 * u,
+              width: 72 * u,
+              child: IgnorePointer(
+                child: Center(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 8 * u, vertical: 3 * u),
+                    decoration: BoxDecoration(
+                      color: PdfEditTokens.badgeBg,
+                      borderRadius: BorderRadius.circular(14 * u),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.shade.withValues(alpha: 0.28),
+                          blurRadius: 6 * u,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      '${_rot.round()}°',
+                      style: PdfEditTokens.canvasBadgeStyle(
+                          PdfEditTokens.onBadge, u),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -384,7 +469,7 @@ class _GuidePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final p = Paint()
       ..color = AppColors.slideGuide
-      ..strokeWidth = 1 * unit;
+      ..strokeWidth = 1.4 * unit;
     if (x != null) {
       final gx = x! - origin.dx;
       canvas.drawLine(Offset(gx, -origin.dy), Offset(gx, slide.height - origin.dy), p);
@@ -406,12 +491,20 @@ class _FramePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
     canvas.drawRect(
-        Offset.zero & size,
-        Paint()
-          ..color = AppColors.slideSelection
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5 * unit);
+      rect,
+      Paint()
+        ..color = AppColors.slideSelection.withValues(alpha: 0.06)
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = AppColors.slideSelection
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8 * unit,
+    );
   }
 
   @override

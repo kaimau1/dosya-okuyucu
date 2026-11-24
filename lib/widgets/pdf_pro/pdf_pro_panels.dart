@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/theme.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import '../../services/pdf/pro/pdf_sensitive.dart';
@@ -480,24 +483,99 @@ class _CropBodyState extends State<_CropBody> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     const keys = [
       'pse.crop_left',
       'pse.crop_top',
       'pse.crop_right',
       'pse.crop_bottom'
     ];
+    final keepW = (1.0 - _v[0] - _v[2]).clamp(0.1, 1.0);
+    final keepH = (1.0 - _v[1] - _v[3]).clamp(0.1, 1.0);
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(Gap.lg, 0, Gap.lg, Gap.lg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Canlı kırpma önizleme çerçevesi
+          Container(
+            height: 112,
+            margin: const EdgeInsets.only(bottom: Gap.md),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: scheme.outlineVariant.withValues(alpha: 0.6),
+              ),
+            ),
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: 1.5,
+                child: LayoutBuilder(builder: (context, box) {
+                  final l = box.maxWidth * _v[0];
+                  final t = box.maxHeight * _v[1];
+                  final r = box.maxWidth * _v[2];
+                  final b = box.maxHeight * _v[3];
+                  return Stack(
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest
+                                .withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: scheme.outlineVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned.fromRect(
+                        rect: Rect.fromLTRB(
+                          l,
+                          t,
+                          math.max(l, box.maxWidth - r),
+                          math.max(t, box.maxHeight - b),
+                        ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: scheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${(keepW * 100).round()}% × ${(keepH * 100).round()}%',
+                              style: context.type.small.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: scheme.primary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+          ),
           for (var i = 0; i < 4; i++)
             Row(
               children: [
                 SizedBox(
                     width: 72,
-                    child: Text(context.t(keys[i]), style: context.type.small)),
+                    child: Text(context.t(keys[i]),
+                        style: context.type.small
+                            .copyWith(fontWeight: FontWeight.w600))),
                 Expanded(
                   child: Slider(
                     key: ValueKey('pse-crop-$i'),
@@ -506,7 +584,19 @@ class _CropBodyState extends State<_CropBody> {
                     divisions: 45,
                     label: '${(_v[i] * 100).round()}%',
                     semanticFormatterCallback: (v) => '${(v * 100).round()}%',
-                    onChanged: AppHaptics.slider(_v[i], (v) => setState(() => _v[i] = v)),
+                    onChanged: AppHaptics.slider(
+                        _v[i], (v) => setState(() => _v[i] = v)),
+                  ),
+                ),
+                SizedBox(
+                  width: 38,
+                  child: Text(
+                    '${(_v[i] * 100).round()}%',
+                    textAlign: TextAlign.end,
+                    style: context.type.small.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               ],
@@ -514,6 +604,12 @@ class _CropBodyState extends State<_CropBody> {
           const SizedBox(height: Gap.sm),
           FilledButton(
             key: const ValueKey('pse-crop-apply'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
             onPressed: _v.every((x) => x == 0)
                 ? null
                 : () => Navigator.of(context).pop((_v[0], _v[1], _v[2], _v[3])),
@@ -758,10 +854,16 @@ Future<void> showPdfBlockStyleSheet(
               key: key,
               avatar: Icon(icon,
                   size: AppIcons.small,
-                  color: active ? scheme.onPrimaryContainer : null),
+                  color: active ? scheme.primary : scheme.onSurfaceVariant),
               label: Text(label),
-              backgroundColor: active ? scheme.primaryContainer : null,
-              side: active ? BorderSide(color: scheme.primary) : null,
+              backgroundColor: active
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerLow,
+              side: BorderSide(
+                color: active
+                    ? scheme.primary
+                    : scheme.outlineVariant.withValues(alpha: 0.65),
+              ),
               onPressed: () => run(cmd),
             );
         return Padding(
@@ -771,40 +873,57 @@ Future<void> showPdfBlockStyleSheet(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Text(context.t('pse.fmt_size'),
-                      style: sheetCtx.type.small
-                          .copyWith(color: scheme.onSurfaceVariant)),
-                  const Spacer(),
-                  IconButton.outlined(
-                    key: const ValueKey('pse-sheet-smaller'),
-                    tooltip: context.t('pse.fmt_smaller'),
-                    icon: const Icon(AppIcons.textDecrease),
-                    onPressed: () => run('smaller'),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.6),
                   ),
-                  Padding(
-                    padding: const EdgeInsetsDirectional.symmetric(
-                        horizontal: Gap.md),
-                    child: Text(
-                      context.t(
-                          'pse.font_size_pt', {'n': block.size.round()}),
-                      style: sheetCtx.type.large
-                          .copyWith(fontWeight: FontWeight.w600),
+                ),
+                child: Row(
+                  children: [
+                    Text(context.t('pse.fmt_size'),
+                        style: sheetCtx.type.small.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        )),
+                    const Spacer(),
+                    IconButton.filledTonal(
+                      key: const ValueKey('pse-sheet-smaller'),
+                      tooltip: context.t('pse.fmt_smaller'),
+                      icon: const Icon(AppIcons.textDecrease),
+                      onPressed: () => run('smaller'),
                     ),
-                  ),
-                  IconButton.outlined(
-                    key: const ValueKey('pse-sheet-bigger'),
-                    tooltip: context.t('pse.fmt_larger'),
-                    icon: const Icon(AppIcons.textIncrease),
-                    onPressed: () => run('bigger'),
-                  ),
-                ],
+                    Padding(
+                      padding: const EdgeInsetsDirectional.symmetric(
+                          horizontal: Gap.md),
+                      child: Text(
+                        context.t(
+                            'pse.font_size_pt', {'n': block.size.round()}),
+                        style: sheetCtx.type.large.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      key: const ValueKey('pse-sheet-bigger'),
+                      tooltip: context.t('pse.fmt_larger'),
+                      icon: const Icon(AppIcons.textIncrease),
+                      onPressed: () => run('bigger'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: Gap.md),
               Text(context.t('pse.fmt_align'),
-                  style: sheetCtx.type.small
-                      .copyWith(color: scheme.onSurfaceVariant)),
+                  style: sheetCtx.type.small.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  )),
               const SizedBox(height: Gap.xs),
               Wrap(
                 spacing: Gap.sm,
@@ -875,6 +994,30 @@ Future<void> showPdfStrokeSheet(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Canlı çizgi önizlemesi
+                Container(
+                  height: 46,
+                  margin: const EdgeInsetsDirectional.fromSTEB(
+                      Gap.lg, 0, Gap.lg, Gap.md),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  child: Center(
+                    child: AnimatedContainer(
+                      duration: Motion.of(context, Motion.short),
+                      height: pickedWidth.clamp(1.5, 9.0),
+                      decoration: BoxDecoration(
+                        color: previewColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
                 PdfProSwatches(
                   colors: colors,
                   selected: pickedColor,
@@ -888,8 +1031,10 @@ Future<void> showPdfStrokeSheet(
                       horizontal: Gap.lg),
                   child: Text(
                     context.t('pse.stroke_width'),
-                    style: context.type.small
-                        .copyWith(color: scheme.onSurfaceVariant),
+                    style: context.type.small.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(height: Gap.sm),
@@ -922,6 +1067,150 @@ Future<void> showPdfStrokeSheet(
                   ),
                 ),
               ],
+            );
+          },
+        );
+      },
+    );
+
+/// Seçili görsel veya şekil için kolay boyutlandırma levhası: ölçek kaydırıcısı,
+/// canlı pt boyutu ve tek dokunuşla ön ayarlar (Küçük / Özgün / Büyük / Sığdır).
+Future<double?> showPdfImageSizeSheet(
+  BuildContext context, {
+  required PdfPageItem item,
+  required double pageWidth,
+  required double pageHeight,
+}) =>
+    showAppSheet<double>(
+      context,
+      title: context.t('pse.resize_title'),
+      builder: (sheetCtx) {
+        var scale = 1.0;
+        final baseW = math.max(1.0, item.width);
+        final baseH = math.max(1.0, item.height);
+        final fitScale = math
+            .min((pageWidth * 0.86) / baseW, (pageHeight * 0.86) / baseH)
+            .clamp(0.25, 2.5);
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final theme = Theme.of(context);
+            final scheme = theme.colorScheme;
+            final newW = (baseW * scale).round();
+            final newH = (baseH * scale).round();
+            final pct = (scale * 100).round();
+            final presets = <(String, double, Key)>[
+              ('pse.size_small', 0.65, const ValueKey('pse-size-small')),
+              ('pse.size_reset', 1.0, const ValueKey('pse-size-reset')),
+              ('pse.size_large', 1.4, const ValueKey('pse-size-large')),
+              ('pse.size_fit', fitScale, const ValueKey('pse-size-fit')),
+            ];
+            return Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                  Gap.lg, 0, Gap.lg, Gap.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: scheme.outlineVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: scheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            item.isImage ? AppIcons.image : AppIcons.vectorShape,
+                            size: 20,
+                            color: scheme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.t('pse.scale_pct', {'n': pct}),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '$newW × $newH pt',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Slider(
+                    key: const ValueKey('pse-resize-slider'),
+                    value: scale.clamp(0.25, 2.5),
+                    min: 0.25,
+                    max: 2.5,
+                    divisions: 45,
+                    label: '%$pct',
+                    onChanged: AppHaptics.slider(
+                      scale,
+                      (v) => setState(() => scale = v),
+                    ),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final (k, val, key) in presets)
+                        ChoiceChip(
+                          key: key,
+                          selected: (scale - val).abs() < 0.04,
+                          showCheckmark: false,
+                          label: Text(context.t(k)),
+                          onSelected: (_) {
+                            AppHaptics.step();
+                            setState(() => scale = val);
+                          },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.md),
+                  FilledButton.icon(
+                    key: const ValueKey('pse-resize-apply'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: (scale - 1.0).abs() < 0.01
+                        ? null
+                        : () => Navigator.of(sheetCtx).pop(scale),
+                    icon: const Icon(AppIcons.check, size: 19),
+                    label: Text(context.t('pse.apply_size')),
+                  ),
+                ],
+              ),
             );
           },
         );

@@ -124,6 +124,7 @@ class WordFormatUi {
   /// Faz 24 kalanı: resim, yorum, dipnot, tarih (ekran açar).
   final VoidCallback? onInsertImage,
       onReplaceImage,
+      onResizeImage,
       onImageAlt,
       onComments,
       onNewComment,
@@ -139,6 +140,7 @@ class WordFormatUi {
     this.onPro,
     this.onInsertImage,
     this.onReplaceImage,
+    this.onResizeImage,
     this.onImageAlt,
     this.onComments,
     this.onNewComment,
@@ -391,27 +393,36 @@ class WordFormatUi {
     final a = c.selectedImage;
     final align = c.paraLook.align;
     return [
-      PopupMenuButton<double>(
-        key: const ValueKey('word-img-size'),
-        tooltip: _t('word.img_size'),
-        onSelected: c.resizeImage,
-        itemBuilder: (ctx) => [
-          for (final (k, pt) in const [
-            ('word.img_small', 144.0),
-            ('word.img_medium', 288.0),
-            ('word.img_large', 432.0),
-          ])
-            CheckedPopupMenuItem(
-                value: pt,
-                checked: a != null && (a.widthPt - pt).abs() < 1,
-                child: Text(ctx.t(k))),
-        ],
-        child: RibbonChip(
-          icon: AppIcons.resize,
+      if (onResizeImage != null)
+        RibbonChip(
+          key: const ValueKey('word-img-size'),
+          icon: AppIcons.sizeScale,
           label: _t('word.img_size'),
           tooltip: _t('word.img_size'),
+          onTap: onResizeImage,
+        )
+      else
+        PopupMenuButton<double>(
+          key: const ValueKey('word-img-size'),
+          tooltip: _t('word.img_size'),
+          onSelected: c.resizeImage,
+          itemBuilder: (ctx) => [
+            for (final (k, pt) in const [
+              ('word.img_small', 144.0),
+              ('word.img_medium', 288.0),
+              ('word.img_large', 432.0),
+            ])
+              CheckedPopupMenuItem(
+                  value: pt,
+                  checked: a != null && (a.widthPt - pt).abs() < 1,
+                  child: Text(ctx.t(k))),
+          ],
+          child: RibbonChip(
+            icon: AppIcons.resize,
+            label: _t('word.img_size'),
+            tooltip: _t('word.img_size'),
+          ),
         ),
-      ),
       RibbonButton(OfficeIcons.alignLeft, _t('common.align_left'),
           key: const ValueKey('word-img-left'),
           active: align == 'left',

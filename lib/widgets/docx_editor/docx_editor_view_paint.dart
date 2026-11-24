@@ -112,18 +112,63 @@ class _ImageAtomState extends State<_ImageAtom> {
             fit: BoxFit.contain,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => SizedBox(width: w, height: h ?? 40));
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final accent = PdfEditTokens.imageAccent(dark);
     img = GestureDetector(onTap: widget.onTap, child: img);
-    if (!widget.selected) return img;
-    const hs = 22.0;
+    if (!widget.selected) {
+      return DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Radii.xs),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
+        child: img,
+      );
+    }
+    const hs = 28.0;
+    const dot = 10.0;
+    final pct = widget.maxW <= 0
+        ? 100
+        : ((w / widget.maxW) * 100).round().clamp(1, 100);
+    final ptW = (w / math.max(0.1, widget.scale)).round();
+
+    Widget cornerDot() => IgnorePointer(
+          child: Container(
+            width: dot,
+            height: dot,
+            decoration: BoxDecoration(
+              color: AppColors.page,
+              shape: BoxShape.circle,
+              border: Border.all(color: accent, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shade.withValues(alpha: 0.25),
+                  blurRadius: 3,
+                ),
+              ],
+            ),
+          ),
+        );
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
         DecoratedBox(
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
-              border: Border.all(color: AppColors.slideSelection, width: 2)),
+            color: accent.withValues(alpha: PdfEditTokens.objectSelectedFillAlpha),
+            border: Border.all(color: accent, width: 2.2),
+            borderRadius: BorderRadius.circular(Radii.xs),
+          ),
           child: img,
         ),
+        PositionedDirectional(start: 3, top: 3, child: cornerDot()),
+        PositionedDirectional(end: 3, top: 3, child: cornerDot()),
+        PositionedDirectional(start: 3, bottom: 3, child: cornerDot()),
         // Tutamak resmin İÇİNDE (köşede): dışarı taşan parça WidgetSpan'in
         // vuruş alanı dışında kalır, dokunuş ulaşmaz.
         PositionedDirectional(
@@ -132,7 +177,10 @@ class _ImageAtomState extends State<_ImageAtom> {
           child: GestureDetector(
             key: const ValueKey('docx-img-handle'),
             behavior: HitTestBehavior.opaque,
-            onPanStart: (_) => setState(() => _dragW = w),
+            onPanStart: (_) {
+              AppHaptics.selection();
+              setState(() => _dragW = w);
+            },
             onPanUpdate: (d) => setState(() => _dragW =
                 ((_dragW ?? w) + d.delta.dx).clamp(24.0, widget.maxW)),
             onPanEnd: (_) {
@@ -140,17 +188,61 @@ class _ImageAtomState extends State<_ImageAtom> {
               setState(() => _dragW = null);
               if (px != null) widget.onResize(px / widget.scale);
             },
-            child: Container(
+            child: SizedBox(
               width: hs,
               height: hs,
-              decoration: BoxDecoration(
-                color: AppColors.page,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.slideSelection, width: 2),
+              child: Center(
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.page, width: 2.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.shade.withValues(alpha: 0.30),
+                        blurRadius: 5,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    AppIcons.sizeScale,
+                    size: 12,
+                    color: AppColors.page,
+                  ),
+                ),
               ),
             ),
           ),
         ),
+        if (_dragW != null)
+          PositionedDirectional(
+            start: 6,
+            top: 6,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm, vertical: 3),
+                decoration: BoxDecoration(
+                  color: PdfEditTokens.badgeBg,
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shade.withValues(alpha: 0.28),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '%$pct · $ptW pt',
+                  style: PdfEditTokens.canvasBadgeStyle(
+                      PdfEditTokens.onBadge, 1.0),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

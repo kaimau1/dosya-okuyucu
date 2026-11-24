@@ -7,6 +7,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
+import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import '../../services/pdf/pro/pdf_object_geometry.dart';
@@ -174,6 +175,14 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   Size _cachedRectsSize = Size.zero;
   List<Rect> _cachedRects = const [];
   List<bool> _cachedLocked = const [];
+
+  // Seçilebilir görsel/şekil önbelleği (Görsel kipi: sayfa kayarken 0 yeniden boyama).
+  PdfPageContent? _cachedContent;
+  PdfPage? _cachedItemsPage;
+  Size _cachedItemsSize = Size.zero;
+  List<Rect> _cachedItemRects = const [];
+  List<bool> _cachedItemIsImage = const [];
+  List<int> _cachedItemIds = const [];
 
   @override
   void initState() {
@@ -685,17 +694,43 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     }
   }
 
+  (List<Rect>, List<bool>, List<int>) _itemLayout() {
+    final content = c.contentOf(pageIndex);
+    if (identical(_cachedContent, content) &&
+        identical(_cachedItemsPage, widget.page) &&
+        _cachedItemsSize == widget.pageSize) {
+      return (_cachedItemRects, _cachedItemIsImage, _cachedItemIds);
+    }
+    _cachedContent = content;
+    _cachedItemsPage = widget.page;
+    _cachedItemsSize = widget.pageSize;
+    final list = _selectable().toList(growable: false);
+    if (list.isEmpty) {
+      _cachedItemRects = const [];
+      _cachedItemIsImage = const [];
+      _cachedItemIds = const [];
+    } else {
+      _cachedItemRects = [for (final it in list) _itemRect(it)];
+      _cachedItemIsImage = [for (final it in list) it.isImage];
+      _cachedItemIds = [for (final it in list) it.index];
+    }
+    return (_cachedItemRects, _cachedItemIsImage, _cachedItemIds);
+  }
+
   Future<void> _dropItem(PdfPageItem item) async {
     final d = _preview.drag, s = _preview.scale;
-    final start = _preview.frame?.topLeft ?? Offset.zero;
+    final frame = _preview.frame;
+    final start = frame?.topLeft ?? Offset.zero;
+    final anchorWidget = frame == null ? start : _preview.anchorPoint(frame);
     _endDrag();
     if (d.distance < 1.5 * _px && (s - 1).abs() < 0.01) return;
     try {
       final p0 = _p(start), pd = _p(start + d);
       final List<double> m;
       if ((s - 1).abs() >= 0.01) {
-        // Sol-üst köşe sabit, oran kilitli ölçek.
-        final ax = p0.x, ay = p0.y;
+        // Tutulan köşenin karşı köşesi sabit, oran kilitli ölçek.
+        final pa = _p(anchorWidget);
+        final ax = pa.x, ay = pa.y;
         m = [s, 0, 0, s, ax - s * ax, ay - s * ay];
       } else {
         m = [1, 0, 0, 1, pd.x - p0.x, pd.y - p0.y];
@@ -712,6 +747,10 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     final scheme = Theme.of(context).colorScheme;
     final accent = scheme.primary;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final imageAccent = PdfEditTokens.imageAccent(dark);
+    final shapeAccent = PdfEditTokens.shapeAccent(dark);
+    final badgeImageLabel = context.t('pse.obj_badge_image');
+    final badgeShapeLabel = context.t('pse.obj_badge_shape');
     return ListenableBuilder(
       listenable: c,
       builder: (context, _) {
@@ -736,12 +775,29 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
             : groupRects.reduce((a, b) => a.expandToInclude(b));
         final tool = c.tool;
         final px = _px;
+        final showItems = tool == PdfProTool.image && live == null;
+        final (itemRects, itemIsImage, itemIds) = showItems
+            ? _itemLayout()
+            : (const <Rect>[], const <bool>[], const <int>[]);
+        final selectedItemPos = (showItems && item != null)
+            ? itemIds.indexOf(item.index)
+            : -1;
+        final activeItemColor = item == null
+            ? accent
+            : (item.isImage ? imageAccent : shapeAccent);
 
         final painter = _LayerPainter(
           rects: tool == PdfProTool.text && live == null ? rects : const [],
           locked: tool == PdfProTool.text && live == null ? locked : const [],
-          // Sürüklenen çerçeve [_DragPainter]'da; burada çizilmez.
           selected: live == null && !_dragging ? selected : null,
+          itemRects: itemRects,
+          itemIsImage: itemIsImage,
+          selectedItemPos: selectedItemPos >= 0 ? selectedItemPos : null,
+          selectedItemIsImage: item?.isImage,
+          imageAccent: imageAccent,
+          shapeAccent: shapeAccent,
+          badgeImageLabel: badgeImageLabel,
+          badgeShapeLabel: badgeShapeLabel,
           accent: accent,
           pending: PdfEditTokens.pending(dark),
           px: px,
@@ -809,8 +865,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         ];
 
         if (live == null && c.drawing) {
-          // Çizim/işaretleme: tek parmak çizer (görüntüleyicide tek parmak
-          // kaydırma bu sırada kapalı — `body.dart`), iki parmak yakınlaştırır.
           children.add(Positioned.fill(
             child: Listener(
               behavior: HitTestBehavior.translucent,
@@ -827,8 +881,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               context,
               onTap: (at) {
                 if (c.live != null) {
-                  // Yazarken: dokun = imleç; bloğun dışı (ya da başka sayfa)
-                  // = uygula.
                   if (live != null && bounds.contains(at)) {
                     _caretTo(at);
                   } else {
@@ -859,7 +911,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               },
               onLongPress: (at) {
                 if (c.live != null) {
-                  // Uzun bas = sözcük; parmak kalkmadan sürükle = seçimi uzat.
                   if (live == null) return;
                   AppHaptics.selection();
                   _caretTo(at, word: true);
@@ -867,7 +918,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                   return;
                 }
                 if (tool == PdfProTool.image) {
-                  // Uzun bas = çoklu seçime ekle / çıkar (Faz 59 m.5).
                   final it = _itemAt(at);
                   if (it == null) return;
                   AppHaptics.selection();
@@ -878,8 +928,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                 final hit = hitPdfBlock(rects, at, slop: 6 * px);
                 if (hit == null) return;
                 AppHaptics.selection();
-                // Basılı tut = seç: taşı/genişlet tutamaçları + blok yongaları
-                // (Biçim, Renk, Kopyala, Sil, Daha fazla). Menü yongadan açılır.
                 c.select(pageIndex, hit);
               },
             ))
@@ -897,11 +945,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
             ));
         }
 
-        // Tutamaçlar parmağı sahiplenir (yalnız kendi küçük alanlarında):
-        // gövdeye dokunuş/sürükleme görüntüleyicide kalır — seçim açıkken de
-        // sayfa kayar ve yakınlaşır.
-        // Tutamaç sürükleme boyunca yerinde durur (yeniden kurulmaz); önizleme
-        // [_DragPainter]'da çizilir.
         Widget grip(Offset center, double size,
                 {required VoidCallback onStart,
                 required GestureDragUpdateCallback onUpdate,
@@ -925,8 +968,6 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               ),
             );
         const hs = PdfEditTokens.gripHit;
-        // Seçili blok: tutamaçlar çerçevenin DIŞINDA — kısa satırlarda metni
-        // örtmez, "yazmaya başla" dokunuşunu çalmaz.
         if (live == null &&
             tool == PdfProTool.text &&
             selected != null &&
@@ -954,29 +995,57 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
                 onUpdate: (e) => _preview.widen(e.delta.dx),
                 onEnd: () => _dropBlock(b)));
         }
-        // Seçili nesne: üst tutamaç = taşı; sağ-alt köşe = ölçekle.
+        // Seçili nesne: üst tutamaç = taşı; DÖRT KÖŞE = oran kilitli ölçekle.
         if (live == null && item != null && !c.busy) {
           final r = _itemRect(item);
           final anchor = _gripAnchor(r);
+          final pdfSize = Size(item.width, item.height);
+          Widget cornerGrip(
+            Offset at,
+            _ScaleCorner corner,
+            double signX,
+            double signY,
+            Key key,
+          ) =>
+              grip(
+                at,
+                hs,
+                key: key,
+                onStart: () => _preview.begin(
+                  r,
+                  corner: corner,
+                  pdfSize: pdfSize,
+                  colorOverride: activeItemColor,
+                ),
+                onUpdate: (e) {
+                  final w = math.max(1.0, r.width);
+                  final h = math.max(1.0, r.height);
+                  final dsx = (signX * e.delta.dx) / w;
+                  final dsy = (signY * e.delta.dy) / h;
+                  final ds = dsx.abs() >= dsy.abs() ? dsx : dsy;
+                  _preview.resize((_preview.scale + ds).clamp(0.1, 8.0));
+                },
+                onEnd: () => _dropItem(item),
+              );
           children
             ..add(grip(anchor, hs,
                 key: const ValueKey('pse-grip-item'),
                 onStart: () => _preview.begin(r,
                     grip: anchor - r.topCenter,
+                    colorOverride: activeItemColor,
                     targets: _targets(items: {item.index})),
                 onUpdate: (e) {
                   if (_preview.move(e.delta)) AppHaptics.selection();
                 },
                 onEnd: () => _dropItem(item)))
-            ..add(grip(r.bottomRight, hs,
-                key: const ValueKey('pse-grip-scale'),
-                onStart: () => _preview.begin(r),
-                onUpdate: (e) {
-                  final w = math.max(1.0, r.width);
-                  _preview.resize(
-                      ((w * _preview.scale + e.delta.dx) / w).clamp(0.1, 8.0));
-                },
-                onEnd: () => _dropItem(item)));
+            ..add(cornerGrip(r.topLeft, _ScaleCorner.topLeft, -1, -1,
+                const ValueKey('pse-grip-scale-tl')))
+            ..add(cornerGrip(r.topRight, _ScaleCorner.topRight, 1, -1,
+                const ValueKey('pse-grip-scale-tr')))
+            ..add(cornerGrip(r.bottomLeft, _ScaleCorner.bottomLeft, -1, 1,
+                const ValueKey('pse-grip-scale-bl')))
+            ..add(cornerGrip(r.bottomRight, _ScaleCorner.bottomRight, 1, 1,
+                const ValueKey('pse-grip-scale')));
         }
         // Çoklu seçim: grubun kutusundan tek tutamaç = hepsini taşı.
         if (live == null && groupBox != null && !c.busy) {

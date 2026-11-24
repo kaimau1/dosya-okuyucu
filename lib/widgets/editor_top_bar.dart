@@ -44,6 +44,29 @@ abstract final class EditorTopBar {
   static const saveKey = ValueKey('editor-save');
   static const moreKey = ValueKey('editor-more');
 
+  /// Tüm editör üst çubuklarında tutarlı dairesel stüdyo düğme stili.
+  static ButtonStyle iconStyle(
+    BuildContext context, {
+    bool accent = false,
+    bool selected = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final highlighted = accent || selected;
+    return IconButton.styleFrom(
+      backgroundColor: highlighted
+          ? scheme.primaryContainer
+          : scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+      foregroundColor: highlighted ? scheme.primary : scheme.onSurface,
+      disabledBackgroundColor: Colors.transparent,
+      disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.34),
+      shape: const CircleBorder(),
+      side: highlighted
+          ? BorderSide(color: scheme.primary.withValues(alpha: 0.34))
+          : BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
   /// Üst çubuk eylemleri — SIRA SABİT: kaydet · geri al · yinele · ekler · ⋮.
   ///
   /// [undo]/[redo] her kurulumda okunur; [history] verilirse yalnız o iki
@@ -72,11 +95,15 @@ abstract final class EditorTopBar {
         // 2026-11-22 (kullanıcı): yapılacak bir şey yoksa düğme HİÇ görünmez —
         // başlık yer kazanır; yinele ancak geri alındıktan sonra çıkar.
         if (cb == null) return const SizedBox.shrink();
-        return IconButton(
-          key: isUndo ? undoKey : redoKey,
-          tooltip: context.t(isUndo ? 'word.undo' : 'word.redo'),
-          icon: Icon(isUndo ? AppIcons.undo : AppIcons.redo),
-          onPressed: cb,
+        return Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: isUndo ? undoKey : redoKey,
+            tooltip: context.t(isUndo ? 'word.undo' : 'word.redo'),
+            icon: Icon(isUndo ? AppIcons.undo : AppIcons.redo, size: 20),
+            style: iconStyle(context),
+            onPressed: cb,
+          ),
         );
       }
 
@@ -88,11 +115,15 @@ abstract final class EditorTopBar {
 
     return [
       if (showSave)
-        IconButton(
-          key: saveKey,
-          tooltip: context.t('common.save'),
-          icon: const Icon(AppIcons.save),
-          onPressed: onSave,
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: saveKey,
+            tooltip: context.t('common.save'),
+            icon: const Icon(AppIcons.save, size: 20),
+            style: iconStyle(context, accent: onSave != null),
+            onPressed: onSave,
+          ),
         ),
       if (undo != null) undoRedo(true),
       if (redo != null) undoRedo(false),
@@ -115,7 +146,8 @@ abstract final class EditorTopBar {
     return IconButton(
       key: moreKey,
       tooltip: context.t('common.more'),
-      icon: const Icon(AppIcons.more),
+      icon: const Icon(AppIcons.more, size: 20),
+      style: iconStyle(context),
       onPressed: () => showViewerMenu(context, filePath, groups: [
         EntryExtraGroup(title, [
           for (final m in menu)
@@ -133,10 +165,19 @@ abstract final class EditorTopBar {
   /// Standart ⋮ düğmesi; boş menüde devre dışı ama yeri korunur (çubuk
   /// editörden editöre kaymasın).
   static Widget moreButton(BuildContext context, List<EditorMenuItem> menu) {
+    final scheme = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
       key: moreKey,
       tooltip: context.t('common.more'),
-      icon: const Icon(AppIcons.more),
+      icon: const Icon(AppIcons.more, size: 20),
+      style: menu.isNotEmpty
+          ? iconStyle(context)
+          : IconButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: scheme.onSurface,
+              shape: const CircleBorder(),
+              visualDensity: VisualDensity.compact,
+            ),
       enabled: menu.isNotEmpty,
       onSelected: (id) {
         for (final m in menu) {

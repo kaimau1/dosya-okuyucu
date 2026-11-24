@@ -776,17 +776,71 @@ extension _WordProPart on _WordMobileEditorScreenState {
     await showAppSheet<void>(
       context,
       title: context.t('wp.stats'),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (k, v) in rows)
-            ListTile(
-              dense: true,
-              title: Text(ctx.t(k)),
-              trailing: Text(v, style: Theme.of(ctx).textTheme.titleMedium),
-            ),
-        ],
-      ),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: LayoutBuilder(
+            builder: (_, box) {
+              final tileW = (box.maxWidth - Gap.sm) / 2;
+              return Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (var idx = 0; idx < rows.length; idx++)
+                    Container(
+                      width: tileW,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.md, vertical: Gap.sm + 2),
+                      decoration: BoxDecoration(
+                        color: idx == 0
+                            ? scheme.primaryContainer.withValues(alpha: 0.6)
+                            : scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        border: Border.all(
+                          color: idx == 0
+                              ? scheme.primary.withValues(alpha: 0.32)
+                              : scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            rows[idx].$2,
+                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: idx == 0
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.onSurface,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            ctx.t(rows[idx].$1),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.type.caption.copyWith(
+                              color: idx == 0
+                                  ? scheme.onPrimaryContainer
+                                      .withValues(alpha: 0.85)
+                                  : scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 

@@ -764,8 +764,12 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
     final hasStyle = isSp || hasLine || _proOn;
     return DocActionBar([
       if (_canEditText(shape))
-        DocAction(AppIcons.edit, context.t('sl.edit_text'),
-            () => _beginEdit(slide, shape)),
+        DocAction(
+          AppIcons.edit,
+          context.t('sl.edit_text'),
+          () => _beginEdit(slide, shape),
+          primary: true,
+        ),
       if (hasStyle)
         DocAction(
           AppIcons.palette,

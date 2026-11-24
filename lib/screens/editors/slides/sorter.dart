@@ -141,10 +141,14 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
         : null;
     return Material(
       key: const ValueKey('sl-strip'),
-      color: scheme.surfaceContainerLow,
+      color: scheme.surfaceContainerLowest,
       shape: vertical
-          ? BorderDirectional(end: BorderSide(color: scheme.outlineVariant))
-          : Border(top: BorderSide(color: scheme.outlineVariant)),
+          ? BorderDirectional(
+              end: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.65)))
+          : Border(
+              top: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.65))),
       child: SizedBox(
         width: vertical ? thumbW + 12 : null,
         height: vertical ? null : _stripHeight,
@@ -172,21 +176,53 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
     if (editor == null) return;
     final hidden = editor.isHidden(slide);
     final structural = editor.canEditStructure;
-    Widget item(String v, IconData icon, String label, {bool enabled = true}) =>
-        ListTile(
-          key: ValueKey('sl-sheet-$v'),
-          enabled: enabled,
-          leading: Icon(icon),
-          title: Text(label),
-          onTap: () => Navigator.pop(context, v),
-        );
     final act = await showAppSheet<String>(
       context,
       title: context.t('sl.slide_of',
           {'n': slide.index, 'total': editor.slides.length}),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget item(String v, IconData icon, String label,
+                {bool enabled = true, bool danger = false}) =>
+            ListTile(
+              key: ValueKey('sl-sheet-$v'),
+              dense: true,
+              enabled: enabled,
+              leading: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: !enabled
+                      ? scheme.surfaceContainerHigh.withValues(alpha: 0.45)
+                      : danger
+                          ? scheme.errorContainer.withValues(alpha: 0.65)
+                          : scheme.primaryContainer.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                ),
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: !enabled
+                      ? scheme.onSurface.withValues(alpha: 0.34)
+                      : danger
+                          ? scheme.error
+                          : scheme.primary,
+                ),
+              ),
+              title: Text(
+                label,
+                style: ctx.type.body.copyWith(
+                  color: !enabled
+                      ? scheme.onSurface.withValues(alpha: 0.38)
+                      : danger
+                          ? scheme.error
+                          : scheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              onTap: enabled ? () => Navigator.pop(ctx, v) : null,
+            );
+        final items = [
           item('new', AppIcons.add, ctx.t('sl.new_slide'), enabled: structural),
           item('img', AppIcons.addPhoto, ctx.t('sl.insert_image'),
               enabled: structural),
@@ -198,9 +234,36 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
           item('layout', AppIcons.spaceDashboard, ctx.t('sl.change_layout')),
           item('notes', AppIcons.notes, ctx.t('sl.notes_edit')),
           item('del', AppIcons.delete, ctx.t('sl.delete'),
-              enabled: structural && editor.slides.length > 1),
-        ],
-      ),
+              enabled: structural && editor.slides.length > 1, danger: true),
+        ];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: Material(
+            color: scheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.card),
+              side: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < items.length; i++) ...[
+                  items[i],
+                  if (i < items.length - 1)
+                    Divider(
+                      height: 1,
+                      indent: 56,
+                      color: scheme.outlineVariant.withValues(alpha: 0.4),
+                    ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
     if (act == null || !mounted) return;
     if (act == 'new') {
@@ -238,7 +301,9 @@ extension _SlidesEditorScreenSorterPart on _SlidesEditorScreenState {
 /// Küçük resim: slaytın kendisi (dokunuşsuz), numara, gizliyse soluk + simge.
 Widget _slideThumb(BuildContext context, PptxEditor editor, PptxSlide slide,
     {required bool current}) {
-  final scheme = Theme.of(context).colorScheme;
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final dark = theme.brightness == Brightness.dark;
   final view = slide.view;
   final hidden = editor.isHidden(slide);
   final ratio = view == null ? 16 / 9 : view.widthPt / view.heightPt;
@@ -246,18 +311,34 @@ Widget _slideThumb(BuildContext context, PptxEditor editor, PptxSlide slide,
     children: [
       AspectRatio(
         aspectRatio: ratio,
-        child: Container(
-          clipBehavior: Clip.hardEdge,
+        child: AnimatedContainer(
+          duration: Motion.of(context, Motion.short),
+          curve: Motion.standard,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: AppColors.page,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.control),
             border: Border.all(
-              color: current ? scheme.primary : scheme.outlineVariant,
+              color: current
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.7),
               width: current ? 2.5 : 1,
             ),
+            boxShadow: current
+                ? [
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: dark ? 0.35 : 0.22),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
           foregroundDecoration: hidden
-              ? BoxDecoration(color: scheme.surface.withValues(alpha: 0.5))
+              ? BoxDecoration(
+                  color: scheme.surface.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                )
               : null,
           // RepaintBoundary: ana görünümde yazı yazarken / kaydırırken şeritteki
           // onlarca küçük slayt yeniden boyanmasın.
@@ -268,13 +349,13 @@ Widget _slideThumb(BuildContext context, PptxEditor editor, PptxSlide slide,
         ),
       ),
       PositionedDirectional(
-        start: 3,
-        bottom: 3,
+        start: 4,
+        bottom: 4,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
           decoration: BoxDecoration(
             color: current ? scheme.primary : AppColors.mediaScrim,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Radii.pill),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -287,8 +368,11 @@ Widget _slideThumb(BuildContext context, PptxEditor editor, PptxSlide slide,
               ],
               Text(
                 '${slide.index}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: current ? scheme.onPrimary : AppColors.onMedia),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: current ? scheme.onPrimary : AppColors.onMedia,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),

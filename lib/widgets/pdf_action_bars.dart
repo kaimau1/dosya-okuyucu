@@ -117,31 +117,38 @@ class PdfBarAction extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final enabled = onPressed != null;
     final bg = emphasized
-        ? scheme.primaryContainer
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.7);
-    final fg = emphasized ? scheme.onPrimaryContainer : scheme.onSurface;
-    final iconColor = emphasized ? scheme.onPrimaryContainer : scheme.primary;
+        ? scheme.primary
+        : scheme.surfaceContainerLow;
+    final fg = emphasized ? scheme.onPrimary : scheme.onSurface;
+    final iconColor = emphasized ? scheme.onPrimary : scheme.primary;
     final fade = enabled ? 1.0 : 0.38;
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Material(
           color: bg,
-          borderRadius: BorderRadius.circular(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: emphasized
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onPressed,
             child: Opacity(
               opacity: fade,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Icon(icon, size: 21, color: iconColor),
+                        Icon(icon, size: 20, color: iconColor),
                         if (accent != null)
                           Positioned(
                             left: 1,
@@ -165,7 +172,7 @@ class PdfBarAction extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: fg,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                     ),
                   ],
