@@ -525,7 +525,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
               await EmptyFolders.deleteAll(dirPaths,
                   isCancelled: () => handle.cancelled);
               for (final d in dirPaths) {
-                if (!Directory(d).existsSync()) {
+                if (!await Directory(d).exists()) {
                   removed.add(d);
                   items++;
                 }
@@ -540,7 +540,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
               if (ImportantFiles.isImportant(f.path)) continue;
               if (protectedCopies.contains(f.path)) continue;
               final orig = suggestion.originals[f.path];
-              if (orig != null && !File(orig.path).existsSync()) continue;
+              if (orig != null && !await File(orig.path).exists()) continue;
               sizes[f.path] = f.sizeBytes;
             }
             if (sizes.isNotEmpty) {
@@ -553,7 +553,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
               };
               // Çöp kapalıysa (doğrudan silme) aktarım kaydı olmayabilir.
               for (final path in sizes.keys) {
-                if (gone.contains(path) || !File(path).existsSync()) {
+                if (gone.contains(path) || !await File(path).exists()) {
                   removed.add(path);
                   items++;
                   if (result.trashed) {
