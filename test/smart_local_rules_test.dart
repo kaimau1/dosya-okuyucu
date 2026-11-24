@@ -82,7 +82,11 @@ void main() {
     test('SmartLearn düzeltmesini yerel kural çıktısına uygular', () async {
       const path1 = '/Docs/Sirket/musteri_proje_fatura_taslak.pdf';
       const path2 = '/Docs/Sirket/musteri_proje_fatura_ekim.pdf';
+      // Tek düzeltmenin benzerliği (~0,71) oy eşiğinin (0,85) altında:
+      // SmartLearn bilinçli olarak en az iki benzer düzeltme ister.
       await SmartLearn.record(path1, 'invoice', 'work');
+      await SmartLearn.record(
+          '/Docs/Sirket/musteri_proje_fatura_kasim.pdf', 'invoice', 'work');
 
       final adapted = SmartLocalRules.classify(entry(path2));
       expect(adapted, isNotNull);

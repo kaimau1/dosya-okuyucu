@@ -408,7 +408,9 @@ class _SharedAiPoolTileState extends State<SharedAiPoolTile> {
             unawaited(() async {
               try {
                 await SharedAiPoolClient.saveMode(next);
-              } catch (_) {}
+              } catch (_) {
+                // Bilinçli: kayıt yazılamazsa seçim bu oturumda geçerli kalır.
+              }
             }());
           },
         ),

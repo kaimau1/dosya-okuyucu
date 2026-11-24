@@ -153,6 +153,9 @@ void main() {
                 },
               }),
               200,
+              // Cloud Functions UTF-8 döner; başlıksız Response latin1
+              // kodlar ve "Ö" UTF-8 çözümünde bozulurdu.
+              headers: {'content-type': 'application/json; charset=utf-8'},
             );
           }),
         );
