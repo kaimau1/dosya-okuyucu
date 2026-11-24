@@ -334,12 +334,14 @@ class AppTheme {
         // Ekran başlıkları büyük ve kalın (2026-11-15, kullanıcı: *"başlıklar
         // büyüsün baya ve bold olsun"* — Ayarlar başlığı soluk ve küçüktü).
         titleTextStyle: text.titleLarge?.copyWith(
-          fontSize: 25,
+          fontSize: 24,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.5,
         ),
-        // Gölge yerine cetvel: kaydırınca başlık alanı çizgiyle ayrılır.
-        shape: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        // Gölge yerine ince saç teli cetvel: başlık ferah ve modern ayrılır.
+        shape: Border(
+          bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
+        ),
       ),
 
       // Gölge yerine yüzey tonu + saç teli kenarlık.
@@ -350,7 +352,9 @@ class AppTheme {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(metrics.radiusCard),
-          side: BorderSide(color: scheme.outlineVariant),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.72),
+          ),
         ),
       ),
 
@@ -360,18 +364,39 @@ class AppTheme {
         ),
         contentPadding: EdgeInsets.symmetric(
             horizontal: Gap.md, vertical: metrics.rowPadding),
-        titleTextStyle: text.titleMedium,
+        titleTextStyle: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         subtitleTextStyle: text.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,
         ),
       ),
 
+      // ── Buton çeşitleri (2026-11-24 yenilenen dokunsal dil) ──────────────
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           // 48dp: Android dokunma hedefi alt sınırı.
           minimumSize: const Size(64, 48),
-          padding: const EdgeInsets.symmetric(horizontal: Gap.lg),
-          textStyle: text.labelLarge,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 12),
+          elevation: 0,
+          textStyle: text.labelLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.1,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(metrics.radiusControl),
+          ),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          minimumSize: const Size(64, 48),
+          padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 12),
+          elevation: 1,
+          shadowColor: scheme.shadow.withValues(alpha: 0.14),
+          backgroundColor: scheme.surfaceContainerLow,
+          foregroundColor: scheme.primary,
+          surfaceTintColor: Colors.transparent,
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.85)),
+          textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w700),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(metrics.radiusControl),
           ),
@@ -380,6 +405,8 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           minimumSize: const Size(48, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(metrics.radiusControl),
           ),
@@ -388,26 +415,103 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(64, 48),
-          side: BorderSide(color: scheme.outline),
+          padding: const EdgeInsets.symmetric(horizontal: Gap.md + 4, vertical: 12),
+          side: BorderSide(
+            color: scheme.outline.withValues(alpha: 0.72),
+            width: 1.2,
+          ),
+          textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(metrics.radiusControl),
           ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
-        style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+        style: IconButton.styleFrom(
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(metrics.radiusControl),
+          ),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return scheme.primaryContainer;
+            }
+            return scheme.surfaceContainerLow;
+          }),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return scheme.onPrimaryContainer;
+            }
+            return scheme.onSurfaceVariant;
+          }),
+          side: WidgetStatePropertyAll(
+            BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.85)),
+          ),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(metrics.radiusControl),
+            ),
+          ),
+          textStyle: WidgetStatePropertyAll(
+            text.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
       ),
 
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        elevation: 0,
-        focusElevation: 0,
-        hoverElevation: 0,
-        highlightElevation: 0,
+        elevation: 2,
+        focusElevation: 3,
+        hoverElevation: 3,
+        highlightElevation: 1,
         backgroundColor: scheme.primary,
         foregroundColor: scheme.onPrimary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(metrics.radiusCard),
         ),
+      ),
+
+      tabBarTheme: TabBarThemeData(
+        indicatorColor: scheme.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        dividerColor: scheme.outlineVariant.withValues(alpha: 0.65),
+        labelStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+        unselectedLabelStyle:
+            text.labelLarge?.copyWith(fontWeight: FontWeight.w500),
+      ),
+
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surfaceContainerLow,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: scheme.primaryContainer,
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(metrics.radiusControl),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final sel = states.contains(WidgetState.selected);
+          return text.labelMedium?.copyWith(
+            fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+            color: sel ? scheme.primary : scheme.onSurfaceVariant,
+          );
+        }),
+      ),
+
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+        side: BorderSide(color: scheme.outline, width: 1.5),
+      ),
+
+      sliderTheme: SliderThemeData(
+        trackHeight: 4,
+        activeTrackColor: scheme.primary,
+        inactiveTrackColor: scheme.outlineVariant.withValues(alpha: 0.65),
+        thumbColor: scheme.primary,
+        overlayColor: scheme.primary.withValues(alpha: 0.14),
       ),
 
       // ── Metin kutuları ────────────────────────────────────────────────────
@@ -442,18 +546,22 @@ class AppTheme {
 
       dialogTheme: DialogThemeData(
         elevation: 0,
-        backgroundColor: scheme.surfaceContainerHigh,
+        backgroundColor: scheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(metrics.radiusSheet),
-          side: BorderSide(color: scheme.outlineVariant),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.8),
+          ),
         ),
-        titleTextStyle: text.headlineSmall,
+        titleTextStyle: text.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         contentTextStyle: text.bodyMedium,
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
+        dragHandleColor: scheme.outline.withValues(alpha: 0.55),
+        dragHandleSize: const Size(40, 4),
         shape: RoundedRectangleBorder(
           borderRadius:
               BorderRadius.vertical(top: Radius.circular(metrics.radiusSheet)),
@@ -478,7 +586,7 @@ class AppTheme {
       dividerTheme: DividerThemeData(
         space: 1,
         thickness: 1,
-        color: scheme.outlineVariant,
+        color: scheme.outlineVariant.withValues(alpha: 0.75),
       ),
 
       // **Çipler tonlu hap** (2026-09-26, kullanıcı: *"üstteki filtreler tüm
@@ -509,7 +617,7 @@ class AppTheme {
           // klasör/tür çipleri) yok sayılıyordu.
           fontFamily: body,
           fontSize: 14,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           color: WidgetStateColor.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
               return scheme.onSurface.withValues(alpha: 0.38);
@@ -523,7 +631,6 @@ class AppTheme {
       ),
 
       switchTheme: SwitchThemeData(
-        // Kağıt paleti: açık = mürekkep mavisi, kapalı = kağıdın kenarı.
         thumbColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
               ? scheme.onPrimary
@@ -532,9 +639,13 @@ class AppTheme {
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
               ? scheme.primary
-              : palette.edge,
+              : palette.well,
         ),
-        trackOutlineColor: WidgetStateProperty.all(scheme.outline),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected)
+              ? Colors.transparent
+              : palette.edge.withValues(alpha: 0.8),
+        ),
       ),
 
       // **Açılır menüler** (2026-10-23, kullanıcı: *"bu tür menüler UI olarak
@@ -544,7 +655,7 @@ class AppTheme {
       // levhasında; burada kalan kısa seçim menüleri (sırala, görünüm…).
       popupMenuTheme: PopupMenuThemeData(
         elevation: 6,
-        shadowColor: scheme.shadow.withValues(alpha: 0.28),
+        shadowColor: scheme.shadow.withValues(alpha: 0.24),
         color: scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         menuPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -553,7 +664,7 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(metrics.radiusCard),
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.72)),
         ),
       ),
       // **Sayfa geçişi** artık M3 varsayılanı (ZoomPageTransitions) DEĞİL:
