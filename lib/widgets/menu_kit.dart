@@ -472,10 +472,10 @@ class MenuSearchField extends StatelessWidget {
             hintStyle: theme.textTheme.bodyMedium
                 ?.copyWith(color: scheme.onSurfaceVariant),
             prefixIcon: Padding(
-              padding: const EdgeInsetsDirectional.only(start: 8, end: 6),
+              padding: const EdgeInsetsDirectional.only(start: 6, end: 4),
               child: Container(
-                width: 30,
-                height: 30,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: hasText
                       ? scheme.primary
@@ -490,7 +490,7 @@ class MenuSearchField extends StatelessWidget {
               ),
             ),
             prefixIconConstraints:
-                const BoxConstraints(minWidth: 44, minHeight: 40),
+                const BoxConstraints(minWidth: 40, minHeight: 36),
             suffixIcon: hasText
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
@@ -531,7 +531,7 @@ class MenuSearchField extends StatelessWidget {
             fillColor: scheme.surfaceContainerLowest,
             isDense: true,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             border: OutlineInputBorder(
               borderRadius: radius,
               borderSide: BorderSide(
@@ -1265,20 +1265,20 @@ double _measureBentoTile(BuildContext context, MenuKitAction a, double width) {
       .textTheme
       .labelLarge
       ?.copyWith(height: 1.2, fontWeight: FontWeight.w700);
-  final labelH = _measureTextHeight(context, a.label, style, width - 20);
-  return math.max(76.0, 10 + 32 + 8 + labelH + 10 + 2);
+  final labelH = _measureTextHeight(context, a.label, style, width - 24);
+  return math.max(76.0, 10 + 32 + 8 + labelH + 10 + 4);
 }
 
 double _measureBentoRow(BuildContext context, MenuKitAction a, double width) {
   final theme = Theme.of(context);
   final labelStyle = theme.textTheme.labelLarge
       ?.copyWith(height: 1.2, fontWeight: FontWeight.w700);
-  final textW = width - 22 - 34 - 10 - (a.checked != null ? 28 : 0);
+  final textW = width - 26 - 34 - 10 - (a.checked != null ? 28 : 0);
   final labelH = _measureTextHeight(context, a.label, labelStyle, textW);
   final hintH = a.hint == null
       ? 0.0
       : _measureTextHeight(context, a.hint!, theme.textTheme.bodySmall, textW);
-  return math.max(56.0, 20 + labelH + hintH + 2);
+  return math.max(56.0, 20 + labelH + hintH + 4);
 }
 
 class _BentoEntry {

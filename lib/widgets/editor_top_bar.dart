@@ -63,7 +63,10 @@ abstract final class EditorTopBar {
       side: highlighted
           ? BorderSide(color: scheme.primary.withValues(alpha: 0.34))
           : BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
-      visualDensity: VisualDensity.compact,
+      fixedSize: const Size(38, 38),
+      minimumSize: const Size(38, 38),
+      padding: EdgeInsets.zero,
+      tapTargetSize: MaterialTapTargetSize.padded,
     );
   }
 
