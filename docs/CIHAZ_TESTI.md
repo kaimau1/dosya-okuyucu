@@ -1691,3 +1691,5 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Yer aç → en altta "TEMİZLİK ARAÇLARI": Kopyalar, Benzer görseller, Sohbet medyası, Akıllı temizlik analizi, Klasör haritası açılır. Temizlenecek bir şey yokken de görünür. İşlemler'de "Sohbet medyası" sekmesi yok.
 - [ ] Bellek Analizi → Araçlar'da yalnız "Yer aç" ve "Klasör haritası". En büyük dosyalar kendi kutusunda kayar, sayfa yerinde kalır; kapsam çipine dokununca kutu başa döner.
 - [ ] Belgeler/İndirilenler/Analiz satırı: "WhatsApp · 24 Kas · 12 MB" tek akışta, ortada boşluk yok.
+- [ ] Yer aç → Büyük videolar → bir video seç → "Bunu temizle" yanında "Boyut düşür · ≈ …" çıkar (tahmin birkaç saniyede gelir); dokununca boyut düşürme ayarı açılır, iş kuyruğa girer.
+- [ ] Bellek Analizi → en büyük dosyalarda video satırında "≈ 320 MB" hapı; dokununca aynı ayar sayfası. Kaydırma takılmıyor.

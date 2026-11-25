@@ -26,6 +26,10 @@ const Map<String, (String, String, String)> _t2 = {
     'ZIP · 7z · بكلمة مرور',
   ),
   'ea.resize': ('Boyut düşür', 'Reduce size', 'تصغير الحجم'),
+  'vsp.shrink': ('Küçült', 'Shrink', 'تصغير'),
+  'vsp.tooltip': ('Boyut düşür: {from} → yaklaşık {to}', 'Reduce size: {from} → about {to}', 'تصغير الحجم: {from} ← حوالي {to}'),
+  'clean.shrink_this': ('Boyut düşür', 'Reduce size', 'تصغير الحجم'),
+  'clean.shrink_this_est': ('Boyut düşür · ≈ {to}', 'Reduce size · ≈ {to}', 'تصغير الحجم · ≈ {to}'),
   'ea.resize_hint': (
     'çözünürlük / kare sayısı',
     'resolution / frame rate',

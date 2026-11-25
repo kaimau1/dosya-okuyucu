@@ -26,12 +26,14 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/sent_original_matcher.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
+import '../../services/fm/video_shrink_estimate.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart' show fmHero;
 import '../../widgets/motion.dart' show FmEmptyState;
 import 'cleanup_tools.dart';
 import 'entry_actions.dart' show trashWithUndo;
+import 'resize_actions.dart';
 import 'smart_clutter_screen.dart';
 import 'trash_screen.dart';
 
@@ -1063,6 +1065,49 @@ class _CleanupScreenState extends State<CleanupScreen> {
     );
   }
 
+  /// Kartta seçili VİDEOLAR (boyut düşür kısayolu için).
+  List<FsEntry> _selectedVideosOf(CleanupSuggestion s) {
+    final sel = _selectedFiles[s.id];
+    if (sel == null || sel.isEmpty) return const [];
+    return [
+      for (final f in s.files)
+        if (f.category == FmCategory.video && sel.contains(f.path)) f,
+    ];
+  }
+
+  /// Seçim başına tahmin önbelleği (her yeniden çizimde yeni ölçüm olmasın).
+  final Map<String, Future<({int before, int after})?>> _shrinkEstimates = {};
+
+  Widget _shrinkButton(String id, List<FsEntry> videos) {
+    final key = '$id|${Object.hashAll([for (final v in videos) v.path])}';
+    if (_shrinkEstimates.length > 24) _shrinkEstimates.clear();
+    final future =
+        _shrinkEstimates[key] ??= VideoShrinkEstimate.total(videos);
+    return FutureBuilder<({int before, int after})?>(
+      future: future,
+      builder: (context, snap) {
+        final est = snap.data;
+        final useful = est != null && est.after < est.before * 0.9;
+        return FilledButton.tonalIcon(
+          key: ValueKey('clean-shrink-$id'),
+          onPressed: () async {
+            final started = await startResizeJob(context, videos);
+            if (started && mounted) setState(_shrinkEstimates.clear);
+          },
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          icon: const Icon(AppIcons.shrink, size: 17),
+          label: Text(useful
+              ? context.t('clean.shrink_this_est',
+                  {'to': FsPaths.humanSize(est.after)})
+              : context.t('clean.shrink_this')),
+        );
+      },
+    );
+  }
+
   Widget _clutterBanner(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Material(
@@ -1130,6 +1175,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final selBytes = _selectedBytesOf(s);
     final isTrash = s.id == 'trash';
     final isEmptyDirs = s.id == 'empty_folders';
+    // Büyük videolar: silmek yerine BOYUT DÜŞÜR (2026-11-25, kullanıcı:
+    // "buraya direkt boyut düşür seçeneği koy").
+    final shrinkVideos = s.id == 'big_videos' || s.id == 'old_large'
+        ? _selectedVideosOf(s)
+        : const <FsEntry>[];
     final canExpand = !isTrash && s.files.isNotEmpty;
     final expanded = canExpand && _expanded.contains(s.id);
     final showAll = _showAllFiles.contains(s.id);
@@ -1339,29 +1389,37 @@ class _CleanupScreenState extends State<CleanupScreen> {
                                 // 2026-11-24: "her özelliği tek başına da").
                                 if (selCount > 0) ...[
                                   const SizedBox(height: Gap.sm),
-                                  FilledButton.tonalIcon(
-                                    key: ValueKey('clean-one-${s.id}'),
-                                    onPressed: () => _apply(onlyId: s.id),
-                                    style: FilledButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12),
-                                    ),
-                                    icon: Icon(
-                                        isTrash
-                                            ? AppIcons.deleteSweep
-                                            : AppIcons.cleanEmpty,
-                                        size: 17),
-                                    label: Text(isTrash
-                                        ? context.t('clean.empty_trash_now')
-                                        : (isEmptyDirs
-                                            ? context.t('clean.clean_this_dirs',
-                                                {'n': selCount})
-                                            : context.t('clean.clean_this', {
-                                                'size':
-                                                    FsPaths.humanSize(selBytes),
-                                                'n': selCount,
-                                              }))),
+                                  Wrap(
+                                    spacing: Gap.sm,
+                                    runSpacing: Gap.xs,
+                                    children: [
+                                      FilledButton.tonalIcon(
+                                        key: ValueKey('clean-one-${s.id}'),
+                                        onPressed: () => _apply(onlyId: s.id),
+                                        style: FilledButton.styleFrom(
+                                          visualDensity: VisualDensity.compact,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12),
+                                        ),
+                                        icon: Icon(
+                                            isTrash
+                                                ? AppIcons.deleteSweep
+                                                : AppIcons.cleanEmpty,
+                                            size: 17),
+                                        label: Text(isTrash
+                                            ? context.t('clean.empty_trash_now')
+                                            : (isEmptyDirs
+                                                ? context.t('clean.clean_this_dirs',
+                                                    {'n': selCount})
+                                                : context.t('clean.clean_this', {
+                                                    'size':
+                                                        FsPaths.humanSize(selBytes),
+                                                    'n': selCount,
+                                                  }))),
+                                      ),
+                                      if (shrinkVideos.isNotEmpty)
+                                        _shrinkButton(s.id, shrinkVideos),
+                                    ],
                                   ),
                                 ],
                               ],

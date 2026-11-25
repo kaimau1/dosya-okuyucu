@@ -27,11 +27,13 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
+import '../../widgets/fm/video_shrink_pill.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
 import 'cleanup_screen.dart';
 import 'folder_map_screen.dart';
 import 'installed_apps_screen.dart';
+import 'resize_actions.dart';
 import 'entry_actions.dart';
 import '../../core/safe_insets.dart';
 
@@ -516,6 +518,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ? null
           : FsPaths.humanSize(visible[i].sizeBytes),
       showDivider: i < visible.length - 1,
+      // Videoda tek dokunuşla boyut düşür + tahmini boyut (2026-11-25).
+      badge: !_selecting && visible[i].category == FmCategory.video
+          ? VideoShrinkPill(
+              entry: visible[i],
+              onTap: () async {
+                await startResizeJob(context, [visible[i]]);
+              },
+            )
+          : null,
       onCheck: () => _toggle(visible[i]),
       // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
       // ekranında aynı kural.
