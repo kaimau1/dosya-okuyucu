@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/edition.dart';
@@ -113,9 +114,16 @@ abstract final class CloudOcr {
   /// var mı? (İkisinde de cihaz modeli zayıf, görsel model gerekir.)
   static Future<bool> hasNonLatinScript(String path) async {
     if (PrivateZone.active || PrivateZone.isPrivatePath(path)) return false;
+    final key = await _cacheKey(path);
+    final hit = key == null ? null : _scriptCache[key];
+    if (hit != null) return hit;
     try {
       final block = await GeminiDecisions.fileBlock(path);
+      // `silent`: bu soru kullanıcının seçmediği OTOMATİK bir yükseltme —
+      // gönderim onayı önceden verilmemişse hiç sorulmaz (her sayfada onay
+      // penceresi açılmasın, onaysız dosya buluta gitmesin).
       final r = await GeminiDecisions.ask(
+        silent: true,
         keys: _keys,
         input: [block],
         questions: const [
@@ -135,10 +143,45 @@ abstract final class CloudOcr {
           ),
         ],
       );
-      return r.answers.any((a) => a.isYes);
+      final yes = r.answers.any((a) => a.isYes);
+      if (key != null) _remember(_scriptCache, key, yes);
+      return yes;
     } catch (_) {
       return false; // Bilinçli: karar alınamazsa cihazdaki sonuç kalır.
     }
+  }
+
+  // ── Sonuç önbelleği (2026-11-25 fatura denetimi) ─────────────────────────
+  // KÖK: OCR Stüdyosu görseli AI ile okuduktan sonra görüntüleyici aynı görsel
+  // için seçilebilir katman kurarken `recognizeImageLines(allowCloud: true)`
+  // ile AYNI isteği yeniden atıyordu → her görselde çift ücret. Aynı dosya
+  // (yol + boyut + değişim anı) için son sonuçlar bellekte tutulur.
+  static const _cacheMax = 12;
+  static final Map<String, List<OcrLine>> _linesCache = {};
+  static final Map<String, bool> _scriptCache = {};
+
+  static Future<String?> _cacheKey(String path) async {
+    try {
+      final st = await File(path).stat();
+      if (st.type == FileSystemEntityType.notFound) return null;
+      return '$path|${st.size}|${st.modified.microsecondsSinceEpoch}';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void _remember<T>(Map<String, T> cache, String key, T value) {
+    cache.remove(key);
+    cache[key] = value;
+    while (cache.length > _cacheMax) {
+      cache.remove(cache.keys.first);
+    }
+  }
+
+  @visibleForTesting
+  static void clearCacheForTest() {
+    _linesCache.clear();
+    _scriptCache.clear();
   }
 
   static String _mime(String path) {
@@ -184,6 +227,9 @@ abstract final class CloudOcr {
       throw GeminiException(AppStrings.current.t('ocr.cloud_need_key'),
           statusCode: -1);
     }
+    final key = await _cacheKey(path);
+    final hit = key == null ? null : _linesCache[key];
+    if (hit != null) return List.of(hit);
     final bytes = await File(path).readAsBytes();
     if (bytes.length > maxBytes) {
       throw GeminiException(AppStrings.current.t('qc.too_large'),
@@ -196,7 +242,9 @@ abstract final class CloudOcr {
       image: bytes,
       mimeType: _mime(path),
     );
-    return parse(raw, size.width, size.height);
+    final out = parse(raw, size.width, size.height);
+    if (key != null && out.isNotEmpty) _remember(_linesCache, key, out);
+    return out;
   }
 
   static Future<({double width, double height})> _imageSize(

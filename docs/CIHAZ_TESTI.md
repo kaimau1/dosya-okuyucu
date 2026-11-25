@@ -1679,3 +1679,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] İşlem sürerken geri tuşu → "Sayfa işleniyor, birkaç saniye bekleyin…" bildirimi (sessiz kalmamalı).
 - [ ] El yazılı sayfa tara (Ayarlar → Metin tanıma dili: Otomatik, AI anahtarı var) → tanınan metin el yazısına çok daha yakın.
 - [ ] Slayt → Tasarım: geçiş kutularında her geçiş küçük slaytta birkaç kez oynar, sonra durur. "Düzeni değiştir": her düzen başlık/içerik/resim yerleriyle küçük slayt olarak görünür, şimdiki düzen seçili.
+
+## Liste sadeleştirme + AI onay/önbellek + USB sıralı yazma (2026-11-25) — yazıldı, cihazda doğrulanmadı
+- [ ] Belgeler ve İndirilenler: her satırda ad (en çok 2 satır) + tek satır "ikinci ad  #etiket" + "kaynak … tarih · boyut"; yalnız ad kalın. İndirilenler'de sağda ayrı "7 gün önce" sütunu yok, yaş tarih yerinde renkli. Kaydırmada takılma yok (A/B C2'de).
+- [ ] Akıllı düzeni elle başlat (gönderim onayı daha önce verilmemiş) → onay penceresi BİR kez çıkar; "Vazgeç" → tur durur, her dosyada yeniden sormaz.
+- [ ] Görseli OCR Stüdyosu'nda AI ile oku → "metni görselin üstünde seç" → ikinci bir AI isteği gitmez (Google AI Studio kullanım sayacında tek istek).
+- [ ] USB bellekte iki ayrı kopyalama işini aynı anda başlat → ikisi de bitince dosyalar açılır, bozuk dosya yok. Klasörü yeniden adlandır, eski adla yeni klasör aç → yeni klasör boş görünür.

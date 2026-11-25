@@ -23,6 +23,7 @@ import '../services/fm/file_ops.dart';
 import '../services/fm/fm_env.dart';
 import '../services/fm/fs_events.dart';
 import '../services/fm/safe_write.dart';
+import '../services/ai_pool.dart';
 import '../services/gemini_service.dart';
 import '../services/ocr_service.dart';
 import '../services/read_aloud_ai.dart';
@@ -354,10 +355,9 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
 
     setState(() => _aiBusy = true);
     try {
-      final gemini = GeminiService(
-        apiKey: creds.keys.first,
-        model: creds.models.isNotEmpty ? creds.models.first : defaultAiModel,
-      );
+      // Havuz üzerinden (2026-11-25 denetimi): ham `GeminiService` gönderim
+      // onayını, gizli kasa kapısını ve kota soğumasını atlıyordu.
+      final GeminiService gemini = PooledGemini(creds);
       final fixed = await ReadAloudAi.tidyOrOriginal(gemini, _editor.text);
       if (!mounted) return;
       setState(() {

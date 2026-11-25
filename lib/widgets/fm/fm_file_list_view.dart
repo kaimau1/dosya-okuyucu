@@ -60,6 +60,9 @@ class FmFileListView extends StatelessWidget {
   /// [FmEntryRow.dateText]).
   final String? Function(FsEntry)? dateText;
 
+  /// Tarih metninin rengi (bkz. [FmEntryRow.dateColor]).
+  final Color? Function(FsEntry)? dateColor;
+
   /// Alt satırın sağına hizalanan bilgi (bkz. [FmEntryRow.subtitleEnd]).
   final String? Function(FsEntry)? subtitleEnd;
 
@@ -94,6 +97,7 @@ class FmFileListView extends StatelessWidget {
     required this.onToggle,
     required this.subtitle,
     this.dateText,
+    this.dateColor,
     this.subtitleEnd,
     this.controller,
     this.onSelectRange,
@@ -391,6 +395,7 @@ class FmFileListView extends StatelessWidget {
         selecting: _selecting,
         subtitle: subtitle(entry),
         dateText: dateText?.call(entry),
+        dateColor: dateColor?.call(entry),
         subtitleEnd: subtitleEnd?.call(entry),
         showChevron: showChevron,
         badge: badge?.call(entry),

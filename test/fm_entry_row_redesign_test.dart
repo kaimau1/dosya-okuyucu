@@ -68,10 +68,9 @@ void main() {
     ));
 
     expect(find.text(entry.name), findsOneWidget);
-    expect(find.text('Tahlil sonucu · Kasım 2026'), findsOneWidget);
-    expect(find.text('Sağlık'), findsOneWidget);
-    expect(find.text('Hastane'), findsOneWidget);
-    expect(find.text('Önemli'), findsOneWidget);
+    // İkinci ad + etiketler TEK satırda (2026-11-25 sadeleştirme).
+    expect(find.text('Tahlil sonucu · Kasım 2026  #Hastane  #Sağlık  #Önemli'),
+        findsOneWidget);
     expect(find.text('WhatsApp'), findsOneWidget);
     // Tarih ve boyut birleşik Text.rich içinde kesilmeden görünür.
     expect(find.textContaining('19 Kas'), findsOneWidget);
@@ -79,7 +78,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('4ten fazla etikette +N taşma hapı çıkar', (tester) async {
+  testWidgets('çok etikette satır taşmaz, tek satırda kalır', (tester) async {
     await tester.pumpWidget(_wrap(
       FmEntryRow(
         entry: entry,
@@ -95,8 +94,9 @@ void main() {
       ),
     ));
 
-    expect(find.byType(FmTagPills), findsOneWidget);
-    expect(find.text('+2'), findsOneWidget);
+    final line = find.textContaining('E-posta · Kasım 2026  #A');
+    expect(line, findsOneWidget);
+    expect(tester.widget<Text>(line).maxLines, 1);
     expect(find.textContaining('18 Kas'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -123,8 +123,8 @@ void main() {
 
     expect(find.text('19 Kas 2025'), findsOneWidget);
     expect(find.text('2,0 MB'), findsOneWidget);
-    expect(find.text('Fatura'), findsOneWidget);
-    expect(find.text('Resmî belge · Kasım 2026'), findsOneWidget);
+    expect(find.text('Resmî belge · Kasım 2026  #Fatura  #Vergi'),
+        findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -148,6 +148,27 @@ void main() {
     ));
 
     expect(find.textContaining('19 Kas'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tarih rengi verilince yalnız tarih o renkte', (tester) async {
+    const age = Color(0xFF2E7D32);
+    await tester.pumpWidget(_wrap(
+      FmEntryRow(
+        entry: entry,
+        selected: false,
+        selecting: false,
+        subtitle: 'Belgeler',
+        dateText: '7 gün önce',
+        dateColor: age,
+        subtitleEnd: '136 KB',
+        thumbnails: false,
+        onTap: () {},
+      ),
+    ));
+    final rich = tester.widget<Text>(find.textContaining('7 gün önce'));
+    final span = (rich.textSpan! as TextSpan).children!.first as TextSpan;
+    expect(span.style?.color, age);
     expect(tester.takeException(), isNull);
   });
 }

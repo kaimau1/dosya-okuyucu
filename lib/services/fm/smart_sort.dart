@@ -2237,7 +2237,9 @@ abstract final class SmartSort {
       OfflineMode.enabled ||
       UserError.classify(err) == UserErrorKind.offline ||
       (err is GeminiException &&
-          const {401, 403, 429}.contains(err.statusCode));
+          // -2: onay verilmedi / Pro değil / gizli kasa açık — dosyanın suçu
+          // değil; durmazsa her dosyada onay penceresi yeniden açılırdı.
+          const {401, 403, 429, -2}.contains(err.statusCode));
 
   /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
   @visibleForTesting

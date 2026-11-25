@@ -216,6 +216,20 @@ abstract final class GeminiDecisions {
     if (questions.isEmpty) {
       throw GeminiException('Soru yok.', statusCode: -1, networkAttempted: false);
     }
+    // AI'ya gönderim onayı (2026-11-25 denetimi): Decisions çağrıları
+    // `AiPool.run`dan GEÇMİYOR, bu yüzden elle başlatılan Akıllı düzen turu,
+    // Kategorilerim ve OCR yazı türü sorusu dosyayı onay SORMADAN Google'a
+    // gönderiyordu (gizlilik + kullanıcının anahtarına habersiz fatura).
+    if (!silent) {
+      final consent = AiPool.consent;
+      if (consent != null && !await consent()) {
+        throw GeminiException(
+          'Yapay zekâya gönderim iptal edildi.',
+          statusCode: -2,
+          networkAttempted: false,
+        );
+      }
+    }
     final payload = await encodeBody(input, questions);
     GeminiException? last;
     final now = nowMs();

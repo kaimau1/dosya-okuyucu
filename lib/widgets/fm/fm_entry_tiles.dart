@@ -149,8 +149,10 @@ class FmTagPills extends StatelessWidget {
   }
 }
 
-/// Liste satırı — **dört katmanlı, nokta atışı okunabilir tasarım**
-/// (2026-11-23 yenilemesi).
+/// Liste satırı — **üç katmanlı sade tasarım** (2026-11-23 yenilemesi,
+/// 2026-11-25 sadeleştirmesi: kullanıcı "Belgeler/İndirilenler çok karışık"
+/// dedi — ikinci ad + etiketler TEK satırda, kalın vurgu yalnız dosya adında,
+/// İndirilenler'deki ayrı yaş sütunu tarih alanına taşındı).
 ///
 /// KÖK NEDEN: eskiden ikinci ad (AI/Akıllı düzen), kaynak ("WhatsApp") ve
 /// tarih tek bir `Text.rich` içinde birleştiriliyordu; ikinci ad uzayınca
@@ -158,10 +160,10 @@ class FmTagPills extends StatelessWidget {
 /// tek satırda kırpılıyor ve kullanıcı etiketleri satırda hiç görünmüyordu.
 ///
 /// Şimdi her bilgi kendi net katmanında durur:
-/// 1. **Dosya adı** — 2 satıra kadar, güçlü kontrastlı `w600` başlık;
-/// 2. **İkinci ad** (varsa) — solunda ince vurgu çizgili ayrı satır;
-/// 3. **Etiketler** (varsa) — kompakt renkli haplar ([FmTagPills]);
-/// 4. **Alt bilgi şeridi** — kaynak/konum solda esner, **tarih ve boyut**
+/// 1. **Dosya adı** — 2 satıra kadar, satırdaki TEK kalın metin;
+/// 2. **İkinci ad · #etiketler** (varsa) — tek satır, ikinci ad birincil
+///    renkte, etiketler kendi renginde `#ad` (taşarsa "…");
+/// 3. **Alt bilgi şeridi** — kaynak/konum solda esner, **tarih ve boyut**
 ///    sağda kesilmeden sabitlenir (büyük yazı ölçeğinde taşmadan alt satıra
 ///    iner).
 class FmEntryRow extends StatelessWidget {
@@ -176,6 +178,10 @@ class FmEntryRow extends StatelessWidget {
   /// Alt bilgi şeridinde **kesinlikle kesilmeden** gösterilen tarih metni
   /// (ör. "20 Kas", "19 Kas 2025"). `null` = tarih ayrı geçilmedi.
   final String? dateText;
+
+  /// Tarih metninin rengi (ör. İndirilenler'de yaşla koyulaşan "3 ay").
+  /// `null` = alt bilgiyle aynı sakin ton.
+  final Color? dateColor;
 
   /// Alt satırın SAĞINA hizalanan kısa bilgi (genelde boyut); null = yok.
   final String? subtitleEnd;
@@ -229,6 +235,7 @@ class FmEntryRow extends StatelessWidget {
     this.onLongPress,
     required this.subtitle,
     this.dateText,
+    this.dateColor,
     this.subtitleEnd,
     this.layout = FmLayout.list,
     this.onCheck,
@@ -279,10 +286,11 @@ class FmEntryRow extends StatelessWidget {
         color: scheme.onSurfaceVariant,
         fontFeatures: const [FontFeature.tabularFigures()],
       );
-      final dateStyle = baseStyle?.copyWith(
-        color: scheme.onSurface.withValues(alpha: 0.76),
-        fontWeight: FontWeight.w600,
-      );
+      // Tarih artık kalın değil (sadeleştirme): satırda tek kalın metin ad.
+      final dateStyle = dateColor == null
+          ? baseStyle
+          : baseStyle?.copyWith(
+              color: dateColor, fontWeight: FontWeight.w600);
       final largeText = MediaQuery.textScalerOf(context).scale(12) > 17.5;
 
       Widget leftText() => Text(
@@ -384,51 +392,58 @@ class FmEntryRow extends StatelessWidget {
 
     Widget buildDetails(String currentAlias, Iterable<String> currentTags) {
       final hasAlias = currentAlias.isNotEmpty;
-      final hasTags = showTags && currentTags.isNotEmpty;
+      final tagList = showTags
+          ? (currentTags.where((t) => t.trim().isNotEmpty).toList()..sort())
+          : const <String>[];
+      final hasTags = tagList.isNotEmpty;
       final hasMeta = subtitle.trim().isNotEmpty ||
           (dateText ?? '').trim().isNotEmpty ||
           (subtitleEnd ?? '').trim().isNotEmpty;
+      final detailStyle = theme.textTheme.bodySmall?.copyWith(
+        height: 1.25,
+        fontWeight: FontWeight.w500,
+      );
+      final isDark = theme.brightness == Brightness.dark;
+      Color tagColor(String tag) {
+        final accent = FmColorsStore.tagColor(tag);
+        if (accent == null) return scheme.onSurfaceVariant;
+        return isDark
+            ? Color.lerp(accent, AppColors.mixLight, 0.45)!
+            : Color.lerp(accent, AppColors.mixDark, 0.28)!;
+      }
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (hasAlias)
+          // İkinci ad + etiketler TEK satırda (eskiden çizgili ad satırı +
+          // ayrı hap satırı = satır başına 4 katman, "çok karışık").
+          if (hasAlias || hasTags)
             Padding(
               padding: const EdgeInsets.only(top: 3),
-              child: Row(
-                children: [
-                  Container(
-                    width: 3,
-                    height: 13,
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.78),
-                      borderRadius: BorderRadius.circular(2),
+              child: Text.rich(
+                TextSpan(children: [
+                  if (hasAlias)
+                    TextSpan(
+                      text: bidiParts(context, currentAlias),
+                      style: TextStyle(color: scheme.primary),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      bidiParts(context, currentAlias),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        height: 1.25,
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  for (var i = 0; i < tagList.length; i++) ...[
+                    if (hasAlias || i > 0) const TextSpan(text: '  '),
+                    TextSpan(
+                      text: '#${tagList[i]}',
+                      style: TextStyle(color: tagColor(tagList[i])),
                     ),
-                  ),
-                ],
+                  ],
+                ]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: detailStyle,
               ),
-            ),
-          if (hasTags)
-            Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: FmTagPills(tags: currentTags),
             ),
           if (hasMeta)
             Padding(
-              padding: EdgeInsets.only(top: hasTags ? 5 : 4),
+              padding: const EdgeInsets.only(top: 4),
               child: buildMetaBar(),
             ),
         ],

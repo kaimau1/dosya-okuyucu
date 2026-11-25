@@ -12,7 +12,6 @@ import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
-import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
@@ -392,10 +391,15 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                             }
                           }
                         }),
+                        // Sadeleştirme (2026-11-25, "çok karışık"): ayrı yaş
+                        // sütunu + tarih + "son açılma" aynı bilgiyi üç kez
+                        // veriyordu ve adı daraltıyordu. Artık tarih alanında
+                        // yalnız yaşla renklenen "7 gün önce"; tam tarih ve
+                        // son açılma Özellikler'de.
                         subtitle: _subtitle,
-                        dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+                        dateText: (e) => relativeDays(_ageDays(e)),
+                        dateColor: _ageColor,
                         subtitleEnd: (e) => FsPaths.humanSize(e.sizeBytes),
-                        badge: _ageBadge,
                         empty: FmEmptyState(
                           icon: AppIcons.noMatch,
                           title: _query.trim().isEmpty
@@ -493,37 +497,23 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     );
   }
 
-  /// Satırın alt yazısı: (alt klasör) · son açılma; tarih ve boyut ayrı
-  /// sabit alanlarda kesilmeden görünür.
-  String _subtitle(FsEntry entry) => [
-        // Liste alt klasörleri de kapsıyor; dosyanın hangi alt klasörde
-        // olduğu yazılmazsa aynı adlı iki dosya ayırt edilemiyordu.
-        if (p.dirname(entry.path) != widget.path)
-          p.basename(p.dirname(entry.path)),
-        if (entry.hasAccessInfo)
-          context.t('dls.last_opened', {
-            'when': relativeDays(daysBetween(entry.accessedMs, _now)),
-          }),
-      ].join(' · ');
+  /// Satırın alt yazısı: alt klasör (varsa); yaş ve boyut ayrı sabit
+  /// alanlarda kesilmeden görünür.
+  String _subtitle(FsEntry entry) =>
+      // Liste alt klasörleri de kapsıyor; dosyanın hangi alt klasörde
+      // olduğu yazılmazsa aynı adlı iki dosya ayırt edilemiyordu.
+      p.dirname(entry.path) != widget.path
+          ? p.basename(p.dirname(entry.path))
+          : '';
 
-  /// Yaş rozeti ("3 ay") — renk yaşla koyulaşır.
-  Widget _ageBadge(FsEntry entry) {
-    final days = _ageDays(entry);
-    final color = switch (ageLevelFor(days)) {
-      AgeLevel.fresh => AppHues.green,
-      AgeLevel.recent => AppHues.olive,
-      AgeLevel.old => AppHues.orange,
-      AgeLevel.ancient => Theme.of(context).colorScheme.error,
-      AgeLevel.unknown => Theme.of(context).colorScheme.onSurfaceVariant,
-    };
-    return Text(
-      relativeDays(days),
-      style: Theme.of(context)
-          .textTheme
-          .bodySmall
-          ?.copyWith(color: color, fontWeight: FontWeight.w600),
-    );
-  }
+  /// Yaş rengi — taze yeşil, eski turuncu, çok eski kırmızı.
+  Color _ageColor(FsEntry entry) => switch (ageLevelFor(_ageDays(entry))) {
+        AgeLevel.fresh => AppHues.green,
+        AgeLevel.recent => AppHues.olive,
+        AgeLevel.old => AppHues.orange,
+        AgeLevel.ancient => Theme.of(context).colorScheme.error,
+        AgeLevel.unknown => Theme.of(context).colorScheme.onSurfaceVariant,
+      };
 }
 
 /// Standart İndirilenler yolu (varsa) — `Download`, bazı cihazlarda `Downloads`.

@@ -14,6 +14,7 @@ import '../../core/user_error.dart';
 import '../../services/audiobook/audiobook_job.dart';
 import '../../services/audiobook/audiobook_maker.dart';
 import '../../services/audiobook/doc_chapters.dart';
+import '../../services/ai_pool.dart';
 import '../../services/gemini_service.dart';
 import '../../services/tts_service.dart';
 import '../../services/voice/neural_voices.dart';
@@ -278,10 +279,10 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
       try {
         final creds = context.read<AppState>().aiCredentials;
         if (creds.keys.isNotEmpty) {
-          aiGemini = GeminiService(
-            apiKey: creds.keys.first,
-            model: creds.models.isNotEmpty ? creds.models.first : defaultAiModel,
-          );
+          // Havuz üzerinden (2026-11-25 denetimi): ham `GeminiService`
+          // onay/gizli kasa kapısını ve kota soğumasını atlıyordu; kotası
+          // dolan anahtarla her bölüm yeniden (boşuna) istek atılıyordu.
+          aiGemini = PooledGemini(creds);
         }
       } catch (_) {
         // Testte AppState yok.
