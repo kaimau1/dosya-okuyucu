@@ -10,6 +10,7 @@ import '../fm/video_transcode.dart';
 import '../gemini_service.dart';
 import '../read_aloud_ai.dart';
 import '../tts_service.dart';
+import '../voice/azure_tts.dart';
 import '../voice/neural_engine.dart';
 import '../voice/neural_voices.dart';
 import 'doc_chapters.dart';
@@ -20,18 +21,35 @@ enum AudiobookVoice {
   /// Cihazın konuşma motoru (Google TTS vb.) — indirme yok.
   system,
   antalia,
-  ema;
+  ema,
+  // Kokoro (2026-11-25 geri geldi; yalnız Kişisel — [NeuralVoice.available]).
+  kokoroTr,
+  kokoroEn,
+  // Ahmet (çevrimiçi, Azure; kullanıcı 2026-11-25: "sesli kitapta da yeni
+  // sesler kullanılabilmeli"). Kitabın metni Microsoft'a gider — ses kartı
+  // bunu yazar; ücretsiz katman ayda 500 bin karakter.
+  ahmet;
 
   NeuralVoice? get neural => switch (this) {
         AudiobookVoice.system => null,
         AudiobookVoice.antalia => NeuralVoice.antalia,
         AudiobookVoice.ema => NeuralVoice.ema,
+        AudiobookVoice.kokoroTr => NeuralVoice.kokoroTr,
+        AudiobookVoice.kokoroEn => NeuralVoice.kokoroEn,
+        AudiobookVoice.ahmet => NeuralVoice.ahmet,
       };
+
+  /// [v] için sesli kitap sesi (yoksa null — ör. çevrimiçi Ahmet).
+  static AudiobookVoice? of(NeuralVoice v) =>
+      AudiobookVoice.values.where((a) => a.neural == v).firstOrNull;
 
   String get folderTag => switch (this) {
         AudiobookVoice.system => '',
         AudiobookVoice.antalia => ' (Antalia)',
         AudiobookVoice.ema => ' (EMA)',
+        AudiobookVoice.kokoroTr => ' (Kokoro)',
+        AudiobookVoice.kokoroEn => ' (Kokoro EN)',
+        AudiobookVoice.ahmet => ' (Ahmet)',
       };
 }
 
@@ -211,6 +229,18 @@ class AudiobookMaker {
       if (!await tts.synthesizeToFile(text, target)) {
         throw StateError('cihaz sesi dosya üretemedi');
       }
+      return;
+    }
+    final cloud = neural.cloudName;
+    if (cloud != null) {
+      // Azure doğrudan 24 kHz 16 bit WAV verir: birleştirme hattına aynen girer.
+      final bytes = await AzureTts.synthesize(text,
+          voice: cloud,
+          rate: speed,
+          pitch: (ttsPrefs ?? TtsPrefs.defaults).pitch,
+          wav: true);
+      await File(target).writeAsBytes(bytes, flush: true);
+      progress(1, 1);
       return;
     }
     final e = engine;

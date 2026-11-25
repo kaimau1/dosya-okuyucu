@@ -122,6 +122,36 @@ void main() {
         isFalse, reason: 'başka ses yoksa çalışma zamanı da silinir');
   });
 
+  test('U6a: Kokoro çalışanı sunulur; ortak espeak-ng başka Kokoro kuruluyken silinmez',
+      () async {
+    final server = await VoiceServer.start(root.path);
+    addTearDown(server.close);
+    final c = HttpClient();
+    addTearDown(c.close);
+    final res =
+        await (await c.getUrl(Uri.parse('${server.base}kokoro-worker.js')))
+            .close();
+    expect(res.statusCode, 200);
+    expect(res.headers.contentType?.mimeType, 'text/javascript');
+    expect(await utf8.decodeStream(res), contains('patchAtan'));
+    expect(VoiceServer.engineHtml, contains("'kokoro-worker.js'"));
+
+    final client = MockClient.streaming((req, _) async =>
+        http.StreamedResponse(Stream.value(utf8.encode('veri')), 200));
+    final store = NeuralVoiceStore.instance;
+    await store.install(NeuralVoice.kokoroTr, client: client, verify: false);
+    await store.install(NeuralVoice.kokoroEn, client: client, verify: false);
+    expect(store.isInstalled(NeuralVoice.kokoroEn), isTrue);
+    await store.remove(NeuralVoice.kokoroTr);
+    expect(store.isInstalled(NeuralVoice.kokoroTr), isFalse);
+    expect(store.isInstalled(NeuralVoice.kokoroEn), isTrue,
+        reason: 'ortak espeak-ng ve çalışma zamanı kalır');
+    await store.remove(NeuralVoice.kokoroEn);
+    expect(File('${root.path}/kokoro/espeak-ng.wasm').existsSync(), isFalse);
+    expect(NeuralVoice.kokoroEn.locale, 'en-US');
+    expect(NeuralVoice.kokoroTr.locale, 'tr-TR');
+  });
+
   test('G9.9: sabit commit + özet; tutmayan dosya yazılmaz', () async {
     for (final f in [
       ...NeuralVoice.runtime,

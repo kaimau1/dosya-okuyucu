@@ -208,6 +208,37 @@ extension _ViewerScreenDocActionsPart on _ViewerScreenState {
     }
   }
 
+  /// **Sesli okuma metni** (2026-11-25, kullanıcı: *"gereksiz şeyler
+  /// okunmamalı"*): PDF'te sayfalar ayrı okunur ve her sayfada TEKRARLAYAN
+  /// üstbilgi/altbilgi (kurum başlığı, "Sayfa 3", evrak no) atılır — eskiden
+  /// her sayfa geçişinde yeniden okunuyordu. 3 sayfadan kısa belgede ya da
+  /// okunamazsa düz metin.
+  Future<String> _speechText() async {
+    final doc = _pdfDoc;
+    if (!_isPdf || doc == null) return _documentText;
+    try {
+      final pages = <int, String>{};
+      var total = 0;
+      for (var i = 0; i < doc.pages.length; i++) {
+        // dynamic: loadText dönüşü sürümler arasında nullable/nonnull değişti.
+        final dynamic t = await doc.pages[i].loadText();
+        final full = t == null ? '' : (t.fullText as String? ?? '');
+        if (full.trim().isNotEmpty) pages[i + 1] = full;
+        total += full.length;
+        if (total > 400000) break;
+      }
+      if (pages.length < 3) return _documentText;
+      final cleaned = DocChapters.stripRepeatedPageMargins(pages);
+      final keys = cleaned.keys.toList()..sort();
+      // Tek satır sonuyla: sayfa sınırını aşan cümle bölünmesin.
+      final out = [for (final k in keys) cleaned[k]!.trim()].join('\n');
+      return out.trim().isEmpty ? _documentText : out;
+    } catch (_) {
+      // Bilinçli: sayfa metni okunamadı — eski yol (tüm metin) sürer.
+      return _documentText;
+    }
+  }
+
   /// Belgenin okunabilir metni: PDF'te metin katmanı, görselde OCR sonucu,
   /// diğerlerinde ham içerik. AI bağlamı ve çeviri aynı kaynağı kullanır.
   String get _documentText {

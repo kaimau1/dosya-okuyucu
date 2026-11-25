@@ -100,8 +100,11 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
     try {
       final neural =
           NeuralVoiceId.parse(context.read<AppState>().ttsPrefs.voiceName);
-      if (neural != null && NeuralVoiceStore.instance.isInstalled(neural)) {
-        return AudiobookVoice.values.firstWhere((a) => a.neural == neural);
+      final ab = neural == null ? null : AudiobookVoice.of(neural);
+      if (neural != null &&
+          ab != null &&
+          NeuralVoiceStore.instance.isInstalled(neural)) {
+        return ab;
       }
     } catch (_) {
       // Testte AppState yok: cihaz sesi.
@@ -195,7 +198,7 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
     tts.prefs = neural != null
         ? _ttsPrefs.copyWith(
             voiceName: NeuralVoiceId.of(neural),
-            voiceLocale: 'tr-TR',
+            voiceLocale: neural.locale,
             rate: _speed,
           )
         : _ttsPrefs.copyWith(rate: _speed);
@@ -416,16 +419,16 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
                     ListenableBuilder(
                       listenable: NeuralVoiceStore.instance,
                       builder: (context, _) => Column(children: [
-                        for (final v in NeuralVoice.values)
-                          VoiceCard(
-                            voice: v,
-                            selected: _voice.neural == v,
-                            onSelect: _running
-                                ? null
-                                : () => setState(() => _voice = AudiobookVoice
-                                    .values
-                                    .firstWhere((a) => a.neural == v)),
-                          ),
+                        for (final v in NeuralVoice.usable)
+                          if (AudiobookVoice.of(v) != null)
+                            VoiceCard(
+                              voice: v,
+                              selected: _voice.neural == v,
+                              onSelect: _running
+                                  ? null
+                                  : () => setState(
+                                      () => _voice = AudiobookVoice.of(v)!),
+                            ),
                       ]),
                     ),
                     const SizedBox(height: Gap.sm),

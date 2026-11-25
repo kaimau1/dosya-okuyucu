@@ -9,6 +9,7 @@ import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../screens/audiobook/voices_screen.dart';
 import '../services/tts_service.dart';
+import '../services/voice/azure_tts.dart';
 import '../services/voice/neural_voices.dart';
 
 /// **Sesli okuma ayarları** — ses seçimi, hız, perde.
@@ -49,6 +50,12 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
   void initState() {
     super.initState();
     _load();
+    // Ahmet (Azure) anahtarı okunsun: ses "kurulu" görünsün.
+    if (!AzureTts.loaded) {
+      AzureTts.load().then((_) {
+        if (mounted) setState(() {});
+      }).ignore();
+    }
   }
 
   @override
@@ -159,15 +166,18 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
                   child: Text(context.t('tts.no_voices'),
                       style: Theme.of(context).textTheme.bodySmall),
                 ),
+              // 2026-11-25: Kokoro/Ahmet eklenince 260 dp'de cihaz sesleri
+              // görünmez oluyordu ("diğer sesler yok") — ekranın %45'i.
               ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 260),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.45),
                 child: RadioGroup<String>(
                   groupValue: _prefs.voiceName,
                   onChanged: (name) {
                     final neural = NeuralVoiceId.parse(name ?? '');
                     if (neural != null) {
                       _save(_prefs.copyWith(
-                          voiceName: name, voiceLocale: 'tr-TR'));
+                          voiceName: name, voiceLocale: neural.locale));
                       return;
                     }
                     final voice =
@@ -249,14 +259,15 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
         child: Text(context.t('voice.title'),
             style: Theme.of(context).textTheme.labelLarge),
       ),
-      for (final v in NeuralVoice.values)
+      for (final v in NeuralVoice.usable)
         if (store.isInstalled(v))
           RadioListTile<String>(
             key: ValueKey('tts-neural-${v.name}'),
             value: NeuralVoiceId.of(v),
             dense: true,
             title: Text(v.label),
-            subtitle: Text(context.t('tts.neural_sub')),
+            subtitle: Text(context
+                .t(v.isOnline ? 'voice.online' : 'tts.neural_sub')),
           )
         else
           ListTile(
@@ -264,10 +275,15 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
             dense: true,
             leading: const Icon(AppIcons.download),
             title: Text(v.label),
-            subtitle: Text(context.t('tts.neural_get')),
+            subtitle: Text(context
+                .t(v.isOnline ? 'voice.azure_setup' : 'tts.neural_get')),
             onTap: () async {
-              await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const VoicesScreen()));
+              if (v.isOnline) {
+                await showAzureKeyDialog(context);
+              } else {
+                await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const VoicesScreen()));
+              }
               if (mounted) setState(() {});
             },
           ),

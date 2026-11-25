@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
+import 'edition.dart';
+
 /// Uygulama içi lisans sayfasına (`showLicensePage`) **paket dışı** gömülü
 /// bileşenlerin lisanslarını ekler (Faz 7 / N2, 2026-10-21).
 ///
@@ -48,6 +50,12 @@ Stream<LicenseEntry> _entries() async* {
     'EMA Lightning',
     'ONNX Runtime Web',
   ], _aiModels);
+  // Kokoro + eSpeak NG yalnız Kişisel derlemede (2026-11-25 geri geldi):
+  // Play derlemelerinde ses de lisans kaydı da yok.
+  if (Edition.current.has(Feature.extraVoices)) {
+    yield const LicenseEntryWithLineBreaks(['Kokoro'], _kokoro);
+    yield const LicenseEntryWithLineBreaks(['eSpeak NG'], _espeak);
+  }
 }
 
 Future<String> _asset(String path) async {
@@ -88,3 +96,15 @@ const _aiModels = '''İsteğe bağlı indirilen yapay zekâ ve ses modelleri (AP
 - Antalia-2 Mini (cloud0day3/antalia-mini) — Apache License 2.0 (https://huggingface.co/cloud0day3/antalia-mini)
 - EMA Lightning (canberk7/ema-lightning) — Apache License 2.0 (https://github.com/canberk7/ema-lightning)
 - ONNX Runtime Web — MIT License (https://github.com/microsoft/onnxruntime)''';
+
+const _kokoro = '''İsteğe bağlı indirilen Kokoro sesleri (APK'ya gömülü değildir; yalnız Kişisel derleme):
+- Kokoro Türkçe (empiriolabsai/kokoro-turkish, Kokoro-82M ince ayarı) — Apache License 2.0; Copyright 2026 EmpirioLabs.ai LLC (https://huggingface.co/empiriolabsai/kokoro-turkish). Türkçe metin kuralları depodaki g2p_tr.py'den uyarlandı (Apache 2.0).
+- Kokoro-82M v1.0 (hexgrad/Kokoro-82M; ONNX: onnx-community/Kokoro-82M-v1.0-ONNX) — Apache License 2.0 (https://huggingface.co/hexgrad/Kokoro-82M). İngilizce metin kuralları kokoro.js'ten uyarlandı (Apache 2.0).''';
+
+const _espeak = '''eSpeak NG — GNU General Public License v3.0 veya sonrası (GPL-3.0-or-later).
+Telif hakkı: Jonathan Duddington, Reece H. Dunn ve eSpeak NG katkıda bulunanları.
+
+Kokoro sesleri indirilirken telaffuz (metin → ses birimi) için ayrı bir program olarak indirilir (WebAssembly derlemesi: npm espeak-ng 1.0.2, ianmarmour/espeak-ng.js); APK'ya gömülü değildir ve uygulamanın koduyla birleştirilmez. Bu program HİÇBİR GARANTİ olmaksızın dağıtılır; GPL-3.0 koşullarıyla değiştirip yeniden dağıtabilirsiniz.
+- Kaynak kodu: https://github.com/espeak-ng/espeak-ng
+- WebAssembly derleme betiği: https://github.com/ianmarmour/espeak-ng.js
+- GPL-3.0 metni: lisans sayfasında libmpv/FFmpeg kaydının altında tam olarak yer alır.''';

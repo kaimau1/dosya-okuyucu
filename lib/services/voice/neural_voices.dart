@@ -9,7 +9,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../fm/fm_env.dart';
+import 'azure_tts.dart';
+import 'kokoro_worker.dart';
 
 /// Bir indirme parçası: kaynak adres → yerel göreli yol (+ isteğe bağlı
 /// metin yaması: CDN adreslerini yerel kopyaya çevirmek için).
@@ -49,24 +52,77 @@ enum NeuralVoice {
   antalia,
 
   /// EMA Lightning — canberk7/ema-lightning (HF: mrfakename/ema-lightning-webgpu).
-  ema;
+  ema,
+
+  /// Kokoro Türkçe (U6a, 2026-11-21) — empiriolabsai/kokoro-turkish, int8,
+  /// "elif" sesi. Kokoro-82M ince ayarı; telaffuz espeak-ng ile (WASM).
+  // ponytail: yalnız "elif" (puanı daha iyi); "emre" (erkek) 0,5 MB'lık
+  // ayrı ses dosyası — istenirse yeni değer + `voices/emre.bin`.
+  kokoroTr,
+
+  /// Kokoro English — onnx-community/Kokoro-82M-v1.0-ONNX, int8, "af_heart".
+  kokoroEn,
+
+  /// **Ahmet** (2026-11-25, kullanıcı: *"haritalardaki Ahmet sesini de ekle"*)
+  /// — Microsoft'un Türkçe erkek sinir ağı sesi `tr-TR-AhmetNeural`, resmî
+  /// Azure Speech API'si + kullanıcının KENDİ anahtarı ([AzureTts]). Model
+  /// indirilmez: ÇEVRİMİÇİ çalışır, okunan metin Microsoft'a gider (kart
+  /// açıklaması bunu söyler); hata olursa okuma cihaz sesine düşer.
+  ahmet;
+
+  /// Çevrimiçi ses mi (indirme yok, kurulu sayılır, sentez sunucuda).
+  bool get isOnline => this == NeuralVoice.ahmet;
+
+  /// Yalnız Kişisel derlemede (Play'e girmez): Kokoro'nun telaffuz motoru
+  /// eSpeak NG GPL-3.0 (2026-11-25 Play temizliğinin gerekçesi — kişisel
+  /// derlemede geri geldi); Ahmet metni üçüncü tarafa (Microsoft) gönderir,
+  /// Play gizlilik beyanı güncellenmeden oraya girmez.
+  bool get personalOnly => switch (this) {
+        NeuralVoice.kokoroTr || NeuralVoice.kokoroEn || NeuralVoice.ahmet =>
+          true,
+        _ => false,
+      };
+
+  /// Bu derlemede kullanılabilir mi ([Feature.extraVoices]). Sesli okuma
+  /// VE sesli kitapta (2026-11-25) aynı liste.
+  bool get available =>
+      !personalOnly || Edition.current.has(Feature.extraVoices);
+
+  /// Bu derlemede gösterilecek sesler (sıra = enum sırası).
+  static List<NeuralVoice> get usable =>
+      [for (final v in NeuralVoice.values) if (v.available) v];
+
+  /// Microsoft ses adı (yalnız çevrimiçi sesler).
+  String? get cloudName =>
+      this == NeuralVoice.ahmet ? 'tr-TR-AhmetNeural' : null;
 
   String get label => switch (this) {
         NeuralVoice.antalia => 'Antalia-2 Mini',
         NeuralVoice.ema => 'EMA Lightning',
+        NeuralVoice.kokoroTr => 'Kokoro Türkçe',
+        NeuralVoice.kokoroEn => 'Kokoro English',
+        NeuralVoice.ahmet => 'Ahmet',
       };
 
   /// Sesli okumada seçilince yazılan dil (`TtsPrefs.voiceLocale`).
-  String get locale => 'tr-TR';
+  String get locale => this == NeuralVoice.kokoroEn ? 'en-US' : 'tr-TR';
 
   String get descriptionKey => switch (this) {
         NeuralVoice.antalia => 'voice.antalia_sub',
         NeuralVoice.ema => 'voice.ema_sub',
+        NeuralVoice.kokoroTr => 'voice.kokoro_tr_sub',
+        NeuralVoice.kokoroEn => 'voice.kokoro_en_sub',
+        NeuralVoice.ahmet => 'voice.ahmet_sub',
       };
 
   String get sourceUrl => switch (this) {
         NeuralVoice.antalia => 'https://huggingface.co/cloud0day3/antalia-mini',
         NeuralVoice.ema => 'https://github.com/canberk7/ema-lightning',
+        NeuralVoice.kokoroTr =>
+          'https://huggingface.co/empiriolabsai/kokoro-turkish',
+        NeuralVoice.kokoroEn => 'https://huggingface.co/hexgrad/Kokoro-82M',
+        NeuralVoice.ahmet =>
+          'https://learn.microsoft.com/azure/ai-services/speech-service/language-support',
       };
 
   // G9.9 artığı (2026-11-14): `resolve/main` yerine sabit commit — Space
@@ -77,6 +133,21 @@ enum NeuralVoice {
       'https://huggingface.co/spaces/cloud0day3/antalia-mini/resolve/e7e3b1e3e83db5ca4cad925cc6d2563766e763e9';
   static const _ema =
       'https://huggingface.co/spaces/mrfakename/ema-lightning-webgpu/resolve/a2c8a396bc92754c63110f1b44e973106c9e7d22';
+  static const _kokoroTr =
+      'https://huggingface.co/empiriolabsai/kokoro-turkish/resolve/8e99d66651076a6f601138c77bbd1340b5be49db';
+  static const _kokoroEn =
+      'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/1939ad2a8e416c0acfeecc08a694d14ef25f2231';
+
+  /// espeak-ng 1.0.2 (npm, GPL-3.0-or-later; ianmarmour/espeak-ng.js) — iki
+  /// Kokoro sesinin ortak telaffuz motoru (tüm dillerin verisi WASM içinde).
+  /// Sürüm sabit (npm sürümü değişmez); özet jsDelivr'den indirilen baytın.
+  static const _espeak = 'https://cdn.jsdelivr.net/npm/espeak-ng@1.0.2/dist';
+  static const _espeakFiles = [
+    VoiceFile('$_espeak/espeak-ng.js', 'kokoro/espeak-ng.js', 178386,
+        sha256: '406c6655a6cacf34d84fc69dc4478c81b71518809080ce2d05df1b706d76429d'),
+    VoiceFile('$_espeak/espeak-ng.wasm', 'kokoro/espeak-ng.wasm', 18485010,
+        sha256: '10d24bb7e4124e983aa9cd8cd96c52c8ea4b607d81956ec70846684e2827d532'),
+  ];
 
   /// ONNX Runtime Web 1.30.0 — iki ses de aynı sürümü kullanıyor; tek kopya
   /// `antalia/vendor/ort/` altında durur, EMA oraya yönlendirilir.
@@ -119,11 +190,30 @@ enum NeuralVoice {
             VoiceFile(
                 '$_ema/onnx/decoder.onnx', 'ema/onnx/decoder.onnx', 12032058, sha256: '97966bcf43ae44da7e92fc4f2d987d50bc2d1ceeb4579995270e091e406a7ca5'),
           ],
+        NeuralVoice.kokoroTr => const [
+            ..._espeakFiles,
+            VoiceFile('$_kokoroTr/onnx/model_quantized.onnx',
+                'kokoro-tr/model_quantized.onnx', 114660744,
+                sha256: '13f1e6c8515c200e4871eb9f9626e43a5d64d889d1e11f30d041f7fcfb3564d3'),
+            VoiceFile('$_kokoroTr/voices/elif.bin', 'kokoro-tr/elif.bin', 522240,
+                sha256: 'a867bcab8beecd1f1acc78e7374af1966fbb340ba9a6ea14a898ca337c44711d'),
+          ],
+        NeuralVoice.kokoroEn => const [
+            ..._espeakFiles,
+            VoiceFile('$_kokoroEn/onnx/model_quantized.onnx',
+                'kokoro-en/model_quantized.onnx', 92361116,
+                sha256: 'fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478'),
+            VoiceFile('$_kokoroEn/voices/af_heart.bin', 'kokoro-en/af_heart.bin',
+                522240,
+                sha256: 'd583ccff3cdca2f7fae535cb998ac07e9fcb90f09737b9a41fa2734ec44a8f0b'),
+          ],
+        NeuralVoice.ahmet => const [],
       };
 
   /// İndirilecek toplam (çalışma zamanı dahil, kurulu değilse).
-  int get approxBytes =>
-      [...files, ...runtime].fold(0, (a, f) => a + f.approxBytes);
+  int get approxBytes => isOnline
+      ? 0
+      : [...files, ...runtime].fold(0, (a, f) => a + f.approxBytes);
 
   /// EMA çalışanı ONNX Runtime'ı jsDelivr'den alıyor: yerel kopyaya çevrilir
   /// (internetsiz çalışsın) ve WebGPU denemesi kapatılır (WebView'da yok;
@@ -149,7 +239,11 @@ abstract final class NeuralVoiceId {
   static NeuralVoice? parse(String name) {
     if (!name.startsWith(prefix)) return null;
     final id = name.substring(prefix.length);
-    return NeuralVoice.values.where((v) => v.name == id).firstOrNull;
+    // Bu derlemede olmayan ses (Play'de Kokoro/Ahmet) yok sayılır → cihaz
+    // sesi; tercih dizesi silinmez (Kişisel'e dönünce yine seçili).
+    return NeuralVoice.values
+        .where((v) => v.name == id && v.available)
+        .firstOrNull;
   }
 }
 
@@ -174,8 +268,13 @@ class NeuralVoiceStore extends ChangeNotifier {
         return file.existsSync() && file.lengthSync() > 0;
       });
 
-  bool isInstalled(NeuralVoice v) =>
-      _complete(v.files) && _complete(NeuralVoice.runtime);
+  /// Çevrimiçi ses (Ahmet) anahtar girilince "kurulu" sayılır.
+  bool isInstalled(NeuralVoice v) => v.isOnline
+      ? AzureTts.configured.value
+      : (_complete(v.files) && _complete(NeuralVoice.runtime));
+
+  /// Dışarıdan değişen durum (Azure anahtarı) için yeniden çizim.
+  void refresh() => notifyListeners();
 
   /// Kurulu sesin diskteki boyutu (çalışma zamanı hariç).
   int installedBytes(NeuralVoice v) => v.files.fold(0, (a, f) {
@@ -188,7 +287,7 @@ class NeuralVoiceStore extends ChangeNotifier {
   /// değişir: yarım dosya "kurulu" sayılmaz.
   Future<void> install(NeuralVoice v,
       {http.Client? client, @visibleForTesting bool verify = true}) async {
-    if (_progress.containsKey(v)) return;
+    if (v.isOnline || _progress.containsKey(v)) return;
     final all = [...NeuralVoice.runtime, ...v.files];
     final total = all.fold<int>(0, (a, f) => a + f.approxBytes);
     var done = 0;
@@ -246,9 +345,12 @@ class NeuralVoiceStore extends ChangeNotifier {
   }
 
   /// Sesi siler; başka kurulu ses yoksa çalışma zamanını da. Başka kurulu
-  /// ses varsa ortak çalışma zamanı dosyaları kalır.
+  /// sesin de kullandığı dosya (Kokoro'ların ortak espeak-ng'si) kalır.
   Future<void> remove(NeuralVoice v) async {
-    final others = NeuralVoice.values.where((o) => o != v && isInstalled(o));
+    if (v.isOnline) return;
+    // Çevrimiçi ses (hep "kurulu") çalışma zamanını tutmaz.
+    final others = NeuralVoice.values
+        .where((o) => o != v && !o.isOnline && isInstalled(o));
     final shared = {for (final o in others) ...o.files.map((f) => f.path)};
     for (final f in v.files) {
       if (shared.contains(f.path)) continue;
@@ -386,6 +488,12 @@ class VoiceServer {
         await res.close();
         return;
       }
+      if (path == '/kokoro-worker.js') {
+        res.headers.set('Content-Type', _types['.js']!);
+        res.write(kokoroWorkerJs);
+        await res.close();
+        return;
+      }
       // Kök dışına çıkış YOK ('..' reddedilir).
       final rel = p.normalize(path.replaceFirst(RegExp(r'^/+'), ''));
       if (rel.startsWith('..') || p.isAbsolute(rel)) {
@@ -438,8 +546,14 @@ class VoiceServer {
 <html><head><meta charset="utf-8"><title>ses</title></head><body><script>
 const post = (m) => { try { Ses.postMessage(JSON.stringify(m)); } catch (e) { /* köprü yoksa sessiz */ } };
 const workers = {};
+// Kokoro sesleri: aynı çalışan, dil + klasör + ses dosyası farklı.
+const KOKORO = {
+  kokoroTr: { lang: 'tr', dir: 'kokoro-tr', voice: 'elif' },
+  kokoroEn: { lang: 'en', dir: 'kokoro-en', voice: 'af_heart' },
+};
 function wav(f32, rate) {
   // 48 kHz -> 24 kHz (iki örnek ortalaması; konuşma için yeterli), 16 bit.
+  // Kokoro zaten 24 kHz verir: k = 1 (olduğu gibi).
   const k = rate > 24000 ? 2 : 1;
   const n = Math.floor(f32.length / k), buf = new ArrayBuffer(44 + n * 2), d = new DataView(buf);
   const s = (o, t) => { for (let i = 0; i < 4; i++) d.setUint8(o + i, t.charCodeAt(i)); };
@@ -464,7 +578,8 @@ async function deliver(job, parts, rate) {
 function worker(voice) {
   if (workers[voice]) return workers[voice];
   // Göreli: sayfa `/<önek>/engine.html` altında (G6.5 artığı).
-  const url = voice === 'antalia' ? 'antalia/js/worker.js' : 'ema/worker.js';
+  const kokoro = KOKORO[voice];
+  const url = kokoro ? 'kokoro-worker.js' : voice === 'antalia' ? 'antalia/js/worker.js' : 'ema/worker.js';
   const w = new Worker(url, { type: 'module' });
   const st = { w, jobs: {} };
   st.ready = new Promise((resolve, reject) => {
@@ -488,6 +603,7 @@ function worker(voice) {
     };
   });
   if (voice === 'antalia') w.postMessage({ type: 'init', backend: 'wasm', precision: 'mixed' });
+  else if (kokoro) w.postMessage({ type: 'load', ...kokoro });
   else w.postMessage({ type: 'load' });
   workers[voice] = st;
   return st;
@@ -501,6 +617,7 @@ window.engine = {
     try { await st.ready; } catch (e) { post({ type: 'error', job, message: String(e && e.message || e) }); return; }
     st.started = true; st.current = job; st.jobs[job] = { parts: [] };
     if (voice === 'antalia') st.w.postMessage({ type: 'synth', id: job, text, speed, seed: 0 });
+    else if (KOKORO[voice]) st.w.postMessage({ type: 'speak', id: job, text, speed });
     else st.w.postMessage({ type: 'speak', text, speed, seed: 0 });
   },
 };

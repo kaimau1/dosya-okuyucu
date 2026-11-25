@@ -128,7 +128,8 @@ class AudiobookJob extends ChangeNotifier {
     final neural = voice.neural;
     NeuralVoiceEngine? engine;
     try {
-      if (neural != null) {
+      // Çevrimiçi ses (Ahmet/Azure) WebView motoru istemez.
+      if (neural != null && !neural.isOnline) {
         loadingVoice = neural.label;
         notifyListeners();
         engine = await NeuralVoiceEngine.acquire();

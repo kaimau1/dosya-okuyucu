@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -1868,6 +1869,18 @@ abstract final class SmartSort {
 
   /// Kapsamdaki en yeni [scan] dosyadan sorulmamış en çok [limit] tanesini
   /// düzenler. Kota/yetki hatasında durur ([SmartRunResult.stoppedBy]).
+  ///
+  /// [persistent] (ekrandaki "Başlat", 2026-11-25): KÖK — kullanıcı *"akıllı
+  /// düzen sık sık duruyor, sürekli başlata basmam gerekiyor"*. Ücretsiz
+  /// anahtarın DAKİKALIK sınırı (429, 4 işçiyle birkaç saniyede dolar),
+  /// anahtarın 60 sn soğuması, ağın bir an kopması (uygulama arka plana
+  /// geçince MIUI bağlantıyı kesiyor) ya da sunucunun "yoğun" (5xx) demesi
+  /// turu TAMAMEN bitiriyordu. Kalıcı turda bunlar geçici sayılır: dosya
+  /// kuyruğa geri konur, artan aralıkla beklenir ([transientWait]) ve kalınan
+  /// yerden sürülür; 429 görülünce istekler aralıklanır (dakikada ≤ 12).
+  /// Yetki (401/403), günlük kota, çevrimdışı kip ve art arda
+  /// [maxTransientStreak] başarısız bekleme YİNE durdurur — gece boyu boşa
+  /// deneyip pil yakmasın. Otomatik/arka plan turları bu kipte değil.
   static Future<SmartRunResult> run({
     required AiCredentials credentials,
     required AiScope scope,
@@ -1876,6 +1889,7 @@ abstract final class SmartSort {
     bool reportBatch = false,
     bool localPrepass = true,
     bool silent = false,
+    bool persistent = false,
   }) async {
     if (!Edition.current.has(Feature.smartFolders) ||
         !Edition.current.has(Feature.ai)) {
@@ -1948,6 +1962,65 @@ abstract final class SmartSort {
       final queue = [...todo];
       final workers = workerCountFor(keys.length);
       var throttled = false;
+
+      // ── Kalıcı tur: geçici engelde bekle, kaldığın yerden sür ──────────
+      var streak = 0; // art arda geçici olay (başarı sıfırlar)
+      var pauseUntilMs = 0; // ortak bekleme: tüm işçiler birlikte bekler
+      var nextStartMs = 0; // 429 sonrası istek aralığı
+
+      bool transient(Object err) =>
+          persistent && !OfflineMode.enabled && isTransient(err);
+
+      /// Ortak bekleme. Yeni bir olaysa sayaç artar ve süre uzar; bekleme
+      /// sürerken gelen başka işçinin hatası AYNI olay sayılır (4 işçi tek
+      /// 429'u dört kez saymasın). Sürdürülecekse true.
+      Future<bool> waitOut(Object err, {Duration minimum = Duration.zero}) async {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now >= pauseUntilMs) {
+          streak++;
+          if (streak > maxTransientStreak) {
+            stoppedBy ??= stopText(err);
+            return false;
+          }
+          var wait = transientWait(err, streak);
+          if (retryDelay > Duration.zero && minimum > wait) wait = minimum;
+          pauseUntilMs = now + wait.inMilliseconds;
+        }
+        final until = pauseUntilMs;
+        waitingUntilMs.value = until;
+        try {
+          // Pil (2026-11-25, "gece pilim bitti"): uygulama arka plandayken
+          // YENİDEN DENENMEZ — öne gelince sürer. Ekran kapalıyken saatlerce
+          // ağ denemesi yapılmasın; bekleme yalnız ucuz bir durum yoklaması.
+          while (!isForeground()) {
+            if (_cancelRequested || stoppedBy != null || hold != null) {
+              return false;
+            }
+            await Future<void>.delayed(const Duration(seconds: 5));
+          }
+          while (DateTime.now().millisecondsSinceEpoch < until) {
+            if (_cancelRequested || stoppedBy != null || hold != null) {
+              return false;
+            }
+            await Future<void>.delayed(const Duration(seconds: 1));
+          }
+        } finally {
+          if (waitingUntilMs.value == until) waitingUntilMs.value = null;
+        }
+        return !_cancelRequested && stoppedBy == null && hold == null;
+      }
+
+      /// 429 görüldükten sonra istekler en az [retryDelay] / 6 (≈ 5 sn)
+      /// aralıkla çıkar: ücretsiz anahtarın dakikalık sınırı (10–15) aşılmaz.
+      Future<void> pace() async {
+        if (!persistent || !throttled) return;
+        final gap = (retryDelay ~/ 6).inMilliseconds;
+        if (gap <= 0) return;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final at = nextStartMs > now ? nextStartMs : now;
+        nextStartMs = at + gap;
+        if (at > now) await Future<void>.delayed(Duration(milliseconds: at - now));
+      }
 
       Future<void> worker(int workerIndex) async {
         while (queue.isNotEmpty &&
@@ -2045,13 +2118,23 @@ abstract final class SmartSort {
               }
               final preCooled = GeminiDecisions.cooledStatusFor(keys);
               if (preCooled != null) {
-                stoppedBy ??= stopText(
-                  GeminiException(
-                    'API anahtarı soğumada.',
-                    statusCode: preCooled,
-                    networkAttempted: false,
-                  ),
+                final err = GeminiException(
+                  'API anahtarı soğumada.',
+                  statusCode: preCooled,
+                  networkAttempted: false,
                 );
+                if (transient(err)) {
+                  // Soğuma bitene dek bekle, aynı dosyayla sür.
+                  queue.insert(0, e);
+                  throttled = true;
+                  final left = GeminiDecisions.cooledRemainingMs(keys);
+                  if (await waitOut(err,
+                      minimum: Duration(milliseconds: left + 1000))) {
+                    continue;
+                  }
+                  break;
+                }
+                stoppedBy ??= stopText(err);
                 break;
               }
               if (SmartQuota.remaining <= 0) {
@@ -2074,13 +2157,27 @@ abstract final class SmartSort {
                 }
                 final postCooled = GeminiDecisions.cooledStatusFor(prep.keys);
                 if (postCooled != null) {
-                  stoppedBy ??= stopText(
-                    GeminiException(
-                      'API anahtarı soğumada.',
-                      statusCode: postCooled,
-                      networkAttempted: false,
-                    ),
+                  final err = GeminiException(
+                    'API anahtarı soğumada.',
+                    statusCode: postCooled,
+                    networkAttempted: false,
                   );
+                  if (transient(err)) {
+                    queue.insert(0, e);
+                    throttled = true;
+                    final left = GeminiDecisions.cooledRemainingMs(prep.keys);
+                    if (await waitOut(err,
+                        minimum: Duration(milliseconds: left + 1000))) {
+                      continue;
+                    }
+                    break;
+                  }
+                  stoppedBy ??= stopText(err);
+                  break;
+                }
+                await pace();
+                if (stoppedBy != null || hold != null || _cancelRequested) {
+                  queue.insert(0, e);
                   break;
                 }
                 if (!SmartQuota.take()) {
@@ -2127,6 +2224,7 @@ abstract final class SmartSort {
               } finally {
                 prep.release();
               }
+              streak = 0; // sunucu yanıt verdi: geçici olay dizisi bitti
               final tokens = result.inputTokens;
               if (tokens != null) {
                 usedRequests++;
@@ -2170,6 +2268,12 @@ abstract final class SmartSort {
               throttled = true;
               SmartQuota.noteLimited();
             }
+            if (transient(err)) {
+              // Kalıcı tur: dosya geri sıraya, bekle, sür.
+              queue.insert(0, e);
+              if (await waitOut(err)) continue;
+              break;
+            }
             if (stopsRun(err)) {
               // Dosyanın suçu değil: başarısız sayılmaz, sonraki turda sorulur.
               stoppedBy ??= stopText(err);
@@ -2179,6 +2283,11 @@ abstract final class SmartSort {
               lastError = err.message;
             }
           } catch (err) {
+            if (transient(err)) {
+              queue.insert(0, e);
+              if (await waitOut(err)) continue;
+              break;
+            }
             if (stopsRun(err)) {
               stoppedBy ??= stopText(err);
             } else {
@@ -2195,6 +2304,7 @@ abstract final class SmartSort {
       await Future.wait([for (var i = 0; i < workers; i++) worker(i)]);
     } finally {
       progress.value = null;
+      waitingUntilMs.value = null;
       _changed();
     }
     if (reportBatch && done.isNotEmpty) {
@@ -2242,8 +2352,87 @@ abstract final class SmartSort {
           const {401, 403, 429, -2}.contains(err.statusCode));
 
   /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
+  /// Kalıcı turun bütün beklemeleri bunun katlarıdır ([transientWait]).
   @visibleForTesting
   static Duration retryDelay = const Duration(seconds: 30);
+
+  /// Kalıcı turda art arda en çok bu kadar geçici olay beklenir (arada bir
+  /// başarı sayacı sıfırlar). 429'da toplam ≈ 20 dk; sonra tur durur —
+  /// günlük kota bitmişse gece boyu boşa denenmesin.
+  static const maxTransientStreak = 8;
+
+  /// Beklemekle geçebilecek hata mı: dakikalık sınır (429, günlük kota
+  /// değilse), ağ kopması, sunucu yoğun (5xx). Yetki (400/401/403), günlük
+  /// kota ve yerel engeller (çevrimdışı kip, gizli kasa, onay) değil.
+  static bool isTransient(Object err) {
+    if (err is GeminiException) {
+      final c = err.statusCode;
+      if (c == 429) return !isDailyQuota(err.message);
+      return c == 0 || (c >= 500 && c < 600);
+    }
+    return UserError.classify(err) == UserErrorKind.offline;
+  }
+
+  /// 429 iletisi GÜNLÜK kotayı mı söylüyor ("PerDay" kota kimliği ya da
+  /// saatler sonrası "retry in"). Saf → testli.
+  static bool isDailyQuota(String message) {
+    final m = message.toLowerCase();
+    if (m.contains('perday') || m.contains('per day') || m.contains('daily')) {
+      return true;
+    }
+    final retry = retryAfter(message);
+    return retry != null && retry > const Duration(minutes: 15);
+  }
+
+  /// Gemini 429 iletisindeki "Please retry in 34.5s" / "retry in 2m10s".
+  static Duration? retryAfter(String message) {
+    final m = RegExp(
+      r'retry in\s+(?:(\d+)h)?\s*(?:(\d+)m(?!s))?\s*(?:(\d+(?:\.\d+)?)s)?',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (m == null || (m.group(1) == null && m.group(2) == null && m.group(3) == null)) {
+      return null;
+    }
+    final h = int.tryParse(m.group(1) ?? '') ?? 0;
+    final min = int.tryParse(m.group(2) ?? '') ?? 0;
+    final s = double.tryParse(m.group(3) ?? '') ?? 0;
+    return Duration(
+        milliseconds: ((h * 3600 + min * 60) * 1000 + s * 1000).round());
+  }
+
+  /// [n]. art arda geçici olayda beklenecek süre: 429'da sunucunun söylediği
+  /// (artan basamaktan uzunsa), yoksa 30 sn → 4 dk artan; ağ/sunucu
+  /// hatasında 15 sn → 2 dk. Testte [retryDelay] = 0 → 0.
+  static Duration transientWait(Object err, int n) {
+    if (retryDelay <= Duration.zero) return Duration.zero;
+    final i = (n - 1).clamp(0, 7);
+    if (err is GeminiException && err.statusCode == 429) {
+      final told = retryAfter(err.message);
+      const grows = [1, 2, 3, 4, 6, 8, 8, 8];
+      final grow = retryDelay * grows[i];
+      if (told != null && told > grow) return told + const Duration(seconds: 1);
+      return grow;
+    }
+    const steps = [0.5, 1, 1, 2, 2, 4, 4, 4];
+    return retryDelay * steps[i];
+  }
+
+  /// Uygulama önde mi (bağlama yoksa — test, arka plan motoru — evet).
+  @visibleForTesting
+  static bool Function() isForeground = () {
+    try {
+      final s = WidgetsBinding.instance.lifecycleState;
+      return s == null || s == AppLifecycleState.resumed;
+    } catch (_) {
+      return true;
+    }
+  };
+
+  /// Kalıcı tur bekliyorsa bitiş anı (ms) — ekran "kısa bekleme" yazar.
+  static final ValueNotifier<int?> waitingUntilMs = ValueNotifier<int?>(null);
+
+  /// Son turda kullanıcı "Durdur"a bastı mı (ekran sonraki turu açmaz).
+  static bool get cancelRequested => _cancelRequested;
 
   /// Son turun belirteç raporu (Akıllı düzen ekranında; oturum içi).
   static final ValueNotifier<SmartUsage?> lastUsage =

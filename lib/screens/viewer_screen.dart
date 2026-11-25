@@ -76,6 +76,7 @@ import '../services/pdf_annotator.dart';
 import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
+import '../services/audiobook/doc_chapters.dart';
 import '../services/tts_service.dart';
 import '../services/dictation.dart';
 import '../services/voice_note.dart';

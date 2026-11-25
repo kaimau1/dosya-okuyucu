@@ -68,6 +68,10 @@ class SmartSortScreen extends StatefulWidget {
 }
 
 class _SmartSortScreenState extends State<SmartSortScreen> {
+  /// Bir "Başlat" dokunuşunda en çok bu kadar tur (tur başına sınır kadar
+  /// dosya) art arda koşar; sonsuz döngü olmasın.
+  static const _maxTurns = 10;
+
   bool _ready = false;
   final TextEditingController _searchCtrl = TextEditingController();
   String _query = '';
@@ -146,34 +150,60 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final state = context.read<AppState>();
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final r = await SmartSort.run(
+    // Sınırsızda bir turda daha çok dosya (havuz zaten TÜM dosyalar — bkz.
+    // SmartSort.scanAll).
+    final limit = SmartQuota.isUnlimited ? 2000 : 300;
+    // Kalıcı tur (2026-11-25, "sık sık duruyor, sürekli başlata basıyorum"):
+    // dakikalık sınır / ağ kopması turu bitirmez, bekleyip sürer. Tur
+    // sınırı dolunca ve engel yoksa sıradaki tura KENDİLİĞİNDEN geçilir
+    // (ekran açıkken; en çok [_maxTurns]).
+    var r = await SmartSort.run(
         credentials: state.aiCredentials,
         scope: state.aiScopeRules,
-        // Sınırsızda bir turda daha çok dosya (kalan sonraki dokunuşta /
-        // arka planda; havuz zaten TÜM dosyalar — bkz. SmartSort.scanAll).
-        limit: SmartQuota.isUnlimited ? 2000 : 300);
+        limit: limit,
+        persistent: true);
+    var processed = r.processed;
+    var failed = r.failed;
+    var reused = r.reused;
+    for (var turn = 1;
+        turn < _maxTurns &&
+            mounted &&
+            r.hold == null &&
+            r.stoppedBy == null &&
+            !SmartSort.cancelRequested &&
+            r.processed + r.failed >= limit;
+        turn++) {
+      r = await SmartSort.run(
+          credentials: state.aiCredentials,
+          scope: state.aiScopeRules,
+          limit: limit,
+          persistent: true);
+      processed += r.processed;
+      failed += r.failed;
+      reused += r.reused;
+    }
     var msg = switch (r.hold) {
       SmartHold.wifi => s.t('sm.hold_wifi'),
       SmartHold.cap =>
-        s.t('sm.hold_cap', {'n': r.processed, 'cap': SmartQuota.dailyCap}),
+        s.t('sm.hold_cap', {'n': processed, 'cap': SmartQuota.dailyCap}),
       SmartHold.offline => s.t('sm.hold_offline'),
       SmartHold.noKey => s.t('uerr.ai_key'),
       SmartHold.noScope => s.t('sm.hold_scope'),
       // Durma nedeni kullanıcı dilinde (anahtar / kota / bağlantı) — eskiden
       // her durmada "günlük kota doldu" yazıyordu.
       null => r.stoppedBy != null
-          ? s.t('sm.stopped', {'n': r.processed, 'reason': r.stoppedBy})
-          : (r.processed == 0 && r.failed == 0
+          ? s.t('sm.stopped', {'n': processed, 'reason': r.stoppedBy})
+          : (processed == 0 && failed == 0
               ? s.t('sm.nothing_new')
-              : s.t('sm.done', {'n': r.processed})),
+              : s.t('sm.done', {'n': processed})),
     };
     // Yerelden 0 belirteçle eşlenen kopya varsa bildir.
-    if (r.reused > 0 && r.hold == null) {
-      msg += ' · ${s.t('sm.reused_n', {'n': r.reused})}';
+    if (reused > 0 && r.hold == null) {
+      msg += ' · ${s.t('sm.reused_n', {'n': reused})}';
     }
     // Yapılamayanlar da söylenir (eskiden sessizdi: "300'den 27 çıktı").
-    if (r.failed > 0 && r.stoppedBy == null) {
-      msg += ' · ${s.t('sm.failed', {'n': r.failed})}'
+    if (failed > 0 && r.stoppedBy == null) {
+      msg += ' · ${s.t('sm.failed', {'n': failed})}'
           '${r.lastError != null ? ': ${r.lastError}' : ''}';
     }
     showSnackOn(messenger, msg);
@@ -548,14 +578,28 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      pct != null
-                          ? '${context.t('sm.progress', {'done': prog.done, 'total': prog.total})} · %$pct'
-                          : context.t('sm.progress',
-                              {'done': prog.done, 'total': prog.total}),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    // Kalıcı tur geçici bir engelde bekliyorsa (dakikalık
+                    // sınır / ağ) "durdu" sanılmasın: neden + "kendiliğinden
+                    // sürecek" yazar (2026-11-25).
+                    child: ValueListenableBuilder<int?>(
+                      valueListenable: SmartSort.waitingUntilMs,
+                      builder: (context, waitUntil, _) {
+                        final base = pct != null
+                            ? '${context.t('sm.progress', {'done': prog.done, 'total': prog.total})} · %$pct'
+                            : context.t('sm.progress',
+                                {'done': prog.done, 'total': prog.total});
+                        return Text(
+                          waitUntil == null
+                              ? base
+                              : '$base · ${context.t('sm.waiting')}',
+                          key: const ValueKey('ss-progress-text'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   TextButton.icon(
