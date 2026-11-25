@@ -20,7 +20,6 @@ import '../../services/fm/installed_apps_service.dart';
 import '../../services/fm/media_library.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/search_index.dart';
-import '../../services/fm/smart_sort.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/storage_trend.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
@@ -30,16 +29,11 @@ import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import 'browser_screen.dart';
 import 'category_screen.dart';
-import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
-import 'duplicates_screen.dart';
 import 'folder_map_screen.dart';
 import 'installed_apps_screen.dart';
-import 'similar_screen.dart';
 import 'entry_actions.dart';
 import '../../core/safe_insets.dart';
-import 'smart_cleanup_screen.dart';
-import 'smart_clutter_screen.dart';
 
 part 'analysis/actions.dart';
 part 'analysis/widgets.dart';
@@ -134,34 +128,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// kart hiç görünmez (boş bir kutu göstermek yanıltıcı olurdu).
   AppStorageSummary? _apps;
 
-  /// Akıllı düzenin "Ayıkla" önerisi (U4): Akıllı düzen açıksa ve gereksiz
-  /// varsa araçlarda görünür. Depo açılışta (main) yüklenir; burada yükleme
-  /// TETİKLENMEZ, sayı bir kez hesaplanır (her tuşta değil).
-  int _clutter = 0;
-
-  /// Ayıkla bulgularının nedene göre dökümü (U6 c, 2026-11-21: bulanık /
-  /// eski ekran görüntüsü / WhatsApp kopyası…) — çoktan aza; yeni AI isteği
-  /// yok, Akıllı düzenin mevcut kayıtları.
-  List<MapEntry<String, int>> _clutterBy = const [];
-
-  void _countClutter() {
-    final list = SmartSort.isLoaded && SmartSort.enabled
-        ? SmartSort.clutter()
-        : const <SmartRecord>[];
-    final by = <String, int>{};
-    for (final r in list) {
-      final k = SmartSort.reasonOf(r);
-      if (k != null) by[k] = (by[k] ?? 0) + 1;
-    }
-    _clutter = list.length;
-    _clutterBy = by.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-  }
-
   @override
   void initState() {
     super.initState();
-    _countClutter();
     _loadTrend();
     if (Edition.current.has(Feature.installedApps)) _loadApps();
     if (_followsIndex) SearchIndex.revision.addListener(_onIndexChanged);
@@ -171,8 +140,18 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     });
   }
 
+  /// En büyük dosyalar kutusunun kendi kaydırması.
+  final ScrollController _largestScroll = ScrollController();
+
+  /// Kapsam değişince kutu başa döner (yeni liste ortadan açılmasın).
+  void _setCategory(FmCategory? c) {
+    setState(() => _category = c);
+    if (_largestScroll.hasClients) _largestScroll.jumpTo(0);
+  }
+
   @override
   void dispose() {
+    _largestScroll.dispose();
     SearchIndex.revision.removeListener(_onIndexChanged);
     _debounce?.cancel();
     _searchController.dispose();
@@ -312,67 +291,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             builder: (_) => CleanupScreen(index: _index),
                           )),
                         ),
+                        // Kopyalar, benzer görseller, sohbet medyası, akıllı
+                        // içerik taraması ve Ayıkla artık Yer aç'ın İÇİNDE
+                        // (2026-11-25, kullanıcı: "çok fazla şey var, çok
+                        // karışık"); burada tek giriş + klasör haritası.
                         const Divider(height: 1),
-                        // "Kopyalar" (U4): ana ekrandaki araçla aynı ad ve
-                        // simge — ana ekrandan buraya taşınıyor (U3).
-                        _ToolRow(
-                          icon: AppIcons.filterNone,
-                          color: AppHues.teal,
-                          title: context.t('ana.find_dupes'),
-                          note: context.t('ana.find_dupes_note'),
-                          onTap: () =>
-                              Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) =>
-                                DuplicatesScreen(roots: FmEnv.volumeRoots),
-                          )),
-                        ),
-                        const Divider(height: 1),
-                        _ToolRow(
-                          icon: AppIcons.autoAwesomeMotion,
-                          color: AppHues.jade,
-                          title: context.t('fm.similar_images'),
-                          note: context.t('ana.similar_note'),
-                          onTap: _openSimilar,
-                        ),
-                        const Divider(height: 1),
-                        _ToolRow(
-                          icon: AppIcons.forum,
-                          color: AppHues.green,
-                          title: context.t('cj.title'),
-                          note: context.t('ana.chat_note'),
-                          onTap: () => openChatCleanupScreen(context),
-                        ),
-                        const Divider(height: 1),
-                        _ToolsGroupHeader(context.t('an.tools_explore')),
-                        _ToolRow(
-                          icon: AppIcons.ai,
-                          color: AppHues.violet,
-                          title: context.t('sa.title'),
-                          note: context.t('sa.card_sub'),
-                          onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const SmartCleanupScreen())),
-                        ),
-                        const Divider(height: 1),
-                        if (_clutter > 0) ...[
-                          _ToolRow(
-                            icon: AppIcons.cleanEmpty,
-                            color: AppHues.violet,
-                            title: context.t('sm.clutter_title', {'n': _clutter}),
-                            note: _clutterBy.isEmpty
-                                ? context.t('sm.clutter_sub')
-                                : _clutterBy
-                                    .take(3)
-                                    .map((e) =>
-                                        '${context.t('sm.r_${e.key}')} ${e.value}')
-                                    .join(' · '),
-                            onTap: () async {
-                              await SmartClutterScreen.open(context);
-                              if (mounted) _partSetState(_countClutter);
-                            },
-                          ),
-                          const Divider(height: 1),
-                        ],
                         // **Klasör haritası** (kullanıcı isteği 2026-08-17,
                         // ekran görüntüsü): tür kırılımı "53 GB video" diyor ama
                         // hangi klasörü temizleyeceğini söylemiyor. Harita
@@ -476,7 +399,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           FmChip(
                             label: context.t('ana.scope_all'),
                             selected: _category == null,
-                            onTap: () => setState(() => _category = null),
+                            onTap: () => _setCategory(null),
                           ),
                           for (final c in categories)
                             if (_isSearch ||
@@ -484,7 +407,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               FmChip(
                                 label: context.t(c.labelKey),
                                 selected: _category == c,
-                                onTap: () => setState(() => _category = c),
+                                onTap: () => _setCategory(c),
                               ),
                         ])
                           Align(alignment: Alignment.center, child: child),
@@ -519,38 +442,42 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                     ),
                   ),
                 // 200 sınırı [_visible]da (U4): seçim/"Tümünü seç" de onu görür.
-                for (var i = 0; i < visible.length; i++)
-                  FmEntryRow(
-                    entry: visible[i],
-                    selected: _selected.contains(visible[i].path),
-                    selecting: _selecting,
-                    subtitle: FmLocation.label(visible[i].path, context.t,
-                        volumes: FmEnv.volumes),
-                    dateText: FmLocation.shortDate(visible[i].modifiedMs),
-                    subtitleEnd: visible[i].isDir
-                        ? null
-                        : FsPaths.humanSize(visible[i].sizeBytes),
-                    showDivider: i < visible.length - 1,
-                    onCheck: () => _toggle(visible[i]),
-                    // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
-                    // ekranında aynı kural.
-                    onTap: () => _selecting
-                        ? _toggle(visible[i])
-                        : EntryOpener.open(context, visible[i].path),
-                    onLongPress: () => _toggle(visible[i]),
-                    onMore: _selecting
-                        ? null
-                        : () async {
-                            await showEntryActions(
-                              context,
-                              visible[i],
-                              allowReveal: true,
-                              onReveal: (path) => Navigator.of(context).push(
-                                browserRoute(BrowserScreen(path: path)),
-                              ),
-                            );
-                            await _refreshAlive();
-                          },
+                // KENDİ kaydırma alanı (2026-11-25, kullanıcı: "en büyük
+                // dosyalar kendi alanına alınsın, tüm sayfayı kaydırmayalım"):
+                // liste sabit yükseklikte çerçeveli bir kutuda, kendi içinde
+                // kayar; satırlar tembel çizilir (eskiden 200 satır birden
+                // kuruluyordu).
+                if (visible.isNotEmpty)
+                  SizedBox(
+                    key: const ValueKey('ana-largest-box'),
+                    height: (MediaQuery.sizeOf(context).height * 0.62)
+                        .clamp(320.0, 900.0),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(alpha: 0.6)),
+                      ),
+                      child: Scrollbar(
+                        controller: _largestScroll,
+                        child: ListView.builder(
+                          controller: _largestScroll,
+                          primary: false,
+                          padding: EdgeInsets.only(
+                              top: Gap.xs,
+                              bottom: _selecting ? 96 : Gap.xs),
+                          itemCount: visible.length,
+                          itemBuilder: (context, i) =>
+                              _largestRow(visible, i),
+                        ),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -576,6 +503,40 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       ),
     );
   }
+
+  /// En büyük dosyalar listesinin bir satırı.
+  Widget _largestRow(List<FsEntry> visible, int i) => FmEntryRow(
+      entry: visible[i],
+      selected: _selected.contains(visible[i].path),
+      selecting: _selecting,
+      subtitle: FmLocation.label(visible[i].path, context.t,
+          volumes: FmEnv.volumes),
+      dateText: FmLocation.shortDate(visible[i].modifiedMs),
+      subtitleEnd: visible[i].isDir
+          ? null
+          : FsPaths.humanSize(visible[i].sizeBytes),
+      showDivider: i < visible.length - 1,
+      onCheck: () => _toggle(visible[i]),
+      // Seçim açıkken dokunmak SEÇER (dosyayı açmaz) — her liste
+      // ekranında aynı kural.
+      onTap: () => _selecting
+          ? _toggle(visible[i])
+          : EntryOpener.open(context, visible[i].path),
+      onLongPress: () => _toggle(visible[i]),
+      onMore: _selecting
+          ? null
+          : () async {
+              await showEntryActions(
+                context,
+                visible[i],
+                allowReveal: true,
+                onReveal: (path) => Navigator.of(context).push(
+                  browserRoute(BrowserScreen(path: path)),
+                ),
+              );
+              await _refreshAlive();
+            },
+    );
 
   /// Aşağı çekip yenile: uygulama boyutları (önbelleği atlayarak), eğilim
   /// ve silinmiş dosyalar. Tam tarama panonun işi; burada yalnız bu ekranın

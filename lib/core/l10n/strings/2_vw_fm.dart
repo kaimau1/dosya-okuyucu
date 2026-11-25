@@ -768,6 +768,7 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'clean.confirm_title': ('Temizlensin mi?', 'Clean up?', 'هل تريد التنظيف؟'),
   'clean.title': ('Yer aç', 'Free up space', 'تحرير مساحة'),
+  'clean.tools': ('TEMİZLİK ARAÇLARI', 'CLEAN-UP TOOLS', 'أدوات التنظيف'),
   'clean.analyzing': ('Yer aç: depolama çözümleniyor', 'Free up space: analysing storage', 'تحرير مساحة: جارٍ تحليل التخزين'),
   'clean.analyzing_name': ('Yer aç: depolama çözümlemesi', 'Free up space: storage analysis', 'تحرير مساحة: تحليل التخزين'),
   'clean.reading_index': ('Depolama okunuyor…', 'Reading storage…', 'جارٍ قراءة وحدة التخزين…'),
@@ -850,9 +851,9 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'ana.free_space': ('Yer aç (temizlik önerileri)', 'Free up space (cleanup suggestions)', 'تحرير مساحة (اقتراحات التنظيف)'),
   'ana.free_space_note': (
-    'Çöp kutusu, kopyalar, eski indirilenler ve büyük dosyalar',
-    'Trash, duplicates, old downloads and large files',
-    'المهملات والنسخ المكررة والتنزيلات القديمة والملفات الكبيرة',
+    'Çöp kutusu, kopyalar, benzer görseller, sohbet medyası ve gereksizler — hepsi tek yerde',
+    'Trash, duplicates, similar images, chat media and clutter — all in one place',
+    'المهملات والنسخ المكررة والصور المتشابهة ووسائط الدردشة وغير الضروري — كلها في مكان واحد',
   ),
   // U4: ana ekrandaki araçla aynı ad ("Kopyalar" ana ekrandan Analiz'e taşınıyor).
   'ana.find_dupes': ('Kopyalar', 'Duplicates', 'المكررات'),

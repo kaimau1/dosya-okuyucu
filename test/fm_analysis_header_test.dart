@@ -73,18 +73,19 @@ void main() {
     expect(find.text('%50'), findsOneWidget);
   });
 
-  testWidgets('üç analiz aracı TEK kartta, çizgilerle ayrılmış',
+  testWidgets('analiz araçları TEK kartta: Yer aç + klasör haritası',
       (tester) async {
     await pump(tester);
     const strings = AppStrings(AppLanguage.tr);
     for (final key in const [
       'ana.free_space',
-      'ana.find_dupes',
       'fmap.title',
     ]) {
       expect(find.text(strings.t(key)), findsOneWidget, reason: key);
     }
-    // Üç satır, iki ayraç: üç ayrı kart olsaydı hiç `Divider` olmazdı.
+    // Kopyalar/benzer/sohbet artık Yer aç'ın içinde (2026-11-25).
+    expect(find.text(strings.t('ana.find_dupes')), findsNothing);
+    // İki satır, bir ayraç: ayrı kartlar olsaydı `Divider` olmazdı.
     expect(find.byType(Divider), findsWidgets);
   });
 

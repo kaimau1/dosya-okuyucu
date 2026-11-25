@@ -1685,3 +1685,9 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Akıllı düzeni elle başlat (gönderim onayı daha önce verilmemiş) → onay penceresi BİR kez çıkar; "Vazgeç" → tur durur, her dosyada yeniden sormaz.
 - [ ] Görseli OCR Stüdyosu'nda AI ile oku → "metni görselin üstünde seç" → ikinci bir AI isteği gitmez (Google AI Studio kullanım sayacında tek istek).
 - [ ] USB bellekte iki ayrı kopyalama işini aynı anda başlat → ikisi de bitince dosyalar açılır, bozuk dosya yok. Klasörü yeniden adlandır, eski adla yeni klasör aç → yeni klasör boş görünür.
+
+## Sesli kitap durdurma + Yer aç araçları + analiz kutusu (2026-11-25 akşam) — yazıldı, cihazda doğrulanmadı
+- [ ] Sesli kitap (Kokoro ya da cihaz sesi) üretirken "Durdur" → en geç ~1 sn içinde durur; ana ekrandaki kart "Durduruluyor…"da asılı kalmaz; o ana dek biten bölümler klasörde.
+- [ ] Yer aç → en altta "TEMİZLİK ARAÇLARI": Kopyalar, Benzer görseller, Sohbet medyası, Akıllı temizlik analizi, Klasör haritası açılır. Temizlenecek bir şey yokken de görünür. İşlemler'de "Sohbet medyası" sekmesi yok.
+- [ ] Bellek Analizi → Araçlar'da yalnız "Yer aç" ve "Klasör haritası". En büyük dosyalar kendi kutusunda kayar, sayfa yerinde kalır; kapsam çipine dokununca kutu başa döner.
+- [ ] Belgeler/İndirilenler/Analiz satırı: "WhatsApp · 24 Kas · 12 MB" tek akışta, ortada boşluk yok.

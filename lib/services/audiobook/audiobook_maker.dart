@@ -53,6 +53,11 @@ enum AudiobookVoice {
       };
 }
 
+/// Kullanıcı durdurdu (uzun bir adım beklenirken). Bkz. [AudiobookMaker.orCancel].
+class AudiobookCancelled implements Exception {
+  const AudiobookCancelled();
+}
+
 /// Üretim ilerlemesi.
 class AudiobookProgress {
   final int chapter; // 0 tabanlı
@@ -135,6 +140,38 @@ class AudiobookMaker {
     return out;
   }
 
+  /// İptal yoklama aralığı (testte kısaltılır).
+  @visibleForTesting
+  static Duration cancelPoll = const Duration(milliseconds: 250);
+
+  /// [work]ü bekler; beklerken [isCancelled] true olursa BEKLEMEYİ BIRAKIR
+  /// ([AudiobookCancelled]). Arkada süren iş bitince sonucu/hatası yutulur.
+  ///
+  /// KÖK (2026-11-25, kullanıcı: "sesli kitap oluşturma durdurulamıyor",
+  /// ekranda "Durduruluyor…" asılı): iptal yalnız parçalar ARASINDA
+  /// denetleniyordu. Kokoro parça başına harf başına ~1 sn (900 karakter ≈
+  /// 15 dk), ses modeli hazırlığı ve AI toparlama da uzun sürebiliyor;
+  /// "Durdur" o adım bitene dek etkisizdi.
+  static Future<T> orCancel<T>(Future<T> work, bool Function()? isCancelled) {
+    if (isCancelled == null) return work;
+    if (isCancelled()) {
+      work.then((_) {}, onError: (Object _) {});
+      return Future.error(const AudiobookCancelled());
+    }
+    final done = Completer<T>();
+    work.then((v) {
+      if (!done.isCompleted) done.complete(v);
+    }, onError: (Object e, StackTrace st) {
+      if (!done.isCompleted) done.completeError(e, st);
+    });
+    final timer = Timer.periodic(cancelPoll, (t) {
+      if (!isCancelled()) return;
+      t.cancel();
+      if (!done.isCompleted) done.completeError(const AudiobookCancelled());
+    });
+    return done.future.whenComplete(timer.cancel);
+  }
+
   Future<List<String>> make({
     required String docName,
     required List<AudioChapter> chapters,
@@ -163,7 +200,12 @@ class AudiobookMaker {
       final parts = <String>[];
       var chapterText = c.text;
       if (aiTidy && Edition.current.has(Feature.ai) && aiGemini != null) {
-        chapterText = await ReadAloudAi.tidyOrOriginal(aiGemini!, chapterText);
+        try {
+          chapterText = await orCancel(
+              ReadAloudAi.tidyOrOriginal(aiGemini!, chapterText), isCancelled);
+        } on AudiobookCancelled {
+          break;
+        }
       }
       final maxLen = voice == AudiobookVoice.system ? 1800 : 900;
       var segments =
@@ -177,20 +219,31 @@ class AudiobookMaker {
       }
       final texts = [for (final s in segments) s.text];
       final gaps = [for (final s in segments) s.pauseAfterMs];
+      var stopped = false;
       try {
         for (var k = 0; k < texts.length; k++) {
           if (isCancelled?.call() ?? false) break;
           final part = p.join(tmp.path, 'p${i}_$k.wav');
-          await _synth(texts[k], part, (d, t) {
-            final within = t == 0 ? 0.0 : d / t;
-            onProgress?.call(AudiobookProgress(
-                i, chapters.length, ((k + within) / texts.length) * 0.9, 'synth'));
-          });
+          try {
+            await orCancel(
+                _synth(texts[k], part, (d, t) {
+                  final within = t == 0 ? 0.0 : d / t;
+                  onProgress?.call(AudiobookProgress(i, chapters.length,
+                      ((k + within) / texts.length) * 0.9, 'synth'));
+                }),
+                isCancelled);
+          } on AudiobookCancelled {
+            // Cihaz sesi sentezini de kes (yapay ses motoru kendi kuyruğunda
+            // biter; sonucu atılır).
+            stopped = true;
+            unawaited(_tts?.stop());
+            break;
+          }
           parts.add(part);
           onProgress?.call(AudiobookProgress(
               i, chapters.length, ((k + 1) / texts.length) * 0.9, 'synth'));
         }
-        if (isCancelled?.call() ?? false) break;
+        if (stopped || (isCancelled?.call() ?? false)) break;
         onProgress?.call(AudiobookProgress(i, chapters.length, 0.92, 'merge'));
         final base = p.join(folder, chapterBase(n, c));
         final wavPath = '$base.wav';

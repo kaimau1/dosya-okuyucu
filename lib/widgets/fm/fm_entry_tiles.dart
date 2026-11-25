@@ -357,34 +357,17 @@ class FmEntryRow extends StatelessWidget {
         );
       }
 
-      // Konum boşsa: tarih solda, boyut sağda (ör. klasör gezgini).
-      if (left.isEmpty) {
-        if (date.isNotEmpty && size.isNotEmpty) {
-          return Row(children: [
-            Expanded(
-              child: Text(
-                bidiParts(context, date),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: dateStyle,
-              ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Text(bidiParts(context, size),
-                maxLines: 1, softWrap: false, style: baseStyle),
-          ]);
-        }
-        return trailingDateAndSize();
-      }
-
+      // Tek, sola hizalı akış (2026-11-25, kullanıcı: "boyut, tarih çok
+      // dağınık"): "Belgeler · 18 Kas · 136 KB". Kaynak yalnız gerektiği
+      // kadar yer alır (gevşek esneme) ve sığmazsa "…" ile kısalır; tarih ve
+      // boyut hemen ardından gelir, KESİLMEZ. Eskiden tarih/boyut satırın en
+      // sağına yaslanıyor, ortada büyük boşluk kalıyordu.
+      if (left.isEmpty) return trailingDateAndSize();
       if (date.isEmpty && size.isEmpty) return leftText();
-
-      // Standart görünüm: kaynak/konum solda esner; tarih ve boyut sağda
-      // KESİLMEDEN sabitlenir.
       return Row(
         children: [
-          Expanded(child: leftText()),
-          const SizedBox(width: Gap.sm),
+          Flexible(child: leftText()),
+          Text(' · ', style: baseStyle),
           trailingDateAndSize(),
         ],
       );

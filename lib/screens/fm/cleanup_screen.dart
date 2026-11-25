@@ -30,7 +30,7 @@ import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart' show fmHero;
 import '../../widgets/motion.dart' show FmEmptyState;
-import 'chat_cleanup_screen.dart';
+import 'cleanup_tools.dart';
 import 'entry_actions.dart' show trashWithUndo;
 import 'smart_clutter_screen.dart';
 import 'trash_screen.dart';
@@ -645,15 +645,28 @@ class _CleanupScreenState extends State<CleanupScreen> {
           : _loading
           ? _loadingView(context)
           : all.isEmpty
-              ? FmEmptyState(
-                  icon: AppIcons.cleanEmpty,
-                  title: context.t('clean.nothing_body'),
-                  action: FilledButton.tonalIcon(
-                    onPressed:
-                        _loading ? null : () => _analyze(forceRescan: true),
-                    icon: const Icon(AppIcons.refresh, size: 18),
-                    label: Text(context.t('clean.reanalyze')),
-                  ),
+              // Önerilecek bir şey yokken de araçlara ulaşılır (kopya/benzer
+              // taraması öneri listesinden bağımsız).
+              ? ListView(
+                  padding: withNavInset(
+                      context, const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.lg)),
+                  children: [
+                    SizedBox(
+                      height: 300,
+                      child: FmEmptyState(
+                        icon: AppIcons.cleanEmpty,
+                        title: context.t('clean.nothing_body'),
+                        action: FilledButton.tonalIcon(
+                          onPressed: _loading
+                              ? null
+                              : () => _analyze(forceRescan: true),
+                          icon: const Icon(AppIcons.refresh, size: 18),
+                          label: Text(context.t('clean.reanalyze')),
+                        ),
+                      ),
+                    ),
+                    CleanupToolsCard(index: widget.index),
+                  ],
                 )
               : ListView(
                   padding: withNavInset(
@@ -683,7 +696,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       const SizedBox(height: Gap.sm + 2),
                     ],
                     for (final s in visible) _card(s),
-                    if (!widget.embedded) _moreToolsCard(context),
+                    // Tüm elle inceleme araçları TEK kartta (2026-11-25):
+                    // kopyalar, benzer görseller, sohbet medyası, içerik
+                    // taraması, klasör haritası. İşlemler'deki ayrı "Sohbet
+                    // medyası" sekmesi kalktı, bu yüzden gömülüyken de var.
+                    CleanupToolsCard(index: widget.index),
                     if (CleanupIgnore.instance.count > 0)
                       Center(
                         child: TextButton(
@@ -1077,41 +1094,6 @@ class _CleanupScreenState extends State<CleanupScreen> {
           await SmartClutterScreen.open(context);
           if (mounted) setState(() {});
         },
-      ),
-    );
-  }
-
-  Widget _moreToolsCard(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: Gap.sm),
-      child: Material(
-        color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Radii.card),
-          side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: ListTile(
-          key: const ValueKey('clean-chat-tool'),
-          leading: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppHues.teal.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(AppIcons.chat, color: AppHues.teal, size: 20),
-          ),
-          title: Text(context.t('clean.chat_tool'),
-              style: Theme.of(context)
-                  .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          subtitle: Text(context.t('clean.chat_tool_sub')),
-          trailing: const Icon(AppIcons.chevron),
-          onTap: () => unawaited(openChatCleanupScreen(context)),
-        ),
       ),
     );
   }

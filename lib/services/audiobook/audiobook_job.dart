@@ -139,7 +139,19 @@ class AudiobookJob extends ChangeNotifier {
               : v.label;
           notifyListeners();
         };
-        await engine.prepare(neural);
+        // Model indirme/yükleme dakikalar sürebilir: "Durdur" beklemeden
+        // etkili olsun (2026-11-25).
+        try {
+          await AudiobookMaker.orCancel(engine.prepare(neural), () => cancelled);
+        } on AudiobookCancelled {
+          await _task.stopped(
+              detail: str.t('ab.stopped', {
+                'n': 0,
+                'folder': p.basename(AudiobookMaker.folderFor(docName, voice)),
+              }),
+              quiet: watched && TrackedTask.userWatching);
+          return;
+        }
         loadingVoice = null;
         notifyListeners();
       }
