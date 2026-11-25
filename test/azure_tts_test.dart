@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dosya_okuyucu/core/edition.dart';
+import 'package:dosya_okuyucu/services/audiobook/audiobook_maker.dart';
 import 'package:dosya_okuyucu/services/key_vault.dart';
 import 'package:dosya_okuyucu/services/voice/azure_tts.dart';
 import 'package:dosya_okuyucu/services/voice/neural_voices.dart';
@@ -61,6 +62,10 @@ void main() {
     expect(seen.headers['Ocp-Apim-Subscription-Key'], 'k-1');
     expect(seen.headers['X-Microsoft-OutputFormat'],
         'audio-24khz-48kbitrate-mono-mp3');
+    // Sesli kitap: WAV (birleştirme hattı).
+    await AzureTts.synthesize('Merhaba', voice: 'tr-TR-AhmetNeural', wav: true);
+    expect(seen.headers['X-Microsoft-OutputFormat'],
+        'riff-24khz-16bit-mono-pcm');
     status = 401;
     await expectLater(
         AzureTts.synthesize('Merhaba', voice: 'tr-TR-AhmetNeural'),
@@ -78,5 +83,8 @@ void main() {
     expect(NeuralVoice.kokoroEn.locale, 'en-US');
     expect(AzureTts.validRegion('westeurope'), isTrue);
     expect(AzureTts.validRegion('west europe'), isFalse);
+    // Sesli kitapta da yeni sesler (2026-11-25).
+    expect(AudiobookVoice.of(NeuralVoice.ahmet), AudiobookVoice.ahmet);
+    expect(AudiobookVoice.of(NeuralVoice.kokoroTr), AudiobookVoice.kokoroTr);
   });
 }

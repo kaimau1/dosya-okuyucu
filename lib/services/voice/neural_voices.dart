@@ -83,7 +83,8 @@ enum NeuralVoice {
         _ => false,
       };
 
-  /// Bu derlemede kullanılabilir mi ([Feature.extraVoices]).
+  /// Bu derlemede kullanılabilir mi ([Feature.extraVoices]). Sesli okuma
+  /// VE sesli kitapta (2026-11-25) aynı liste.
   bool get available =>
       !personalOnly || Edition.current.has(Feature.extraVoices);
 

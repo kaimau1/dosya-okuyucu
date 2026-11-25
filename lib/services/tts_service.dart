@@ -241,15 +241,15 @@ class TtsService {
 
   /// Hız çarpanını platformun beklediği değere çevirir.
   ///
-  /// **TUZAK:** `flutter_tts`ta 1.0 her yerde "normal" değil — Android'de
-  /// normal 1.0 iken iOS'ta normal 0.5'tir (0.5 üstü hızlanır). Çarpanı
-  /// olduğu gibi geçirmek iOS'ta iki kat hızlı konuşmaya yol açardı.
+  /// **KÖK (2026-11-25, kullanıcı: *"hız 1'de ama 1.5–2'de okuyor; sesli
+  /// kitap oluştururken de"*):** `flutter_tts` (4.2.5) Android'de gelen
+  /// değeri **2 ile çarpar** (`FlutterTtsPlugin.kt`: `rate * 2.0f` — API'yi
+  /// iOS'la eşlemek için flutter 0.5 = Android 1.0). Eski kod yalnız iOS'ta
+  /// yarıya bölüyordu; Android'de 1.0 gönderip sistem motorunu 2 KAT hızda
+  /// çalıştırıyordu (1.3× ayar → 2,6×). Artık her platformda normal = 0.5.
   static double platformRate(double multiplier) {
     final m = multiplier.clamp(0.5, 2.0);
-    final isApple = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.macOS);
-    return isApple ? (m * 0.5).clamp(0.0, 1.0) : m;
+    return (m * 0.5).clamp(0.0, 1.0);
   }
 
   /// [text]i cihazın motoruyla **WAV dosyasına** yazar (sesli kitap,

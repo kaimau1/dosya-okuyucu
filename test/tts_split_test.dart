@@ -6,6 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 /// telaffuz bozulur. Konuşma motoru cihaz gerektirir; bölme saf metin işi.
 void main() {
   _cleanForSpeechTests();
+  test('hız: flutter_tts Android ×2 yapar → normal 1.0 motora 0.5 gider', () {
+    // KÖK 2026-11-25: "hız 1'de ama 1.5–2 katı okuyor".
+    expect(TtsService.platformRate(1.0), 0.5);
+    expect(TtsService.platformRate(1.3), closeTo(0.65, 1e-9));
+    expect(TtsService.platformRate(2.0), 1.0);
+    expect(TtsService.platformRate(0.5), 0.25);
+    expect(TtsService.platformRate(9), 1.0);
+  });
+
   test('boş metin parça üretmez', () {
     expect(splitForSpeech(''), isEmpty);
     expect(splitForSpeech('   \n  '), isEmpty);

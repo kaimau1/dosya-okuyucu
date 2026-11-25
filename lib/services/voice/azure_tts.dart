@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -103,13 +102,15 @@ abstract final class AzureTts {
     configured.value = _key.isNotEmpty;
   }
 
-  /// [text]i [voice] (`tr-TR-AhmetNeural`) ile MP3'e çevirir. [rate] ve
-  /// [pitch] çarpan (1.0 = normal; 0.5–2.0).
+  /// [text]i [voice] (`tr-TR-AhmetNeural`) ile MP3'e (sesli okuma) ya da
+  /// [wav] ise 24 kHz 16 bit mono WAV'a (sesli kitap: `Wav.concat` hattı)
+  /// çevirir. [rate] ve [pitch] çarpan (1.0 = normal; 0.5–2.0).
   static Future<Uint8List> synthesize(
     String text, {
     required String voice,
     double rate = 1.0,
     double pitch = 1.0,
+    bool wav = false,
   }) async {
     if (OfflineMode.enabled) {
       throw const SocketException('Çevrimdışı kip açık');
@@ -126,7 +127,9 @@ abstract final class AzureTts {
             headers: {
               'Ocp-Apim-Subscription-Key': _key,
               'Content-Type': 'application/ssml+xml',
-              'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+              'X-Microsoft-OutputFormat': wav
+                  ? 'riff-24khz-16bit-mono-pcm'
+                  : 'audio-24khz-48kbitrate-mono-mp3',
               'User-Agent': 'DosyaOkuyucu',
             },
             body: utf8.encode(ssml(clean, voice: voice, rate: rate, pitch: pitch)),
