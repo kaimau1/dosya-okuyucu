@@ -140,9 +140,10 @@ class AudiobookMaker {
     return out;
   }
 
-  /// İptal yoklama aralığı (testte kısaltılır).
+  /// İptal yoklama aralığı (testte kısaltılır). Saniyede bir yeter: "Durdur"
+  /// en geç ~1 sn içinde etkili olur.
   @visibleForTesting
-  static Duration cancelPoll = const Duration(milliseconds: 250);
+  static Duration cancelPoll = const Duration(seconds: 1);
 
   /// [work]ü bekler; beklerken [isCancelled] true olursa BEKLEMEYİ BIRAKIR
   /// ([AudiobookCancelled]). Arkada süren iş bitince sonucu/hatası yutulur.

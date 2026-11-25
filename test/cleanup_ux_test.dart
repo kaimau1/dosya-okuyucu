@@ -96,12 +96,15 @@ void main() {
     expect(find.textContaining('/storage/emulated/0'), findsNothing);
     expect(find.textContaining('İndirilenler'), findsWidgets);
 
-    // Tümünü göster (+3) kalanları açar.
-    await tester.drag(find.byType(ListView), const Offset(0, -1400));
+    // Tümünü göster (+3) kalanları açar. (Listenin sonunda artık Temizlik
+    // araçları kartı var: sabit mesafe yerine görünene dek kaydırılır.)
+    await tester.dragUntilVisible(find.text('Tümünü göster (+3)'),
+        find.byType(ListView), const Offset(0, -200));
     await tester.pump();
     await tester.tap(find.text('Tümünü göster (+3)'));
     await tester.pump();
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.dragUntilVisible(
+        find.text('app_22.apk'), find.byType(ListView), const Offset(0, -200));
     await tester.pump();
     expect(find.text('app_22.apk'), findsOneWidget);
   });
