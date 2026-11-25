@@ -8,7 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('bölümler listelenir; yapay ses kurulu değilse "Oluştur" kapalı',
       (tester) async {
-    tester.view.physicalSize = const Size(1080, 3000);
+    // 2026-11-25: Kokoro TR/EN + Ahmet kartları eklendi; liste uzadı, tembel
+    // liste ekran dışını çizmez → yükseklik artırıldı.
+    tester.view.physicalSize = const Size(1080, 6000);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(const MaterialApp(
