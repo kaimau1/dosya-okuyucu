@@ -131,28 +131,30 @@ abstract final class DocChapters {
     final firstCounts = <String, int>{};
     final lastCounts = <String, int>{};
     final split = <int, List<String>>{};
+    final eligible = <int>{};
     for (final e in pages.entries) {
       final lines = e.value.split('\n');
       split[e.key] = lines;
-      String? first;
-      String? last;
-      for (final l in lines) {
-        if (l.trim().isNotEmpty) {
-          first ??= l;
-          last = l;
-        }
-      }
-      if (first != null && first.trim().length <= 120) {
+      final nonEmpty = [
+        for (final l in lines)
+          if (l.trim().isNotEmpty) l,
+      ];
+      if (nonEmpty.length < 3) continue;
+      eligible.add(e.key);
+      final first = nonEmpty.first;
+      final last = nonEmpty.last;
+      if (first.trim().length <= 120) {
         final k = norm(first);
         if (k.isNotEmpty) firstCounts[k] = (firstCounts[k] ?? 0) + 1;
       }
-      if (last != null && last != first && last.trim().length <= 120) {
+      if (last != first && last.trim().length <= 120) {
         final k = norm(last);
         if (k.isNotEmpty) lastCounts[k] = (lastCounts[k] ?? 0) + 1;
       }
     }
+    if (eligible.length < 3) return pages;
 
-    final threshold = (pages.length * 0.4).ceil().clamp(2, pages.length);
+    final threshold = (eligible.length * 0.4).ceil().clamp(2, eligible.length);
     final repeatedFirst = {
       for (final e in firstCounts.entries)
         if (e.value >= threshold) e.key,
@@ -165,6 +167,10 @@ abstract final class DocChapters {
 
     final out = <int, String>{};
     for (final e in split.entries) {
+      if (!eligible.contains(e.key)) {
+        out[e.key] = pages[e.key] ?? '';
+        continue;
+      }
       final lines = [...e.value];
       final fi = lines.indexWhere((l) => l.trim().isNotEmpty);
       if (fi >= 0 && repeatedFirst.contains(norm(lines[fi]))) {

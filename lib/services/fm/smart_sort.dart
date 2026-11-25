@@ -2040,8 +2040,21 @@ abstract final class SmartSort {
               inFlightHashes[fp] = mine;
             }
             try {
-              // Günlük sınır + hak alımı prepare/upload'dan ÖNCE yapılır.
-              if (SmartQuota.remaining <= 0 || !SmartQuota.take()) {
+              if (stoppedBy != null || hold != null || _cancelRequested) {
+                break;
+              }
+              final preCooled = GeminiDecisions.cooledStatusFor(keys);
+              if (preCooled != null) {
+                stoppedBy ??= stopText(
+                  GeminiException(
+                    'API anahtarı soğumada.',
+                    statusCode: preCooled,
+                    networkAttempted: false,
+                  ),
+                );
+                break;
+              }
+              if (SmartQuota.remaining <= 0) {
                 hold = SmartHold.cap;
                 break;
               }
@@ -2056,6 +2069,24 @@ abstract final class SmartSort {
               final input = prep.input;
               DecisionResult result;
               try {
+                if (stoppedBy != null || hold != null || _cancelRequested) {
+                  break;
+                }
+                final postCooled = GeminiDecisions.cooledStatusFor(prep.keys);
+                if (postCooled != null) {
+                  stoppedBy ??= stopText(
+                    GeminiException(
+                      'API anahtarı soğumada.',
+                      statusCode: postCooled,
+                      networkAttempted: false,
+                    ),
+                  );
+                  break;
+                }
+                if (!SmartQuota.take()) {
+                  hold = SmartHold.cap;
+                  break;
+                }
                 try {
                   result = await GeminiDecisions.ask(
                     keys: prep.keys,
@@ -2064,6 +2095,10 @@ abstract final class SmartSort {
                     silent: silent,
                   );
                 } on GeminiException catch (err) {
+                  if (!err.networkAttempted) {
+                    SmartQuota.refund();
+                    rethrow;
+                  }
                   // Dakikalık sınır (429) çoğu zaman geçicidir: eşzamanlılığı
                   // 2'ye çek, bir kez bekleyip yeniden dene, yine olursa dur.
                   if (err.statusCode != 429) rethrow;
@@ -2071,14 +2106,21 @@ abstract final class SmartSort {
                   await Future<void>.delayed(retryDelay);
                   // Yeniden deneme de bir istek: hakkı yoksa dur. Her 429
                   // tek yerde sayılır (bu ilk 429 burada, sonraki dışarıda).
-                  if (stoppedBy != null || !SmartQuota.take()) rethrow;
+                  if (stoppedBy != null ||
+                      GeminiDecisions.cooledStatusFor(prep.keys) != null ||
+                      !SmartQuota.take()) rethrow;
                   SmartQuota.noteLimited();
-                  result = await GeminiDecisions.ask(
-                    keys: prep.keys,
-                    input: input,
-                    questions: questions,
-                    silent: silent,
-                  );
+                  try {
+                    result = await GeminiDecisions.ask(
+                      keys: prep.keys,
+                      input: input,
+                      questions: questions,
+                      silent: silent,
+                    );
+                  } on GeminiException catch (retryErr) {
+                    if (!retryErr.networkAttempted) SmartQuota.refund();
+                    rethrow;
+                  }
                 }
               } finally {
                 prep.release();
@@ -2122,13 +2164,13 @@ abstract final class SmartSort {
               }
             }
           } on GeminiException catch (err) {
-            if (err.statusCode == 429) {
+            if (err.statusCode == 429 && err.networkAttempted) {
               throttled = true;
               SmartQuota.noteLimited();
             }
             if (stopsRun(err)) {
               // Dosyanın suçu değil: başarısız sayılmaz, sonraki turda sorulur.
-              stoppedBy = stopText(err);
+              stoppedBy ??= stopText(err);
             } else {
               failed++;
               _markFailed(e);
@@ -2136,7 +2178,7 @@ abstract final class SmartSort {
             }
           } catch (err) {
             if (stopsRun(err)) {
-              stoppedBy = stopText(err);
+              stoppedBy ??= stopText(err);
             } else {
               failed++;
               _markFailed(e);

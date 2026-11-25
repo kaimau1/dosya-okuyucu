@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
 import '../core/edition.dart';
+import 'app_update.dart';
 
 /// **Görüntüleyicide sesli not** (KALANLAR A10, yalnız kişisel derleme):
 /// dikte hemen başlar (cihaz tanıyıcısı, `ci/Dikte.kt`), not dosya adı +
@@ -12,7 +13,8 @@ abstract final class VoiceNote {
   static const folder = 'Dosyalar';
 
   static bool get enabled =>
-      debugEnabled ?? Edition.current.has(Feature.voiceAssistant);
+      debugEnabled ??
+      (AppUpdate.personalBuild && Edition.current.has(Feature.voiceAssistant));
 
   @visibleForTesting
   static bool? debugEnabled;

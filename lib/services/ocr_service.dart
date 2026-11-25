@@ -223,7 +223,7 @@ class OcrService {
       final rowBottom = row.map((e) => e.box.bottom).reduce(math.max);
       final rowH = (rowBottom - rowTop) > 0 ? (rowBottom - rowTop) : medH;
       if (prevBottom != null) {
-        sb.write((rowTop - prevBottom) > medH * 1.6 ? '\n\n' : '\n');
+        sb.write((rowTop - prevBottom) > medH * 1.1 ? '\n\n' : '\n');
       }
       for (var i = 0; i < row.length; i++) {
         if (i > 0) {

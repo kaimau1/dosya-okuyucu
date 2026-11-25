@@ -29,6 +29,7 @@ import '../services/read_aloud_ai.dart';
 import '../services/scan_text_fix.dart';
 import '../services/tts_service.dart';
 import '../widgets/ai_key_gate.dart';
+import '../widgets/fm/fm_file_image.dart';
 import '../widgets/pro_gate.dart';
 
 /// [OcrStudioScreen]'den dönen tanıma/düzenleme sonucu.
@@ -801,8 +802,8 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
             clipBehavior: Clip.antiAlias,
             child: widget.imagePath != null
                 ? InteractiveViewer(
-                    child: Image.file(
-                      File(widget.imagePath!),
+                    child: Image(
+                      image: FmFileImage(widget.imagePath!, cacheWidth: 1080),
                       fit: BoxFit.contain,
                     ),
                   )
@@ -814,7 +815,11 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
                         return const Center(child: CircularProgressIndicator());
                       }
                       return InteractiveViewer(
-                        child: Image.memory(bytes, fit: BoxFit.contain),
+                        child: Image.memory(
+                          bytes,
+                          cacheWidth: 1080,
+                          fit: BoxFit.contain,
+                        ),
                       );
                     },
                   ),

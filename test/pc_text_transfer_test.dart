@@ -64,7 +64,7 @@ void main() {
         version: 1,
       );
       final ok = await PeerSender.sendText(peer, 'Eski sürüme metin',
-          senderName: 'Telefon');
+          senderName: 'Telefon', allowFileFallback: true);
       expect(ok, isTrue);
       expect(savedFiles, hasLength(1));
       expect(p.basename(savedFiles.single), 'not.txt');

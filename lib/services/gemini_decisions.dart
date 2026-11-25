@@ -130,7 +130,7 @@ abstract final class GeminiDecisions {
         },
       };
 
-  static final Map<String, int> _keyCooldownUntilMs = {};
+  static final Map<String, ({int untilMs, int status})> _keyCooldown = {};
   static final Map<String, int> _keyConsec429 = {};
   static const int _cooldown429Ms = 60 * 1000;
   static const int _cooldownAuthMs = 10 * 60 * 1000;
@@ -139,7 +139,7 @@ abstract final class GeminiDecisions {
   static int Function() nowMs = () => DateTime.now().millisecondsSinceEpoch;
 
   static void clearCooldowns() {
-    _keyCooldownUntilMs.clear();
+    _keyCooldown.clear();
     _keyConsec429.clear();
   }
 
@@ -147,6 +147,22 @@ abstract final class GeminiDecisions {
   static void resetCooldownsForTest() {
     clearCooldowns();
     nowMs = () => DateTime.now().millisecondsSinceEpoch;
+  }
+
+  /// Tüm geçerli anahtarlar geçici soğumadaysa ilk neden olan HTTP durumunu döner.
+  static int? cooledStatusFor(List<String> keys) {
+    final now = nowMs();
+    int? status;
+    var anyKey = false;
+    for (final raw in keys) {
+      final k = raw.trim();
+      if (k.isEmpty) continue;
+      anyKey = true;
+      final c = _keyCooldown[k];
+      if (c == null || now >= c.untilMs) return null;
+      status ??= c.status;
+    }
+    return anyKey ? status : null;
   }
 
   /// Soruları sorar. Anahtarlar sırayla denenir: kota (429) ya da yetki
@@ -158,38 +174,61 @@ abstract final class GeminiDecisions {
     bool silent = false,
   }) async {
     if (!Edition.current.has(Feature.ai)) {
-      throw GeminiException('Bu özellik Pro sürümde açılır.', statusCode: -2);
+      throw GeminiException(
+        'Bu özellik Pro sürümde açılır.',
+        statusCode: -2,
+        networkAttempted: false,
+      );
     }
     if (OfflineMode.enabled) {
-      throw GeminiException(const OfflineException().message, statusCode: -1);
+      throw GeminiException(
+        const OfflineException().message,
+        statusCode: -1,
+        networkAttempted: false,
+      );
     }
     if (PrivateZone.active) {
-      throw GeminiException('Gizli kasa açıkken yapay zekâ kullanılamaz.',
-          statusCode: -1);
+      throw GeminiException(
+        'Gizli kasa açıkken yapay zekâ kullanılamaz.',
+        statusCode: -1,
+        networkAttempted: false,
+      );
     }
     if (silent &&
         AiPool.consentGranted != null &&
         !AiPool.consentGranted!()) {
-      throw GeminiException('Yapay zekâ gönderim onayı verilmemiş.',
-          statusCode: -1);
+      throw GeminiException(
+        'Yapay zekâ gönderim onayı verilmemiş.',
+        statusCode: -1,
+        networkAttempted: false,
+      );
     }
     final clean = [
       for (final k in keys)
         if (k.trim().isNotEmpty) k.trim()
     ];
     if (clean.isEmpty) {
-      throw GeminiException('Önce Ayarlar > API anahtarı bölümünden '
-          'Gemini API anahtarınızı girin.');
+      throw GeminiException(
+        'Önce Ayarlar > API anahtarı bölümünden Gemini API anahtarınızı girin.',
+        networkAttempted: false,
+      );
     }
-    if (questions.isEmpty) throw GeminiException('Soru yok.', statusCode: -1);
+    if (questions.isEmpty) {
+      throw GeminiException('Soru yok.', statusCode: -1, networkAttempted: false);
+    }
     final payload = await encodeBody(input, questions);
     GeminiException? last;
     final now = nowMs();
     for (final key in clean) {
-      final until = _keyCooldownUntilMs[key];
-      if (until != null && now < until) {
-        last ??= GeminiException('API anahtarı geçici soğumada.',
-            statusCode: 429);
+      final cooled = _keyCooldown[key];
+      if (cooled != null && now < cooled.untilMs) {
+        last ??= GeminiException(
+          cooled.status == 429
+              ? 'API anahtarı geçici soğumada.'
+              : 'API anahtarı geçersiz ya da yetkisiz.',
+          statusCode: cooled.status,
+          networkAttempted: false,
+        );
         continue;
       }
       final http.Response resp;
@@ -201,18 +240,24 @@ abstract final class GeminiDecisions {
         throw GeminiException('Ağ hatası: $e');
       }
       if (resp.statusCode == 200) {
-        _keyCooldownUntilMs.remove(key);
+        _keyCooldown.remove(key);
         _keyConsec429.remove(key);
         return DecisionResult.parse(
             utf8.decode(resp.bodyBytes, allowMalformed: true), questions);
       }
       if (resp.statusCode == 401 || resp.statusCode == 403) {
-        _keyCooldownUntilMs[key] = nowMs() + _cooldownAuthMs;
+        _keyCooldown[key] = (
+          untilMs: nowMs() + _cooldownAuthMs,
+          status: resp.statusCode,
+        );
       } else if (resp.statusCode == 429) {
         final hits = (_keyConsec429[key] ?? 0) + 1;
         _keyConsec429[key] = hits;
         if (hits >= 2) {
-          _keyCooldownUntilMs[key] = nowMs() + _cooldown429Ms;
+          _keyCooldown[key] = (
+            untilMs: nowMs() + _cooldown429Ms,
+            status: 429,
+          );
         }
       }
       last = GeminiException(GeminiService.readError(resp),

@@ -1033,12 +1033,14 @@ abstract final class PeerSender {
   static const maxTextBytes = 1024 * 1024;
 
   /// [text]'i [peer]'a gönderir (alıcıda kopyalanabilir olarak görünür).
-  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa false. Alıcı şifreli
+  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa [allowFileFallback] true
+  /// değilse false (true iken /al üzerinden `not.txt` düşürür). Alıcı şifreli
   /// protokolü biliyorsa ve [identity] verildiyse yazı şifreli gider.
   static Future<bool> sendText(Peer peer, String text,
       {required String senderName,
       String pairingCode = '',
-      PeerIdentity? identity}) async {
+      PeerIdentity? identity,
+      bool allowFileFallback = false}) async {
     NetGuard.allow('peer', host: peer.host);
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
@@ -1053,7 +1055,7 @@ abstract final class PeerSender {
           type: ContentType.text,
           timeout: const Duration(seconds: 15));
       if (r.status == HttpStatus.ok) return true;
-      if (r.status == HttpStatus.notFound) {
+      if (r.status == HttpStatus.notFound && allowFileFallback) {
         // Eski PC/alıcı sürümünde /yazi yoksa geçici not.txt olarak /al ile düş.
         final dir = await Directory.systemTemp.createTemp('yazi_');
         final note = File(p.join(dir.path, 'not.txt'));

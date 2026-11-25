@@ -28,7 +28,15 @@ class GeminiException implements Exception {
   /// ayıklamak ("(429)" arayarak) çeviri/biçim değişince sessizce bozulurdu.
   final int statusCode;
 
-  GeminiException(this.message, {this.statusCode = 0});
+  /// Sunucuya gerçekten ağ isteği çıkıldı mı? Yerel ön-koşul/soğuma
+  /// engellerinde `false` döner; böylece kota sayacı düşülebilir.
+  final bool networkAttempted;
+
+  GeminiException(
+    this.message, {
+    this.statusCode = 0,
+    this.networkAttempted = true,
+  });
 
   /// Beklemenin işe yarayabileceği hata mı? (Kota aşımı, geçici sunucu hatası.)
   bool get isRetryable =>

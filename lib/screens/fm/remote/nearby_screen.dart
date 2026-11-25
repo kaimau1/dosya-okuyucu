@@ -815,7 +815,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
   Future<bool> _sendText(Peer peer) async {
     final strings = AppStrings.of(context);
     final ok = await PeerSender.sendText(peer, _text!,
-        senderName: _deviceName, identity: _key);
+        senderName: _deviceName, identity: _key, allowFileFallback: true);
     if (!mounted) return ok;
     if (ok) _textCtrl.clear();
     showSnack(context,
