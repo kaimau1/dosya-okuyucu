@@ -300,33 +300,21 @@ class FmEntryRow extends StatelessWidget {
             style: baseStyle,
           );
 
-      Widget trailingDateAndSize() {
-        if (date.isNotEmpty && size.isNotEmpty) {
-          return Text.rich(
+      /// Tarih · boyut tek `Text.rich` içinde; [lead] (ör. " · ") başa
+      /// eklenir. Satıra sığmazsa ancak o zaman "…" ile kısalır (taşma YOK).
+      Widget trailingDateAndSize({String lead = ''}) => Text.rich(
             TextSpan(children: [
-              TextSpan(text: bidiParts(context, date), style: dateStyle),
-              TextSpan(text: ' · ${bidiParts(context, size)}'),
+              if (lead.isNotEmpty) TextSpan(text: lead),
+              if (date.isNotEmpty)
+                TextSpan(text: bidiParts(context, date), style: dateStyle),
+              if (date.isNotEmpty && size.isNotEmpty) const TextSpan(text: ' · '),
+              if (size.isNotEmpty) TextSpan(text: bidiParts(context, size)),
             ]),
             maxLines: 1,
             softWrap: false,
+            overflow: TextOverflow.ellipsis,
             style: baseStyle,
           );
-        }
-        if (date.isNotEmpty) {
-          return Text(
-            bidiParts(context, date),
-            maxLines: 1,
-            softWrap: false,
-            style: dateStyle,
-          );
-        }
-        return Text(
-          bidiParts(context, size),
-          maxLines: 1,
-          softWrap: false,
-          style: baseStyle,
-        );
-      }
 
       // Çok büyük erişilebilirlik yazı ölçeğinde (≥ 1,5×) tarih ve boyut
       // taşmasın/kesilmesin diye konumun altına sarılır.
@@ -364,12 +352,18 @@ class FmEntryRow extends StatelessWidget {
       // sağına yaslanıyor, ortada büyük boşluk kalıyordu.
       if (left.isEmpty) return trailingDateAndSize();
       if (date.isEmpty && size.isEmpty) return leftText();
-      return Row(
-        children: [
-          Flexible(child: leftText()),
-          Text(' · ', style: baseStyle),
-          trailingDateAndSize(),
-        ],
+      // Tarih/boyut bloğu satır genişliğiyle SINIRLI (dar ekranda 5 px
+      // taşma a11y testinde yakalandı); kaynak kalan yeri alır.
+      return LayoutBuilder(
+        builder: (context, c) => Row(
+          children: [
+            Flexible(child: leftText()),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: c.maxWidth),
+              child: trailingDateAndSize(lead: ' · '),
+            ),
+          ],
+        ),
       );
     }
 

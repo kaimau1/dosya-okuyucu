@@ -167,7 +167,10 @@ void main() {
       ),
     ));
     final rich = tester.widget<Text>(find.textContaining('7 gün önce'));
-    final span = (rich.textSpan! as TextSpan).children!.first as TextSpan;
+    final span = (rich.textSpan! as TextSpan)
+        .children!
+        .cast<TextSpan>()
+        .firstWhere((s) => s.text == '7 gün önce');
     expect(span.style?.color, age);
     expect(tester.takeException(), isNull);
   });

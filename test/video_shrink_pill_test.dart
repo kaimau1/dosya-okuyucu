@@ -40,7 +40,7 @@ void main() {
   });
 
   test('video olmayan dosyada tahmin yok', () async {
-    final doc = FsEntry(
+    const doc = FsEntry(
       path: '/storage/emulated/0/Download/a.pdf',
       name: 'a.pdf',
       isDir: false,
