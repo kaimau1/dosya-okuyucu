@@ -2108,7 +2108,9 @@ abstract final class SmartSort {
                   // tek yerde sayılır (bu ilk 429 burada, sonraki dışarıda).
                   if (stoppedBy != null ||
                       GeminiDecisions.cooledStatusFor(prep.keys) != null ||
-                      !SmartQuota.take()) rethrow;
+                      !SmartQuota.take()) {
+                    rethrow;
+                  }
                   SmartQuota.noteLimited();
                   try {
                     result = await GeminiDecisions.ask(
