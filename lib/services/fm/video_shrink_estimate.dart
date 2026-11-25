@@ -2,7 +2,6 @@ import 'dart:async';
 
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
-import 'resize_memory.dart';
 import 'video_transcode.dart';
 
 /// **Videoyu küçültünce tahmini boyut** — liste satırı ve Yer aç kartındaki
@@ -10,9 +9,11 @@ import 'video_transcode.dart';
 /// videolara boyut düşür seçeneği koyalım ve tahmini boyutu yazalım"*).
 ///
 /// Tahmin, ayar sayfasının kullandığı AYNI hesaptır
-/// ([MediaSourceInfo.estimatedBytes]) ve son kullanılan boyut düşürme
-/// ayarıyla (yoksa varsayılan) yapılır — kısayolun yazdığı sayı ile ayar
-/// sayfasının açılışta yazdığı sayı aynı olsun.
+/// ([MediaSourceInfo.estimatedBytes]) ve kısayolun açtığı SABİT ölçülü
+/// ayarla ([MediaResizeOptions.spaceSaver]) yapılır — kısayolun yazdığı sayı
+/// ile ayar sayfasının açılışta yazdığı sayı aynı olsun. (Eskiden son
+/// kullanılan ayarla yapılıyordu: bir kez "En küçük · sessiz" seçen
+/// kullanıcıya Yer aç "1 GB → 33 MB" öneriyordu — 2026-11-25.)
 ///
 /// Ölçüm (`VideoTranscoder.probe`, yerel çağrı) dosya başına BİR kez yapılır
 /// ve SIRAYLA yürür: liste kaydırılırken onlarca satır aynı anda ölçüm
@@ -40,8 +41,15 @@ abstract final class VideoShrinkEstimate {
     return _cache[key] = f;
   }
 
-  /// Birden çok videonun toplamı: (önce, sonra). Hiçbiri ölçülemezse null.
-  static Future<({int before, int after})?> total(List<FsEntry> videos) async {
+  /// Birden çok videodan **küçültmeye değenler** ve toplamları.
+  ///
+  /// Yalnız kazancı anlamlı olanlar ([MediaResizeOptions.worthShrinking])
+  /// listeye girer: zaten verimli kaydedilmiş videoyu yeniden kodlamak kalite
+  /// kaybettirir, birkaç MB kazandırır. Hiçbiri ölçülemezse null (arayüz
+  /// tahminsiz düz "Boyut düşür" gösterir, seçim olduğu gibi gider).
+  static Future<({List<FsEntry> videos, int before, int after})?> plan(
+      List<FsEntry> videos) async {
+    final worth = <FsEntry>[];
     var before = 0;
     var after = 0;
     var known = 0;
@@ -49,10 +57,12 @@ abstract final class VideoShrinkEstimate {
       final est = await of(e);
       if (est == null) continue;
       known++;
+      if (!MediaResizeOptions.worthShrinking(e.sizeBytes, est)) continue;
+      worth.add(e);
       before += e.sizeBytes;
       after += est;
     }
-    return known == 0 ? null : (before: before, after: after);
+    return known == 0 ? null : (videos: worth, before: before, after: after);
   }
 
   static Future<int?> _compute(FsEntry e) async {
@@ -63,7 +73,7 @@ abstract final class VideoShrinkEstimate {
       return null;
     }
     if (probe == null) return null;
-    final options = await ResizeMemory.load() ?? const MediaResizeOptions();
+    const options = MediaResizeOptions.spaceSaver;
     final info = MediaSourceInfo(
       name: e.name,
       path: e.path,

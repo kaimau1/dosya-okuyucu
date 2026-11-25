@@ -25,7 +25,14 @@ import '../../core/safe_insets.dart';
 /// seçimi değiştirir.
 class DuplicatesScreen extends StatefulWidget {
   final List<String> roots;
-  const DuplicatesScreen({super.key, required this.roots});
+
+  /// Hazır bulunmuş gruplar (Yer aç'ın kopya kartından "Grupları incele",
+  /// 2026-11-25): Yer aç aynı bayt bayt karşılaştırmayı az önce yaptı, ekran
+  /// dakikalarca yeniden taramasın. Verilirse eski bir taramanın sonucunun
+  /// ÖNÜNE geçer; silme ya da "Yeniden tara" sonrası normal taramaya döner.
+  final List<DuplicateGroup>? initialGroups;
+
+  const DuplicatesScreen({super.key, required this.roots, this.initialGroups});
 
   @override
   State<DuplicatesScreen> createState() => _DuplicatesScreenState();
@@ -65,7 +72,12 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   bool get _scanning => _job?.status.isActive ?? false;
 
+  /// [DuplicatesScreen.initialGroups]; ilk yeniden taramada bırakılır.
+  late List<DuplicateGroup>? _given = widget.initialGroups;
+
   List<DuplicateGroup> get _groups {
+    final given = _given;
+    if (given != null) return given;
     final result = _job?.result;
     return result is List<DuplicateGroup> ? result : const [];
   }
@@ -99,6 +111,10 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
   void initState() {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
+    if (_given != null) {
+      _seedSelection();
+      return;
+    }
     final job = _job;
     final hasResult = job?.result is List<DuplicateGroup>;
     // Sonuç varsa yeniden taramıyoruz; kullanıcı geri döndüğünde beklemesin.
@@ -125,6 +141,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
     // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
     final strings = AppStrings.current;
     final roots = widget.roots;
+    _given = null;
     JobQueue.instance.enqueue(
       id: _jobId,
       title: strings.t('dup.scanning_title'),

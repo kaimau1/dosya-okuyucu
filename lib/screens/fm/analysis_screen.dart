@@ -11,6 +11,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_resize.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
@@ -523,7 +524,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           ? VideoShrinkPill(
               entry: visible[i],
               onTap: () async {
-                await startResizeJob(context, [visible[i]]);
+                // Kısayol ölçülü ayarla açılır (son ayarla değil) — hapın
+                // yazdığı tahmin de bu ayarın.
+                await startResizeJob(context, [visible[i]],
+                    preset: MediaResizeOptions.spaceSaver);
               },
             )
           : null,

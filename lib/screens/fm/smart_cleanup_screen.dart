@@ -36,12 +36,16 @@ class SmartReport {
 class SmartCleanupScreen extends StatefulWidget {
   const SmartCleanupScreen({super.key});
 
+  /// İş kuyruğundaki kararlı kimlik — Yer aç'ın "Daha fazla yer bul"
+  /// bölümü sonucu buradan okur.
+  static const jobId = 'smart_analysis';
+
   @override
   State<SmartCleanupScreen> createState() => _SmartCleanupScreenState();
 }
 
 class _SmartCleanupScreenState extends State<SmartCleanupScreen> {
-  static const _jobId = 'smart_analysis';
+  static const _jobId = SmartCleanupScreen.jobId;
 
   @override
   void initState() {

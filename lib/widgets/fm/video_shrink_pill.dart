@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_resize.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/video_shrink_estimate.dart';
 
@@ -41,15 +42,16 @@ class _VideoShrinkPillState extends State<VideoShrinkPill> {
     return FutureBuilder<int?>(
       future: _estimate,
       builder: (context, snap) {
-        final est = snap.data;
-        // Kazanç anlamlıysa (≥ %10) tahmini boyut, yoksa düz "Küçült".
-        final useful =
-            est != null && est < widget.entry.sizeBytes * 0.9 && est > 0;
-        final label = useful
+        // Kazanç anlamlıysa (≥ %25) tahmini boyut, yoksa düz "Küçült".
+        final est = MediaResizeOptions.worthShrinking(
+                widget.entry.sizeBytes, snap.data)
+            ? snap.data
+            : null;
+        final label = est != null
             ? '≈ ${FsPaths.humanSize(est)}'
             : context.t('vsp.shrink');
         return Tooltip(
-          message: useful
+          message: est != null
               ? context.t('vsp.tooltip', {
                   'from': FsPaths.humanSize(widget.entry.sizeBytes),
                   'to': FsPaths.humanSize(est),

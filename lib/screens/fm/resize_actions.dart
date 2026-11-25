@@ -30,10 +30,16 @@ import 'resize_compare_screen.dart';
 /// bildiriminde görünür.
 ///
 /// Dönüş: kuyruğa iş konduysa true (arayüz "başladı" diyebilir).
+///
+/// [preset] verilirse ayar sayfası SON AYARLA değil bununla açılır: Yer aç
+/// ve Bellek Analizi'nin "Boyut düşür" kısayolları
+/// [MediaResizeOptions.spaceSaver] verir — kısayolun yazdığı tahmin de o
+/// ayarla hesaplanır, sayfa açılınca aynı sayı görünür.
 Future<bool> startResizeJob(
   BuildContext context,
-  List<FsEntry> entries,
-) async {
+  List<FsEntry> entries, {
+  MediaResizeOptions? preset,
+}) async {
   final media = [
     for (final e in entries)
       if (!e.isDir &&
@@ -58,8 +64,8 @@ Future<bool> startResizeJob(
   final sources = await _describeSources(media);
   // **Son kullanılan ayar** (Faz 14, G4g): her seferinde 1080p varsayılanıyla
   // başlamak, aynı işi tekrar eden kullanıcıya her sefer aynı dokunuşları
-  // yaptırıyordu.
-  final last = await ResizeMemory.load();
+  // yaptırıyordu. Kısayoldan gelindiyse onun ölçülü ayarı geçer.
+  final last = preset ?? await ResizeMemory.load();
   if (!context.mounted) return false;
   final options = await showMediaResizeSheet(
     context,

@@ -1693,3 +1693,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Belgeler/İndirilenler/Analiz satırı: "WhatsApp · 24 Kas · 12 MB" tek akışta, ortada boşluk yok.
 - [ ] Yer aç → Büyük videolar → bir video seç → "Bunu temizle" yanında "Boyut düşür · ≈ …" çıkar (tahmin birkaç saniyede gelir); dokununca boyut düşürme ayarı açılır, iş kuyruğa girer.
 - [ ] Bellek Analizi → en büyük dosyalarda video satırında "≈ 320 MB" hapı; dokununca aynı ayar sayfası. Kaydırma takılmıyor.
+
+## Yer aç birleştirme + ölçülü video küçültme + tek tarama (2026-11-25 gece) — yazıldı, cihazda doğrulanmadı
+- [ ] Yer aç → Büyük videolar → 1 GB'lık telefon videosu seç → "Boyut düşür · ≈ 200 MB" civarı yazar (33 MB DEĞİL). Dokununca ayar sayfası **1080p · Yüksek kalite · Sesi çıkar KAPALI · fps Değiştirme** ile açılır; çıkan video sesli.
+- [ ] Önceden "Sesi çıkar" açık bir küçültme yap → sonra dosyadan normal "Boyut düşür" aç → "Sesi çıkar" kapalı gelir (çözünürlük/kalite son ayardan gelir).
+- [ ] Zaten küçük/verimli bir videoyu (WhatsApp'tan gelen) Büyük videolarda seç → "Boyut düşür" düğmesi çıkmaz; Bellek Analizi hapında "Küçült" yazar (tahmin yok).
+- [ ] Yer aç → kopya kartında "Grupları tek tek incele" → kopya ekranı BEKLEMEDEN gruplarla açılır; orada sil → Yer aç'a dön → silinenler kartlardan düşmüş, çöp kartı büyümüş.
+- [ ] Yer aç en altı "DAHA FAZLA YER BUL": yalnız Sohbet medyası, Benzer fotoğraflar, Görsel içerik taraması. Kopyalar ve Klasör haritası satırı YOK (harita Bellek Analizi'nde). Bir taramayı bitir → satırda "N dosya · X temizlenebilir" yazar.
+- [ ] Yer aç "Yenile" süresi öncekinden kısa (aynı telefonda kronometreyle; önceki sürümde 5 adım, şimdi 3 adım). Tarama sürerken ekran takılmıyor.

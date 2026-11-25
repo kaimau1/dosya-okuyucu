@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
@@ -11,8 +10,10 @@ import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../models/media_resize.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/cleanup_ignore.dart';
+import '../../services/fm/cleanup_walk.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/empty_folders.dart';
 import '../../services/fm/entry_opener.dart';
@@ -32,6 +33,7 @@ import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart' show fmHero;
 import '../../widgets/motion.dart' show FmEmptyState;
 import 'cleanup_tools.dart';
+import 'duplicates_screen.dart';
 import 'entry_actions.dart' show trashWithUndo;
 import 'resize_actions.dart';
 import 'smart_clutter_screen.dart';
@@ -400,55 +402,46 @@ class _CleanupScreenState extends State<CleanupScreen> {
       target: const FmJobTarget.cleanup(),
       run: (handle) async {
         String step(int n, String key) =>
-            strings.t('job.step', {'n': n, 'total': 5, 'text': strings.t(key)});
+            strings.t('job.step', {'n': n, 'total': 3, 'text': strings.t(key)});
         handle.report(detail: step(1, 'clean.reading_index'));
+        // HIZ (2026-11-25): disk TEK kez gezilir (İndirilenler + boş
+        // klasörler + kopyalar birlikte, izolatta — bkz. `CleanupWalk`);
+        // eskiden üç ayrı yürüyüş art arda koşuyordu. Yürüyüş, indeksi
+        // beklemeden hemen başlar; çöp listesi ve "gönderilen kopyanın aslı"
+        // doğrulaması onunla aynı anda yürür.
+        final walk = CleanupWalk.run(FmEnv.volumeRoots,
+            primaryRoot: FmEnv.primaryRoot);
+        final trashFuture = FmEnv.trash.list();
+        // İptal/hata indeks aşamasında çıkarsa bekleyen liste sahipsiz
+        // kalmasın (yakalanmamış hata); aşağıdaki `await` yine hatayı alır.
+        trashFuture.ignore();
         final index = useCachedIndex
             ? widget.index!
             : await FsScan.index(FmEnv.volumeRoots);
         handle.throwIfCancelled();
 
-        // Çöp, İndirilenler (tüm birimler) ve boş klasörler paralel okunur.
-        handle.report(detail: step(2, 'clean.reading_trash'));
-        final downloadPaths = [
-          for (final root in FmEnv.volumeRoots) p.join(root, 'Download'),
-        ];
-        final pre = await Future.wait([
-          FmEnv.trash.list(),
-          FsScan.collect(downloadPaths),
-          EmptyFolders.find(FmEnv.primaryRoot,
-              isCancelled: () => handle.cancelled),
-        ]);
-        handle.throwIfCancelled();
-
-        final trash = pre[0] as List<dynamic>;
-        final downloads = pre[1] as List<FsEntry>;
-        final empty = pre[2] as List<String>;
-        final trashBytes =
-            trash.fold<int>(0, (sum, i) => sum + (i.sizeBytes as int));
-
-        handle.report(detail: step(3, 'clean.reading_downloads'));
-        handle.throwIfCancelled();
-
-        handle.report(detail: step(4, 'clean.finding_dupes'));
-        // Kopya taraması pahalıdır; yalnız burada, bir kez.
-        final duplicates = await DuplicateFinder.scan(FmEnv.volumeRoots);
-        handle.throwIfCancelled();
-
-        handle.report(detail: step(5, 'clean.verifying_sent'));
+        handle.report(detail: step(2, 'clean.finding_dupes'));
         // Sent klasöründeki medya yalnız cihazda aslı doğrulandıysa önerilir.
-        final verifiedSent = await SentOriginalMatcher.findOriginals(
+        final sentFuture = SentOriginalMatcher.findOriginals(
           index,
           isCancelled: () => handle.cancelled,
         );
+        final found = await walk;
+        final trash = await trashFuture;
+        handle.throwIfCancelled();
+        final trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+
+        handle.report(detail: step(3, 'clean.verifying_sent'));
+        final verifiedSent = await sentFuture;
         handle.throwIfCancelled();
 
         final list = adviseCleanup(
           index: index,
-          downloads: downloads,
-          duplicates: duplicates,
+          downloads: found.downloads,
+          duplicates: found.duplicates,
           trashBytes: trashBytes,
           trashCount: trash.length,
-          emptyFolders: empty,
+          emptyFolders: found.emptyFolders,
           verifiedSentOriginals: verifiedSent,
         );
         handle.result = CleanupScanResult(list);
@@ -667,7 +660,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
                         ),
                       ),
                     ),
-                    CleanupToolsCard(index: widget.index),
+                    DeepScanCard(index: widget.index, onReturn: _pruneGone),
                   ],
                 )
               : ListView(
@@ -698,11 +691,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       const SizedBox(height: Gap.sm + 2),
                     ],
                     for (final s in visible) _card(s),
-                    // Tüm elle inceleme araçları TEK kartta (2026-11-25):
-                    // kopyalar, benzer görseller, sohbet medyası, içerik
-                    // taraması, klasör haritası. İşlemler'deki ayrı "Sohbet
-                    // medyası" sekmesi kalktı, bu yüzden gömülüyken de var.
-                    CleanupToolsCard(index: widget.index),
+                    // Hızlı taramanın yapamadığı derin taramalar (sohbet
+                    // medyası, benzer fotoğraflar, görsel içerik) — bulduklarını
+                    // yazarak. Kopyalar kopya kartında, klasör haritası yalnız
+                    // Bellek Analizi'nde (2026-11-25, bkz. `DeepScanCard`).
+                    DeepScanCard(index: widget.index, onReturn: _pruneGone),
                     if (CleanupIgnore.instance.count > 0)
                       Center(
                         child: TextButton(
@@ -1076,22 +1069,29 @@ class _CleanupScreenState extends State<CleanupScreen> {
   }
 
   /// Seçim başına tahmin önbelleği (her yeniden çizimde yeni ölçüm olmasın).
-  final Map<String, Future<({int before, int after})?>> _shrinkEstimates = {};
+  final Map<String,
+          Future<({List<FsEntry> videos, int before, int after})?>>
+      _shrinkEstimates = {};
 
+  /// "Boyut düşür · ≈ X" — yalnız küçültmeye DEĞEN seçili videolar için,
+  /// ölçülü ayarla ([MediaResizeOptions.spaceSaver]: 1080p, yüksek kalite,
+  /// ses korunur). Ölçülen videoların hiçbiri anlamlı küçülmüyorsa düğme
+  /// hiç çıkmaz; ölçülemiyorsa tahminsiz düz "Boyut düşür" kalır.
   Widget _shrinkButton(String id, List<FsEntry> videos) {
     final key = '$id|${Object.hashAll([for (final v in videos) v.path])}';
     if (_shrinkEstimates.length > 24) _shrinkEstimates.clear();
-    final future =
-        _shrinkEstimates[key] ??= VideoShrinkEstimate.total(videos);
-    return FutureBuilder<({int before, int after})?>(
+    final future = _shrinkEstimates[key] ??= VideoShrinkEstimate.plan(videos);
+    return FutureBuilder<({List<FsEntry> videos, int before, int after})?>(
       future: future,
       builder: (context, snap) {
         final est = snap.data;
-        final useful = est != null && est.after < est.before * 0.9;
+        if (est != null && est.videos.isEmpty) return const SizedBox.shrink();
+        final targets = est?.videos ?? videos;
         return FilledButton.tonalIcon(
           key: ValueKey('clean-shrink-$id'),
           onPressed: () async {
-            final started = await startResizeJob(context, videos);
+            final started = await startResizeJob(context, targets,
+                preset: MediaResizeOptions.spaceSaver);
             if (started && mounted) setState(_shrinkEstimates.clear);
           },
           style: FilledButton.styleFrom(
@@ -1099,13 +1099,70 @@ class _CleanupScreenState extends State<CleanupScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
           ),
           icon: const Icon(AppIcons.shrink, size: 17),
-          label: Text(useful
+          label: Text(est != null
               ? context.t('clean.shrink_this_est',
                   {'to': FsPaths.humanSize(est.after)})
               : context.t('clean.shrink_this')),
         );
       },
     );
+  }
+
+  /// Kopya önerisini **gruplar hâlinde** açar: her grupta korunacak asıl +
+  /// silinecek kopyalar. Gruplar önerinin kendisinden kurulur (tarama yok).
+  Future<void> _openDuplicateGroups(CleanupSuggestion s) async {
+    final kept = <String, FsEntry>{};
+    final copies = <String, List<FsEntry>>{};
+    for (final copy in s.files) {
+      final orig = s.originals[copy.path];
+      if (orig == null) continue;
+      kept[orig.path] = orig;
+      (copies[orig.path] ??= <FsEntry>[]).add(copy);
+    }
+    final groups = [
+      for (final e in copies.entries)
+        DuplicateGroup(kept[e.key]!.sizeBytes, [kept[e.key]!, ...e.value]),
+    ]..sort((a, b) => b.wastedBytes.compareTo(a.wastedBytes));
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => DuplicatesScreen(
+          roots: FmEnv.volumeRoots, initialGroups: groups),
+    ));
+    await _pruneGone();
+  }
+
+  /// Başka bir ekranda (kopya grupları, derin taramalar) silinen dosyalar
+  /// önerilerden düşsün — yeniden TARAMASIZ: yalnız var olma denetimi, arka
+  /// izlekte. Çöp kartı da yeni çöp içeriğiyle kurulur (silinenler oraya
+  /// gitti).
+  Future<void> _pruneGone() async {
+    // Korunan asıllar da denetlenir: aslı silinen kopya "aslı duruyor"
+    // kanıtını yitirir ve listeden düşmeli (bkz. `cleanupAfterApply`).
+    final all = <String, FsEntry>{
+      for (final s in _suggestions) ...{
+        for (final f in s.files)
+          if (!f.isDir) f.path: f,
+        for (final o in s.originals.values) o.path: o,
+      },
+    }.values.toList();
+    if (all.isEmpty) return;
+    final alive = await FsScan.pruneMissing(all);
+    final keep = {for (final e in alive) e.path};
+    final removed = {
+      for (final e in all)
+        if (!keep.contains(e.path)) e.path,
+    };
+    if (removed.isEmpty) return;
+    final trash = await FmEnv.trash.list();
+    if (!mounted) return;
+    setState(() {
+      _rewriteScanResult(
+        removed: removed,
+        trashCount: trash.length,
+        trashBytes: trash.fold<int>(0, (a, t) => a + t.sizeBytes),
+      );
+      _seedSignature = null;
+      _seedSelection();
+    });
   }
 
   Widget _clutterBanner(BuildContext context) {
@@ -1385,6 +1442,29 @@ class _CleanupScreenState extends State<CleanupScreen> {
                                       ),
                                   ],
                                 ),
+                                // Kopyalar aracı artık AYRI bir satır değil,
+                                // kopya önerisinin kendisinde (2026-11-25,
+                                // kullanıcı: "mantık çerçevesinde birleştir"):
+                                // aynı gruplar yeniden taramasız açılır.
+                                if (s.id == 'duplicates' &&
+                                    s.originals.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        top: Gap.xs),
+                                    child: TextButton.icon(
+                                      key: const ValueKey('clean-dup-groups'),
+                                      onPressed: () => _openDuplicateGroups(s),
+                                      style: TextButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4),
+                                      ),
+                                      icon: const Icon(AppIcons.copyAll,
+                                          size: 16),
+                                      label: Text(
+                                          context.t('clean.dup_groups')),
+                                    ),
+                                  ),
                                 // Yalnız bu bölümü temizle (kullanıcı
                                 // 2026-11-24: "her özelliği tek başına da").
                                 if (selCount > 0) ...[

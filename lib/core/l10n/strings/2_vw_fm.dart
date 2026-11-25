@@ -30,6 +30,31 @@ const Map<String, (String, String, String)> _t2 = {
   'vsp.tooltip': ('Boyut düşür: {from} → yaklaşık {to}', 'Reduce size: {from} → about {to}', 'تصغير الحجم: {from} ← حوالي {to}'),
   'clean.shrink_this': ('Boyut düşür', 'Reduce size', 'تصغير الحجم'),
   'clean.shrink_this_est': ('Boyut düşür · ≈ {to}', 'Reduce size · ≈ {to}', 'تصغير الحجم · ≈ {to}'),
+  'clean.dup_groups': ('Grupları tek tek incele', 'Review group by group', 'مراجعة المجموعات واحدة تلو الأخرى'),
+  'clean.deep_title': ('DAHA FAZLA YER BUL', 'FIND MORE SPACE', 'العثور على مساحة إضافية'),
+  'clean.deep_note': (
+    'Bu taramalar dosyaların içine bakar; birkaç dakika sürebilir, arka planda çalışır.',
+    'These scans look inside files; they can take a few minutes and run in the background.',
+    'تفحص هذه العمليات محتوى الملفات؛ قد تستغرق بضع دقائق وتعمل في الخلفية.',
+  ),
+  'clean.deep_running': ('Taranıyor…', 'Scanning…', 'جارٍ الفحص…'),
+  'clean.deep_found': (
+    '{n} dosya · {size} temizlenebilir',
+    '{n} files · {size} can be freed',
+    '{n} ملف · يمكن تحرير {size}',
+  ),
+  'clean.deep_none': (
+    'Tarandı · temizlenecek bir şey yok',
+    'Scanned · nothing to clean',
+    'تم الفحص · لا شيء للتنظيف',
+  ),
+  'clean.deep_similar': ('Benzer fotoğraflar', 'Similar photos', 'صور متشابهة'),
+  'clean.deep_content': ('Görsel içerik taraması', 'Image content scan', 'فحص محتوى الصور'),
+  'clean.deep_content_note': (
+    'Günaydın/kutlama görselleri, mem ve afişler, bulanık ve karanlık kareler',
+    'Greeting pictures, memes and posters, blurry and dark shots',
+    'صور التحيات، الميمات والملصقات، اللقطات الضبابية والمظلمة',
+  ),
   'ea.resize_hint': (
     'çözünürlük / kare sayısı',
     'resolution / frame rate',
