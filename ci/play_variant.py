@@ -32,7 +32,7 @@ DEFAULT_REMOVE = ('QUERY_ALL_PACKAGES,REQUEST_INSTALL_PACKAGES,'
 
 
 def removals():
-    raw = os.environ.get('DOSYA_PLAY_REMOVE', DEFAULT_REMOVE)
+    raw = (os.environ.get('DOSYA_PLAY_REMOVE') or '').strip() or DEFAULT_REMOVE
     names = [n.strip() for n in raw.split(',') if n.strip()]
     for n in names:
         if not re.fullmatch(r'[A-Z_]+', n):

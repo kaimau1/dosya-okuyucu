@@ -53,6 +53,17 @@ void main() {
     expect(t, contains('REQUEST_INSTALL_PACKAGES" tools:node="remove"'));
   }, skip: hasPython ? false : 'python3 yok');
 
+  test('DOSYA_PLAY_REMOVE boş string ise varsayılan listeye düşer', () {
+    final m = File(p.join(tmp.path, 'AndroidManifest.xml'))
+      ..writeAsStringSync(File('ci/AndroidManifest.xml').readAsStringSync());
+    final r = run(['apply', m.path], env: {'DOSYA_PLAY_REMOVE': ''});
+    expect(r.exitCode, 0, reason: '${r.stderr}');
+    final t = m.readAsStringSync();
+    expect(t, contains('QUERY_ALL_PACKAGES" tools:node="remove"'));
+    expect(t, contains('PACKAGE_USAGE_STATS" tools:node="remove"'));
+    expect(t, contains('REQUEST_INSTALL_PACKAGES" tools:node="remove"'));
+  }, skip: hasPython ? false : 'python3 yok');
+
   test('verify: izin kalırsa düşer, yoksa geçer; geçersiz ad reddedilir', () {
     final bad = File(p.join(tmp.path, 'bad.xml'))
       ..writeAsStringSync('<uses-permission '
