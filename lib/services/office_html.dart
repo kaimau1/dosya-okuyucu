@@ -85,7 +85,10 @@ abstract final class OfficeHtml {
     if (doc == null) throw const FormatException('word/document.xml yok');
     final body = doc.rootElement.descendants
         .whereType<XmlElement>()
-        .firstWhere((e) => e.name.local == 'body');
+        .firstWhere((e) => e.name.local == 'body',
+            // Gövdesiz (bozuk) belge "Bad state: No element" yerine okunur
+            // biçim hatası versin (2026-11-25 genel tarama).
+            orElse: () => throw const FormatException('w:body yok'));
     final sb = StringBuffer();
     for (final block in body.childElements) {
       switch (block.name.local) {
