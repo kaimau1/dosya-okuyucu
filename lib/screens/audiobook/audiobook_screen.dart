@@ -6,6 +6,7 @@ import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
 import '../../core/edition.dart';
+import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -359,7 +360,7 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
                 const SizedBox(height: Gap.lg),
                 FilledButton.icon(
                   key: const ValueKey('ab-pro-unlock'),
-                  onPressed: () => ProGate.show(context, Feature.audiobook),
+                  onPressed: () => ProGate.check(context, Feature.audiobook),
                   icon: const Icon(AppIcons.pro),
                   label: Text(context.t('ab.pro_unlock')),
                 ),

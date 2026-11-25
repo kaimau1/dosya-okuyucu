@@ -5,7 +5,6 @@ import 'package:path/path.dart' as p;
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fm_env.dart';

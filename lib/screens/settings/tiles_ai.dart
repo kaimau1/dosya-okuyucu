@@ -9,8 +9,6 @@ import '../../core/app_state.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
-import '../../services/ai_tasks.dart';
-import '../../services/gemini_decisions.dart';
 import '../../services/gemini_service.dart';
 import '../../core/user_error.dart';
 

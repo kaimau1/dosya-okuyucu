@@ -1,5 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:image/image.dart' as imglib;
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sfpdf;
 
 import 'package:dosya_okuyucu/core/l10n/app_language.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
@@ -504,7 +508,7 @@ void main() {
 
     test('>400KB taranmış PDF asla ham application/pdf olarak gitmez',
         () async {
-      final doc = PdfDocument()..pages.add();
+      final doc = sfpdf.PdfDocument()..pages.add();
       final base = Uint8List.fromList(await doc.save());
       doc.dispose();
       // 400 KB üstüne tamamlamak için yasal PDF sonuna yorum dolgusu ekle.

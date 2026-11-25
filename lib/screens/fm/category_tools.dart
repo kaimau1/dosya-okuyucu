@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/app_icons.dart';
 import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../widgets/pro_gate.dart';
 import '../../models/fs_entry.dart';

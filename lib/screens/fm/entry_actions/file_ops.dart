@@ -345,8 +345,6 @@ Future<void> shareEntries(List<String> paths) async {
 /// aynı: sistem paylaşımı açılır.
 Future<void> shareEntriesFrom(BuildContext context, List<String> paths) async {
   if (paths.isEmpty) return;
-  // Kişisel veri kalkanı (ayarda açıksa; Decisions API, 2026-11-18).
-  if (!await shareShieldAllows(context, paths) || !context.mounted) return;
   if (await showShareChoice(context, paths)) return; // yakındaki cihaza gitti
   await shareEntries(paths);
 }

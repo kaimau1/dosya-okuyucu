@@ -18,7 +18,6 @@ import '../../core/state/focused_states.dart';
 import '../../core/device_profile.dart';
 import '../../core/startup_queue.dart';
 import '../../core/theme.dart';
-import '../../core/motion.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/app_storage_service.dart';

@@ -77,6 +77,7 @@ class EntryExtraAction {
 
   /// Aç/kapa ayarı ise durumu (sağda onay işareti); null = düz işlem.
   final bool? checked;
+  final bool proBadge;
   const EntryExtraAction({
     required this.icon,
     required this.label,
@@ -84,6 +85,7 @@ class EntryExtraAction {
     this.hint,
     this.color,
     this.checked,
+    this.proBadge = false,
   });
 }
 

@@ -760,7 +760,7 @@ abstract final class SmartSort {
       ..clear()
       ..addEntries(records.map((r) => MapEntry(r.path, r)));
     _failures.clear();
-    GeminiDecisions.resetCooldownsForTest();
+    GeminiDecisions.clearCooldowns();
     _loaded = true;
     _aliasCache.clear();
     _kwCache.clear();

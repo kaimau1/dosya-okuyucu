@@ -179,9 +179,6 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                       icon: AppIcons.insights,
                       label: context.t('ct.analysis'),
                       hint: context.t('ct.analysis_hint')),
-                  AppAction(
-                      value: 'ai_analysis',
-                      icon: AppIcons.ai,
                 ]),
               ],
             );

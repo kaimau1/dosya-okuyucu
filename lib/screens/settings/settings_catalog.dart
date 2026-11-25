@@ -562,8 +562,8 @@ List<SettingsCategory> settingsCategories({
         {'n': s.fmLockedFolders.length},
       );
     },
-    sections: const [
-      SettingsSection('settings.privacy_policy', [
+    sections: [
+      const SettingsSection('settings.privacy_policy', [
         SettingRow(
           id: 'privacy_policy',
           titleKey: 'settings.privacy_policy',
@@ -571,7 +571,7 @@ List<SettingsCategory> settingsCategories({
           builder: _privacyPolicyTile,
         ),
       ]),
-      SettingsSection('set.sec_lock', [
+      const SettingsSection('set.sec_lock', [
         SettingRow(
           id: 'pin',
           titleKey: 'fmset.pin_set',
@@ -595,7 +595,7 @@ List<SettingsCategory> settingsCategories({
       // Play yorum çalışması aşama 2 (2026-11-08): "verim nereye gidiyor"
       // sorusunun cevabı tek sayfada — ağ önce, sonra her izin (neden ·
       // durum · ver/geri al).
-      SettingsSection('set.sec_network', [
+      const SettingsSection('set.sec_network', [
         SettingRow(
           id: 'offline_mode',
           titleKey: 'offline.title',
@@ -611,22 +611,22 @@ List<SettingsCategory> settingsCategories({
         ),
       ]),
       SettingsSection('fmset.sec_permissions', [
-        SettingRow(
+        const SettingRow(
           id: 'full_access',
           titleKey: 'fmset.full_access',
           builder: _fullAccessTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'notif_access',
           titleKey: 'perm.notifications_title',
           builder: _notifAccessTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'camera_access',
           titleKey: 'perm.camera_title',
           builder: _cameraAccessTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'location_access',
           titleKey: 'perm.location_title',
           builder: _locationAccessTile,
@@ -675,10 +675,10 @@ List<SettingsCategory> settingsCategories({
           : context.t('settings.perf_high_refresh');
       return '$trash · $refresh';
     },
-    sections: const [
+    sections: [
       // İlk sırada: "uygulama neden bu kadar yer tutuyor" sorusunun
       // cevabı Gelişmiş'in içinde saklanmamalı (2026-09-26).
-      SettingsSection('foot.section', [
+      const SettingsSection('foot.section', [
         SettingRow(
           id: 'app_footprint',
           titleKey: 'foot.title',
@@ -688,7 +688,7 @@ List<SettingsCategory> settingsCategories({
         ),
       ]),
       // Haftalık temizlik bildirimi (2026-10-18).
-      SettingsSection('nx.weekly', [
+      const SettingsSection('nx.weekly', [
         SettingRow(
           id: 'weekly_cleanup',
           titleKey: 'nx.weekly',
@@ -696,7 +696,7 @@ List<SettingsCategory> settingsCategories({
           builder: _weeklyCleanupTile,
         ),
       ]),
-      SettingsSection('fmset.sec_delete', [
+      const SettingsSection('fmset.sec_delete', [
         SettingRow(
           id: 'use_trash',
           titleKey: 'fmset.use_trash',
@@ -720,7 +720,7 @@ List<SettingsCategory> settingsCategories({
           builder: _emptyTrashTile,
         ),
       ]),
-      SettingsSection('set.sec_speed', [
+      const SettingsSection('set.sec_speed', [
         SettingRow(
           id: 'perf_mode',
           titleKey: 'perf.mode',
@@ -746,7 +746,7 @@ List<SettingsCategory> settingsCategories({
           builder: _autoRescanTile,
         ),
       ]),
-      SettingsSection('fmset.sec_maintenance', [
+      const SettingsSection('fmset.sec_maintenance', [
         SettingRow(
           id: 'search_index',
           titleKey: 'fmset.index',
@@ -824,25 +824,25 @@ List<SettingsCategory> settingsCategories({
             altKeys: ['upd.check', 'upd.auto'],
             builder: _appUpdateTile,
           ),
-        SettingRow(
+        const SettingRow(
           id: 'help',
           titleKey: 'help.title',
           subtitleKey: 'help.tile_sub',
           builder: _helpTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'feedback',
           titleKey: 'fb.title',
           subtitleKey: 'fb.tile_sub',
           builder: _feedbackTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'hints_reset',
           titleKey: 'set.hints_reset',
           subtitleKey: 'set.hints_reset_sub',
           builder: _hintsResetTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'crash_log',
           titleKey: 'settings.crash_log',
           subtitleKey: 'settings.crash_log_sub',

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../screens/audiobook/voices_screen.dart';
@@ -76,6 +77,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
   }
 
   Future<void> _selectEngine(String engineName) async {
+    final lang = AppStrings.of(context).language.code;
     final next = _prefs.copyWith(
       engineName: engineName,
       voiceName: '',
@@ -83,7 +85,6 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
     );
     await _save(next);
     if (mounted) setState(() => _voices = null);
-    final lang = AppStrings.of(context).language.code;
     var list = await TtsService.voices(
       languagePrefix: lang,
       engineName: engineName,

@@ -167,9 +167,6 @@ class _DockItem extends StatelessWidget {
   final VoidCallback onTap;
   final Color? color;
   final int count;
-
-  /// Düz simge yerine canlı simge (AI: analiz halkası / öneri noktası).
-  final Widget? iconWidget;
   final bool proBadge;
 
   const _DockItem({
@@ -180,7 +177,6 @@ class _DockItem extends StatelessWidget {
     this.semantics,
     this.color,
     this.count = 0,
-    this.iconWidget,
     this.proBadge = false,
   });
 
@@ -208,15 +204,8 @@ class _DockItem extends StatelessWidget {
                   alignment: Alignment.center,
                   clipBehavior: Clip.none,
                   children: [
-                    if (iconWidget != null)
-                      IconTheme.merge(
-                        data: IconThemeData(
-                            size: 22, color: color ?? scheme.onSurfaceVariant),
-                        child: iconWidget!,
-                      )
-                    else
-                      Icon(icon,
-                          size: 22, color: color ?? scheme.onSurfaceVariant),
+                    Icon(icon,
+                        size: 22, color: color ?? scheme.onSurfaceVariant),
                     if (count > 0)
                       PositionedDirectional(
                         top: -4,

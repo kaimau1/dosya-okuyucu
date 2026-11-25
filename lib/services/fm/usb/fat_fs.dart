@@ -205,7 +205,7 @@ class FatFileSystem extends UsbFileSystem {
     final raw = cluster == 0 && kind != FatKind.fat32
         ? await _readRootArea()
         : await _readChain(cluster);
-    return parseDirectory(raw);
+    return parseDirectory(raw, kind: kind);
   }
 
   Future<Uint8List> _readRootArea() async {
@@ -623,7 +623,7 @@ class FatFileSystem extends UsbFileSystem {
     // Windows klasörü bozuk sayar ve "yukarı" gezinti kırılır.
     final content = Uint8List(clusterSize);
     content.setRange(0, 32, _shortEntryBytes('.', isDir: true, cluster: cluster,
-        size: 0));
+        size: 0, kind: kind));
     // **`..` kökü gösteriyorsa küme numarası 0 YAZILIR** — FAT'ın kuralı
     // budur (kökün kendi küme numarası yoktur). 2 yazmak Windows'ta
     // "geçersiz klasör" demektir.
@@ -632,7 +632,7 @@ class FatFileSystem extends UsbFileSystem {
         (kind == FatKind.fat32 && parent == rootCluster) ? 0 : parent;
     content.setRange(
         32, 64, _shortEntryBytes('..', isDir: true,
-            cluster: parentCluster, size: 0));
+            cluster: parentCluster, size: 0, kind: kind));
     await _writeCluster(cluster, content);
     await _addDirectoryEntry(parent, name,
         isDir: true, cluster: cluster, size: 0);
@@ -935,7 +935,7 @@ class FatFileSystem extends UsbFileSystem {
       (start + lfnEntries.length) * 32,
       (start + lfnEntries.length) * 32 + 32,
       _shortEntryBytes(String.fromCharCodes(shortName),
-          isDir: isDir, cluster: cluster, size: size, raw: shortName),
+          isDir: isDir, cluster: cluster, size: size, raw: shortName, kind: kind),
     );
     await _writeDirectoryBytes(dirId, buffer);
   }
@@ -1048,6 +1048,7 @@ class FatFileSystem extends UsbFileSystem {
     required int cluster,
     required int size,
     Uint8List? raw,
+    FatKind kind = FatKind.fat32,
   }) {
     final e = Uint8List(32);
     final bytes = raw ??
@@ -1080,7 +1081,8 @@ class FatFileSystem extends UsbFileSystem {
   /// ÖNCE gelir; parçalar sıra numarasına göre birleştiriliyor. Uzun adı olan
   /// bir dosyayı 8.3 adıyla göstermek ("BELGE~1.PDF") kullanıcı için dosyayı
   /// kaybetmekle eşdeğerdir.
-  static List<UsbEntry> parseDirectory(Uint8List raw) {
+  static List<UsbEntry> parseDirectory(Uint8List raw,
+      {FatKind kind = FatKind.fat32}) {
     final out = <UsbEntry>[];
     final lfn = <int, List<int>>{};
     for (var off = 0; off + 32 <= raw.length; off += 32) {

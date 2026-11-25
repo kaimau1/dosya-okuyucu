@@ -138,10 +138,14 @@ abstract final class GeminiDecisions {
   @visibleForTesting
   static int Function() nowMs = () => DateTime.now().millisecondsSinceEpoch;
 
-  @visibleForTesting
-  static void resetCooldownsForTest() {
+  static void clearCooldowns() {
     _keyCooldownUntilMs.clear();
     _keyConsec429.clear();
+  }
+
+  @visibleForTesting
+  static void resetCooldownsForTest() {
+    clearCooldowns();
     nowMs = () => DateTime.now().millisecondsSinceEpoch;
   }
 

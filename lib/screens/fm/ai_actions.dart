@@ -153,7 +153,7 @@ Future<void> giveAiAliasBatch(BuildContext context, List<FsEntry> entries) async
         if (local != null && local.cat != 'other') {
           rec = local;
         } else {
-          await SmartQuota.ensureLoaded();
+          await SmartQuota.read();
           if (!SmartQuota.take()) {
             stoppedBy = str.t('uerr.ai_quota');
             break;

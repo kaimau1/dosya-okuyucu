@@ -5,7 +5,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
-import '../core/motion.dart';
 import '../services/lang_detect.dart';
 import '../services/translate_service.dart';
 import 'translate_flow.dart';

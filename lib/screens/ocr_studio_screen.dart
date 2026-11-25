@@ -243,7 +243,7 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
       final count = _pdfPageCount;
       switch (_scope) {
         case _PageScope.currentPage:
-          final cur = widget.currentPage.clamp(1, math.max(1, count));
+          final cur = widget.currentPage.clamp(1, math.max(1, count)).toInt();
           onlyPages = {cur};
           maxPages = 1;
         case _PageScope.firstBatch:
@@ -429,7 +429,7 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
     if (text.isEmpty) return;
     final prefs = _tryAppState()?.ttsPrefs ?? TtsPrefs.defaults;
     final tts = _tts ??= TtsService(prefs: prefs)
-      ..onProgress = (_, __, playing) {
+      ..onProgress = (_, _, playing) {
         if (mounted && !playing) {
           setState(() => _readingAloud = false);
         }
