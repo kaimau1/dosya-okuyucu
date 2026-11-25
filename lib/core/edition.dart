@@ -114,7 +114,10 @@ enum Feature {
   /// Sesli not / dikte, sessiz AI turu, asistan işlevleri.
   voiceAssistant,
   /// USB tanılama, SD birleştirme, laboratuvar, bitmemiş PDF Pro motoru.
-  labs;
+  labs,
+  /// Kokoro (eSpeak NG, GPL-3.0) ve çevrimiçi Microsoft "Ahmet" sesi
+  /// (2026-11-25: Play temizliğinde çıkmıştı, kullanıcı geri istedi).
+  extraVoices;
 
   /// Bu özelliğin girdiği en düşük sürüm.
   Edition get minEdition => _minEdition[this]!;
@@ -154,6 +157,7 @@ const Map<Feature, Edition> _minEdition = {
   Feature.backgroundServices: Edition.kisisel,
   Feature.voiceAssistant: Edition.kisisel,
   Feature.labs: Edition.kisisel,
+  Feature.extraVoices: Edition.kisisel,
 };
 
 /// Pro sürümün Play bağlantıları ve fiyat metni (SÜRÜM PLANI §3).

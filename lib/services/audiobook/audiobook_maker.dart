@@ -20,18 +20,31 @@ enum AudiobookVoice {
   /// Cihazın konuşma motoru (Google TTS vb.) — indirme yok.
   system,
   antalia,
-  ema;
+  ema,
+  // Kokoro (2026-11-25 geri geldi; yalnız Kişisel — [NeuralVoice.available]).
+  // Ahmet (çevrimiçi) sesli kitapta YOK: tüm kitabı Microsoft'a göndermek
+  // ve ücretsiz kotayı tek kitapta bitirmek istenmez.
+  kokoroTr,
+  kokoroEn;
 
   NeuralVoice? get neural => switch (this) {
         AudiobookVoice.system => null,
         AudiobookVoice.antalia => NeuralVoice.antalia,
         AudiobookVoice.ema => NeuralVoice.ema,
+        AudiobookVoice.kokoroTr => NeuralVoice.kokoroTr,
+        AudiobookVoice.kokoroEn => NeuralVoice.kokoroEn,
       };
+
+  /// [v] için sesli kitap sesi (yoksa null — ör. çevrimiçi Ahmet).
+  static AudiobookVoice? of(NeuralVoice v) =>
+      AudiobookVoice.values.where((a) => a.neural == v).firstOrNull;
 
   String get folderTag => switch (this) {
         AudiobookVoice.system => '',
         AudiobookVoice.antalia => ' (Antalia)',
         AudiobookVoice.ema => ' (EMA)',
+        AudiobookVoice.kokoroTr => ' (Kokoro)',
+        AudiobookVoice.kokoroEn => ' (Kokoro EN)',
       };
 }
 

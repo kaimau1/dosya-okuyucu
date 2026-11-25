@@ -30,6 +30,8 @@ import '../services/fm/ai_scope.dart';
 import '../services/fm/folder_lock.dart';
 import '../services/fm/storage_stats.dart' show StorageStats;
 import '../services/tts_service.dart' show TtsPrefs;
+import '../services/voice/azure_tts.dart';
+import '../services/voice/neural_voices.dart' show NeuralVoiceId;
 import '../services/offline_mode.dart';
 
 /// Uygulama genel durumu: tema, AI ayarları, son açılan dosyalar.
@@ -1065,6 +1067,10 @@ class AppState extends ChangeNotifier {
     _peerRecent = _prefs.getStringList(_kPeerRecent) ?? [];
     _remotes = await RemoteSecrets.load(_prefs);
     _ttsPrefs = TtsPrefs.decode(_prefs.getString(_kTtsPrefs));
+    // Ahmet (Azure) sesi seçiliyse anahtar okunsun: ses "kurulu" görünsün.
+    if (NeuralVoiceId.parse(_ttsPrefs.voiceName)?.isOnline ?? false) {
+      unawaited(AzureTts.load());
+    }
     _ttsAiRead = _prefs.getBool(_kTtsAiRead) ?? false;
     _syncAppearance();
     notifyListeners();

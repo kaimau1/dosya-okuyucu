@@ -61,6 +61,7 @@ const Map<String, (String, String, String)> _t34 = {
   'pro.f.backgroundServices': ('Arka plan hizmetleri', 'Background services', 'خدمات الخلفية'),
   'pro.f.voiceAssistant': ('Sesli not ve asistan', 'Voice notes and assistant', 'الملاحظات الصوتية والمساعد'),
   'pro.f.labs': ('Deneysel özellikler', 'Experimental features', 'ميزات تجريبية'),
+  'pro.f.extraVoices': ('Kokoro ve Ahmet sesleri', 'Kokoro and Ahmet voices', 'أصوات Kokoro وAhmet'),
   // G8.4 — SMB1 onayı.
   'nas.smb1_title': ('Eski SMB1 protokolü', 'Legacy SMB1 protocol', 'بروتوكول SMB1 القديم'),
   'nas.smb1_body': (

@@ -42,6 +42,9 @@ import io.flutter.plugin.common.MethodChannel
 class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandler {
     companion object {
         const val CHANNEL = "dosya/qr"
+
+        /** Aktarım kilitlerinin (CPU + Wi-Fi) en uzun süresi. */
+        const val LOCK_MAX_MS = 2 * 60 * 60 * 1000L
     }
 
     private var reservation: WifiManager.LocalOnlyHotspotReservation? = null
@@ -89,8 +92,12 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
         } catch (_: Exception) {}
     }
 
+    /** Kilitlerin kendiliğinden bırakılması (Wi-Fi kilidinin süresi yok). */
+    private val lockTimeout = Handler(Looper.getMainLooper())
+
     /** Ekran kapalıyken aktarım sürsün: CPU + Wi-Fi uykuya geçmesin. */
     private fun keepAwake(on: Boolean) {
+        lockTimeout.removeCallbacksAndMessages(null)
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         wifiLock?.let { if (it.isHeld) it.release() }
@@ -100,13 +107,20 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
         val power = app.getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "dosya:transfer").apply {
             // Dart tarafı çökse bile pil sonsuza dek yanmasın.
-            acquire(2 * 60 * 60 * 1000L)
+            acquire(LOCK_MAX_MS)
         }
         val wifi = app.getSystemService(Context.WIFI_SERVICE) as WifiManager
         wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "dosya:transfer").apply {
             acquire()
         }
+        // KÖK (2026-11-25, kullanıcı: "gece telefonumun pili bitti"): Wi-Fi
+        // kilidinin `acquire(süre)` biçimi yok; uyanıklık kilidi 2 saatte
+        // düşerken YÜKSEK PERFORMANS Wi-Fi kilidi (güç tasarrufu kapalı)
+        // asılı kalan bir aktarımda (karşı taraf uyudu, bağlantı kapanmadı)
+        // sabaha dek tutulabiliyordu. Aynı üst sınırda ikisi birden bırakılır.
+        lockTimeout.postDelayed({ keepAwake(false) }, LOCK_MAX_MS)
     }
+
 
     private fun scan(result: MethodChannel.Result) {
         val options = GmsBarcodeScannerOptions.Builder()

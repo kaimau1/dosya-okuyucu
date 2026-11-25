@@ -149,6 +149,21 @@ abstract final class GeminiDecisions {
     nowMs = () => DateTime.now().millisecondsSinceEpoch;
   }
 
+  /// Anahtarlardan EN ERKEN soğuması bitenin kalan süresi (ms); soğuyan yoksa
+  /// 0. Akıllı düzenin kalıcı turu bu kadar bekleyip sürer (2026-11-25).
+  static int cooledRemainingMs(List<String> keys) {
+    final now = nowMs();
+    int? best;
+    for (final raw in keys) {
+      final k = raw.trim();
+      if (k.isEmpty) continue;
+      final c = _keyCooldown[k];
+      final left = (c == null || now >= c.untilMs) ? 0 : c.untilMs - now;
+      if (best == null || left < best) best = left;
+    }
+    return best ?? 0;
+  }
+
   /// Tüm geçerli anahtarlar geçici soğumadaysa ilk neden olan HTTP durumunu döner.
   static int? cooledStatusFor(List<String> keys) {
     final now = nowMs();

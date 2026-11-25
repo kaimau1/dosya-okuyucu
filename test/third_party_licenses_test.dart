@@ -1,3 +1,4 @@
+import 'package:dosya_okuyucu/core/edition.dart';
 import 'package:dosya_okuyucu/core/third_party_licenses.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,8 +37,12 @@ void main() {
     ]) {
       expect(packages, contains(want));
     }
-    expect(packages, isNot(contains('eSpeak NG')));
-    expect(packages, isNot(contains('Kokoro')));
+    // Kokoro/eSpeak NG (GPL-3.0) yalnız Kişisel derlemede (2026-11-25).
+    final extra = Edition.current.has(Feature.extraVoices);
+    expect(packages.contains('eSpeak NG'), extra);
+    expect(packages.contains('Kokoro'), extra);
+    expect(Edition.lite.has(Feature.extraVoices), isFalse);
+    expect(Edition.pro.has(Feature.extraVoices), isFalse);
     final all = texts.toString();
     expect(all, contains('SIL OPEN FONT LICENSE'));
     expect(all, contains('Community License'));

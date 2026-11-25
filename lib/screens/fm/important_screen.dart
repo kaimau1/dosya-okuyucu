@@ -11,6 +11,7 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/custom_cards.dart';
+import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_events.dart';
@@ -309,36 +310,38 @@ class _ImportantScreenState extends State<ImportantScreen> {
             if (_loading) const LinearProgressIndicator(minHeight: 3),
             if (!_exists && !_loading) _emptyCard(),
             if (_exists) ...[
-              _summaryCard(appState),
-              const SizedBox(height: Gap.md),
+              // Yeni düzen (2026-11-25, kullanıcı: "önemli dosya sayfası çok
+              // sıradan duruyor"): özet kahraman kartı (tür dağılım çubuğu +
+              // ana eylemler) → son eklenenler şeridi → türler → kartlar →
+              // kart içinde kategoriler.
+              _heroCard(appState),
+              const SizedBox(height: Gap.lg),
+              ..._recentSection(context),
               if (_files.isNotEmpty && categoryTiles.isNotEmpty) ...[
-                Text(context.t('important.by_type'),
-                    style: Theme.of(context).textTheme.titleMedium),
+                _sectionHeader(context, context.t('important.by_type')),
                 const SizedBox(height: Gap.sm),
                 FmCategoryGrid(tiles: categoryTiles),
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.lg),
               ],
               ..._cardsSection(context),
-              const SizedBox(height: Gap.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(context.t('important.subfolders'),
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ),
-                  TextButton.icon(
-                    onPressed: _newSubFolder,
-                    icon: const Icon(AppIcons.newFolder),
-                    label: Text(context.t('common.new')),
-                  ),
-                ],
+              const SizedBox(height: Gap.lg),
+              _sectionHeader(
+                context,
+                context.t('important.subfolders'),
+                action: TextButton.icon(
+                  onPressed: _newSubFolder,
+                  icon: const Icon(AppIcons.newFolder),
+                  label: Text(context.t('common.new')),
+                ),
               ),
+              const SizedBox(height: Gap.xs),
               if (_plainSubFolders.isEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: Gap.sm),
                   child: Text(context.t('important.no_subfolder')),
                 ),
-              for (final f in nonEmptyFolders) _subFolderTile(f),
+              if (nonEmptyFolders.isNotEmpty)
+                _folderGroup(context, nonEmptyFolders),
               if (emptyFolders.isNotEmpty) ...[
                 ListTile(
                   key: const ValueKey('imp-empty-folders-toggle'),
@@ -359,8 +362,7 @@ class _ImportantScreenState extends State<ImportantScreen> {
                   onTap: () =>
                       setState(() => _showEmptyFolders = !_showEmptyFolders),
                 ),
-                if (_showEmptyFolders)
-                  for (final f in emptyFolders) _subFolderTile(f),
+                if (_showEmptyFolders) _folderGroup(context, emptyFolders),
               ],
             ],
           ],
@@ -372,11 +374,94 @@ class _ImportantScreenState extends State<ImportantScreen> {
     );
   }
 
+  /// Bölüm başlığı: kalın başlık + isteğe bağlı sağ eylem.
+  Widget _sectionHeader(BuildContext context, String title,
+          {Widget? action}) =>
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          ?action,
+        ],
+      );
+
+  /// Kategoriler tek kartta, ince ayraçlarla (düz liste "sıradan"dı).
+  Widget _folderGroup(BuildContext context, List<FsEntry> folders) => Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            for (var i = 0; i < folders.length; i++) ...[
+              if (i > 0) const Divider(height: 1, indent: 72),
+              _subFolderTile(folders[i]),
+            ],
+          ],
+        ),
+      );
+
+  /// **Son eklenenler**: en yeni 10 dosya, küçük resimli yatay şerit —
+  /// sayfanın asıl işi olan "önemli belgeye hızlı ulaşmak" en üstte.
+  List<Widget> _recentSection(BuildContext context) {
+    if (_files.isEmpty) return const [];
+    final recent = [..._files]
+      ..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    final top = recent.take(10).toList();
+    final paths = [for (final f in top) f.path];
+    return [
+      _sectionHeader(context, context.t('imp.recent')),
+      const SizedBox(height: Gap.sm),
+      SizedBox(
+        key: const ValueKey('imp-recent'),
+        height: 104,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: top.length,
+          separatorBuilder: (_, _) => const SizedBox(width: Gap.sm),
+          itemBuilder: (ctx, i) => MergeSemantics(
+            child: Semantics(
+              label: top[i].name,
+              button: true,
+              child: ImportantGalleryTile(
+                entry: top[i],
+                size: 104,
+                onTap: () =>
+                    EntryOpener.open(context, top[i].path, siblings: paths),
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: Gap.lg),
+    ];
+  }
+
   Widget _subFolderTile(FsEntry f) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(AppIcons.folder,
-            color: context.fmFolderColor ?? FmColors.folder),
-        title: Text(f.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        contentPadding: const EdgeInsetsDirectional.fromSTEB(
+            Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        leading: DecoratedBox(
+          decoration: BoxDecoration(
+            color: (context.fmFolderColor ?? FmColors.folder)
+                .withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(Radii.card),
+          ),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(AppIcons.folder,
+                color: context.fmFolderColor ?? FmColors.folder),
+          ),
+        ),
+        title: Text(f.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
           '${context.t('count.files', {'n': _countIn(f.path)})} · '
           '${FsPaths.humanSize(_bytesIn(f.path))}',
@@ -417,19 +502,15 @@ class _ImportantScreenState extends State<ImportantScreen> {
   List<Widget> _cardsSection(BuildContext context) {
     final cards = CustomCards.instance.within(_root);
     return [
-      Row(
-        children: [
-          Expanded(
-            child: Text(context.t('card.section'),
-                style: Theme.of(context).textTheme.titleMedium),
-          ),
-          TextButton.icon(
-            key: const ValueKey('important-new-card'),
-            onPressed: _newCard,
-            icon: const Icon(AppIcons.add),
-            label: Text(context.t('card.new')),
-          ),
-        ],
+      _sectionHeader(
+        context,
+        context.t('card.section'),
+        action: TextButton.icon(
+          key: const ValueKey('important-new-card'),
+          onPressed: _newCard,
+          icon: const Icon(AppIcons.add),
+          label: Text(context.t('card.new')),
+        ),
       ),
       if (cards.isNotEmpty) ...[
         const SizedBox(height: Gap.sm),
@@ -523,80 +604,170 @@ class _ImportantScreenState extends State<ImportantScreen> {
       .where((f) => FsPaths.isInside(dir, f.path))
       .fold<int>(0, (sum, f) => sum + f.sizeBytes);
 
-  Widget _summaryCard(AppState appState) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  const Icon(AppIcons.star, color: FmColors.folder, size: 32),
-                  const SizedBox(width: Gap.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+  /// **Özet kahraman kartı**: toplam sayı/boyut, türlere göre dağılım
+  /// çubuğu ve ana eylemler. Yazılar `onPrimaryContainer` /
+  /// `primaryContainer` çiftinde (temalar bu çifti AA kontrastla kurar).
+  Widget _heroCard(AppState appState) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final total = _files.fold<int>(0, (s, f) => s + f.sizeBytes);
+    final byType = <FmCategory, int>{};
+    for (final f in _files) {
+      byType[f.category] = (byType[f.category] ?? 0) + f.sizeBytes;
+    }
+    final parts = [
+      for (final e in byType.entries)
+        if (e.value > 0) e,
+    ]..sort((a, b) => b.value.compareTo(a.value));
+    final on = cs.onPrimaryContainer;
+    return Material(
+      key: const ValueKey('imp-hero'),
+      color: cs.primaryContainer,
+      borderRadius: BorderRadius.circular(Radii.sheet),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: BorderRadius.circular(Radii.card),
+                  ),
+                  child: const SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: Icon(AppIcons.star, color: FmColors.folder, size: 30),
+                  ),
+                ),
+                const SizedBox(width: Gap.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        context.t('count.files', {'n': _files.length}),
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: on,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${FsPaths.humanSize(total)} · '
+                        '${context.t('ux47.imp_location')}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(color: on),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (total > 0 && parts.isNotEmpty) ...[
+              const SizedBox(height: Gap.md),
+              // Türlere göre yer dağılımı (ince yığılmış çubuk).
+              ExcludeSemantics(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                  child: SizedBox(
+                    height: 8,
+                    child: Row(
                       children: [
-                        Text(
-                          '${context.t('count.files', {'n': _files.length})} · '
-                          '${FsPaths.humanSize(_files.fold<int>(0, (s, f) => s + f.sizeBytes))}',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          context.t('ux47.imp_location'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                        ),
+                        for (final e in parts)
+                          Expanded(
+                            flex: (e.value * 1000 ~/ total).clamp(1, 1000),
+                            child: ColoredBox(
+                                color: FmColors.forCategory(e.key)),
+                          ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
               const SizedBox(height: Gap.sm),
               Wrap(
-                spacing: Gap.sm,
+                spacing: Gap.md,
                 runSpacing: Gap.xs,
                 children: [
-                  FilledButton.tonalIcon(
+                  for (final e in parts.take(4))
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: FmColors.forCategory(e.key),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const SizedBox(width: 8, height: 8),
+                        ),
+                        const SizedBox(width: Gap.xs),
+                        Text(
+                          '${e.key.label} · ${FsPaths.humanSize(e.value)}',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: on,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: Gap.md),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
                     key: const ValueKey('imp-add-file'),
                     onPressed: _pickAndAddFiles,
                     icon: const Icon(AppIcons.addFile, size: 18),
-                    label: Text(context.t('ux47.imp_add_file')),
+                    label: Text(context.t('ux47.imp_add_file'),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
-                  OutlinedButton.icon(
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: FilledButton.tonalIcon(
                     key: const ValueKey('imp-open-folder'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: cs.surface,
+                      foregroundColor: cs.onSurface,
+                    ),
                     onPressed: () => _push(BrowserScreen(
                       path: _root,
                       title: context.t('important.title'),
                     )),
                     icon: const Icon(AppIcons.emptyFolder, size: 18),
-                    label: Text(context.t('ux47.imp_open_folder')),
+                    label: Text(context.t('ux47.imp_open_folder'),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
-                  ListenableBuilder(
-                    listenable: appState.clipboardState,
-                    builder: (context, _) => !appState.hasClipboard
-                        ? const SizedBox.shrink()
-                        : FilledButton.icon(
-                            onPressed: _paste,
-                            icon: const Icon(AppIcons.paste, size: 18),
-                            label: Text(appState.clipboardCut
-                                ? context.t('fm.move')
-                                : context.t('fm.paste')),
-                          ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+            ListenableBuilder(
+              listenable: appState.clipboardState,
+              builder: (context, _) => !appState.hasClipboard
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: Gap.sm),
+                      child: FilledButton.icon(
+                        onPressed: _paste,
+                        icon: const Icon(AppIcons.paste, size: 18),
+                        label: Text(appState.clipboardCut
+                            ? context.t('fm.move')
+                            : context.t('fm.paste')),
+                      ),
+                    ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   Widget _emptyCard() => Card(
         child: Padding(

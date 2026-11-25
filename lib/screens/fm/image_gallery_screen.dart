@@ -1000,8 +1000,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             onPick: _selecting ? _pickInSelect : _jumpTo,
                             selected: _selecting ? _selected : null,
                           ),
+                        // KÖK (kullanıcı 2026-11-25: "silindi bildirimi silme
+                        // alanını kapatıyor, sıradaki fotoğrafı silemiyorum"):
+                        // "Geri al" kartı ekranın en altına oturuyor ve bu
+                        // satırın üstüne biniyordu. Satır yüksekliğini
+                        // bildirir → kart düğmelerin ÜSTÜNDE durur, Sil'e art
+                        // arda basılabilir.
                         if (_selecting)
-                          Row(
+                          ToastAvoider(child: Row(
                             children: [
                               _GalleryAction(
                                 icon: _selected.contains(_current)
@@ -1024,14 +1030,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                 onTap: _deleteSelected,
                               ),
                             ],
-                          )
+                          ))
                         else
                         // Ortak düzen (2026-11-15): en çok 5 düğme — Paylaş ·
                         // Düzenle · İyileştir · Metin ve PDF · Sil. Boyut ve
                         // Bilgi ⋮'da (Boyut düşür, Özellikler), Seç de ⋮'da.
                         // Sil bilerek altta da var: fotoğraf ayıklamak
                         // galerinin en sık işi.
-                        Row(
+                        ToastAvoider(child: Row(
                           children: [
                             _GalleryAction(
                               icon: AppIcons.share,
@@ -1060,7 +1066,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               onTap: _delete,
                             ),
                           ],
-                        ),
+                        )),
                       ],
                     ),
                   ),

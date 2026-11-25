@@ -86,9 +86,20 @@ class TransferKeeper {
     _sync();
   }
 
+  /// Süren aktarım bu kadar süre hiç olay üretmediyse ASILI sayılır.
+  ///
+  /// KÖK (2026-11-25, kullanıcı: "gece telefonumun pili bitti"): karşı
+  /// taraf (tarayıcı/PC) uykuya geçip bağlantıyı kapatmadan kaybolunca
+  /// yanıt yazımı bitmiyor, `activeTransfers` 0'a hiç inmiyordu → devralınan
+  /// sunucu kapanmıyor, ön plan servisi + uyanıklık + yüksek performanslı
+  /// Wi-Fi kilidi sabaha dek tutuluyordu.
+  static const stalledAfter = Duration(minutes: 45);
+
   bool _isBusy(KeepableServer server) {
-    if (server.activeTransfers > 0) return true;
     final last = server.lastActivity;
+    if (server.activeTransfers > 0) {
+      return last == null || DateTime.now().difference(last) < stalledAfter;
+    }
     return last != null && DateTime.now().difference(last) < idle;
   }
 

@@ -401,11 +401,12 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
     await _ensurePdfText();
     if (!mounted) return;
-    final text = _documentText;
-    if (text.trim().isEmpty) {
+    if (_documentText.trim().isEmpty) {
       _snack(_isPdf ? context.t('vw.no_readable_text') : context.t('uix.no_text'));
       return;
     }
+    final text = await _speechText();
+    if (!mounted) return;
     final service = TtsService(prefs: context.read<AppState>().ttsPrefs)
       ..onProgress = (i, total, playing) {
         if (!mounted) return;

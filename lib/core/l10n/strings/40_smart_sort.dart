@@ -222,6 +222,8 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.run': ('Şimdi düzenle', 'Organize now', 'نظّم الآن'),
   'sm.progress': ('Düzenleniyor {done}/{total}', 'Organizing {done}/{total}', 'جارٍ التنظيم {done}/{total}'),
   'sm.done': ('{n} dosya düzenlendi', '{n} files organized', 'تم تنظيم {n} ملفات'),
+  // 2026-11-25: kalıcı tur geçici engelde (dakikalık sınır / ağ) bekliyor.
+  'sm.waiting': ('kısa bekleme, kendiliğinden sürecek', 'short pause, will resume by itself', 'توقف قصير، سيستأنف تلقائيًا'),
   'sm.nothing_new': ('Düzenlenecek yeni dosya yok', 'No new files to organize', 'لا ملفات جديدة للتنظيم'),
   'sm.failed': ('{n} dosya yapılamadı', '{n} files failed', 'تعذّر {n} ملفات'),
   'sm.stopped': (

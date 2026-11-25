@@ -175,8 +175,12 @@ class NeuralVoiceEngine {
           'engine.synth(${jsonEncode(job)}, ${jsonEncode(voice.name)}, '
           '${jsonEncode(text)}, $speed)');
       // Uzun bölüm için cömert süre: düşük cihazda gerçek zamanın altına
-      // inebilir, metin başına üst sınır ~ (uzunluk / 5) sn.
-      final limit = Duration(seconds: 60 + text.length ~/ 5);
+      // inebilir, metin başına üst sınır ~ (uzunluk / 5) sn. Kokoro (82 M)
+      // masaüstü WASM'da bile gerçek zamanın yarısı hızında (U6a ölçümü,
+      // 2026-11-21) → harf başına 1 sn.
+      final kokoro =
+          voice == NeuralVoice.kokoroTr || voice == NeuralVoice.kokoroEn;
+      final limit = Duration(seconds: 60 + text.length ~/ (kokoro ? 1 : 5));
       return await out.timeout(limit);
     } finally {
       _progress.remove(job);
