@@ -61,15 +61,19 @@ extension _NearbyLinks on _NearbyScreenState {
     _web = null;
     // Seçim değişti diye süren indirme kesilmez.
     if (old != null) await TransferKeeper.instance.handOff(old);
-    if (_selection.isEmpty) {
+    final hasText = _text != null && _text!.trim().isNotEmpty;
+    if (_selection.isEmpty && !hasText) {
       if (mounted) _update(() {});
       return;
     }
     try {
       final server = QrShareServer([..._selection],
+          text: hasText ? _text : null,
           senderName: _deviceName,
           ttl: _linkTtl,
-          maxDownloads: _linkOnce ? _selection.length : null,
+          maxDownloads: _linkOnce && _selection.isNotEmpty
+              ? _selection.length
+              : (_linkOnce ? 1 : null),
           onExpired: () {
             if (mounted) {
               _update(() {

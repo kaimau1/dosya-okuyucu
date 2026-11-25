@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/app_icons.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
+import 'pro_gate.dart';
 import '../core/app_colors.dart';
 
 /// **Üç Office editörünün ortak simge dili.**
@@ -402,6 +403,7 @@ class RibbonChip extends StatelessWidget {
   final String tooltip;
   final bool? active;
   final VoidCallback? onTap;
+  final bool proBadge;
 
   const RibbonChip({
     super.key,
@@ -410,6 +412,7 @@ class RibbonChip extends StatelessWidget {
     required this.tooltip,
     this.active,
     this.onTap,
+    this.proBadge = false,
   });
 
   @override
@@ -468,6 +471,10 @@ class RibbonChip extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (proBadge) ...[
+                  const SizedBox(width: 4),
+                  const ProBadge(),
+                ],
               ],
             ),
           ),

@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/theme.dart';
+import '../pro_gate.dart';
 import '../../models/fs_entry.dart';
 import '../../screens/fm/ai_actions.dart' show giveAiAliasBatch;
 import '../../screens/fm/category_add_sheet.dart';
@@ -236,20 +238,21 @@ class FmSelectionBar extends StatelessWidget {
                     destructive: true,
                     label: context.t('common.delete')),
               ]),
-              // **İkinci ad ve kategori en üstte** (2026-11-19, kullanıcı:
-              // seçip toplu AI ile ikinci ad; eski "AI ile etiketle" kalktı —
-              // yeni model hem ad hem kategori/etiket veriyor).
+              // **İkinci ad ve kategori**: yalnız Akıllı klasörler açıkken öne
+              // çıkar; Lite'ta PRO rozetiyle.
               if (_anyFile)
                 AppActionGroup(title: context.t('ea.sec_name'), actions: [
                   AppAction(
                       value: 'ai_alias',
                       icon: AppIcons.ai,
                       accent: true,
+                      proBadge: ProGate.locked(Feature.smartFolders),
                       label: context.t('alias.action'),
                       hint: context.t('alias.batch_hint')),
                   AppAction(
                       value: 'category',
                       icon: AppIcons.labelOutline,
+                      proBadge: ProGate.locked(Feature.smartFolders),
                       label: context.t('cat.add'),
                       hint: context.t('cat.add_hint')),
                 ]),
@@ -262,6 +265,9 @@ class FmSelectionBar extends StatelessWidget {
                   AppAction(
                       value: 'resize',
                       icon: AppIcons.resize,
+                      proBadge: working.any(
+                              (e) => e.category == FmCategory.video) &&
+                          ProGate.locked(Feature.videoCompress),
                       label: context.t('fm.resize')),
                 if (n == 1)
                   AppAction(
@@ -378,10 +384,14 @@ class FmSelectionBar extends StatelessWidget {
       case 'tag':
         if (await showTagPicker(context, paths)) await onChanged();
       case 'ai_alias':
+        if (!await ProGate.check(context, Feature.smartFolders)) return;
+        if (!context.mounted) return;
         // İş kuyruğa gider; satırlar ikinci adı kendileri dinliyor.
         await giveAiAliasBatch(context, selected);
         await onChanged();
       case 'category':
+        if (!await ProGate.check(context, Feature.smartFolders)) return;
+        if (!context.mounted) return;
         final files = [
           for (final e in selected)
             if (!e.isDir) e.path

@@ -1,9 +1,5 @@
-import 'dart:io';
-
-import 'ai_summary_store.dart';
 import 'crash_log.dart';
 import 'fm/activity_log.dart';
-import 'fm/ai_apply_log.dart';
 import 'fm/ai_index.dart';
 import 'fm/content_indexer.dart';
 import 'fm/fresh_cache.dart';
@@ -76,12 +72,7 @@ abstract final class PrivacyWipe {
       await step(() => TransferHistory.instance.clear(incoming: false));
     }
     if (ai) {
-      await step(() async {
-        final dir = Directory(AiSummaryStore.root);
-        if (await dir.exists()) await dir.delete(recursive: true);
-      });
       await step(AiIndex.clear);
-      await step(AiApplyLog.clear);
       await step(SmartSort.clear);
       await step(SmartLearn.forgetAll);
       await step(SmartUserCats.clear);

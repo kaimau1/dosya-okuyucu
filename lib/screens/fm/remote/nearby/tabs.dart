@@ -334,7 +334,8 @@ extension _NearbyTabs on _NearbyScreenState {
   /// QR bölümü. Seçim yokken davet + "QR tara" (alma); seçim varken
   /// [_webCard] (kod, adres, süre, hotspot).
   Widget _qrCard(BuildContext context) {
-    if (_selection.isNotEmpty) return _webCard(context);
+    final hasText = _text != null && _text!.trim().isNotEmpty;
+    if (_selection.isNotEmpty || hasText) return _webCard(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Card(

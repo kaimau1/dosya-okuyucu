@@ -56,36 +56,43 @@ enum Edition {
 /// Sürüme göre açılıp kapanan özellikler (SÜRÜM PLANI §1).
 ///
 /// Lite'ın çekirdeği (açma, okuma, arama, paylaşma, yazdırma, form, elle
-/// imza) burada YOK: her sürümde olan şey kapıdan geçmez.
+/// imza, temel düzenleme ve dosya yöneticisi) [Edition.lite] ile açıktır.
 enum Feature {
-  // ── Pro (Lite'ta PRO rozetiyle görünür, dokununca tanıtım levhası) ───────
-  /// Word/Excel/PowerPoint düzenleme, yeni boş belge.
+  // ── Lite'ta da açık olan çekirdek + araçlar (Edition.lite) ─────────────
+  /// Word/Excel/PowerPoint temel görüntüleme, düzenleme, yeni boş belge.
   officeEdit,
-  /// PDF ileri: metin düzenleme, sayfa işleri, birleştir/böl, sıkıştır,
-  /// parola, karartma, karşılaştır, OCR, dijital imza, çeviri.
-  pdfAdvanced,
-  /// Kamera ile belge tarama.
+  /// Kamera ile belge tarama + çevrimdışı OCR.
   scan,
   /// Biçim dönüştürme (Word/Excel/slayt/görsel ↔ PDF, Markdown).
   convert,
   /// Dosya yöneticisi: gezgin, süzgeç, arama, çöp, taşı/kopyala, USB/SD, arşiv.
   fileManager,
-  /// Yer açma: depolama analizi, kopyalar, akıllı temizlik, sohbet temizliği.
+  /// Yer açma: depolama analizi, kopyalar, yerel temizlik.
   cleanup,
   /// Şifreli kasa, klasör kilidi, uygulama kilidi.
   vault,
   /// Yakındakiler, QR ile paylaşım, tarayıcıdan paylaşım.
   transfer,
-  /// SMB / FTP / SFTP / WebDAV bağlantıları.
+  /// SMB / SFTP / WebDAV bağlantıları.
   remote,
-  /// Sesli kitap üretme + kitaplığı, cihaz içi doğal sesler.
-  audiobook,
-  /// Yapay zekâ (kullanıcının kendi anahtarı) + cihaz içi çeviri.
-  ai,
-  /// Video/müzik oynatıcı, galeri, görsel düzenleme/boyutlandırma.
+  /// Video/müzik oynatıcı, galeri, görsel boyutlandırma/döndürme, kırpma.
   media,
   /// Önemli Dosyalar, ana ekran widget'ları, ayar yedeği.
   extras,
+
+  // ── Pro (6 sütun — Lite'ta PRO rozetiyle görünür, dokununca tanıtım levhası)
+  /// Akıllı klasörler (yerel + BYOK / kota).
+  smartFolders,
+  /// PDF düzenleme ve ileri PDF araçları (form doldurma + elle imza Lite'ta açık).
+  pdfAdvanced,
+  /// Video boyut düşürme / yeniden kodlama.
+  videoCompress,
+  /// Word ve Slayt gelişmiş biçimlendirme / Pro şablon & araçlar.
+  wordSlidesPro,
+  /// Sesli kitap oluşturma + kitaplığı, gelişmiş motor/temizlik.
+  audiobook,
+  /// Yapay zekâ (BYOK Gemini anahtarı: Akıllı klasörler, Taranmış OCR, Sesli kitap).
+  ai,
 
   // ── Yalnız Kişisel (Lite/Pro'da HİÇ çizilmez) ───────────────────────────
   /// APK kurma / dışa aktarma (`REQUEST_INSTALL_PACKAGES`).
@@ -121,19 +128,22 @@ enum Feature {
 
 /// **Tek tablo.** Terfi = buradaki değeri düşürmek.
 const Map<Feature, Edition> _minEdition = {
-  Feature.officeEdit: Edition.pro,
+  Feature.officeEdit: Edition.lite,
+  Feature.scan: Edition.lite,
+  Feature.convert: Edition.lite,
+  Feature.fileManager: Edition.lite,
+  Feature.cleanup: Edition.lite,
+  Feature.vault: Edition.lite,
+  Feature.transfer: Edition.lite,
+  Feature.remote: Edition.lite,
+  Feature.media: Edition.lite,
+  Feature.extras: Edition.lite,
+  Feature.smartFolders: Edition.pro,
   Feature.pdfAdvanced: Edition.pro,
-  Feature.scan: Edition.pro,
-  Feature.convert: Edition.pro,
-  Feature.fileManager: Edition.pro,
-  Feature.cleanup: Edition.pro,
-  Feature.vault: Edition.pro,
-  Feature.transfer: Edition.pro,
-  Feature.remote: Edition.pro,
+  Feature.videoCompress: Edition.pro,
+  Feature.wordSlidesPro: Edition.pro,
   Feature.audiobook: Edition.pro,
   Feature.ai: Edition.pro,
-  Feature.media: Edition.pro,
-  Feature.extras: Edition.pro,
   Feature.apkInstall: Edition.kisisel,
   Feature.installedApps: Edition.kisisel,
   Feature.selfUpdate: Edition.kisisel,

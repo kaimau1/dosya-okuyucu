@@ -314,14 +314,18 @@ object Extras {
         val interval = TimeUnit.HOURS.toMillis(1)
         val pending = scheduler.getPendingJob(SMART_JOB_ID)
         if (pending != null && pending.intervalMillis == interval) return true
-        val info = JobInfo.Builder(SMART_JOB_ID, ComponentName(ctx, SmartBgJob::class.java))
+        val builder = JobInfo.Builder(SMART_JOB_ID, ComponentName(ctx, SmartBgJob::class.java))
             .setPeriodic(interval)
             .setRequiresCharging(true)
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
-            .setPersisted(true)
-            .build()
-        return runCatching { scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS }
-            .getOrDefault(false)
+        return try {
+            scheduler.schedule(builder.setPersisted(true).build()) == JobScheduler.RESULT_SUCCESS
+        } catch (_: Exception) {
+            // RECEIVE_BOOT_COMPLETED yoksa (Play derlemesi) kalıcılık olmadan sür.
+            runCatching {
+                scheduler.schedule(builder.setPersisted(false).build()) == JobScheduler.RESULT_SUCCESS
+            }.getOrDefault(false)
+        }
     }
 
     fun isCharging(ctx: Context): Boolean {
@@ -334,12 +338,15 @@ object Extras {
         val scheduler = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
             ?: return false
         if (scheduler.getPendingJob(JOB_ID) != null) return true
-        val info = JobInfo.Builder(JOB_ID, ComponentName(ctx, DailyJob::class.java))
+        val builder = JobInfo.Builder(JOB_ID, ComponentName(ctx, DailyJob::class.java))
             .setPeriodic(TimeUnit.HOURS.toMillis(12))
-            .setPersisted(true)
-            .build()
-        return runCatching { scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS }
-            .getOrDefault(false)
+        return try {
+            scheduler.schedule(builder.setPersisted(true).build()) == JobScheduler.RESULT_SUCCESS
+        } catch (_: Exception) {
+            runCatching {
+                scheduler.schedule(builder.setPersisted(false).build()) == JobScheduler.RESULT_SUCCESS
+            }.getOrDefault(false)
+        }
     }
 
     /** Bir hatırlatma: kalan gün (bugün 0, geçmiş negatif). Saf, test edilir. */

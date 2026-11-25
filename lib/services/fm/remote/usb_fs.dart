@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'package:path/path.dart' as p;
 
+import '../../../core/edition.dart';
 import '../../../models/remote_connection.dart';
 import '../usb/block_device.dart';
 import '../usb/exfat_fs.dart';
@@ -87,7 +89,8 @@ class UsbFs extends RemoteFs {
       return UsbOpenOutcome(error: result.error, steps: result.steps);
     }
     final steps = [...result.steps];
-    final device = CachedBlockDevice(raw);
+    final device = CachedBlockDevice(
+        Edition.current.isPlay ? _ReadOnlyBlockDevice(raw) : raw);
     try {
       final parts = await PartitionTable.read(device);
       steps.add('bölüm sayısı: ${parts.length}');
@@ -127,15 +130,6 @@ class UsbFs extends RemoteFs {
         ));
         final wanted = partitionIndex == null ? chosen == null : partitionIndex == i;
         if (wanted && chosen == null) {
-          // Önceki yazma yarıda kesildiyse (bellek yazarken çekildi) kayıp
-          // kümeleri geri ver — K8 sağlamlaştırma. Onarım başarısızsa
-          // okuma yine açılır; yalnız günlüğe düşer.
-          try {
-            final freed = await fs.checkAndRepair();
-            if (freed > 0) steps.add('onarım: $freed kayıp küme boşaltıldı');
-          } catch (e) {
-            steps.add('onarım yapılamadı: $e');
-          }
           chosen = UsbFs(fs: fs, device: device, label: name, format: probe.$2);
         }
       }
@@ -518,4 +512,34 @@ class UsbVolumeInfo {
     required this.format,
     required this.firstLba,
   });
+}
+
+/// Play sürümünde ham USB belleğini kesinlikle salt okunur tutan sarmalayıcı:
+/// yanlış bir FAT/exFAT yazması kullanıcının harici belleğini bozamasın.
+class _ReadOnlyBlockDevice extends BlockDevice {
+  final BlockDevice _inner;
+  _ReadOnlyBlockDevice(this._inner);
+
+  @override
+  int get blockSize => _inner.blockSize;
+
+  @override
+  int get blockCount => _inner.blockCount;
+
+  @override
+  Future<Uint8List> readBlocks(int lba, int count) =>
+      _inner.readBlocks(lba, count);
+
+  @override
+  bool get writable => false;
+
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) =>
+      throw const BlockDeviceException('Play sürümünde ham USB salt okunur');
+
+  @override
+  Future<void> flush() => _inner.flush();
+
+  @override
+  Future<void> close() => _inner.close();
 }

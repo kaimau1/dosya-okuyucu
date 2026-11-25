@@ -79,20 +79,6 @@ extension _ViewerScreenPdfMarksPart on _ViewerScreenState {
         title: context.t('vw.selected_text'));
   }
 
-  /// Seçim hakkında AI'ya sor (açıkla / basitleştir / özetle / terimler).
-  Future<void> _askAiAboutSelection() async {
-    final text = cleanPdfCopyText(_pdfSelection);
-    if (text.isEmpty) return;
-    await _ensurePdfText();
-    if (!mounted) return;
-    QuickAiSheet.show(
-      context,
-      selection: text,
-      documentName: widget.doc.name,
-      documentText: _documentText,
-    );
-  }
-
   /// Seçilen ifadeyi belgenin TAMAMINDA arar (arama çubuğunu açar).
   void _findSelection() {
     final text = cleanPdfCopyText(_pdfSelection).split('\n').first.trim();

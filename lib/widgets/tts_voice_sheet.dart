@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
 import '../screens/audiobook/voices_screen.dart';
@@ -40,6 +41,7 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
   /// diye kendi motor örneğiyle konuşur.
   final _preview = TtsService();
 
+  List<String> _engines = const [];
   List<TtsVoiceInfo>? _voices;
   late TtsPrefs _prefs = context.read<AppState>().ttsPrefs;
 
@@ -56,10 +58,38 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
   }
 
   Future<void> _load() async {
-    // Önce arayüz dilinin sesleri; hiç yoksa tüm sesler (kullanıcı İngilizce
-    // bir belgeyi İngilizce sesle dinlemek isteyebilir).
-    var list = await TtsService.voices(languagePrefix: 'tr');
-    if (list.isEmpty) list = await TtsService.voices();
+    final lang = AppStrings.of(context).language.code;
+    final engs = await TtsService.engines();
+    final activeEngine = _prefs.engineName;
+    var list = await TtsService.voices(
+      languagePrefix: lang,
+      engineName: activeEngine,
+    );
+    if (list.isEmpty) {
+      list = await TtsService.voices(engineName: activeEngine);
+    }
+    if (mounted) {
+      setState(() {
+        _engines = engs;
+        _voices = list;
+      });
+    }
+  }
+
+  Future<void> _selectEngine(String engineName) async {
+    final lang = AppStrings.of(context).language.code;
+    final next = _prefs.copyWith(
+      engineName: engineName,
+      voiceName: '',
+      voiceLocale: '',
+    );
+    await _save(next);
+    if (mounted) setState(() => _voices = null);
+    var list = await TtsService.voices(
+      languagePrefix: lang,
+      engineName: engineName,
+    );
+    if (list.isEmpty) list = await TtsService.voices(engineName: engineName);
     if (mounted) setState(() => _voices = list);
   }
 
@@ -86,6 +116,37 @@ class _TtsVoiceSheetState extends State<TtsVoiceSheet> {
             Text(context.t('tts.settings'),
                 style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: Gap.sm),
+            if (_engines.length > 1) ...[
+              DropdownButtonFormField<String>(
+                key: const ValueKey('tts-engine-picker'),
+                initialValue: _engines.contains(_prefs.engineName)
+                    ? _prefs.engineName
+                    : '',
+                decoration: InputDecoration(
+                  labelText: context.t('tts.engine'),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(context.t('tts.engine_default')),
+                  ),
+                  for (final e in _engines)
+                    DropdownMenuItem(
+                      value: e,
+                      child: Text(
+                        TtsService.engineLabel(e),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (v) {
+                  if (v != null) _selectEngine(v);
+                },
+              ),
+              const SizedBox(height: Gap.sm),
+            ],
             if (voices == null)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: Gap.lg),

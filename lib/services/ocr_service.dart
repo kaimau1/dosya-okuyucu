@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:image/image.dart' as imglib;
 
@@ -8,10 +9,13 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import 'cloud_ocr.dart';
 import 'pdf/ocr_page_text.dart' show OcrWordBox;
 import '../core/app_colors.dart';
+import 'scan_enhance.dart' show ScanEnhance, ScanFilter;
+import 'scan_page_ops.dart' show ScanPageOps;
 
 /// Cihaz-içi OCR (Google ML Kit, Latin alfabesi — Türkçe karakterler dahil).
 /// Arapça vb. Latin dışı alfabeler ML Kit'te yok → kullanıcının başlattığı
@@ -43,6 +47,18 @@ class OcrPage {
   final int number;
   final String text;
   const OcrPage(this.number, this.text);
+}
+
+/// Metin tanıma kalite kipi.
+enum OcrQualityMode {
+  /// Ham görüntü / 2048px JPEG — hızlı cihaz-içi tarama.
+  fast,
+
+  /// 2400px kayıpsız PNG + ışık/gölge düzeltmeli ön işleme + satır sırası.
+  enhanced,
+
+  /// Kendi Gemini anahtarıyla (Pro + BYOK) AI görüş OCR'ı.
+  aiVision,
 }
 
 /// Metin tanıma modeli Play Hizmetleri'nce henüz indirilmedi.
@@ -126,7 +142,146 @@ class OcrService {
   }
 
   static String _joinLines(List<OcrLine> lines) =>
-      lines.map((l) => l.text).join('\n').trim();
+      formatOrderedLines(orderOcrRows(lines));
+
+  static List<OcrLine> _recognizedLines(RecognizedText result) => [
+        for (final block in result.blocks)
+          for (final line in block.lines)
+            if (line.text.trim().isNotEmpty)
+              OcrLine(line.text, line.boundingBox),
+      ];
+
+  static List<List<OcrLine>> _clusterRows(List<OcrLine> raw) {
+    final rows = <List<OcrLine>>[];
+    for (final line in raw) {
+      if (line.text.trim().isEmpty) continue;
+      if (rows.isEmpty) {
+        rows.add([line]);
+        continue;
+      }
+      final cur = rows.last;
+      var rowTop = cur.first.box.top;
+      var rowBottom = cur.first.box.bottom;
+      for (var i = 1; i < cur.length; i++) {
+        if (cur[i].box.top < rowTop) rowTop = cur[i].box.top;
+        if (cur[i].box.bottom > rowBottom) rowBottom = cur[i].box.bottom;
+      }
+      final overlap =
+          math.min(rowBottom, line.box.bottom) - math.max(rowTop, line.box.top);
+      final minH = math.min(rowBottom - rowTop, line.box.height);
+      final sameRow = minH <= 0
+          ? (line.box.top - rowTop).abs() <= 4
+          : overlap >= minH * 0.45;
+      if (sameRow) {
+        cur.add(line);
+      } else {
+        rows.add([line]);
+      }
+    }
+    return rows;
+  }
+
+  /// Ham OCR satırlarını görsel okuma sırasına sokar: üstten alta görsel
+  /// satır kümeleri (dikeyi %45+ örtüşen parçalar aynı satır sayılır), satır
+  /// içinde soldan sağa sıralanır. Saf -> testli.
+  static List<OcrLine> orderOcrRows(List<OcrLine> raw) {
+    if (raw.length <= 1) return raw;
+    final nonEmpty = [
+      for (final l in raw)
+        if (l.text.trim().isNotEmpty) l,
+    ];
+    if (nonEmpty.length <= 1) return nonEmpty;
+    final byTop = [...nonEmpty]..sort((a, b) {
+        final dy = a.box.top.compareTo(b.box.top);
+        return dy != 0 ? dy : a.box.left.compareTo(b.box.left);
+      });
+    final rows = _clusterRows(byTop);
+    for (final row in rows) {
+      row.sort((a, b) => a.box.left.compareTo(b.box.left));
+    }
+    return [for (final row in rows) ...row];
+  }
+
+  /// Sıralı [OcrLine] listesini okunaklı satır ve paragraflara biçimlendirir:
+  /// yatayda büyük sütun boşluğu `\t`, normal akış `  `, ortanca satır
+  /// yüksekliğinin 1.6 katını aşan dikey boşlukta paragraf ayrımı (`\n\n`).
+  static String formatOrderedLines(List<OcrLine> ordered) {
+    final rows = _clusterRows(ordered);
+    if (rows.isEmpty) return '';
+    final heights = [
+      for (final r in rows) r.map((e) => e.box.height).fold(0.0, math.max),
+    ]..sort();
+    final medH = heights[heights.length ~/ 2] <= 0
+        ? 16.0
+        : heights[heights.length ~/ 2];
+
+    final sb = StringBuffer();
+    double? prevBottom;
+    for (final rawRow in rows) {
+      final row = [...rawRow]..sort((a, b) => a.box.left.compareTo(b.box.left));
+      final rowTop = row.map((e) => e.box.top).reduce(math.min);
+      final rowBottom = row.map((e) => e.box.bottom).reduce(math.max);
+      final rowH = (rowBottom - rowTop) > 0 ? (rowBottom - rowTop) : medH;
+      if (prevBottom != null) {
+        sb.write((rowTop - prevBottom) > medH * 1.1 ? '\n\n' : '\n');
+      }
+      for (var i = 0; i < row.length; i++) {
+        if (i > 0) {
+          final hGap = row[i].box.left - row[i - 1].box.right;
+          sb.write(hGap > rowH * 2.0 ? '\t' : '  ');
+        }
+        sb.write(row[i].text.trim());
+      }
+      prevBottom = rowBottom;
+    }
+    return sb.toString().trim();
+  }
+
+  /// Görseli OCR öncesinde izolatta temizler (EXIF pişirme + ışık/gölge
+  /// eşitleme + metin keskinleştirme) ve kayıpsız PNG yazar.
+  static Future<({String path, double sx, double sy})?> _preprocessImageForOcr(
+      String sourcePath) async {
+    try {
+      final outPath =
+          '${Directory.systemTemp.path}/ocr_prep_${DateTime.now().microsecondsSinceEpoch}.png';
+      final dims = await Isolate.run(() {
+        final file = File(sourcePath);
+        if (!file.existsSync()) return null;
+        final decoded = ScanPageOps.decode(file.readAsBytesSync());
+        if (decoded == null || decoded.width < 16 || decoded.height < 16) {
+          return null;
+        }
+        final origW = decoded.width, origH = decoded.height;
+        final enhanced = ScanEnhance.applyToImage(decoded, ScanFilter.gray);
+        File(outPath).writeAsBytesSync(imglib.encodePng(enhanced));
+        return (origW, origH, enhanced.width, enhanced.height);
+      });
+      if (dims == null) return null;
+      return (
+        path: outPath,
+        sx: dims.$1 / dims.$3,
+        sy: dims.$2 / dims.$4,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<List<OcrLine>> _requireAiVision(String path) async {
+    if (!Edition.current.has(Feature.ai) || !CloudOcr.available) {
+      throw StateError(AppStrings.current.t('uerr.ai_key'));
+    }
+    return CloudOcr.lines(path);
+  }
+
+  static void _deleteTemp(String? path) {
+    if (path == null) return;
+    try {
+      File(path).deleteSync();
+    } catch (_) {
+      // Bilinçli: geçici OCR görseli temizliği en iyi çaba.
+    }
+  }
 
   static List<List<OcrWordBox>> _wordLines(List<OcrLine> lines) => [
         for (final line in lines)
@@ -146,19 +301,32 @@ class OcrService {
   ///
   /// [allowCloud]: kullanıcının başlattığı tanıma — Arapça vb. için AI'ya
   /// gidilebilir ([CloudOcr]). Arka plan işleri (içerik dizini) false bırakır.
-  static Future<String> recognizeImageFile(String path,
-      {bool allowCloud = false}) async {
+  static Future<String> recognizeImageFile(
+    String path, {
+    bool allowCloud = false,
+    OcrQualityMode mode = OcrQualityMode.enhanced,
+  }) async {
+    if (mode == OcrQualityMode.aiVision) {
+      return _joinLines(await _requireAiVision(path));
+    }
     final forced = await _forcedCloud(path, allowCloud);
     if (forced != null) return _joinLines(forced);
+    final prep = mode == OcrQualityMode.enhanced
+        ? await _preprocessImageForOcr(path)
+        : null;
+    final workPath = prep?.path ?? path;
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-    final String text;
+    final List<OcrLine> lines;
     try {
-      final result =
-          await _process(recognizer, path);
-      text = result.text.trim();
+      final result = await _process(recognizer, workPath);
+      lines = orderOcrRows(_recognizedLines(result));
     } finally {
       await recognizer.close();
+      if (prep != null) _deleteTemp(prep.path);
     }
+    final text = mode == OcrQualityMode.fast
+        ? lines.map((l) => l.text).join('\n').trim()
+        : formatOrderedLines(lines);
     final cloud = await _autoCloud(path, text, allowCloud);
     return cloud != null ? _joinLines(cloud) : text;
   }
@@ -166,27 +334,43 @@ class OcrService {
   /// Bir görselden metni SATIR SATIR, resim piksel koordinatındaki kutusuyla
   /// birlikte tanır. Aranabilir PDF üretiminde (görünmez metin katmanı) her
   /// satırı kendi yerine yazmak için gerekir.
-  ///
-  /// ponytail: kutular ML Kit'in EXIF döndürmesi uygulanmış hâline göredir;
-  /// EXIF ile döndürülmüş fotoğraflarda katman kayabilir — şikayet gelirse
-  /// resmi önce normalize edip (döndürmeyi baytlara işleyip) OCR'la.
-  static Future<List<OcrLine>> recognizeImageLines(String path,
-      {bool allowCloud = false}) async {
+  static Future<List<OcrLine>> recognizeImageLines(
+    String path, {
+    bool allowCloud = false,
+    OcrQualityMode mode = OcrQualityMode.enhanced,
+  }) async {
+    if (mode == OcrQualityMode.aiVision) {
+      return orderOcrRows(await _requireAiVision(path));
+    }
     final forced = await _forcedCloud(path, allowCloud);
-    if (forced != null) return forced;
+    if (forced != null) return orderOcrRows(forced);
+    final prep = mode == OcrQualityMode.enhanced
+        ? await _preprocessImageForOcr(path)
+        : null;
+    final workPath = prep?.path ?? path;
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     final List<OcrLine> lines;
     try {
-      final result =
-          await _process(recognizer, path);
-      lines = [
-        for (final block in result.blocks)
-          for (final line in block.lines)
-            if (line.text.trim().isNotEmpty)
-              OcrLine(line.text, line.boundingBox),
-      ];
+      final result = await _process(recognizer, workPath);
+      final sx = prep?.sx ?? 1.0;
+      final sy = prep?.sy ?? 1.0;
+      lines = orderOcrRows([
+        for (final l in _recognizedLines(result))
+          sx == 1.0 && sy == 1.0
+              ? l
+              : OcrLine(
+                  l.text,
+                  ui.Rect.fromLTRB(
+                    l.box.left * sx,
+                    l.box.top * sy,
+                    l.box.right * sx,
+                    l.box.bottom * sy,
+                  ),
+                ),
+      ]);
     } finally {
       await recognizer.close();
+      if (prep != null) _deleteTemp(prep.path);
     }
     return await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines;
   }
@@ -220,12 +404,7 @@ class OcrService {
           }
           recognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
           final result = await _process(recognizer, path);
-          final lines = [
-            for (final block in result.blocks)
-              for (final line in block.lines)
-                if (line.text.trim().isNotEmpty)
-                  OcrLine(line.text, line.boundingBox),
-          ];
+          final lines = orderOcrRows(_recognizedLines(result));
           out.add(
             await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines,
           );
@@ -303,46 +482,70 @@ class OcrService {
     PdfDocument document, {
     int maxPages = maxPdfPages,
     void Function(int done, int total)? onProgress,
+    void Function(OcrPage page)? onPageDone,
     bool Function()? cancelled,
     Set<int>? onlyPages,
     bool allowCloud = false,
+    OcrQualityMode mode = OcrQualityMode.enhanced,
   }) async {
     final pages = [
       for (final page in document.pages)
         if (onlyPages == null || onlyPages.contains(page.pageNumber)) page,
     ];
     final total = pages.length > maxPages ? maxPages : pages.length;
-    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    if (total == 0) {
+      onProgress?.call(0, 0);
+      return const [];
+    }
+    TextRecognizer? recognizer;
     final out = <OcrPage>[];
     try {
       for (var i = 0; i < total; i++) {
         if (cancelled?.call() ?? false) break;
         onProgress?.call(i, total);
         final page = pages[i];
-        final path = await _renderPageToPng(page, i);
+        final rendered = await renderPageForOcr(
+          page,
+          tag: '$i',
+          targetWidth: mode == OcrQualityMode.fast ? 2048 : 2400,
+          enhance: mode == OcrQualityMode.enhanced,
+          losslessPng: mode == OcrQualityMode.enhanced,
+        );
+        final path = rendered?.path;
         if (path == null) continue;
         try {
-          final forced = await _forcedCloud(path, allowCloud);
-          var text = forced != null
-              ? _joinLines(forced)
-              : (await _process(recognizer, path)).text.trim();
-          if (forced == null) {
-            final cloud = await _autoCloud(path, text, allowCloud);
-            if (cloud != null) text = _joinLines(cloud);
+          String text;
+          if (mode == OcrQualityMode.aiVision) {
+            text = _joinLines(await _requireAiVision(path));
+          } else {
+            final forced = await _forcedCloud(path, allowCloud);
+            if (forced != null) {
+              text = _joinLines(forced);
+            } else {
+              recognizer ??=
+                  TextRecognizer(script: TextRecognitionScript.latin);
+              final res = await _process(recognizer, path);
+              final lines = orderOcrRows(_recognizedLines(res));
+              text = mode == OcrQualityMode.fast
+                  ? lines.map((l) => l.text).join('\n').trim()
+                  : formatOrderedLines(lines);
+              final cloud = await _autoCloud(path, text, allowCloud);
+              if (cloud != null) text = _joinLines(cloud);
+            }
           }
-          if (text.isNotEmpty) out.add(OcrPage(page.pageNumber, text));
+          if (text.isNotEmpty) {
+            final item = OcrPage(page.pageNumber, text);
+            out.add(item);
+            onPageDone?.call(item);
+          }
         } finally {
-          try {
-            File(path).deleteSync();
-          } catch (_) {
-            // Bilinçli: temizlik — dosya zaten yoksa ya da silinemezse işin sonucu değişmez.
-          }
+          _deleteTemp(path);
         }
       }
       onProgress?.call(total, total);
       return out;
     } finally {
-      await recognizer.close();
+      await recognizer?.close();
     }
   }
 
@@ -359,29 +562,15 @@ class OcrService {
     return sb.toString().trim();
   }
 
-  /// Sayfayı ~2048px genişlikte OCR görüntüsüne çizer (bkz. [renderPageForOcr]).
-  static Future<String?> _renderPageToPng(PdfPage page, int index) async =>
-      (await renderPageForOcr(page, tag: '$index'))?.path;
-
-  /// OCR için sayfa görüntüsü (JPEG, ~2048 px) — `scale` = görüntü pikseli /
-  /// PDF punto oranı.
-  ///
-  /// **Niye [renderPageToPng] değil (2026-11-03 kasma turu):** o yol pdfium
-  /// piksellerini önce bir GPU dokusuna yüklüyor (`decodeImageFromPixels`),
-  /// sonra GPU'dan geri okuyup PNG'ye sıkıştırıyordu (`toByteData`). Taranmış
-  /// PDF'te otomatik OCR bunu görünen HER sayfa için yapıyor; 1600×2260'lık
-  /// doku yükleme + geri okuma, kaydırma sırasında çizim izleğini tıkıyordu.
-  /// Burada pikseller doğrudan bir izolatta JPEG'e kodlanır — GPU'ya hiç
-  /// dokunulmaz. (ML Kit JPEG'i PNG kadar iyi okur.)
+  /// Sayfayı JPEG/PNG olarak OCR için çizer (bkz. [renderPageForOcr]).
   static Future<({String path, double scale})?> renderPageForOcr(
     PdfPage page, {
     String tag = '',
+    int targetWidth = 2400,
+    bool enhance = false,
+    bool losslessPng = true,
   }) async {
-    // 2048 px (2026-11-15; eskiden 1600): taranmış tablolardaki küçük
-    // yazı (~7 pt) 1600'de ML Kit'in istediği harf boyunun altında kalıyor,
-    // sözcükler bölünüp yanlış okunuyordu. Bedel: sayfa başına ~%60 fazla
-    // piksel (tek sayfa, izolatta kodlanıyor).
-    final scale = (2048 / page.width).clamp(1.0, 4.0);
+    final scale = (targetWidth / page.width).clamp(1.0, 4.0);
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,
@@ -396,19 +585,33 @@ class OcrService {
     } finally {
       img.dispose();
     }
+    final ext = losslessPng ? 'png' : 'jpg';
     final path =
-        '${Directory.systemTemp.path}/ocr_page_${tag}_${page.pageNumber}.jpg';
-    final ok = await _encodeJpegInIsolate(pixels, w, h, path);
+        '${Directory.systemTemp.path}/ocr_page_${tag}_${page.pageNumber}.$ext';
+    final ok = await _encodeImageInIsolate(
+      pixels,
+      w,
+      h,
+      path,
+      enhance: enhance,
+      losslessPng: losslessPng,
+    );
     return ok ? (path: path, scale: scale) : null;
   }
 
   /// Ayrı fonksiyon: izolata giden kapanış yalnız bu ilkel değerleri taşısın
   /// (sayfa/pdfium nesneleri yakalanmasın).
-  static Future<bool> _encodeJpegInIsolate(
-          TransferableTypedData pixels, int w, int h, String path) =>
+  static Future<bool> _encodeImageInIsolate(
+    TransferableTypedData pixels,
+    int w,
+    int h,
+    String path, {
+    required bool enhance,
+    required bool losslessPng,
+  }) =>
       Isolate.run(() {
         final bgra = pixels.materialize().asUint8List();
-        final image = imglib.Image.fromBytes(
+        var image = imglib.Image.fromBytes(
           width: w,
           height: h,
           bytes: bgra.buffer,
@@ -416,13 +619,17 @@ class OcrService {
           numChannels: 4,
           order: imglib.ChannelOrder.bgra,
         );
-        File(path).writeAsBytesSync(imglib.encodeJpg(image, quality: 90));
+        if (enhance) {
+          image = ScanEnhance.applyToImage(image, ScanFilter.gray);
+        }
+        final encoded = losslessPng
+            ? imglib.encodePng(image)
+            : imglib.encodeJpg(image, quality: 92);
+        File(path).writeAsBytesSync(encoded);
         return true;
       });
 
-  /// [_renderPageToPng]'nin ölçeği de döndüren biçimi: `scale` = görüntü
-  /// pikseli / PDF punto oranı. Taranmış sayfa seçiminde OCR kutularını sayfa
-  /// koordinatına geri çevirmek için gerekir (bkz. `PdfOcrText`).
+  /// PDF sayfasını UI GPU dokusu üzerinden 1600px PNG'ye çizer.
   static Future<({String path, double scale})?> renderPageToPng(
     PdfPage page, {
     String tag = '',

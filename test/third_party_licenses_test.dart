@@ -6,7 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('fontlar, Word JS, PDFium, Syncfusion, ML Kit kayıtlı', () async {
+  test('fontlar, Word JS, PDFium, Syncfusion, ML Kit, LGPL v3.0 kayıtlı',
+      () async {
     registerThirdPartyLicenses();
     final packages = <String>{};
     final texts = StringBuffer();
@@ -31,15 +32,16 @@ void main() {
       'ESRGAN',
       'Antalia-2 Mini',
       'EMA Lightning',
-      'Kokoro',
-      'eSpeak NG',
+      'ONNX Runtime Web',
     ]) {
       expect(packages, contains(want));
     }
+    expect(packages, isNot(contains('eSpeak NG')));
+    expect(packages, isNot(contains('Kokoro')));
     final all = texts.toString();
     expect(all, contains('SIL OPEN FONT LICENSE'));
     expect(all, contains('Community License'));
-    expect(all, contains('LGPL'));
-    expect(all, contains('GPL-3.0'));
+    expect(all, contains('GNU LESSER GENERAL PUBLIC LICENSE'));
+    expect(all, contains('GNU GENERAL PUBLIC LICENSE'));
   });
 }

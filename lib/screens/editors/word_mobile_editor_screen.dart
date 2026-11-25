@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/doc_fonts.dart';
+import '../../core/edition.dart';
 import '../../core/edit/edit_session.dart';
 import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
@@ -23,9 +24,9 @@ import '../../models/document.dart';
 import '../../services/docx/docx_document.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/safe_write.dart';
-import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/editor_top_bar.dart';
 import '../../widgets/pinch_zoom_area.dart';
+import '../../widgets/pro_gate.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/docx_editor/docx_edit_controller.dart';
@@ -54,11 +55,7 @@ import '../../services/docx/pro/docx_fonts.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../widgets/download_action.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../services/docx/pro/docx_ai.dart';
-import '../../services/gemini_service.dart';
-import '../../core/app_state.dart';
 import '../../core/l10n/app_language.dart';
-import 'package:provider/provider.dart';
 import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -352,13 +349,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (mounted) Navigator.of(context).pop(true);
   }
 
-  Future<void> _aiFix(String text) async {
-    final c = _ctrl;
-    if (c == null || text.trim().isEmpty) return;
-    final result = await showAiRewriteSheet(context, text);
-    if (result == null || !mounted) return;
-    c.replaceSelection(result);
-  }
+  // DocxAi tabanlı satır içi/yazım denetimi yardımcıları kaldırıldı.
 
   void _translate(String text) {
     if (text.trim().isEmpty) return;
@@ -418,7 +409,6 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           autoFormat: autoFmt,
           actions: DocxEditorActions(
               translate: _translate,
-              aiFix: _aiFix,
               openNote: _openFootnote,
               openComment: (id) => _comments(focus: id),
               openLink: _editLink,

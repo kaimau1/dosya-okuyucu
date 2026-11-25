@@ -185,10 +185,65 @@ void main() {
     );
 
     test('AiSourceMode seçimi ve bakiye önbelleği kalıcıdır', () async {
+      expect(
+        AiSourceMode.fromId(null, hasOwnKey: false),
+        AiSourceMode.byok,
+      );
+      expect(
+        AiSourceMode.fromId('unknown', hasOwnKey: false),
+        AiSourceMode.byok,
+      );
       await SharedAiPoolClient.saveMode(AiSourceMode.sharedPool);
       expect(await SharedAiPoolClient.loadMode(), AiSourceMode.sharedPool);
       await SharedAiPoolClient.saveCachedBalance(321);
       expect(await SharedAiPoolClient.loadCachedBalance(), 321);
+    });
+
+    test('requireIntegrity true iken Play Integrity token yoksa istek atmaz',
+        () async {
+      var calls = 0;
+      String? sentIntegrity;
+      final client = SharedAiPoolClient(
+        baseUri: Uri.parse('https://example.invalid'),
+        client: MockClient((req) async {
+          calls++;
+          final body = jsonDecode(req.body) as Map<String, dynamic>;
+          sentIntegrity = (body['data'] as Map)['integrityToken'] as String?;
+          return http.Response(
+            jsonEncode({
+              'result': {'text': 'ok', 'remainingCredits': 10, 'cost': 1},
+            }),
+            200,
+          );
+        }),
+      );
+
+      await expectLater(
+        client.generate(
+          mode: AiSourceMode.sharedPool,
+          idToken: 'tok-1',
+          contents: const [],
+          requireIntegrity: true,
+        ),
+        throwsA(
+          isA<SharedAiPoolException>().having(
+            (e) => e.kind,
+            'kind',
+            SharedAiPoolErrorKind.unauthenticated,
+          ),
+        ),
+      );
+      expect(calls, 0);
+
+      await client.generate(
+        mode: AiSourceMode.sharedPool,
+        idToken: 'tok-1',
+        contents: const [],
+        requireIntegrity: true,
+        integrityToken: 'integrity-xyz',
+      );
+      expect(calls, 1);
+      expect(sentIntegrity, 'integrity-xyz');
     });
   });
 

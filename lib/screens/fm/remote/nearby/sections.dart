@@ -361,7 +361,8 @@ extension _NearbySections on _NearbyScreenState {
     final scheme = theme.colorScheme;
     final web = _web;
     final hs = _hotspot;
-    if (_selection.isEmpty) {
+    final hasText = _text != null && _text!.trim().isNotEmpty;
+    if (_selection.isEmpty && !hasText) {
       return Card(
         margin: EdgeInsets.zero,
         child: ListTile(
@@ -813,25 +814,30 @@ extension _NearbySections on _NearbyScreenState {
       listenable:
           Listenable.merge([FtpService.instance, DownloadService.instance]),
       builder: (context, _) {
-        final sharing = FtpService.instance.running;
-        final downloading = DownloadService.instance.activeTasks.length;
+        final showFtp = Edition.current.has(Feature.ftpServer);
+        final showDownloads = Edition.current.has(Feature.downloadManager);
+        final sharing = showFtp && FtpService.instance.running;
+        final downloading =
+            showDownloads ? DownloadService.instance.activeTasks.length : 0;
         return Card(
           margin: EdgeInsets.zero,
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              _wayTile(
-                context,
-                icon: sharing ? AppIcons.hotspot : AppIcons.computer,
-                accent: AppHues.teal,
-                title: context.t('xfer.computer'),
-                note: sharing
-                    ? context.t('ftpd.running')
-                    : context.t('xfer.computer_note'),
-                live: sharing,
-                screen: const FtpServerScreen(),
-              ),
-              const Divider(height: 1),
+              if (showFtp) ...[
+                _wayTile(
+                  context,
+                  icon: sharing ? AppIcons.hotspot : AppIcons.computer,
+                  accent: AppHues.teal,
+                  title: context.t('xfer.computer'),
+                  note: sharing
+                      ? context.t('ftpd.running')
+                      : context.t('xfer.computer_note'),
+                  live: sharing,
+                  screen: const FtpServerScreen(),
+                ),
+                const Divider(height: 1),
+              ],
               _wayTile(
                 context,
                 icon: AppIcons.dns,
@@ -840,18 +846,20 @@ extension _NearbySections on _NearbyScreenState {
                 note: context.t('xfer.nas_note'),
                 screen: const RemoteConnectionsScreen(),
               ),
-              const Divider(height: 1),
-              _wayTile(
-                context,
-                icon: AppIcons.downloadForOffline,
-                accent: AppHues.green,
-                title: context.t('xfer.downloads'),
-                note: downloading > 0
-                    ? context.t('fm.jobs_running', {'n': downloading})
-                    : context.t('xfer.downloads_note'),
-                live: downloading > 0,
-                screen: const DownloadManagerScreen(),
-              ),
+              if (showDownloads) ...[
+                const Divider(height: 1),
+                _wayTile(
+                  context,
+                  icon: AppIcons.downloadForOffline,
+                  accent: AppHues.green,
+                  title: context.t('xfer.downloads'),
+                  note: downloading > 0
+                      ? context.t('fm.jobs_running', {'n': downloading})
+                      : context.t('xfer.downloads_note'),
+                  live: downloading > 0,
+                  screen: const DownloadManagerScreen(),
+                ),
+              ],
             ],
           ),
         );

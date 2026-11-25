@@ -205,7 +205,7 @@ class FatFileSystem extends UsbFileSystem {
     final raw = cluster == 0 && kind != FatKind.fat32
         ? await _readRootArea()
         : await _readChain(cluster);
-    return parseDirectory(raw);
+    return parseDirectory(raw, kind: kind);
   }
 
   Future<Uint8List> _readRootArea() async {
@@ -540,18 +540,7 @@ class FatFileSystem extends UsbFileSystem {
     }
 
     final needed = (totalLength + clusterSize - 1) ~/ clusterSize;
-    List<int> chain;
-    var deletedBeforeWrite = false;
-    try {
-      chain = await _allocate(needed);
-    } on UsbFsException {
-      if (existing.isEmpty) rethrow;
-      for (final e in existing) {
-        await deleteEntry(dirId, e);
-      }
-      deletedBeforeWrite = true;
-      chain = await _allocate(needed);
-    }
+    final chain = await _allocate(needed);
     // **Önce veri.** Girdi en son yazılıyor: yarıda kesilen işlem, var
     // görünen ama boş bir dosya bırakmasın; mevcut dosya da yeni veri
     // eksiksiz yazılana dek silinmez.
@@ -593,10 +582,8 @@ class FatFileSystem extends UsbFileSystem {
         await _writeCluster(
             chain[index], Uint8List.sublistView(buffer, 0, filled));
       }
-      if (!deletedBeforeWrite) {
-        for (final e in existing) {
-          await deleteEntry(dirId, e);
-        }
+      for (final e in existing) {
+        await deleteEntry(dirId, e);
       }
       first = chain.isEmpty ? 0 : chain.first;
       await _addDirectoryEntry(dirCluster, name,
@@ -636,7 +623,7 @@ class FatFileSystem extends UsbFileSystem {
     // Windows klasörü bozuk sayar ve "yukarı" gezinti kırılır.
     final content = Uint8List(clusterSize);
     content.setRange(0, 32, _shortEntryBytes('.', isDir: true, cluster: cluster,
-        size: 0));
+        size: 0, kind: kind));
     // **`..` kökü gösteriyorsa küme numarası 0 YAZILIR** — FAT'ın kuralı
     // budur (kökün kendi küme numarası yoktur). 2 yazmak Windows'ta
     // "geçersiz klasör" demektir.
@@ -645,7 +632,7 @@ class FatFileSystem extends UsbFileSystem {
         (kind == FatKind.fat32 && parent == rootCluster) ? 0 : parent;
     content.setRange(
         32, 64, _shortEntryBytes('..', isDir: true,
-            cluster: parentCluster, size: 0));
+            cluster: parentCluster, size: 0, kind: kind));
     await _writeCluster(cluster, content);
     await _addDirectoryEntry(parent, name,
         isDir: true, cluster: cluster, size: 0);
@@ -948,7 +935,7 @@ class FatFileSystem extends UsbFileSystem {
       (start + lfnEntries.length) * 32,
       (start + lfnEntries.length) * 32 + 32,
       _shortEntryBytes(String.fromCharCodes(shortName),
-          isDir: isDir, cluster: cluster, size: size, raw: shortName),
+          isDir: isDir, cluster: cluster, size: size, raw: shortName, kind: kind),
     );
     await _writeDirectoryBytes(dirId, buffer);
   }
@@ -1061,6 +1048,7 @@ class FatFileSystem extends UsbFileSystem {
     required int cluster,
     required int size,
     Uint8List? raw,
+    FatKind kind = FatKind.fat32,
   }) {
     final e = Uint8List(32);
     final bytes = raw ??
@@ -1072,7 +1060,7 @@ class FatFileSystem extends UsbFileSystem {
     e.setRange(0, 11, bytes);
     e[11] = isDir ? 0x10 : 0x20;
     final view = ByteData.sublistView(e);
-    view.setUint16(20, (cluster >> 16) & 0xFFFF, Endian.little);
+    view.setUint16(20, kind == FatKind.fat32 ? (cluster >> 16) & 0xFFFF : 0, Endian.little);
     view.setUint16(26, cluster & 0xFFFF, Endian.little);
     view.setUint32(28, size, Endian.little);
     final now = DateTime.now();
@@ -1093,7 +1081,8 @@ class FatFileSystem extends UsbFileSystem {
   /// ÖNCE gelir; parçalar sıra numarasına göre birleştiriliyor. Uzun adı olan
   /// bir dosyayı 8.3 adıyla göstermek ("BELGE~1.PDF") kullanıcı için dosyayı
   /// kaybetmekle eşdeğerdir.
-  static List<UsbEntry> parseDirectory(Uint8List raw) {
+  static List<UsbEntry> parseDirectory(Uint8List raw,
+      {FatKind kind = FatKind.fat32}) {
     final out = <UsbEntry>[];
     final lfn = <int, List<int>>{};
     for (var off = 0; off + 32 <= raw.length; off += 32) {
@@ -1130,8 +1119,8 @@ class FatFileSystem extends UsbFileSystem {
       final long = _joinLfn(lfn);
       lfn.clear();
       final d = ByteData.sublistView(raw);
-      final cluster = (d.getUint16(off + 20, Endian.little) << 16) |
-          d.getUint16(off + 26, Endian.little);
+      final hi = kind == FatKind.fat32 ? d.getUint16(off + 20, Endian.little) : 0;
+      final cluster = (hi << 16) | d.getUint16(off + 26, Endian.little);
       out.add(UsbEntry(
         name: long.isNotEmpty ? long : shortName,
         isDir: isDir,

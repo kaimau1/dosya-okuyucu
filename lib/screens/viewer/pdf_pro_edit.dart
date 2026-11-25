@@ -310,10 +310,6 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
               value: 'comments',
               icon: AppIcons.comment,
               label: context.t('pse.comments')),
-          AppAction(
-              value: 'ai',
-              icon: AppIcons.ai,
-              label: context.t('pse.tool_ai')),
           if (context.read<AppState>().labWordEditor)
             AppAction(
                 value: 'legacy',
@@ -348,8 +344,6 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         await _proFindReplace();
       case 'comments':
         await _proComments();
-      case 'ai':
-        await _proAi();
       case 'legacy':
         await _openPdfEditor(legacy: true);
       case 'tools':

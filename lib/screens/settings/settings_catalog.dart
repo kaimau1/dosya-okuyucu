@@ -154,8 +154,9 @@ List<String> suggestedSettingIds({
   required bool appLock,
   required bool autoSave,
   int max = 4,
+  Edition edition = Edition.current,
 }) => [
-  if (!hasApiKey) 'api_key',
+  if (edition.has(Feature.ai) && !hasApiKey) 'api_key',
   if (!autoSave) 'auto_save',
   if (!appLock) 'app_lock',
   'ui_text_size',
@@ -163,11 +164,11 @@ List<String> suggestedSettingIds({
   'language',
 ].take(max).toList();
 
-/// Yedi kategori (+ [developer] açıksa Geliştirici). **Sıra bilinçli:** önce her açılışta göze çarpan şey
-/// (görünüm), sonra en çok kullanılan (dosya listeleri), sonra yetenek açan
-/// ayarlar (yapay zekâ, hesap), sonra koruma (gizlilik), sonra yer açma
-/// (silme), sonra pil, en sonda hakkında.
-List<SettingsCategory> settingsCategories({bool developer = false}) => [
+/// Sürüme göre ayar kategorileri (+ [developer] ve labs açıksa Geliştirici).
+List<SettingsCategory> settingsCategories({
+  bool developer = false,
+  Edition edition = Edition.current,
+}) => [
   // ── 1. GÖRÜNÜM VE DİL ────────────────────────────────────────────────
   SettingsCategory(
     id: 'appearance',
@@ -404,29 +405,30 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       final speed = s.ttsPrefs.rate.toStringAsFixed(1);
       return context.t('set.tts_summary', {'x': speed});
     },
-    sections: const [
+    sections: [
       SettingsSection('set.sec_tts', [
-        SettingRow(
+        const SettingRow(
           id: 'tts_voice',
           titleKey: 'set.tts_voice',
           subtitleKey: 'set.tts_voice_sub',
           altKeys: ['set.kw_speak'],
           builder: _ttsVoiceTile,
         ),
-        SettingRow(
-          id: 'tts_ai_read',
-          titleKey: 'set.tts_ai_read',
-          subtitleKey: 'set.tts_ai_read_sub',
-          altKeys: ['set.kw_speak'],
-          builder: _ttsAiReadTile,
-        ),
-        SettingRow(
+        if (edition.has(Feature.ai))
+          const SettingRow(
+            id: 'tts_ai_read',
+            titleKey: 'set.tts_ai_read',
+            subtitleKey: 'set.tts_ai_read_sub',
+            altKeys: ['set.kw_speak'],
+            builder: _ttsAiReadTile,
+          ),
+        const SettingRow(
           id: 'neural_voices',
           titleKey: 'voice.title',
           altKeys: ['set.kw_speak', 'ab.library'],
           builder: _neuralVoicesTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'audiobooks',
           titleKey: 'ab.library',
           altKeys: ['set.kw_speak'],
@@ -438,12 +440,9 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
 
   // ── 4. YAPAY ZEKÂ ────────────────────────────────────────────────────
   // U4 (2026-11-20, kullanıcı: "Yapay zekâ ayar sayfası yeni duruma göre
-  // baştan yazılsın, artık ana özelliğimiz akıllı klasörler"): EN ÜSTTE
-  // Akıllı klasörler (Akıllı düzen ayarları, hassas kategori PIN'i,
-  // Kategorilerim), sonra erişim (anahtar), sonra gizlilik ve onay
-  // (Gizlilik kategorisinden AI'ya özgü iki satır buraya geldi). Sohbetle
-  // işlevsiz kalan "AI Kalıcı Hafıza" bölümü kalktı (notlar silinmedi).
-  SettingsCategory(
+  // baştan yazılsın, artık ana özelliğimiz akıllı klasörler"): Lite'ta gizli.
+  if (edition.has(Feature.ai))
+    SettingsCategory(
     id: 'ai',
     color: AppHues.royal,
     icon: AppIcons.ai,
@@ -484,18 +483,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           altKeys: ['set.kw_gemini'],
           builder: _aiAccessTile,
         ),
-        SettingRow(
-          id: 'ai_task_models',
-          titleKey: 'aitask.title',
-          subtitleKey: 'aitask.title_sub',
-          builder: _aiTaskModelsTile,
-        ),
-        SettingRow(
-          id: 'shared_ai_pool',
-          titleKey: 'sharedpool.title',
-          subtitleKey: 'sharedpool.signin_hint',
-          builder: _sharedAiPoolTile,
-        ),
       ]),
       SettingsSection('set.sec_ai_privacy', [
         SettingRow(
@@ -517,12 +504,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           altKeys: ['aiset.send_images', 'aiset.hidden', 'aiset.excerpt'],
           builder: _aiPrivacyTile,
         ),
-        SettingRow(
-          id: 'share_shield',
-          titleKey: 'shield.setting',
-          subtitleKey: 'shield.setting_sub',
-          builder: _shareShieldTile,
-        ),
       ]),
       SettingsSection('set.sec_ai_scope', [
         SettingRow(
@@ -535,13 +516,6 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           id: 'ai_types',
           titleKey: 'aiset.types',
           builder: _aiTypesTile,
-        ),
-        // Akıllı dosya asistanının (eski analiz) kendiliğinden turu.
-        SettingRow(
-          id: 'ai_auto_new',
-          titleKey: 'aiset.auto_new',
-          subtitleKey: 'aiset.auto_new_sub',
-          builder: _aiAutoNewTile,
         ),
       ]),
       // Uzman işi: model zinciri, yedek anahtar havuzu, günlük bütçe.
@@ -588,8 +562,8 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         {'n': s.fmLockedFolders.length},
       );
     },
-    sections: const [
-      SettingsSection('settings.privacy_policy', [
+    sections: [
+      const SettingsSection('settings.privacy_policy', [
         SettingRow(
           id: 'privacy_policy',
           titleKey: 'settings.privacy_policy',
@@ -597,7 +571,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           builder: _privacyPolicyTile,
         ),
       ]),
-      SettingsSection('set.sec_lock', [
+      const SettingsSection('set.sec_lock', [
         SettingRow(
           id: 'pin',
           titleKey: 'fmset.pin_set',
@@ -621,7 +595,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // Play yorum çalışması aşama 2 (2026-11-08): "verim nereye gidiyor"
       // sorusunun cevabı tek sayfada — ağ önce, sonra her izin (neden ·
       // durum · ver/geri al).
-      SettingsSection('set.sec_network', [
+      const SettingsSection('set.sec_network', [
         SettingRow(
           id: 'offline_mode',
           titleKey: 'offline.title',
@@ -637,42 +611,44 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         ),
       ]),
       SettingsSection('fmset.sec_permissions', [
-        SettingRow(
+        const SettingRow(
           id: 'full_access',
           titleKey: 'fmset.full_access',
           builder: _fullAccessTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'notif_access',
           titleKey: 'perm.notifications_title',
           builder: _notifAccessTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'camera_access',
           titleKey: 'perm.camera_title',
           builder: _cameraAccessTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'location_access',
           titleKey: 'perm.location_title',
           builder: _locationAccessTile,
         ),
-        SettingRow(
-          id: 'overlay_access',
-          titleKey: 'perm.overlay_title',
-          builder: _overlayAccessTile,
-        ),
-        SettingRow(
+        if (edition.has(Feature.labs))
+          const SettingRow(
+            id: 'overlay_access',
+            titleKey: 'perm.overlay_title',
+            builder: _overlayAccessTile,
+          ),
+        const SettingRow(
           id: 'saf_folders',
           titleKey: 'saf.folders_title',
           subtitleKey: 'saf.folders_sub',
           builder: _safFoldersTile,
         ),
-        SettingRow(
-          id: 'usage_access',
-          titleKey: 'fmset.usage_access',
-          builder: _usageAccessTile,
-        ),
+        if (edition.has(Feature.installedApps))
+          const SettingRow(
+            id: 'usage_access',
+            titleKey: 'fmset.usage_access',
+            builder: _usageAccessTile,
+          ),
       ]),
     ],
   ),
@@ -699,10 +675,10 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           : context.t('settings.perf_high_refresh');
       return '$trash · $refresh';
     },
-    sections: const [
+    sections: [
       // İlk sırada: "uygulama neden bu kadar yer tutuyor" sorusunun
       // cevabı Gelişmiş'in içinde saklanmamalı (2026-09-26).
-      SettingsSection('foot.section', [
+      const SettingsSection('foot.section', [
         SettingRow(
           id: 'app_footprint',
           titleKey: 'foot.title',
@@ -712,7 +688,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
         ),
       ]),
       // Haftalık temizlik bildirimi (2026-10-18).
-      SettingsSection('nx.weekly', [
+      const SettingsSection('nx.weekly', [
         SettingRow(
           id: 'weekly_cleanup',
           titleKey: 'nx.weekly',
@@ -720,7 +696,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           builder: _weeklyCleanupTile,
         ),
       ]),
-      SettingsSection('fmset.sec_delete', [
+      const SettingsSection('fmset.sec_delete', [
         SettingRow(
           id: 'use_trash',
           titleKey: 'fmset.use_trash',
@@ -744,7 +720,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           builder: _emptyTrashTile,
         ),
       ]),
-      SettingsSection('set.sec_speed', [
+      const SettingsSection('set.sec_speed', [
         SettingRow(
           id: 'perf_mode',
           titleKey: 'perf.mode',
@@ -770,7 +746,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           builder: _autoRescanTile,
         ),
       ]),
-      SettingsSection('fmset.sec_maintenance', [
+      const SettingsSection('fmset.sec_maintenance', [
         SettingRow(
           id: 'search_index',
           titleKey: 'fmset.index',
@@ -802,15 +778,16 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
       // **Deneysel** (2026-10-21, K8): SD kartla birleşik depolama
       // kullanıcı dosyalarını arka planda TAŞIYOR — varsayılan kapalı,
       // Gelişmiş'in altında ve adı üstünde "deneysel".
-      SettingsSection('set.sec_experimental', [
-        SettingRow(
-          id: 'sd_union',
-          titleKey: 'sdu.title',
-          subtitleKey: 'sdu.tile_sub',
-          altKeys: ['sdu.kw', 'set.sec_experimental'],
-          builder: _sdUnionTile,
-        ),
-      ], advanced: true),
+      if (edition.has(Feature.labs))
+        const SettingsSection('set.sec_experimental', [
+          SettingRow(
+            id: 'sd_union',
+            titleKey: 'sdu.title',
+            subtitleKey: 'sdu.tile_sub',
+            altKeys: ['sdu.kw', 'set.sec_experimental'],
+            builder: _sdUnionTile,
+          ),
+        ], advanced: true),
     ],
   ),
 
@@ -822,10 +799,10 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
     titleKey: 'settings.about',
     subtitleKey: 'settings.about_sub',
     summary: (context) => 'v$appVersionName',
-    sections: const [
+    sections: [
       // Lite'ta Pro tanıtımı (SÜRÜM PLANI §3 madde 3) — yalnız Lite.
-      if (Edition.current == Edition.lite)
-        SettingsSection('pro.title', [
+      if (edition == Edition.lite)
+        const SettingsSection('pro.title', [
           SettingRow(
             id: 'pro_version',
             titleKey: 'pro.title',
@@ -834,38 +811,38 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
           ),
         ]),
       SettingsSection('settings.about', [
-        SettingRow(
+        const SettingRow(
           id: 'about',
           titleKey: 'settings.about',
           builder: _aboutTile,
         ),
-        if (Edition.current == Edition.kisisel)
-          SettingRow(
+        if (edition.has(Feature.selfUpdate))
+          const SettingRow(
             id: 'app_update',
             titleKey: 'upd.title',
             subtitleKey: 'upd.auto_sub',
             altKeys: ['upd.check', 'upd.auto'],
             builder: _appUpdateTile,
           ),
-        SettingRow(
+        const SettingRow(
           id: 'help',
           titleKey: 'help.title',
           subtitleKey: 'help.tile_sub',
           builder: _helpTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'feedback',
           titleKey: 'fb.title',
           subtitleKey: 'fb.tile_sub',
           builder: _feedbackTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'hints_reset',
           titleKey: 'set.hints_reset',
           subtitleKey: 'set.hints_reset_sub',
           builder: _hintsResetTile,
         ),
-        SettingRow(
+        const SettingRow(
           id: 'crash_log',
           titleKey: 'settings.crash_log',
           subtitleKey: 'settings.crash_log_sub',
@@ -876,7 +853,7 @@ List<SettingsCategory> settingsCategories({bool developer = false}) => [
   ),
 
   // ── 8. GELİŞTİRİCİ (gizli) ───────────────────────────────────────────
-  if (developer)
+  if (developer && edition.has(Feature.labs))
     SettingsCategory(
       id: 'developer',
       color: const Color(0xFF5B6470),
@@ -947,15 +924,25 @@ Widget _neuralVoicesTile(BuildContext context) => SettingTile(
   icon: AppIcons.voice,
   title: context.t('voice.title'),
   subtitle: 'Antalia-2 Mini · EMA Lightning',
-  onTap: () =>
-      Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const VoicesScreen())),
+  trailing: ProGate.locked(Feature.audiobook) ? const ProBadge() : null,
+  onTap: () => ProGate.guard(
+    context,
+    Feature.audiobook,
+    () => Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const VoicesScreen())),
+  ),
 );
 Widget _audiobooksTile(BuildContext context) => SettingTile(
   icon: AppIcons.audiobook,
   title: context.t('ab.library'),
-  onTap: () => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => const AudiobookLibraryScreen())),
+  trailing: ProGate.locked(Feature.audiobook) ? const ProBadge() : null,
+  onTap: () => ProGate.guard(
+    context,
+    Feature.audiobook,
+    () => Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AudiobookLibraryScreen()),
+    ),
+  ),
 );
 Widget _fontTile(BuildContext _) => const UiFontTile();
 Widget _textSizeTile(BuildContext _) => const UiTextSizeTile();
@@ -972,19 +959,16 @@ Widget _photoGroupTile(BuildContext _) => const PhotoGroupTile();
 Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();
 Widget _startFolderTile(BuildContext _) => const StartFolderTile();
 Widget _aiAccessTile(BuildContext _) => const AiAccessTile();
-Widget _aiTaskModelsTile(BuildContext _) => const AiTaskModelsTile();
 Widget _smartSortTile(BuildContext _) => const SmartSortSettingsTile();
 Widget _smartPinTile(BuildContext _) => const SmartSensitivePinTile();
 Widget _smartUserCatsTile(BuildContext _) => const SmartUserCatsTile();
 Widget _aiBackupKeysTile(BuildContext _) => const AiBackupKeysTile();
 Widget _aiModelChainTile(BuildContext _) => const AiModelChainTile();
-Widget _sharedAiPoolTile(BuildContext _) => const SharedAiPoolTile();
 Widget _aiPoolStatusTile(BuildContext _) => const AiPoolStatusTile();
 Widget _aiExcludedTile(BuildContext _) => const AiExcludedFoldersTile();
 Widget _aiTypesTile(BuildContext _) => const AiScopeTypesTile();
 Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();
 Widget _aiBudgetTile(BuildContext _) => const AiBudgetTile();
-Widget _aiAutoNewTile(BuildContext _) => const AiAutoNewTile();
 Widget _pinTile(BuildContext _) => const PinTile();
 Widget _appLockTile(BuildContext _) => const AppLockTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();
@@ -1023,7 +1007,6 @@ Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _contentIndexTile(BuildContext _) => const ContentIndexTile();
 Widget _ocrScriptTile(BuildContext _) => const OcrScriptTile();
-Widget _shareShieldTile(BuildContext _) => const ShareShieldTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();

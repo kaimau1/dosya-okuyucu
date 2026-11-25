@@ -290,7 +290,7 @@ class UsbMass(private val context: Context) {
         val status = transfer(cdb, ByteArray(0), 0, dataIn = false)
         if (status == STATUS_FAILED) requestSense()
         if (status == STATUS_PHASE || status == STATUS_TRANSPORT) resetRecovery()
-        unsynced = false
+        if (status == STATUS_OK) unsynced = false
         return status == STATUS_OK
     }
 

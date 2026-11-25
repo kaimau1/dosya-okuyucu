@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import '../core/app_icons.dart';
 import '../core/l10n/app_strings.dart';
 import '../screens/fm/entry_actions.dart';
+import 'pro_gate.dart';
 
 /// ⋮ menüsündeki tek satır.
 class EditorMenuItem {
@@ -29,6 +30,7 @@ class EditorMenuItem {
 
   /// Aç/kapa ayarı ise durumu (ör. gece modu); null = düz işlem.
   final bool? checked;
+  final bool proBadge;
 
   const EditorMenuItem({
     required this.id,
@@ -36,6 +38,7 @@ class EditorMenuItem {
     required this.label,
     this.onTap,
     this.checked,
+    this.proBadge = false,
   });
 }
 
@@ -159,6 +162,7 @@ abstract final class EditorTopBar {
               label: m.label,
               onTap: m.onTap,
               checked: m.checked,
+              proBadge: m.proBadge,
             ),
         ]),
       ]),
@@ -197,6 +201,10 @@ abstract final class EditorTopBar {
                 Icon(m.icon, size: 20),
                 const SizedBox(width: 12),
                 Flexible(child: Text(m.label)),
+                if (m.proBadge) ...[
+                  const SizedBox(width: 8),
+                  const ProBadge(),
+                ],
               ],
             ),
           ),

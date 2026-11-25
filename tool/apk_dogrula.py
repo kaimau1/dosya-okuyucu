@@ -9,6 +9,7 @@ Kullanım: python3 tool/apk_dogrula.py <apk> <build-tools klasörü>
 İzin tabanında `# kip: uyari` satırı varsa izin farkı yalnız uyarı basar
 (ilk kurulumda taban CI çıktısından doldurulur, sonra `kip: kati`).
 """
+import argparse
 import os
 import pathlib
 import re
@@ -23,9 +24,9 @@ def run(*args):
     return subprocess.run(args, check=True, capture_output=True, text=True).stdout
 
 
-def load_base():
+def load_base(base_path: pathlib.Path = BASE):
     mode, perms = 'kati', set()
-    for raw in BASE.read_text(encoding='utf-8').splitlines():
+    for raw in base_path.read_text(encoding='utf-8').splitlines():
         m = re.match(r'#\s*kip:\s*(\w+)', raw.strip())
         if m:
             mode = m.group(1)
@@ -55,7 +56,13 @@ def manifest_attr(tree: str, name: str):
 
 
 def main():
-    apk, bt = sys.argv[1], pathlib.Path(sys.argv[2])
+    parser = argparse.ArgumentParser(description='APK güvenlik doğrulaması')
+    parser.add_argument('apk')
+    parser.add_argument('bt')
+    parser.add_argument('--base', default=str(BASE))
+    args = parser.parse_args()
+    apk, bt = args.apk, pathlib.Path(args.bt)
+    base_path = pathlib.Path(args.base)
     aapt2, apksigner = str(bt / 'aapt2'), str(bt / 'apksigner')
     errors, warns, ok = [], [], []
 
@@ -78,11 +85,11 @@ def main():
         ok.append('usesCleartextTraffic: yok')
 
     perms = set(re.findall(r"uses-permission(?:-sdk-23)?: name='([^']+)'", run(aapt2, 'dump', 'permissions', apk)))
-    mode, base = load_base()
+    mode, base = load_base(base_path)
     new, gone = sorted(perms - base), sorted(base - perms)
     print('APK izinleri:\n' + '\n'.join(f'  {p}' for p in sorted(perms)))
     if new or gone:
-        msg = (f'izin listesi ci/izin_tabani.txt ile farklı — yeni: {", ".join(new) or "-"}; '
+        msg = (f'izin listesi {base_path.name} ile farklı — yeni: {", ".join(new) or "-"}; '
                f'kalkan: {", ".join(gone) or "-"}. Bilinçliyse tabanı güncelle (gerekçeyle).')
         (warns if mode == 'uyari' else errors).append(msg)
     else:

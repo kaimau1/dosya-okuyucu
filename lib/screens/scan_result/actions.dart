@@ -256,41 +256,6 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
     });
   }
 
-  /// **AI ile kalite kontrolü** (B2 dilim 4).
-  Future<void> _aiQualityCheck() async {
-    if (_busy || _pages.isEmpty) return;
-    final str = AppStrings.of(context);
-    if (!await ensureAiKey(context) || !mounted) return;
-    final keys = context.read<AppState>().aiCredentials.normalized.keys;
-    final path = _pages[_index].display;
-    _snack(str.t('sq.ai_sending'));
-    try {
-      final bytes = await ImageResizer.previewJpeg(path, maxEdge: 1024);
-      if (bytes == null) {
-        if (mounted) _snack(str.t('sq.ai_no_preview'));
-        return;
-      }
-      final r = await GeminiDecisions.ask(keys: keys, input: [
-        {
-          'type': 'image',
-          'mime_type': 'image/jpeg',
-          'data': base64Encode(bytes)
-        }
-      ], questions: ScanAiQuality.questions);
-      if (!mounted) return;
-      final hint = ScanAiQuality.hintFrom(r.answers);
-      _partSetState(() {
-        _aiQuality[path] = hint ?? '';
-        _qualityDismissed.remove(path);
-      });
-      if (hint == null) _snack(str.t('sq.ai_ok'));
-    } catch (e) {
-      if (mounted) {
-        _snack(str.t('common.smart_failed', {'error': userErrorText(e)}));
-      }
-    }
-  }
-
   void _delete() {
     if (_busy || _pages.isEmpty) return;
     if (_pages.length == 1) {

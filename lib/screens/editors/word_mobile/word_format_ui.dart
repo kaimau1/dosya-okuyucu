@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/app_icons.dart';
 import '../../../core/doc_fonts.dart';
+import '../../../core/edition.dart';
 import '../../../core/edit/editor_chrome.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/app_colors.dart';
@@ -28,6 +29,7 @@ import '../../../services/docx/docx_styles.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/docx_editor/docx_edit_controller.dart';
 import '../../../widgets/office_ribbon.dart';
+import '../../../widgets/pro_gate.dart';
 
 /// Office'in 10 standart rengi (renk menüsünün alt sırası).
 const kWordStandardColors = <int>[
@@ -95,8 +97,6 @@ const kWordProTools = <List<(String, IconData)>>[
   ],
   [
     ('dictate', AppIcons.micNone),
-    ('ai_inline', AppIcons.ai),
-    ('ai_proof', AppIcons.spellcheck),
   ],
 ];
 
@@ -381,6 +381,7 @@ class WordFormatUi {
               icon: icon,
               label: _t('wp.$id'),
               tooltip: _t('wp.$id'),
+              proBadge: ProGate.locked(Feature.wordSlidesPro),
               onTap: () => onPro!(id),
             ),
           if (!identical(group, kWordProTools.last)) const RibbonSep(),
@@ -442,6 +443,7 @@ class WordFormatUi {
           icon: AppIcons.wrapText,
           label: _t('wp.img_wrap'),
           tooltip: _t('wp.img_wrap'),
+          proBadge: ProGate.locked(Feature.wordSlidesPro),
           onTap: () => onPro!('img_wrap'),
         ),
       RibbonChip(
@@ -551,6 +553,7 @@ class WordFormatUi {
               icon: icon,
               label: _t('wp.$id'),
               tooltip: _t('wp.$id'),
+              proBadge: ProGate.locked(Feature.wordSlidesPro),
               onTap: () => onPro!(id),
             ),
         ],
@@ -700,12 +703,18 @@ class WordFormatUi {
         // Stiller galerisi
         for (final g in c.doc.styles.gallery()) styleChip(g),
         if (onPro != null) ...[
-          RibbonButton(AppIcons.style, _t('wp.style_update'),
-              key: const ValueKey('word-style-update'),
-              onTap: () => onPro!('style_update')),
-          RibbonButton(AppIcons.palette, _t('wp.theme'),
-              key: const ValueKey('word-style-theme'),
-              onTap: () => onPro!('theme')),
+          ProBadged(
+            feature: Feature.wordSlidesPro,
+            child: RibbonButton(AppIcons.style, _t('wp.style_update'),
+                key: const ValueKey('word-style-update'),
+                onTap: () => onPro!('style_update')),
+          ),
+          ProBadged(
+            feature: Feature.wordSlidesPro,
+            child: RibbonButton(AppIcons.palette, _t('wp.theme'),
+                key: const ValueKey('word-style-theme'),
+                onTap: () => onPro!('theme')),
+          ),
         ],
       ];
 

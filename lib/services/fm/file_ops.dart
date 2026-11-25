@@ -6,6 +6,7 @@ import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'path_side_index.dart';
 import 'saf_write.dart';
+import 'safe_write.dart';
 import 'search_index.dart';
 
 /// Hedefte aynı adlı dosya varsa ne yapılacağı.
@@ -168,6 +169,7 @@ abstract final class FileOps {
     var done = 0;
     var skipped = 0;
     var succeeded = 0;
+    final fatTarget = SafWrite.splitVolumePath(destDir) != null;
     // Sayım ANA İZLEĞİ KİLİTLEMEZ (kullanıcı isteği 2026-09-06: "kopyalama
     // taşıma çok pratik ve hızlı olmalı"). Eskiden `_countFiles` bütün ağacı
     // — 20 000 girdiye kadar — tek hamlede, senkron geziyordu; yavaş bir SD
@@ -202,7 +204,10 @@ abstract final class FileOps {
         errors.add('$name: klasör kendi içine taşınamaz');
         continue;
       }
-      var dest = joinKeepingSeparator(destDir, renameTo?.call(src) ?? name);
+      final rawOutName = renameTo?.call(src) ?? name;
+      final cleanOutName = fatTarget ? sanitizeFatName(rawOutName) : rawOutName;
+      var dest = joinKeepingSeparator(
+          destDir, cleanOutName.isEmpty ? rawOutName : cleanOutName);
       if (p.normalize(src) == p.normalize(dest)) {
         // Aynı klasöre kopyalama → kopya üret ("rapor (1).pdf").
         if (move) {
@@ -217,6 +222,8 @@ abstract final class FileOps {
           dest,
           move: move,
           conflict: conflict,
+          fatSafe: fatTarget,
+          errors: errors,
           onFile: (fileName) {
             done++;
             onProgress?.call(FmProgress(done, total, fileName));
@@ -319,6 +326,8 @@ abstract final class FileOps {
     String dest, {
     required bool move,
     required FmConflict conflict,
+    bool fatSafe = false,
+    List<String>? errors,
     required void Function(String) onFile,
     required void Function() onSkip,
     bool Function()? isCancelled,
@@ -364,19 +373,31 @@ abstract final class FileOps {
           cancelledHere = true;
           break;
         }
-        final childResult = await _transferOne(
-          child.path,
-          p.join(target.path, p.basename(child.path)),
-          move: move,
-          conflict: conflict,
-          onFile: onFile,
-          onSkip: () {
-            anySkipped = true;
-            onSkip();
-          },
-          isCancelled: isCancelled,
-        );
-        if (childResult == null) anySkipped = true;
+        final childName = p.basename(child.path);
+        final safeChildName =
+            fatSafe ? sanitizeFatName(childName) : childName;
+        final childDest = p.join(
+            target.path, safeChildName.isEmpty ? childName : safeChildName);
+        try {
+          final childResult = await _transferOne(
+            child.path,
+            childDest,
+            move: move,
+            conflict: conflict,
+            fatSafe: fatSafe,
+            errors: errors,
+            onFile: onFile,
+            onSkip: () {
+              anySkipped = true;
+              onSkip();
+            },
+            isCancelled: isCancelled,
+          );
+          if (childResult == null) anySkipped = true;
+        } catch (e) {
+          anySkipped = true;
+          errors?.add('$childName: ${_msg(e)}');
+        }
       }
       // İptalde klasör YARIM kopyalanmış olur; kaynağı silmek de "başarılı"
       // demek de yanlış. `null` dönmek çağırana "bu öğe tamamlanmadı" der:
@@ -425,7 +446,7 @@ abstract final class FileOps {
       }
       final stat = file.statSync();
       final sourceSize = stat.size;
-      await file.copy(target);
+      await SafeWrite.copy(file.path, target);
       await _keepModified(target, stat.modified);
       // KAYNAK, KOPYA DOĞRULANMADAN SİLİNMEZ. Sıra zaten doğruydu (kopya önce),
       // ama boyut karşılaştırması yoktu: kısa yazmayı hata olarak bildirmeyen
@@ -446,7 +467,7 @@ abstract final class FileOps {
       await file.delete();
     } else {
       final modified = file.statSync().modified;
-      await file.copy(target);
+      await SafeWrite.copy(file.path, target);
       await _keepModified(target, modified);
     }
     return target;
@@ -515,6 +536,7 @@ abstract final class FileOps {
 
   static final RegExp _sepRe = RegExp(r'[/\\]');
   static final RegExp _badCharsRe = RegExp(r'[/\\\x00-\x1f]');
+  static final RegExp _fatBadCharsRe = RegExp(r'[<>:"/\\|?*\x00-\x1f]');
   static final RegExp _dotsOnlyRe = RegExp(r'^\.+$');
   static final RegExp _trailDotSpaceRe = RegExp(r'[. ]+$');
 
@@ -638,6 +660,14 @@ abstract final class FileOps {
       // ETMİYOR. "Rapor." adlı bir dosyayı belleğe kopyalamak sessizce
       // başarısız oluyordu; ad Android tarafında geçerli olduğu için de
       // sorunun nereden geldiği anlaşılmıyordu.
+      .replaceAll(_trailDotSpaceRe, '');
+
+  /// FAT32/exFAT çıkarılabilir depolamaya uygun ad: `< > : " / \ | ? *`
+  /// ve kontrol karakterlerini `_` ile değiştirir, sondaki nokta/boşluğu atar.
+  static String sanitizeFatName(String name) => name
+      .trim()
+      .replaceAll(_fatBadCharsRe, '_')
+      .replaceAll(_dotsOnlyRe, '')
       .replaceAll(_trailDotSpaceRe, '');
 
   /// Kopyalanacak dosya sayısı — ilerleme çubuğunun paydası.

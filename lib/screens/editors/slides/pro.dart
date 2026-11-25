@@ -94,6 +94,8 @@ extension _SlidesProPart on _SlidesEditorScreenState {
   Future<void> _openProTools() async {
     final editor = _editor;
     if (editor == null) return;
+    if (!await ProGate.check(context, Feature.wordSlidesPro)) return;
+    if (!mounted) return;
     final pick = await showAppActionSheet<String>(context,
         title: context.t('sp.tools'),
         groups: [

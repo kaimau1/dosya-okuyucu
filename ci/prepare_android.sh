@@ -481,8 +481,17 @@ rm -rf .backup
 # `--dart-define=DOSYA_OKUYUCU=true` (StoragePermission.readerBuild).
 OKUYUCU_REMOVE='MANAGE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,REQUEST_INSTALL_PACKAGES,QUERY_ALL_PACKAGES,REQUEST_DELETE_PACKAGES,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,NEARBY_WIFI_DEVICES,BLUETOOTH,BLUETOOTH_ADMIN,BLUETOOTH_SCAN,BLUETOOTH_ADVERTISE,BLUETOOTH_CONNECT,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,RECORD_AUDIO,CAMERA,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
 SUFFIX=''
+[ "${DOSYA_SURUM:-}" = "pro" ] && SUFFIX=pro
+[ "${DOSYA_SURUM:-}" = "lite" ] && SUFFIX=lite
 [ "${DOSYA_R8TEST:-0}" = "1" ] && SUFFIX=r8test
 [ "${DOSYA_OKUYUCU:-0}" = "1" ] && SUFFIX=okuyucu
+if [ "${DOSYA_SURUM:-}" = "pro" ]; then
+  sed -i 's/android:label="Dosyalarım"/android:label="Dosyalarım Pro"/' \
+    android/app/src/main/AndroidManifest.xml
+elif [ "${DOSYA_SURUM:-}" = "lite" ]; then
+  sed -i 's/android:label="Dosyalarım"/android:label="Dosyalarım Lite"/' \
+    android/app/src/main/AndroidManifest.xml
+fi
 if [ -n "$SUFFIX" ]; then
   say ".$SUFFIX yan yana kimlik"
   sed -i "s/com\.dosyaokuyucu\.dosya_okuyucu\.documents/com.dosyaokuyucu.dosya_okuyucu.$SUFFIX.documents/" \
@@ -504,5 +513,7 @@ PY
 fi
 if [ "${DOSYA_OKUYUCU:-0}" = "1" ]; then
   DOSYA_PLAY_REMOVE="$OKUYUCU_REMOVE" python3 ci/play_variant.py apply
+elif [ "${DOSYA_SURUM:-}" = "pro" ] || [ "${DOSYA_SURUM:-}" = "lite" ] || [ "${DOSYA_PLAY:-0}" = "1" ]; then
+  python3 ci/play_variant.py apply
 fi
 echo "Android iskeleti hazır."

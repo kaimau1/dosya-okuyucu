@@ -60,9 +60,7 @@ Kapsam dışı: başka izin/ayar/hesap ekranı, PIN. Ayrıntı `ab-olcum` skill'
 (`gh workflow run build-apk.yml --ref main` ya da son birleştirmeye `[apk]`), sonra tablete kur.
 
 **KARARLAR (kullanıcı 2026-11-21, "hepsi uygun" — sormadan uygula):**
-- U6 (a): **Kokoro Turkish** (Apache-2.0, ~115 MB) eklenir; telaffuz için **espeak-ng (GPL)** kabul edildi —
-  lisans metni Hakkında/üçüncü taraf lisanslarına eklenir. İngilizce için de en uygun açık ses (Kokoro EN /
-  Kitten — espeak-ng artık engel değil) aynı indir-doğrula düzeniyle.
+- U6 (a, 2026-11-25 güncellendi): **Kokoro/eSpeak (GPL-3.0)** Play lisans temizliği için çıkarıldı; sesli kitapta yalnız Apache-2.0 yapay sesler (Antalia/EMA) ve cihazın kendi Android TTS motoru seçiciyle kullanılır (`LGPL-3.0.txt`/`GPL-3.0.txt` varlıklara gömüldü).
 - B10 m.2: LAMBDA ailesi (MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY) **Türkçe adlarla** da tanınır/yazılır
   (Excel'in resmî Türkçe adları; İngilizce ad da çalışmaya devam eder).
 - B9b: Word yorum balonu **tablette sağ kenar sütununda** (telefonda paragraf altında kalır).

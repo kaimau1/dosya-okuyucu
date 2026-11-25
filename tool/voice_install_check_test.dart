@@ -4,7 +4,6 @@
 // Ardından tool/voice_engine_check.mjs motoru gerçek Chromium'da sınar.
 import 'dart:io';
 
-import 'package:dosya_okuyucu/services/voice/kokoro_worker.dart';
 import 'package:dosya_okuyucu/services/voice/neural_voices.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,6 +20,5 @@ void main() {
     final worker = File('$root/ema/worker.js').readAsStringSync();
     expect(worker, isNot(contains('cdn.jsdelivr.net')));
     File('$root/engine.html').writeAsStringSync(VoiceServer.engineHtml);
-    File('$root/kokoro-worker.js').writeAsStringSync(kokoroWorkerJs);
   }, timeout: const Timeout(Duration(minutes: 20)));
 }

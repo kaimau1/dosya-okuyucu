@@ -45,6 +45,7 @@ abstract final class SmartSortBg {
       scope: ai.scope,
       scan: SmartSort.scanAll,
       limit: limit,
+      silent: true,
     ).timeout(const Duration(minutes: 8), onTimeout: () {
       SmartSort.cancelRun();
       return const SmartRunResult(0, 0);

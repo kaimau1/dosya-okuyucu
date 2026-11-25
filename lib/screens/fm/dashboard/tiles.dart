@@ -62,6 +62,8 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
   }
 
   FmTileData _apkArchiveTile() {
+    final showApk = Edition.current.has(Feature.apkInstall);
+    if (!showApk) return _categoryTile(FmCategory.archive);
     final apk = _index.stat(FmCategory.apk), arc = _index.stat(FmCategory.archive);
     final count = apk.count + arc.count;
     return FmTileData(

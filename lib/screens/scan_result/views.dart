@@ -492,8 +492,6 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     if (_pages.isEmpty || _busy) return null;
     final path = _pages[_index].display;
     if (_qualityDismissed.contains(path)) return null;
-    final ai = _aiQuality[path];
-    if (ai != null && ai.isNotEmpty) return ai;
     return _quality[path]?.hint;
   }
 
@@ -514,12 +512,6 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
           'sq.skewed',
           'sr.straighten',
           _straighten
-        ),
-      'ai_glare' || 'ai_cut' || 'ai_illegible' => (
-          AppIcons.ai,
-          'sq.$hint',
-          'ss.tool_retake',
-          _retake
         ),
       _ => (AppIcons.warning, 'sq.blurry', 'ss.tool_retake', _retake),
     };

@@ -384,10 +384,10 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
         subtitle: context.t('fm.new_files_note'),
         onTap: () => _openSwipe('new'),
       ),
-      // **Akıllı Düzen** (2026-11-18): AI ikinci ad + kategori + Ayıkla.
+      // **Akıllı Düzen** (2026-11-18): Akıllı klasörler + Ayıkla (Pro).
       FmTileData(
         id: 'smart',
-        feature: Feature.ai,
+        feature: Feature.smartFolders,
         icon: AppIcons.ai,
         color: AppHues.violet,
         label: context.t('sm.tile'),

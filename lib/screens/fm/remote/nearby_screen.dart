@@ -14,6 +14,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/app_haptics.dart';
 import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
+import '../../../core/edition.dart';
 import '../../../core/state/focused_states.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/motion.dart';
@@ -57,7 +58,6 @@ import 'link_share_card.dart';
 import 'qr_receive_flow.dart';
 import 'remote_connections_screen.dart';
 import '../pick_file_screen.dart';
-import '../share_shield.dart';
 
 part 'nearby/links.dart';
 part 'nearby/sections.dart';
@@ -180,7 +180,10 @@ class _NearbyScreenState extends State<NearbyScreen> {
   void _onTextEdited() {
     final v = _textCtrl.text;
     final next = v.isEmpty ? null : v;
-    if (next != _text) setState(() => _text = next);
+    if (next != _text) {
+      setState(() => _text = next);
+      _scheduleWeb();
+    }
   }
 
   /// Panoda metin var mı yoklar (açılışta ve uygulamaya dönüşte).
@@ -812,7 +815,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
   Future<bool> _sendText(Peer peer) async {
     final strings = AppStrings.of(context);
     final ok = await PeerSender.sendText(peer, _text!,
-        senderName: _deviceName, identity: _key);
+        senderName: _deviceName, identity: _key, allowFileFallback: true);
     if (!mounted) return ok;
     if (ok) _textCtrl.clear();
     showSnack(context,

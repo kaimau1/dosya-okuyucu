@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:dosya_okuyucu/models/fs_entry.dart';
-import 'package:dosya_okuyucu/services/fm/ai_meaning_search.dart';
 import 'package:dosya_okuyucu/services/fm/doc_text_search.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -47,25 +46,5 @@ void main() {
         await DocTextSearch.search([a, b, c], ['fatura', 'makbuz', 'dekont']);
     expect(hits.map((h) => h.entry.name), ['a.txt', 'b.txt']);
     expect(hits.last.terms, ['makbuz']);
-  });
-
-  test('anlamla sıralama verilen adaylarla sınırlı', () async {
-    const pdf = FsEntry(
-        path: '/x/Elektrik_faturasi.pdf',
-        name: 'Elektrik_faturasi.pdf',
-        isDir: false,
-        sizeBytes: 1,
-        modifiedMs: 1);
-    const docx = FsEntry(
-        path: '/x/fatura.docx',
-        name: 'fatura.docx',
-        isDir: false,
-        sizeBytes: 1,
-        modifiedMs: 1);
-    const plan = MeaningPlan(terms: ['fatura', 'elektrik'], extensions: ['pdf']);
-    final hits = await AiMeaningSearch.rankIn(plan, [pdf]);
-    expect(hits.map((h) => h.entry.name), ['Elektrik_faturasi.pdf']);
-    expect(hits.any((h) => h.entry.path == docx.path), isFalse);
-    expect(hits.single.matched, ['fatura', 'elektrik']);
   });
 }

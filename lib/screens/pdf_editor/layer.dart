@@ -98,22 +98,6 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
             onTap: busy ? null : _openDraw,
           ),
         ]),
-        RibbonTab(context.t('pe.mode_ai'), [
-          RibbonChip(
-            key: const ValueKey('pe-ai-rewrite'),
-            icon: AppIcons.ai,
-            label: context.t('pe.ai_rewrite'),
-            tooltip: context.t('pe.ai_rewrite'),
-            onTap: busy ? null : _openAiRewrite,
-          ),
-          if (scanned)
-            RibbonChip(
-              icon: AppIcons.ai,
-              label: context.t('pe.fix_page_ai'),
-              tooltip: context.t('pe.fix_page_ai'),
-              onTap: busy ? null : () => _fixScannedPage(withAi: true),
-            ),
-        ]),
         RibbonTab(context.t('pe.mode_watermark'), const []),
         RibbonTab(context.t('pe.mode_page'), [
           RibbonChip(
@@ -314,36 +298,7 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
             _str.t('pe.drawn')));
   }
 
-  /// AI sekmesi: belge metni AI ile yeniden yazılır (yeni PDF; özgün düzen
-  /// korunmaz — ekranın kendi uyarısı). Çalışma kopyasının GÜNCEL metniyle.
-  Future<void> _openAiRewrite() async {
-    final path = _workPath;
-    if (path == null || _busy) return;
-    _closeEditors();
-    _setBusy(_str.t('pe.busy_text'));
-    final sb = StringBuffer();
-    try {
-      if (_controller.isReady) {
-        await _controller.useDocument((doc) async {
-          for (final page in doc.pages) {
-            final dynamic t = await page.loadText();
-            final full = t == null ? '' : (t.fullText as String? ?? '');
-            if (full.trim().isNotEmpty) sb.writeln(full);
-            if (sb.length > 100000) break;
-          }
-        });
-      }
-    } catch (_) {
-      // Bilinçli: metin katmanı okunamazsa AI ekranı "metin yok" der.
-    } finally {
-      _setBusy(null);
-    }
-    if (!mounted) return;
-    await PdfAiEditScreen.open(context,
-        path: path,
-        fileName: p.basename(widget.path),
-        sourceText: sb.toString().trim());
-  }
+  // PDF AI yeniden yazım kaldırıldı.
 
   void _setMode(_EditMode mode) {
     _closeEditors();

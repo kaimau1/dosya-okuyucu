@@ -209,6 +209,7 @@ namespace DosyaAktar
         public volatile string SaveDir;
         public Func<Offer, bool> Ask;                 // engelleyici; null = onaysız
         public Action<string, string> Received;      // yol, gönderen
+        public Action<string, string> TextReceived;  // metin, gönderen
         public Action<string, long, long> Progress;  // ad, alınan, toplam
         public Action<string> Done;                  // ad
         public int Port { get; private set; }
@@ -516,6 +517,24 @@ namespace DosyaAktar
                 // Bütünlük: yarım dosyanın son 64 KB özeti; gönderen tutmazsa baştan gönderir.
                 if (have > 0) reply["son"] = Proto.TailDigest(PartPath(tid), have);
                 Ok(reply);
+                return;
+            }
+
+            if (method == "POST" && path == "/yazi")
+            {
+                if (opener == null && contentLength > 1048576) { Reply(output, 413, "buyuk", false); return; }
+                var raw = Body(1048576);
+                var fromYazi = Q("kim") ?? "?";
+                var text = raw;
+                if (raw.TrimStart().StartsWith("{"))
+                {
+                    var obj = Proto.FromJson(raw);
+                    if (obj != null && obj.TryGetValue("text", out var tVal) && tVal is string sText)
+                        text = sText;
+                }
+                if (string.IsNullOrWhiteSpace(text)) { Reply(output, 400, "bos", false); return; }
+                TextReceived?.Invoke(text, fromYazi);
+                Ok(new Dictionary<string, object> { ["ok"] = true });
                 return;
             }
 

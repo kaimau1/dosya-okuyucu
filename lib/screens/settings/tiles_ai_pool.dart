@@ -26,7 +26,6 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/ai_pool.dart';
 import '../../services/gemini_service.dart';
-import '../../services/shared_ai_pool_client.dart';
 import 'settings_widgets.dart';
 
 /// Yedek API anahtarları (2. sıradan 5. sıraya).
@@ -345,90 +344,6 @@ class _AiPoolStatusTileState extends State<AiPoolStatusTile> {
               },
         child: Text(context.t('aipool.reset')),
       ),
-    );
-  }
-}
-
-/// Yapay zekâ kaynağı seçicisi (Kendi anahtarım ↔ Notlar Ortak AI Havuzu).
-class SharedAiPoolTile extends StatefulWidget {
-  const SharedAiPoolTile({super.key});
-
-  @override
-  State<SharedAiPoolTile> createState() => _SharedAiPoolTileState();
-}
-
-class _SharedAiPoolTileState extends State<SharedAiPoolTile> {
-  AiSourceMode _mode = AiSourceMode.byok;
-  int _balance = SharedAiPoolClient.starterCredits;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_load());
-  }
-
-  Future<void> _load() async {
-    var hasKey = false;
-    try {
-      hasKey = mounted && context.read<AppState>().hasApiKey;
-    } catch (_) {
-      hasKey = false;
-    }
-    try {
-      final mode = await SharedAiPoolClient.loadMode(hasOwnKey: hasKey);
-      final bal = await SharedAiPoolClient.loadCachedBalance();
-      if (!mounted) return;
-      setState(() {
-        _mode = mode;
-        if (bal != null) _balance = bal;
-      });
-    } catch (_) {
-      // Bilinçli: SharedPreferences kanalının olmadığı testlerde varsayılan kalır.
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final empty = _mode == AiSourceMode.sharedPool && _balance <= 0;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SettingChoice<AiSourceMode>(
-          key: const ValueKey('settings-shared-ai-mode'),
-          icon: AppIcons.autoAwesomeMosaic,
-          title: context.t('sharedpool.title'),
-          subtitle: context.t('sharedpool.signin_hint'),
-          options: [
-            (AiSourceMode.byok, context.t('sharedpool.mode_byok')),
-            (AiSourceMode.sharedPool, context.t('sharedpool.mode_shared')),
-          ],
-          selected: _mode,
-          onChanged: (next) {
-            setState(() => _mode = next);
-            unawaited(() async {
-              try {
-                await SharedAiPoolClient.saveMode(next);
-              } catch (_) {
-                // Bilinçli: kayıt yazılamazsa seçim bu oturumda geçerli kalır.
-              }
-            }());
-          },
-        ),
-        SettingTile(
-          icon: _mode == AiSourceMode.sharedPool
-              ? AppIcons.cloudDone
-              : AppIcons.vpnKey,
-          title: context.t(
-            _mode == AiSourceMode.sharedPool
-                ? 'sharedpool.mode_shared'
-                : 'sharedpool.mode_byok',
-          ),
-          subtitle: empty
-              ? context.t('sharedpool.empty')
-              : context.t('sharedpool.subtitle', {'credits': _balance}),
-          wrapSubtitle: true,
-        ),
-      ],
     );
   }
 }

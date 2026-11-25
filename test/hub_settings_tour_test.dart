@@ -1,6 +1,5 @@
 import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
-import 'package:dosya_okuyucu/screens/fm/ai_hub_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/installed_apps_screen.dart';
 import 'package:dosya_okuyucu/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
@@ -46,25 +45,6 @@ void main() {
     await tester.tap(find.text('Koyu'));
     await tester.pump();
     expect(state.themeMode, ThemeMode.dark);
-  });
-
-  testWidgets('AI Analiz sekmesinde tek başlat düğmesi; diğer sekmede yok',
-      (tester) async {
-    await tester.pumpWidget(_wrap(AppState(), const AiHubScreen()));
-    await tester.pump();
-    expect(tester.takeException(), isNull);
-    expect(find.text('Analizi başlat'), findsOneWidget);
-    // 2026-11-07: "kendi kendine hiçbir şey yapmaz" açıklaması ve otomatik
-    // analiz anahtarı Analiz sekmesinde görünür.
-    expect(find.text('Kendi kendine hiçbir şey yapmaz', skipOffstage: false),
-        findsOneWidget);
-    expect(find.byKey(const ValueKey('ai-auto-new'), skipOffstage: false),
-        findsOneWidget);
-
-    // Analiz koşmuyorken diğer sekmelerde ilerleme şeridi/başlat düğmesi yok.
-    await tester.tap(find.widgetWithText(Tab, 'Rapor'));
-    await tester.pumpAndSettle();
-    expect(find.text('Analizi başlat'), findsNothing);
   });
 
   /// "N uygulama" sayacı Türkçe SABİTTİ (`'${n} uygulama'`); İngilizce ve

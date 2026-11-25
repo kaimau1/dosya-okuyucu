@@ -384,9 +384,10 @@ class ExfatFileSystem extends UsbFileSystem {
     await device.writeBlocks(sector, data);
   }
 
-  Future<void> _freeClusters(List<int> clusters) async {
+  Future<void> _freeClusters(List<int> clusters, {bool clearFat = true}) async {
     if (clusters.isEmpty) return;
     await _writeBitmapBits({for (final c in clusters) c: false});
+    if (!clearFat) return;
     for (final c in clusters) {
       await _setFatEntry(c, 0);
     }
@@ -444,18 +445,7 @@ class ExfatFileSystem extends UsbFileSystem {
     }
 
     final needed = (totalLength + clusterSize - 1) ~/ clusterSize;
-    List<int> chain;
-    var deletedBeforeWrite = false;
-    try {
-      chain = await _allocateClusters(needed);
-    } on UsbFsException {
-      if (clash.isEmpty) rethrow;
-      for (final e in clash) {
-        await deleteEntry(dir, e);
-      }
-      deletedBeforeWrite = true;
-      chain = await _allocateClusters(needed);
-    }
+    final chain = await _allocateClusters(needed);
     var index = 0;
     var filled = 0;
     var written = 0;
@@ -489,10 +479,8 @@ class ExfatFileSystem extends UsbFileSystem {
         await _writeCluster(
             chain[index], Uint8List.sublistView(buffer, 0, filled));
       }
-      if (!deletedBeforeWrite) {
-        for (final e in clash) {
-          await deleteEntry(dir, e);
-        }
+      for (final e in clash) {
+        await deleteEntry(dir, e);
       }
       first = chain.isEmpty ? 0 : chain.first;
       await _addEntrySet(dir, name,
@@ -550,10 +538,13 @@ class ExfatFileSystem extends UsbFileSystem {
     await _writeDirectoryBytes(dir, raw);
     final loc = entry.id as ExfatLocation;
     if (loc.firstCluster >= 2) {
-      await _freeClusters(await clustersOf(loc,
-          byteLength: entry.isDir
-              ? (loc.sizeBytes > 0 ? loc.sizeBytes : clusterSize)
-              : entry.sizeBytes));
+      await _freeClusters(
+        await clustersOf(loc,
+            byteLength: entry.isDir
+                ? (loc.sizeBytes > 0 ? loc.sizeBytes : clusterSize)
+                : entry.sizeBytes),
+        clearFat: !loc.noFatChain,
+      );
     }
   }
 

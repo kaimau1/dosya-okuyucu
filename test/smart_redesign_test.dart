@@ -6,7 +6,6 @@ import 'package:dosya_okuyucu/models/fm_filter.dart';
 import 'package:dosya_okuyucu/models/fm_type.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/models/media_bucket.dart';
-import 'package:dosya_okuyucu/services/fm/ai_meaning_search.dart';
 import 'package:dosya_okuyucu/services/fm/chat_junk.dart';
 import 'package:dosya_okuyucu/services/fm/collection_insights.dart';
 import 'package:dosya_okuyucu/services/fm/fs_events.dart';
@@ -101,25 +100,6 @@ void main() {
       expect(next.scannedFiles, 8);
       expect(next.scannedBytes, 850);
       expect(identical(report.keepOnly((_) => true), report), isTrue);
-    });
-  });
-
-  group('anlamla ara', () {
-    test('plan: önce sorgunun kendi sözcükleri, tekrarsız, uzantılar noktasız',
-        () {
-      final plan = AiMeaningSearch.parse(
-          '{"terms":["fatura","Elektrik","CK Boğaziçi","invoice"],'
-          '"extensions":[".PDF","jpg"]}',
-          'elektrik fatura');
-      expect(plan.terms.take(2), ['elektrik', 'fatura']);
-      expect(plan.terms, contains('CK Boğaziçi'));
-      expect(plan.terms.where((t) => t.toLowerCase() == 'fatura'), hasLength(1));
-      expect(plan.extensions, ['pdf', 'jpg']);
-    });
-
-    test('bozuk yanıtta sorgunun sözcüklerine düşer', () {
-      expect(AiMeaningSearch.parse('???', 'kira sözleşmesi').terms,
-          ['kira', 'sözleşmesi']);
     });
   });
 
@@ -224,7 +204,7 @@ void main() {
   test('çeviri: yeni metinler üç dilde dolu', () {
     for (final lang in AppLanguage.values) {
       final s = AppStrings(lang);
-      for (final key in ['inbox.storage_full', 'ct.title', 'srch.meaning']) {
+      for (final key in ['inbox.storage_full', 'ct.title', 'srch.in_hint']) {
         expect(s.t(key, {'n': 1}), isNot(key));
       }
     }

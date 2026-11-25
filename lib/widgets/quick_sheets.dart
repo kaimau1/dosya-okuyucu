@@ -1,24 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
-import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_icons.dart';
-import '../core/app_state.dart';
 import '../core/l10n/app_strings.dart';
-import '../core/motion.dart';
-import '../services/gemini_service.dart';
 import '../services/lang_detect.dart';
 import '../services/translate_service.dart';
-import 'markdown_text.dart';
 import 'translate_flow.dart';
 import '../core/safe_insets.dart';
 import '../core/user_error.dart';
 import '../core/app_colors.dart';
 
-/// Belgenin üstünde açılan **kısa, yüzen kart** — hızlı çeviri ve "AI'ya
-/// sor" ortak kabı.
+/// Belgenin üstünde açılan **kısa, yüzen kart** — hızlı çeviri kabı.
 ///
 /// Kullanıcı (2026-09-27): *"kısa çeviriler için ayrı bir sayfa açmadan sayfa
 /// içindeki bir popup gibi bir şeyde çeviri gösterilebilir; her seferinde
@@ -346,231 +340,6 @@ class _QuickTranslateState extends State<_QuickTranslate> {
                 icon: const Icon(AppIcons.share, size: 18),
                 label: Text(context.t('common.share')),
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── AI'ya sor ───────────────────────────────────────────────────────────────
-
-/// Seçili metin hakkında **yerinde** AI yanıtı: açıkla, özetle, basitleştir,
-/// ya da serbest soru. Belgenin kalanı bağlam olarak gider (kısaltılmış).
-abstract final class QuickAiSheet {
-  static Future<void> show(
-    BuildContext context, {
-    required String selection,
-    String documentName = '',
-    String documentText = '',
-  }) =>
-      _showCard(
-        context,
-        _QuickAi(
-          selection: selection,
-          documentName: documentName,
-          documentText: documentText,
-        ),
-      );
-}
-
-class _QuickAi extends StatefulWidget {
-  final String selection;
-  final String documentName;
-  final String documentText;
-
-  const _QuickAi({
-    required this.selection,
-    required this.documentName,
-    required this.documentText,
-  });
-
-  @override
-  State<_QuickAi> createState() => _QuickAiState();
-}
-
-class _QuickAiState extends State<_QuickAi> {
-  final _question = TextEditingController();
-  String? _answer;
-  String? _error;
-  bool _busy = false;
-  String? _activeKey;
-
-  @override
-  void dispose() {
-    _question.dispose();
-    super.dispose();
-  }
-
-  Future<void> _ask(String instruction, {String? key}) async {
-    final state = context.read<AppState>();
-    final str = AppStrings.of(context);
-    if (!state.hasApiKey) {
-      setState(() => _error = str.t('chat.key_required_body'));
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _answer = null;
-      _error = null;
-      _activeKey = key;
-    });
-    // Yanıt dili ARAYÜZ dili: sohbetin sistem istemi Türkçe'ye sabitti.
-    final lang = str.t('ai.answer_language');
-    final prompt = '$instruction\n\n'
-        '${str.t('ai.reply_in', {'lang': lang})}\n\n'
-        '«${widget.selection}»';
-    final ctxText = widget.documentText.trim().isEmpty
-        ? null
-        : '${widget.documentName}\n${widget.documentText}';
-    try {
-      final reply = await state.gemini.chat(
-        history: [ChatTurn(fromUser: true, text: prompt)],
-        fileContext: ctxText,
-      );
-      if (!mounted) return;
-      setState(() => _answer = reply);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = userErrorText(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
-    final presets = <(String, IconData, String, String)>[
-      (
-        'explain',
-        AppIcons.lightbulbOutline,
-        context.t('ai.q_explain'),
-        context.t('ai.q_explain_prompt'),
-      ),
-      (
-        'simplify',
-        AppIcons.childCare,
-        context.t('ai.q_simplify'),
-        context.t('ai.q_simplify_prompt'),
-      ),
-      (
-        'summary',
-        AppIcons.shortText,
-        context.t('ai.q_summary'),
-        context.t('ai.q_summary_prompt'),
-      ),
-      (
-        'terms',
-        AppIcons.menuBook,
-        context.t('ai.q_terms'),
-        context.t('ai.q_terms_prompt'),
-      ),
-    ];
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _CardHeader(
-          icon: AppIcons.ai,
-          title: context.t('vw.ask_ai_selection'),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            '“${widget.selection}”',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            children: [
-              for (final (key, icon, label, prompt) in presets)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    avatar: Icon(icon, size: 18),
-                    label: Text(label),
-                    selected: _activeKey == key,
-                    onSelected: _busy ? null : (_) => _ask(prompt, key: key),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        Flexible(
-          child: AnimatedSize(
-            duration: Motion.of(context, Motion.medium),
-            alignment: Alignment.topCenter,
-            child: SingleChildScrollView(
-              padding: withNavInset(
-                  context, const EdgeInsets.fromLTRB(16, 10, 16, 4)),
-              child: _busy
-                  ? Row(
-                      children: [
-                        const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2)),
-                        const SizedBox(width: 12),
-                        Text(context.t('ai.thinking')),
-                      ],
-                    )
-                  : _error != null
-                      ? Text(_error!,
-                          style: text.bodyMedium?.copyWith(color: scheme.error))
-                      : _answer != null
-                          ? SelectionArea(child: MarkdownText(_answer!))
-                          : const SizedBox.shrink(),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _question,
-                  enabled: !_busy,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (q) {
-                    if (q.trim().isNotEmpty) _ask(q.trim());
-                  },
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: context.t('ai.ask_about_hint'),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(999)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              IconButton.filled(
-                tooltip: context.t('common.send'),
-                onPressed: _busy
-                    ? null
-                    : () {
-                        final q = _question.text.trim();
-                        if (q.isNotEmpty) _ask(q);
-                      },
-                icon: const Icon(AppIcons.arrowUp),
-              ),
-              if (_answer != null)
-                IconButton(
-                  tooltip: context.t('common.copy'),
-                  onPressed: () =>
-                      Clipboard.setData(ClipboardData(text: _answer!)),
-                  icon: const Icon(AppIcons.clipCopy),
-                ),
             ],
           ),
         ),

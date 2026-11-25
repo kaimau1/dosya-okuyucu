@@ -1,7 +1,6 @@
 import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/services/fm/ai_ask.dart';
 import 'package:dosya_okuyucu/services/fm/ai_index.dart';
-import 'package:dosya_okuyucu/services/fm/ai_report.dart';
 import 'package:dosya_okuyucu/services/fm/ai_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -188,28 +187,6 @@ void main() {
       expect(AiIndex.where(minImportance: 70).length, 2);
       expect(AiIndex.where(onlySuggestions: true).length, 1);
       expect(AiIndex.docTypeCounts()['fatura'], 2);
-    });
-  });
-
-  group('rapor', () {
-    test('önemli / çöp / öneri ayrımı', () {
-      final report = AiReport.build([
-        _record('/a/kimlik.pdf', type: 'kimlik', importance: 95, size: 100),
-        _record('/a/mem.jpg', type: 'ekran görüntüsü', importance: 10, size: 500),
-        _record('/a/x.pdf', importance: 50, suggestedName: 'y.pdf'),
-        // Analiz edilmemiş kayıt hiçbir sayıya girmez.
-        _record('/a/ham.pdf', analyzedMs: 0),
-      ]);
-      expect(report.analyzed, 3);
-      expect(report.important.single.path, '/a/kimlik.pdf');
-      expect(report.junk.single.path, '/a/mem.jpg');
-      expect(report.junkBytes, 500);
-      expect(report.suggestions.single.path, '/a/x.pdf');
-    });
-
-    test('önem 0 (değerlendirilmedi) çöp sayılmaz', () {
-      final report = AiReport.build([_record('/a/x.pdf', importance: 0)]);
-      expect(report.junk, isEmpty);
     });
   });
 

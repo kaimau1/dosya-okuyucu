@@ -125,17 +125,6 @@ class FeatureHelpIndex {
       keywords: ['metin', 'icerik', 'kelime', 'pdf icinde'],
     ),
     FeatureHelp(
-      id: 'search_meaning',
-      group: 'Arama ve gezinme',
-      name: 'Akıllı arama',
-      where: 'Arama ekranı → üstteki "Akıllı arama" düğmesi',
-      how: [
-        'Akıllı arama düğmesine bas, aradığını cümleyle yaz ("geçen ayın faturası").',
-        'Ara\'ya bas; eş anlamlı sözcüklerle cihazda aranır.',
-      ],
-      keywords: ['ai', 'yapay zeka', 'akilli arama', 'cumle'],
-    ),
-    FeatureHelp(
       id: 'browse',
       group: 'Arama ve gezinme',
       name: 'Klasörlerde gez',
@@ -537,13 +526,13 @@ class FeatureHelpIndex {
     FeatureHelp(
       id: 'ai_hub',
       group: 'Akıllı',
-      name: 'Akıllı dosya asistanı (analiz ve öneriler)',
+      name: 'Akıllı klasörler (otomatik düzenleme)',
       where: 'Ana ekran → alt panel → "Akıllı"',
       how: [
-        '"Yeni dosyaları analiz et" ile dosyalar türlere ayrılır.',
-        'Öneriler sekmesinde ad/klasör önerilerini tek tek ya da toplu seçip uygula.',
+        '"Şimdi düzenle" ile belgeler ve görseller konularına göre gruplanır.',
+        'Fatura, sözleşme, kimlik gibi kategorilerde tarih/kurum süzgeciyle ara.',
       ],
-      keywords: ['yapay zeka', 'oneri', 'siniflandir', 'duzenle', 'ai merkezi'],
+      keywords: ['yapay zeka', 'oneri', 'siniflandir', 'duzenle', 'akilli klasor'],
     ),
 
     // ── Ayarlar ───────────────────────────────────────────────────────

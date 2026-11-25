@@ -1,0 +1,32 @@
+# Play Lite APK izin tabanı (tool/apk_dogrula.py --base ci/izin_lite.txt)
+# Play derlemesinden çıkarılan yüksek riskli izinler yok (ci/play_variant.py):
+# QUERY_ALL_PACKAGES, REQUEST_INSTALL_PACKAGES, REQUEST_DELETE_PACKAGES,
+# PACKAGE_USAGE_STATS, SYSTEM_ALERT_WINDOW, RECEIVE_BOOT_COMPLETED, RECORD_AUDIO.
+# kip: kati
+android.permission.ACCESS_COARSE_LOCATION
+android.permission.ACCESS_FINE_LOCATION
+android.permission.ACCESS_NETWORK_STATE
+android.permission.ACCESS_WIFI_STATE
+android.permission.BLUETOOTH
+android.permission.BLUETOOTH_ADMIN
+android.permission.BLUETOOTH_ADVERTISE
+android.permission.BLUETOOTH_CONNECT
+android.permission.BLUETOOTH_SCAN
+android.permission.CAMERA
+android.permission.CHANGE_NETWORK_STATE
+android.permission.CHANGE_WIFI_STATE
+android.permission.FOREGROUND_SERVICE
+android.permission.FOREGROUND_SERVICE_DATA_SYNC
+android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+android.permission.INTERNET
+android.permission.MANAGE_EXTERNAL_STORAGE
+android.permission.NEARBY_WIFI_DEVICES
+android.permission.POST_NOTIFICATIONS
+android.permission.READ_EXTERNAL_STORAGE
+android.permission.USE_BIOMETRIC
+android.permission.USE_FINGERPRINT
+android.permission.VIBRATE
+android.permission.WAKE_LOCK
+android.permission.WRITE_EXTERNAL_STORAGE
+com.android.launcher.permission.INSTALL_SHORTCUT
+com.dosyaokuyucu.dosya_okuyucu.lite.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION

@@ -354,9 +354,11 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
     await _openRawUsb(deviceName, partitionIndex: choice);
   }
 
-  /// USB teşhis ekranı — hangi kanalın ne dediğini ham hâliyle gösterir.
-  Future<void> _openDiagnostics() =>
-      _push(const UsbDiagnosticsScreen());
+  /// USB teşhis ekranı — yalnız Kişisel (laboratuvar) derlemesinde açılır.
+  Future<void> _openDiagnostics() async {
+    if (!Edition.current.has(Feature.labs)) return;
+    await _push(const UsbDiagnosticsScreen());
+  }
 
   /// İzin verilmiş bir SAF ağacını gezgin ekranında açar.
   Future<void> _openSafRoot(SafRoot root) async {

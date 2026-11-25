@@ -2,20 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';
 
+import '../core/edition.dart';
 import 'app_update.dart';
 
-/// **Görüntüleyicide sesli not** (KALANLAR A10, yalnız kişisel derleme
-/// `DOSYA_KISISEL=1`): dikte hemen başlar (cihaz tanıyıcısı, `ci/Dikte.kt`),
-/// not dosya adı + sayfa + alıntı + dosyayı yeniden açan `file:` bağlantısıyla
-/// Notlar'a gider. Notlar'ın "Dosyalar" klasörü konu satırıyla belirtilir
-/// (`folder`). Gönderim standart paylaşım niyeti (ACTION_SEND): Notlar
-/// tarafında ayrı bir köprü sözleşmesi kurulana dek kullanıcı paylaşım
-/// sayfasında Notlar'ı seçer (HAFIZA 2026-11-12).
+/// **Görüntüleyicide sesli not** (KALANLAR A10, yalnız kişisel derleme):
+/// dikte hemen başlar (cihaz tanıyıcısı, `ci/Dikte.kt`), not dosya adı +
+/// sayfa + alıntı + dosyayı yeniden açan `file:` bağlantısıyla Notlar'a gider.
 abstract final class VoiceNote {
   /// Notlar'daki hedef klasör adı (dosya sistemi değil, Notlar klasörü).
   static const folder = 'Dosyalar';
 
-  static bool get enabled => debugEnabled ?? AppUpdate.personalBuild;
+  static bool get enabled =>
+      debugEnabled ??
+      (AppUpdate.personalBuild && Edition.current.has(Feature.voiceAssistant));
 
   @visibleForTesting
   static bool? debugEnabled;

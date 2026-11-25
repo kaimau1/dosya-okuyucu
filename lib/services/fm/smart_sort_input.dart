@@ -19,6 +19,7 @@ import '../gemini_service.dart';
 import '../legacy_text.dart';
 import '../office_reader.dart';
 import '../office_zip_guard.dart';
+import '../pdf_raster.dart';
 import '../text_decode.dart';
 import '../udf_reader.dart';
 import '../xls_legacy.dart';
@@ -150,6 +151,22 @@ abstract final class SmartSortInput {
     return null;
   }
 
+  /// Yalnız küçük ses (<=512 KB) satır içi ses olarak gider; daha büyüğü
+  /// varsayılan olarak ucuz meta yazısıyla sınıflanır ([allowAudioFilesUpload]).
+  static const maxInlineAudioBytes = 512 * 1024;
+
+  /// Taranmış (metinsiz) PDF için satır içi PDF sınırı; üstü ilk sayfa JPEG
+  /// veya meta yazısı olarak gider (hiçbir zaman multi-MB base64 PDF gitmez).
+  static const maxInlineScannedPdfBytes = 400 * 1024;
+
+  /// Varsayılan `false`: >512 KB ses Files API'ye yüklenmez, meta yazısına düşer.
+  static bool allowAudioFilesUpload = false;
+
+  /// Taranmış büyük PDF ilk sayfa rasterizer kancası (testte geçersiz kılınabilir).
+  @visibleForTesting
+  static Future<Uint8List?> Function(Uint8List pdfBytes)?
+      scannedPdfFirstPageRaster;
+
   /// Files API ile yüklenecek en büyük ses (~100 dakikalık mp3).
   static const maxAudioUploadBytes = 100 * 1024 * 1024;
 
@@ -171,7 +188,8 @@ abstract final class SmartSortInput {
     return switch (kind) {
       SmartInputKind.media => bytes <= GeminiDecisions.maxInlineBytes,
       SmartInputKind.meta => true,
-      SmartInputKind.audio => bytes <= maxAudioUploadBytes,
+      SmartInputKind.audio =>
+        allowAudioFilesUpload ? bytes <= maxAudioUploadBytes : true,
       SmartInputKind.video => bytes <= maxVideoSourceBytes,
       _ => bytes <= maxExtractBytes,
     };
@@ -191,8 +209,27 @@ abstract final class SmartSortInput {
         if (media == null) {
           throw GeminiException('desteklenmeyen tür', statusCode: -1);
         }
+        if (media.type == 'document' && media.mime == 'application/pdf') {
+          return _preparePdfBlock(e);
+        }
         return Isolate.run(() => _prepareMediaBlock(path, media.type, media.mime));
       case SmartInputKind.audio:
+        if (!allowAudioFilesUpload && e.sizeBytes > maxInlineAudioBytes) {
+          return GeminiDecisions.textBlock(metaText(
+            name: p.basename(e.path),
+            sizeBytes: e.sizeBytes,
+            folder: _folderOf(e.path),
+            apk: false,
+          ));
+        }
+        if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
+          throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
+        }
+        final media = GeminiDecisions.mediaFor(e.path)!;
+        final src = e.path;
+        final data = await Isolate.run(
+            () => base64Encode(File(src).readAsBytesSync()));
+        return avBlock(media.mime, video: false, data: data);
       case SmartInputKind.video:
         if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
           throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
@@ -203,8 +240,7 @@ abstract final class SmartSortInput {
         // sonucu alır.
         final data = await Isolate.run(
             () => base64Encode(File(src).readAsBytesSync()));
-        return avBlock(media.mime,
-            video: kind == SmartInputKind.video, data: data);
+        return avBlock(media.mime, video: true, data: data);
       case SmartInputKind.meta:
         return GeminiDecisions.textBlock(metaText(
           name: p.basename(e.path),
@@ -225,15 +261,16 @@ abstract final class SmartSortInput {
     }
   }
 
-  /// Turda kullanılan giriş: ses/video 14 MB üstüyse **Files API** ile
-  /// yüklenir (anahtarlar sırayla; kota/yetki hatasında sıradaki), blokta
-  /// yalnız `file_uri` gider. Öteki türler [blockFor] ile, anahtarlar aynen.
+  /// Turda kullanılan giriş: ses/video 14 MB üstüyse (yalnız izinliyken)
+  /// **Files API** ile yüklenir; varsayılan olarak videoda yalnız kapak karesi,
+  /// büyük seste yalnız meta yazısı gider.
   static Future<SmartPrepared> prepare(FsEntry e, List<String> keys) async {
     final kind = kindOf(e.path);
     if (kind == SmartInputKind.video && videoCoverOnly) {
       return _coverPrepared(e, keys);
     }
-    final av = kind == SmartInputKind.audio || kind == SmartInputKind.video;
+    final av = (kind == SmartInputKind.audio && allowAudioFilesUpload) ||
+        kind == SmartInputKind.video;
     if (!av || e.sizeBytes <= GeminiDecisions.maxInlineBytes) {
       final block = await blockFor(e);
       // Sunum (m.2 kalanı): dosyanın içindeki hazır ilk slayt resmi
@@ -452,6 +489,65 @@ abstract final class SmartSortInput {
   /// * PDF'de yeterli gömülü metin (>= [minPdfTextChars]) varsa ham PDF yerine
   ///   kompakt metin bloğu gönderilir (çok sayfalı PDF'lerde %70–90 tasarruf).
   /// * Görsel büyükse uzun kenar <= [maxImageDim] px JPEG olarak sıkıştırılır.
+  static Future<Map<String, Object?>> _preparePdfBlock(FsEntry e) async {
+    final path = e.path;
+    final res = await Isolate.run(() {
+      final raw = File(path).readAsBytesSync();
+      if (raw.isEmpty) return (empty: true, text: '', raw: Uint8List(0));
+      final text = extractPdfText(raw);
+      return (empty: false, text: text, raw: raw);
+    });
+    if (res.empty) {
+      throw GeminiException('Dosya boş.', statusCode: -1);
+    }
+    if (res.text.isNotEmpty) {
+      return GeminiDecisions.textBlock(
+          _header(SmartInputKind.text) + res.text);
+    }
+    if (res.raw.length <= maxInlineScannedPdfBytes) {
+      final b64 = await Isolate.run(() => base64Encode(res.raw));
+      return {
+        'type': 'document',
+        'mime_type': 'application/pdf',
+        'data': b64,
+      };
+    }
+    Uint8List? jpeg;
+    try {
+      final hook = scannedPdfFirstPageRaster;
+      if (hook != null) {
+        jpeg = await hook(res.raw);
+      } else {
+        final pages = await PdfRaster.renderJpegs(
+          res.raw,
+          const [0],
+          dpi: 110,
+          quality: imageJpegQuality,
+        );
+        if (pages.isNotEmpty) jpeg = pages.first.jpeg;
+      }
+    } catch (_) {
+      jpeg = null;
+    }
+    if (jpeg != null && jpeg.isNotEmpty) {
+      final bytes = jpeg;
+      final opt = await Isolate.run(
+          () => optimizeImageBytes(bytes, mime: 'image/jpeg'));
+      final b64 = await Isolate.run(() => base64Encode(opt.bytes));
+      return {
+        'type': 'image',
+        'mime_type': opt.mime,
+        'data': b64,
+      };
+    }
+    return GeminiDecisions.textBlock(metaText(
+      name: p.basename(e.path),
+      sizeBytes: e.sizeBytes,
+      folder: _folderOf(e.path),
+      apk: false,
+    ));
+  }
+
   static Map<String, Object?> _prepareMediaBlock(
       String path, String type, String mime) {
     final raw = File(path).readAsBytesSync();
@@ -463,11 +559,19 @@ abstract final class SmartSortInput {
       if (text.isNotEmpty) {
         return GeminiDecisions.textBlock(_header(SmartInputKind.text) + text);
       }
-      return {
-        'type': 'document',
-        'mime_type': mime,
-        'data': base64Encode(raw),
-      };
+      if (raw.length <= maxInlineScannedPdfBytes) {
+        return {
+          'type': 'document',
+          'mime_type': mime,
+          'data': base64Encode(raw),
+        };
+      }
+      return GeminiDecisions.textBlock(metaText(
+        name: p.basename(path),
+        sizeBytes: raw.length,
+        folder: _folderOf(path),
+        apk: false,
+      ));
     }
     if (type == 'image') {
       final opt = optimizeImageBytes(raw, mime: mime);

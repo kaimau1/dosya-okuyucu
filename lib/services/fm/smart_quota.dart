@@ -76,6 +76,7 @@ abstract final class SmartQuota {
   static String _day = '';
   static int _requests = 0;
   static int _limited = 0;
+  static int _epoch = 0;
   static final List<SmartQuotaDay> _history = [];
 
   /// Sayım ya da ayar değişince artar (arayüz dinler).
@@ -140,13 +141,18 @@ abstract final class SmartQuota {
   }
 
   static Future<void> _save() async {
+    final opEpoch = _epoch;
+    final cap = _cap;
+    final wifi = _wifiOnly;
+    final log = [for (final d in days) d.encode()];
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(prefCap, _cap);
-      await prefs.setBool(prefWifi, _wifiOnly);
-      await prefs.setStringList(prefLog, [
-        for (final d in days) d.encode(),
-      ]);
+      if (opEpoch != _epoch) return;
+      await prefs.setInt(prefCap, cap);
+      if (opEpoch != _epoch) return;
+      await prefs.setBool(prefWifi, wifi);
+      if (opEpoch != _epoch) return;
+      await prefs.setStringList(prefLog, log);
     } catch (_) {
       // Bilinçli: yazılamazsa sayım yalnız bu oturumda.
     }
@@ -193,6 +199,14 @@ abstract final class SmartQuota {
     return true;
   }
 
+  /// Ağ isteği gönderilmeden yerel olarak kesilen bir hakkı iade eder.
+  static void refund() {
+    _roll();
+    if (_requests <= 0) return;
+    _requests--;
+    _changed();
+  }
+
   /// Kota (429) yanıtı geldi.
   static void noteLimited() {
     _roll();
@@ -219,6 +233,7 @@ abstract final class SmartQuota {
 
   /// Kota geçmişini sıfırlar (PrivacyWipe).
   static Future<void> clearLog() async {
+    _epoch++;
     _day = '';
     _requests = 0;
     _limited = 0;
@@ -234,6 +249,7 @@ abstract final class SmartQuota {
 
   @visibleForTesting
   static void debugReset() {
+    _epoch++;
     _cap = defaultCap;
     _wifiOnly = true;
     _read = false;

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_filter.dart';
@@ -162,7 +163,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     super.initState();
     _countClutter();
     _loadTrend();
-    _loadApps();
+    if (Edition.current.has(Feature.installedApps)) _loadApps();
     if (_followsIndex) SearchIndex.revision.addListener(_onIndexChanged);
     // Süzgeç sayfasındaki "açılmış/açılmamış" ölçütleri için.
     OpenHistory.ensureLoaded().then((_) {
@@ -420,7 +421,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             ),
                           // Uygulamalar aynı listenin son satırı — ayrı kart değil
                           // (bkz. [_appsBar]).
-                          _appsBar(maxBytes),
+                          if (Edition.current.has(Feature.installedApps))
+                            _appsBar(maxBytes),
                           if (categories.isEmpty)
                             Text(context.t('ana.no_scan')),
                         ],
@@ -580,7 +582,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// kendi tuttuğu veriler tazelenir.
   Future<void> _pullRefresh() async {
     await Future.wait([
-      _loadApps(force: true),
+      if (Edition.current.has(Feature.installedApps)) _loadApps(force: true),
       _loadTrend(),
       _refreshAlive(),
     ]);
@@ -656,7 +658,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           category: c));
     }
     final apps = _apps;
-    if (apps != null && apps.totalBytes > 0) {
+    if (Edition.current.has(Feature.installedApps) &&
+        apps != null &&
+        apps.totalBytes > 0) {
       scanned += apps.totalBytes;
       out.add(_Slice(
           bytes: apps.totalBytes,

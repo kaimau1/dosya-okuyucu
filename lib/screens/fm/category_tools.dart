@@ -1,14 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
-import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/snack.dart';
 import '../../core/theme.dart';
-import '../../core/user_error.dart';
+import '../../widgets/pro_gate.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/collection_insights.dart';
@@ -16,17 +12,14 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/open_history.dart';
-import '../../widgets/ai_key_gate.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/tag_picker_sheet.dart';
-import '../../widgets/tracked_busy.dart';
 import '../../services/fm/fm_env.dart';
 import '../../widgets/new_document_sheet.dart';
 import '../../widgets/scan_flow.dart';
 import 'ai_actions.dart' show giveAiAliasBatch;
-import 'ai_hub_screen.dart';
 import 'downloads_screen.dart' show downloadsPathIn;
 import 'entry_actions.dart' show shareEntriesFrom, zipEntries;
 import 'smart_sort_screen.dart';
@@ -87,24 +80,13 @@ Future<void> showCategoryTools(
             icon: AppIcons.insights,
             label: context.t('ct.analysis'),
             hint: context.t('ct.analysis_hint')),
-        AppAction(
-            value: 'ai_analysis',
-            icon: AppIcons.ai,
-            accent: true,
-            label: context.t('ct.ai_analysis'),
-            hint: context.t('ct.ai_analysis_hint')),
       ]),
       if (isDocs)
         AppActionGroup(title: context.t('ui.ct_docs'), actions: [
           AppAction(
-              value: 'ask',
-              icon: AppIcons.ai,
-              accent: true,
-              label: context.t('ui.ct_ask'),
-              hint: context.t('ui.ct_ask_hint')),
-          AppAction(
               value: 'smart',
               icon: AppIcons.ai,
+              proBadge: ProGate.locked(Feature.smartFolders),
               label: context.t('sm.tile'),
               hint: context.t('ui.ct_smart_hint')),
         ]),
@@ -163,8 +145,6 @@ Future<void> showCategoryTools(
       await _showInsights(context, title, files, full: false);
     case 'analysis':
       await _showInsights(context, title, files, full: true);
-    case 'ai_analysis':
-      await _aiAnalysis(context, title, files, onChanged);
     case 'ai_tag':
       if (files.isEmpty) return;
       await giveAiAliasBatch(context, files);
@@ -176,9 +156,6 @@ Future<void> showCategoryTools(
       }
     case 'manage_tags':
       if (await showTagManager(context)) await onChanged();
-    case 'ask':
-      await Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => const AiHubScreen()));
     case 'smart':
       await SmartSortScreen.open(context);
     case 'scan':
@@ -222,20 +199,6 @@ Future<void> showCategoryInsights(
       title,
       [for (final e in visible) if (!e.isDir) e],
       full: full,
-    );
-
-/// Akıllı analiz akışını doğrudan başlatır (tek katmanlı menüler için).
-Future<void> runCategoryAiAnalysis(
-  BuildContext context, {
-  required String title,
-  required List<FsEntry> visible,
-  required Future<void> Function() onChanged,
-}) =>
-    _aiAnalysis(
-      context,
-      title,
-      [for (final e in visible) if (!e.isDir) e],
-      onChanged,
     );
 
 /// Özet (kısa) ya da genel analiz (uzun) levhası — ikisi de cihazda.
@@ -517,184 +480,6 @@ class _ActionRow extends StatelessWidget {
         trailing: onTap == null ? null : const Icon(AppIcons.chevron),
         onTap: onTap,
       );
-}
-
-/// **AI analizi** — yerel özet + örnek ADLAR (içerik değil, kapsam dışlamaları
-/// gönderilmez) Gemini'ye; cevap: kısa özet, bulgular, öneriler ve önerilen
-/// kategoriler. Öneriler tek dokunuşla "AI ile kategorilere ayır"a bağlanır.
-Future<void> _aiAnalysis(BuildContext context, String title,
-    List<FsEntry> files, Future<void> Function() onChanged) async {
-  if (files.isEmpty) return;
-  final str = AppStrings.of(context);
-  final appState = context.read<AppState>();
-  if (!await ensureAiKey(context) || !context.mounted) return;
-  await OpenHistory.ensureLoaded();
-  await FileTags.ensureLoaded();
-  if (!context.mounted) return;
-  final ins = _insightsOf(files);
-  final scope = appState.aiScopeRules;
-  final sample = [
-    for (final e in files)
-      if (scope.allowsFile(e)) e.name,
-  ].take(150).toList();
-  final busy = showTrackedBusy(context,
-      title: str.t('ct.ai_busy'), name: str.t('ct.ai_analysis'));
-  _AiReport report;
-  try {
-    final raw = await appState.gemini.generateJson(
-      systemInstruction:
-          'Sen bir dosya yöneticisinin yardımcısısın. Kullanıcının "$title" '
-          'listesinin sayısal özeti ve örnek dosya ADLARI aşağıda. Yalnız buna '
-          'dayan, uydurma. ${str.t('ai.answer_language')} yaz; kısa ve somut ol.',
-      prompt: '${ins.describe(str.t)}\nÖrnek adlar:\n${sample.join('\n')}\n\n'
-          'İstenen: "ozet" (2 cümle), "bulgular" (en çok 4 madde: dikkat çeken '
-          'şeyler), "oneriler" (en çok 4 madde: düzen/temizlik önerisi), '
-          '"kategoriler" (bu dosyalar için 3-8 konu kategorisi adı).',
-      schema: const {
-        'type': 'object',
-        'properties': {
-          'ozet': {'type': 'string'},
-          'bulgular': {
-            'type': 'array',
-            'items': {'type': 'string'}
-          },
-          'oneriler': {
-            'type': 'array',
-            'items': {'type': 'string'}
-          },
-          'kategoriler': {
-            'type': 'array',
-            'items': {'type': 'string'}
-          },
-        },
-        'required': ['ozet'],
-      },
-    );
-    report = _AiReport.parse(raw);
-    await busy.done(detail: str.t('ct.ai_done'));
-  } catch (e) {
-    await busy.failed(e);
-    if (context.mounted) {
-      showSnack(context, str.t('tagai.error', {'error': userErrorText(e)}));
-    }
-    return;
-  }
-  if (!context.mounted) return;
-  final categorize = await showAppSheet<bool>(
-    context,
-    title: str.t('ct.ai_analysis'),
-    builder: (ctx) => Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.md + 8, 0, Gap.md + 8, Gap.lg),
-      child: _AiReportView(report: report),
-    ),
-  );
-  if (categorize == true && context.mounted) {
-    await giveAiAliasBatch(context, files);
-    await onChanged();
-  }
-}
-
-class _AiReport {
-  final String summary;
-  final List<String> findings;
-  final List<String> tips;
-  final List<String> categories;
-  const _AiReport(this.summary, this.findings, this.tips, this.categories);
-
-  static List<String> _list(Object? v) =>
-      v is List ? [for (final x in v) if ('$x'.trim().isNotEmpty) '$x'.trim()] : const [];
-
-  static _AiReport parse(String raw) {
-    try {
-      final m = jsonDecode(raw);
-      if (m is Map) {
-        return _AiReport('${m['ozet'] ?? ''}'.trim(), _list(m['bulgular']),
-            _list(m['oneriler']), _list(m['kategoriler']));
-      }
-    } catch (_) {
-      // Bilinçli: şema dışı yanıt — aşağıdaki yedek yol kullanılır.
-    }
-    return _AiReport(raw.trim(), const [], const [], const []);
-  }
-}
-
-class _AiReportView extends StatelessWidget {
-  final _AiReport report;
-  const _AiReportView({required this.report});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    Widget section(String head, List<String> items, IconData icon) => items
-            .isEmpty
-        ? const SizedBox.shrink()
-        : Padding(
-            padding: const EdgeInsets.only(top: Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(head,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: Gap.xs),
-                for (final i in items)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: Gap.xs),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(icon, size: 16),
-                        ),
-                        const SizedBox(width: Gap.sm),
-                        Expanded(child: Text(i)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(report.summary, style: theme.textTheme.bodyLarge),
-        section(context.t('ct.ai_findings'), report.findings, AppIcons.insights),
-        section(context.t('ct.ai_tips'), report.tips, AppIcons.autoFixNormal),
-        if (report.categories.isNotEmpty) ...[
-          const SizedBox(height: Gap.md),
-          Text(context.t('ct.ai_categories'),
-              style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: Gap.xs),
-          Wrap(
-            spacing: Gap.sm,
-            runSpacing: Gap.xs,
-            children: [
-              for (final c in report.categories)
-                Chip(
-                    visualDensity: VisualDensity.compact,
-                    avatar: const Icon(AppIcons.tag, size: 16),
-                    label: Text(c)),
-            ],
-          ),
-        ],
-        const SizedBox(height: Gap.lg),
-        FilledButton.icon(
-          key: const ValueKey('ct-ai-categorize'),
-          onPressed: () => Navigator.pop(context, true),
-          icon: const Icon(AppIcons.ai, size: 18),
-          label: Text(context.t('alias.action')),
-        ),
-        const SizedBox(height: Gap.xs),
-        Text(context.t('ct.ai_privacy'),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: Paper.faint(context))),
-      ],
-    );
-  }
 }
 
 /// **Etiketleri yönet** — elle: yeniden adlandır, sil (dosyalara dokunmaz).

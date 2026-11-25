@@ -1,5 +1,4 @@
 import 'package:dosya_okuyucu/models/fs_entry.dart';
-import 'package:dosya_okuyucu/services/fm/ai_analyzer.dart';
 import 'package:dosya_okuyucu/services/fm/ai_scope.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -139,25 +138,6 @@ void main() {
     test('kullanıcı isterse sınır koyabilir ve kayıt korunur', () {
       const limited = AiScopeSettings(dailyFileBudget: 400);
       expect(AiScopeSettings.fromJson(limited.toJson()).dailyFileBudget, 400);
-    });
-  });
-
-  group('öneri güvenliği (safeName)', () {
-    test('uzantı korunur', () {
-      expect(AiAnalyzer.safeName('Elektrik faturası', 'IMG_1.pdf'),
-          'Elektrik faturası.pdf');
-      expect(AiAnalyzer.safeName('Fatura.txt', 'belge.pdf'), 'Fatura.pdf');
-    });
-
-    test('klasör ayıracı ve yasak karakterler temizlenir', () {
-      expect(AiAnalyzer.safeName('Fatura/Temmuz.pdf', 'a.pdf'),
-          'Fatura Temmuz.pdf');
-      expect(AiAnalyzer.safeName('a:b*c?.pdf', 'a.pdf'), isNot(contains(':')));
-    });
-
-    test('aynı ad öneri sayılmaz', () {
-      expect(AiAnalyzer.safeName('a.pdf', 'a.pdf'), '');
-      expect(AiAnalyzer.safeName('', 'a.pdf'), '');
     });
   });
 }

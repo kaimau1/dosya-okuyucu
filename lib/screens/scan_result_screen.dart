@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
@@ -8,21 +7,16 @@ import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/app_haptics.dart';
 import '../core/app_icons.dart';
-import '../core/app_state.dart';
 import '../core/busy_dialog.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/motion.dart';
 import '../core/snack.dart';
 import '../core/theme.dart';
 import '../services/document_scanner.dart';
-import '../services/fm/image_resize.dart';
-import '../services/gemini_decisions.dart';
-import '../widgets/ai_key_gate.dart';
 import '../services/fm/activity_log.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/doc_classifier.dart';
@@ -220,9 +214,6 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   final Map<String, ScanQualityReport?> _quality = {};
   bool _measuring = false;
   final Set<String> _qualityDismissed = {};
-
-  /// AI kalite önerisi, görünen görselin yoluna göre ('' = AI sorun görmedi).
-  final Map<String, String> _aiQuality = {};
 
   /// O an sürmekte olan sayfa işi ("Kırpılıyor…"); null = boşta.
   String? _work;
@@ -436,7 +427,6 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                 'open' => _openPdf(),
                 'rename' => _rename(),
                 'move' => _changeLocation(),
-                'ai_quality' => _aiQualityCheck(),
                 _ => null,
               },
               itemBuilder: (ctx) => [
@@ -470,14 +460,6 @@ class _ScanResultScreenState extends State<ScanResultScreen>
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(AppIcons.move),
                     title: Text(ctx.t('scr.change_location')),
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'ai_quality',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(AppIcons.ai),
-                    title: Text(ctx.t('sq.ai_check')),
                   ),
                 ),
               ],
