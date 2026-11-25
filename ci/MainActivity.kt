@@ -342,7 +342,13 @@ class MainActivity : FlutterActivity() {
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         } catch (e: Exception) {
-            // Bazı sağlayıcılar kalıcı izin vermiyor; oturum boyu yine çalışır.
+            // Yazma kalıcı verilemediyse en azından kalıcı okumayı dene.
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
         }
         pending.success(uri.toString())
     }
@@ -2191,17 +2197,56 @@ class MainActivity : FlutterActivity() {
         return out
     }
 
-    /** SAF belgesini yerel dosyaya kopyalar (aç/indir akışı). */
+    /** SAF belgesini yerel dosyaya atomik ve doğrulamalı kopyalar (aç/indir akışı). */
     private fun safCopyToFile(uriString: String?, dest: String?): Boolean {
         if (uriString.isNullOrEmpty() || dest.isNullOrEmpty()) return false
-        return try {
-            contentResolver.openInputStream(Uri.parse(uriString))?.use { input ->
-                java.io.File(dest).outputStream().use { output ->
-                    input.copyTo(output, 64 * 1024)
+        val target = java.io.File(dest)
+        target.parentFile?.mkdirs()
+        val tmp = java.io.File("$dest.tmp-${System.nanoTime()}")
+        try {
+            val uri = Uri.parse(uriString)
+            var expectedSize = -1L
+            runCatching {
+                contentResolver.query(
+                    uri,
+                    arrayOf(android.provider.OpenableColumns.SIZE),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst() && !cursor.isNull(0)) {
+                        expectedSize = cursor.getLong(0)
+                    }
                 }
-            } != null
+            }
+            var copied = -1L
+            contentResolver.openInputStream(uri)?.use { input ->
+                tmp.outputStream().use { output ->
+                    copied = input.copyTo(output, 64 * 1024)
+                    output.flush()
+                    runCatching { output.fd.sync() }
+                }
+            }
+            if (copied < 0 || (expectedSize > 0 && copied != expectedSize)) {
+                tmp.delete()
+                return false
+            }
+            if (tmp.renameTo(target)) return true
+            if (target.exists()) {
+                val bak = java.io.File("$dest.bak-${System.nanoTime()}")
+                if (target.renameTo(bak)) {
+                    if (tmp.renameTo(target)) {
+                        bak.delete()
+                        return true
+                    }
+                    bak.renameTo(target)
+                }
+            }
+            tmp.delete()
+            return false
         } catch (e: Exception) {
-            false
+            tmp.delete()
+            return false
         }
     }
 
@@ -2243,13 +2288,21 @@ class MainActivity : FlutterActivity() {
                 safDelete(doc.toString())
                 return null
             }
+            val expected = java.io.File(src).length()
+            var copied = -1L
             try {
                 output.use { o ->
                     java.io.File(src).inputStream().use { input ->
-                        input.copyTo(o, 64 * 1024)
+                        copied = input.copyTo(o, 64 * 1024)
+                        o.flush()
+                        runCatching { (o as? java.io.FileOutputStream)?.fd?.sync() }
                     }
                 }
             } catch (e: Exception) {
+                safDelete(doc.toString())
+                return null
+            }
+            if (copied != expected) {
                 safDelete(doc.toString())
                 return null
             }

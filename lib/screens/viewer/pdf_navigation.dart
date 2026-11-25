@@ -13,67 +13,38 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       _snack(context.t('vw.pdf_loading'));
       return;
     }
-    // Uzun PDF'te OCR dakikalar sürer: pencerede "Sayfa 4 / 30 · %13 · ~3 dk
-    // kaldı", 1,5 sn'yi geçince ana ekran şeridinde ve bildirimde de (bkz.
-    // `widgets/tracked_busy.dart`). Metinler await'ten önce alınır.
-    final str = AppStrings.of(context);
-    final busy = showTrackedBusy(
-      context,
-      title: str.t('vw.ocr_running'),
-      name: str.t('vw.ocr_job_name'),
-      message: str.t('vw.preparing'),
+    final currentPage = onlyPage ??
+        (_pdfController.isReady ? (_pdfController.pageNumber ?? 1) : 1);
+    final res = await Navigator.of(context).push<OcrStudioResult>(
+      MaterialPageRoute(
+        builder: (_) => OcrStudioScreen(
+          imagePath: doc.kind == DocKind.image ? doc.path : null,
+          pdfDoc: doc.kind == DocKind.pdf ? _pdfDoc : null,
+          title: p.basename(doc.path),
+          currentPage: currentPage,
+          startDirectly: onlyPage != null,
+        ),
+      ),
     );
-
-    String text = '';
+    if (!mounted || res == null || res.text.trim().isEmpty) return;
+    final text = res.text.trim();
     var lines = const <OcrLine>[];
-    String? error;
-    try {
-      if (doc.kind == DocKind.image) {
-        busy.status(str.t('vw.ocr_running'));
+    if (doc.kind == DocKind.image && res.openImageOverlay) {
+      try {
         lines = await OcrService.recognizeImageLines(doc.path,
-            allowCloud: true);
-        text = lines.map((l) => l.text).join('\n').trim();
-      } else if (doc.kind == DocKind.pdf) {
-        void progress(int done, int total) => busy.status(
-            done >= total
-                ? str.t('vw.ocr_finishing')
-                : str.t('vw.ocr_page', {'n': done + 1, 'total': total}),
-            done: done,
-            total: total,
-          );
-        text = onlyPage == null
-            ? await OcrService.recognizePdf(_pdfDoc!,
-                onProgress: progress, allowCloud: true)
-            : OcrService.joinPages(
-                await OcrService.recognizePdfPages(_pdfDoc!,
-                    onlyPages: {onlyPage}, onProgress: progress, allowCloud: true),
-                (n) => '— Sayfa $n —');
+            allowCloud: true, mode: OcrQualityMode.fast);
+      } catch (_) {
+        // Bilinçli: metin stüdyoda zaten hazır; katman başarısızsa yalnız metin saklanır.
       }
-    } catch (e) {
-      error = userErrorText(e);
-    }
-    if (error != null) {
-      await busy.failed(error);
-    } else {
-      await busy.done();
-    }
-    if (!mounted) return;
-
-    if (error != null) {
-      _snack(context.t('vw.ocr_failed', {'error': error}));
-      return;
-    }
-    if (text.isEmpty) {
-      _snack(context.t('vw.ocr_none'));
-      return;
+      if (!mounted) return;
     }
     _partSetState(() {
       if (doc.kind == DocKind.image) {
         _ocrImageText = text;
-        _ocrImageLines = lines;
-        // Görselde metin doğrudan resmin üstünden seçilir (Lens gibi);
-        // liste penceresi yalnız istenirse açılır.
-        _ocrOverlay = lines.isNotEmpty;
+        if (lines.isNotEmpty) {
+          _ocrImageLines = lines;
+          _ocrOverlay = true;
+        }
       }
       // Taranmış PDF'te metin katmanı boştur → OCR sonucu AI bağlamı olur.
       if (doc.kind == DocKind.pdf && _pdfText.isEmpty) _pdfText = text;
@@ -81,9 +52,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     if (doc.kind == DocKind.image && lines.isNotEmpty) {
       // Kaydırma/yakınlaştırma seçimi bozmasın diye sığdır.
       _imgTx.value = Matrix4.identity();
-      return;
     }
-    _showOcrSheet(text);
   }
 
   /// Görselin üstündeki OCR katmanı açıkken alttaki panel (notlar

@@ -272,6 +272,10 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     );
     appState.clearClipboard();
     if (!mounted) return;
+    if (result.errors.contains(SafWrite.noGrant)) {
+      showSafGrantSnack(context, widget.path);
+      return;
+    }
     if (result.hasError) {
       _snack(context.t('fm.transfer_partial', {'error': result.errors.first}));
     } else if (result.cancelled) {
@@ -427,6 +431,10 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
           onProgress: report, isCancelled: isCancelled),
     );
     if (!mounted) return;
+    if (result.errors.contains(SafWrite.noGrant)) {
+      showSafGrantSnack(context, widget.path);
+      return;
+    }
     showSnackOn(
         messenger,
         result.hasError

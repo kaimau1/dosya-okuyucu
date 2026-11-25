@@ -29,12 +29,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     GeminiService.filePollInterval = Duration.zero;
     SmartSortInput.clipVideo = (_) async => null;
-    // Bu dosya eski (kesit / Files API) video yolunu sınar; kapak karesi
-    // yolu ayrı testte.
+    // Bu dosya eski (kesit / Files API) ses-video yolunu sınar; güvenli
+    // varsayılanlar ayrı testte.
     SmartSortInput.videoCoverOnly = false;
+    SmartSortInput.allowAudioFilesUpload = true;
   });
   tearDown(() {
     SmartSortInput.videoCoverOnly = true;
+    SmartSortInput.allowAudioFilesUpload = false;
+    SmartSortInput.scannedPdfFirstPageRaster = null;
     GeminiService.debugClient = null;
     tmp.deleteSync(recursive: true);
   });
@@ -479,6 +482,54 @@ void main() {
         throwsA(isA<GeminiException>()
             .having((e) => e.statusCode, 'statusCode', -1)),
       );
+    });
+  });
+
+  group('maliyet güvenliği varsayılanları', () {
+    test('varsayılan allowAudioFilesUpload=false iken >512KB ses metaText gider',
+        () async {
+      SmartSortInput.allowAudioFilesUpload = false;
+      final audio = File('${tmp.path}/kayit.mp3')
+        ..writeAsBytesSync(List.filled(64, 1));
+      GeminiService.debugClient =
+          MockClient((_) async => throw StateError('ağ çağrılmamalı'));
+      final prep = await SmartSortInput.prepare(
+        entry(audio.path, 20 * 1024 * 1024),
+        const ['k1'],
+      );
+      expect(prep.remote, isNull);
+      expect(prep.block['type'], 'text');
+      expect(prep.block['text'], contains('kayit.mp3'));
+    });
+
+    test('>400KB taranmış PDF asla ham application/pdf olarak gitmez',
+        () async {
+      final doc = PdfDocument()..pages.add();
+      final base = Uint8List.fromList(await doc.save());
+      doc.dispose();
+      // 400 KB üstüne tamamlamak için yasal PDF sonuna yorum dolgusu ekle.
+      final padLen = SmartSortInput.maxInlineScannedPdfBytes + 4096 - base.length;
+      final bigPdfBytes = Uint8List.fromList([
+        ...base,
+        ...utf8.encode('\n%${'0' * (padLen > 0 ? padLen : 1024)}\n'),
+      ]);
+      final bigPdf = File('${tmp.path}/tarama_buyuk.pdf')
+        ..writeAsBytesSync(bigPdfBytes);
+
+      final fakeJpg = imglib.encodeJpg(imglib.Image(width: 16, height: 16));
+      SmartSortInput.scannedPdfFirstPageRaster = (_) async =>
+          Uint8List.fromList(fakeJpg);
+      final imgBlock = await SmartSortInput.blockFor(
+          entry(bigPdf.path, bigPdfBytes.length));
+      expect(imgBlock['type'], 'image');
+      expect(imgBlock['mime_type'], 'image/jpeg');
+
+      // Rasterizer düşerse çok MB base64 PDF yerine ucuz meta yazısına düşer.
+      SmartSortInput.scannedPdfFirstPageRaster = (_) async => null;
+      final fallbackBlock = await SmartSortInput.blockFor(
+          entry(bigPdf.path, bigPdfBytes.length));
+      expect(fallbackBlock['type'], 'text');
+      expect(fallbackBlock['text'], contains('tarama_buyuk.pdf'));
     });
   });
 }

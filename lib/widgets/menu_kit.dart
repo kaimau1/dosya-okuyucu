@@ -11,6 +11,7 @@ import '../core/menu_search.dart';
 import '../core/motion.dart';
 import '../core/state/appearance_state.dart';
 import '../core/theme.dart';
+import 'pro_gate.dart';
 
 export '../core/menu_look.dart';
 export '../core/menu_search.dart';
@@ -387,6 +388,9 @@ class MenuKitAction {
   /// Hücrenin anahtarı (testler/ölçüm).
   final Key? key;
 
+  /// Lite'ta kilitli Pro özelliği ise köşede PRO rozeti gösterilir.
+  final bool proBadge;
+
   const MenuKitAction({
     required this.icon,
     required this.label,
@@ -395,6 +399,7 @@ class MenuKitAction {
     this.tone = MenuTone.accent,
     this.checked,
     this.key,
+    this.proBadge = false,
   });
 
   bool get enabled => onTap != null && tone != MenuTone.disabled;
@@ -1159,6 +1164,12 @@ class _GridCell extends StatelessWidget {
                       end: -3,
                       top: -3,
                       child: _CheckBadge(special: tone == MenuTone.special),
+                    )
+                  else if (a.proBadge)
+                    const PositionedDirectional(
+                      end: -6,
+                      top: -4,
+                      child: ProBadge(),
                     ),
                 ],
               ),
@@ -1415,8 +1426,11 @@ class _BentoTile extends StatelessWidget {
                         child: Icon(a.icon, size: 18, color: fg),
                       ),
                       const Spacer(),
-                      if (a.checked == true)
+                      if (a.proBadge) const ProBadge(),
+                      if (a.checked == true) ...[
+                        if (a.proBadge) const SizedBox(width: 4),
                         Icon(AppIcons.checkCircle, size: 18, color: fg),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -1507,6 +1521,10 @@ class _BentoRowTile extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (a.proBadge) ...[
+                    const SizedBox(width: 6),
+                    const ProBadge(),
+                  ],
                   if (a.checked != null) ...[
                     const SizedBox(width: 6),
                     Icon(

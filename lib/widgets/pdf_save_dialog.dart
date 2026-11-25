@@ -11,6 +11,7 @@ import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/activity_log.dart';
 import '../services/fm/fs_events.dart';
+import '../services/fm/safe_write.dart';
 import '../services/pdf_save.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
@@ -117,7 +118,7 @@ Future<String> _writeInto(
     target = p.join(dir, '$stem ($n).pdf');
     n++;
   }
-  await File(target).writeAsBytes(bytes, flush: true);
+  await SafeWrite.bytes(target, bytes);
   return target;
 }
 

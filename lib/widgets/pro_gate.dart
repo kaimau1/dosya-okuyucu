@@ -41,6 +41,20 @@ abstract final class ProGate {
     }
   }
 
+  /// [f] bu sürümde varsa `true` döner; yoksa Lite'ta Pro levhasını açıp
+  /// `false` döner (`await ProGate.check(context, Feature.x)`).
+  static Future<bool> check(
+    BuildContext context,
+    Feature f, {
+    Edition edition = Edition.current,
+  }) async {
+    if (edition.has(f)) return true;
+    if (f.isPro && context.mounted) {
+      await showProSheet(context, f);
+    }
+    return false;
+  }
+
   /// [guard]'ı saran dokunma geri çağrısı (kutu `onTap`'ı için).
   static VoidCallback wrap(
     BuildContext context,

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
-import '../../services/fm/ai_buckets.dart';
+import '../../widgets/pro_gate.dart';
+import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folders.dart';
@@ -23,6 +25,14 @@ import '../../widgets/app_dialog.dart';
 /// kategori klasörleriyle (asıl "Akıllı klasörler") aynı adı taşıyordu → iki
 /// ayrı şey tek ad. İçerik artık Akıllı düzen kayıtlarını da arar; hassas
 /// kategorili dosya varsa açılışta PIN ([unlockSensitiveCats]).
+FsEntry _entryOf(AiRecord r) => FsEntry(
+      path: r.path,
+      name: r.name,
+      isDir: false,
+      sizeBytes: r.sizeBytes,
+      modifiedMs: r.modifiedMs,
+    );
+
 class SmartFoldersScreen extends StatefulWidget {
   const SmartFoldersScreen({super.key});
 
@@ -51,6 +61,8 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   }
 
   Future<void> _create() async {
+    if (!await ProGate.check(context, Feature.smartFolders)) return;
+    if (!mounted) return;
     final query = await _askText(context,
         title: context.t('smart.create'), hint: context.t('smart.query_hint'));
     if (query == null || query.trim().isEmpty || !mounted) return;
@@ -70,7 +82,14 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
         icon: const Icon(AppIcons.add),
         label: Text(context.t('smart.create')),
       ),
-      body: ListenableBuilder(
+      body: !Edition.current.has(Feature.smartFolders)
+          ? Center(
+              child: FilledButton(
+                onPressed: () => showProSheet(context, Feature.smartFolders),
+                child: Text(context.t('pro.title')),
+              ),
+            )
+          : ListenableBuilder(
         listenable: Listenable.merge(
             [SmartFolders.instance, AiIndex.revision, SmartSort.revision]),
         builder: (context, _) {
@@ -182,7 +201,7 @@ class _FolderRow extends StatelessWidget {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: FmEntryIcon(
-                        entry: AiBuckets.entryOf(r), size: 36, radius: 6),
+                        entry: _entryOf(r), size: 36, radius: 6),
                   ),
                 ),
             ],
@@ -261,7 +280,7 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
         }
         final items = SmartFolders.contents(folder, scope);
         final seen = _seenAtOpen ?? folder.seenMs;
-        final bytes = AiBuckets.totalBytes(items);
+        final bytes = items.fold<int>(0, (s, r) => s + r.sizeBytes);
         return Scaffold(
           appBar: AppBar(
             title: Text(folder.name),

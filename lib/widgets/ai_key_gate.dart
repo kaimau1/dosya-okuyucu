@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../screens/settings_screen.dart';
+import 'pro_gate.dart';
 
 /// **Anahtarsız AI deneyimi** (Faz 5, 2026-10-21 — FAZ_PLANI I8 / N3).
 ///
@@ -15,6 +17,8 @@ import '../screens/settings_screen.dart';
 /// olduğu, verinin nereye gittiği — ve "Anahtar ekle" düğmesi doğrudan AI
 /// ayarlarını açar.
 Future<bool> ensureAiKey(BuildContext context) async {
+  if (!await ProGate.check(context, Feature.ai)) return false;
+  if (!context.mounted) return false;
   if (context.read<AppState>().hasApiKey) return true;
   final go = await showModalBottomSheet<bool>(
     context: context,

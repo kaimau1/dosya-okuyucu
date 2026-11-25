@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../core/edition.dart';
 import '../core/private_zone.dart';
+import 'ai_pool.dart';
 import 'gemini_service.dart';
 import 'offline_mode.dart';
 
@@ -127,18 +130,43 @@ abstract final class GeminiDecisions {
         },
       };
 
+  static final Map<String, int> _keyCooldownUntilMs = {};
+  static final Map<String, int> _keyConsec429 = {};
+  static const int _cooldown429Ms = 60 * 1000;
+  static const int _cooldownAuthMs = 10 * 60 * 1000;
+
+  @visibleForTesting
+  static int Function() nowMs = () => DateTime.now().millisecondsSinceEpoch;
+
+  @visibleForTesting
+  static void resetCooldownsForTest() {
+    _keyCooldownUntilMs.clear();
+    _keyConsec429.clear();
+    nowMs = () => DateTime.now().millisecondsSinceEpoch;
+  }
+
   /// Soruları sorar. Anahtarlar sırayla denenir: kota (429) ya da yetki
-  /// (401/403) hatasında sıradaki anahtara geçilir.
+  /// (401/403) hatasında sıradaki anahtara geçilir, soğuyan anahtar geçici atlanır.
   static Future<DecisionResult> ask({
     required List<String> keys,
     required List<Map<String, Object?>> input,
     required List<DecisionQuestion> questions,
+    bool silent = false,
   }) async {
+    if (!Edition.current.has(Feature.ai)) {
+      throw GeminiException('Bu özellik Pro sürümde açılır.', statusCode: -2);
+    }
     if (OfflineMode.enabled) {
       throw GeminiException(const OfflineException().message, statusCode: -1);
     }
     if (PrivateZone.active) {
       throw GeminiException('Gizli kasa açıkken yapay zekâ kullanılamaz.',
+          statusCode: -1);
+    }
+    if (silent &&
+        AiPool.consentGranted != null &&
+        !AiPool.consentGranted!()) {
+      throw GeminiException('Yapay zekâ gönderim onayı verilmemiş.',
           statusCode: -1);
     }
     final clean = [
@@ -152,7 +180,14 @@ abstract final class GeminiDecisions {
     if (questions.isEmpty) throw GeminiException('Soru yok.', statusCode: -1);
     final payload = await encodeBody(input, questions);
     GeminiException? last;
+    final now = nowMs();
     for (final key in clean) {
+      final until = _keyCooldownUntilMs[key];
+      if (until != null && now < until) {
+        last ??= GeminiException('API anahtarı geçici soğumada.',
+            statusCode: 429);
+        continue;
+      }
       final http.Response resp;
       try {
         resp = await GeminiService.postDecision(key, payload);
@@ -162,8 +197,19 @@ abstract final class GeminiDecisions {
         throw GeminiException('Ağ hatası: $e');
       }
       if (resp.statusCode == 200) {
+        _keyCooldownUntilMs.remove(key);
+        _keyConsec429.remove(key);
         return DecisionResult.parse(
             utf8.decode(resp.bodyBytes, allowMalformed: true), questions);
+      }
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        _keyCooldownUntilMs[key] = nowMs() + _cooldownAuthMs;
+      } else if (resp.statusCode == 429) {
+        final hits = (_keyConsec429[key] ?? 0) + 1;
+        _keyConsec429[key] = hits;
+        if (hits >= 2) {
+          _keyCooldownUntilMs[key] = nowMs() + _cooldown429Ms;
+        }
       }
       last = GeminiException(GeminiService.readError(resp),
           statusCode: resp.statusCode);

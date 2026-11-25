@@ -540,18 +540,7 @@ class FatFileSystem extends UsbFileSystem {
     }
 
     final needed = (totalLength + clusterSize - 1) ~/ clusterSize;
-    List<int> chain;
-    var deletedBeforeWrite = false;
-    try {
-      chain = await _allocate(needed);
-    } on UsbFsException {
-      if (existing.isEmpty) rethrow;
-      for (final e in existing) {
-        await deleteEntry(dirId, e);
-      }
-      deletedBeforeWrite = true;
-      chain = await _allocate(needed);
-    }
+    final chain = await _allocate(needed);
     // **Önce veri.** Girdi en son yazılıyor: yarıda kesilen işlem, var
     // görünen ama boş bir dosya bırakmasın; mevcut dosya da yeni veri
     // eksiksiz yazılana dek silinmez.
@@ -593,10 +582,8 @@ class FatFileSystem extends UsbFileSystem {
         await _writeCluster(
             chain[index], Uint8List.sublistView(buffer, 0, filled));
       }
-      if (!deletedBeforeWrite) {
-        for (final e in existing) {
-          await deleteEntry(dirId, e);
-        }
+      for (final e in existing) {
+        await deleteEntry(dirId, e);
       }
       first = chain.isEmpty ? 0 : chain.first;
       await _addDirectoryEntry(dirCluster, name,
@@ -1072,7 +1059,7 @@ class FatFileSystem extends UsbFileSystem {
     e.setRange(0, 11, bytes);
     e[11] = isDir ? 0x10 : 0x20;
     final view = ByteData.sublistView(e);
-    view.setUint16(20, (cluster >> 16) & 0xFFFF, Endian.little);
+    view.setUint16(20, kind == FatKind.fat32 ? (cluster >> 16) & 0xFFFF : 0, Endian.little);
     view.setUint16(26, cluster & 0xFFFF, Endian.little);
     view.setUint32(28, size, Endian.little);
     final now = DateTime.now();
@@ -1130,8 +1117,8 @@ class FatFileSystem extends UsbFileSystem {
       final long = _joinLfn(lfn);
       lfn.clear();
       final d = ByteData.sublistView(raw);
-      final cluster = (d.getUint16(off + 20, Endian.little) << 16) |
-          d.getUint16(off + 26, Endian.little);
+      final hi = kind == FatKind.fat32 ? d.getUint16(off + 20, Endian.little) : 0;
+      final cluster = (hi << 16) | d.getUint16(off + 26, Endian.little);
       out.add(UsbEntry(
         name: long.isNotEmpty ? long : shortName,
         isDir: isDir,

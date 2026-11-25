@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
-import '../../core/app_state.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
@@ -44,10 +42,8 @@ class _BillsScreenState extends State<BillsScreen> {
   }
 
   Future<void> _refresh() async {
-    final state = context.read<AppState>();
     final strings = AppStrings.of(context);
     final n = await Bills.instance.refresh(
-      gemini: state.hasApiKey ? state.gemini : null,
       onProgress: (done, total) {
         if (mounted) setState(() => _progress = (done: done, total: total));
       },

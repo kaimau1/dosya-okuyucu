@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../core/app_state.dart';
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import 'app_links.dart';
 import '../core/snack.dart';
@@ -22,8 +23,8 @@ import '../widgets/fm/home_quick_row.dart';
 import '../widgets/fm/job_progress_bar.dart';
 import '../services/fm/fm_env.dart';
 import '../services/fm/home_shortcuts.dart';
-import 'fm/ai_hub_screen.dart';
 import 'fm/bills_screen.dart';
+import 'fm/smart_sort_screen.dart';
 import 'fm/browser_screen.dart';
 import 'fm/category_screen.dart';
 import 'fm/remote/nearby_screen.dart';
@@ -204,7 +205,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // göre değişiyor. Karar tek ölçüte bağlı: içerik http(s) adresi mi ve
     // diskte böyle bir dosya YOK mu? Öyleyse indirilecek bir bağlantıdır.
     final url = extractUrl(path);
-    if (url != null && !await File(path).exists()) {
+    if (url != null &&
+        !await File(path).exists() &&
+        Edition.current.has(Feature.downloadManager)) {
       if (!mounted) return;
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => DownloadManagerScreen(initialUrl: url),
@@ -384,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'search':
         return SearchScreen(rootLabel: context.t('fm.all_files'));
       case 'ai':
-        return const AiHubScreen();
+        return const SmartSortScreen();
       case 'jobs':
         return const JobsScreen();
       case 'smart':
@@ -396,9 +399,13 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'trash':
         return const TrashScreen();
       case 'drive':
-        return const DriveScreen();
+        if (Edition.current.has(Feature.googleDrive)) {
+          return const DriveScreen();
+        }
       case 'apps':
-        return const InstalledAppsScreen();
+        if (Edition.current.has(Feature.installedApps)) {
+          return const InstalledAppsScreen();
+        }
     }
     return const SizedBox();
   }

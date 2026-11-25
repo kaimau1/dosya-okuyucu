@@ -10,6 +10,7 @@ import '../../core/app_colors.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
@@ -29,6 +30,7 @@ import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/smart_user_cats.dart';
 import '../../widgets/ai_key_gate.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/pro_gate.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/pin_dialog.dart';
 import '../../widgets/fm/smart_cat_style.dart';
@@ -54,8 +56,12 @@ import 'smart_user_cat_screen.dart';
 class SmartSortScreen extends StatefulWidget {
   const SmartSortScreen({super.key});
 
-  static Future<void> open(BuildContext context) => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => const SmartSortScreen()));
+  static Future<void> open(BuildContext context) async {
+    if (!await ProGate.check(context, Feature.smartFolders)) return;
+    if (!context.mounted) return;
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const SmartSortScreen()));
+  }
 
   @override
   State<SmartSortScreen> createState() => _SmartSortScreenState();
@@ -685,6 +691,17 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.smartFolders)) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.t('sm.title'))),
+        body: Center(
+          child: FilledButton(
+            onPressed: () => showProSheet(context, Feature.smartFolders),
+            child: Text(context.t('pro.title')),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(context.t('sm.title')),

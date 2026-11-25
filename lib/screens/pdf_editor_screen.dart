@@ -45,9 +45,10 @@ import '../core/user_error.dart';
 import '../widgets/ai_key_gate.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../services/pdf/pdf_markup.dart';
-import 'pdf_ai_edit_screen.dart';
 import 'pdf_ink_screen.dart';
 import '../core/theme.dart';
+import '../core/edition.dart';
+import '../widgets/pro_gate.dart';
 import 'fm/pick_file_screen.dart';
 
 part 'pdf_editor/actions.dart';
@@ -97,7 +98,9 @@ class PdfEditorScreen extends StatefulWidget {
     required String path,
     int initialPage = 1,
     PdfEditSelection? selection,
-  }) {
+  }) async {
+    if (!await ProGate.check(context, Feature.pdfAdvanced)) return null;
+    if (!context.mounted) return null;
     return Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => PdfEditorScreen(
@@ -112,7 +115,7 @@ class PdfEditorScreen extends StatefulWidget {
 
 /// Şerit sekmeleri = düzenleme kipleri (Faz 31: Office editörleriyle aynı
 /// şerit dili; eskiden alt `NavigationBar`).
-enum _EditMode { text, image, sign, form, draw, ai, background, page }
+enum _EditMode { text, image, sign, form, draw, background, page }
 
 /// Yerinde alanın özgün geometrisi (PDF noktası) — bkz. `_inlineGeometry`.
 typedef _InlineGeom = ({

@@ -1052,7 +1052,30 @@ abstract final class PeerSender {
           length: body.length,
           type: ContentType.text,
           timeout: const Duration(seconds: 15));
-      return r.status == HttpStatus.ok;
+      if (r.status == HttpStatus.ok) return true;
+      if (r.status == HttpStatus.notFound) {
+        // Eski PC/alıcı sürümünde /yazi yoksa geçici not.txt olarak /al ile düş.
+        final dir = await Directory.systemTemp.createTemp('yazi_');
+        final note = File(p.join(dir.path, 'not.txt'));
+        try {
+          await note.writeAsString(text, flush: true);
+          final res = await send(
+            peer,
+            [note.path],
+            senderName: senderName,
+            pairingCode: pairingCode,
+            identity: identity,
+          );
+          return res.sent == 1 && !res.hasError && !res.declined && !res.cancelled;
+        } finally {
+          try {
+            await dir.delete(recursive: true);
+          } catch (_) {
+            // Bilinçli: geçici dosya temizliği en iyi çaba.
+          }
+        }
+      }
+      return false;
     } catch (_) {
       return false;
     } finally {

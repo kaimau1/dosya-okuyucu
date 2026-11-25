@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
-import '../../services/fm/ai_buckets.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/entry_opener.dart';
 import 'fm_entry_icon.dart';
@@ -29,7 +28,13 @@ class AiPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final entry = AiBuckets.entryOf(record);
+    final entry = FsEntry(
+      path: record.path,
+      name: record.name,
+      isDir: false,
+      sizeBytes: record.sizeBytes,
+      modifiedMs: record.modifiedMs,
+    );
     final isVideo = entry.category == FmCategory.video;
     return SizedBox(
       width: size,

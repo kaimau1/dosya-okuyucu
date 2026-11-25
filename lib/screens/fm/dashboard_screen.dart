@@ -224,30 +224,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   /// pano kökü yeniden kurulmaz.)
   final ValueNotifier<bool> _tileDragging = ValueNotifier(false);
 
-  /// Arama kapsülündeki AI anahtarı (anlamla ara) — kalıcı.
-  bool _meaning = false;
-  static const _meaningKey = 'dash_meaning_search_v1';
-
-  Future<void> _loadMeaning() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final on = prefs.getBool(_meaningKey) ?? false;
-      if (mounted && on != _meaning) setState(() => _meaning = on);
-    } catch (_) {
-      // Bilinçli: okunamazsa anahtar kapalı başlar.
-    }
-  }
-
-  Future<void> _toggleMeaning() async {
-    setState(() => _meaning = !_meaning);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_meaningKey, _meaning);
-    } catch (_) {
-      // Bilinçli: kayıt yazılamazsa yalnız bu oturumda geçerli kalır.
-    }
-  }
-
   int _trashCount = 0;
   final Map<String, int> _folderSizes = {};
 
@@ -265,7 +241,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     unawaited(_recallScanDuration());
-    unawaited(_loadMeaning());
     unawaited(ProPromo.shouldShow().then((show) {
       if (show && mounted) setState(() => _proCard = true);
     }));
@@ -661,7 +636,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     // rağmen SD karttaki dosyalar hiç bulunmuyordu.
     void openSearch() => _push(SearchScreen(
           rootLabel: context.t('fm.all_files'),
-          meaning: _meaning,
         ));
     final surfaceColor = dark ? scheme.surfaceContainerHigh : scheme.surface;
     final borderColor =
@@ -710,74 +684,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   size: 20, color: scheme.onSurfaceVariant),
                               const SizedBox(width: Gap.sm),
                               Expanded(
-                                child: AnimatedSwitcher(
-                                  duration: Motion.short,
-                                  layoutBuilder: (current, previous) => Stack(
-                                    alignment: AlignmentDirectional.centerStart,
-                                    children: [...previous, ?current],
-                                  ),
-                                  child: Text(
-                                    context.t(_meaning
-                                        ? 'srch.hint_ai'
-                                        : 'fm.search_help'),
-                                    key: ValueKey(_meaning),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.start,
-                                    style:
-                                        theme.textTheme.bodyMedium?.copyWith(
-                                      color: _meaning
-                                          ? scheme.primary
-                                          : Paper.faint(context),
-                                    ),
+                                child: Text(
+                                  context.t('fm.search_help'),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.start,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Paper.faint(context),
                                   ),
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    // **AI anahtarı** (anlamla ara): açıkken renkli kapsül,
-                    // kapalıyken sade çizgi simge. Durum ipucu metninde yazar.
-                    Semantics(
-                      toggled: _meaning,
-                      child: Tooltip(
-                        message: context.t(_meaning
-                            ? 'srch.ai_toggle_on'
-                            : 'srch.ai_toggle_off'),
-                        child: InkResponse(
-                          key: const ValueKey('dash-meaning-search'),
-                          onTap: _toggleMeaning,
-                          radius: 24,
-                          child: SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Center(
-                              child: AnimatedContainer(
-                                duration: Motion.short,
-                                width: 36,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(15),
-                                  gradient: _meaning
-                                      ? LinearGradient(colors: [
-                                          AppHues.violet,
-                                          scheme.primary,
-                                        ])
-                                      : null,
-                                  border: _meaning
-                                      ? null
-                                      : Border.all(
-                                          color: scheme.outlineVariant),
-                                ),
-                                child: Icon(AppIcons.ai,
-                                    size: 16,
-                                    color: _meaning
-                                        ? scheme.onPrimary
-                                        : scheme.onSurfaceVariant),
-                              ),
-                            ),
                           ),
                         ),
                       ),

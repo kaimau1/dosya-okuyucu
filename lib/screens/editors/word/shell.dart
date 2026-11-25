@@ -90,13 +90,6 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           // editöründe seçim Flutter'da olduğu için bu yol kapalı.
           if (!_plainMode)
             EditorMenuItem(
-              id: 'rewrite',
-              icon: AppIcons.ai,
-              label: context.t('word.rewrite_selection'),
-              onTap: editor == null ? null : _rewriteSelection,
-            ),
-          if (!_plainMode)
-            EditorMenuItem(
               id: 'translate_sel',
               icon: AppIcons.gTranslate,
               label: context.t('word.translate_selection'),
@@ -109,8 +102,9 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             onTap: editor == null ? null : () => unawaited(_shareExport()),
           ),
           // K19 (b), Faz 23: sayfa üzerinde (WebView) düzenleme yalnız
-          // geliştirici denemesi bayrağıyla.
-          if (!_plainMode &&
+          // geliştirici denemesi bayrağıyla (yalnız Kişisel derleme).
+          if (Edition.current.has(Feature.labs) &&
+              !_plainMode &&
               !_editing &&
               context.read<AppState>().labWordEditor)
             EditorMenuItem(
@@ -119,7 +113,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               label: context.t('word.edit_page'),
               onTap: _toggleEdit,
             ),
-          if (context.read<AppState>().labWordEditor)
+          if (Edition.current.has(Feature.labs) &&
+              context.read<AppState>().labWordEditor)
             EditorMenuItem(
               id: 'lab',
               icon: AppIcons.developerMode,

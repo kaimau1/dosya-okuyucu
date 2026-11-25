@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dosya_okuyucu/services/pdf/pro/pdf_ai_rewrite.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_session.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/ttf_subset.dart';
@@ -347,15 +346,5 @@ void main() {
     expect(pdfRuneIndex(s, 3), 2);
     expect(pdfUtf16Index(s, 2), 3);
     expect(pdfRuneIndex(s, 99), 3);
-  });
-
-  test('AI istemi: kip ve dil; yanıt temizliği', () {
-    final p = PdfAiRewrite.buildPrompt('Örnek metin.', PdfAiMode.translate,
-        language: 'English');
-    expect(p, contains('English'));
-    expect(p, endsWith('Örnek metin.'));
-    expect(PdfAiRewrite.buildPrompt('x', PdfAiMode.grammar), contains('dilbilgisi'));
-    expect(PdfAiRewrite.clean('```\n"Yeni\nmetin"\n```'), 'Yeni metin');
-    expect(PdfAiRewrite.clean('   '), isNull);
   });
 }

@@ -246,17 +246,7 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
   /// yaz" maddesiydi; o gün yapılamamasının nedeni seçimin WebView tarafında
   /// kalması ve Flutter'a gelmemesiydi. Köprü (`sendSelectionText` /
   /// `replaceSelectionText`) o engeli kaldırdı.
-  void _rewriteSelection() => _withSelection((text) async {
-        final result = await showAiRewriteSheet(context, text);
-        if (result == null || result.isEmpty || !mounted) return;
-        if (!_editing) {
-          // Yazabilmek için düzenleme açık olmalı; kullanıcıyı geri
-          // göndermek yerine kendimiz açıyoruz.
-          _toggleEdit();
-        }
-        _viewKey.currentState?.replaceSelectionText(result);
-        _session.changed();
-      });
+  // Seçili metin AI yeniden yazım kaldırıldı.
 
   /// Seçili metni çevirir — sayfanın üstünde açılan kartta, dil
   /// kendiliğinden bulunur (bkz. [QuickTranslateSheet]); belgeye yazılmaz.

@@ -182,9 +182,6 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                   AppAction(
                       value: 'ai_analysis',
                       icon: AppIcons.ai,
-                      accent: true,
-                      label: context.t('ct.ai_analysis'),
-                      hint: context.t('ct.ai_analysis_hint')),
                 ]),
               ],
             );
@@ -206,15 +203,6 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
               case 'analysis':
                 await showCategoryInsights(context,
                     title: widget.title, visible: visible, full: true);
-              case 'ai_analysis':
-                await runCategoryAiAnalysis(
-                  context,
-                  title: widget.title,
-                  visible: visible,
-                  onChanged: () async {
-                    if (mounted) _partSetState(() {});
-                  },
-                );
             }
           },
         ),

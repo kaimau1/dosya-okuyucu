@@ -43,6 +43,7 @@ import 'zip_stream.dart';
 /// dosyaları açar.
 class QrShareServer implements KeepableServer {
   final List<String> paths;
+  final String? text;
   final String token;
 
   /// Sayfada "X sizinle paylaşıyor" diye görünen ad.
@@ -70,6 +71,7 @@ class QrShareServer implements KeepableServer {
 
   QrShareServer(
     this.paths, {
+    this.text,
     this.onServed,
     this.thumbnail,
     this.senderName = '',
@@ -246,6 +248,22 @@ class QrShareServer implements KeepableServer {
             ..set(HttpHeaders.cacheControlHeader, 'max-age=3600');
           res.add(bytes);
           return;
+        case 'text.txt':
+        case 'indir.txt':
+          final txt = text;
+          if (txt == null || txt.isEmpty) {
+            res.statusCode = HttpStatus.notFound;
+            return;
+          }
+          final bytes = utf8.encode(txt);
+          res.headers
+            ..contentType = ContentType.text
+            ..contentLength = bytes.length
+            ..set(HttpHeaders.contentDisposition,
+                'attachment; filename="metin.txt"');
+          if (req.method != 'HEAD') res.add(bytes);
+          _countServed('metin.txt');
+          return;
         case 'all.zip':
           final zip = await ZipStream.of(paths);
           if (zip == null) {
@@ -388,13 +406,25 @@ class QrShareServer implements KeepableServer {
           '<div class="dl" aria-hidden="true">⬇</div></a>');
     }
     final who = senderName.trim().isEmpty ? '' : esc.convert(senderName.trim());
-    final single = _items.length == 1;
+    final sharedText = text?.trim() ?? '';
+    final hasText = sharedText.isNotEmpty;
+    final single = _items.length == 1 && !hasText;
+    final countLabel = hasText && _items.isEmpty
+        ? _human(utf8.encode(sharedText).length)
+        : '${_items.length} · ${_human(total)}';
+    final textBox = hasText
+        ? '<div class="txtbox"><pre id="sharedTxt">${esc.convert(sharedText)}</pre>'
+            '<div class="txtacts">'
+            '<button type="button" class="all" id="copyBtn" data-t="c"></button>'
+            '<a class="dlbtn" href="text.txt" download="metin.txt" data-t="dt"></a>'
+            '</div></div>'
+        : '';
     res.headers.contentType = ContentType.html;
     LanGuard.secureHeaders(res, script: true);
     res.write('''<!doctype html><html lang="tr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Dosya Okuyucu · ${_items.length}</title>
+<title>Dosya Okuyucu · ${hasText && _items.isEmpty ? 1 : _items.length}</title>
 <style>
 :root{--bg:#f7f5f0;--card:#fffdf9;--ink:#24211c;--muted:#6f685d;--line:#e7e1d6;--accent:#2f6f5e;--accent-ink:#fff}
 @media (prefers-color-scheme:dark){:root{--bg:#1c1b19;--card:#262421;--ink:#efebe4;--muted:#a9a194;--line:#36332e;--accent:#7cc4ad;--accent-ink:#10251f}}
@@ -405,7 +435,11 @@ main{max-width:560px;margin:0 auto}
 .brand i{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-style:normal}
 h1{font-size:24px;line-height:1.25;margin:18px 0 4px}
 .sub{color:var(--muted);margin:0 0 18px}
-.all{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;padding:16px;border:0;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:700;text-decoration:none;margin-bottom:16px}
+.all{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;padding:16px;border:0;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-size:17px;font-weight:700;text-decoration:none;margin-bottom:16px;cursor:pointer}
+.txtbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:0 0 16px}
+.txtbox pre{margin:0 0 12px;white-space:pre-wrap;word-break:break-word;font:15px/1.5 ui-monospace,Consolas,monospace;max-height:360px;overflow:auto}
+.txtacts{display:flex;gap:8px;flex-wrap:wrap}.txtacts .all{flex:1;margin:0;padding:12px 14px;font-size:15px}
+.dlbtn{display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border-radius:16px;border:1px solid var(--line);color:var(--ink);text-decoration:none;font-weight:600}
 .card{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px 10px 10px;margin:10px 0;text-decoration:none;color:inherit;-webkit-tap-highlight-color:transparent}
 .card:active{transform:scale(.99)}
 .thumb{flex:none;width:56px;height:56px;border-radius:12px;background:var(--bg);display:grid;place-items:center;overflow:hidden;font-size:28px}
@@ -421,8 +455,9 @@ footer a{color:var(--accent)}
 </style></head><body><main>
 <div class="brand"><i>⇣</i>Dosya Okuyucu</div>
 <h1 data-t="h"></h1>
-<p class="sub">${_items.length} · ${_human(total)}</p>
-${single ? '' : '<a class="all" href="all.zip" download>⬇ <span data-t="a"></span></a>'}
+<p class="sub">$countLabel</p>
+$textBox
+${_items.length <= 1 ? '' : '<a class="all" href="all.zip" download>⬇ <span data-t="a"></span></a>'}
 $cards
 <div class="note" data-t="n"></div>
 <footer><span data-t="p"></span><br><a href="https://github.com/kaimau1/dosya-okuyucu/releases/latest" data-t="g"></a></footer>
@@ -430,15 +465,16 @@ $cards
 <script>
 var tr=(navigator.language||'tr').toLowerCase().indexOf('tr')===0;
 var who=${jsonEncode(who)};
-var T=tr?{h:(who?who+' sizinle dosya paylaşıyor':'Sizinle dosya paylaşıldı'),a:'Tümünü indir (ZIP)',f:'dosya',
-n:'<b>Dokunun, indirilsin.</b> İndirme başlamazsa bu sayfayı Chrome/Safari\\'de açın. Sayfa açılmıyorsa iki telefonun aynı Wi-Fi\\'de olduğundan emin olun ya da mobil veriyi kapatın.',
-p:'Dosyalar doğrudan gönderen telefondan gelir; internete yüklenmez.',g:'Dosya Okuyucu\\'yu indir',s:'İndirme başladı'}
-:{h:(who?who+' is sharing files with you':'Files shared with you'),a:'Download all (ZIP)',f:'files',
-n:'<b>Tap to download.</b> If nothing happens, open this page in Chrome/Safari. If the page does not load, make sure both phones are on the same Wi-Fi or turn off mobile data.',
-p:'Files come straight from the sender\\'s phone; nothing is uploaded.',g:'Get Dosya Okuyucu',s:'Download started'};
+var T=tr?{h:(who?who+' sizinle paylaşıyor':'Sizinle paylaşıldı'),a:'Tümünü indir (ZIP)',f:'dosya',c:'Panoya kopyala',cp:'Kopyalandı ✓',dt:'.txt indir',
+n:'<b>Dokunun, indirilsin.</b> İndirme başlamazsa bu sayfayı Chrome/Safari\\'de açın. Sayfa açılmıyorsa iki cihazın aynı Wi-Fi\\'de olduğundan emin olun ya da mobil veriyi kapatın.',
+p:'Veriler doğrudan gönderen telefondan gelir; internete yüklenmez.',g:'Dosya Okuyucu\\'yu indir',s:'Hazır'}
+:{h:(who?who+' is sharing with you':'Shared with you'),a:'Download all (ZIP)',f:'files',c:'Copy text',cp:'Copied ✓',dt:'Download .txt',
+n:'<b>Tap to download.</b> If nothing happens, open this page in Chrome/Safari. If the page does not load, make sure both devices are on the same Wi-Fi or turn off mobile data.',
+p:'Data comes straight from the sender\\'s phone; nothing is uploaded.',g:'Get Dosya Okuyucu',s:'Ready'};
 document.querySelectorAll('[data-t]').forEach(function(e){var k=e.getAttribute('data-t');if(k==='f'){e.textContent=e.textContent+' '+T.f}else{e.innerHTML=T[k]}});
 document.documentElement.lang=tr?'tr':'en';
 function toast(){var t=document.getElementById('toast');t.style.opacity=1;setTimeout(function(){t.style.opacity=0},2200)}
+var cb=document.getElementById('copyBtn');if(cb){cb.addEventListener('click',function(){var el=document.getElementById('sharedTxt');var v=el?el.textContent:'';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(function(){cb.textContent=T.cp;toast()}).catch(fallbackCopy)}else{fallbackCopy()}function fallbackCopy(){var ta=document.createElement('textarea');ta.value=v;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');cb.textContent=T.cp;toast()}catch(e){}document.body.removeChild(ta)}})}
 document.querySelectorAll('a[download]').forEach(function(a){a.addEventListener('click',toast)});
 ${single ? "setTimeout(function(){var a=document.querySelector('.card');if(a){toast();location.href=a.getAttribute('href')}},900);" : ''}
 </script></body></html>''');

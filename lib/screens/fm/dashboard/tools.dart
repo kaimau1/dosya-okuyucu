@@ -44,7 +44,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       ));
     }
     final ftp = FtpService.instance;
-    if (ftp.running) {
+    if (Edition.current.has(Feature.ftpServer) && ftp.running) {
       out.add(InboxEvent(
         id: 'ftp',
         icon: AppIcons.hotspot,
@@ -160,7 +160,7 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
         icon: FtpService.instance.running ? AppIcons.hotspot : AppIcons.computer,
         color: AppHues.blue,
         id: 'ftp',
-        feature: Feature.transfer,
+        feature: Feature.ftpServer,
         label: context.t('ui.tool_ftp'),
         subtitle:
             FtpService.instance.running ? context.t('ftpd.running') : '',

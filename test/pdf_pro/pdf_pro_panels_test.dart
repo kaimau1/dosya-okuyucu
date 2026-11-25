@@ -120,21 +120,6 @@ void main() {
     expect(find.byKey(const ValueKey('pse-locked-ai')), findsNothing);
   });
 
-  testWidgets('AI önerisi: eski ve yeni metin görünür; kabul true döner',
-      (tester) async {
-    bool? ok;
-    await _host<bool?>(
-        tester,
-        (c) => showPdfSuggestionSheet(c,
-            before: 'Eski cümle.', after: 'Yeni cümle.'),
-        (v) => ok = v);
-    expect(find.text('Eski cümle.'), findsOneWidget);
-    expect(find.text('Yeni cümle.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('pse-ai-accept')));
-    await tester.pumpAndSettle();
-    expect(ok, isTrue);
-  });
-
   testWidgets('kırpma levhası: değer yokken uygulanamaz; oranları döndürür',
       (tester) async {
     (double, double, double, double)? crop;

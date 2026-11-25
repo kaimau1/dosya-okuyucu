@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../core/motion.dart';
+import 'pro_gate.dart';
 
 /// Çubuktaki tek düğme. [onTap] null ise düğme sönük görünür (işlem şu an
 /// yapılamıyor demektir — gizlemek yerine sönük bırakmak yeri sabit tutar).
@@ -26,6 +27,7 @@ class DocAction {
   final VoidCallback? onTap;
   final bool active;
   final bool primary;
+  final bool proBadge;
 
   const DocAction(
     this.icon,
@@ -33,6 +35,7 @@ class DocAction {
     this.onTap, {
     this.active = false,
     this.primary = false,
+    this.proBadge = false,
   });
 }
 
@@ -202,21 +205,32 @@ class _DockButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedContainer(
-                duration: Motion.of(context, Motion.short),
-                curve: Motion.standard,
-                width: compact ? 44 : 50,
-                height: compact ? 30 : 32,
-                decoration: BoxDecoration(
-                  color: pillBg,
-                  borderRadius: BorderRadius.circular(15),
-                  border: pillBorder,
-                ),
-                child: Icon(
-                  action.icon,
-                  size: compact ? 19 : 20,
-                  color: iconColor,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: Motion.of(context, Motion.short),
+                    curve: Motion.standard,
+                    width: compact ? 44 : 50,
+                    height: compact ? 30 : 32,
+                    decoration: BoxDecoration(
+                      color: pillBg,
+                      borderRadius: BorderRadius.circular(15),
+                      border: pillBorder,
+                    ),
+                    child: Icon(
+                      action.icon,
+                      size: compact ? 19 : 20,
+                      color: iconColor,
+                    ),
+                  ),
+                  if (action.proBadge)
+                    const PositionedDirectional(
+                      end: -4,
+                      top: -4,
+                      child: ProBadge(),
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               ConstrainedBox(

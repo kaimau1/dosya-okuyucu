@@ -669,7 +669,6 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     try {
       for (var i = 0; i < doc.pages.length; i++) {
         final page = doc.pages[i];
-        if (page.rotation != PdfPageRotation.none) continue;
         final own = await page.loadText();
         if (pdfHasTextLayer(own?.fullText ?? '')) continue;
         final ocr = await PdfOcrText.forPage(page);

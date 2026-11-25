@@ -5,8 +5,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
+import '../../widgets/pro_gate.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/video_transcode.dart';
 import '../../services/fm/fm_env.dart';
@@ -48,6 +50,9 @@ Future<bool> startResizeJob(
 
   final hasImages = media.any((e) => e.category == FmCategory.image);
   final hasVideos = media.any((e) => e.category == FmCategory.video);
+  if (hasVideos && !await ProGate.check(context, Feature.videoCompress)) {
+    return false;
+  }
   // Kaynak özellikleri ÖLÇÜLÜR (çözünürlük/kare sayısı/süre) — ayar sayfası
   // "şu an ne var, sonra ne olacak" diyebilsin (kullanıcı isteği 2026-08-07).
   final sources = await _describeSources(media);

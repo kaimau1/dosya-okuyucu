@@ -189,9 +189,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     final isPdf = doc.kind == DocKind.pdf;
     final isImage = doc.kind == DocKind.image;
     EntryExtraAction act(IconData icon, String key, VoidCallback? onTap,
-            {bool? checked}) =>
+            {bool? checked, bool proBadge = false}) =>
         EntryExtraAction(
-            icon: icon, label: context.t(key), onTap: onTap, checked: checked);
+            icon: icon,
+            label: context.t(key),
+            onTap: onTap,
+            checked: checked,
+            proBadge: proBadge);
     unawaited(showViewerMenu(context, doc.path, groups: [
       if (isPdf)
         EntryExtraGroup(context.t('dm.page'), [
@@ -202,6 +206,11 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
           act(AppIcons.important, 'pn.star', () => _toggleBookmark(_pdfPage),
               checked: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
                   size: _docSize)),
+          // Form doldurma ve elle imza Lite'ta da ücretsizdir.
+          act(AppIcons.draw, 'pse.tool_sign', () => unawaited(_signPdf())),
+          if (_pdfIsForm)
+            act(AppIcons.assignment, 'vw.fill_form',
+                () => unawaited(_fillPdfForm())),
           act(AppIcons.rotateLeft, 'vw.rotate_left',
               _pdfBusy ? null : () => _rotateCurrentPage(-1)),
           act(AppIcons.rotateRight, 'vw.rotate_right',
@@ -234,12 +243,17 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         ]),
       EntryExtraGroup(context.t('dm.listen'), [
         if (_ttsTotal == 0) act(AppIcons.voice, 'vw.speak', _toggleSpeech),
-        // Sesli kitap (2026-10-22): başlıklı bölüm dosyaları, kaydedilir.
+        // Sesli kitap (2026-10-22, Pro): başlıklı bölüm dosyaları, kaydedilir.
         if (canMakeAudiobook(doc.path))
-          act(AppIcons.audiobook, 'ab.make', () {
-            Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => AudiobookScreen(path: doc.path)));
-          }),
+          act(
+            AppIcons.audiobook,
+            'ab.make',
+            () => ProGate.guard(context, Feature.audiobook, () {
+              Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AudiobookScreen(path: doc.path)));
+            }),
+            proBadge: ProGate.locked(Feature.audiobook),
+          ),
         if (VoiceNote.enabled)
           act(AppIcons.micNone, 'vn.title', () => unawaited(_voiceNote(doc))),
       ]),
@@ -465,7 +479,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
         DocAction(AppIcons.editNote, context.t('common.edit'), _openPdfEditor,
-            primary: true),
+            primary: true, proBadge: ProGate.locked(Feature.pdfAdvanced)),
       ],
       if (isImage) ...[
         DocAction(AppIcons.ocr, context.t('vw.ocr_short'), _runOcr,

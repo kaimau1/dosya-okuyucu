@@ -390,6 +390,10 @@ Future<bool> moveOrCopyEntries(
         : FileOps.copyAll(paths, dest, onProgress: report,
             isCancelled: isCancelled),
   );
+  if (result.errors.contains(SafWrite.noGrant)) {
+    if (context.mounted) showSafGrantSnack(context, dest);
+    return false;
+  }
   await appState.rememberDestination(dest);
 
   final where = p.basename(dest);

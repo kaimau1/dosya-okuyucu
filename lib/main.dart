@@ -41,7 +41,6 @@ import 'services/app_update.dart';
 import 'services/cloud_ocr.dart';
 import 'services/fm/smart_sort.dart';
 import 'services/play_store.dart';
-import 'services/fm/ai_auto.dart';
 import 'services/fm/ai_index.dart';
 import 'models/fm_filter.dart';
 import 'services/fm/fm_colors_store.dart';
@@ -287,13 +286,6 @@ Future<void> _main() async {
   SftpHostKeys.prompt = _confirmHostKey;
   // G8.4: SMB1 (eski protokol) yalnız açık onayla.
   SmbLegacy.prompt = _confirmSmb1;
-  StartupQueue.instance.add(
-    'ai-auto',
-    () async => AiAutoAnalyze.install(
-      scope: () => appState.aiScopeRules,
-      credentials: () => appState.aiCredentials,
-    ),
-  );
   // GitHub'dan oto güncelleme (2026-11-09): indirilmiş sürüm varsa kurar,
   // yoksa denetler/indirir ve "Şimdi güncelle" önerir.
   StartupQueue.instance.add(

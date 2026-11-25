@@ -19,6 +19,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
+import '../../widgets/pro_gate.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_history.dart';
@@ -362,6 +364,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                 id: 'tools',
                 icon: AppIcons.handyman,
                 label: context.t('sp.tools'),
+                proBadge: ProGate.locked(Feature.wordSlidesPro),
                 onTap: editor == null || _proBusy ? null : _openProTools,
               ),
             EditorMenuItem(

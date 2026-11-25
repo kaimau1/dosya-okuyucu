@@ -8,20 +8,17 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
-import '../../services/file_service.dart';
-import '../../services/fm/ai_analyzer.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/smart_local_rules.dart';
+import '../../services/fm/smart_quota.dart';
 import '../../services/fm/smart_sort.dart';
-import '../../services/fm/smart_sort_input.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/fm/doc_classifier.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/tracked_task.dart';
-import '../../services/gemini_decisions.dart';
-import '../../services/gemini_service.dart';
-import 'image_insight.dart';
+import '../../services/gemini_service.dart' show GeminiException;
 import 'important_screen.dart';
 import '../../core/snack.dart';
 import '../../core/user_error.dart';
@@ -74,15 +71,14 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
   var tag = '';
   var alias = '';
   try {
-    final rec = await SmartSort.classifyOne(
-      entry: entry,
-      credentials: state.aiCredentials,
-      // Ses/video bloğunu (ilk 60 sn, büyükse Files API) SmartSort kurar.
-      input: switch (SmartSortInput.kindOf(entry.path)) {
-        SmartInputKind.audio || SmartInputKind.video => const [],
-        _ => await quickCheckInput(entry.path, str),
-      },
-    );
+    final local = SmartLocalRules.classify(entry);
+    final rec = (local != null && local.cat != 'other')
+        ? local
+        : await SmartSort.classifyOne(
+            entry: entry,
+            credentials: state.aiCredentials,
+            input: const [],
+          );
     if (rec != null) {
       alias = SmartSort.render(rec, str);
       if (alias.isNotEmpty && rec.cat != 'other') {
@@ -91,22 +87,7 @@ Future<void> giveAiAlias(BuildContext context, FsEntry entry) async {
       }
     }
   } catch (_) {
-    // Bilinçli: yeni model düşerse aşağıdaki eski yol dener.
-  }
-  if (alias.isEmpty && !AiAnalyzer.isRunning) {
-    await AiAnalyzer.start(
-      scope: state.aiScopeRules,
-      credentials: state.aiCredentials,
-      reanalyze: true,
-      candidates: [entry],
-    );
-    await AiAnalyzer.whenIdle
-        .timeout(const Duration(minutes: 5), onTimeout: () {});
-    final rec = AiIndex.of(entry.path);
-    if (rec != null && rec.alias.isNotEmpty && rec.title.isNotEmpty) {
-      await AiIndex.put(rec.copyWith(alias: ''));
-    }
-    alias = AiIndex.aliasOf(entry.path);
+    // Bilinçli: akıllı ad üretilemezse aşağıda kullanıcıya bildirilir.
   }
   live.close();
   if (!nav.mounted) return;
@@ -167,14 +148,22 @@ Future<void> giveAiAliasBatch(BuildContext context, List<FsEntry> entries) async
     while (queue.isNotEmpty && stoppedBy == null && !task.cancelRequested) {
       final e = queue.removeAt(0);
       try {
-        final rec = await SmartSort.classifyOne(
-          entry: e,
-          credentials: credentials,
-          input: switch (SmartSortInput.kindOf(e.path)) {
-            SmartInputKind.audio || SmartInputKind.video => const [],
-            _ => await quickCheckInput(e.path, str),
-          },
-        );
+        final local = SmartLocalRules.classify(e);
+        SmartRecord? rec;
+        if (local != null && local.cat != 'other') {
+          rec = local;
+        } else {
+          await SmartQuota.ensureLoaded();
+          if (!SmartQuota.take()) {
+            stoppedBy = str.t('uerr.ai_quota');
+            break;
+          }
+          rec = await SmartSort.classifyOne(
+            entry: e,
+            credentials: credentials,
+            input: const [],
+          );
+        }
         final alias = rec == null ? '' : SmartSort.render(rec, str);
         if (rec != null && alias.isNotEmpty) {
           // AI'dan istendi: elle verilmiş eski ad yenisini gölgelemesin.
@@ -237,11 +226,6 @@ Future<void> editAlias(BuildContext context, FsEntry entry) async {
   }
 }
 
-/// "Görselde ne var?" — AI kısa özeti + tür + katlanır metin (2026-11-18,
-/// bkz. [showImageInsightSheet]). Eskiden ham OCR satırlarını döküyordu.
-Future<void> showImageInsight(BuildContext context, FsEntry entry) =>
-    showImageInsightSheet(context, entry);
-
 /// Tahmine göre `Önemli Dosyalar/<klasör>` altına taşır.
 Future<bool> fileIntoSuggestedFolder(
   BuildContext context,
@@ -273,25 +257,4 @@ Future<bool> fileIntoSuggestedFolder(
 
 void _snack(BuildContext context, String message) {
   showSnack(context, message);
-}
-
-/// Dosya → Decisions girdi bloğu: PDF/görsel/ses/video olduğu gibi; ötekiler
-/// (Word, metin, tablo…) okunan düz yazıyla (en çok 60 000 karakter).
-/// Akıllı ikinci ad ([giveAiAlias], [giveAiAliasBatch]) kullanır.
-Future<List<Map<String, Object?>>> quickCheckInput(
-    String path, AppStrings s) async {
-  if (GeminiDecisions.mediaFor(path) != null) {
-    return [
-      await GeminiDecisions.fileBlock(path,
-          tooLarge: s.t('qc.too_large'), unsupported: s.t('qc.unsupported'))
-    ];
-  }
-  final text = (await FileService().load(path)).plainText.trim();
-  if (text.isEmpty) {
-    throw GeminiException(s.t('qc.unsupported'), statusCode: -1);
-  }
-  return [
-    GeminiDecisions.textBlock(
-        text.length > 60000 ? text.substring(0, 60000) : text)
-  ];
 }

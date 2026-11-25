@@ -121,6 +121,67 @@ abstract final class DocChapters {
     }
   }
 
+  /// 3+ sayfalık PDF'te ilk/son satırlarda tekrarlayan (≥%40) üstbilgi/altbilgi
+  /// kalıplarını (sayılar `#` ile normalize edilerek) çıkarır. Saf -> testli.
+  static Map<int, String> stripRepeatedPageMargins(Map<int, String> pages) {
+    if (pages.length < 3) return pages;
+    String norm(String line) =>
+        line.trim().replaceAll(RegExp(r'\d+'), '#').toLowerCase();
+
+    final firstCounts = <String, int>{};
+    final lastCounts = <String, int>{};
+    final split = <int, List<String>>{};
+    for (final e in pages.entries) {
+      final lines = e.value.split('\n');
+      split[e.key] = lines;
+      String? first;
+      String? last;
+      for (final l in lines) {
+        if (l.trim().isNotEmpty) {
+          first ??= l;
+          last = l;
+        }
+      }
+      if (first != null && first.trim().length <= 120) {
+        final k = norm(first);
+        if (k.isNotEmpty) firstCounts[k] = (firstCounts[k] ?? 0) + 1;
+      }
+      if (last != null && last != first && last.trim().length <= 120) {
+        final k = norm(last);
+        if (k.isNotEmpty) lastCounts[k] = (lastCounts[k] ?? 0) + 1;
+      }
+    }
+
+    final threshold = (pages.length * 0.4).ceil().clamp(2, pages.length);
+    final repeatedFirst = {
+      for (final e in firstCounts.entries)
+        if (e.value >= threshold) e.key,
+    };
+    final repeatedLast = {
+      for (final e in lastCounts.entries)
+        if (e.value >= threshold) e.key,
+    };
+    if (repeatedFirst.isEmpty && repeatedLast.isEmpty) return pages;
+
+    final out = <int, String>{};
+    for (final e in split.entries) {
+      final lines = [...e.value];
+      final fi = lines.indexWhere((l) => l.trim().isNotEmpty);
+      if (fi >= 0 && repeatedFirst.contains(norm(lines[fi]))) {
+        lines[fi] = '';
+      }
+      final li = lines.lastIndexWhere((l) => l.trim().isNotEmpty);
+      if (li >= 0 && repeatedLast.contains(norm(lines[li]))) {
+        lines[li] = '';
+      }
+      out[e.key] = lines.join('\n').trim();
+    }
+    return out;
+  }
+
+  static String _punctuateHeading(String t) =>
+      RegExp(r'[.!?…:]$').hasMatch(t) ? t : '$t.';
+
   /// PDF: [outline] (başlık, sayfa) sırasıyla bölüm; yoksa [pagesPer]'li öbek.
   static List<AudioChapter> fromPdfPages(
     Map<int, String> pages,
@@ -128,9 +189,10 @@ abstract final class DocChapters {
     String fallbackTitle = '',
     int pagesPer = 10,
   }) {
-    final count = pages.keys.fold<int>(0, (a, b) => b > a ? b : a);
+    final cleanedPages = stripRepeatedPageMargins(pages);
+    final count = cleanedPages.keys.fold<int>(0, (a, b) => b > a ? b : a);
     String range(int from, int to) => [
-          for (var i = from; i <= to; i++) pages[i] ?? '',
+          for (var i = from; i <= to; i++) cleanedPages[i] ?? '',
         ].join('\n');
     final out = <AudioChapter>[];
     final marks = [...outline]..sort((a, b) => a.$2.compareTo(b.$2));
@@ -178,8 +240,8 @@ abstract final class DocChapters {
       if (para.heading && para.level <= 2 && t.isNotEmpty) {
         flush();
         title = t;
-        // Başlık da okunur: dinleyen nerede olduğunu duysun.
-        buf.writeln('$t.');
+        // Başlık da okunur: dinleyen nerede olduğunu duysun (çift nokta konmaz).
+        buf.writeln(_punctuateHeading(t));
         continue;
       }
       buf.writeln(para.text);
@@ -201,9 +263,9 @@ abstract final class DocChapters {
           ? 'Slayt ${s.index}'
           : 'Slayt ${s.index} — ${head.length > 60 ? '${head.substring(0, 60)}…' : head}';
       final text = [
-        ...lines,
+        for (final l in lines) _punctuateHeading(l),
         if (notes.isNotEmpty) notes,
-      ].join('.\n');
+      ].join('\n');
       out.add(AudioChapter(title, text));
     }
     return _finish(out);
@@ -230,7 +292,7 @@ abstract final class DocChapters {
         flush();
         sawHeading = true;
         title = m.group(2)!.trim();
-        buf.writeln('$title.');
+        buf.writeln(_punctuateHeading(title));
         continue;
       }
       buf.writeln(line);

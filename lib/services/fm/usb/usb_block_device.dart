@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 
+import '../../../core/edition.dart';
 import 'block_device.dart';
 
 /// Ham USB belleğini **blok aygıtı** olarak gösteren köprü.
@@ -153,7 +154,7 @@ class UsbBlockDevice extends BlockDevice {
   /// Ham USB'ye **yazılabilir** — donanım koruması yoksa. Dosya sistemi
   /// katmanı buna göre karar veriyor (FAT ve exFAT yazıyor, NTFS okuyor).
   @override
-  bool get writable => !writeProtected;
+  bool get writable => !writeProtected && !Edition.current.isPlay;
 
   @override
   Future<void> writeBlocks(int lba, Uint8List data) async {
@@ -161,9 +162,9 @@ class UsbBlockDevice extends BlockDevice {
     if (data.length % blockSize != 0) {
       throw const BlockDeviceException('yazma sektör katı değil');
     }
-    // Okumadaki gibi parçalanıyor: tek seferde çok büyük istek bazı
-    // belleklerde sessizce kırpılıyor ve YARIM yazılmış sektör bırakıyor.
-    final perChunk = maxBlocksPerRead * blockSize;
+    // Okumadaki gibi uyarlanan parça boyutu kullanılır: büyük istekleri
+    // sessizce kırpan belleklerde `_chunk` küçülmüşse yazma da ona uyar.
+    final perChunk = _chunk * blockSize;
     var offset = 0;
     while (offset < data.length) {
       final end = (offset + perChunk) > data.length
@@ -191,9 +192,16 @@ class UsbBlockDevice extends BlockDevice {
   @override
   Future<void> flush() async {
     try {
-      await _channel.invokeMethod<bool>('usbmsFlush');
+      final ok = await _channel.invokeMethod<bool>('usbmsFlush');
+      if (ok == false) {
+        throw const BlockDeviceException('USB yazma önbelleği dökülemedi');
+      }
+    } on BlockDeviceException {
+      rethrow;
+    } on MissingPluginException {
+      // Bilinçli: testlerde kanal yoksa flush sessiz geçer.
     } catch (_) {
-      // Bilinçli: önbellek dökme en iyi çaba; yazmanın sonucu değişmez.
+      // Bilinçli: diğer kanal istisnaları donanım önbellek desteğine bağlıdır.
     }
   }
 

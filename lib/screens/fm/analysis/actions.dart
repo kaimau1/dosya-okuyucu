@@ -25,6 +25,7 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
   bool get _selecting => _selected.isNotEmpty;
 
   Future<void> _loadApps({bool force = false}) async {
+    if (!Edition.current.has(Feature.installedApps)) return;
     final summary = await InstalledAppsService.summary(force: force);
     if (!mounted || !summary.hasData) return;
     _partSetState(() => _apps = summary);
@@ -47,6 +48,9 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
   /// `StorageStatsManager`dan geliyor; ikisinin toplamı birim doluluğuna eşit
   /// olmak zorunda değil (uygulama verisi taranan ağacın dışında).
   Widget _appsBar(int maxBytes) {
+    if (!Edition.current.has(Feature.installedApps)) {
+      return const SizedBox.shrink();
+    }
     final apps = _apps;
     if (apps == null) return const SizedBox.shrink();
     return _CategoryBar(

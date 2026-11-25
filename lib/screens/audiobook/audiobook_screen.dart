@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -12,7 +13,11 @@ import '../../core/user_error.dart';
 import '../../services/audiobook/audiobook_job.dart';
 import '../../services/audiobook/audiobook_maker.dart';
 import '../../services/audiobook/doc_chapters.dart';
+import '../../services/gemini_service.dart';
+import '../../services/tts_service.dart';
 import '../../services/voice/neural_voices.dart';
+import '../../widgets/ai_key_gate.dart';
+import '../../widgets/pro_gate.dart';
 import '../fm/media_player_screen.dart';
 import 'voices_screen.dart';
 
@@ -52,7 +57,16 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
   Set<int> _picked = {};
   String? _error;
   late AudiobookVoice _voice = _preferredVoice();
+  late TtsPrefs _ttsPrefs = _initialTtsPrefs();
   double _speed = 1.0;
+
+  List<String> _engines = const [];
+  List<TtsVoiceInfo> _systemVoices = const [];
+  bool _stripPageNumbers = true;
+  bool _stripSymbols = true;
+  bool _expandAbbr = true;
+  bool _aiTidy = false;
+  TtsService? _previewTts;
 
   /// İzlenen iş (süren ya da bu belgenin son biten işi).
   AudiobookJob? _job;
@@ -63,6 +77,21 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
   bool get _running => _job?.running ?? false;
   AudiobookProgress? get _progress => _job?.progress;
   List<int> get _numbers => _job?.numbers ?? const [];
+
+  SpeechCleanOptions get _cleanOptions => SpeechCleanOptions(
+        stripPageNumbers: _stripPageNumbers,
+        stripParentheticals: _stripSymbols,
+        stripSymbolsAndUrls: _stripSymbols,
+        expandAbbreviations: _expandAbbr,
+      );
+
+  TtsPrefs _initialTtsPrefs() {
+    try {
+      return context.read<AppState>().ttsPrefs;
+    } catch (_) {
+      return TtsPrefs.defaults;
+    }
+  }
 
   /// Okuma ayarında bir yapay zekâ sesi seçiliyse (ve kuruluysa) o.
   AudiobookVoice _preferredVoice() {
@@ -83,12 +112,103 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
     super.initState();
     _attach(AudiobookJob.of(widget.path));
     _load();
+    _loadVoiceOptions();
   }
 
   @override
   void dispose() {
     _detach();
+    _previewTts?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadVoiceOptions() async {
+    if (!Edition.current.has(Feature.audiobook)) return;
+    try {
+      final lang = AppStrings.of(context).language.code;
+      final engines = await TtsService.engines();
+      var voices = await TtsService.voices(
+        languagePrefix: lang,
+        engineName: _ttsPrefs.engineName,
+      );
+      if (voices.isEmpty) {
+        voices = await TtsService.voices(engineName: _ttsPrefs.engineName);
+      }
+      if (!mounted) return;
+      setState(() {
+        _engines = engines;
+        _systemVoices = voices;
+      });
+    } catch (_) {
+      // Bilinçli: testlerde platform kanalı olmayabilir.
+    }
+  }
+
+  Future<void> _saveTtsPrefs(TtsPrefs next) async {
+    setState(() => _ttsPrefs = next);
+    try {
+      await context.read<AppState>().setTtsPrefs(next);
+    } catch (_) {
+      // Testte AppState yok.
+    }
+  }
+
+  Future<void> _selectEngine(String engine) async {
+    final next = _ttsPrefs.copyWith(
+      engineName: engine,
+      voiceName: '',
+      voiceLocale: '',
+    );
+    await _saveTtsPrefs(next);
+    try {
+      final lang = mounted ? AppStrings.of(context).language.code : 'tr';
+      var voices = await TtsService.voices(
+        languagePrefix: lang,
+        engineName: engine,
+      );
+      if (voices.isEmpty) {
+        voices = await TtsService.voices(engineName: engine);
+      }
+      if (mounted) setState(() => _systemVoices = voices);
+    } catch (_) {
+      // Testte platform kanalı yok.
+    }
+  }
+
+  Future<void> _selectSystemVoice(String voiceName) async {
+    final match = _systemVoices.where((v) => v.name == voiceName).firstOrNull;
+    await _saveTtsPrefs(_ttsPrefs.copyWith(
+      voiceName: match?.name ?? '',
+      voiceLocale: match?.locale ?? '',
+    ));
+  }
+
+  Future<void> _previewVoice() async {
+    final neural = _voice.neural;
+    final sample = cleanForSpeech(
+      AppStrings.of(context).t('ab.preview_sample'),
+      options: _cleanOptions,
+    );
+    final tts = _previewTts ??= TtsService();
+    tts.prefs = neural != null
+        ? _ttsPrefs.copyWith(
+            voiceName: NeuralVoiceId.of(neural),
+            voiceLocale: 'tr-TR',
+            rate: _speed,
+          )
+        : _ttsPrefs.copyWith(rate: _speed);
+    await tts.preview(sample);
+  }
+
+  Future<void> _toggleAiTidy(bool value) async {
+    if (!value) {
+      setState(() => _aiTidy = false);
+      return;
+    }
+    if (!await ProGate.check(context, Feature.ai)) return;
+    if (!mounted) return;
+    if (!await ensureAiKey(context)) return;
+    if (mounted) setState(() => _aiTidy = true);
   }
 
   void _attach(AudiobookJob? job) {
@@ -142,9 +262,31 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
     }
   }
 
-  void _start() {
+  Future<void> _start() async {
+    if (!await ProGate.check(context, Feature.audiobook)) return;
+    if (!mounted) return;
     final chapters = _chapters;
     if (chapters == null || _picked.isEmpty) return;
+
+    GeminiService? aiGemini;
+    if (_aiTidy) {
+      if (!await ProGate.check(context, Feature.ai)) return;
+      if (!mounted) return;
+      if (!await ensureAiKey(context)) return;
+      if (!mounted) return;
+      try {
+        final creds = context.read<AppState>().aiCredentials;
+        if (creds.keys.isNotEmpty) {
+          aiGemini = GeminiService(
+            apiKey: creds.keys.first,
+            model: creds.models.isNotEmpty ? creds.models.first : defaultAiModel,
+          );
+        }
+      } catch (_) {
+        // Testte AppState yok.
+      }
+    }
+
     final numbers = [
       for (var i = 0; i < chapters.length; i++)
         if (_picked.contains(i)) i,
@@ -155,6 +297,10 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
       numbers: numbers,
       voice: _voice,
       speed: _speed,
+      ttsPrefs: _ttsPrefs,
+      cleanOptions: _cleanOptions,
+      aiTidy: _aiTidy && aiGemini != null,
+      aiGemini: aiGemini,
     );
     setState(() => _attach(job));
     _reported = false;
@@ -187,6 +333,42 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.audiobook)) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.t('ab.title'))),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(AppIcons.pro,
+                    size: 48, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(height: Gap.md),
+                Text(
+                  context.t('ab.pro_locked_title'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  context.t('ab.pro_locked_sub'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: Gap.lg),
+                FilledButton.icon(
+                  key: const ValueKey('ab-pro-unlock'),
+                  onPressed: () => ProGate.show(context, Feature.audiobook),
+                  icon: const Icon(AppIcons.pro),
+                  label: Text(context.t('ab.pro_unlock')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final chapters = _chapters;
     final theme = Theme.of(context);
     final done = _done;
@@ -227,6 +409,8 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
                         style: theme.textTheme.titleSmall),
                     const SizedBox(height: Gap.xs),
                     _systemVoiceCard(context),
+                    if (_voice == AudiobookVoice.system)
+                      _systemEnginePicker(context),
                     ListenableBuilder(
                       listenable: NeuralVoiceStore.instance,
                       builder: (context, _) => Column(children: [
@@ -241,6 +425,16 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
                                     .firstWhere((a) => a.neural == v)),
                           ),
                       ]),
+                    ),
+                    const SizedBox(height: Gap.sm),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('ab-preview-voice'),
+                        onPressed: _running ? null : _previewVoice,
+                        icon: const Icon(AppIcons.volumeUp),
+                        label: Text(context.t('ab.preview')),
+                      ),
                     ),
                     const SizedBox(height: Gap.sm),
                     Row(children: [
@@ -258,6 +452,7 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
                         ),
                       ),
                     ]),
+                    _cleanupCard(context),
                     const Divider(),
                     Text(context.t('ab.chapters', {'n': chapters.length}),
                         style: theme.textTheme.titleSmall),
@@ -327,6 +522,132 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
         onTap: _running
             ? null
             : () => setState(() => _voice = AudiobookVoice.system),
+      ),
+    );
+  }
+
+  Widget _systemEnginePicker(BuildContext context) {
+    final currentEngine =
+        _engines.contains(_ttsPrefs.engineName) ? _ttsPrefs.engineName : '';
+    final currentVoice = _systemVoices.any((v) => v.name == _ttsPrefs.voiceName)
+        ? _ttsPrefs.voiceName
+        : '';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(context.t('ab.engine_section'),
+                style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: Gap.sm),
+            DropdownButtonFormField<String>(
+              key: const ValueKey('ab-engine-dropdown'),
+              initialValue: currentEngine,
+              decoration: InputDecoration(
+                labelText: context.t('ab.engine_label'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: '',
+                  child: Text(context.t('tts.engine_default')),
+                ),
+                for (final e in _engines)
+                  DropdownMenuItem(
+                    value: e,
+                    child: Text(TtsService.engineLabel(e),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: _running ? null : (v) => v == null ? null : _selectEngine(v),
+            ),
+            if (_systemVoices.isNotEmpty) ...[
+              const SizedBox(height: Gap.sm),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('ab-system-voice-dropdown'),
+                initialValue: currentVoice,
+                decoration: InputDecoration(
+                  labelText: context.t('ab.system_voice_label'),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(context.t('ab.system_voice_default')),
+                  ),
+                  for (final v in _systemVoices)
+                    DropdownMenuItem(
+                      value: v.name,
+                      child: Text('${v.label} (${v.locale})',
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: _running
+                    ? null
+                    : (v) => v == null ? null : _selectSystemVoice(v),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cleanupCard(BuildContext context) {
+    final aiLocked = !Edition.current.has(Feature.ai);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+              child: Text(context.t('ab.clean_section'),
+                  style: Theme.of(context).textTheme.titleSmall),
+            ),
+            SwitchListTile(
+              dense: true,
+              title: Text(context.t('ab.clean_pages')),
+              value: _stripPageNumbers,
+              onChanged: _running
+                  ? null
+                  : (v) => setState(() => _stripPageNumbers = v),
+            ),
+            SwitchListTile(
+              dense: true,
+              title: Text(context.t('ab.clean_symbols')),
+              value: _stripSymbols,
+              onChanged:
+                  _running ? null : (v) => setState(() => _stripSymbols = v),
+            ),
+            SwitchListTile(
+              dense: true,
+              title: Text(context.t('ab.clean_abbr')),
+              value: _expandAbbr,
+              onChanged:
+                  _running ? null : (v) => setState(() => _expandAbbr = v),
+            ),
+            SwitchListTile(
+              dense: true,
+              title: Row(
+                children: [
+                  Flexible(child: Text(context.t('ab.ai_tidy'))),
+                  if (aiLocked) ...[
+                    const SizedBox(width: Gap.xs),
+                    const ProBadge(),
+                  ],
+                ],
+              ),
+              subtitle: Text(context.t('ab.ai_tidy_sub')),
+              value: _aiTidy,
+              onChanged: _running ? null : _toggleAiTidy,
+            ),
+          ],
+        ),
       ),
     );
   }

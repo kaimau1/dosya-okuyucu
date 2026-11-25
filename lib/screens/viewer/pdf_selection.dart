@@ -19,6 +19,8 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
   Future<void> _openPdfEditor(
       {int? page, PdfEditSelection? selection, bool legacy = false}) async {
+    if (!await ProGate.check(context, Feature.pdfAdvanced)) return;
+    if (!mounted) return;
     // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
     // önce kaydedilmezse sessizce kaybolurdu.
     if (_pro != null && !legacy) return; // zaten düzenleme kipinde
@@ -137,11 +139,6 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
           icon: AppIcons.formatColorReset,
           label: context.t('vw.highlight_remove'),
           onTap: _removeHighlight,
-        ),
-        PdfBarMenuItem(
-          icon: AppIcons.ai,
-          label: context.t('vw.ask_ai_selection'),
-          onTap: _askAiAboutSelection,
         ),
         PdfBarMenuItem(
           icon: AppIcons.search,
@@ -264,21 +261,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
 
   /// Belgeyi AI'a düzenletir (metin katmanı üzerinden). Üzerine yazıldıysa
   /// görüntü tazelenir.
-  Future<void> _aiEditPdf() async {
-    if (!await _confirmLeavePending() || !mounted) return;
-    await _ensurePdfText();
-    if (!mounted) return;
-    final overwritten = await PdfAiEditScreen.open(
-      context,
-      path: widget.doc.path,
-      fileName: widget.doc.name,
-      sourceText: _documentText,
-    );
-    if (overwritten == true && mounted) {
-      _partSetState(() => _pdfText = '');
-      await _reloadPdf();
-    }
-  }
+  // PDF AI yeniden yazım ekranı kaldırıldı.
 
   /// PDF içindeki bağlantıya dokunulunca. Dış adresler ONAY İSTER: belgedeki
   /// bağlantı metni gerçek hedefi gizleyebilir, kullanıcı tam URL'yi görmeli.

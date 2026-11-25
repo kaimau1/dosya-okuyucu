@@ -4,8 +4,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../fm/fm_env.dart';
 import '../fm/video_transcode.dart';
+import '../gemini_service.dart';
+import '../read_aloud_ai.dart';
 import '../tts_service.dart';
 import '../voice/neural_engine.dart';
 import '../voice/neural_voices.dart';
@@ -17,24 +20,18 @@ enum AudiobookVoice {
   /// Cihazın konuşma motoru (Google TTS vb.) — indirme yok.
   system,
   antalia,
-  ema,
-  kokoroTr,
-  kokoroEn;
+  ema;
 
   NeuralVoice? get neural => switch (this) {
         AudiobookVoice.system => null,
         AudiobookVoice.antalia => NeuralVoice.antalia,
         AudiobookVoice.ema => NeuralVoice.ema,
-        AudiobookVoice.kokoroTr => NeuralVoice.kokoroTr,
-        AudiobookVoice.kokoroEn => NeuralVoice.kokoroEn,
       };
 
   String get folderTag => switch (this) {
         AudiobookVoice.system => '',
         AudiobookVoice.antalia => ' (Antalia)',
         AudiobookVoice.ema => ' (EMA)',
-        AudiobookVoice.kokoroTr => ' (Kokoro)',
-        AudiobookVoice.kokoroEn => ' (Kokoro EN)',
       };
 }
 
@@ -65,11 +62,19 @@ class AudiobookMaker {
     this.engine,
     this._tts,
     this.speed = 1.0,
+    this.ttsPrefs,
+    this.cleanOptions = const SpeechCleanOptions(),
+    this.aiTidy = false,
+    this.aiGemini,
   });
 
   final AudiobookVoice voice;
   final NeuralVoiceEngine? engine;
   final double speed;
+  final TtsPrefs? ttsPrefs;
+  final SpeechCleanOptions cleanOptions;
+  final bool aiTidy;
+  final GeminiService? aiGemini;
   TtsService? _tts;
 
   /// Sesli kitapların kökü.
@@ -138,7 +143,22 @@ class AudiobookMaker {
         continue;
       }
       final parts = <String>[];
-      final texts = pieces(c.text, voice == AudiobookVoice.system ? 3500 : 1800);
+      var chapterText = c.text;
+      if (aiTidy && Edition.current.has(Feature.ai) && aiGemini != null) {
+        chapterText = await ReadAloudAi.tidyOrOriginal(aiGemini!, chapterText);
+      }
+      final maxLen = voice == AudiobookVoice.system ? 1800 : 900;
+      var segments =
+          splitForAudiobook(chapterText, maxLength: maxLen, options: cleanOptions);
+      if (segments.isEmpty && chapterText.trim().isNotEmpty) {
+        segments = [SpeechSegment(chapterText.trim(), 350)];
+      }
+      if (segments.isEmpty) {
+        onProgress?.call(AudiobookProgress(i, chapters.length, 1, 'skip'));
+        continue;
+      }
+      final texts = [for (final s in segments) s.text];
+      final gaps = [for (final s in segments) s.pauseAfterMs];
       try {
         for (var k = 0; k < texts.length; k++) {
           if (isCancelled?.call() ?? false) break;
@@ -157,7 +177,7 @@ class AudiobookMaker {
         final base = p.join(folder, chapterBase(n, c));
         final wavPath = '$base.wav';
         final fmt = await Wav.concat(parts, wavPath,
-            title: c.title, album: docName, track: n + 1);
+            gapsMs: gaps, title: c.title, album: docName, track: n + 1);
         if (fmt == null) throw StateError('ses üretilemedi');
         onProgress?.call(AudiobookProgress(i, chapters.length, 0.95, 'encode'));
         var out = wavPath;
@@ -186,7 +206,8 @@ class AudiobookMaker {
       void Function(int done, int total) progress) async {
     final neural = voice.neural;
     if (neural == null) {
-      final tts = _tts ??= TtsService();
+      final tts = _tts ??=
+          TtsService(prefs: (ttsPrefs ?? TtsPrefs.defaults).copyWith(rate: speed));
       if (!await tts.synthesizeToFile(text, target)) {
         throw StateError('cihaz sesi dosya üretemedi');
       }

@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../labs/word_editor/lab_word_screen.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
@@ -35,7 +36,6 @@ import '../../widgets/editor_top_bar.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
-import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/docx_view.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';

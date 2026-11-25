@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/private_zone.dart';
 import 'ai_pool.dart';
@@ -75,9 +76,12 @@ abstract final class CloudOcr {
   static List<String> get _keys =>
       credentials?.call().normalized.keys ?? const [];
 
-  /// Anahtar var, çevrimdışı kip ve gizli kasa kapalı.
+  /// Pro/Kişisel sürümde, anahtar var, çevrimdışı kip ve gizli kasa kapalı.
   static bool get available =>
-      _keys.isNotEmpty && !OfflineMode.enabled && !PrivateZone.active;
+      Edition.current.has(Feature.ai) &&
+      _keys.isNotEmpty &&
+      !OfflineMode.enabled &&
+      !PrivateZone.active;
 
   /// Cihazdaki sonuç "zayıf" mı: Arapça bir sayfada Latin modeli ya hiçbir
   /// şey ya da birkaç anlamsız harf döndürür. Saf → birim testli.

@@ -7,10 +7,9 @@ import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
-import '../../screens/fm/ai_hub_screen.dart';
+import '../../screens/fm/smart_sort_screen.dart';
 import '../../screens/fm/browser_screen.dart';
 import '../../screens/fm/dashboard_screen.dart';
-import 'ai_status_icon.dart';
 import '../../screens/fm/downloads_screen.dart';
 import '../../screens/fm/drive_screen.dart';
 import '../../screens/fm/history_screen.dart';
@@ -71,9 +70,7 @@ class HomeQuickRow extends StatelessWidget {
         label: spec.label,
         color: id == 'drive' ? null : spec.color,
         semantics: id == 'drive' ? context.t('drive.title') : null,
-        // AI Merkezi üst çubuktan buraya taşındı (2026-11-05): durum simgesi
-        // (analiz halkası, öneri noktası) onunla geldi.
-        iconWidget: id == 'ai' ? const AiStatusIcon(dot: true) : null,
+        proBadge: spec.proBadge,
         onTap: () => spec.open(context),
       )));
     }
@@ -173,6 +170,7 @@ class _DockItem extends StatelessWidget {
 
   /// Düz simge yerine canlı simge (AI: analiz halkası / öneri noktası).
   final Widget? iconWidget;
+  final bool proBadge;
 
   const _DockItem({
     super.key,
@@ -183,6 +181,7 @@ class _DockItem extends StatelessWidget {
     this.color,
     this.count = 0,
     this.iconWidget,
+    this.proBadge = false,
   });
 
   @override
@@ -240,6 +239,12 @@ class _DockItem extends StatelessWidget {
                                 fontWeight: FontWeight.w700),
                           ),
                         ),
+                      )
+                    else if (proBadge)
+                      const PositionedDirectional(
+                        top: -5,
+                        end: -8,
+                        child: ProBadge(),
                       ),
                   ],
                 ),
@@ -345,7 +350,9 @@ class DockExtraSpec {
   final Color color;
   final void Function(BuildContext context) open;
 
-  const DockExtraSpec(this.icon, this.label, this.color, this.open);
+  const DockExtraSpec(this.icon, this.label, this.color, this.open,
+      {this.proBadge = false});
+  final bool proBadge;
 }
 
 /// Alt panelin **ek düğmeleri** (her yana en çok [maxPerSide]), kalıcı.
@@ -358,10 +365,11 @@ abstract final class DockExtras {
   /// Her yana en çok bu kadar ek düğme (+1 sabit: solda Çöp, sağda Tara).
   static const maxPerSide = 2;
 
-  /// (sol, sağ). Varsayılan: solda **Drive** (2026-11-14: sabit düğmeden ek
-  /// düğmeye), sağda **AI** (2026-11-05).
+  /// (sol, sağ). Kişisel varsayılan: solda Drive, sağda AI; Play: Kitaplık + Yer aç.
   static final value = ValueNotifier<(List<String>, List<String>)>(
-      (const ['drive'], const ['ai']));
+      Edition.current.isPlay
+          ? (const ['library'], const ['free_space'])
+          : (const ['drive'], const ['ai']));
   static Future<void>? _loading;
 
   /// Seçilebilen düğmeler (sıra = düzenleme sayfasındaki sıra).
@@ -414,9 +422,14 @@ abstract final class DockExtras {
             }
 
             final oldLeft = v1(_leftKeyV1);
-            final oldRight = v1(_rightKeyV1, fallback: 'ai');
+            final oldRight = v1(
+              _rightKeyV1,
+              fallback: Edition.current.isPlay ? 'free_space' : 'ai',
+            );
             left = savedLeft ??
-                _clean(['drive', ?oldLeft]);
+                _clean(Edition.current.isPlay
+                    ? ['library', ?oldLeft]
+                    : ['drive', ?oldLeft]);
             right = savedRight ?? _clean([?oldRight]);
           }
           value.value =
@@ -458,7 +471,8 @@ abstract final class DockExtras {
       (c) => ProGate.guard(c, f, () => run(c));
 
   static DockExtraSpec? spec(BuildContext context, String id) => switch (id) {
-        'drive' => DockExtraSpec(AppIcons.cloud, context.t('dock.drive'),
+        'drive' when Edition.current.has(Feature.googleDrive) => DockExtraSpec(
+            AppIcons.cloud, context.t('dock.drive'),
             AppHues.blue, (c) => _push(c, const DriveScreen())),
         'free_space' => DockExtraSpec(
             AppIcons.cleanEmpty,
@@ -494,9 +508,13 @@ abstract final class DockExtras {
           })),
         'apps' when Edition.current.has(Feature.installedApps) => DockExtraSpec(AppIcons.android, context.t('dock.apps'),
             AppHues.green, (c) => _push(c, const InstalledAppsScreen())),
-        'ai' => DockExtraSpec(AppIcons.ai, context.t('dock.ai'),
+        'ai' => DockExtraSpec(
+            AppIcons.ai,
+            context.t('dock.ai'),
             AppHues.violet,
-            _g(Feature.ai, (c) => _push(c, const AiHubScreen()))),
+            _g(Feature.smartFolders, (c) => _push(c, const SmartSortScreen())),
+            proBadge: ProGate.locked(Feature.smartFolders),
+          ),
         'new_doc' => DockExtraSpec(AppIcons.noteAdd, context.t('dock.new_doc'),
             AppHues.blue, _g(Feature.officeEdit, showNewDocumentSheet)),
         _ => null,

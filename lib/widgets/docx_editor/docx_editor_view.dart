@@ -33,10 +33,9 @@ import 'docx_edit_controller.dart';
 
 part 'docx_editor_view_paint.dart';
 
-/// Bağlam menüsündeki ek işler (çeviri, AI) — ekran verir.
+/// Bağlam menüsündeki ek işler (çeviri) — ekran verir.
 class DocxEditorActions {
   final void Function(String text)? translate;
-  final void Function(String text)? aiFix;
 
   /// Dipnot / yorum işaretine dokunuş (kimlik ile).
   final void Function(String id)? openNote, openComment;
@@ -49,7 +48,6 @@ class DocxEditorActions {
   final void Function(int para, int offset)? openControl;
   const DocxEditorActions(
       {this.translate,
-      this.aiFix,
       this.openNote,
       this.openComment,
       this.openLink,
@@ -972,15 +970,6 @@ class DocxEditorViewState extends State<DocxEditorView>
           onPressed: () {
             c.toolbar = false;
             tr(c.selectedText());
-          }));
-    }
-    final ai = widget.actions.aiFix;
-    if (ai != null) {
-      items.add(ContextMenuButtonItem(
-          label: context.t('word.ai_fix'),
-          onPressed: () {
-            c.toolbar = false;
-            ai(c.selectedText());
           }));
     }
     return items;

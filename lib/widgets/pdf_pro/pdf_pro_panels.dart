@@ -641,68 +641,6 @@ class _CropBodyState extends State<_CropBody> {
   }
 }
 
-/// **AI önerisi — fark görünümü** (Faz 65 / 1): eski metin üstü çizili, yeni
-/// metin altında. Dönen: true = kabul.
-Future<bool?> showPdfSuggestionSheet(BuildContext context,
-        {required String before, required String after}) =>
-    showAppSheet<bool>(
-      context,
-      title: context.t('pse.ai_suggestion'),
-      builder: (ctx) {
-        final scheme = Theme.of(ctx).colorScheme;
-        return Padding(
-          padding:
-              const EdgeInsetsDirectional.fromSTEB(Gap.lg, 0, Gap.lg, Gap.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(context.t('pse.ai_before'), style: ctx.type.caption),
-              const SizedBox(height: Gap.xs),
-              Text(
-                before,
-                key: const ValueKey('pse-ai-before'),
-                style: ctx.type.body.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    decoration: TextDecoration.lineThrough),
-              ),
-              const SizedBox(height: Gap.md),
-              Text(context.t('pse.ai_after'), style: ctx.type.caption),
-              const SizedBox(height: Gap.xs),
-              Container(
-                padding: const EdgeInsets.all(Gap.sm),
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(Radii.control),
-                ),
-                child: Text(after,
-                    key: const ValueKey('pse-ai-after'), style: ctx.type.body),
-              ),
-              const SizedBox(height: Gap.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                      child: Text(context.t('common.cancel')),
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: FilledButton(
-                      key: const ValueKey('pse-ai-accept'),
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                      child: Text(context.t('pse.ai_accept')),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
 /// **Kişisel verileri bul ve karart** (Faz 64 / 2 — KVKK): TC kimlik no, IBAN,
 /// telefon, e-posta ve özel sözcükler aranır; kullanıcı önizler, seçer,
 /// onaylar. Dönen: karartılacak öneriler (vazgeçilirse null).

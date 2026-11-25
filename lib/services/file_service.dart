@@ -503,6 +503,7 @@ class FileService {
   /// Bir zip'in (PK) içindeki bölüm adlarına bakarak OOXML türünü belirler.
   Future<DocKind> _sniffZipKind(File file) async {
     try {
+      if (await file.length() > 50 * 1024 * 1024) return DocKind.unknown;
       final bytes = await file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
       final names = archive.files.map((f) => f.name).toList();

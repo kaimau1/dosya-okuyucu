@@ -24,7 +24,10 @@ MARK = '<!-- play_variant -->'
 # PACKAGE_USAGE_STATS BİLEREK yok: çıkarılırsa APK kurma / "son açılma" özellikleri Play
 # derlemesinde ayrıca gizlenmeli (dart-define bayrağı henüz yok) -> KALANLAR "G1 artığı".
 # ACCESS_FINE_LOCATION zaten maxSdkVersion=32, NEARBY_WIFI_DEVICES neverForLocation (manifest).
-DEFAULT_REMOVE = ('QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,'
+DEFAULT_REMOVE = ('QUERY_ALL_PACKAGES,REQUEST_INSTALL_PACKAGES,'
+                  'REQUEST_DELETE_PACKAGES,PACKAGE_USAGE_STATS,'
+                  'SYSTEM_ALERT_WINDOW,RECEIVE_BOOT_COMPLETED,RECORD_AUDIO,'
+                  'READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,'
                   'READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED')
 
 

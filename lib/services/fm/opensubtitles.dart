@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
+
 /// **İnternetten altyazı** — OpenSubtitles REST API (v1).
 ///
 /// Kullanıcı isteği 2026-11-02: *"alt yazı buldurma"* (VLC'deki gibi).
@@ -21,7 +23,8 @@ abstract final class OpenSubtitles {
   /// G8.6: ağ çağrısı zaman aşımı.
   static const _timeout = Duration(seconds: 30);
 
-  static bool get available => apiKey.isNotEmpty;
+  static bool get available =>
+      Edition.current.has(Feature.subtitleSearch) && apiKey.isNotEmpty;
 
   static const _base = 'https://api.opensubtitles.com/api/v1';
 

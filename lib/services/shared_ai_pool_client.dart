@@ -20,7 +20,8 @@ enum AiSourceMode {
       switch (raw) {
         'sharedPool' => AiSourceMode.sharedPool,
         'byok' => AiSourceMode.byok,
-        _ => hasOwnKey ? AiSourceMode.byok : AiSourceMode.sharedPool,
+        // Güvenlik: bilinmeyen/boş kip ASLA sessizce ortak havuza düşmez.
+        _ => AiSourceMode.byok,
       };
 }
 
@@ -242,11 +243,20 @@ class SharedAiPoolClient {
     required List<Map<String, dynamic>> contents,
     String model = 'gemini-2.5-flash',
     Map<String, dynamic>? generationConfig,
+    String? integrityToken,
+    bool requireIntegrity = false,
   }) async {
     if (mode != AiSourceMode.sharedPool) {
       throw const SharedAiPoolException(
         SharedAiPoolErrorKind.byokExhausted,
         'byok-mode-no-fallback',
+      );
+    }
+    final cleanIntegrity = integrityToken?.trim() ?? '';
+    if (requireIntegrity && cleanIntegrity.isEmpty) {
+      throw const SharedAiPoolException(
+        SharedAiPoolErrorKind.unauthenticated,
+        'missing-integrity-token',
       );
     }
     // 0-bakiye koruma duvarı: bilinen bakiye <= 0 ise HİÇ ağ isteği atılmaz.
@@ -265,6 +275,7 @@ class SharedAiPoolClient {
           'model': model,
           'contents': contents,
           if (generationConfig != null) 'generationConfig': generationConfig,
+          if (cleanIntegrity.isNotEmpty) 'integrityToken': cleanIntegrity,
         },
       );
       final text = (result['text'] as String? ?? '').trim();

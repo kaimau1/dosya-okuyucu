@@ -52,6 +52,30 @@ abstract final class TileReceiver {
         unawaited(_call('asked', {'from': offer.from}));
         return false;
       },
+      onText: (text, from) {
+        unawaited(() async {
+          try {
+            final dir = Directory(saveDir());
+            await dir.create(recursive: true);
+            final stamp = DateTime.now().millisecondsSinceEpoch;
+            final out = File(p.join(dir.path, 'yazi_$stamp.txt'));
+            await out.writeAsString(text, flush: true);
+            await TransferHistory.instance.add([
+              TransferRecord(
+                  incoming: true,
+                  path: out.path,
+                  name: p.basename(out.path),
+                  size: text.length,
+                  peer: from,
+                  at: DateTime.now()),
+            ]);
+            unawaited(_call(
+                'received', {'name': p.basename(out.path), 'from': from}));
+          } catch (_) {
+            // Bilinçli: arka plan kutucuk yazımı en iyi çaba.
+          }
+        }());
+      },
       onReceived: (path, from) {
         unawaited(() async {
           var size = 0;
