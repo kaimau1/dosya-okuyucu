@@ -11,6 +11,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
+import 'arabic_ocr.dart';
 import 'cloud_ocr.dart';
 import 'pdf/ocr_page_text.dart' show OcrWordBox;
 import '../core/app_colors.dart';
@@ -112,26 +113,46 @@ class OcrService {
     }
   }
 
-  /// Ayar "Arapça (AI ile)" ve tanımayı kullanıcı başlattıysa: cihaz modeli
-  /// hiç koşmaz, doğrudan AI ([CloudOcr]). Hata (anahtar yok vb.) çağırana
-  /// gider — kullanıcı neden tanınmadığını görmeli.
-  static Future<List<OcrLine>?> _forcedCloud(String path, bool allowCloud) async {
+  /// Ayar "Arapça" ve tanımayı kullanıcı başlattıysa: Latin modeli hiç
+  /// koşmaz. Önce cihazdaki Arapça motor ([ArabicOcr], B16 — internetsiz);
+  /// kurulu değilse ya da düşerse AI ([CloudOcr]) — o da yoksa açık hata
+  /// (kullanıcı neden tanınmadığını ve ne yapacağını görmeli).
+  static Future<List<OcrLine>?> _forcedArabic(
+      String path, bool allowCloud) async {
     if (!allowCloud || await CloudOcr.script() != OcrScript.arabic) return null;
+    if (ArabicOcr.installed) {
+      try {
+        return await ArabicOcr.recognize(path);
+      } catch (_) {
+        if (!CloudOcr.available) rethrow;
+      }
+    } else if (!CloudOcr.available) {
+      throw const ArabicOcrMissing();
+    }
     return CloudOcr.lines(path);
   }
 
-  /// "Otomatik": cihazdaki sonuç zayıf/bozuksa ve Decisions API görselde
-  /// Latin dışı yazı ya da el yazısı görürse AI ile yeniden tanır. Her hata sessiz: cihazdaki
-  /// sonuç kalır (null).
-  static Future<List<OcrLine>?> _autoCloud(
+  /// "Otomatik": cihazdaki Latin sonucu zayıf/bozuksa önce cihazdaki Arapça
+  /// motor (kuruluysa; sonuçta Arapça harf varsa o kalır), sonra Decisions
+  /// API görselde Latin dışı yazı ya da el yazısı görürse AI. Her hata
+  /// sessiz: cihazdaki sonuç kalır (null).
+  static Future<List<OcrLine>?> _autoArabic(
       String path, String latinText, bool allowCloud) async {
     if (!allowCloud ||
         await CloudOcr.script() != OcrScript.auto ||
-        !CloudOcr.available ||
         !(CloudOcr.looksWeak(latinText) ||
             CloudOcr.looksGarbled(latinText))) {
       return null;
     }
+    if (ArabicOcr.installed) {
+      try {
+        final local = await ArabicOcr.recognize(path);
+        if (hasArabicText(local.map((l) => l.text).join(' '))) return local;
+      } catch (_) {
+        // Bilinçli: yerel motor düşerse AI / Latin sonucu denenir.
+      }
+    }
+    if (!CloudOcr.available) return null;
     if (!await CloudOcr.hasNonLatinScript(path)) return null;
     try {
       final lines = await CloudOcr.lines(path);
@@ -140,6 +161,13 @@ class OcrService {
       return null; // Bilinçli: bulut düşerse cihazdaki sonuç gösterilir.
     }
   }
+
+  /// En az 8 Arapça harf (Arapça bloğu + sunum biçimleri). Saf → testli.
+  static bool hasArabicText(String text) =>
+      RegExp('[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFC]')
+          .allMatches(text)
+          .length >=
+      8;
 
   static String _joinLines(List<OcrLine> lines) =>
       formatOrderedLines(orderOcrRows(lines));
@@ -309,7 +337,7 @@ class OcrService {
     if (mode == OcrQualityMode.aiVision) {
       return _joinLines(await _requireAiVision(path));
     }
-    final forced = await _forcedCloud(path, allowCloud);
+    final forced = await _forcedArabic(path, allowCloud);
     if (forced != null) return _joinLines(forced);
     final prep = mode == OcrQualityMode.enhanced
         ? await _preprocessImageForOcr(path)
@@ -327,7 +355,7 @@ class OcrService {
     final text = mode == OcrQualityMode.fast
         ? lines.map((l) => l.text).join('\n').trim()
         : formatOrderedLines(lines);
-    final cloud = await _autoCloud(path, text, allowCloud);
+    final cloud = await _autoArabic(path, text, allowCloud);
     return cloud != null ? _joinLines(cloud) : text;
   }
 
@@ -342,7 +370,7 @@ class OcrService {
     if (mode == OcrQualityMode.aiVision) {
       return orderOcrRows(await _requireAiVision(path));
     }
-    final forced = await _forcedCloud(path, allowCloud);
+    final forced = await _forcedArabic(path, allowCloud);
     if (forced != null) return orderOcrRows(forced);
     final prep = mode == OcrQualityMode.enhanced
         ? await _preprocessImageForOcr(path)
@@ -372,7 +400,7 @@ class OcrService {
       await recognizer.close();
       if (prep != null) _deleteTemp(prep.path);
     }
-    return await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines;
+    return await _autoArabic(path, _joinLines(lines), allowCloud) ?? lines;
   }
 
   /// Birden çok görselden metni satır satır, kutularıyla birlikte tanır.
@@ -397,7 +425,7 @@ class OcrService {
         onProgress?.call(i, paths.length);
         final path = paths[i];
         try {
-          final forced = await _forcedCloud(path, allowCloud);
+          final forced = await _forcedArabic(path, allowCloud);
           if (forced != null) {
             out.add(forced);
             continue;
@@ -406,7 +434,7 @@ class OcrService {
           final result = await _process(recognizer, path);
           final lines = orderOcrRows(_recognizedLines(result));
           out.add(
-            await _autoCloud(path, _joinLines(lines), allowCloud) ?? lines,
+            await _autoArabic(path, _joinLines(lines), allowCloud) ?? lines,
           );
         } on OcrModelNotReady catch (e) {
           out.add(const []);
@@ -434,7 +462,7 @@ class OcrService {
   /// ve seçim katmanı yazılmış sayfayla aynı yoldan çalışır.
   static Future<List<List<OcrWordBox>>> recognizeImageWordLines(String path,
       {bool allowCloud = false}) async {
-    final forced = await _forcedCloud(path, allowCloud);
+    final forced = await _forcedArabic(path, allowCloud);
     if (forced != null) return _wordLines(forced);
     final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
     final List<List<OcrWordBox>> words;
@@ -454,7 +482,7 @@ class OcrService {
       await recognizer.close();
     }
     final latin = words.map((l) => l.map((w) => w.text).join(' ')).join('\n');
-    final cloud = await _autoCloud(path, latin, allowCloud);
+    final cloud = await _autoArabic(path, latin, allowCloud);
     return cloud != null ? _wordLines(cloud) : words;
   }
 
@@ -518,7 +546,7 @@ class OcrService {
           if (mode == OcrQualityMode.aiVision) {
             text = _joinLines(await _requireAiVision(path));
           } else {
-            final forced = await _forcedCloud(path, allowCloud);
+            final forced = await _forcedArabic(path, allowCloud);
             if (forced != null) {
               text = _joinLines(forced);
             } else {
@@ -529,7 +557,7 @@ class OcrService {
               text = mode == OcrQualityMode.fast
                   ? lines.map((l) => l.text).join('\n').trim()
                   : formatOrderedLines(lines);
-              final cloud = await _autoCloud(path, text, allowCloud);
+              final cloud = await _autoArabic(path, text, allowCloud);
               if (cloud != null) text = _joinLines(cloud);
             }
           }
