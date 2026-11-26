@@ -85,18 +85,32 @@ extension _NearbyLinks on _NearbyScreenState {
           onActivity: TransferKeeper.instance.onActivity,
           thumbnail: TransferThumbs.of,
           onServed: (name) {
+            final path = _selection.firstWhere(
+                (s) => name.startsWith(p.basename(s)),
+                orElse: () => name);
             unawaited(TransferHistory.instance.add([
               TransferRecord(
                 incoming: false,
-                path: _selection.firstWhere((s) => name.startsWith(p.basename(s)),
-                    orElse: () => name),
+                path: path,
                 name: name,
                 size: 0,
                 peer: AppStrings.current.t('near.via_web'),
                 at: DateTime.now(),
               ),
             ]));
-            if (mounted) _update(() => _served++);
+            if (mounted) {
+              _update(() {
+                _served++;
+                // Bağlantı açık kaldıkça başka cihaz da indirebilir → kutudan
+                // çıkarılmaz, "Gönderildi" işaretlenir. Toplu paket hepsini taşır.
+                if (name != 'metin.txt' &&
+                    (name == 'dosyalar.zip' || _selection.length == 1)) {
+                  _sentDone.addAll(_selection);
+                } else {
+                  _sentDone.add(path);
+                }
+              });
+            }
           });
       await server.start();
       final host = await _NearbyScreenState._wifiAddress();

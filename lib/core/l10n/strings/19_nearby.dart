@@ -255,4 +255,14 @@ const Map<String, (String, String, String)> _t19 = {
   'lib.share': ('Paylaş', 'Share', 'مشاركة'),
   'lib.clean_missing': ('Bulunamayanları kaldır ({n})', 'Remove missing ({n})', 'إزالة المفقودة ({n})'),
   'lib.page_of': ('%{p} okundu', '{p}% read', 'قُرئ {p}%'),
+
+  // ── Gönderim sonucu (seçim kutusunda) ──────────────────────────────────
+  'near.sent_tile': ('Gönderildi', 'Sent', 'تم الإرسال'),
+  'near.fail_tile': ('Gönderilemedi', 'Not sent', 'لم يُرسل'),
+  'near.sent_partial': ('{ok} dosya gönderildi · {bad} gönderilemedi: {why}', '{ok} file(s) sent · {bad} not sent: {why}', 'أُرسل {ok} ملف · لم يُرسل {bad}: {why}'),
+  'near.fail_network': ('bağlantı koptu, alıcıya ulaşılamadı', 'connection lost, receiver unreachable', 'انقطع الاتصال، تعذر الوصول إلى المستلم'),
+  'near.fail_receiver': ('alıcı dosyayı kaydedemedi (yer dolu ya da izin yok)', 'the receiver could not save it (no space or permission)', 'تعذر على المستلم حفظه (لا مساحة أو لا إذن)'),
+  'near.fail_secure': ('güvenli bağlantı kurulamadı', 'secure connection failed', 'تعذر إنشاء اتصال آمن'),
+  'near.fail_code': ('eşleşme kodu kabul edilmedi', 'pairing code was rejected', 'رُفض رمز الإقران'),
+  'near.fail_identity': ('alıcının kimliği değişmiş, güvenlik için durduruldu', 'receiver identity changed, stopped for safety', 'تغيرت هوية المستلم، أُوقف للأمان'),
 };

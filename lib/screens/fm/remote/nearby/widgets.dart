@@ -427,7 +427,19 @@ class _SelectedTile extends StatelessWidget {
   final String path;
   final VoidCallback onRemove;
 
-  const _SelectedTile({super.key, required this.path, required this.onRemove});
+  /// Bağlantıdan indirildi (QR/PC) — kutuda "Gönderildi" diye kalır.
+  final bool sent;
+
+  /// Gönderilemedi: nedeni (dokununca tam metin).
+  final String? failed;
+
+  const _SelectedTile({
+    super.key,
+    required this.path,
+    required this.onRemove,
+    this.sent = false,
+    this.failed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -455,7 +467,12 @@ class _SelectedTile extends StatelessWidget {
                     color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(Radii.control),
                     border: Border.all(
-                      color: scheme.outlineVariant.withValues(alpha: 0.6),
+                      color: failed != null
+                          ? scheme.error
+                          : sent
+                              ? Paper.success(context)
+                              : scheme.outlineVariant.withValues(alpha: 0.6),
+                      width: failed != null || sent ? 1.5 : 1,
                     ),
                   ),
                   child: ClipRRect(
@@ -472,10 +489,26 @@ class _SelectedTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 3),
-              Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall),
+              if (failed != null || sent)
+                Tooltip(
+                  message: failed ?? '',
+                  triggerMode: TooltipTriggerMode.tap,
+                  showDuration: const Duration(seconds: 4),
+                  child: Text(
+                    context.t(failed != null ? 'near.fail_tile' : 'near.sent_tile'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: failed != null ? scheme.error : Paper.success(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall),
             ],
           ),
           PositionedDirectional(
