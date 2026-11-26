@@ -42,6 +42,9 @@ class PdfFormFieldInfo {
   /// çözülemezse null — alan yalnız listede görünür.
   final Rect? bounds;
 
+  /// Çok satırlı metin kutusu mu (`PdfTextBoxField.multiline`).
+  final bool multiline;
+
   const PdfFormFieldInfo({
     required this.name,
     required this.kind,
@@ -50,9 +53,28 @@ class PdfFormFieldInfo {
     this.page = 0,
     this.readOnly = false,
     this.bounds,
+    this.multiline = false,
   });
 
   bool get isChecked => value == 'true';
+
+  /// Metin alanı adından/etiketinden tarih alanı mı sezilir (tarih seçici için).
+  bool get isDateField {
+    if (kind != PdfFormFieldKind.text || multiline) return false;
+    final norm = '$name $label'
+        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (m) => '${m[1]} ${m[2]}')
+        .toLowerCase()
+        .replaceAll('ğ', 'g')
+        .replaceAll('ı', 'i')
+        .replaceAll('İ', 'i')
+        .replaceAll('ö', 'o')
+        .replaceAll('ş', 's')
+        .replaceAll('ü', 'u')
+        .replaceAll('ç', 'c');
+    return RegExp(
+            r'(^|[^a-z])(tarih|tarihi|date|dob|dogum|birth|dd\s*mm|gg\s*aa)($|[^a-z])|التاريخ')
+        .hasMatch(norm);
+  }
 
   /// Kullanıcıya gösterilecek ad: alan adları çoğu zaman `topmostSubform[0].
   /// Page1[0].AdSoyad[0]` gibi olur; son parça okunabilir olanıdır.
@@ -348,6 +370,7 @@ abstract final class PdfFormFiller {
         page: page,
         bounds: bounds,
         readOnly: field.readOnly,
+        multiline: field.multiline,
       );
     }
     if (field is PdfCheckBoxField) {
@@ -365,10 +388,15 @@ abstract final class PdfFormFiller {
       for (var i = 0; i < field.items.count; i++) {
         options.add(field.items[i].value);
       }
+      // Syncfusion tuzağı: seçili öğe yokken (`selectedIndex == -1`)
+      // `field.selectedValue` doğrudan `items[-1]` okuyup RangeError fırlatır.
+      final idx = field.selectedIndex;
+      final selected =
+          idx >= 0 && idx < options.length ? options[idx] : '';
       return PdfFormFieldInfo(
         name: name,
         kind: PdfFormFieldKind.radio,
-        value: field.selectedValue,
+        value: selected,
         options: options,
         page: page,
         bounds: bounds,
@@ -381,12 +409,22 @@ abstract final class PdfFormFiller {
       for (var i = 0; i < list.items.count; i++) {
         options.add(list.items[i].text);
       }
+      var selected = '';
+      if (field is PdfComboBoxField) {
+        final idx = field.selectedIndex;
+        selected = idx >= 0 && idx < options.length ? options[idx] : '';
+      } else if (field is PdfListBoxField) {
+        final idxs = field.selectedIndexes;
+        if (idxs.isNotEmpty && idxs.first >= 0 && idxs.first < options.length) {
+          selected = options[idxs.first];
+        }
+      }
       return PdfFormFieldInfo(
         name: name,
         kind: field is PdfComboBoxField
             ? PdfFormFieldKind.combo
             : PdfFormFieldKind.list,
-        value: field is PdfComboBoxField ? field.selectedValue : '',
+        value: selected,
         options: options,
         page: page,
         bounds: bounds,

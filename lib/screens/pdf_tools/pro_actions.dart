@@ -143,8 +143,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final bytes = _bytes;
     if (bytes == null) return;
     final pw = _password;
-    final list = await Isolate.run(
-        () => PdfDigitalSign.signatures(bytes, password: pw));
+    final list = await PdfDigitalSign.verifyInBackground(bytes, password: pw);
     if (!mounted) return;
     await showAppSheet<void>(
       context,
@@ -156,10 +155,25 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
             ListTile(title: Text(ctx.t('pp.dsign_none'))),
           for (final s in list)
             ListTile(
-              leading: Icon(s.signed ? AppIcons.pdfSignCert : AppIcons.draw),
-              title: Text(s.name),
+              leading: Icon(
+                !s.signed
+                    ? AppIcons.draw
+                    : s.integrityValid && s.coversWholeDocument
+                        ? AppIcons.verified
+                        : s.integrityValid
+                            ? AppIcons.warning
+                            : AppIcons.error,
+              ),
+              title: Text(s.signerName.isNotEmpty ? s.signerName : s.fieldName),
               subtitle: Text(ctx.t(
-                  s.signed ? 'pp.dsign_signed' : 'pp.dsign_empty_field')),
+                !s.signed
+                    ? 'pp.dsign_empty_field'
+                    : s.integrityValid && s.coversWholeDocument
+                        ? 'pf.dsig_valid'
+                        : s.integrityValid
+                            ? 'pf.dsig_valid_partial'
+                            : 'pf.dsig_invalid',
+              )),
             ),
         ],
       ),
@@ -1129,7 +1143,11 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
           return;
         }
         if (!mounted) return;
-        final signed = await PdfSignScreen.open(context, widget.path);
+        final signed = await PdfFormScreen.open(
+          context,
+          widget.path,
+          initialTab: PdfFormTab.sign,
+        );
         if (signed == true && mounted) await _load();
     }
   }

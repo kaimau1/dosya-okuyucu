@@ -15,10 +15,12 @@ void main() {
   List<int> buildForm() {
     final doc = PdfDocument();
     final page = doc.pages.add();
-    final name = PdfTextBoxField(page, 'AdSoyad', const Rect.fromLTWH(0, 0, 200, 20));
+    final name =
+        PdfTextBoxField(page, 'AdSoyad', const Rect.fromLTWH(0, 0, 200, 20));
     doc.form.fields.add(name);
     final note = PdfTextBoxField(
-        page, 'Aciklama', const Rect.fromLTWH(0, 30, 200, 40));
+        page, 'Aciklama', const Rect.fromLTWH(0, 30, 200, 40),
+        multiline: true);
     doc.form.fields.add(note);
     final agree =
         PdfCheckBoxField(page, 'Onay', const Rect.fromLTWH(0, 80, 20, 20));
@@ -28,8 +30,22 @@ void main() {
     city.items.add(PdfListFieldItem('Ankara', 'Ankara'));
     city.items.add(PdfListFieldItem('İstanbul', 'İstanbul'));
     doc.form.fields.add(city);
+    final radio = PdfRadioButtonListField(page, 'Plan');
+    radio.items.add(PdfRadioButtonListItem(
+        'Bireysel', const Rect.fromLTWH(0, 140, 16, 16)));
+    radio.items.add(PdfRadioButtonListItem(
+        'Kurumsal', const Rect.fromLTWH(60, 140, 16, 16)));
+    doc.form.fields.add(radio);
+    final list = PdfListBoxField(
+        page, 'Dil', const Rect.fromLTWH(0, 170, 200, 40));
+    list.items.add(PdfListFieldItem('Türkçe', 'Türkçe'));
+    list.items.add(PdfListFieldItem('English', 'English'));
+    doc.form.fields.add(list);
+    final date = PdfTextBoxField(
+        page, 'DogumTarihi', const Rect.fromLTWH(0, 220, 200, 20));
+    doc.form.fields.add(date);
     final locked = PdfTextBoxField(
-        page, 'Kilitli', const Rect.fromLTWH(0, 140, 200, 20));
+        page, 'Kilitli', const Rect.fromLTWH(0, 250, 200, 20));
     locked.text = 'değişmez';
     locked.readOnly = true;
     doc.form.fields.add(locked);
@@ -38,34 +54,57 @@ void main() {
     return bytes;
   }
 
-  test('alanlar türleriyle okunur', () {
+  test('tüm AcroForm türleri (metin, çok satır, onay, radyo, liste, açılır, tarih) okunur',
+      () {
     final fields = PdfFormFiller.readSync(buildForm());
-    expect(fields.length, 5);
+    expect(fields.length, 8);
 
     final byName = {for (final f in fields) f.name: f};
     expect(byName['AdSoyad']?.kind, PdfFormFieldKind.text);
+    expect(byName['AdSoyad']?.multiline, isFalse);
+    expect(byName['AdSoyad']?.isDateField, isFalse);
+    expect(byName['Aciklama']?.kind, PdfFormFieldKind.text);
+    expect(byName['Aciklama']?.multiline, isTrue);
     expect(byName['Onay']?.kind, PdfFormFieldKind.checkbox);
     expect(byName['Onay']?.isChecked, isFalse);
     expect(byName['Sehir']?.kind, PdfFormFieldKind.combo);
     expect(byName['Sehir']?.options, ['Ankara', 'İstanbul']);
+    expect(byName['Plan']?.kind, PdfFormFieldKind.radio);
+    expect(byName['Plan']?.options, ['Bireysel', 'Kurumsal']);
+    expect(byName['Dil']?.kind, PdfFormFieldKind.list);
+    expect(byName['Dil']?.options, ['Türkçe', 'English']);
+    expect(byName['DogumTarihi']?.kind, PdfFormFieldKind.text);
+    expect(byName['DogumTarihi']?.isDateField, isTrue);
     // Salt-okunur alan SÖYLENİR (dokunup bir şey olmaması "bozuk" sanılıyor).
     expect(byName['Kilitli']?.readOnly, isTrue);
     expect(byName['AdSoyad']?.page, 1);
   });
 
-  test('doldurulan değerler dosyaya girer (Türkçe harfler dahil)', () {
-    final filled = PdfFormFiller.fillSync(buildForm(), {
-      'AdSoyad': 'Ayşe Gül Çınar',
-      'Aciklama': 'İki satır\nikinci satır',
-      'Onay': 'true',
-      'Sehir': 'İstanbul',
-    });
+  test('doldurulan tüm tür değerleri dosyaya girer ve geri okunur (Türkçe harfler dahil)',
+      () {
+    final font = File('assets/fonts/Carlito-Regular.ttf').readAsBytesSync();
+    final filled = PdfFormFiller.fillSync(
+      buildForm(),
+      {
+        'AdSoyad': 'Ayşe Gül Çınar',
+        'Aciklama': 'İki satır\nikinci satır',
+        'Onay': 'true',
+        'Sehir': 'İstanbul',
+        'Plan': 'Kurumsal',
+        'Dil': 'Türkçe',
+        'DogumTarihi': '26.11.2026',
+      },
+      fontData: font,
+    );
 
     final byName = {for (final f in PdfFormFiller.readSync(filled)) f.name: f};
     expect(byName['AdSoyad']?.value, 'Ayşe Gül Çınar');
     expect(byName['Aciklama']?.value, contains('ikinci satır'));
     expect(byName['Onay']?.isChecked, isTrue);
     expect(byName['Sehir']?.value, 'İstanbul');
+    expect(byName['Plan']?.value, 'Kurumsal');
+    expect(byName['Dil']?.value, 'Türkçe');
+    expect(byName['DogumTarihi']?.value, '26.11.2026');
   });
 
   test('salt-okunur alan doldurulmaz (dosyanın kilidi zorlanmaz)', () {

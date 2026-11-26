@@ -1713,3 +1713,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 
 ## B11 m.1 — slayt şekil yansıması (2026-11-26, dal faz-oto-K1-kuyruk) — yazıldı, cihazda doğrulanmadı
 - [ ] PowerPoint'te bir şekle Biçim → Efektler → Yansıma (ör. "Sıkı yansıma, dokunan") ver → uygulamada aç: şeklin altında aşağı doğru solan aynalı kopya; sunumda ve düzenleyicide aynı; şekle dokununca yalnız asıl şekil seçilir; döndürülmüş şekilde yansıma da döner.
+
+## B4-P18 Form + İmza tek yüzey (2026-11-26, dal faz-oto-B4-form-imza) — yazıldı, cihazda doğrulanmadı
+- [ ] Görüntüleyiciden "Formu doldur" ve "İmzala" aynı ekranda (`Form` · `İmza` · `Dijital imza` sekmeleri) açılır; ayrı eski imza ekranı yoktur.
+- [ ] Tüm AcroForm türleri: tek satır, çok satır, tarih alanı (takvim simgesinden tarih seç), onay kutusu, radyo (yongalar), liste, açılır liste ve imza alanı doldurulup kaydedilince Acrobat/Chrome'da doğru görünür (Türkçe harfler dahil).
+- [ ] İmza penceresi: `Çiz` · `Yaz` (italik serif, Türkçe harfler) · `Görsel` (PNG/fotoğraf) + üstte kayıtlı imzalar şeridi (tek dokunuşla yeniden kullan / sil); Baş harf ayrı kaydedilir.
+- [ ] İmza sekmesi: sayfaya birden fazla İmza, Baş harf ve Tarih damgası ekleyip sürükle/boyutlandır/sil; kaydettikten sonra başka okuyucuda doğru konumda görünür (döndürülmüş sayfada da).
+- [ ] Dijital imza sekmesi: imzalı PDF'te doğrulama kartı (Geçerli / İmzadan sonra ekleme / Geçersiz) ve Form/İmza sekmelerinde imzalı belge uyarısı görünür; öz-imzalı ve `.pfx/.p12` sertifikayla görünür/görünmez imzalama çalışır (Lite sürümde Pro kapısı çıkar, doğrulama ücretsizdir).

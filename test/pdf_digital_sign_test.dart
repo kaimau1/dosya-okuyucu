@@ -11,6 +11,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart';
 /// açılır. (Adobe/Chrome'da görsel doğrulama cihaz dışı — CIHAZ_TESTI.)
 Future<List<int>> _doc() async {
   final doc = PdfDocument();
+  doc.documentInformation.title = 'SozlesmeBelgesi';
   doc.pages.add().graphics.drawString(
       'Sozlesme metni', PdfStandardFont(PdfFontFamily.helvetica, 14),
       bounds: const Rect.fromLTWH(40, 40, 400, 30));
@@ -128,6 +129,84 @@ void main() {
         ),
         throwsA(isA<RangeError>()),
       );
+    });
+
+    test('doğrulama: geçerli imza bütünlüğü geçer, kurcalanan belge düşer',
+        () async {
+      final signed = await PdfDigitalSign.signWithIdentity(
+        await _doc(),
+        identity: identity,
+        request: DigitalSignRequest(
+          pageIndex: 0,
+          bounds: PdfDigitalSign.defaultBounds(595, 842),
+          signerName: identity.name,
+          signedAt: DateTime(2026, 11, 26, 12, 0),
+          reason: 'Onay',
+        ),
+      );
+
+      final verified = PdfDigitalSign.verify(signed);
+      expect(verified, hasLength(1));
+      final v = verified.single;
+      expect(v.signed, isTrue);
+      expect(v.integrityValid, isTrue, reason: 'hata: ${v.error}');
+      expect(v.coversWholeDocument, isTrue);
+      expect(v.selfSigned, isTrue);
+      expect(v.signerName, 'Ayşe Deneme');
+      expect(v.reason, 'Onay');
+
+      // İmzalı içerikte tek bayt değiştirilirse bütünlük düşer.
+      final tampered = List<int>.of(signed);
+      final idx = latin1.decode(tampered).indexOf('Sozlesme');
+      expect(idx, greaterThan(0));
+      tampered[idx] = tampered[idx] ^ 0x01;
+      final bad = PdfDigitalSign.verify(tampered);
+      expect(bad, hasLength(1));
+      expect(bad.single.integrityValid, isFalse);
+    });
+
+    test('doğrulama: ikinci imza ilkini kapsam-dışı gösterir, ikisi de geçerli',
+        () async {
+      final once = await PdfDigitalSign.signWithIdentity(
+        await _doc(),
+        identity: identity,
+        request: DigitalSignRequest(
+            pageIndex: 0,
+            bounds: const Rect.fromLTWH(40, 700, 150, 50),
+            signerName: identity.name,
+            signedAt: DateTime(2026, 11, 26, 10, 0)),
+      );
+      final twice = await PdfDigitalSign.signWithIdentity(
+        once,
+        identity: identity,
+        request: DigitalSignRequest(
+            pageIndex: 0,
+            bounds: null,
+            visible: false,
+            signerName: identity.name,
+            signedAt: DateTime(2026, 11, 26, 11, 0)),
+      );
+      final list = PdfDigitalSign.verify(twice);
+      expect(list, hasLength(2));
+      expect(list[0].integrityValid, isTrue);
+      expect(list[0].coversWholeDocument, isFalse);
+      expect(list[1].integrityValid, isTrue);
+      expect(list[1].coversWholeDocument, isTrue);
+    });
+
+    test('doğrulama: imzasız belge boş, boş imza alanı imzasız döner', () {
+      expect(PdfDigitalSign.verify(_docSync), isEmpty);
+      final doc = PdfDocument();
+      final page = doc.pages.add();
+      doc.form.fields.add(PdfSignatureField(page, 'BosImza',
+          bounds: const Rect.fromLTWH(10, 10, 100, 30)));
+      final bytes = doc.saveSync();
+      doc.dispose();
+      final list = PdfDigitalSign.verify(bytes);
+      expect(list, hasLength(1));
+      expect(list.single.fieldName, 'BosImza');
+      expect(list.single.signed, isFalse);
+      expect(list.single.integrityValid, isFalse);
     });
   });
 }

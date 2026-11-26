@@ -112,7 +112,6 @@ import '../widgets/translate_flow.dart';
 import '../widgets/tts_voice_sheet.dart';
 import 'reader_screen.dart';
 import 'pdf_form_screen.dart';
-import 'pdf_sign_screen.dart';
 import 'pdf_editor_screen.dart';
 import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
