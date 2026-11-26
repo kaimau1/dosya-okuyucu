@@ -1461,6 +1461,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] (dilim 2) Word: iki parmakla yakınlaştır/uzaklaştır — parmak inikken görüntü büyür, kalkınca yazı net yeniden dizilir; Görünüm > Yakınlaştır düğmeleri sonraki kademeye geçer; çimdik sırasında kaydırma kaymaz.
 - 2026-11-20 · Huawei MatePad (DBY-W09) · `.r8test` profil · B13 m.1 açılış geçişi (satırdan büyüyen kırpma) A/B 3+3 ✘ KALDI: Slayt açılışı +%13, Excel +%17, Slayt açılış p99 20→34 ms; uygulanmadı (`docs/perf/2026-11-20-ab-c136fd2-56f885b.md`).
 - [ ] (2026-11-26) m.1 yeniden denemeden önce: profil derlemesinde `ext.flutter.profileWidgetBuilds` açık, 659158e1 koduyla Slayt ve Excel'i satırdan aç → zaman çizelgesinde ilk 20 karede uzayan BUILD/RASTER olayını yaz (PLAN C2 madde 10).
+- 2026-11-26 · Huawei MatePad (DBY-W09) · `.r8test` profil · C1/C2 A/B 2 tur (4b2bec2→ad4ee9a, 2+2 koşu/tur) ✘ KALDI: word_300_menu build p99 +%63/+%78, raster p99 +%75/+%92; gecis_pdf_acilis raster p90 +%85/+%125; gecis_xlsx_kapanis raster p99 49,5/50,4 ms; P08 pdf_buyuk kare yeşil; kod değişmedi (`docs/perf/2026-11-26-C1-C2.md`).
 
 ## B2 Akıllı düzen kullanım dilim 1 (2026-11-19, dal faz-oto-B2-duzen-kullanim) — yazıldı, cihazda doğrulanmadı
 - [ ] Akıllı düzen > Ayıkla > sağ üst "Benzer kareler": benzer gruplar çıkıyor; ⭐ "En iyi" gruptaki EN NET kare mi (bulanık büyük kopya değil)? Tarama süresi eski "Benzer görüntüler"e göre belirgin uzamadı mı?
