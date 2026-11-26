@@ -12,8 +12,15 @@ import 'package:pdfrx/pdfrx.dart';
 class OcrWordBox {
   final String text;
   final Rect box;
-  const OcrWordBox(this.text, this.box);
+
+  /// ML Kit güven puanı (0–1); bulut/Arapça yolu vermez → null (işaretlenmez).
+  final double? confidence;
+  const OcrWordBox(this.text, this.box, {this.confidence});
 }
+
+/// Bu puanın altındaki sözcük düzeltme ekranında "emin değilim" işareti alır
+/// (P19 m.4). ponytail: sabit eşik; cihazda fazla/az işaret çıkarsa ayarla.
+const ocrLowConfidence = 0.6;
 
 /// Taranmış sayfanın OCR sonucu, pdfrx'in metin katmanıyla AYNI biçimde.
 ///
@@ -27,7 +34,22 @@ class OcrPageText extends PdfPageText {
     required super.fullText,
     required super.charRects,
     required super.fragments,
+    this.lowRanges = const [],
   });
+
+  /// Düşük güvenli sözcüklerin [fullText] içindeki `(başlangıç, bitiş)`
+  /// aralıkları (bitiş hariç). Yalnız düzeltme ekranı okur.
+  final List<(int, int)> lowRanges;
+}
+
+/// [frag] içindeki düşük güvenli sözcüklerin PDF kutuları (sözcük başına bir).
+List<PdfRect> lowConfidenceRects(OcrPageText text, PdfPageTextFragment frag) {
+  final end = frag.index + frag.length;
+  return [
+    for (final (s, e) in text.lowRanges)
+      if (s >= frag.index && e <= end && e > s)
+        frag.charRects.sublist(s - frag.index, e - frag.index).boundingRect(),
+  ];
 }
 
 /// Parça = (metindeki başlangıç, karakter kutuları); metin uzunluğu kutu sayısı.
@@ -36,12 +58,14 @@ typedef OcrFrag = ({int index, List<PdfRect> rects});
 /// pdfrx 2.x'te parça sayfaya geri başvurur (`pageText`): önce sayfa boş
 /// parça listesiyle kurulur, parçalar sonra eklenir. Sayfanın `charRects`'i
 /// parçalarınkinin art arda dizilişi (metinle birebir aynı uzunlukta).
-OcrPageText assembleOcrPageText(int pageNumber, String fullText, List<OcrFrag> frags) {
+OcrPageText assembleOcrPageText(int pageNumber, String fullText, List<OcrFrag> frags,
+    {List<(int, int)> lowRanges = const []}) {
   final page = OcrPageText._(
     pageNumber: pageNumber,
     fullText: fullText,
     charRects: [for (final f in frags) ...f.rects],
     fragments: <PdfPageTextFragment>[],
+    lowRanges: lowRanges,
   );
   page.fragments.addAll([
     for (final f in frags)
@@ -98,6 +122,7 @@ OcrPageText? buildOcrPageText({
 
   final buffer = StringBuffer();
   final fragments = <OcrFrag>[];
+  final low = <(int, int)>[];
 
   for (final row in orderOcrRows(lines)) {
     // Hücre (segment) sınırı: bu sözcükten önce sekme yazılır.
@@ -128,6 +153,11 @@ OcrPageText? buildOcrPageText({
           prev.bottom > w.box.bottom ? prev.bottom : w.box.bottom,
         )));
       }
+      final c = w.confidence;
+      if (c != null && c < ocrLowConfidence) {
+        final s = lineStart + lineText.length;
+        low.add((s, s + w.text.length));
+      }
       lineText.write(w.text);
       final n = w.text.length;
       final sliceW = w.box.width / n;
@@ -152,7 +182,8 @@ OcrPageText? buildOcrPageText({
   }
 
   if (fragments.isEmpty) return null;
-  return assembleOcrPageText(pageNumber, buffer.toString(), fragments);
+  return assembleOcrPageText(pageNumber, buffer.toString(), fragments,
+      lowRanges: low);
 }
 
 /// Satırları görsel satırlara dizer: satır → hücreler → sözcükler.
@@ -254,6 +285,10 @@ String encodeOcrPageText(OcrPageText text) => jsonEncode({
             ],
           },
       ],
+      // P19 m.4: düşük güvenli sözcük aralıkları düz dizide (isteğe bağlı —
+      // eski v2 girdisinde yok, işaretsiz okunur; yeniden OCR gerekmez).
+      if (text.lowRanges.isNotEmpty)
+        'low': [for (final (s, e) in text.lowRanges) ...[s, e]],
     });
 
 /// [encodeOcrPageText] çıktısını geri çözer; biçim tanınmazsa/bozuksa null
@@ -282,7 +317,16 @@ OcrPageText? decodeOcrPageText(String json) {
       fragments.add((index: index, rects: rects));
     }
     if (fragments.isEmpty) return null;
-    return assembleOcrPageText(map['page'] as int, fullText, fragments);
+    final flatLow = ((map['low'] as List?) ?? const []).cast<int>();
+    final low = <(int, int)>[
+      for (var i = 0; i + 1 < flatLow.length; i += 2)
+        if (flatLow[i] >= 0 &&
+            flatLow[i] < flatLow[i + 1] &&
+            flatLow[i + 1] <= fullText.length)
+          (flatLow[i], flatLow[i + 1]),
+    ];
+    return assembleOcrPageText(map['page'] as int, fullText, fragments,
+        lowRanges: low);
   } catch (_) {
     return null;
   }

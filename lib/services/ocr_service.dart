@@ -475,7 +475,7 @@ class OcrService {
             [
               for (final e in line.elements)
                 if (e.text.trim().isNotEmpty)
-                  OcrWordBox(e.text, e.boundingBox),
+                  OcrWordBox(e.text, e.boundingBox, confidence: e.confidence),
             ],
       ];
     } finally {

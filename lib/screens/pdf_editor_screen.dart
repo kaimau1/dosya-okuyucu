@@ -22,6 +22,7 @@ import '../services/pdf/pdf_fling.dart';
 import '../services/pdf/pdf_viewer_defaults.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf/pdf_pending_objects.dart';
+import '../services/pdf/ocr_page_text.dart' show lowConfidenceRects;
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_scanned_retype.dart';
 import '../services/pdf/pdf_selection_target.dart';

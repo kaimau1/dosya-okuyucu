@@ -245,7 +245,8 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
             for (final f in ocr?.fragments ?? const <PdfPageTextFragment>[])
               if (f.text.trim().isNotEmpty &&
                   (!natural || _insideImage(f.bounds)))
-                ScannedLine(f.text.trim(), f.bounds),
+                ScannedLine(f.text.trim(), f.bounds,
+                    lowBoxes: lowConfidenceRects(ocr!, f)),
           ];
         }
       } catch (_) {

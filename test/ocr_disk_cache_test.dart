@@ -42,6 +42,35 @@ void main() {
       }
     });
 
+    test('düşük güvenli sözcük aralığı kurulur, önbellekten döner (P19 m.4)',
+        () {
+      final t = buildOcrPageText(
+        pageNumber: 1,
+        pageHeight: 100,
+        imageScale: 1,
+        lines: [
+          [
+            const OcrWordBox('iyi', Rect.fromLTRB(0, 0, 30, 10),
+                confidence: 0.95),
+            const OcrWordBox('kötü', Rect.fromLTRB(40, 0, 80, 10),
+                confidence: 0.2),
+            const OcrWordBox('bilinmez', Rect.fromLTRB(90, 0, 170, 10)),
+          ],
+        ],
+      )!;
+      expect(t.lowRanges, [(4, 8)]);
+      expect(t.fullText.substring(4, 8), 'kötü');
+      final rects = lowConfidenceRects(t, t.fragments.single);
+      expect(rects, hasLength(1));
+      expect(rects.single.left, 40);
+      expect(rects.single.right, 80);
+
+      final back = decodeOcrPageText(encodeOcrPageText(t))!;
+      expect(back.lowRanges, [(4, 8)]);
+      // Eski (aralıksız) girdi işaretsiz okunur, atılmaz.
+      expect(decodeOcrPageText(encodeOcrPageText(sample()))!.lowRanges, isEmpty);
+    });
+
     test('bozuk/yabancı girdi null döner, fırlatmaz', () {
       expect(decodeOcrPageText('çöp'), isNull);
       expect(decodeOcrPageText('{"v":99}'), isNull);
