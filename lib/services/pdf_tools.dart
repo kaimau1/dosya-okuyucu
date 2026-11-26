@@ -121,28 +121,6 @@ class PdfTools {
     }
   }
 
-  /// **Boş sayfa ekler** ([index] konumuna; belge sonuna için sayfa sayısı).
-  ///
-  /// Yerinde çalışıyor (`pages.insert`): var olan sayfaların vurguları ve
-  /// notları korunuyor — [selectPages] ile "araya sok" yapmak onları
-  /// kaybettirirdi (bkz. oradaki uyarı).
-  ///
-  /// Yeni sayfanın ölçüsü komşu sayfadan alınır: A4 bir belgeye Letter bir
-  /// boş sayfa eklemek yazdırmada tek başına bozuk çıkardı.
-  static Future<List<int>> insertBlankPage(
-    List<int> bytes, {
-    required int index,
-    String? password,
-  }) async {
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    try {
-      _insertBlank(doc, index);
-      return await doc.save();
-    } finally {
-      doc.dispose();
-    }
-  }
-
   /// Açık belgeye [index]'e komşu ölçüsünde boş sayfa sokar.
   static void _insertBlank(PdfDocument doc, int index) {
     final count = doc.pages.count;
@@ -153,91 +131,6 @@ class PdfTools {
     } else {
       doc.pages.insert(at, size);
     }
-  }
-
-  /// Sayfaları **ters sıraya** çevirir (taranmış belge baştan sona ters
-  /// tarandığında en sık istenen düzeltme).
-  static Future<List<int>> reversePages(
-    List<int> bytes, {
-    String? password,
-  }) async {
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    final count = doc.pages.count;
-    doc.dispose();
-    return selectPages(
-      bytes,
-      [for (var i = count - 1; i >= 0; i--) i],
-      password: password,
-    );
-  }
-
-  /// Seçili sayfaları **hemen arkalarına çoğaltır**.
-  ///
-  /// Sıra: 1,2,3 içinde 2 çoğaltılırsa 1,2,2,3. Sona eklemek (1,2,3,2)
-  /// kullanıcının beklediği şey değil — çoğaltma "bunun bir kopyası daha
-  /// olsun" demektir.
-  static Future<List<int>> duplicatePages(
-    List<int> bytes,
-    Iterable<int> pageIndexes, {
-    String? password,
-  }) async {
-    final targets = pageIndexes.toSet();
-    if (targets.isEmpty) throw ArgumentError('Çoğaltılacak sayfa yok');
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    final count = doc.pages.count;
-    doc.dispose();
-    final order = <int>[];
-    for (var i = 0; i < count; i++) {
-      order.add(i);
-      if (targets.contains(i)) order.add(i);
-    }
-    return selectPages(bytes, order, password: password);
-  }
-
-  /// **Sayfayı taşır:** [from] indeksindeki sayfayı [to] konumuna götürür.
-  ///
-  /// Tek adım ileri/geri düğmeleri 200 sayfalık bir belgede işkenceydi
-  /// (kullanıcı isteği 2026-09-03: PDF araçlarında iyileştirme). Hedef
-  /// indeks TAŞIMADAN SONRAKİ listede beklenen yerdir — kullanıcı "5. sayfa
-  /// olsun" der, aradaki kaymayı biz hesaplarız.
-  static Future<List<int>> movePage(
-    List<int> bytes, {
-    required int from,
-    required int to,
-    String? password,
-  }) async {
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    final count = doc.pages.count;
-    doc.dispose();
-    if (from < 0 || from >= count) throw RangeError('Sayfa ${from + 1} yok');
-    final order = [for (var i = 0; i < count; i++) i]..removeAt(from);
-    order.insert(to.clamp(0, order.length), from);
-    return selectPages(bytes, order, password: password);
-  }
-
-  /// Belgeyi [size] sayfalık parçalara böler; her parça ayrı bir PDF.
-  ///
-  /// "Her sayfayı ayrı dosya" ([size] = 1) taranmış faturaları ayırmanın en
-  /// hızlı yolu; büyük bir sunumu e-postaya sığdırmak için de kullanılıyor.
-  static Future<List<List<int>>> splitEvery(
-    List<int> bytes, {
-    required int size,
-    String? password,
-  }) async {
-    if (size < 1) throw ArgumentError('Parça en az 1 sayfa olmalı');
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    final count = doc.pages.count;
-    doc.dispose();
-    final out = <List<int>>[];
-    for (var start = 0; start < count; start += size) {
-      final end = (start + size) > count ? count : start + size;
-      out.add(await selectPages(
-        bytes,
-        [for (var i = start; i < end; i++) i],
-        password: password,
-      ));
-    }
-    return out;
   }
 
   /// Seçili sayfaları **mevcut açısına ekleyerek** çeyrek tur döndürür
@@ -982,14 +875,6 @@ class PdfTools {
       _bg(() =>
           applyPageStudio(bytes, pages, password: password, extra: extra));
 
-  /// [selectPages] — arka plan isolate'inde.
-  static Future<List<int>> selectPagesInBackground(
-    List<int> bytes,
-    List<int> pageIndexes, {
-    String? password,
-  }) =>
-      _bg(() => selectPages(bytes, pageIndexes, password: password));
-
   /// [deletePages] — arka plan isolate'inde.
   static Future<List<int>> deletePagesInBackground(
     List<int> bytes,
@@ -1069,34 +954,6 @@ class PdfTools {
   }
 
   /// [replaceText] — arka plan isolate'inde.
-  static Future<List<int>> insertBlankPageInBackground(
-    List<int> bytes, {
-    required int index,
-    String? password,
-  }) =>
-      _bg(() => insertBlankPage(bytes, index: index, password: password));
-
-  static Future<List<int>> reversePagesInBackground(
-    List<int> bytes, {
-    String? password,
-  }) =>
-      _bg(() => reversePages(bytes, password: password));
-
-  static Future<List<int>> duplicatePagesInBackground(
-    List<int> bytes,
-    Iterable<int> pageIndexes, {
-    String? password,
-  }) =>
-      _bg(() => duplicatePages(bytes, pageIndexes, password: password));
-
-  static Future<List<int>> movePageInBackground(
-    List<int> bytes, {
-    required int from,
-    required int to,
-    String? password,
-  }) =>
-      _bg(() => movePage(bytes, from: from, to: to, password: password));
-
   static Future<List<int>> replaceTextInBackground(
     List<int> bytes, {
     required int pageIndex,
@@ -1273,16 +1130,6 @@ class PdfToolsException implements Exception {
     3 => (translate: Offset(w, 0), angle: 90),
     _ => (translate: Offset.zero, angle: 0),
   };
-}
-
-/// [total] sayfalık belgede [from] sayfasını [to] konumuna taşıyan yeni sayfa
-/// sırası ([PdfTools.selectPages]'e verilir). Çıkar-sonra-ekle sırası önemli:
-/// aşağı taşımada indeks kayar, önce çıkarınca hedef doğru yere düşer.
-List<int> movePageOrder(int total, int from, int to) {
-  final order = List.generate(total, (i) => i);
-  order.removeAt(from);
-  order.insert(to, from);
-  return order;
 }
 
 /// Döndürülmüş (`/Rotate`) bir kaynak sayfayı yeni sayfaya çizerken gereken

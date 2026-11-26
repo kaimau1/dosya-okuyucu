@@ -39,6 +39,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
         _bytes = bytes;
         _proEnabled = pro;
       });
+      if (widget.openStudio) await _reorderPages();
     } catch (e) {
       if (mounted) _partSetState(() => _error = userErrorText(e));
     }
@@ -124,31 +125,6 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
 
   Future<int> _pageCount() =>
       PdfTools.pageCount(_bytes!, password: _password);
-
-  Future<void> _rotate() async {
-    final pages = _selected.isEmpty
-        ? List.generate(await _pageCount(), (i) => i)
-        : _selected.toList();
-    if (!mounted) return;
-    final pw = _password;
-    await _apply(
-      _str.t('pt.op_rotate'),
-      (b) => PdfTools.rotatePagesInBackground(b,
-          pageIndexes: pages, quarterTurns: 1, password: pw),
-    );
-  }
-
-  Future<void> _deleteSelected() async {
-    if (_selected.length >= await _pageCount()) {
-      if (mounted) _snack(_str.t('pt.cannot_delete_all'));
-      return;
-    }
-    if (!mounted) return;
-    final pages = _selected.toList();
-    final pw = _password;
-    await _apply(_str.t('pt.op_delete'),
-        (b) => PdfTools.deletePagesInBackground(b, pages, password: pw));
-  }
 
   /// **Sayfa numarası ekle** (2026-08-28).
   ///
@@ -282,172 +258,6 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     return ok;
   }
 
-  /// Seçili sayfaları **yeni bir PDF** olarak paylaşır (böl / sayfa çıkar).
-  Future<void> _extractSelected() async {
-    if (_selected.isEmpty || _bytes == null) return;
-    final pages = _selected.toList()..sort();
-    final str = _str;
-    _partSetState(() => _busyLabel = str.t('pt.extracting'));
-    try {
-      final out = await PdfTools.selectPagesInBackground(_bytes!, pages,
-          password: _password);
-      final name = '${p.basenameWithoutExtension(widget.path)}'
-          '_sayfa${pages.length == 1 ? pages.first + 1 : '${pages.length}'}.pdf';
-      final path =
-          await _conversion.writeToTemp(name, Uint8List.fromList(out));
-      await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: str.t('pt.extracted')));
-    } catch (e) {
-      if (mounted) _snack(str.t('pt.extract_failed', {'error': userErrorText(e)}));
-    } finally {
-      if (mounted) _partSetState(() => _busyLabel = '');
-    }
-  }
-
-  /// Tek seçili sayfayı bir sıra öne/arkaya taşır.
-  ///
-  /// ponytail: sürükle-bırak yerine ok düğmeleri — çok daha az kod, aynı iş.
-  /// Uzun belgede sıkıcı olursa `ReorderableGridView` benzeri bir çözüme geç.
-  Future<void> _move(int delta) async {
-    if (_selected.length != 1) return;
-    final from = _selected.first;
-    final total = await _pageCount();
-    final to = from + delta;
-    if (to < 0 || to >= total) return;
-    if (!await _confirmAnnotationLoss(_str.t('pt.op_move_page'))) return;
-    final order = movePageOrder(total, from, to);
-    final pw = _password;
-    await _apply(_str.t('pt.op_move'),
-        (b) => PdfTools.selectPagesInBackground(b, order, password: pw));
-    if (mounted) _selection.value = {to};
-  }
-
-  /// **Sayfayı istenen konuma taşı** (kullanıcı isteği 2026-09-03).
-  ///
-  /// Tek adımlık ileri/geri düğmeleri duruyor (bir komşuyla yer değiştirmek
-  /// en sık iş) ama 200 sayfalık bir belgede 60. sayfayı başa almak 60
-  /// dokunuş demekti. Burada hedef sayfa numarası soruluyor.
-  Future<void> _moveTo() async {
-    if (_selected.length != 1) return;
-    final from = _selected.first;
-    final total = await _pageCount();
-    if (!mounted) return;
-    final controller = TextEditingController(text: '${from + 1}');
-    final target = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('pt.move_to')),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            labelText: ctx.t('pt.move_to_hint', {'n': '$total'}),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(ctx, int.tryParse(controller.text.trim())),
-            child: Text(ctx.t('common.ok')),
-          ),
-        ],
-      ),
-    );
-    if (target == null || target < 1 || target > total) return;
-    final to = target - 1;
-    if (to == from) return;
-    if (!await _confirmAnnotationLoss(_str.t('pt.op_move_page'))) return;
-    final pw = _password;
-    await _apply(_str.t('pt.op_move'),
-        (b) => PdfTools.movePageInBackground(b, from: from, to: to, password: pw));
-    if (mounted) _selection.value = {to};
-  }
-
-  /// Seçili sayfaları hemen arkalarına çoğaltır.
-  Future<void> _duplicateSelected() async {
-    if (_selected.isEmpty) return;
-    if (!await _confirmAnnotationLoss(_str.t('pt.op_duplicate'))) return;
-    final pages = _selected.toList();
-    final pw = _password;
-    await _apply(_str.t('pt.op_duplicate'),
-        (b) => PdfTools.duplicatePagesInBackground(b, pages, password: pw));
-  }
-
-  /// Belgeyi ters sıraya çevirir (ters taranmış belgelerin tek adımlık çözümü).
-  Future<void> _reverse() async {
-    if (!await _confirmAnnotationLoss(_str.t('pt.op_reverse'))) return;
-    final pw = _password;
-    await _apply(_str.t('pt.op_reverse'),
-        (b) => PdfTools.reversePagesInBackground(b, password: pw));
-  }
-
-  /// Seçili sayfadan ÖNCE (seçim yoksa sona) boş sayfa ekler.
-  ///
-  /// Yerinde çalışıyor: vurgular korunuyor, bu yüzden uyarı sorulmuyor.
-  Future<void> _insertBlank() async {
-    final total = await _pageCount();
-    final at = _selected.isEmpty ? total : _selected.reduce((a, b) => a < b ? a : b);
-    final pw = _password;
-    await _apply(_str.t('pt.op_insert_blank'),
-        (b) => PdfTools.insertBlankPageInBackground(b, index: at, password: pw));
-  }
-
-  /// Belgeyi N sayfalık parçalara böler ve **ayrı dosyalar** olarak yazar.
-  Future<void> _splitEvery() async {
-    final total = await _pageCount();
-    if (total < 2) {
-      _snack(_str.t('pt.split_too_short'));
-      return;
-    }
-    if (!mounted) return;
-    final size = await showDialog<int>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(ctx.t('pt.split_every')),
-        children: [
-          for (final n in const [1, 2, 5, 10])
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, n),
-              child: Text(ctx.t('pt.split_size', {'n': '$n'})),
-            ),
-        ],
-      ),
-    );
-    if (size == null) return;
-    final bytes = _bytes;
-    if (bytes == null) return;
-    final pw = _password;
-    _partSetState(() => _busyLabel = '${_str.t('pt.op_split')}…');
-    try {
-      final parts = await PdfTools.splitEvery(bytes, size: size, password: pw);
-      final dir = p.dirname(widget.path);
-      final base = p.basenameWithoutExtension(widget.path);
-      final written = <String>[];
-      for (var i = 0; i < parts.length; i++) {
-        // Var olan dosyanın üstüne YAZMA: kullanıcının belgesi gitmesin.
-        var target = p.join(dir, '$base-${i + 1}.pdf');
-        var n = 1;
-        while (await File(target).exists()) {
-          target = p.join(dir, '$base-${i + 1}($n).pdf');
-          n++;
-        }
-        await File(target).writeAsBytes(parts[i], flush: true);
-        written.add(target);
-      }
-      if (mounted) _snack(_str.t('pt.split_done', {'n': written.length}));
-    } catch (e) {
-      if (mounted) {
-        _snack(_str.t('pt.op_failed',
-            {'label': _str.t('pt.op_split'), 'error': userErrorText(e)}));
-      }
-    } finally {
-      if (mounted) _partSetState(() => _busyLabel = '');
-    }
-  }
-
   /// Tüm sayfaları seçer / seçimi kaldırır.
   Future<void> _selectAll() async {
     final total = await _pageCount();
@@ -465,55 +275,6 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       for (var i = 0; i < total; i++)
         if (!_selected.contains(i)) i,
     };
-  }
-
-  Future<void> _mergeOther() async {
-    final res = await AppFilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf'],
-      allowMultiple: true,
-    );
-    final paths = res?.files.map((f) => f.path).whereType<String>().toList();
-    if (paths == null || paths.isEmpty) return;
-    if (!await _confirmAnnotationLoss(_str.t('pt.op_merge'))) return;
-    final others = [
-      for (final path in paths) await File(path).readAsBytes(),
-    ];
-    await _apply(_str.t('pt.op_merge'),
-        (b) => PdfTools.mergeInBackground([b, ...others]));
-    if (mounted) _snack(_str.t('pt.merged', {'n': paths.length}));
-  }
-
-  static bool _scanningAppend = false;
-
-  /// Kameradan yeni sayfa(lar) tarayıp belgenin sonuna ekler — kâğıt eki olan
-  /// sözleşme/rapor için asıl işe yarayan birleşim.
-  Future<void> _scanAndAppend() async {
-    if (_busy || _scanningAppend) return;
-    _scanningAppend = true;
-    List<String>? scanned;
-    try {
-      scanned = await DocumentScanner.scanPages();
-    } catch (e) {
-      if (mounted) {
-        _snack(_str.t('sf.scanner_failed', {'error': userErrorText(e)}));
-      }
-      return;
-    } finally {
-      _scanningAppend = false;
-    }
-    if (scanned == null || scanned.isEmpty || !mounted) return;
-    if (!await _confirmAnnotationLoss(_str.t('pt.op_scan_append'))) return;
-    // Ana tarama akışıyla aynı kural: tarayıcının verdiği sayfa OLDUĞU GİBİ
-    // eklenir (kendiliğinden kırpma/düzleştirme/netleştirme yok — kullanıcı
-    // sayfayı ML Kit ekranında onayladı, bkz. `ScanPrepare`).
-    // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada görünür.
-    await _apply(_str.t('pt.op_scan_append'), (b) async {
-      final pages = ScanPage.displays(await ScanPrepare.pages(scanned!));
-      final doc = await _conversion.imagesToPdf(pages,
-          uniformPage: PdfPageFormat.a4);
-      return PdfTools.mergeInBackground([b, doc]);
-    });
   }
 
   /// Sıkıştırma: **önce onay, sonra arka planda**.

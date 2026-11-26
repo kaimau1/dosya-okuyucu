@@ -25,7 +25,6 @@ import '../core/busy_dialog.dart';
 import '../core/device_profile.dart';
 import '../core/l10n/app_strings.dart';
 import '../services/conversion_service.dart';
-import '../services/document_scanner.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf_digital_sign.dart';
 import '../services/docs_home.dart';
@@ -43,7 +42,6 @@ import '../services/pdf/pdf_ocr_text.dart';
 import '../services/pdf/pdf_selection_target.dart' show pdfHasTextLayer;
 import 'package:syncfusion_flutter_pdf/pdf.dart' show PdfConformanceLevel;
 import '../services/pdf_tools.dart';
-import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
 import '../services/fm/job_queue.dart' show JobCancelled;
@@ -65,20 +63,26 @@ part 'pdf_tools/views.dart';
 part 'pdf_tools/pro_actions.dart';
 part 'pdf_tools/pro_views.dart';
 
-/// **PDF Araçları** — sayfa ızgarası üzerinden birleştir / çıkar / sil / sırala /
-/// döndür, ayrıca parola ve sıkıştırma.
+/// **PDF Araçları** — belge düzeyi işler (sıkıştır, parola, numara, filigran,
+/// görsel, paylaş, yazdır, Pro araçlar). Sayfa düzeni (sırala, döndür, sil,
+/// çoğalt, ekle, böl, birleştir) **sayfa stüdyosunda** (B4/P20, Faz 63 m.5);
+/// buradaki ızgara önizleme + "yalnız seçili sayfalar" seçimi içindir.
+/// [openStudio]: ekran açılır açılmaz stüdyoya geçer (görüntüleyicideki
+/// "Sayfa stüdyosu" kısayolu).
 ///
 /// Çalışma biçimi: dosya belleğe alınır, işlemler bellekteki baytlara uygulanır
 /// (anında önizleme), kullanıcı **Kaydet** deyince diske yazılır. Böylece geri
 /// alma ucuz ve yanlış dokunuş dosyayı bozmaz.
 class PdfToolsScreen extends StatefulWidget {
-  const PdfToolsScreen({super.key, required this.path});
+  const PdfToolsScreen({super.key, required this.path, this.openStudio = false});
 
   final String path;
+  final bool openStudio;
 
   /// Ekranı açar; [path] yoksa kullanıcıya PDF seçtirir. Dosya kaydedildiyse
   /// `true` döner (çağıran görüntüleyiciyi tazeleyebilir).
-  static Future<bool?> open(BuildContext context, {String? path}) async {
+  static Future<bool?> open(BuildContext context,
+      {String? path, bool openStudio = false}) async {
     if (!Edition.current.has(Feature.pdfAdvanced)) {
       await showProSheet(context, Feature.pdfAdvanced); // S2: Lite
       return null;
@@ -94,7 +98,9 @@ class PdfToolsScreen extends StatefulWidget {
     }
     if (!context.mounted) return null;
     return Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => PdfToolsScreen(path: target!)),
+      MaterialPageRoute(
+          builder: (_) =>
+              PdfToolsScreen(path: target!, openStudio: openStudio)),
     );
   }
 
@@ -228,13 +234,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
             ),
             PopupMenuButton<String>(
               onSelected: (v) => switch (v) {
-                'scan' => _scanAndAppend(),
-                'merge' => _mergeOther(),
-                'move_to' => _moveTo(),
-                'duplicate' => _duplicateSelected(),
-                'insert_blank' => _insertBlank(),
-                'reverse' => _reverse(),
-                'split' => _splitEvery(),
+                'studio' => _reorderPages(),
                 'compress' => _compress(),
                 'numbers' => _addPageNumbers(),
                 'watermark' => _addWatermark(),
@@ -247,30 +247,11 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 _ => null,
               },
               itemBuilder: (_) => [
-                // **Sayfa düzeni işlemleri en üstte** (kullanıcı isteği
-                // 2026-09-03): en sık istenen şey sayfaları düzeltmek.
+                // **Sayfa düzeni en üstte** (kullanıcı isteği 2026-09-03):
+                // en sık istenen şey sayfaları düzeltmek — hepsi stüdyoda.
                 PopupMenuItem(
-                  value: 'move_to',
-                  enabled: _selection.value.length == 1,
-                  child: Text(context.t('pt.move_to')),
-                ),
-                PopupMenuItem(
-                  value: 'duplicate',
-                  enabled: _selection.value.isNotEmpty,
-                  child: Text(context.t('pt.op_duplicate')),
-                ),
-                PopupMenuItem(
-                    value: 'insert_blank',
-                    child: Text(context.t('pt.op_insert_blank'))),
-                PopupMenuItem(
-                    value: 'reverse', child: Text(context.t('pt.op_reverse'))),
-                PopupMenuItem(
-                    value: 'split', child: Text(context.t('pt.split_every'))),
+                    value: 'studio', child: Text(context.t('pp.studio'))),
                 const PopupMenuDivider(),
-                PopupMenuItem(
-                    value: 'scan', child: Text(context.t('pt.scan_append'))),
-                PopupMenuItem(
-                    value: 'merge', child: Text(context.t('pt.merge_other'))),
                 PopupMenuItem(
                     value: 'compress',
                     child: Text(context.t('pt.compress_menu'))),
