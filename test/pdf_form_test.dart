@@ -32,9 +32,9 @@ void main() {
     doc.form.fields.add(city);
     final radio = PdfRadioButtonListField(page, 'Plan');
     radio.items.add(PdfRadioButtonListItem(
-        value: 'Bireysel', bounds: const Rect.fromLTWH(0, 140, 16, 16)));
+        'Bireysel', const Rect.fromLTWH(0, 140, 16, 16)));
     radio.items.add(PdfRadioButtonListItem(
-        value: 'Kurumsal', bounds: const Rect.fromLTWH(60, 140, 16, 16)));
+        'Kurumsal', const Rect.fromLTWH(60, 140, 16, 16)));
     doc.form.fields.add(radio);
     final list = PdfListBoxField(
         page, 'Dil', const Rect.fromLTWH(0, 170, 200, 40));

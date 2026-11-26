@@ -766,7 +766,8 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(field.label, style: context.type.label),
+                Text(field.label,
+                    style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: Gap.xs),
                 Wrap(
                   spacing: Gap.xs,

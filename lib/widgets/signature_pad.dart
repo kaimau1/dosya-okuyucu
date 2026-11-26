@@ -37,9 +37,8 @@ class Signature {
   }
 
   /// Görselden imza.
-  const Signature.image(Uint8List bytes, double aspect)
+  const Signature.image(Uint8List bytes, this.aspect)
       : strokes = const [],
-        aspect = aspect,
         text = null,
         imageBytes = bytes;
 

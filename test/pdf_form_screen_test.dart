@@ -41,9 +41,9 @@ void main() {
             page, 'DogumTarihi', const Rect.fromLTWH(0, 210, 150, 20)));
         final radio = PdfRadioButtonListField(page, 'Plan');
         radio.items.add(PdfRadioButtonListItem(
-            value: 'Bireysel', bounds: const Rect.fromLTWH(0, 240, 16, 16)));
+            'Bireysel', const Rect.fromLTWH(0, 240, 16, 16)));
         radio.items.add(PdfRadioButtonListItem(
-            value: 'Kurumsal', bounds: const Rect.fromLTWH(60, 240, 16, 16)));
+            'Kurumsal', const Rect.fromLTWH(60, 240, 16, 16)));
         doc.form.fields.add(radio);
         final list = PdfListBoxField(
             page, 'Dil', const Rect.fromLTWH(0, 270, 200, 40));
