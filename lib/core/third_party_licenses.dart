@@ -48,6 +48,7 @@ Stream<LicenseEntry> _entries() async* {
     'ESRGAN',
     'Antalia-2 Mini',
     'EMA Lightning',
+    'PaddleOCR (PP-OCRv5)',
     'ONNX Runtime Web',
   ], _aiModels);
   // Kokoro + eSpeak NG yalnız Kişisel derlemede (2026-11-25 geri geldi):
@@ -95,6 +96,7 @@ const _aiModels = '''İsteğe bağlı indirilen yapay zekâ ve ses modelleri (AP
 - ESRGAN (captain-pool/esrgan-tf2) — Apache License 2.0 (https://tfhub.dev/captain-pool/lite-model/esrgan-tf2/1)
 - Antalia-2 Mini (cloud0day3/antalia-mini) — Apache License 2.0 (https://huggingface.co/cloud0day3/antalia-mini)
 - EMA Lightning (canberk7/ema-lightning) — Apache License 2.0 (https://github.com/canberk7/ema-lightning)
+- PaddleOCR PP-OCRv5 mobil algılama + Arapça tanıma modelleri (PaddlePaddle/PaddleOCR; ONNX: snowfluke/ppu-paddle-ocr-models) — Apache License 2.0 (https://github.com/PaddlePaddle/PaddleOCR)
 - ONNX Runtime Web — MIT License (https://github.com/microsoft/onnxruntime)''';
 
 const _kokoro = '''İsteğe bağlı indirilen Kokoro sesleri (APK'ya gömülü değildir; yalnız Kişisel derleme):

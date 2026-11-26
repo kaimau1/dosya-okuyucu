@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../../core/edition.dart';
+import '../arabic_ocr.dart';
 import '../fm/fm_env.dart';
 import 'azure_tts.dart';
 import 'kokoro_worker.dart';
@@ -263,6 +264,10 @@ class NeuralVoiceStore extends ChangeNotifier {
   /// İndirme sürüyorsa 0..1; yoksa null.
   double? progressOf(NeuralVoice v) => _progress[v];
 
+  /// Hepsi diskte mi (yarım `.part` sayılmaz)? Cihazda Arapça OCR da bu
+  /// kökü ve çalışma zamanını paylaşır (`services/arabic_ocr.dart`).
+  bool complete(List<VoiceFile> files) => _complete(files);
+
   bool _complete(List<VoiceFile> files) => files.every((f) {
         final file = File(p.join(root, f.path));
         return file.existsSync() && file.lengthSync() > 0;
@@ -288,11 +293,29 @@ class NeuralVoiceStore extends ChangeNotifier {
   Future<void> install(NeuralVoice v,
       {http.Client? client, @visibleForTesting bool verify = true}) async {
     if (v.isOnline || _progress.containsKey(v)) return;
-    final all = [...NeuralVoice.runtime, ...v.files];
-    final total = all.fold<int>(0, (a, f) => a + f.approxBytes);
-    var done = 0;
     _progress[v] = 0;
     notifyListeners();
+    try {
+      await fetchFiles([...NeuralVoice.runtime, ...v.files],
+          client: client, verify: verify, onProgress: (r) {
+        _progress[v] = r;
+        notifyListeners();
+      });
+    } finally {
+      _progress.remove(v);
+      notifyListeners();
+    }
+  }
+
+  /// [all]'ın eksik dosyalarını [root] altına indirir (var olanlara
+  /// dokunmaz — yarıda kalan indirme kaldığı dosyadan sürer). Her dosya önce
+  /// `.part`a yazılır, bitince adı değişir: yarım dosya "kurulu" sayılmaz.
+  Future<void> fetchFiles(List<VoiceFile> all,
+      {http.Client? client,
+      bool verify = true,
+      void Function(double ratio)? onProgress}) async {
+    final total = all.fold<int>(0, (a, f) => a + f.approxBytes);
+    var done = 0;
     final c = client ?? http.Client();
     try {
       for (final f in all) {
@@ -321,8 +344,7 @@ class NeuralVoiceStore extends ChangeNotifier {
             sink.add(chunk);
             hasher.add(chunk);
             done += chunk.length;
-            _progress[v] = (done / total).clamp(0, 0.99);
-            notifyListeners();
+            onProgress?.call((done / total).clamp(0, 0.99));
           }
           await sink.close();
         }
@@ -334,13 +356,10 @@ class NeuralVoiceStore extends ChangeNotifier {
           throw VoiceHashMismatch(f.path);
         }
         await part.rename(target.path);
-        _progress[v] = (done / total).clamp(0, 0.99);
-        notifyListeners();
+        onProgress?.call((done / total).clamp(0, 0.99));
       }
     } finally {
       if (client == null) c.close();
-      _progress.remove(v);
-      notifyListeners();
     }
   }
 
@@ -357,7 +376,8 @@ class NeuralVoiceStore extends ChangeNotifier {
       final file = File(p.join(root, f.path));
       if (file.existsSync()) await file.delete();
     }
-    if (others.isEmpty) {
+    // Cihazda Arapça OCR kuruluysa çalışma zamanı onun da (B16).
+    if (others.isEmpty && !ArabicOcr.installed) {
       for (final f in NeuralVoice.runtime) {
         final file = File(p.join(root, f.path));
         if (file.existsSync()) await file.delete();
@@ -378,6 +398,7 @@ class VoiceServer {
   final HttpServer _server;
   final String root;
   final Map<String, Completer<Uint8List>> _outputs = {};
+  final Map<String, Uint8List> _inputs = {};
 
   /// G6.5 artığı (2026-11-14): her açılışta 128 bit rastgele yol öneki —
   /// aynı cihazdaki başka uygulama portu tarasa da öneki bilmeden hiçbir
@@ -407,7 +428,12 @@ class VoiceServer {
   Future<Uint8List> expect(String job) =>
       (_outputs[job] = Completer<Uint8List>()).future;
 
+  /// [job]ın girdisini bellekte tutar: sayfa `GET in/<iş>` ile bir kez alır
+  /// (diske yazılmaz — kullanıcının görseli geçici dosyada kalmasın).
+  void provide(String job, Uint8List bytes) => _inputs[job] = bytes;
+
   void fail(String job, Object error) {
+    _inputs.remove(job);
     final c = _outputs.remove(job);
     if (c != null && !c.isCompleted) c.completeError(error);
   }
@@ -482,6 +508,18 @@ class VoiceServer {
         await res.close();
         return;
       }
+      if (req.method == 'GET' && path.startsWith('/in/')) {
+        final bytes = _inputs.remove(path.substring(4));
+        if (bytes == null) {
+          res.statusCode = 404;
+        } else {
+          res.headers.contentType = ContentType.binary;
+          res.headers.contentLength = bytes.length;
+          res.add(bytes);
+        }
+        await res.close();
+        return;
+      }
       if (path == '/engine.html') {
         res.headers.contentType = ContentType.html;
         res.write(engineHtml);
@@ -535,6 +573,7 @@ class VoiceServer {
       if (!c.isCompleted) c.completeError(StateError('kapandı'));
     }
     _outputs.clear();
+    _inputs.clear();
     await _server.close(force: true);
   }
 
@@ -608,7 +647,32 @@ function worker(voice) {
   workers[voice] = st;
   return st;
 }
+// Cihazda metin tanıma (B16): genel ONNX çıkarımı. Girdi `in/<iş>` (float32),
+// çıktı `out/<iş>`e: int32 [boyut sayısı, boyutlar…] + float32 veri.
+let ortLib = null;
+const sessions = {};
+async function ortRuntime() {
+  if (!ortLib) {
+    const ort = await import('./antalia/vendor/ort/ort.wasm.min.mjs');
+    ort.env.wasm.wasmPaths = new URL('antalia/vendor/ort/', location.href).href;
+    const cores = navigator.hardwareConcurrency || 2;
+    ort.env.wasm.numThreads = Math.max(1, Math.min(4, Math.floor(cores / 2)));
+    ortLib = ort;
+  }
+  return ortLib;
+}
 window.engine = {
+  async infer(job, model, dims) {
+    try {
+      const ort = await ortRuntime();
+      const s = sessions[model] || (sessions[model] = await ort.InferenceSession.create(model, { executionProviders: ['wasm'] }));
+      const buf = await (await fetch('in/' + encodeURIComponent(job))).arrayBuffer();
+      const out = await s.run({ [s.inputNames[0]]: new ort.Tensor('float32', new Float32Array(buf), dims) });
+      const t = out[s.outputNames[0]];
+      const head = new Int32Array([t.dims.length, ...t.dims]);
+      await fetch('out/' + encodeURIComponent(job), { method: 'POST', body: new Blob([head, t.data]) });
+    } catch (e) { post({ type: 'error', job, message: String(e && e.message || e) }); }
+  },
   async prepare(voice) {
     try { await worker(voice).ready; } catch (e) { post({ type: 'error', voice, message: String(e && e.message || e) }); }
   },
