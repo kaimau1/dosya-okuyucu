@@ -1070,6 +1070,8 @@ abstract final class SmartSort {
           AppLanguage.tr,
           AppLanguage.en,
           AppLanguage.ar,
+          AppLanguage.id,
+          AppLanguage.ms,
         ]) ...[
           AppStrings(lang).t('sm.c_${r.cat}'),
           if (r.sub.isNotEmpty && r.sub != 'other')
@@ -1086,6 +1088,8 @@ abstract final class SmartSort {
             AppLanguage.tr,
             AppLanguage.en,
             AppLanguage.ar,
+            AppLanguage.id,
+            AppLanguage.ms,
           ])
             AppStrings(lang).t('sm.l_${r.lang}'),
       ],

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Faz 16 (2026-10-22): Android 13+ uygulama başına dil. Sistem Ayarları >
-     Uygulamalar > Dosya Okuyucu > Dil listesinde bu üç dil çıkar; seçilen dil
+     Uygulamalar > Dosya Okuyucu > Dil listesinde bu diller çıkar; seçilen dil
      Flutter'a platform yerel ayarı olarak gelir (Dart tarafı "Sistem" dilinde
      onu izler). Liste `AppLanguageInfo.supportedLocales` ile aynı tutulur
      (bekçi: test/locale_config_test.dart). -->
@@ -8,4 +8,6 @@
     <locale android:name="tr" />
     <locale android:name="en" />
     <locale android:name="ar" />
+    <locale android:name="id" />
+    <locale android:name="ms" />
 </locale-config>
