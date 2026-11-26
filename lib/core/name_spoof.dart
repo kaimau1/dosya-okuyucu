@@ -31,7 +31,13 @@ class NameSpoof {
     'webp',
   };
 
-  static bool hasBidiControls(String name) => _bidiControls.hasMatch(name);
+  static bool hasBidiControls(String name) {
+    final units = name.codeUnits;
+    for (var i = 0; i < units.length; i++) {
+      if (units[i] >= 0x061C) return _bidiControls.hasMatch(name);
+    }
+    return false;
+  }
 
   /// Ad gösterim için: yön karakterleri [marker] olur, gerisi aynen.
   static String visible(String name) =>
@@ -41,13 +47,20 @@ class NameSpoof {
   /// Ya da adında yön karakteri olan tehlikeli uzantılı dosya. Dönüş: vurgulanacak
   /// gerçek uzantı (`apk`) veya `null`.
   static String? deceptiveExtension(String name) {
+    final dot = name.lastIndexOf('.');
+    if (dot < 0) return null;
+    final hasBidi = hasBidiControls(name);
+    if (!hasBidi && name.indexOf('.') == dot) return null;
+    final rawLast =
+        name.substring(dot + 1).replaceAll(_bidiControls, '').toLowerCase().trim();
+    if (!riskyExtensions.contains(rawLast)) return null;
+    if (hasBidi) return rawLast;
     final clean = name.replaceAll(_bidiControls, '').toLowerCase().trim();
     final parts = clean.split('.');
-    if (parts.length < 2) return null;
+    if (parts.length < 3) return null;
     final last = parts.last.trim();
     if (!riskyExtensions.contains(last)) return null;
-    if (hasBidiControls(name)) return last;
-    if (parts.length >= 3 && _decoyExtensions.contains(parts[parts.length - 2].trim())) {
+    if (_decoyExtensions.contains(parts[parts.length - 2].trim())) {
       return last;
     }
     return null;

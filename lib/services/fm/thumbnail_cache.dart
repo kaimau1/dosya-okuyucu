@@ -64,7 +64,7 @@ abstract final class ThumbnailCache {
     if (cached != null) return cached;
     final base = await getTemporaryDirectory();
     final dir = Directory(p.join(base.path, 'video_thumbs'));
-    if (!dir.existsSync()) await dir.create(recursive: true);
+    if (!await dir.exists()) await dir.create(recursive: true);
     _dir = dir;
     unawaited(_prune(dir));
     return dir;
@@ -75,7 +75,7 @@ abstract final class ThumbnailCache {
     if (cached != null) return cached;
     final base = await getTemporaryDirectory();
     final dir = Directory(p.join(base.path, 'image_thumbs'));
-    if (!dir.existsSync()) await dir.create(recursive: true);
+    if (!await dir.exists()) await dir.create(recursive: true);
     _imageDir = dir;
     if (!_imagePruned) {
       _imagePruned = true;
@@ -188,13 +188,14 @@ abstract final class ThumbnailCache {
     // iki kattan fazla büyütülüp bulanık görünüyordu. Oynatıcı kapağı da 512
     // istediği için aynı dosya paylaşılır.
     int size = 512,
+    int? modifiedMs,
     bool Function()? wanted,
   }) {
     if (_failed.contains(path)) return Future.value(null);
     (_wanted[path] ??= []).add(wanted ?? _always);
     final existing = _inFlight[path];
     if (existing != null) return existing;
-    final future = _generate(path, size);
+    final future = _generate(path, size, modifiedMs: modifiedMs);
     _inFlight[path] = future;
     // Bellek sızmasın: iş bitince kayıtları düşür.
     future.whenComplete(() {
@@ -270,6 +271,18 @@ abstract final class ThumbnailCache {
     _running--;
   }
 
+  /// Bellek baskısında veya arka plana geçince oturum içi yol haritalarını
+  /// bırakır (diskteki küçük resimler silinmez).
+  static void trimMemory({required bool critical}) {
+    _knownImages.clear();
+    _anyImages.clear();
+    _knownVideos.clear();
+    _anyVideos.clear();
+    if (critical) {
+      _failed.clear();
+    }
+  }
+
   /// Test kancası: sıranın durumu.
   @visibleForTesting
   static ({int running, int pending}) get debugQueue =>
@@ -301,9 +314,9 @@ abstract final class ThumbnailCache {
       {bool image = false, int? modifiedMs}) async {
     String dest;
     try {
-      // Fotoğrafta değişme zamanı listeden gelir: hücre başına FUSE `stat`
-      // kaydırırken UI izleğinde birikiyordu.
-      final mtime = modifiedMs ?? File(path).statSync().modified.millisecondsSinceEpoch;
+      // Değişme zamanı listeden gelirse FUSE `stat` atlanır; yoksa eşzamansız stat.
+      final mtime = modifiedMs ??
+          (await File(path).stat()).modified.millisecondsSinceEpoch;
       final dir = await _cacheDir(image: image);
       // Fotoğrafta `q2_` öneki: 2026-11-04 kalite turundan önceki (EXIF içi
       // 160 px küçük resimden büyütülmüş, bulanık) dosyalar yeniden KULLANILMAZ;
@@ -311,7 +324,7 @@ abstract final class ThumbnailCache {
       final name = cacheName(path, mtime, size);
       dest = p.join(dir.path, image ? 'q2_$name' : name);
       // Diskte varsa sıra beklemeden (üretim yok).
-      if (File(dest).existsSync()) {
+      if (await File(dest).exists()) {
         if (!image) _rememberVideo(path, size, dest);
         return dest;
       }
@@ -334,7 +347,7 @@ abstract final class ThumbnailCache {
               format: 'jpeg',
               quality: 80,
             );
-      if (!ok || !File(dest).existsSync()) {
+      if (!ok || !await File(dest).exists()) {
         _markFailed(path);
         return null;
       }

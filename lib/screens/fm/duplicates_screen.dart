@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
-import 'package:path/path.dart' as p;
 
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
@@ -9,6 +8,8 @@ import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/duplicate_finder.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../widgets/fm/fm_search_field.dart';
@@ -24,7 +25,14 @@ import '../../core/safe_insets.dart';
 /// seçimi değiştirir.
 class DuplicatesScreen extends StatefulWidget {
   final List<String> roots;
-  const DuplicatesScreen({super.key, required this.roots});
+
+  /// Hazır bulunmuş gruplar (Yer aç'ın kopya kartından "Grupları incele",
+  /// 2026-11-25): Yer aç aynı bayt bayt karşılaştırmayı az önce yaptı, ekran
+  /// dakikalarca yeniden taramasın. Verilirse eski bir taramanın sonucunun
+  /// ÖNÜNE geçer; silme ya da "Yeniden tara" sonrası normal taramaya döner.
+  final List<DuplicateGroup>? initialGroups;
+
+  const DuplicatesScreen({super.key, required this.roots, this.initialGroups});
 
   @override
   State<DuplicatesScreen> createState() => _DuplicatesScreenState();
@@ -64,7 +72,12 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   bool get _scanning => _job?.status.isActive ?? false;
 
+  /// [DuplicatesScreen.initialGroups]; ilk yeniden taramada bırakılır.
+  late List<DuplicateGroup>? _given = widget.initialGroups;
+
   List<DuplicateGroup> get _groups {
+    final given = _given;
+    if (given != null) return given;
     final result = _job?.result;
     return result is List<DuplicateGroup> ? result : const [];
   }
@@ -98,6 +111,10 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
   void initState() {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
+    if (_given != null) {
+      _seedSelection();
+      return;
+    }
     final job = _job;
     final hasResult = job?.result is List<DuplicateGroup>;
     // Sonuç varsa yeniden taramıyoruz; kullanıcı geri döndüğünde beklemesin.
@@ -124,6 +141,7 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
     // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
     final strings = AppStrings.current;
     final roots = widget.roots;
+    _given = null;
     JobQueue.instance.enqueue(
       id: _jobId,
       title: strings.t('dup.scanning_title'),
@@ -333,14 +351,18 @@ class _DuplicatesScreenState extends State<DuplicatesScreen> {
 
   Widget _fileRow(FsEntry file, {required bool keep}) {
     final selected = _selected.contains(file.path);
+    final loc =
+        FmLocation.label(file.path, context.t, volumes: FmEnv.volumes);
     return FmEntryRow(
       entry: file,
       selected: selected,
       // Bu ekranda onay kutusu HEP görünür: kullanıcı kopyaları işaretliyor.
       selecting: true,
       subtitle: keep && !selected
-          ? '${context.t('common.oldest')} · ${p.dirname(file.path)}'
-          : p.dirname(file.path),
+          ? '${context.t('common.oldest')} · $loc'
+          : loc,
+      dateText: FmLocation.shortDate(file.modifiedMs),
+      subtitleEnd: FsPaths.humanSize(file.sizeBytes),
       onTap: () => EntryOpener.open(context, file.path),
       onCheck: () => setState(() {
         if (!_selected.remove(file.path)) _selected.add(file.path);

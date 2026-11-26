@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/user_error.dart';
 import '../fm/job_queue.dart' show FmJobTarget, FmJobTargetKind;
 import '../fm/tracked_task.dart';
+import '../gemini_service.dart';
+import '../tts_service.dart';
 import '../voice/neural_engine.dart';
 import 'audiobook_maker.dart';
 import 'doc_chapters.dart';
@@ -29,12 +32,20 @@ class AudiobookJob extends ChangeNotifier {
     required this.voice,
     required this.speed,
     required this.numbers,
+    this.ttsPrefs,
+    this.cleanOptions = const SpeechCleanOptions(),
+    this.aiTidy = false,
+    this.aiGemini,
   });
 
   /// Kaynak belge.
   final String path;
   final AudiobookVoice voice;
   final double speed;
+  final TtsPrefs? ttsPrefs;
+  final SpeechCleanOptions cleanOptions;
+  final bool aiTidy;
+  final GeminiService? aiGemini;
 
   /// Üretilen bölümlerin belgedeki sıra numaraları.
   final List<int> numbers;
@@ -80,11 +91,26 @@ class AudiobookJob extends ChangeNotifier {
     required List<int> numbers,
     required AudiobookVoice voice,
     double speed = 1.0,
+    TtsPrefs? ttsPrefs,
+    SpeechCleanOptions cleanOptions = const SpeechCleanOptions(),
+    bool aiTidy = false,
+    GeminiService? aiGemini,
   }) {
+    if (!Edition.current.has(Feature.audiobook)) {
+      throw StateError('Pro required');
+    }
     final existing = _jobs[path];
     if (existing != null && existing.running) return existing;
     final job = AudiobookJob._(
-        path: path, voice: voice, speed: speed, numbers: numbers);
+      path: path,
+      voice: voice,
+      speed: speed,
+      numbers: numbers,
+      ttsPrefs: ttsPrefs,
+      cleanOptions: cleanOptions,
+      aiTidy: aiTidy,
+      aiGemini: aiGemini,
+    );
     _jobs[path] = job;
     final str = AppStrings.current;
     final docName = p.basenameWithoutExtension(path);
@@ -106,7 +132,8 @@ class AudiobookJob extends ChangeNotifier {
     final neural = voice.neural;
     NeuralVoiceEngine? engine;
     try {
-      if (neural != null) {
+      // Çevrimiçi ses (Ahmet/Azure) WebView motoru istemez.
+      if (neural != null && !neural.isOnline) {
         loadingVoice = neural.label;
         notifyListeners();
         engine = await NeuralVoiceEngine.acquire();
@@ -116,11 +143,31 @@ class AudiobookJob extends ChangeNotifier {
               : v.label;
           notifyListeners();
         };
-        await engine.prepare(neural);
+        // Model indirme/yükleme dakikalar sürebilir: "Durdur" beklemeden
+        // etkili olsun (2026-11-25).
+        try {
+          await AudiobookMaker.orCancel(engine.prepare(neural), () => cancelled);
+        } on AudiobookCancelled {
+          await _task.stopped(
+              detail: str.t('ab.stopped', {
+                'n': 0,
+                'folder': p.basename(AudiobookMaker.folderFor(docName, voice)),
+              }),
+              quiet: watched && TrackedTask.userWatching);
+          return;
+        }
         loadingVoice = null;
         notifyListeners();
       }
-      final maker = AudiobookMaker(voice: voice, engine: engine, speed: speed);
+      final maker = AudiobookMaker(
+        voice: voice,
+        engine: engine,
+        speed: speed,
+        ttsPrefs: ttsPrefs,
+        cleanOptions: cleanOptions,
+        aiTidy: aiTidy,
+        aiGemini: aiGemini,
+      );
       outputs = await maker.make(
         docName: docName,
         chapters: chosen,

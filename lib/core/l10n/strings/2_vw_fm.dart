@@ -18,7 +18,6 @@ const Map<String, (String, String, String)> _t2 = {
   'pp.as_fast': ('Hızlı', 'Fast', 'سريع'),
   'vw.fullscreen_hint': ('Durum ve gezinme çubukları gizlenir', 'Hides the status and navigation bars', 'يخفي شريطي الحالة والتنقل'),
   'ea.sec_this': ('Bu dosya', 'This file', 'هذا الملف'),
-  'ea.pick_folder': ('klasör seç', 'pick folder', 'اختر مجلدًا'),
   'ea.compress': ('Sıkıştır', 'Compress', 'ضغط'),
   'ea.compress_hint': (
     'ZIP · 7z · parolalı',
@@ -26,6 +25,35 @@ const Map<String, (String, String, String)> _t2 = {
     'ZIP · 7z · بكلمة مرور',
   ),
   'ea.resize': ('Boyut düşür', 'Reduce size', 'تصغير الحجم'),
+  'vsp.shrink': ('Küçült', 'Shrink', 'تصغير'),
+  'vsp.tooltip': ('Boyut düşür: {from} → yaklaşık {to}', 'Reduce size: {from} → about {to}', 'تصغير الحجم: {from} ← حوالي {to}'),
+  'clean.shrink_this': ('Boyut düşür', 'Reduce size', 'تصغير الحجم'),
+  'clean.shrink_this_est': ('Boyut düşür · ≈ {to}', 'Reduce size · ≈ {to}', 'تصغير الحجم · ≈ {to}'),
+  'clean.dup_groups': ('Grupları tek tek incele', 'Review group by group', 'مراجعة المجموعات واحدة تلو الأخرى'),
+  'clean.deep_title': ('DAHA FAZLA YER BUL', 'FIND MORE SPACE', 'العثور على مساحة إضافية'),
+  'clean.deep_note': (
+    'Bu taramalar dosyaların içine bakar; birkaç dakika sürebilir, arka planda çalışır.',
+    'These scans look inside files; they can take a few minutes and run in the background.',
+    'تفحص هذه العمليات محتوى الملفات؛ قد تستغرق بضع دقائق وتعمل في الخلفية.',
+  ),
+  'clean.deep_running': ('Taranıyor…', 'Scanning…', 'جارٍ الفحص…'),
+  'clean.deep_found': (
+    '{n} dosya · {size} temizlenebilir',
+    '{n} files · {size} can be freed',
+    '{n} ملف · يمكن تحرير {size}',
+  ),
+  'clean.deep_none': (
+    'Tarandı · temizlenecek bir şey yok',
+    'Scanned · nothing to clean',
+    'تم الفحص · لا شيء للتنظيف',
+  ),
+  'clean.deep_similar': ('Benzer fotoğraflar', 'Similar photos', 'صور متشابهة'),
+  'clean.deep_content': ('Görsel içerik taraması', 'Image content scan', 'فحص محتوى الصور'),
+  'clean.deep_content_note': (
+    'Günaydın/kutlama görselleri, mem ve afişler, bulanık ve karanlık kareler',
+    'Greeting pictures, memes and posters, blurry and dark shots',
+    'صور التحيات، الميمات والملصقات، اللقطات الضبابية والمظلمة',
+  ),
   'ea.resize_hint': (
     'çözünürlük / kare sayısı',
     'resolution / frame rate',
@@ -33,16 +61,6 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'ea.tag': ('Etiketle', 'Tag', 'وسم'),
   'ea.tag_hint': ('kişi / grup', 'person / group', 'شخص / مجموعة'),
-  'ea.image_insight': (
-    'Görselde ne var?',
-    'What is in this image?',
-    'ما الموجود في الصورة؟',
-  ),
-  'ea.image_insight_hint': (
-    'Akıllı özet · yazı',
-    'Smart summary · text',
-    'ملخص ذكي · نص',
-  ),
   'ea.clip_hint': ('yapıştırmak için', 'to paste later', 'للصق لاحقًا'),
   'ea.shared_hint': (
     'ağdan paylaşılır',
@@ -51,26 +69,12 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   // Sil düğmesinin metni DÜRÜST olmak zorunda: çöp kutusu kapalıyken
   // "çöp kutusuna" yazmak tutulmayan bir sözdür (bkz. deleteActionText).
-  'ea.delete_trash': ('Sil — çöp kutusuna', 'Delete — to trash', 'حذف — إلى المهملات'),
-  'ea.delete_permanent': ('KALICI SİL', 'DELETE PERMANENTLY', 'حذف نهائي'),
   'fm.open_with_other': ('Başka uygulamayla aç', 'Open with another app', 'فتح بتطبيق آخر'),
-  'fm.move_to': ('Taşı…  (klasör seç)', 'Move…  (pick folder)', 'نقل…  (اختر مجلدًا)'),
-  'fm.copy_to': ('Kopyala…  (klasör seç)', 'Copy…  (pick folder)', 'نسخ…  (اختر مجلدًا)'),
   'fm.move_here': ('Buraya taşı', 'Move here', 'انقل هنا'),
   'fm.copy_here': ('Buraya kopyala', 'Copy here', 'انسخ هنا'),
   'fm.extract_here': ('Buraya çıkar', 'Extract here', 'استخرج هنا'),
   'fm.show_archive': ('Arşiv içeriğini göster', 'Show archive contents', 'عرض محتويات الأرشيف'),
-  'fm.compress_pw': (
-    'Sıkıştır (ZIP / 7z, parolalı)',
-    'Compress (ZIP / 7z, password)',
-    'ضغط (ZIP / 7z، بكلمة مرور)',
-  ),
   'fm.reveal': ('Konumunu aç', 'Show location', 'إظهار الموقع'),
-  'fm.image_insight': (
-    'Bu görselde ne var? (metin tanı)',
-    'What is in this image? (recognize text)',
-    'ما الموجود في هذه الصورة؟ (تعرّف على النص)',
-  ),
   'fm.type': ('Tür', 'Type', 'النوع'),
   'fm.folder': ('Klasör', 'Folder', 'مجلد'),
   'fm.modified': ('Değiştirilme', 'Modified', 'تاريخ التعديل'),
@@ -151,11 +155,6 @@ const Map<String, (String, String, String)> _t2 = {
     'تم نسخ {n} عنصر إلى «{folder}».',
   ),
   'fm.copy_failed': ('Kopyalanamadı: {error}', 'Could not copy: {error}', 'تعذّر النسخ: {error}'),
-  'fm.move_failed': (
-    '{n} öğe taşınamadı: {error}',
-    '{n} items could not be moved: {error}',
-    'تعذّر نقل {n} عنصر: {error}',
-  ),
   'fm.rename_failed': (
     'Yeniden adlandırılamadı: {error}',
     'Could not rename: {error}',
@@ -195,7 +194,6 @@ const Map<String, (String, String, String)> _t2 = {
   ),
 
   // ── Görüntüleyici (PDF / metin / görsel / tablo) ──────────────────────────
-  'vw.tools': ('Araçlar', 'Tools', 'الأدوات'),
   'vw.rotate': ('Döndür', 'Rotate', 'تدوير'),
   'vw.rotate_right': ('90° sağa döndür', 'Rotate 90° right', 'تدوير 90° لليمين'),
   'vw.rotate_left': ('90° sola döndür', 'Rotate 90° left', 'تدوير 90° لليسار'),
@@ -204,12 +202,10 @@ const Map<String, (String, String, String)> _t2 = {
   'vw.zoom_out': ('Uzaklaştır', 'Zoom out', 'تصغير'),
   'vw.text_bigger': ('Yazıyı büyüt', 'Larger text', 'تكبير الخط'),
   'vw.text_smaller': ('Yazıyı küçült', 'Smaller text', 'تصغير الخط'),
-  'vw.page_layout': ('Sayfa düzeni', 'Page layout', 'تخطيط الصفحة'),
   'vw.one_column': ('Tek sütun', 'Single column', 'عمود واحد'),
   'vw.two_columns': ('2 sütun', '2 columns', 'عمودان'),
   'vw.four_columns': ('4 sütun', '4 columns', '4 أعمدة'),
   'vw.night_on': ('Gece modu', 'Night mode', 'الوضع الليلي'),
-  'vw.night_off': ('Gece modunu kapat', 'Turn off night mode', 'إيقاف الوضع الليلي'),
   'vw.image_to_pdf': ('Resmi PDF yap', 'Image to PDF', 'تحويل الصورة إلى PDF'),
   'vw.image_to_pdf_body': (
     'Resim tam çözünürlükte, kırpılmadan PDF’e gömülecek.\n\n',
@@ -221,7 +217,6 @@ const Map<String, (String, String, String)> _t2 = {
     'The document is still loading…',
     'لا يزال المستند قيد التحميل…',
   ),
-  'vw.page_of': ('{n}. sayfa (toplam {total})', 'Page {n} (of {total})', 'الصفحة {n} (من {total})'),
   'vw.page_jump_failed_total': (
     '{target}. sayfaya gidilemedi; {landed}. sayfada kalındı (toplam {total}).',
     'Could not jump to page {target}; stayed on page {landed} (of {total}).',
@@ -234,7 +229,6 @@ const Map<String, (String, String, String)> _t2 = {
   'vw.dont_save': ('Kaydetme', 'Don’t save', 'عدم الحفظ'),
   'vw.image_only': ('Sadece resim', 'Image only', 'الصورة فقط'),
   'vw.doc_info': ('Belge bilgisi', 'Document info', 'معلومات المستند'),
-  'vw.highlight': ('Vurgula', 'Highlight', 'تمييز'),
   'fm.drive_subtitle': ('Buluttaki dosyalar', 'Files in the cloud', 'الملفات في السحابة'),
   'fm.memory_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
   'fm.new_files': ('Yeniler', 'New', 'الجديدة'),
@@ -287,23 +281,24 @@ const Map<String, (String, String, String)> _t2 = {
     'تم تدوير الصفحة {n} لليسار',
   ),
   'vw.speak': ('Sesli oku', 'Read aloud', 'قراءة صوتية'),
-  'vw.speaking': ('Sesli okuma  {n} / {total}', 'Reading aloud  {n} / {total}', 'قراءة صوتية  {n} / {total}'),
   'vw.toc': ('İçindekiler', 'Contents', 'المحتويات'),
   'vw.side_panel': ('Sayfa küçük resimleri', 'Page thumbnails', 'الصور المصغّرة للصفحات'),
   'vw.no_toc': ('Bu belgede içindekiler yok', 'This document has no contents', 'لا يحتوي هذا المستند على فهرس'),
+  'vw.toc_search': ('Başlıklarda ara', 'Search headings', 'البحث في العناوين'),
+  'vw.toc_no_match': ('Eşleşen başlık yok', 'No matching heading', 'لا يوجد عنوان مطابق'),
+  'vw.toc_all': ('Tümü', 'All', 'الكل'),
+  'toc.create': ('İçindekiler oluştur', 'Create contents', 'إنشاء فهرس'),
+  'toc.create_body': ('Bu PDF’te içindekiler yok. Başlıklar taranıp bulunsun ve PDF’e yer imi olarak eklensin mi? Kaydetmeden önce listeyi göreceksiniz.', 'This PDF has no contents. Scan for headings and add them to the PDF as bookmarks? You will see the list before saving.', 'لا يحتوي ملف PDF هذا على فهرس. هل تريد البحث عن العناوين وإضافتها كإشارات مرجعية؟ ستشاهد القائمة قبل الحفظ.'),
+  'toc.scanned_warn': ('Bu PDF taranmış (sayfalar resim). Başlıkları bulmak için {n} sayfanın metni tanınacak (OCR); büyük kitapta birkaç dakika sürebilir. Kaydetmeden önce listeyi göreceksiniz.', 'This PDF is scanned (pages are images). Text on {n} pages will be recognized (OCR) to find headings; a large book can take a few minutes. You will see the list before saving.', 'ملف PDF هذا ممسوح ضوئيًا. سيتم التعرف على نص {n} صفحة (OCR) للعثور على العناوين، وقد يستغرق ذلك بضع دقائق. ستشاهد القائمة قبل الحفظ.'),
+  'toc.create_go': ('Başlıkları bul', 'Find headings', 'ابحث عن العناوين'),
+  'toc.scanning': ('Başlıklar aranıyor…', 'Looking for headings…', 'جارٍ البحث عن العناوين…'),
+  'toc.scanning_ocr': ('Metin tanınıyor, başlıklar aranıyor…', 'Recognizing text, looking for headings…', 'جارٍ التعرف على النص والبحث عن العناوين…'),
+  'toc.none_found': ('Başlık bulunamadı', 'No headings found', 'لم يتم العثور على عناوين'),
+  'toc.preview': ('{n} başlık bulundu', '{n} headings found', 'تم العثور على {n} عنوان'),
+  'toc.save': ('PDF’e ekle', 'Add to PDF', 'أضف إلى PDF'),
+  'toc.saved': ('İçindekiler PDF’e eklendi', 'Contents added to the PDF', 'تمت إضافة الفهرس إلى PDF'),
   'vw.fill_form': ('Formu doldur', 'Fill form', 'تعبئة النموذج'),
-  'vw.form_detected': (
-    'Bu belge doldurulabilir bir form.',
-    'This document is a fillable form.',
-    'هذا المستند نموذج قابل للتعبئة.',
-  ),
   'vw.print': ('Yazdır', 'Print', 'طباعة'),
-  'vw.ai_edit': (
-    'Akıllı düzenle',
-    'Smart edit',
-    'تحرير ذكي',
-  ),
-  'vw.translate_doc': ('Belgeyi çevir', 'Translate document', 'ترجمة المستند'),
   'vw.to_pdf': ('PDF’e dönüştür', 'Convert to PDF', 'تحويل إلى PDF'),
   'vw.to_slides': ('Slayta dönüştür', 'Convert to slides', 'تحويل إلى شرائح'),
   'vw.slides_share': ('Sunum (.pptx)', 'Presentation (.pptx)', 'عرض تقديمي (.pptx)'),
@@ -329,33 +324,12 @@ const Map<String, (String, String, String)> _t2 = {
     'This document has no text to turn into slides.',
     'لا يوجد في هذا المستند نص لتحويله إلى شرائح.',
   ),
-  'vw.file_ops': ('Dosya işlemleri (taşı, kopyala…)', 'File operations (move, copy…)', 'عمليات الملفات (نقل، نسخ…)'),
   'vw.ocr': ('Metni tanı (OCR)', 'Recognize text (OCR)', 'التعرّف على النص (OCR)'),
   'vw.ocr_short': ('Metni tanı', 'Recognize text', 'التعرّف على النص'),
   'vw.ocr_running': ('Metin tanınıyor…', 'Recognizing text…', 'جارٍ التعرّف على النص…'),
-  'vw.ocr_page': ('Sayfa {n} / {total} taranıyor…', 'Scanning page {n} / {total}…', 'جارٍ فحص الصفحة {n} / {total}…'),
-  'vw.ocr_job_name': ('Metin tanıma', 'Text recognition', 'التعرّف على النص'),
   'vw.image_pdf_job_name': ('Resimden PDF', 'Image to PDF', 'تحويل الصورة إلى PDF'),
-  'vw.ocr_finishing': ('Bitiriliyor…', 'Finishing…', 'جارٍ الإنهاء…'),
   'vw.ocr_failed': ('OCR başarısız: {error}', 'OCR failed: {error}', 'فشل التعرّف على النص: {error}'),
   'vw.ocr_none': ('Metin bulunamadı (OCR).', 'No text found (OCR).', 'لم يُعثر على نص (OCR).'),
-  'vw.ocr_first': (
-    'Metin bulunamadı. Önce “Metni tanı (OCR)” çalıştırın.',
-    'No text found. Run “Recognize text (OCR)” first.',
-    'لم يُعثر على نص. شغّل «التعرّف على النص (OCR)» أولًا.',
-  ),
-  'aitask.title': ('Görev başına model', 'Model per task', 'نموذج لكل مهمة'),
-  'aitask.decisions': ('Akıllı kararlar', 'Smart decisions', 'القرارات الذكية'),
-  'aitask.decisions_sub': ('Akıllı düzen, Akıllı kategori ve ikinci ad bu modeli kullanır (sabit, seçilmez).', 'Smart organize, smart categories and second names use this model (fixed).', 'يستخدم التنظيم الذكي والفئات الذكية والاسم الثاني هذا النموذج (ثابت).'),
-  'aitask.title_sub': ('Her iş için otomatik ya da seçtiğin model', 'Automatic or your pick for each job', 'تلقائي أو من اختيارك لكل مهمة'),
-  'aitask.auto': ('Otomatik', 'Automatic', 'تلقائي'),
-  'aitask.chat': ('Sohbet ve özet', 'Chat and summary', 'المحادثة والتلخيص'),
-  'aitask.chat_sub': ('Soru-cevap, özet, açıklama', 'Questions, summaries, explanations', 'الأسئلة والتلخيص والشرح'),
-  'aitask.structured': ('Analiz, adlandırma, etiket', 'Analysis, naming, tags', 'التحليل والتسمية والوسوم'),
-  'aitask.structured_sub': ('Dosya analizi, ad önerisi, slayt', 'File analysis, name ideas, slides', 'تحليل الملفات واقتراح الأسماء والشرائح'),
-  'aitask.vision': ('Görsel okuma', 'Image reading', 'قراءة الصور'),
-  'aitask.vision_sub': ('Görselleri karşılaştırma ve okuma', 'Comparing and reading images', 'مقارنة الصور وقراءتها'),
-  'aitask.no_catalog': ('Otomatik sıra için önce anahtarı girip model listesini yenile.', 'Enter your key and refresh the model list for automatic order.', 'أدخل المفتاح وحدّث قائمة النماذج للترتيب التلقائي.'),
   'aiterms.title': ('Yapay zekâ — bilgilendirme ve onay', 'AI — notice and consent', 'الذكاء الاصطناعي — إشعار وموافقة'),
   'aiterms.body': (
     'Yapay zekâ özellikleri, kendi Google Gemini API anahtarınla çalışır. Seçtiğin dosyanın metni ya da görseli işlenmek üzere Google\'a gönderilir; Google\'ın kendi koşulları ve gizlilik politikası geçerlidir. Yanıtlar otomatik üretilir; yanlış, eksik ya da güncel olmayan bilgi içerebilir. Tıbbi, hukuki, mali ya da benzeri önemli kararlar için tek kaynak olarak kullanma; sonuçları kendin doğrula. Uygulama, yapay zekâ yanıtlarından doğabilecek sonuçlardan sorumlu değildir. Kişisel ya da gizli bilgi içeren dosyaları göndermemeni öneririz.',
@@ -436,26 +410,11 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'vw.link_failed': ('Bağlantı açılamadı', 'Could not open the link', 'تعذّر فتح الرابط'),
   'vw.link_failed_e': ('Bağlantı açılamadı: {error}', 'Could not open the link: {error}', 'تعذّر فتح الرابط: {error}'),
-  'vw.unsaved_title': ('Kaydedilmemiş düzenleme var', 'You have unsaved edits', 'لديك تعديلات غير محفوظة'),
-  'vw.unsaved_body': (
-    'Belgede yaptığınız değişiklikler henüz kaydedilmedi. “Kaydetme” '
-        'derseniz belge düzenlemeden önceki hâline döner.',
-    'Your changes to the document have not been saved. If you choose “Don’t '
-        'save”, the document reverts to its state before editing.',
-    'لم تُحفظ تغييراتك على المستند. إذا اخترت «عدم الحفظ»، سيعود المستند إلى '
-        'حالته قبل التحرير.',
-  ),
   'vw.save_edits': ('Düzenlemeleri kaydet', 'Save edits', 'حفظ التعديلات'),
   'vw.edits_applied': (
     'Yaptığınız düzenlemeler bu belgeye işlendi.',
     'Your edits have been applied to this document.',
     'تم تطبيق تعديلاتك على هذا المستند.',
-  ),
-  'vw.page_number': ('Sayfa numarası (1 – {count})', 'Page number (1 – {count})', 'رقم الصفحة (1 – {count})'),
-  'vw.page_jump_failed': (
-    '{target}. sayfaya gidilemedi; {landed}. sayfada kalındı.',
-    'Could not jump to page {target}; stayed on page {landed}.',
-    'تعذّر الانتقال إلى الصفحة {target}؛ بقيت على الصفحة {landed}.',
   ),
   'vw.searching': ('aranıyor…', 'searching…', 'جارٍ البحث…'),
   'vw.no_readable_text': (
@@ -534,7 +493,6 @@ const Map<String, (String, String, String)> _t2 = {
     'الأطول دون استخدام أولًا',
   ),
   'apps.show_system': ('Sistem uygulamalarını göster', 'Show system apps', 'إظهار تطبيقات النظام'),
-  'apps.hide_system': ('Sistem uygulamalarını gizle', 'Hide system apps', 'إخفاء تطبيقات النظام'),
   'apps.uninstall': ('Kaldır', 'Uninstall', 'إلغاء التثبيت'),
 
   // ── Uygulamayı APK olarak paylaşma (kullanıcı isteği 2026-08-29) ─────────
@@ -659,7 +617,6 @@ const Map<String, (String, String, String)> _t2 = {
   'apk.install_failed': ('Kurulamadı: {error}', 'Install failed: {error}',
       'فشل التثبيت: {error}'),
   'apps.app_info': ('Uygulama bilgisi (sistem ayarı)', 'App info (system settings)', 'معلومات التطبيق (إعدادات النظام)'),
-  'apps.color_legend': ('Renk = kullanılmama süresi', 'Colour = time unused', 'اللون = مدة عدم الاستخدام'),
   'apps.never_opened': ('hiç açılmadı', 'never opened', 'لم يُفتح قط'),
   'apps.today': ('bugün', 'today', 'اليوم'),
   // Kullanım verisi tutulan pencereden (2 yıl) daha eski kurulumlarda kayıt
@@ -724,12 +681,6 @@ const Map<String, (String, String, String)> _t2 = {
     'إذا منحت إذن «الوصول إلى بيانات الاستخدام» من Android، يمكنك رؤية آخر مرة '
         'فتحت فيها كل تطبيق وتُميَّز التطبيقات غير المستخدمة. لا تغادر أي بيانات الجهاز.',
   ),
-  'apps.usage_hint': (
-    'Açılan ayar sayfasından “Dosyalarım”a izin verip geri dönün.',
-    'Grant the permission to “Dosyalarım” on the settings page that opens, '
-        'then come back.',
-    'امنح الإذن لتطبيق «Dosyalarım» في صفحة الإعدادات التي تُفتح ثم عُد.',
-  ),
 
   // ── Yer aç (temizlik) ─────────────────────────────────────────────────────
   'clean.trash': ('Çöp kutusunu boşalt', 'Empty the trash', 'تفريغ سلة المهملات'),
@@ -771,8 +722,6 @@ const Map<String, (String, String, String)> _t2 = {
   'clean.analyzing': ('Yer aç: depolama çözümleniyor', 'Free up space: analysing storage', 'تحرير مساحة: جارٍ تحليل التخزين'),
   'clean.analyzing_name': ('Yer aç: depolama çözümlemesi', 'Free up space: storage analysis', 'تحرير مساحة: تحليل التخزين'),
   'clean.reading_index': ('Depolama okunuyor…', 'Reading storage…', 'جارٍ قراءة وحدة التخزين…'),
-  'clean.reading_trash': ('Çöp kutusu okunuyor…', 'Reading the trash…', 'جارٍ قراءة المهملات…'),
-  'clean.reading_downloads': ('İndirilenler inceleniyor…', 'Inspecting downloads…', 'جارٍ فحص التنزيلات…'),
   'clean.finding_dupes': (
     'Yinelenen dosyalar aranıyor (bayt bayt)…',
     'Looking for duplicate files (byte by byte)…',
@@ -786,20 +735,11 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'clean.recoverable': ('{size} kazanılabilir', '{size} can be freed', 'يمكن تحرير {size}'),
   'clean.suggestions': ('{n} öneri', '{n} suggestions', '{n} اقتراح'),
-  'clean.free_action': ('{size} yer aç', 'Free {size}', 'حرّر {size}'),
   'clean.pick_one': ('Bir öneri seçin', 'Pick a suggestion', 'اختر اقتراحًا'),
   'clean.personal_warning': (
     'Dikkat: bunlar kişisel dosyalar olabilir',
     'Careful: these may be personal files',
     'انتبه: قد تكون هذه ملفات شخصية',
-  ),
-  'clean.confirm_body': (
-    '{n} öneri · {size} yer açılacak.\n\nDosyalar çöp kutusuna taşınır '
-        '(ayarlarda kapatılmadıysa), İşlem geçmişinden geri alabilirsiniz.',
-    '{n} suggestions · {size} will be freed.\n\nFiles are moved to the trash '
-        '(unless disabled in settings); you can undo from the operation history.',
-    '{n} اقتراح · سيتم تحرير {size}.\n\nتُنقل الملفات إلى المهملات (ما لم يُعطَّل '
-        'ذلك في الإعدادات)، ويمكنك التراجع من سجل العمليات.',
   ),
   'clean.cleaning': ('Yer aç: {size} temizleniyor', 'Free up space: cleaning {size}', 'تحرير مساحة: جارٍ تنظيف {size}'),
   'clean.cleaning_name': ('Yer aç: {size} temizliği', 'Free up space: {size} clean-up', 'تحرير مساحة: تنظيف {size}'),
@@ -810,7 +750,6 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'clean.reanalyze': ('Yeniden çözümle', 'Re-analyse', 'إعادة التحليل'),
   'clean.open_trash': ('Çöp kutusunu aç', 'Open the trash', 'فتح المهملات'),
-  'clean.see_files': ('{n} dosyayı gör', 'See {n} files', 'عرض {n} ملف'),
   'clean.never_suggest': ('Bir daha önerme', "Don't suggest again", 'لا تقترح مجددًا'),
   'clean.never_suggest_file': ('Bu dosyayı bir daha önerme', "Don't suggest this file again", 'لا تقترح هذا الملف مجددًا'),
   'clean.show_hidden': ('Gizlenen {n} öneriyi geri getir', 'Restore {n} hidden suggestions', 'استعادة {n} اقتراحات مخفية'),
@@ -843,24 +782,14 @@ const Map<String, (String, String, String)> _t2 = {
     'تعذّرت قراءة معلومات الاستخدام.',
   ),
   'ana.used_free': ('{used} kullanıldı · {free} boş', '{used} used · {free} free', '{used} مستخدم · {free} فارغ'),
-  'ana.trend': (
-    'Son {days} günde en çok büyüyen: {category}',
-    'Grew the most in the last {days} days: {category}',
-    'الأكثر نموًا في آخر {days} يوم: {category}',
-  ),
   'ana.free_space': ('Yer aç (temizlik önerileri)', 'Free up space (cleanup suggestions)', 'تحرير مساحة (اقتراحات التنظيف)'),
   'ana.free_space_note': (
-    'Çöp kutusu, kopyalar, eski indirilenler ve büyük dosyalar',
-    'Trash, duplicates, old downloads and large files',
-    'المهملات والنسخ المكررة والتنزيلات القديمة والملفات الكبيرة',
+    'Çöp kutusu, kopyalar, benzer görseller, sohbet medyası ve gereksizler — hepsi tek yerde',
+    'Trash, duplicates, similar images, chat media and clutter — all in one place',
+    'المهملات والنسخ المكررة والصور المتشابهة ووسائط الدردشة وغير الضروري — كلها في مكان واحد',
   ),
   // U4: ana ekrandaki araçla aynı ad ("Kopyalar" ana ekrandan Analiz'e taşınıyor).
   'ana.find_dupes': ('Kopyalar', 'Duplicates', 'المكررات'),
-  'ana.find_dupes_note': (
-    'Birebir aynı dosyaları bulur, bir kopyayı bırakıp kalanları çöpe taşır',
-    'Finds byte-identical files, keeps one copy and moves the rest to the trash',
-    'يعثر على الملفات المتطابقة تمامًا، ويبقي نسخة واحدة وينقل الباقي إلى المهملات',
-  ),
 
   // ── Klasör haritası (bellek analizi → hangi klasör ne kadar yer kaplıyor) ──
   'fmap.title': ('Klasör haritası', 'Folder map', 'خريطة المجلدات'),
@@ -888,13 +817,7 @@ const Map<String, (String, String, String)> _t2 = {
   'trash.restore': ('Geri yükle', 'Restore', 'استعادة'),
   'trash.delete_forever': ('Kalıcı sil', 'Delete permanently', 'حذف نهائي'),
   'trash.empty_action': ('Boşalt', 'Empty', 'تفريغ'),
-  'trash.count_size': ('{n} öğe · {size}', '{n} items · {size}', '{n} عنصر · {size}'),
   'trash.filtered': ('{n} / {total} öğe', '{n} / {total} items', '{n} / {total} عنصر'),
-  'trash.restored': (
-    '“{name}” geri yüklendi → {where}',
-    '“{name}” restored → {where}',
-    'تمت استعادة «{name}» ← {where}',
-  ),
   'trash.restore_failed': (
     'Geri yüklenemedi: {error}',
     'Could not restore: {error}',
@@ -915,27 +838,7 @@ const Map<String, (String, String, String)> _t2 = {
     'Empty the trash?',
     'هل تريد تفريغ سلة المهملات؟',
   ),
-  'trash.empty_confirm_body': (
-    '{n} öğe ({size}) kalıcı olarak silinecek. Bu işlem geri alınamaz.',
-    '{n} items ({size}) will be deleted permanently. This cannot be undone.',
-    'سيتم حذف {n} عنصر ({size}) نهائيًا. لا يمكن التراجع عن هذا.',
-  ),
   'trash.emptying': ('Çöp kutusu boşaltılıyor', 'Emptying the trash', 'جارٍ تفريغ المهملات'),
-  'trash.emptied': (
-    'Çöp kutusu boşaltıldı · {n} öğe · {size} yer açıldı.',
-    'Trash emptied · {n} items · {size} freed.',
-    'تم تفريغ المهملات · {n} عنصر · تحرير {size}.',
-  ),
-  'trash.empty_stopped': (
-    'Durduruldu — {n} öğe silindi.',
-    'Stopped — {n} items deleted.',
-    'تم الإيقاف — تم حذف {n} عنصر.',
-  ),
-  'trash.empty_partial': (
-    '{ok} öğe silindi, {fail} öğe silinemedi: {error}',
-    '{ok} items deleted, {fail} could not be deleted: {error}',
-    'تم حذف {ok} عنصر، وتعذّر حذف {fail}: {error}',
-  ),
 
   // ── Önemli dosyalar ───────────────────────────────────────────────────────
   'important.title': ('Önemli Dosyalar', 'Important files', 'الملفات المهمة'),
@@ -993,8 +896,6 @@ const Map<String, (String, String, String)> _t2 = {
   'important.gallery': ('Galeri', 'Gallery', 'المعرض'),
   'important.gallery_all': ('Tümü', 'All', 'الكل'),
   'important.gallery_empty': ('Bu türde önemli dosya yok.', 'No important files of this type.', 'لا توجد ملفات مهمة من هذا النوع.'),
-  'important.show_all': ('Tümünü göster ({n})', 'Show all ({n})', 'عرض الكل ({n})'),
-  'important.show_less': ('Daha az göster', 'Show less', 'عرض أقل'),
   'important.pick_category': ('Hangi kategoriye?', 'Which category?', 'إلى أي فئة؟'),
   'important.general': ('Genel (kategorisiz)', 'General (no category)', 'عام (بدون فئة)'),
   'important.new_category': ('Yeni kategori', 'New category', 'فئة جديدة'),
@@ -1033,26 +934,11 @@ const Map<String, (String, String, String)> _t2 = {
   ),
   'downloads.no_result': ('“{q}” için sonuç yok.', 'No results for “{q}”.', 'لا نتائج لـ«{q}».'),
   'downloads.selected': ('{n} / {total} seçildi', '{n} / {total} selected', 'تم تحديد {n} / {total}'),
-  'downloads.sort': ('Sırala', 'Sort', 'ترتيب'),
-  'downloads.sort_name': ('Ada göre', 'By name', 'حسب الاسم'),
-  'downloads.sort_newest': ('En yeni önce', 'Newest first', 'الأحدث أولًا'),
-  'downloads.sort_oldest': (
-    'En eski (silme adayları) önce',
-    'Oldest (deletion candidates) first',
-    'الأقدم (مرشحة للحذف) أولًا',
-  ),
-  'downloads.sort_largest': ('En büyük önce', 'Largest first', 'الأكبر أولًا'),
   'downloads.select_old': ('Eskileri seç', 'Select old ones', 'حدّد القديمة'),
   'downloads.folder_view': (
     'Klasör görünümü (alt klasörlerde gez)',
     'Folder view (browse subfolders)',
     'عرض المجلدات (تصفّح المجلدات الفرعية)',
-  ),
-  'downloads.last_opened': ('son açılma: {when}', 'last opened: {when}', 'آخر فتح: {when}'),
-  'downloads.ancient_hint': (
-    '{n} dosya 6 aydır dokunulmamış · ',
-    '{n} files untouched for 6 months · ',
-    '{n} ملف لم يُلمس منذ 6 أشهر · ',
   ),
 
   // ── Klasör seçici ─────────────────────────────────────────────────────────
@@ -1069,14 +955,6 @@ const Map<String, (String, String, String)> _t2 = {
     'Bu klasör okunamıyor (izin yok).',
     'This folder cannot be read (no permission).',
     'تعذّرت قراءة هذا المجلد (لا يوجد إذن).',
-  ),
-  'picker.no_subfolder': (
-    'Bu klasörde alt klasör yok.\nAşağıdaki düğmeyle buraya koyabilir ya da '
-        'üstteki “yeni klasör” ile bir tane açabilirsiniz.',
-    'This folder has no subfolders.\nUse the button below to place items here, '
-        'or create one with “new folder” above.',
-    'لا توجد مجلدات فرعية هنا.\nاستخدم الزر أدناه للوضع هنا، أو أنشئ مجلدًا '
-        'عبر «مجلد جديد» بالأعلى.',
   ),
 
   // ── Dosya açma ────────────────────────────────────────────────────────────
@@ -1183,7 +1061,6 @@ const Map<String, (String, String, String)> _t2 = {
   'nas.upload_here': ('Buraya yükle', 'Upload here', 'ارفع هنا'),
   'nas.uploading': ('Yükleniyor…', 'Uploading…', 'جارٍ الرفع…'),
   'nas.upload_done': ('Yüklendi.', 'Uploaded.', 'تم الرفع.'),
-  'nas.downloading': ('İndiriliyor…', 'Downloading…', 'جارٍ التنزيل…'),
   'nas.new_folder': ('Yeni klasör', 'New folder', 'مجلد جديد'),
   'nas.folder_name': ('Klasör adı', 'Folder name', 'اسم المجلد'),
 };

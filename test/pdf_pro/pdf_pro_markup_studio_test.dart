@@ -218,12 +218,12 @@ void main() {
     addTearDown(doc.dispose);
     await PdfEditBridge.annotate(
         doc,
-        const PdfAnnotChange.stamp(0,
+        PdfAnnotChange.stamp(0,
             x: 100, y: 700, text: 'REDDEDİLDİ', color: 0xFFC62828, size: 18,
             boxed: true));
     await PdfEditBridge.annotate(
         doc,
-        const PdfAnnotChange.stamp(0,
+        PdfAnnotChange.stamp(0,
             x: 100, y: 500, text: 'Şu satır\nikinci satır', color: 0xFF111111));
     final stamps = (await PdfEditBridge.annotations(doc, 0))
         .where((a) => a.subtype == PdfAnnotType.stamp)
@@ -251,14 +251,14 @@ void main() {
     await expectLater(
         PdfEditBridge.annotate(
             doc,
-            const PdfAnnotChange.stamp(0,
+            PdfAnnotChange.stamp(0,
                 x: 100, y: 300, text: 'مرحبا', color: 0xFF111111)),
         throwsA(isA<PdfEditBridgeRefused>()
             .having((e) => e.glyph, 'glyph', isTrue)));
   });
 
   test('damga günlüğü: boy ve çerçeve yazılır, font yazılmaz', () {
-    final ch = const PdfAnnotChange.stamp(2,
+    final ch = PdfAnnotChange.stamp(2,
             x: 10, y: 20, text: 'GİZLİ', color: 0xFFC62828, size: 18,
             boxed: true)
         .withFont(Uint8List.fromList([1, 2, 3]));
@@ -291,10 +291,10 @@ void main() {
     // Basınçsız kalem (min == max).
     expect(pdfPressureOf(const PointerDownEvent(kind: PointerDeviceKind.stylus)),
         -1);
-    expect(pdfPressureFactor(const [-1, -1]), 1);
-    expect(pdfPressureFactor(const [0]), closeTo(0.4, 1e-9));
-    expect(pdfPressureFactor(const [1, 1]), closeTo(1.6, 1e-9));
-    expect(pdfPressureFactor(const [0.5, -1]), closeTo(1.0, 1e-9));
+    expect(pdfPressureFactor(const <double>[-1, -1]), 1);
+    expect(pdfPressureFactor(const <double>[0]), closeTo(0.4, 1e-9));
+    expect(pdfPressureFactor(const <double>[1, 1]), closeTo(1.6, 1e-9));
+    expect(pdfPressureFactor(const <double>[0.5, -1]), closeTo(1.0, 1e-9));
   });
 
   testWidgets('avuç reddi: kalem çizerken avuç çizgiyi bozmaz; kalem '

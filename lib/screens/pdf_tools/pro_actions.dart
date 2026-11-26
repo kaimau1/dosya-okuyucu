@@ -249,6 +249,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       path = LegacyConvert.uniquePath(dir.path, base, ext);
       await File(path).writeAsBytes(data, flush: true);
     }
+    if (ext == 'pdf' && mounted) {
+      await recordPdfEditActivity(context, path,
+          detail: _str.t('ps.act_edited'));
+    }
     if (!mounted) return;
     showSnack(
       context,
@@ -665,7 +669,6 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     try {
       for (var i = 0; i < doc.pages.length; i++) {
         final page = doc.pages[i];
-        if (page.rotation != PdfPageRotation.none) continue;
         final own = await page.loadText();
         if (pdfHasTextLayer(own?.fullText ?? '')) continue;
         final ocr = await PdfOcrText.forPage(page);
@@ -944,6 +947,10 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final dir = await DocsHome.resolve();
     final path = LegacyConvert.uniquePath(dir.path, base, ext);
     await File(path).writeAsBytes(data, flush: true);
+    if (mounted) {
+      await recordPdfEditActivity(context, path,
+          detail: _str.t('ps.act_edited'));
+    }
     if (!mounted) return;
     showSnack(
       context,

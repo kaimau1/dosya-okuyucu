@@ -90,6 +90,61 @@ class _RadarPainter extends CustomPainter {
   bool shouldRepaint(_RadarPainter old) => old.t != t || old.color != color;
 }
 
+/// Üst sekme çubuğundaki kompakt simge + etiket kapsülü.
+class _TabPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _TabPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Renkli simge kabı (açık/koyu temada okunaklı kontrast).
+class _IconWell extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+  final double size;
+
+  const _IconWell({
+    required this.icon,
+    required this.accent,
+    this.size = 40,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final fg = dark ? Color.lerp(accent, AppColors.mixLight, 0.28)! : accent;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: fg.withValues(alpha: dark ? 0.18 : 0.12),
+        borderRadius: BorderRadius.circular(Radii.control),
+      ),
+      child: Icon(icon, size: size * 0.5, color: fg),
+    );
+  }
+}
+
 class _PeerAvatar extends StatelessWidget {
   final String name;
   final bool wifi;
@@ -116,119 +171,208 @@ class _PeerAvatar extends StatelessWidget {
   });
 
   static const _hues = [
-    AppHues.jade, AppHues.tangerine, AppHues.purple, AppHues.green,
-    AppHues.red, AppHues.olive, AppHues.cyan, AppHues.plum,
+    AppHues.jade,
+    AppHues.tangerine,
+    AppHues.purple,
+    AppHues.green,
+    AppHues.red,
+    AppHues.olive,
+    AppHues.cyan,
+    AppHues.plum,
   ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final hue = _hues[name.hashCode.abs() % _hues.length];
+    final dark = theme.brightness == Brightness.dark;
+    final rawHue = _hues[name.hashCode.abs() % _hues.length];
+    final hue = dark ? Color.lerp(rawHue, AppColors.mixLight, 0.28)! : rawHue;
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     return SizedBox(
-      width: 84,
+      width: 96,
       child: Opacity(
         opacity: busy ? 0.45 : 1,
-        child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(Radii.card),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-          child: Column(
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: hue.withValues(alpha: 0.16),
-                    foregroundColor: hue,
-                    child: Text(initial,
-                        style: theme.textTheme.headlineSmall?.copyWith(color: hue)),
-                  ),
-                  PositionedDirectional(
-                    end: -4,
-                    bottom: -2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: scheme.surface,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: scheme.outlineVariant),
-                      ),
-                      child: Row(
+        child: PressScale(
+          scale: 0.96,
+          enabled: !busy,
+          child: Material(
+            color: scheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.card),
+              side: BorderSide(
+                color: trusted
+                    ? Paper.success(context).withValues(alpha: 0.42)
+                    : scheme.outlineVariant.withValues(alpha: 0.65),
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              onLongPress: onLongPress,
+              borderRadius: BorderRadius.circular(Radii.card),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.xs, vertical: Gap.sm),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 54,
+                          height: 54,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: hue.withValues(alpha: dark ? 0.22 : 0.14),
+                            border: Border.all(
+                              color: hue.withValues(alpha: 0.35),
+                              width: 1.5,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initial,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: hue,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        PositionedDirectional(
+                          end: -4,
+                          bottom: -2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: scheme.surface,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: scheme.outlineVariant),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (wifi)
+                                  Icon(AppIcons.wifi,
+                                      size: 12, color: scheme.primary),
+                                if (wifi && ble) const SizedBox(width: 2),
+                                if (ble)
+                                  Icon(AppIcons.bluetooth,
+                                      size: 12, color: scheme.primary),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    if (trusted) ...[
+                      const SizedBox(height: 2),
+                      Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (wifi) Icon(AppIcons.wifi, size: 12, color: scheme.primary),
-                          if (ble) Icon(AppIcons.bluetooth, size: 12, color: scheme.primary),
+                          Icon(AppIcons.verified,
+                              size: 12, color: Paper.success(context)),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              context.t('near.trusted_badge'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(color: Paper.success(context)),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Gap.xs),
-              Text(name,
-                  maxLines: 2,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall),
-              if (trusted)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(AppIcons.verified, size: 12, color: Paper.success(context)),
-                    const SizedBox(width: 2),
-                    Text(context.t('near.trusted_badge'),
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: Paper.success(context))),
+                    ],
                   ],
                 ),
-            ],
+              ),
+            ),
           ),
         ),
-      ),
       ),
     );
   }
 }
 
-/// "Ne gönderilecek?" adımının büyük eylem kutusu (Dosya / Klasör / Yazı):
+/// "Ne gönderilecek?" adımının renk kodlu eylem kutusu (Dosya / Klasör / Yazı):
 /// simge üstte, ad altta, en az 64 dp yüksek — tek elle rahat dokunulur.
 class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? accent;
   final VoidCallback onTap;
 
-  const _ActionTile({super.key, required this.icon, required this.label, required this.onTap});
+  const _ActionTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Material(
-      color: scheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(Radii.control),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.control),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 64),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: Gap.sm, horizontal: Gap.xs),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: scheme.onSecondaryContainer),
-                const SizedBox(height: Gap.xs),
-                Text(label,
+    final dark = theme.brightness == Brightness.dark;
+    final base = accent ?? scheme.primary;
+    final fg = dark ? Color.lerp(base, AppColors.mixLight, 0.28)! : base;
+    return PressScale(
+      scale: 0.96,
+      child: Material(
+        color: fg.withValues(alpha: dark ? 0.16 : 0.09),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.control),
+          side: BorderSide(
+            color: fg.withValues(alpha: dark ? 0.34 : 0.22),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.control),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 68),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  vertical: Gap.sm, horizontal: Gap.xs),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: fg.withValues(alpha: dark ? 0.22 : 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 18, color: fg),
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge
-                        ?.copyWith(color: scheme.onSecondaryContainer)),
-              ],
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -256,12 +400,18 @@ class _StepHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: theme.textTheme.titleMedium),
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
                 if (sub != null) ...[
                   const SizedBox(height: 2),
-                  Text(sub!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  Text(
+                    sub!,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
                 ],
               ],
             ),
@@ -277,7 +427,19 @@ class _SelectedTile extends StatelessWidget {
   final String path;
   final VoidCallback onRemove;
 
-  const _SelectedTile({super.key, required this.path, required this.onRemove});
+  /// Bağlantıdan indirildi (QR/PC) — kutuda "Gönderildi" diye kalır.
+  final bool sent;
+
+  /// Gönderilemedi: nedeni (dokununca tam metin).
+  final String? failed;
+
+  const _SelectedTile({
+    super.key,
+    required this.path,
+    required this.onRemove,
+    this.sent = false,
+    this.failed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -289,43 +451,76 @@ class _SelectedTile extends StatelessWidget {
     final c = isDir ? FmCategory.folder : FsEntry.categoryForExtension(ext);
     final (glyph, color) = isDir
         ? (AppIcons.folder, FmColors.folder)
-        : FmColors.forExtension(ext) ?? (FmColors.iconFor(c), FmColors.forCategory(c));
+        : FmColors.forExtension(ext) ??
+            (FmColors.iconFor(c), FmColors.forCategory(c));
     final isImage = c == FmCategory.image;
     return SizedBox(
-      width: 76,
+      width: 78,
       child: Stack(
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Radii.control),
-                  child: ColoredBox(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
                     color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    border: Border.all(
+                      color: failed != null
+                          ? scheme.error
+                          : sent
+                              ? Paper.success(context)
+                              : scheme.outlineVariant.withValues(alpha: 0.6),
+                      width: failed != null || sent ? 1.5 : 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Radii.control - 1),
                     child: isImage
                         ? Image(
                             image: FmFileImage(path, cacheWidth: 160),
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
-                                Center(child: Icon(glyph, color: color)))
+                                Center(child: Icon(glyph, color: color)),
+                          )
                         : Center(child: Icon(glyph, color: color, size: 30)),
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall),
+              const SizedBox(height: 3),
+              if (failed != null || sent)
+                Tooltip(
+                  message: failed ?? '',
+                  triggerMode: TooltipTriggerMode.tap,
+                  showDuration: const Duration(seconds: 4),
+                  child: Text(
+                    context.t(failed != null ? 'near.fail_tile' : 'near.sent_tile'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: failed != null ? scheme.error : Paper.success(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall),
             ],
           ),
           PositionedDirectional(
-            top: 2,
-            end: 2,
+            top: 3,
+            end: 3,
             child: Material(
-              color: scheme.surface.withValues(alpha: 0.9),
-              shape: const CircleBorder(),
+              color: scheme.surface.withValues(alpha: 0.92),
+              shape: CircleBorder(
+                side: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.7),
+                ),
+              ),
               child: InkWell(
                 customBorder: const CircleBorder(),
                 onTap: onRemove,
@@ -366,43 +561,51 @@ class _TransferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.only(top: Gap.md),
-      child: Card(
-        margin: EdgeInsets.zero,
-        color: tint.withValues(alpha: 0.45),
-        child: Padding(
-          padding: const EdgeInsets.all(Gap.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, size: 20, color: scheme.primary),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall),
-                        if (detail != null)
-                          Text(detail!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant)),
-                      ],
-                    ),
+    return Card(
+      margin: EdgeInsets.zero,
+      color: tint.withValues(alpha: 0.42),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+        side: BorderSide(
+          color: scheme.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                _IconWell(icon: icon, accent: scheme.primary, size: 36),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      if (detail != null)
+                        Text(
+                          detail!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                    ],
                   ),
-                  ?action,
-                ],
-              ),
-              for (final r in rows) ...[const SizedBox(height: Gap.md), r],
-            ],
-          ),
+                ),
+                ?action,
+              ],
+            ),
+            for (final r in rows) ...[const SizedBox(height: Gap.md), r],
+          ],
         ),
       ),
     );

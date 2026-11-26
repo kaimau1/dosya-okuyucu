@@ -286,7 +286,7 @@ class PdfAnnotChange {
   final String? uri;
 
   /// Damga / serbest metin (Faz 60 m.2): yazı boyu (pt) ve çerçeve.
-  final double fontSize;
+  final double textSize;
   final bool boxed;
 
   /// Yazının alt küme fontu — GÜNLÜĞE YAZILMAZ; `PdfEditBridge.annotate`
@@ -307,7 +307,7 @@ class PdfAnnotChange {
     this.author,
     this.state,
     this.uri,
-    this.fontSize = 0,
+    this.textSize = 0,
     this.boxed = false,
     this.font,
   });
@@ -316,7 +316,7 @@ class PdfAnnotChange {
   /// açıklamasının görünüşüne yazılır (PDFium görünüş akışını üretir — her
   /// okuyucuda aynı). Sol üst köşe ([x], [y]) sabit; kutu yazıya göre
   /// köprüde ölçülür. [boxed] = damga çerçevesi.
-  const PdfAnnotChange.stamp(int pageIndex,
+  PdfAnnotChange.stamp(int pageIndex,
       {required double x,
       required double y,
       required String text,
@@ -333,12 +333,12 @@ class PdfAnnotChange {
             width: 0,
             contents: text,
             author: author,
-            fontSize: size,
+            textSize: size,
             boxed: boxed);
 
   /// Yazısı olan damga mı (font gerekir).
   bool get hasText =>
-      kind == 'add' && subtype == PdfAnnotType.stamp && fontSize > 0;
+      kind == 'add' && subtype == PdfAnnotType.stamp && textSize > 0;
 
   PdfAnnotChange withFont(Uint8List bytes) => PdfAnnotChange._(
       pageIndex: pageIndex,
@@ -354,7 +354,7 @@ class PdfAnnotChange {
       author: author,
       state: state,
       uri: uri,
-      fontSize: fontSize,
+      textSize: textSize,
       boxed: boxed,
       font: bytes);
 
@@ -420,7 +420,7 @@ class PdfAnnotChange {
         if (author != null) 'by': author,
         if (state != null) 'st': state,
         if (uri != null) 'uri': uri,
-        if (fontSize > 0) 'fs': fontSize,
+        if (textSize > 0) 'fs': textSize,
         if (boxed) 'bx': true,
       };
 
@@ -451,7 +451,7 @@ class PdfAnnotChange {
       author: j['by'] as String?,
       state: j['st'] as String?,
       uri: j['uri'] as String?,
-      fontSize: (j['fs'] as num?)?.toDouble() ?? 0,
+      textSize: (j['fs'] as num?)?.toDouble() ?? 0,
       boxed: j['bx'] == true,
     );
   }

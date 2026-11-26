@@ -9,6 +9,7 @@ import '../../core/motion.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
 import '../../widgets/fm/fm_glyph.dart';
+import '../../widgets/motion.dart' show PressScale;
 
 /// **Tema galerisi** (2026-11-07, kullanıcı: *"temaların görünür biçimde
 /// seçilebilmesi örnek görseliyle beraber notlardaki gibi"*).
@@ -131,37 +132,47 @@ class _ThemeGalleryState extends State<ThemeGallery> {
       const groupGap = Gap.md;
       var offset = 0.0;
       var found = false;
+      var flatIndex = 0;
       for (final (_, members) in groups) {
+        final cardsW = members.length * (cardWidth + Gap.sm) - Gap.sm;
+        final blockW = cardsW < 112.0 ? 112.0 : cardsW;
         final i = members.indexOf(current);
         if (i >= 0) {
+          flatIndex += i;
           offset += i * (cardWidth + Gap.sm);
           found = true;
           break;
         }
-        offset += members.length * (cardWidth + Gap.sm) + groupGap;
+        flatIndex += members.length;
+        offset += blockW + groupGap;
       }
-      if (!found || offset < cardWidth) offset = 0;
+      if (!found || flatIndex <= 1 || offset < cardWidth) offset = 0;
       return SizedBox(
         height: ThemeSkinCard.heightOf(context) + labelH + Gap.xs,
         child: ListView.separated(
           key: const ValueKey('theme-gallery-strip'),
           scrollDirection: Axis.horizontal,
           controller: _scroll ??= ScrollController(
-            initialScrollOffset: offset <= 0 ? 0 : offset - cardWidth / 2,
+            initialScrollOffset:
+                offset <= cardWidth * 1.4 ? 0 : offset - cardWidth / 2,
           ),
           itemCount: groups.length,
-          separatorBuilder: (_, _) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: groupGap / 2 - 1),
-            child: VerticalDivider(
-                width: 1, color: theme.colorScheme.outlineVariant),
+          separatorBuilder: (_, _) => SizedBox(
+            width: groupGap,
+            child: Center(
+              child: VerticalDivider(
+                  width: 1, color: theme.colorScheme.outlineVariant),
+            ),
           ),
           itemBuilder: (_, g) {
             final (key, members) = groups[g];
+            final cardsW = members.length * (cardWidth + Gap.sm) - Gap.sm;
+            final blockW = cardsW < 112.0 ? 112.0 : cardsW;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: members.length * (cardWidth + Gap.sm) - Gap.sm,
+                  width: blockW,
                   child: groupLabel(key),
                 ),
                 const SizedBox(height: Gap.xs),
@@ -243,60 +254,73 @@ class ThemeSkinCard extends StatelessWidget {
       selected: selected,
       label: label,
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(Radii.card),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: Motion.short,
-              height: previewHeight,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Radii.card),
-                border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant,
-                  width: selected ? 2.5 : 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(Radii.card - 2),
-                child: RepaintBoundary(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _SkinPreview(
-                        skin: skin,
-                        brightness:
-                            skin.forcesDark ? Brightness.dark : brightness,
-                      ),
-                      if (selected)
-                        PositionedDirectional(
-                          end: 4,
-                          top: 4,
-                          child: CircleAvatar(
-                            radius: 9,
-                            backgroundColor: scheme.primary,
-                            child: Icon(AppIcons.check,
-                                size: 12, color: scheme.onPrimary),
+      child: PressScale(
+        scale: 0.96,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Radii.card),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedContainer(
+                duration: Motion.of(context, Motion.short),
+                curve: Motion.enter,
+                height: previewHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  border: Border.all(
+                    color: selected ? scheme.primary : scheme.outlineVariant,
+                    width: selected ? 2.5 : 1,
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: scheme.primary.withValues(alpha: 0.22),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
                           ),
+                        ]
+                      : null,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.card - 2),
+                  child: RepaintBoundary(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _SkinPreview(
+                          skin: skin,
+                          brightness:
+                              skin.forcesDark ? Brightness.dark : brightness,
                         ),
-                    ],
+                        if (selected)
+                          PositionedDirectional(
+                            end: 4,
+                            top: 4,
+                            child: CircleAvatar(
+                              radius: 9,
+                              backgroundColor: scheme.primary,
+                              child: Icon(AppIcons.check,
+                                  size: 12, color: scheme.onPrimary),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? scheme.primary : null,
-                  ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? scheme.primary : null,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -28,7 +28,15 @@ class GeminiException implements Exception {
   /// ayıklamak ("(429)" arayarak) çeviri/biçim değişince sessizce bozulurdu.
   final int statusCode;
 
-  GeminiException(this.message, {this.statusCode = 0});
+  /// Sunucuya gerçekten ağ isteği çıkıldı mı? Yerel ön-koşul/soğuma
+  /// engellerinde `false` döner; böylece kota sayacı düşülebilir.
+  final bool networkAttempted;
+
+  GeminiException(
+    this.message, {
+    this.statusCode = 0,
+    this.networkAttempted = true,
+  });
 
   /// Beklemenin işe yarayabileceği hata mı? (Kota aşımı, geçici sunucu hatası.)
   bool get isRetryable =>
@@ -140,6 +148,25 @@ class GeminiService {
       };
 
   Uri _endpoint() => Uri.parse('$_base/models/$model:generateContent');
+
+  /// **Düşünme belirteci tasarrufu** (2026-11-25 fatura denetimi).
+  ///
+  /// `gemini-2.5-flash` varsayılanda "düşünür" ve düşünme belirteçleri ÇIKTI
+  /// fiyatından faturalanır (çoğu zaman yanıtın kendisinden uzun). Buradaki
+  /// işler (OCR dökümü, metin toparlama, şemalı çıkarım) akıl yürütme
+  /// istemiyor; 2.5 Flash/Flash-Lite ailesinde `thinkingBudget: 0` belgeli
+  /// geçerli değerdir ve düşünmeyi kapatır. Başka modellere (Pro'da 0
+  /// geçersiz, 3.x başka alan kullanır) DOKUNULMAZ — 400 alıp anahtarın
+  /// devre dışı kalmasını istemeyiz.
+  static Map<String, Object?>? thinkingFor(String model) =>
+      model.trim().toLowerCase().startsWith('gemini-2.5-flash')
+          ? const {'thinkingBudget': 0}
+          : null;
+
+  Map<String, Object?> _config(Map<String, Object?> base) {
+    final thinking = thinkingFor(model);
+    return {...base, if (thinking != null) 'thinkingConfig': thinking};
+  }
 
   /// **Decisions API** (`POST /v1beta/decisions`, 2026-11-18): kapalı uçlu
   /// soruları (evet/hayır, seçim, ölçek) dosyanın kendisi üzerinde tek
@@ -327,7 +354,7 @@ class GeminiService {
         ]
       },
       'contents': contents,
-      'generationConfig': {'temperature': 0.4},
+      'generationConfig': _config({'temperature': 0.4}),
     };
 
     late http.Response resp;
@@ -405,13 +432,13 @@ class GeminiService {
           ],
         }
       ],
-      'generationConfig': {
+      'generationConfig': _config({
         // Düşük sıcaklık: burada yaratıcılık değil, kaynağa sadık ve
         // biçimi bozmayan bir çıktı isteniyor.
         'temperature': 0.3,
         'responseMimeType': 'application/json',
         'responseSchema': schema,
-      },
+      }),
     };
 
     late http.Response resp;
@@ -478,11 +505,11 @@ class GeminiService {
               ],
             }
           ],
-          'generationConfig': {
+          'generationConfig': _config({
             'temperature': 0,
             'responseMimeType': 'application/json',
             'responseSchema': schema,
-          },
+          }),
         }),
       );
     } catch (e) {

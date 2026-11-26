@@ -72,7 +72,7 @@ abstract final class ScanDewarp {
   /// dokunmaya değmiyorsa **null** (kaynak dosya olduğu gibi kullanılır).
   static String? runRequest(ScanStraightenRequest request) {
     final bytes = File(request.sourcePath).readAsBytesSync();
-    final decoded = img.decodeImage(bytes);
+    final decoded = ScanPageOps.decode(bytes);
     if (decoded == null) return null;
     final out = straighten(decoded);
     if (out == null) return null;

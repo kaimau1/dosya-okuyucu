@@ -3,11 +3,21 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/edition.dart';
 import '../../core/text_search.dart';
-import '../gemini_service.dart';
-import 'ai_buckets.dart';
+import '../../models/fs_entry.dart';
 import 'ai_extract.dart';
 import 'ai_index.dart';
+
+String _canonicalDocType(String raw) {
+  final folded = asciiFold(raw).trim();
+  if (folded.isEmpty) return 'diger';
+  return switch (folded) {
+    'faturalar' => 'fatura',
+    'fis' || 'makbuzlar' => 'makbuz',
+    _ => folded,
+  };
+}
 
 /// Bir faturadan/makbuzdan çıkarılan bilgi.
 @immutable
@@ -179,7 +189,7 @@ class Bills extends ChangeNotifier {
   static List<AiRecord> candidates([Iterable<AiRecord>? source]) {
     final out = <AiRecord>[];
     for (final r in source ?? AiIndex.all()) {
-      final type = AiBuckets.canonicalDocType(r.docType);
+      final type = _canonicalDocType(r.docType);
       final name = asciiFold(r.name);
       if (type == 'fatura' ||
           type == 'makbuz' ||
@@ -199,12 +209,12 @@ class Bills extends ChangeNotifier {
           if (_bills[r.path]?.modifiedMs != r.modifiedMs) r,
       ];
 
-  /// Bekleyen adayları okur. [gemini] null ise yalnız cihaz tahmini.
+  /// Bekleyen adayları cihazda tahmin ederek okur.
   Future<int> refresh({
-    GeminiService? gemini,
     void Function(int done, int total)? onProgress,
     int? nowMs,
   }) async {
+    if (!Edition.current.has(Feature.smartFolders)) return 0;
     await ensureLoaded();
     await AiIndex.ensureLoaded();
     if (_busy) return 0;
@@ -218,17 +228,16 @@ class Bills extends ChangeNotifier {
       _bills.removeWhere((path, _) => !alive.contains(path));
       for (final r in todo) {
         onProgress?.call(done, todo.length);
-        final excerpt = await AiExtract.excerpt(AiBuckets.entryOf(r),
+        final excerpt = await AiExtract.excerpt(
+            FsEntry(
+              path: r.path,
+              name: r.name,
+              isDir: false,
+              sizeBytes: r.sizeBytes,
+              modifiedMs: r.modifiedMs,
+            ),
             maxChars: 3500);
-        Bill? bill;
-        if (gemini != null && !excerpt.isEmpty) {
-          try {
-            bill = await _askGemini(gemini, r, excerpt.text);
-          } catch (_) {
-            // Kota/ağ hatası: cihaz tahminine düş, iş durmasın.
-          }
-        }
-        bill ??= guessFromText(r.path, r.modifiedMs, excerpt.text,
+        final bill = guessFromText(r.path, r.modifiedMs, excerpt.text,
             fallbackIssuer: r.title);
         final old = _bills[r.path];
         _bills[r.path] = old != null && old.paid ? bill.copyWith(paid: true) : bill;
@@ -241,59 +250,7 @@ class Bills extends ChangeNotifier {
     return done;
   }
 
-  Future<Bill?> _askGemini(GeminiService gemini, AiRecord r, String text) async {
-    final raw = await gemini.generateJson(
-      systemInstruction:
-          'Aşağıdaki metin bir fatura, makbuz ya da ödeme belgesinden alındı. '
-          'Kurumu (faturayı kesen), ÖDENECEK TOPLAM tutarı, para birimini, son '
-          'ödeme tarihini ve faturanın ait olduğu dönemi çıkar. Bilmediğini '
-          'UYDURMA, boş bırak. Tarihler YYYY-AA-GG, dönem YYYY-AA.',
-      prompt: 'Dosya: ${r.name}\n\n$text',
-      schema: const {
-        'type': 'object',
-        'properties': {
-          'kurum': {'type': 'string'},
-          'tutar': {'type': 'number'},
-          'para_birimi': {'type': 'string'},
-          'son_odeme': {'type': 'string'},
-          'donem': {'type': 'string'},
-        },
-      },
-    );
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) return null;
-    final due = _parseIsoDate(decoded['son_odeme'] as String?);
-    final period = _parseIsoDate('${decoded['donem'] ?? ''}-01');
-    final amount = (decoded['tutar'] as num?)?.toDouble();
-    return Bill(
-      path: r.path,
-      modifiedMs: r.modifiedMs,
-      issuer: (decoded['kurum'] as String? ?? '').trim().isEmpty
-          ? r.title
-          : (decoded['kurum'] as String).trim(),
-      amount: amount != null && amount > 0 ? amount : null,
-      currency: _currency(decoded['para_birimi'] as String?),
-      dueMs: due,
-      periodMs: period ?? due ?? r.modifiedMs,
-      source: 'ai',
-    );
-  }
-
-  static String _currency(String? raw) {
-    final c = asciiFold(raw ?? '').trim();
-    if (c.isEmpty || c == 'tl' || c == 'try' || c.contains('lira')) return 'TL';
-    if (c.contains('eur') || c == '€') return 'EUR';
-    if (c.contains('usd') || c.contains('dolar') || c == r'$') return 'USD';
-    return raw!.trim().toUpperCase();
-  }
-
-  static int? _parseIsoDate(String? raw) {
-    final m = RegExp(r'(\d{4})-(\d{1,2})-(\d{1,2})').firstMatch(raw ?? '');
-    if (m == null) return null;
-    final y = int.parse(m[1]!), mo = int.parse(m[2]!), d = int.parse(m[3]!);
-    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
-    return DateTime(y, mo, d).millisecondsSinceEpoch;
-  }
+  // Çevrimdışı fatura ayrıştırma.
 
   /// **Cihaz üstünde tahmin** (API anahtarı yokken).
   ///

@@ -4,21 +4,22 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
-import 'chat_cleanup_screen.dart';
 import 'cleanup_screen.dart';
 import 'downloads_screen.dart';
 import 'jobs_screen.dart';
 import 'organize_screen.dart';
 
 /// İşlemler merkezinin sekmeleri (sıra = ekrandaki sıra).
-enum OpsTab { jobs, cleanup, chat, organize }
+enum OpsTab { jobs, cleanup, organize }
 
 /// **İşlemler** — sekmeli merkez (2026-11-04, kullanıcı: *"sohbet medyası
 /// temizliği, düzenle, yer aç işlemler içerisine girecek ve işlemler menüsü
 /// üstte olacak şekilde sekmeler haline gelecek"*).
 ///
 /// Sekmeler: **İşlemler** (süren + biten işler, biten işler 2 sütunlu kart) ·
-/// **Yer aç** · **Sohbet medyası** · **Düzenle**. Son açılanlar ve Yeni
+/// **Yer aç** · **Düzenle**. (2026-11-25: ayrı "Sohbet medyası" sekmesi
+/// kalktı — Yer aç'ın "Temizlik araçları" kartında; aynı iş iki yerde
+/// duruyordu.) Son açılanlar ve Yeni
 /// gelenler burada YOK — onlar panodaki **Geçmiş** kutusunda.
 ///
 /// Sekme ilk seçildiğinde kurulur ve sonra ayakta kalır ([IndexedStack]):
@@ -70,7 +71,6 @@ class _OperationsScreenState extends State<OperationsScreen>
         OpsTab.jobs => const JobsScreen(embedded: true),
         OpsTab.cleanup =>
           CleanupScreen(index: widget.index, embedded: true),
-        OpsTab.chat => const ChatCleanupScreen(embedded: true),
         OpsTab.organize => OrganizeScreen(
             path: downloadsPathIn(FmEnv.primaryRoot) ?? FmEnv.primaryRoot,
             embedded: true,
@@ -80,16 +80,16 @@ class _OperationsScreenState extends State<OperationsScreen>
   (IconData, String) _spec(BuildContext context, OpsTab tab) => switch (tab) {
         OpsTab.jobs => (AppIcons.playlistAddCheckCircle, context.t('jb.title')),
         OpsTab.cleanup => (AppIcons.cleanEmpty, context.t('clean.title')),
-        OpsTab.chat => (AppIcons.forum, context.t('ops.tab_chat')),
         OpsTab.organize =>
           (AppIcons.autoAwesomeMotion, context.t('ops.tab_organize')),
       };
 
   @override
   Widget build(BuildContext context) {
+    final activeTab = OpsTab.values[_tabs.index];
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.t('jb.title')),
+        title: Text(_spec(context, activeTab).$2),
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,

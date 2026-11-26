@@ -14,6 +14,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onAnnotTap: _proAnnotTap,
         onTextBox: _proTextBox,
         onPlace: _proPlace,
+        onSwitch: _proSwitch,
       );
 
   void _proRefused(Object e) {
@@ -40,11 +41,34 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     WidgetsBinding.instance.addPostFrameCallback((_) => _proRevealCaret());
   }
 
+  /// Yazarken başka bir bloğa dokunuldu: yazımı uygula, klavyeyi KAPATMADAN
+  /// dokunulan bloğa geç (imleç dokunulan harfte). Bloklar uygulamadan sonra
+  /// yeniden okunur — eski blok nesnesi bayat olabilir.
+  Future<void> _proSwitch(int pageIndex, double x, double y) async {
+    final pro = _pro;
+    if (pro == null || pro.live == null || pro.busy) return;
+    final ok = await _proDone(keepFocus: true);
+    if (!ok || !mounted || _pro != pro || pro.live != null) return;
+    final block = await pro.editableBlockAt(pageIndex, x, y);
+    if (!mounted || _pro != pro) return;
+    if (block == null || pro.live != null) {
+      _proFocus.unfocus();
+      return;
+    }
+    await _proBegin(pageIndex, block, offset: block.map.offsetAt(x, y));
+    if (mounted && _pro == pro && pro.live == null) _proFocus.unfocus();
+  }
+
   /// Yazmayı uygular (✓, dışarı dokunuş). Yazılamayan hâl varsa yazma sürer.
-  Future<void> _proDone() async {
+  /// [keepFocus]: başka bloğa geçilecek, klavye kapanmasın.
+  Future<bool> _proDone({bool keepFocus = false}) async {
     final pro = _pro;
     final live = pro?.live;
-    if (pro == null || live == null || pro.busy) return;
+    if (pro == null || live == null) return false;
+    if (pro.busy) {
+      _proBusyHint();
+      return false;
+    }
     final refusedGlyph = context.t('pse.refused_glyph');
     final refused = context.t('pse.refused');
     final label = live.block == null
@@ -53,13 +77,67 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             ? 'pse.step_delete'
             : 'pse.step_paragraph';
     final ok = await pro.commitEdit(label: label);
-    if (!mounted) return;
+    if (!mounted) return false;
     if (!ok) {
       _snack(pro.live?.glyphError ?? false ? refusedGlyph : refused);
+      return false;
+    }
+    if (!keepFocus) _proFocus.unfocus();
+    _pdfText = '';
+    return true;
+  }
+
+  /// Uzun süren işlem (büyük taranmış sayfa vb.) sırasında geri/uygula
+  /// sessizce yutulmasın: kullanıcı donma sanmasın diye bilgi verilir.
+  void _proBusyHint() {
+    if (!mounted) return;
+    _snack(context.t('pse.busy_wait'));
+  }
+
+  /// Klavye açılıp kapanınca (gövde boyu değişmez, PS4) imleç satırı yeniden
+  /// klavyenin üstüne getirilir — klavye canlandırması bitince bir kez.
+  void _proWatchInset(double inset) {
+    if (inset == _proInsetSeen) return;
+    _proInsetSeen = inset;
+    _proInsetTimer?.cancel();
+    if (_pro?.live == null) {
+      // Klavye kapandı, yazma bitti: belge sonu payında kalan görünüm
+      // (sayfanın altındaki boşluk) sayfa sınırına geri çekilir.
+      if (inset == 0) {
+        _proInsetTimer = Timer(Motion.medium, () {
+          if (!mounted || !_pdfController.isReady) return;
+          try {
+            final c = _pdfController;
+            unawaited(c.goTo(
+                c.calcMatrixForClampedToNearestBoundary(c.value,
+                    viewSize: c.viewSize),
+                duration: Motion.short));
+          } catch (_) {
+            // Görüntüleyici kapanıyorsa sessizce atla.
+          }
+        });
+      }
       return;
     }
-    _proFocus.unfocus();
-    _pdfText = '';
+    _proInsetTimer = Timer(Motion.medium, () {
+      if (mounted) _proRevealCaret();
+    });
+  }
+
+  /// Yazarken klavye açıkken belgenin SONUNA eklenen kaydırma payı (belge
+  /// birimi): son sayfanın alt satırları da klavyenin üstüne kaydırılabilsin.
+  /// KÖK (2026-11-24, kullanıcı ekran görüntüsü): tek sayfalık belgede alt
+  /// paragraf klavyenin arkasında kalıyordu — görüntüleyici belge sonundan
+  /// öteye kaydırmıyordu.
+  EdgeInsets? _proKeyboardRoom(BuildContext context) {
+    if (_pro?.live == null) return null;
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    if (inset <= 0) return null;
+    final zoom = _pdfController.isReady && _pdfController.currentZoom > 0
+        ? _pdfController.currentZoom
+        : 1.0;
+    return EdgeInsets.only(
+        bottom: (inset + PdfEditTokens.formatBar + 96) / zoom);
   }
 
   /// Yazmayı bırakır (✕, Esc, geri tuşu).
@@ -110,13 +188,70 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   Future<void> _proLocked(int pageIndex, PdfTextBlock block) async {
     final pro = _pro;
     if (pro == null) return;
-    final pick = await showPdfLockedBlockSheet(context, lock: block.lock);
+    final pick = await showPdfLockedBlockSheet(context,
+        lock: block.lock,
+        ai: block.lock == PdfBlockLock.invisible && CloudOcr.available);
     if (pick == null || !mounted || _pro != pro) return;
     if (pick == 'line') {
       pro.mode = PdfBlockMode.line;
+    } else if (pick == 'replace' || pick == 'ai') {
+      await _proReplaceScanned(pageIndex, block, ai: pick == 'ai');
     } else {
       await _proTextBox(pageIndex, block.left, block.top + block.size * 0.4);
     }
+  }
+
+  /// Taranmış yazıyı değiştir: eski yazı kâğıt rengiyle örtülür, görünmez
+  /// tanıma metni silinir (tek geri alınabilir adım), tanınan (ya da [ai]
+  /// ile yapay zekânın okuduğu) metin aynı yerde düzenlenebilir kutuya gelir.
+  Future<void> _proReplaceScanned(int pageIndex, PdfTextBlock block,
+      {bool ai = false}) async {
+    final pro = _pro;
+    final doc = _pdfDoc;
+    if (pro == null || doc == null || pro.busy || pro.live != null) return;
+    if (pageIndex < 0 || pageIndex >= doc.pages.length) return;
+    final page = doc.pages[pageIndex];
+    final refused = context.t('pse.refused');
+    final aiFailed = context.t('pse.ocr_ai_failed');
+    String text = block.text.trim();
+    if (ai) {
+      _snack(context.t('pse.ocr_ai_reading'));
+      final read = await PdfScanBlock.aiRead(page, block);
+      if (!mounted || _pro != pro) return;
+      if (read == null) {
+        _snack(aiFailed);
+      } else {
+        text = read;
+      }
+    }
+    final paper = await PdfScanBlock.paperColor(page, block) ?? 0xFFFFFFFF;
+    if (!mounted || _pro != pro || pro.live != null) return;
+    final size = block.size.clamp(6.0, 48.0);
+    final pad = math.max(1.0, size * 0.2);
+    final base =
+        block.map.bases.isNotEmpty ? block.map.bases.first : block.top - size;
+    try {
+      await pro.mutate(pageIndex, [
+        PdfMutAction.delete(block.objectIndexes),
+        PdfMutAction.shape(PdfShapeKind.rect, block.left - pad,
+            block.bottom - pad, block.right + pad, block.top + pad,
+            stroke: paper, fill: paper, strokeWidth: 0.5),
+      ], label: 'pse.step_ocr_replace');
+    } catch (e) {
+      _proRefused(e);
+      return;
+    }
+    if (!mounted || _pro != pro) return;
+    final ok = await pro.beginTextBox(pageIndex, block.left, base,
+        width: math.max(40.0, block.right - block.left), size: size);
+    if (!mounted || _pro != pro) return;
+    if (!ok) {
+      _snack(refused);
+      return;
+    }
+    if (text.isNotEmpty) pro.liveInput(text, text.length, text.length);
+    _proFocus.requestFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _proRevealCaret());
   }
 
   Future<void> _proTextBox(int pageIndex, double x, double y) async {
@@ -329,9 +464,15 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     final doc = _pdfDoc;
     if (doc == null || page < 0 || page >= doc.pages.length) return;
     try {
-      // Görünen alanın üst-ortası (sayfa uzayı).
+      // Görünen alanın üst-ortası (ham sayfa uzayına dönüştürülür).
       final p = doc.pages[page];
-      await pro.pasteBlock(page, 56, p.height * 0.5, label: 'pse.step_paste');
+      final rawW = p.rotation.index.isOdd ? p.height : p.width;
+      final rawH = p.rotation.index.isOdd ? p.width : p.height;
+      final pt = Offset(56, p.height * 0.5)
+          .toPdfPoint(page: p, scaledPageSize: Size(p.width, p.height));
+      final x = pt.x.clamp(24.0, math.max(56.0, rawW - 96)).toDouble();
+      final y = pt.y.clamp(24.0, math.max(24.0, rawH - 24)).toDouble();
+      await pro.pasteBlock(page, x, y, label: 'pse.step_paste');
     } catch (e) {
       _proRefused(e);
     }
@@ -391,10 +532,12 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     if (replace != null) {
       m = replace.matrix;
     } else {
-      // Sayfanın ortasına, genişliğin en çok yarısı.
-      final w = math.min(p.width * 0.5, im.width.toDouble());
+      // Sayfanın ortasına, genişliğin en çok yarısı (ham sayfa boyutlarına göre).
+      final rawW = p.rotation.index.isOdd ? p.height : p.width;
+      final rawH = p.rotation.index.isOdd ? p.width : p.height;
+      final w = math.min(rawW * 0.5, im.width.toDouble());
       final h = w * im.height / im.width;
-      m = [w, 0, 0, h, (p.width - w) / 2, (p.height - h) / 2];
+      m = [w, 0, 0, h, (rawW - w) / 2, (rawH - h) / 2];
     }
     try {
       await pro.mutate(page, [
@@ -456,7 +599,39 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           _snack(saved.replaceAll('{name}', p.basename(target)));
         case 'crop':
           await _proCropImage(page, item);
+        case 'resize':
+          await _proResizeImage(page, item);
       }
+    } catch (e) {
+      _proRefused(e);
+    }
+  }
+
+  /// Seçili görseli veya şekli merkezden hassas ölçek kaydırıcısı / ön ayarlarla boyutlandırır.
+  Future<void> _proResizeImage(int page, PdfPageItem item) async {
+    final pro = _pro;
+    final doc = _pdfDoc;
+    if (pro == null || doc == null || page < 0 || page >= doc.pages.length) {
+      return;
+    }
+    final p = doc.pages[page];
+    final rawW = p.rotation.index.isOdd ? p.height : p.width;
+    final rawH = p.rotation.index.isOdd ? p.width : p.height;
+    final scale = await showPdfImageSizeSheet(
+      context,
+      item: item,
+      pageWidth: rawW,
+      pageHeight: rawH,
+    );
+    if (scale == null || (scale - 1).abs() < 0.01 || !mounted || _pro != pro) {
+      return;
+    }
+    final cx = (item.left + item.right) / 2;
+    final cy = (item.bottom + item.top) / 2;
+    final m = [scale, 0.0, 0.0, scale, cx - scale * cx, cy - scale * cy];
+    try {
+      await pro.mutate(page, [PdfMutAction.transform([item.index], m)],
+          label: 'pse.step_resize');
     } catch (e) {
       _proRefused(e);
     }
@@ -658,11 +833,18 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     final ink = pro.markup == PdfMarkupKind.ink ||
         (pro.markup.index >= PdfMarkupKind.rect.index &&
             pro.markup != PdfMarkupKind.marker);
-    final c = await showPdfColorSheet(context,
-        title: context.t('pse.fmt_color'),
-        colors: ink ? PdfProSwatches.text : PdfProSwatches.marker,
-        selected: pro.markupColor);
-    if (c != null && _pro == pro) pro.setMarkupColor(c);
+    await showPdfStrokeSheet(
+      context,
+      color: pro.markupColor,
+      width: pro.markupWidth,
+      colors: ink ? PdfProSwatches.text : PdfProSwatches.marker,
+      onColor: (c) {
+        if (_pro == pro) pro.setMarkupColor(c);
+      },
+      onWidth: (w) {
+        if (_pro == pro) pro.setMarkupWidth(w);
+      },
+    );
   }
 
   Future<void> _proComments() async {
@@ -733,7 +915,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         title: context.t(highlight ? 'pse.fmt_highlight' : 'pse.fmt_color'),
         colors: highlight ? PdfProSwatches.marker : PdfProSwatches.text);
     if (c == null || _pro != pro || pro.live == null) return;
-    pro.liveStyle((a, b) => highlight
+    pro.liveStyleBlock((a, b) => highlight
         ? PdfStyleSpan(a, b, highlight: c)
         : PdfStyleSpan(a, b, color: c | 0xFF000000));
     _proFocus.requestFocus();
@@ -752,116 +934,36 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     _proFocus.requestFocus();
   }
 
-  // ── AI (Faz 65) ──────────────────────────────────────────────────────────
-  /// Seçili paragrafı AI ile yerinde yeniden yazar: sonuç önce öneri olarak
-  /// gösterilir (eski ↔ yeni), kabul = tek geri alınabilir adım. Blok seçili
-  /// değilse belge geneli AI düzenlemeye yönlendirir.
-  Future<void> _proAi() async {
-    final pro = _pro;
-    if (pro == null || pro.busy) return;
-    final block = pro.selected;
-    final page = pro.selectedPage;
-    if (block == null || page == null || !block.editable) {
-      final whole = await showAppConfirm(context,
-          title: context.t('pse.tool_ai'),
-          message: context.t('pse.ai_pick_block'),
-          confirmLabel: context.t('pse.ai_whole'));
-      if (whole && mounted) await _aiEditPdf();
-      return;
-    }
-    final pick = await showAppActionSheet<PdfAiMode>(
-      context,
-      title: context.t('pse.tool_ai'),
-      groups: [
-        AppActionGroup(actions: [
-          AppAction(
-              value: PdfAiMode.rewrite,
-              icon: AppIcons.autoFixNormal,
-              label: context.t('pse.ai_rewrite')),
-          AppAction(
-              value: PdfAiMode.shorten,
-              icon: AppIcons.shortText,
-              label: context.t('pse.ai_shorten')),
-          AppAction(
-              value: PdfAiMode.formal,
-              icon: AppIcons.badge,
-              label: context.t('pse.ai_formal')),
-          AppAction(
-              value: PdfAiMode.grammar,
-              icon: AppIcons.spellcheck,
-              label: context.t('pse.ai_grammar')),
-          AppAction(
-              value: PdfAiMode.translate,
-              icon: AppIcons.translate,
-              label: context.t('pse.ai_translate')),
-        ]),
-      ],
-    );
-    if (pick == null || !mounted || _pro != pro) return;
-    String? language;
-    if (pick == PdfAiMode.translate) {
-      language = await showAppActionSheet<String>(
-        context,
-        title: context.t('pse.ai_translate'),
-        groups: [
-          AppActionGroup(actions: [
-            for (final l in const ['Türkçe', 'English', 'العربية', 'Deutsch', 'Français'])
-              AppAction(value: l, icon: AppIcons.translate, label: l),
-          ]),
-        ],
-      );
-      if (language == null || !mounted || _pro != pro) return;
-    }
-    if (!await ensureAiKey(context) || !mounted || _pro != pro) return;
-    final failed = context.t('pse.ai_failed');
-    final same = context.t('pse.ai_same');
-    final gemini = context.read<AppState>().gemini;
-    final original = block.text;
-    String? suggestion;
-    try {
-      _snack(context.t('pse.ai_working'));
-      suggestion =
-          await PdfAiRewrite.run(gemini, original, pick, language: language);
-    } catch (e) {
-      _snack(failed.replaceAll('{error}', userErrorText(e)));
-      return;
-    }
-    if (!mounted || _pro != pro) return;
-    if (suggestion == null || suggestion.trim() == original.trim()) {
-      _snack(same);
-      return;
-    }
-    final accept = await showPdfSuggestionSheet(context,
-        before: original, after: suggestion);
-    if (accept != true || !mounted || _pro != pro) return;
-    try {
-      await pro.replace(page, block, suggestion, label: 'pse.step_ai');
-      _pdfText = '';
-    } catch (e) {
-      _proRefused(e);
-    }
-  }
+  // Satır/blok AI yeniden yazımı kaldırıldı; yalnızca tarama AI OCR (_proLocked) kaldı.
 
   // ── çubuklar ─────────────────────────────────────────────────────────────
   /// Alt araç çubuğu (etkileşim §5): Metin · Görsel · İşaretle · İmza · Form ·
   /// Sayfalar · Daha fazla. Okuma kipindeki çubukla aynı yükseklikte — gövde
   /// payı değişmez.
   Widget _proToolBar(PdfProEditController pro) {
+    Future<void> commitThen(FutureOr<void> Function() fn) async {
+      if (pro.live != null) {
+        await _proDone();
+        if (pro.live != null || !mounted || _pro != pro) return;
+      }
+      await fn();
+    }
+
     DocAction tool(PdfProTool t, IconData icon, String key) => DocAction(
-        icon, context.t(key), pro.busy ? null : () => pro.tool = t,
+        icon,
+        context.t(key),
+        pro.busy ? null : () => unawaited(commitThen(() => pro.tool = t)),
         active: pro.tool == t);
     return DocActionBar([
       tool(PdfProTool.text, AppIcons.textFields, 'pse.tool_text'),
       tool(PdfProTool.image, AppIcons.image, 'pse.tool_image'),
       tool(PdfProTool.markup, AppIcons.highlighter, 'pse.tool_markup'),
       DocAction(AppIcons.draw, context.t('pse.tool_sign'),
-          pro.busy ? null : _signPdf),
+          pro.busy ? null : () => unawaited(commitThen(_signPdf))),
       DocAction(AppIcons.formView, context.t('pse.tool_form'),
-          pro.busy ? null : _fillPdfForm),
+          pro.busy ? null : () => unawaited(commitThen(_fillPdfForm))),
       DocAction(AppIcons.thumbnails, context.t('pse.tool_pages'),
-          pro.busy ? null : _proPages),
-      DocAction(AppIcons.moreHoriz, context.t('pse.tool_more'),
-          pro.busy ? null : _proMore),
+          pro.busy ? null : () => unawaited(commitThen(_proPages))),
     ]);
   }
 
@@ -918,30 +1020,31 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             ];
           }
           return [
-            // Sık kullanılanlar başta: yaz, sil, kopyala, boyut, renk.
-            act(AppIcons.edit, t('common.edit'), 'edit',
-                key: const ValueKey('pse-chip-edit')),
+            PdfProChip(AppIcons.edit, t('pse.edit_text'),
+                () => _proBlockAction('edit', page, block),
+                primary: true, tapKey: const ValueKey('pse-chip-edit')),
+            PdfProChip(
+              AppIcons.tune,
+              t('pse.style'),
+              () => unawaited(showPdfBlockStyleSheet(
+                context,
+                block: block,
+                hasStyleClip: pro.styleClip != null,
+                onAction: (a) => _proBlockAction(a, page, block),
+              )),
+              tapKey: const ValueKey('pse-chip-style'),
+            ),
+            act(AppIcons.formatColorText, t('pse.fmt_color'), 'color',
+                key: const ValueKey('pse-chip-color')),
+            act(AppIcons.copy, t('pse.copy'), 'copy',
+                key: const ValueKey('pse-chip-copy')),
+            act(AppIcons.copyAll, t('pse.duplicate'), 'dup',
+                key: const ValueKey('pse-chip-dup')),
             act(AppIcons.delete, t('common.delete'), 'del',
                 danger: true, key: const ValueKey('pse-chip-delete')),
-            act(AppIcons.copy, t('pse.copy'), 'copy'),
-            act(AppIcons.copyAll, t('pse.duplicate'), 'dup'),
-            act(AppIcons.textIncrease, t('pse.fmt_larger'), 'bigger'),
-            act(AppIcons.textDecrease, t('pse.fmt_smaller'), 'smaller'),
-            act(AppIcons.formatColorText, t('pse.fmt_color'), 'color'),
-            act(AppIcons.formatAlignLeft, t('pse.al_left'), 'left'),
-            act(AppIcons.formatAlignCenter, t('pse.al_center'), 'center'),
-            act(AppIcons.formatAlignRight, t('pse.al_right'), 'right'),
-            act(AppIcons.formatAlignJustify, t('pse.al_justify'), 'justify'),
-            act(AppIcons.formatListBulleted, t('pse.list_bullets'), 'bullets'),
-            act(AppIcons.formatListNumbered, t('pse.list_numbers'), 'numbers'),
-            act(AppIcons.link, t('pse.link'), 'link',
-                key: const ValueKey('pse-chip-link')),
-            act(AppIcons.formatPaint, t('pse.style_copy'), 'stylecopy'),
-            if (pro.styleClip != null)
-              act(AppIcons.style, t('pse.style_paste'), 'stylepaste'),
-            if (block.lines.length > 1)
-              act(AppIcons.split, t('pse.block_split'), 'split'),
-            act(AppIcons.join, t('pse.block_merge'), 'merge'),
+            PdfProChip(AppIcons.moreHoriz, t('pse.block_more'),
+                () => _proBlockMenu(page, block),
+                tapKey: const ValueKey('pse-chip-more')),
           ];
         }
         // Metin yok (taranmış sayfa): OCR ve metin kutusu önerilir (§9).
@@ -952,15 +1055,15 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             PdfProChip(AppIcons.ocr, t('pse.ocr_run'),
                 () => _runOcr(onlyPage: shown + 1),
                 tapKey: const ValueKey('pse-chip-ocr')),
-          PdfProChip(AppIcons.textFields, t('pse.textbox_add'),
+          PdfProChip(AppIcons.textFields, t('pse.add_text'),
               () => pro.armTextBox = !pro.armTextBox,
               active: pro.armTextBox,
               tapKey: const ValueKey('pse-chip-textbox')),
           PdfProChip(
               AppIcons.lines,
               t(pro.mode == PdfBlockMode.paragraph
-                  ? 'pse.mode_line'
-                  : 'pse.mode_paragraph'),
+                  ? 'pse.mode_label_para'
+                  : 'pse.mode_label_line'),
               () => pro.mode = pro.mode == PdfBlockMode.paragraph
                   ? PdfBlockMode.line
                   : PdfBlockMode.paragraph,
@@ -975,34 +1078,13 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         final item = pro.selectedItem;
         final group = pro.selectedItems;
         if (group.length >= 2) {
-          PdfProChip align(IconData i, String key, PdfAxisAlign mode,
-                  {required bool vertical}) =>
-              PdfProChip(i, t(key), () {
-                if (pro.busy) return;
-                pro
-                    .alignSelected(mode,
-                        vertical: vertical, label: 'pse.step_align')
-                    .catchError(_proRefused);
-              }, tapKey: ValueKey('pse-$key'));
           return [
-            align(AppIcons.alignHorizontalLeft, 'pse.obj_align_left',
-                PdfAxisAlign.start, vertical: false),
-            align(AppIcons.alignHorizontalCenter, 'pse.obj_align_hcenter',
-                PdfAxisAlign.center, vertical: false),
-            align(AppIcons.alignHorizontalRight, 'pse.obj_align_right',
-                PdfAxisAlign.end, vertical: false),
-            align(AppIcons.alignVerticalTop, 'pse.obj_align_top',
-                PdfAxisAlign.end, vertical: true),
-            align(AppIcons.alignVerticalCenter, 'pse.obj_align_vcenter',
-                PdfAxisAlign.center, vertical: true),
-            align(AppIcons.alignVerticalBottom, 'pse.obj_align_bottom',
-                PdfAxisAlign.start, vertical: true),
-            if (group.length >= 3) ...[
-              align(AppIcons.horizontalDistribute, 'pse.obj_distribute_h',
-                  PdfAxisAlign.distribute, vertical: false),
-              align(AppIcons.verticalDistribute, 'pse.obj_distribute_v',
-                  PdfAxisAlign.distribute, vertical: true),
-            ],
+            PdfProChip(
+              AppIcons.alignHorizontalLeft,
+              t('pse.align_group'),
+              () => unawaited(_proPickGroupAlign(pro, group.length)),
+              tapKey: const ValueKey('pse-chip-align-group'),
+            ),
             PdfProChip(AppIcons.delete, t('common.delete'), () {
               final page = pro.selectedPage;
               if (page == null || pro.busy) return;
@@ -1018,20 +1100,39 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           return [
             if (item.isImage) ...[
               PdfProChip(AppIcons.image, t('pse.img_replace'),
-                  () => _proItemAction('replace')),
+                  () => _proItemAction('replace'),
+                  primary: true, tapKey: const ValueKey('pse-chip-replace')),
+              PdfProChip(AppIcons.sizeScale, t('pse.resize'),
+                  () => _proItemAction('resize'),
+                  tapKey: const ValueKey('pse-chip-resize')),
               PdfProChip(
                   AppIcons.crop, t('pse.img_crop'), () => _proItemAction('crop')),
+              PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
+                  () => _proItemAction('rotate')),
+              PdfProChip(
+                AppIcons.flipToFront,
+                t('pse.order'),
+                () => unawaited(_proPickItemOrder()),
+                tapKey: const ValueKey('pse-chip-order'),
+              ),
               PdfProChip(AppIcons.download, t('pse.img_export'),
                   () => _proItemAction('export')),
-            ] else
+            ] else ...[
               PdfProChip(AppIcons.palette, t('pse.fmt_color'),
-                  () => _proItemAction('color')),
-            PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
-                () => _proItemAction('rotate')),
-            PdfProChip(AppIcons.flipToFront, t('pse.img_front'),
-                () => _proItemAction('front')),
-            PdfProChip(AppIcons.flipToBack, t('pse.img_back'),
-                () => _proItemAction('back')),
+                  () => _proItemAction('color'),
+                  primary: true),
+              PdfProChip(AppIcons.sizeScale, t('pse.resize'),
+                  () => _proItemAction('resize'),
+                  tapKey: const ValueKey('pse-chip-resize')),
+              PdfProChip(AppIcons.rotateRight, t('pse.img_rotate'),
+                  () => _proItemAction('rotate')),
+              PdfProChip(
+                AppIcons.flipToFront,
+                t('pse.order'),
+                () => unawaited(_proPickItemOrder()),
+                tapKey: const ValueKey('pse-chip-order'),
+              ),
+            ],
             PdfProChip(AppIcons.delete, t('common.delete'),
                 () => _proItemAction('delete'),
                 danger: true),
@@ -1039,7 +1140,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         }
         return [
           PdfProChip(AppIcons.addPhoto, t('pse.img_add'), _proInsertImage,
-              tapKey: const ValueKey('pse-chip-image')),
+              primary: true, tapKey: const ValueKey('pse-chip-image')),
           PdfProChip(AppIcons.lasso, t('pse.obj_lasso'),
               () => pro.armLasso = !pro.armLasso,
               active: pro.armLasso, tapKey: const ValueKey('pse-chip-lasso')),
@@ -1048,31 +1149,58 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         PdfProChip kind(PdfMarkupKind k, IconData i, String key) =>
             PdfProChip(i, t(key), () => pro.markup = k,
                 active: pro.markup == k, tapKey: ValueKey('pse-mk-${k.name}'));
+        const shapes = <(PdfMarkupKind, IconData, String)>[
+          (PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),
+          (PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
+          (PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
+          (PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
+          (PdfMarkupKind.cloud, AppIcons.cloud, 'pse.mk_cloud'),
+        ];
+        const textLines = <(PdfMarkupKind, IconData, String)>[
+          (PdfMarkupKind.underline, AppIcons.formatUnderlined, 'pse.mk_underline'),
+          (PdfMarkupKind.strikeout, AppIcons.strikethroughS, 'pse.mk_strikeout'),
+          (PdfMarkupKind.squiggly, AppIcons.gesture, 'pse.mk_squiggly'),
+        ];
+        final activeShape = shapes.where((e) => e.$1 == pro.markup).firstOrNull;
+        final activeLine =
+            textLines.where((e) => e.$1 == pro.markup).firstOrNull;
         return [
+          PdfProChip(
+            AppIcons.lineWeight,
+            t('pse.stroke_title'),
+            _proMarkupColor,
+            swatch: Color(pro.markupColor | 0xFF000000),
+            tapKey: const ValueKey('pse-chip-stroke'),
+          ),
           kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
-          kind(PdfMarkupKind.underline, AppIcons.formatUnderlined,
-              'pse.mk_underline'),
-          kind(PdfMarkupKind.strikeout, AppIcons.strikethroughS,
-              'pse.mk_strikeout'),
-          kind(PdfMarkupKind.squiggly, AppIcons.gesture, 'pse.mk_squiggly'),
+          kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
+          kind(PdfMarkupKind.marker, AppIcons.brush, 'pse.mk_marker'),
+          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
+          PdfProChip(
+            activeShape?.$2 ?? AppIcons.rectTool,
+            t(activeShape?.$3 ?? 'pse.shapes'),
+            () => unawaited(_proPickMarkupKind(pro, 'pse.shapes', shapes)),
+            active: activeShape != null,
+            tapKey: const ValueKey('pse-chip-shapes'),
+          ),
+          PdfProChip(
+            activeLine?.$2 ?? AppIcons.formatUnderlined,
+            t(activeLine?.$3 ?? 'pse.text_lines'),
+            () => unawaited(
+                _proPickMarkupKind(pro, 'pse.text_lines', textLines)),
+            active: activeLine != null,
+            tapKey: const ValueKey('pse-chip-lines'),
+          ),
           kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
           kind(PdfMarkupKind.freeText, AppIcons.textFields, 'pse.mk_freetext'),
           kind(PdfMarkupKind.stamp, AppIcons.stamp, 'pse.mk_stamp'),
-          kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
-          kind(PdfMarkupKind.marker, AppIcons.brush, 'pse.mk_marker'),
-          kind(PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),
-          kind(PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
-          kind(PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
-          kind(PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
-          kind(PdfMarkupKind.cloud, AppIcons.cloud, 'pse.mk_cloud'),
-          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
           kind(PdfMarkupKind.redact, AppIcons.pdfRedact, 'pse.mk_redact'),
           PdfProChip(AppIcons.shield, t('pse.kvkk_title'), _proSensitive,
               tapKey: const ValueKey('pse-chip-kvkk')),
-          PdfProChip(AppIcons.palette, t('pse.fmt_color'), _proMarkupColor),
           PdfProChip(AppIcons.comment, t('pse.comments'), _proComments,
               tapKey: const ValueKey('pse-chip-comments')),
-          PdfProChip(AppIcons.pdfFlatten, t('pse.flatten'), _proFlatten),
+          PdfProChip(AppIcons.pdfFlatten, t('pse.flatten'), _proFlatten,
+              tapKey: const ValueKey('pse-chip-flatten')),
         ];
       default:
         return const [];
@@ -1112,6 +1240,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   List<Widget> _proOverlays(PdfProEditController pro) {
     final live = pro.live;
     final inset = MediaQuery.viewInsetsOf(context).bottom;
+    _proWatchInset(inset);
     if (live != null) {
       final bar = PdfProFormatBar(
         controller: pro,
@@ -1139,17 +1268,261 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         if (inset > 0)
           PositionedDirectional(start: 0, end: 0, bottom: inset, child: bar)
         else
-          ReadingFloat(gap: 0, child: bar),
+          ReadingFloat(gap: 0, child: ToastAvoider(child: bar)),
       ];
     }
     final chips = _proChips(pro);
+    final guide = _proGuideBanner(pro);
     return [
+      ?guide,
       if (chips.isNotEmpty)
         ReadingFloat(
           gap: 0,
-          child: PdfProContextBar(
-              chips: chips, label: context.t('pse.context_bar')),
+          child: ToastAvoider(
+            child: PdfProContextBar(
+                chips: chips, label: context.t('pse.context_bar')),
+          ),
         ),
     ];
+  }
+
+  /// Blok menüsünden veya çoklu seçimden açılan yardımcı levhalar + aktif mod
+  /// rehber şeridi.
+  Future<void> _proPickGroupAlign(
+      PdfProEditController pro, int count) async {
+    final choices = <(PdfAxisAlign, bool, IconData, String)>[
+      (PdfAxisAlign.start, false, AppIcons.alignHorizontalLeft,
+          'pse.obj_align_left'),
+      (PdfAxisAlign.center, false, AppIcons.alignHorizontalCenter,
+          'pse.obj_align_hcenter'),
+      (PdfAxisAlign.end, false, AppIcons.alignHorizontalRight,
+          'pse.obj_align_right'),
+      (PdfAxisAlign.end, true, AppIcons.alignVerticalTop, 'pse.obj_align_top'),
+      (PdfAxisAlign.center, true, AppIcons.alignVerticalCenter,
+          'pse.obj_align_vcenter'),
+      (PdfAxisAlign.start, true, AppIcons.alignVerticalBottom,
+          'pse.obj_align_bottom'),
+      if (count >= 3) ...[
+        (PdfAxisAlign.distribute, false, AppIcons.horizontalDistribute,
+            'pse.obj_distribute_h'),
+        (PdfAxisAlign.distribute, true, AppIcons.verticalDistribute,
+            'pse.obj_distribute_v'),
+      ],
+    ];
+    final pick = await showAppActionSheet<int>(
+      context,
+      title: context.t('pse.align_group'),
+      groups: [
+        AppActionGroup(actions: [
+          for (var i = 0; i < choices.length; i++)
+            AppAction(
+                value: i,
+                icon: choices[i].$3,
+                label: context.t(choices[i].$4)),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted || _pro != pro || pro.busy) return;
+    final (_, vertical, _, _) = choices[pick];
+    final mode = choices[pick].$1;
+    await pro
+        .alignSelected(mode, vertical: vertical, label: 'pse.step_align')
+        .catchError(_proRefused);
+  }
+
+  Future<void> _proPickItemOrder() async {
+    final pick = await showAppActionSheet<String>(
+      context,
+      title: context.t('pse.order'),
+      groups: [
+        AppActionGroup(actions: [
+          AppAction(
+              value: 'front',
+              icon: AppIcons.flipToFront,
+              label: context.t('pse.img_front')),
+          AppAction(
+              value: 'back',
+              icon: AppIcons.flipToBack,
+              label: context.t('pse.img_back')),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted) return;
+    await _proItemAction(pick);
+  }
+
+  Future<void> _proPickMarkupKind(
+    PdfProEditController pro,
+    String titleKey,
+    List<(PdfMarkupKind, IconData, String)> options,
+  ) async {
+    final pick = await showAppActionSheet<PdfMarkupKind>(
+      context,
+      title: context.t(titleKey),
+      groups: [
+        AppActionGroup(actions: [
+          for (final (k, ic, labelKey) in options)
+            AppAction(value: k, icon: ic, label: context.t(labelKey)),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted || _pro != pro) return;
+    pro.markup = pick;
+  }
+
+  /// Geçerli sayfadaki seçilebilir görsel/şekil sayısı (keşif çubuğu için).
+  int? _proSelectableCount(PdfProEditController pro) {
+    final page = (_livePdfPage() ?? _pdfPage) - 1;
+    final content = pro.contentOf(page);
+    final doc = _pdfDoc;
+    if (content == null || doc == null || page < 0 || page >= doc.pages.length) {
+      return null;
+    }
+    final p = doc.pages[page];
+    final pageW = p.width, pageH = p.height;
+    return content.items
+        .where((it) =>
+            !it.mark.startsWith('DO') &&
+            !(it.isPath &&
+                it.width > pageW * 0.95 &&
+                it.height > pageH * 0.95))
+        .length;
+  }
+
+  Widget? _proGuideBanner(PdfProEditController pro) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    String? text;
+    String? badge;
+    Color dotColor = scheme.primary;
+    VoidCallback? close;
+    if (pro.armTextBox) {
+      text = context.t('pse.textbox_guide');
+      close = () => pro.armTextBox = false;
+    } else if (pro.armLasso) {
+      text = context.t('pse.lasso_guide');
+      close = () => pro.armLasso = false;
+    } else if (pro.drawing) {
+      final toolName = context.t(switch (pro.markup) {
+        PdfMarkupKind.highlight => 'pse.mk_highlight',
+        PdfMarkupKind.underline => 'pse.mk_underline',
+        PdfMarkupKind.strikeout => 'pse.mk_strikeout',
+        PdfMarkupKind.squiggly => 'pse.mk_squiggly',
+        PdfMarkupKind.ink => 'pse.mk_ink',
+        PdfMarkupKind.rect => 'pse.mk_rect',
+        PdfMarkupKind.ellipse => 'pse.mk_ellipse',
+        PdfMarkupKind.line => 'pse.mk_line',
+        PdfMarkupKind.arrow => 'pse.mk_arrow',
+        PdfMarkupKind.redact => 'pse.mk_redact',
+        _ => 'pse.tool_markup',
+      });
+      text = context.t('pse.draw_guide', {'tool': toolName});
+      close = pro.clearMarkup;
+    } else if (pro.tool == PdfProTool.image &&
+        pro.selectedItem == null &&
+        pro.selectedItems.isEmpty) {
+      final n = _proSelectableCount(pro);
+      dotColor = PdfEditTokens.imageAccent(dark);
+      if (n == 0) {
+        text = context.t('pse.obj_none_hint');
+      } else if (n != null && n > 0) {
+        badge = context.t('pse.obj_count', {'n': n});
+        text = context.t('pse.obj_guide');
+      }
+    } else if (pro.tool == PdfProTool.text && pro.selected != null) {
+      text = context.t('pse.text_guide_rich');
+    }
+    if (text == null) return null;
+    return PositionedDirectional(
+      start: Gap.md,
+      end: Gap.md,
+      top: ReadingChrome.insetsOf(context).top + Gap.sm,
+      child: Center(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: scheme.surfaceContainerLowest.withValues(alpha: 0.96),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: dotColor.withValues(alpha: 0.42),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                12,
+                close == null ? 7 : 4,
+                close == null ? 14 : 4,
+                close == null ? 7 : 4,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (badge != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: ShapeDecoration(
+                        color: dotColor.withValues(alpha: dark ? 0.25 : 0.14),
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Text(
+                        badge,
+                        style: context.type.micro.copyWith(
+                          color: dotColor,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                  ],
+                  Flexible(
+                    child: Text(
+                      text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.type.small.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (close != null) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      key: const ValueKey('pse-guide-close'),
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      color: scheme.onSurfaceVariant,
+                      tooltip: context.t('common.close'),
+                      onPressed: close,
+                      icon: const Icon(AppIcons.close),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

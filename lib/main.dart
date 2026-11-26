@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/memory_pressure.dart';
 import 'core/route_guard.dart';
 import 'core/third_party_licenses.dart';
 import 'core/app_navigator.dart';
@@ -15,6 +16,11 @@ import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
 import 'core/device_profile.dart';
 import 'core/startup_queue.dart';
+import 'services/fm/installed_apps_service.dart';
+import 'services/fm/thumbnail_cache.dart';
+import 'services/pdf/pdf_pending_objects.dart';
+import 'services/pdf/pro/pdf_fallback_fonts.dart';
+import 'widgets/sheet_cell.dart';
 import 'widgets/permission_gate.dart';
 import 'core/state/appearance_state.dart';
 import 'core/state/focused_states.dart';
@@ -41,7 +47,6 @@ import 'services/app_update.dart';
 import 'services/cloud_ocr.dart';
 import 'services/fm/smart_sort.dart';
 import 'services/play_store.dart';
-import 'services/fm/ai_auto.dart';
 import 'services/fm/ai_index.dart';
 import 'models/fm_filter.dart';
 import 'services/fm/fm_colors_store.dart';
@@ -72,6 +77,7 @@ import 'screens/fm/media_player_screen.dart';
 import 'services/fm/remote/ftp_service.dart';
 import 'services/fm/remote/transfer_keeper.dart';
 import 'services/fm/open_history.dart';
+import 'services/fm/activity_log.dart';
 import 'services/fm/path_side_index.dart';
 import 'services/crash_log.dart';
 import 'services/ai_pool.dart';
@@ -120,6 +126,16 @@ Future<void> _main() async {
   // orta profil; cihaz bilgisi okununca [_applyPerfBudget] günceller.
   _applyPerfBudget();
   DeviceProfile.tier.addListener(_applyPerfBudget);
+  MemoryPressure.register((critical) {
+    InstalledAppsService.trimMemory(keepSummary: !critical);
+    ThumbnailCache.trimMemory(critical: critical);
+    SheetCell.clearReadableCache();
+    PdfFallbackFonts.clear();
+    PdfPendingWriter.clearFontCache();
+    if (critical) {
+      PaintingBinding.instance.imageCache.clearLiveImages();
+    }
+  });
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -134,14 +150,12 @@ Future<void> _main() async {
   // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
   FmFilter.aliasOf = (path) {
     if (!SmartSort.isLoaded) unawaited(SmartSort.ensureLoaded());
-    if (!AiIndex.isLoaded) {
-      unawaited(AiIndex.ensureLoaded());
-      return '';
-    }
-    // Aramada akıllı düzenin üç dildeki adları da bulunur ("invoice",
-    // "fatura", "فاتورة" aynı dosyayı bulur).
-    final smart = SmartSort.keywordsOf(path);
-    final alias = AiIndex.aliasOf(path);
+    if (!AiIndex.isLoaded) unawaited(AiIndex.ensureLoaded());
+    // Aramada akıllı düzenin ikinci adı ve üç dildeki adları da bulunur
+    // ("invoice", "fatura", "فاتورة" aynı dosyayı bulur).
+    final alias = AiIndex.isLoaded ? AiIndex.aliasOf(path) : SmartSort.aliasOf(path);
+    final smart = SmartSort.isLoaded ? SmartSort.keywordsOf(path) : '';
+    if (alias.isEmpty) return smart;
     return smart.isEmpty ? alias : '$alias $smart';
   };
   // Akıllı düzen (2026-11-18): ikinci ad yedeği + AI kategori süzgeci.
@@ -252,6 +266,7 @@ Future<void> _main() async {
     await OpenHistory.movePath(from, to);
     await FmColorsStore.moveFolder(from, to); // Faz 41 / 6
     await SmartSort.movePath(from, to); // B2 dilim 2: kategori taşınır
+    await ActivityLog.movePath(from, to);
   });
   // İş listesi artık diske yazılıyor (kullanıcı hatası 2026-07-31: "uygulamayı
   // alta alıp geri aldığımda diğer tüm işlemler kayboluyor"). Kanca hemen
@@ -287,13 +302,6 @@ Future<void> _main() async {
   SftpHostKeys.prompt = _confirmHostKey;
   // G8.4: SMB1 (eski protokol) yalnız açık onayla.
   SmbLegacy.prompt = _confirmSmb1;
-  StartupQueue.instance.add(
-    'ai-auto',
-    () async => AiAutoAnalyze.install(
-      scope: () => appState.aiScopeRules,
-      credentials: () => appState.aiCredentials,
-    ),
-  );
   // GitHub'dan oto güncelleme (2026-11-09): indirilmiş sürüm varsa kurar,
   // yoksa denetler/indirir ve "Şimdi güncelle" önerir.
   StartupQueue.instance.add(
@@ -623,9 +631,36 @@ class DosyaOkuyucuApp extends StatefulWidget {
 /// `build` içinde yaratmak onu her seferinde SIFIRDAN yaratmak, yani rota
 /// sayacını sıfırlamak demekti (sonra gelen ilk `pop` sayacı eksiye düşürüp
 /// kurtarmayı boş yere tetiklerdi). Tek örnek burada, `State`te yaşıyor.
-class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
+class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp>
+    with WidgetsBindingObserver {
   late final _stackGuard = NavigatorStackGuard((_) =>
       widget.picker ? const PickFileScreen() : const HomeScreen());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.hidden) {
+      MemoryPressure.dispatch(critical: false);
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    super.didHaveMemoryPressure();
+    MemoryPressure.dispatch(critical: true);
+  }
 
   @override
   Widget build(BuildContext context) {

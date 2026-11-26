@@ -52,7 +52,7 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
     DocMoreSheet.show(
       context,
       [
-        DocMoreGroup(context.t('ea.sec_this'), [
+        DocMoreGroup(context.t('more.folder'), [
           DocMoreItem(
             appState.fmShowHidden ? AppIcons.hiddenOff : AppIcons.hidden,
             context.t('fm.show_hidden'),
@@ -182,12 +182,43 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
     );
   }
 
-  /// Geniş ekranın sol bölmesi: birimler + favori klasörler.
+  /// Geniş ekranın sol bölmesi: birimler + hızlı klasörler + favori klasörler.
   Widget _sidePane(BuildContext context, AppState appState) {
     final scheme = Theme.of(context).colorScheme;
     final here = p.normalize(widget.path);
+    final root = FmEnv.primaryRoot;
+    final quick = root.isEmpty
+        ? const <({String label, String path, String icon})>[]
+        : StorageStats.standardFolders(root);
+    final candidates = <String>[
+      for (final v in FmEnv.volumes) v.path,
+      for (final f in quick) f.path,
+      for (final b in appState.bookmarks) b,
+    ];
+    String? bestMatch;
+    var bestLen = -1;
+    for (final c in candidates) {
+      if (FsPaths.isInside(c, here)) {
+        final len = p.normalize(c).length;
+        if (len > bestLen) {
+          bestLen = len;
+          bestMatch = p.normalize(c);
+        }
+      }
+    }
+
+    IconData quickIcon(String folderPath) =>
+        switch (p.basename(folderPath).toLowerCase()) {
+          'download' || 'downloads' => AppIcons.download,
+          'dcim' || 'pictures' => AppIcons.image,
+          'music' => AppIcons.audio,
+          'movies' => AppIcons.video,
+          'documents' => AppIcons.kindWord,
+          _ => AppIcons.folder,
+        };
+
     Widget tile(IconData icon, String label, String path) {
-      final active = FsPaths.isInside(path, here);
+      final active = bestMatch != null && p.normalize(path) == bestMatch;
       return ListTile(
         dense: true,
         leading: Icon(icon, size: AppIcons.medium),
@@ -213,6 +244,10 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
             v.displayLabel(context.t),
             v.path,
           ),
+        if (quick.isNotEmpty) ...[
+          _paneHeader(context, context.t('fm.quick_folders')),
+          for (final f in quick) tile(quickIcon(f.path), f.label, f.path),
+        ],
         if (appState.bookmarks.isNotEmpty) ...[
           _paneHeader(context, context.t('pane.favorites')),
           for (final b in appState.bookmarks)
@@ -257,10 +292,11 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
       onMore: (e) async {
         if (await showEntryActions(context, e)) _load();
       },
-      // Tarih solda, boyut sağda (Ferrari H4.1).
-      subtitle: (e) =>
-          e.isDir ? _folderSubtitle(e) : FsPaths.humanDate(e.modifiedMs),
-      subtitleEnd: (e) => e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
+      // Tarih kesinlikle görünür, boyut sağda sabitlenir.
+      subtitle: (_) => '',
+      dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+      subtitleEnd: (e) =>
+          e.isDir ? _folderSizeEnd(e) : FsPaths.humanSize(e.sizeBytes),
       empty: _entries.isEmpty
           ? FmEmptyState(
               icon: AppIcons.emptyFolder,
@@ -289,43 +325,38 @@ extension _BrowserScreenViewsPart on _BrowserScreenState {
           title: Text(text),
           onTap: onTap,
         );
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              item(AppIcons.newFolder, context.t('fm.new_folder'), () {
-                Navigator.pop(ctx);
-                _newFolder();
-              }),
-              item(AppIcons.newWord, context.t('fm.new_word_doc'), () {
-                Navigator.pop(ctx);
-                _newDocument('docx');
-              }),
-              item(AppIcons.newSheet, context.t('fm.new_xlsx'), () {
-                Navigator.pop(ctx);
-                _newDocument('xlsx');
-              }),
-              item(AppIcons.newText, context.t('fm.new_text_file'), () {
-                Navigator.pop(ctx);
-                _newDocument('txt');
-              }),
-              const Divider(),
-              item(AppIcons.scanHere, context.t('create.scan'), () {
-                Navigator.pop(ctx);
-                _scanHere();
-              }),
-              item(AppIcons.importHere, context.t('create.import'), () {
-                Navigator.pop(ctx);
-                _importHere();
-              }),
-              const SizedBox(height: Gap.sm),
-            ],
-          ),
-        ),
+    showAppSheet<void>(
+      context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          item(AppIcons.newFolder, context.t('fm.new_folder'), () {
+            Navigator.pop(ctx);
+            _newFolder();
+          }),
+          item(AppIcons.newWord, context.t('fm.new_word_doc'), () {
+            Navigator.pop(ctx);
+            _newDocument('docx');
+          }),
+          item(AppIcons.newSheet, context.t('fm.new_xlsx'), () {
+            Navigator.pop(ctx);
+            _newDocument('xlsx');
+          }),
+          item(AppIcons.newText, context.t('fm.new_text_file'), () {
+            Navigator.pop(ctx);
+            _newDocument('txt');
+          }),
+          const Divider(),
+          item(AppIcons.scanHere, context.t('create.scan'), () {
+            Navigator.pop(ctx);
+            _scanHere();
+          }),
+          item(AppIcons.importHere, context.t('create.import'), () {
+            Navigator.pop(ctx);
+            _importHere();
+          }),
+          const SizedBox(height: Gap.sm),
+        ],
       ),
     );
   }

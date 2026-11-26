@@ -1,13 +1,17 @@
 part of '../slides_editor_screen.dart';
 
 extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
-  /// "Slayt 3 / 12" rozeti — dokununca [_showGoToSlide].
+  /// "Slayt 3 / 12" rozeti — dokununca [_showGoToSlide]. Yalnız [_currentSlideN]
+  /// dinler, kaydırırken tüm ekranı yeniden kurmaz.
   Widget _slideBadge(int total) {
-    return DocPill(
-      tapKey: SlidesEditorScreen.badgeKey,
-      text: context.t('sl.slide_of', {'n': _currentSlide, 'total': total}),
-      icon: AppIcons.unfoldMore,
-      onTap: _showGoToSlide,
+    return ValueListenableBuilder<int>(
+      valueListenable: _currentSlideN,
+      builder: (_, current, _) => DocPill(
+        tapKey: SlidesEditorScreen.badgeKey,
+        text: context.t('sl.slide_of', {'n': current, 'total': total}),
+        icon: AppIcons.unfoldMore,
+        onTap: _showGoToSlide,
+      ),
     );
   }
 
@@ -132,9 +136,12 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
   }
 
   Widget _slideCard(PptxSlide slide, int i, double baseW) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     final view = slide.view;
     final hidden = _editor?.isHidden(slide) ?? false;
+    final cardRadius = BorderRadius.circular(10 * _zoom);
     return Padding(
       // Slaytlar arası boşluk da zoom ile ölçeklenir → dikey yerleşim doğrusal
       // kalır, commit'te zıplama olmaz (bkz. _buildSlides).
@@ -155,18 +162,33 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                 width: baseW,
                 height: 40,
                 child: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 4, bottom: 2),
+                  padding: const EdgeInsetsDirectional.only(start: 2, bottom: 4),
                   child: Row(
                     children: [
                       // Toplam da yazılır (2026-08-01 kullanıcı isteği):
                       // tek slayda bakarken destenin kaç slayt olduğu
                       // görünmüyordu.
-                      Text(
-                        context.t('sl.slide_of', {
-                          'n': slide.index,
-                          'total': _editor?.slides.length ?? 0,
-                        }),
-                        style: Theme.of(context).textTheme.labelMedium,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(alpha: 0.65),
+                          borderRadius: BorderRadius.circular(Radii.pill),
+                          border: Border.all(
+                            color: scheme.primary.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Text(
+                          context.t('sl.slide_of', {
+                            'n': slide.index,
+                            'total': _editor?.slides.length ?? 0,
+                          }),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: scheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
                       ),
                       if (hidden) ...[
                         const SizedBox(width: 8),
@@ -175,25 +197,24 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                           child: Container(
                             key: ValueKey('hidden-badge-${slide.fileName}'),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 1),
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
                               color: scheme.secondaryContainer,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(Radii.pill),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(AppIcons.hiddenOff,
-                                    size: 14,
+                                    size: 13,
                                     color: scheme.onSecondaryContainer),
                                 const SizedBox(width: 4),
                                 Text(
                                   context.t('sl.hidden'),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                          color: scheme.onSecondaryContainer),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: scheme.onSecondaryContainer,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ],
                             ),
@@ -204,7 +225,8 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                       IconButton(
                         tooltip: context.t('sl.fullscreen'),
                         visualDensity: VisualDensity.compact,
-                        icon: const Icon(AppIcons.fullscreen, size: 20),
+                        style: EditorTopBar.iconStyle(context),
+                        icon: const Icon(AppIcons.fullscreen, size: 18),
                         onPressed: () => _play(i),
                       ),
                       _slideMenu(slide),
@@ -219,22 +241,27 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
           AspectRatio(
             aspectRatio: view == null ? 16 / 9 : view.widthPt / view.heightPt,
             child: Container(
-              clipBehavior: Clip.hardEdge,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: scheme.surface,
-                border: Border.all(color: scheme.outlineVariant),
+                borderRadius: cardRadius,
+                border: Border.all(
+                  color: scheme.outlineVariant.withValues(alpha: 0.7),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.shade.withValues(alpha: 0.10),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: AppColors.studioShadow(dark),
+                    blurRadius: 14 * _zoom,
+                    offset: Offset(0, 4 * _zoom),
                   ),
                 ],
               ),
               // Gizli slayt PowerPoint'teki gibi soluk çizilir.
               foregroundDecoration: hidden
                   ? BoxDecoration(
-                      color: scheme.surface.withValues(alpha: 0.45))
+                      color: scheme.surface.withValues(alpha: 0.45),
+                      borderRadius: cardRadius,
+                    )
                   : null,
               child: view == null
                   ? _fallbackText(slide)
@@ -320,36 +347,56 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
         child: SizedBox(
           width: baseW,
           height: height,
-          child: InkWell(
-            key: ValueKey('notes-strip-${slide.fileName}'),
-            // Dokunuş notun TAMAMINI okunur bir levhada açar (bkz. _showNotes).
-            onTap: () => _showNotes(slide),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                border: BorderDirectional(
-                  start: BorderSide(color: scheme.primary, width: 3),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(AppIcons.notes, size: 16, color: scheme.primary),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      text,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: scheme.onSurface, height: 1.3),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Material(
+              color: scheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: InkWell(
+                key: ValueKey('notes-strip-${slide.fileName}'),
+                borderRadius: BorderRadius.circular(Radii.control),
+                // Dokunuş notun TAMAMINI okunur bir levhada açar (bkz. _showNotes).
+                onTap: () => _showNotes(slide),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.55),
                     ),
                   ),
-                  Icon(AppIcons.openFull, size: 18, color: scheme.onSurfaceVariant),
-                ],
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(Radii.sm),
+                        ),
+                        child: Icon(AppIcons.notes,
+                            size: 16, color: scheme.primary),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: scheme.onSurface, height: 1.3),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(AppIcons.openFull,
+                          size: 16, color: scheme.onSurfaceVariant),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -365,7 +412,8 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
     final hidden = editor?.isHidden(slide) ?? false;
     return PopupMenuButton<String>(
       tooltip: context.t('sl.actions'),
-      icon: const Icon(AppIcons.more, size: 20),
+      icon: const Icon(AppIcons.more, size: 18),
+      style: EditorTopBar.iconStyle(context),
       onSelected: (v) => _onSlideAction(slide, v),
       itemBuilder: (_) => [
         PopupMenuItem(

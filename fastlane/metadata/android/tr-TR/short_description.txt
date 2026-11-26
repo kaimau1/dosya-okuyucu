@@ -1,1 +1,1 @@
-Reklamsız PDF ve Office okuyucu. İzin istemeden açılır, dosyan telefonda kalır.
+Reklamsız PDF, Office okuyucu ve dosya yöneticisi. Dosyalar cihazınızda kalır.

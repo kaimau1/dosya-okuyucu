@@ -24,12 +24,15 @@ MARK = '<!-- play_variant -->'
 # PACKAGE_USAGE_STATS BİLEREK yok: çıkarılırsa APK kurma / "son açılma" özellikleri Play
 # derlemesinde ayrıca gizlenmeli (dart-define bayrağı henüz yok) -> KALANLAR "G1 artığı".
 # ACCESS_FINE_LOCATION zaten maxSdkVersion=32, NEARBY_WIFI_DEVICES neverForLocation (manifest).
-DEFAULT_REMOVE = ('QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,'
+DEFAULT_REMOVE = ('QUERY_ALL_PACKAGES,REQUEST_INSTALL_PACKAGES,'
+                  'REQUEST_DELETE_PACKAGES,PACKAGE_USAGE_STATS,'
+                  'SYSTEM_ALERT_WINDOW,RECEIVE_BOOT_COMPLETED,RECORD_AUDIO,'
+                  'READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,'
                   'READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED')
 
 
 def removals():
-    raw = os.environ.get('DOSYA_PLAY_REMOVE', DEFAULT_REMOVE)
+    raw = (os.environ.get('DOSYA_PLAY_REMOVE') or '').strip() or DEFAULT_REMOVE
     names = [n.strip() for n in raw.split(',') if n.strip()]
     for n in names:
         if not re.fullmatch(r'[A-Z_]+', n):
@@ -50,6 +53,11 @@ def apply(text, names):
         text = re.sub(
             rf'\s*<uses-permission\s+android:name="android\.permission\.{n}"[^>]*/>',
             '', text)
+    # Kişisel sürüme özel http/https indirme yöneticisi niyet süzgeçleri Play
+    # derlemelerinden çıkarılır (Feature.downloadManager yalnız Edition.kisisel).
+    text = re.sub(
+        r'\s*<!--\s*personal_download_filters\s*-->.*?<!--\s*/personal_download_filters\s*-->',
+        '', text, flags=re.DOTALL)
     lines = ''.join(
         f'    <uses-permission android:name="android.permission.{n}" tools:node="remove"/>\n'
         for n in names)
@@ -74,6 +82,8 @@ def verify(paths, names):
         for n in names:
             if re.search(rf'android:name="android\.permission\.{n}"', t):
                 bad.append(f'{p}: {n}')
+        if 'application/vnd.android.package-archive' in t:
+            bad.append(f'{p}: personal_download_filters (package-archive)')
     if bad:
         raise SystemExit('play_variant verify: Play derlemesinde kalan izin:\n' + '\n'.join(bad))
     print('play_variant verify: ' + ', '.join(names) + ' birleşmiş manifestte YOK (doğru).')

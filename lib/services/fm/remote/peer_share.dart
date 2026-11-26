@@ -1015,11 +1015,16 @@ class _Sendable {
   /// Pakete giren dosya sayısı (düz dosyada 1).
   final int files;
 
+  /// Bu kalemin taşıdığı seçim yolları (gidince ekranda "gönderildi" olur).
+  final List<String> sources;
+
   _Sendable.file(this.path, this.name, this.size)
       : zip = null,
-        files = 1;
+        files = 1,
+        sources = [path];
 
-  _Sendable.bundle(this.zip, this.name, {required this.path})
+  _Sendable.bundle(this.zip, this.name,
+      {required this.path, required this.sources})
       : size = zip!.length,
         files = zip.entries.length;
 
@@ -1033,12 +1038,14 @@ abstract final class PeerSender {
   static const maxTextBytes = 1024 * 1024;
 
   /// [text]'i [peer]'a gönderir (alıcıda kopyalanabilir olarak görünür).
-  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa false. Alıcı şifreli
+  /// Alıcı eski sürümse (uç yok) ya da ulaşılamazsa [allowFileFallback] true
+  /// değilse false (true iken /al üzerinden `not.txt` düşürür). Alıcı şifreli
   /// protokolü biliyorsa ve [identity] verildiyse yazı şifreli gider.
   static Future<bool> sendText(Peer peer, String text,
       {required String senderName,
       String pairingCode = '',
-      PeerIdentity? identity}) async {
+      PeerIdentity? identity,
+      bool allowFileFallback = false}) async {
     NetGuard.allow('peer', host: peer.host);
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
@@ -1052,7 +1059,30 @@ abstract final class PeerSender {
           length: body.length,
           type: ContentType.text,
           timeout: const Duration(seconds: 15));
-      return r.status == HttpStatus.ok;
+      if (r.status == HttpStatus.ok) return true;
+      if (r.status == HttpStatus.notFound && allowFileFallback) {
+        // Eski PC/alıcı sürümünde /yazi yoksa geçici not.txt olarak /al ile düş.
+        final dir = await Directory.systemTemp.createTemp('yazi_');
+        final note = File(p.join(dir.path, 'not.txt'));
+        try {
+          await note.writeAsString(text, flush: true);
+          final res = await send(
+            peer,
+            [note.path],
+            senderName: senderName,
+            pairingCode: pairingCode,
+            identity: identity,
+          );
+          return res.sent == 1 && !res.hasError && !res.declined && !res.cancelled;
+        } finally {
+          try {
+            await dir.delete(recursive: true);
+          } catch (_) {
+            // Bilinçli: geçici dosya temizliği en iyi çaba.
+          }
+        }
+      }
+      return false;
     } catch (_) {
       return false;
     } finally {
@@ -1166,7 +1196,8 @@ abstract final class PeerSender {
       if (await Directory(path).exists()) {
         final zip = await ZipStream.of([path]);
         if (zip != null && zip.entries.isNotEmpty) {
-          out.add(_Sendable.bundle(zip, '${p.basename(path)}.zip', path: path));
+          out.add(_Sendable.bundle(zip, '${p.basename(path)}.zip',
+              path: path, sources: [path]));
         }
         continue;
       }
@@ -1176,7 +1207,8 @@ abstract final class PeerSender {
     if (small.length >= bundleMinFiles) {
       final zip = await ZipStream.of(small);
       if (zip != null) {
-        out.insert(0, _Sendable.bundle(zip, 'dosyalar.zip', path: small.first));
+        out.insert(0, _Sendable.bundle(zip, 'dosyalar.zip',
+            path: small.first, sources: [...small]));
         small.clear();
       }
     }
@@ -1239,6 +1271,7 @@ abstract final class PeerSender {
   }) async {
     var sent = 0;
     final errors = <String>[];
+    final sentPaths = <String>[];
     if (requireFingerprint != null && (!peer.secure || identity == null)) {
       return const PeerSendResult(identityMismatch: true);
     }
@@ -1309,7 +1342,8 @@ abstract final class PeerSender {
 
       for (final item in plan) {
         if (isCancelled?.call() ?? false) {
-          return PeerSendResult(sent: sent, errors: errors, cancelled: true);
+          return PeerSendResult(
+              sent: sent, sentPaths: sentPaths, errors: errors, cancelled: true);
         }
         final tid = await _tid(senderKey, item);
         final deadline = DateTime.now().add(retryFor);
@@ -1338,10 +1372,12 @@ abstract final class PeerSender {
             break;
           }
           if (outcome == _Outcome.declined) {
-            return PeerSendResult(sent: sent, errors: errors, declined: true);
+            return PeerSendResult(
+                sent: sent, sentPaths: sentPaths, errors: errors, declined: true);
           }
           if (outcome == _Outcome.wrongCode) {
-            return PeerSendResult(sent: sent, wrongCode: true);
+            return PeerSendResult(
+                sent: sent, sentPaths: sentPaths, wrongCode: true);
           }
           if (outcome == _Outcome.fatal ||
               DateTime.now().isAfter(deadline)) {
@@ -1356,7 +1392,10 @@ abstract final class PeerSender {
               await link.handshake(name: senderName, id: senderId);
               if (link.keys?.peerFingerprint != before) {
                 return PeerSendResult(
-                    sent: sent, errors: errors, identityMismatch: true);
+                    sent: sent,
+                    sentPaths: sentPaths,
+                    errors: errors,
+                    identityMismatch: true);
               }
               continue;
             } catch (_) {
@@ -1373,12 +1412,14 @@ abstract final class PeerSender {
         if (waiting) onWaiting?.call(false);
         if (ok) {
           sent += item.files;
+          sentPaths.addAll(item.sources);
           doneBytes += item.size;
           onFile?.call(item.name, item.size, item.size);
         } else if (error != null) {
           errors.add(error);
         } else {
-          return PeerSendResult(sent: sent, errors: errors, cancelled: true);
+          return PeerSendResult(
+              sent: sent, sentPaths: sentPaths, errors: errors, cancelled: true);
         }
       }
     } finally {
@@ -1386,6 +1427,7 @@ abstract final class PeerSender {
     }
     return PeerSendResult(
         sent: sent,
+        sentPaths: sentPaths,
         errors: errors,
         cancelled: false,
         encrypted: link.secure,
@@ -1675,6 +1717,9 @@ class PeerSecurity {
 /// Gönderme sonucu — kaç dosya gitti, hangileri gitmedi.
 class PeerSendResult {
   final int sent;
+
+  /// Alıcıya TAMAMI ulaşan seçim yolları (paket gittiyse içindeki hepsi).
+  final List<String> sentPaths;
   final List<String> errors;
   final bool cancelled;
 
@@ -1693,6 +1738,7 @@ class PeerSendResult {
 
   const PeerSendResult({
     this.sent = 0,
+    this.sentPaths = const [],
     this.errors = const [],
     this.cancelled = false,
     this.wrongCode = false,

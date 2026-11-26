@@ -224,12 +224,12 @@ class _Line {
 }
 
 String _squashText(String s) => s.replaceAll(
-    RegExp(r'[\s\u0000-\u001f ￾￿]'), '');
+    RegExp(r'[\s\u0000-\u001f\u00a0\ufffe\uffff]'), '');
 
 PdfTypesetResult _typeset(
     pdfium_bindings.PDFium p, int docAddr, PdfTypesetRequest m,
     [int attempt = 0]) {
-  if (_rtl.hasMatch(m.oldText) || _rtl.hasMatch(m.text)) {
+  if (pdfRtlPattern.hasMatch(m.oldText) || pdfRtlPattern.hasMatch(m.text)) {
     return const PdfTypesetResult(
         error: 'Sağdan sola yazılan metin henüz düzenlenemiyor.');
   }

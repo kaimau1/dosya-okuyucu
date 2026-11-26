@@ -421,6 +421,11 @@ class _Section {
     }
   }
 
+  static final RegExp _condRe = RegExp(r'^(<=|>=|<>|<|>|=)\s*(-?[0-9.]+)$');
+  static final RegExp _elapsedRe = RegExp(r'^h+$|^m+$|^s+$');
+  static final RegExp _colorIdxRe = RegExp(r'^(?:color|renk)\s*(\d+)$');
+  static final RegExp _leadZeroRe = RegExp(r'^0+(?=\d)');
+
   static ({int? color, _Cond? cond, bool elapsed}) _bracket(
       String inner, List<_Tok> tokens) {
     final lower = inner.toLowerCase().trim();
@@ -428,7 +433,7 @@ class _Section {
     if (color != null) return (color: color, cond: null, elapsed: false);
 
     // Koşul: [>=100] [<0] [=5]
-    final cm = RegExp(r'^(<=|>=|<>|<|>|=)\s*(-?[0-9.]+)$').firstMatch(lower);
+    final cm = _condRe.firstMatch(lower);
     if (cm != null) {
       final v = double.tryParse(cm.group(2)!);
       if (v != null) {
@@ -446,7 +451,7 @@ class _Section {
       return (color: null, cond: null, elapsed: false);
     }
     // Geçen süre: [h] [mm] [ss]
-    if (RegExp(r'^h+$|^m+$|^s+$').hasMatch(lower)) {
+    if (_elapsedRe.hasMatch(lower)) {
       tokens.add(_Tok(_TokKind.elapsed, lower));
       return (color: null, cond: null, elapsed: true);
     }
@@ -467,7 +472,7 @@ class _Section {
 
   /// `[Color 3]` / `[Renk 3]` — Excel'in klasik 56 renkli paletinin ilk 8'i.
   static int? _indexedColor(String name) {
-    final m = RegExp(r'^(?:color|renk)\s*(\d+)$').firstMatch(name);
+    final m = _colorIdxRe.firstMatch(name);
     if (m == null) return null;
     const palette = [
       0xFF000000,
@@ -572,7 +577,7 @@ class _Section {
     }
     // Tam sayı kısmını en az minInt basamağa tamamla; minInt 0 ve değer 0 ise
     // Excel gibi tam sayı kısmı boş kalır (`#.##` → ",5").
-    intPart = intPart.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    intPart = intPart.replaceFirst(_leadZeroRe, '');
     if (intPart == '0' && minInt == 0 && intSlots.isNotEmpty) intPart = '';
     while (intPart.length < minInt) {
       intPart = '0$intPart';
@@ -986,6 +991,9 @@ double dateToExcelSerial(DateTime dt) {
   return days;
 }
 
+final RegExp _trailZeroRe = RegExp(r'0+$');
+final RegExp _trailDotRe = RegExp(r'\.$');
+
 /// Biçimsiz (`General`) sayı gösterimi — Excel gibi gereksiz sıfır yazmaz,
 /// ondalık ayıracı Türkçe virgüldür.
 String generalNumber(double v) {
@@ -998,7 +1006,7 @@ String generalNumber(double v) {
   if (s.contains('e')) {
     s = v.toString();
   } else if (s.contains('.')) {
-    s = s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+    s = s.replaceFirst(_trailZeroRe, '').replaceFirst(_trailDotRe, '');
   }
   return s.replaceAll('.', ',');
 }

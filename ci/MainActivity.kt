@@ -342,7 +342,13 @@ class MainActivity : FlutterActivity() {
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         } catch (e: Exception) {
-            // Bazı sağlayıcılar kalıcı izin vermiyor; oturum boyu yine çalışır.
+            // Yazma kalıcı verilemediyse en azından kalıcı okumayı dene.
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
         }
         pending.success(uri.toString())
     }
@@ -1070,6 +1076,73 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
+                    "saveToDownloads" -> {
+                        val name = call.argument<String>("name")
+                        val sourcePath = call.argument<String>("sourcePath")
+                        val bytes = call.argument<ByteArray>("bytes")
+                        if (name.isNullOrBlank() || (sourcePath == null && bytes == null) ||
+                            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                        ) {
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
+                        val appCtx = applicationContext
+                        Thread {
+                            try {
+                                val ext = name.substringAfterLast('.', "").lowercase()
+                                val mime = if (ext.isEmpty()) "application/octet-stream"
+                                else android.webkit.MimeTypeMap.getSingleton()
+                                    .getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+                                val values = android.content.ContentValues().apply {
+                                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+                                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
+                                    put(
+                                        android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                                    )
+                                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                                }
+                                val resolver = appCtx.contentResolver
+                                val uri = resolver.insert(
+                                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                    values,
+                                ) ?: throw java.io.IOException("MediaStore insert returned null")
+                                try {
+                                    resolver.openOutputStream(uri)?.use { out ->
+                                        if (sourcePath != null) {
+                                            java.io.FileInputStream(java.io.File(sourcePath)).use { input ->
+                                                input.copyTo(out, 64 * 1024)
+                                            }
+                                        } else {
+                                            out.write(bytes!!)
+                                        }
+                                        out.flush()
+                                    } ?: throw java.io.IOException("openOutputStream returned null")
+                                    values.clear()
+                                    values.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                                    resolver.update(uri, values, null, null)
+                                } catch (e: Exception) {
+                                    try { resolver.delete(uri, null, null) } catch (_: Exception) {}
+                                    throw e
+                                }
+                                var savedName = name
+                                resolver.query(
+                                    uri,
+                                    arrayOf(android.provider.MediaStore.MediaColumns.DISPLAY_NAME),
+                                    null, null, null,
+                                )?.use { c ->
+                                    if (c.moveToFirst()) {
+                                        val v = c.getString(0)
+                                        if (!v.isNullOrBlank()) savedName = v
+                                    }
+                                }
+                                runOnUiThread { result.success("Download/$savedName") }
+                            } catch (e: Exception) {
+                                runOnUiThread { result.error("save_failed", e.message, null) }
+                            }
+                        }.start()
+                    }
+
                     "openAppStorageSettings" -> {
                         val pkg = call.argument<String>("package")
                         result.success(openAppStorageSettings(pkg))
@@ -1084,6 +1157,15 @@ class MainActivity : FlutterActivity() {
                             val sizes = appSizes(packages)
                             Handler(Looper.getMainLooper()).post {
                                 result.success(sizes)
+                            }
+                        }.start()
+                    }
+                    "appSizesSummary" -> {
+                        val top = call.argument<Int>("top") ?: 3
+                        Thread {
+                            val summary = appSizesSummary(top)
+                            Handler(Looper.getMainLooper()).post {
+                                result.success(summary)
                             }
                         }.start()
                     }
@@ -1652,6 +1734,65 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
+     * Depolama özeti kartı için sistem-dışı ve başlatılabilir uygulamaların
+     * toplam boyutunu doğrudan Android `PackageManager` + `StorageStatsManager`
+     * üzerinden hesaplar; uygulama etiketini (`getApplicationLabel`, APK
+     * kaynaklarını açtığı için pahalı) YALNIZ en büyük [topCount] paket için
+     * okur.
+     */
+    private fun appSizesSummary(topCount: Int): Map<String, Any>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        if (!hasUsageAccess()) return null
+        val stats = try {
+            getSystemService(Context.STORAGE_STATS_SERVICE) as StorageStatsManager
+        } catch (e: Exception) {
+            return null
+        }
+        val pm = packageManager
+        val user = Process.myUserHandle()
+        var total = 0L
+        var cache = 0L
+        val ranked = ArrayList<Pair<android.content.pm.ApplicationInfo, Long>>()
+        val apps = try {
+            pm.getInstalledApplications(0)
+        } catch (e: Exception) {
+            return null
+        }
+        for (app in apps) {
+            if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0) continue
+            if (pm.getLaunchIntentForPackage(app.packageName) == null) continue
+            try {
+                val s = stats.queryStatsForPackage(
+                    StorageManager.UUID_DEFAULT, app.packageName, user
+                )
+                val appTotal = s.appBytes + s.dataBytes
+                total += appTotal
+                cache += s.cacheBytes
+                ranked.add(Pair(app, appTotal))
+            } catch (e: Exception) {
+                // Kaldırılmış / okunamayan paket: atla.
+            }
+        }
+        ranked.sortByDescending { it.second }
+        val limit = topCount.coerceAtLeast(0).coerceAtMost(ranked.size)
+        val topList = ArrayList<List<Any>>(limit)
+        for (i in 0 until limit) {
+            val (info, bytes) = ranked[i]
+            val label = try {
+                pm.getApplicationLabel(info).toString()
+            } catch (e: Exception) {
+                info.packageName
+            }
+            topList.add(listOf(label, bytes))
+        }
+        return hashMapOf(
+            "totalBytes" to total,
+            "cacheBytes" to cache,
+            "top" to topList,
+        )
+    }
+
+    /**
      * Bu APK'nın imza sertifikasının SHA-1'i, düz onaltılık (40 karakter).
      *
      * Google Cloud'a "Android OAuth istemcisi" kaydı bu değeri ister; APK'yı
@@ -2191,17 +2332,56 @@ class MainActivity : FlutterActivity() {
         return out
     }
 
-    /** SAF belgesini yerel dosyaya kopyalar (aç/indir akışı). */
+    /** SAF belgesini yerel dosyaya atomik ve doğrulamalı kopyalar (aç/indir akışı). */
     private fun safCopyToFile(uriString: String?, dest: String?): Boolean {
         if (uriString.isNullOrEmpty() || dest.isNullOrEmpty()) return false
-        return try {
-            contentResolver.openInputStream(Uri.parse(uriString))?.use { input ->
-                java.io.File(dest).outputStream().use { output ->
-                    input.copyTo(output, 64 * 1024)
+        val target = java.io.File(dest)
+        target.parentFile?.mkdirs()
+        val tmp = java.io.File("$dest.tmp-${System.nanoTime()}")
+        try {
+            val uri = Uri.parse(uriString)
+            var expectedSize = -1L
+            runCatching {
+                contentResolver.query(
+                    uri,
+                    arrayOf(android.provider.OpenableColumns.SIZE),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst() && !cursor.isNull(0)) {
+                        expectedSize = cursor.getLong(0)
+                    }
                 }
-            } != null
+            }
+            var copied = -1L
+            contentResolver.openInputStream(uri)?.use { input ->
+                tmp.outputStream().use { output ->
+                    copied = input.copyTo(output, 64 * 1024)
+                    output.flush()
+                    runCatching { output.fd.sync() }
+                }
+            }
+            if (copied < 0 || (expectedSize > 0 && copied != expectedSize)) {
+                tmp.delete()
+                return false
+            }
+            if (tmp.renameTo(target)) return true
+            if (target.exists()) {
+                val bak = java.io.File("$dest.bak-${System.nanoTime()}")
+                if (target.renameTo(bak)) {
+                    if (tmp.renameTo(target)) {
+                        bak.delete()
+                        return true
+                    }
+                    bak.renameTo(target)
+                }
+            }
+            tmp.delete()
+            return false
         } catch (e: Exception) {
-            false
+            tmp.delete()
+            return false
         }
     }
 
@@ -2243,13 +2423,21 @@ class MainActivity : FlutterActivity() {
                 safDelete(doc.toString())
                 return null
             }
+            val expected = java.io.File(src).length()
+            var copied = -1L
             try {
                 output.use { o ->
                     java.io.File(src).inputStream().use { input ->
-                        input.copyTo(o, 64 * 1024)
+                        copied = input.copyTo(o, 64 * 1024)
+                        o.flush()
+                        runCatching { (o as? java.io.FileOutputStream)?.fd?.sync() }
                     }
                 }
             } catch (e: Exception) {
+                safDelete(doc.toString())
+                return null
+            }
+            if (copied != expected) {
                 safDelete(doc.toString())
                 return null
             }

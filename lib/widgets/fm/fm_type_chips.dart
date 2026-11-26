@@ -10,6 +10,7 @@ import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
 import '../app_dialog.dart';
 import 'fm_entry_icon.dart';
+import 'fm_filter_widgets.dart';
 import 'fm_quick_filters.dart';
 
 /// **Ortak tür süzgeci** (Faz 13, 2026-10-22): `Tümü · PDF 12 · Word 3 ·
@@ -264,7 +265,7 @@ Future<void> showFmTypeSheet(
   var current = {...selected};
   return showAppSheet<void>(
     context,
-    title: context.t('typ.title'),
+    scrollable: false,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setSheet) {
         void set(Set<FmType> next) {
@@ -276,70 +277,54 @@ Future<void> showFmTypeSheet(
         final shown = current.isEmpty
             ? total
             : current.fold<int>(0, (a, t) => a + (counts[t] ?? 0));
-        return SingleChildScrollView(
-          child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(
-              Gap.md, 0, Gap.md, Gap.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.only(
-                    start: Gap.sm, bottom: Gap.md),
-                child: Text(
-                  ctx.t('typ.hint'),
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+        return FmFilterSheetScaffold(
+          title: ctx.t('typ.title'),
+          hint: ctx.t('typ.hint'),
+          activeCount: current.length,
+          body: LayoutBuilder(builder: (ctx, c) {
+            // 3 sütun (dar ekranda/büyük yazıda 2): kutular eşit genişlikte.
+            final scale = MediaQuery.textScalerOf(ctx).scale(1);
+            final effective = scale > 1.0 ? c.maxWidth / scale : c.maxWidth;
+            final cols =
+                effective < 310 ? 2 : (effective >= 460 ? 4 : 3);
+            final w = (c.maxWidth - Gap.sm * (cols - 1)) / cols;
+            return Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.sm,
+              children: [
+                FmChoiceTile(
+                  key: const ValueKey('type-all'),
+                  width: w,
+                  icon: AppIcons.typeAll,
+                  color: Theme.of(ctx).colorScheme.primary,
+                  label: ctx.t('typ.all_types'),
+                  count: total,
+                  selected: current.isEmpty,
+                  onTap: () => set(const {}),
                 ),
-              ),
-              LayoutBuilder(builder: (ctx, c) {
-                // 3 sütun (dar ekranda/büyük yazıda 2): kutular eşit genişlikte.
-                final scale = MediaQuery.textScalerOf(ctx).scale(1);
-                final effective = scale > 1.0 ? c.maxWidth / scale : c.maxWidth;
-                final cols = effective < 310 ? 2 : 3;
-                final w = (c.maxWidth - Gap.sm * (cols - 1)) / cols;
-                return Wrap(
-                  spacing: Gap.sm,
-                  runSpacing: Gap.sm,
-                  children: [
-                    FmChoiceTile(
-                      key: const ValueKey('type-all'),
-                      width: w,
-                      icon: AppIcons.typeAll,
-                      color: Theme.of(ctx).colorScheme.primary,
-                      label: ctx.t('typ.all_types'),
-                      count: total,
-                      selected: current.isEmpty,
-                      onTap: () => set(const {}),
-                    ),
-                    for (final t in present)
-                      FmChoiceTile(
-                        key: ValueKey('type-${t.name}'),
-                        width: w,
-                        icon: fmTypeStyle(t).$1,
-                        color: fmTypeStyle(t).$2,
-                        label: ctx.t(t.labelKey),
-                        count: counts[t] ?? 0,
-                        selected: current.contains(t),
-                        onTap: () {
-                          final next = {...current};
-                          if (!next.remove(t)) next.add(t);
-                          set(next);
-                        },
-                      ),
-                  ],
-                );
-              }),
-              const SizedBox(height: Gap.md),
-              FmSheetFooter(
-                doneKey: const ValueKey('type-done'),
-                shown: shown,
-                onClear: current.isEmpty ? null : () => set(const {}),
-                onDone: () => Navigator.of(ctx).pop(),
-              ),
-            ],
-          ),
+                for (final t in present)
+                  FmChoiceTile(
+                    key: ValueKey('type-${t.name}'),
+                    width: w,
+                    icon: fmTypeStyle(t).$1,
+                    color: fmTypeStyle(t).$2,
+                    label: ctx.t(t.labelKey),
+                    count: counts[t] ?? 0,
+                    selected: current.contains(t),
+                    onTap: () {
+                      final next = {...current};
+                      if (!next.remove(t)) next.add(t);
+                      set(next);
+                    },
+                  ),
+              ],
+            );
+          }),
+          footer: FmSheetFooter(
+            doneKey: const ValueKey('type-done'),
+            shown: shown,
+            onClear: current.isEmpty ? null : () => set(const {}),
+            onDone: () => Navigator.of(ctx).pop(),
           ),
         );
       },

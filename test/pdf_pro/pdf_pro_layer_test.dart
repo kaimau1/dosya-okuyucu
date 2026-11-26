@@ -177,11 +177,20 @@ void main() {
       ),
     ));
 
-    // Paragrafın ortasına dokun: seçilir.
+    // Paragrafın ortasına basılı tut: seçilir (tutamaçlar), yazma başlamaz.
     final bi = blocks.indexWhere((b) => b.lines.length >= 3);
     final b = blocks[bi];
     final at = Offset((b.left + b.right) / 2, page.height - (b.top + b.bottom) / 2);
+    // Önce: seçili olmayan bloğa TEK dokunuş doğrudan yazmaya geçer.
     await tester.tapAt(at);
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(edits, hasLength(1), reason: 'tek dokunuş yazmaya geçmeli');
+    expect(c.selectedBlock, bi);
+    edits.clear();
+    c.clearSelection();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.longPressAt(at);
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.selectedBlock, bi);
     expect(edits, isEmpty);
@@ -195,7 +204,7 @@ void main() {
     expect(c.selectedBlock, bi);
     expect(find.byKey(const ValueKey('pse-grip-move')), findsOneWidget);
 
-    // Seçili bloğa yeniden dokun: yazma, imleç dokunulan harfte.
+    // Dokun: yazma, imleç dokunulan harfte (seçili olmasa da tek dokunuş).
     await tester.tapAt(at);
     await tester.pump(const Duration(milliseconds: 400));
     expect(edits, hasLength(1));

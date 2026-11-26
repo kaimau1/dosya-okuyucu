@@ -277,6 +277,35 @@ class MediaResizeOptions {
     this.stripLocation = false,
   });
 
+  /// **Yer kazanmak için ölçülü küçültme** — Yer aç ve Bellek Analizi'ndeki
+  /// "Boyut düşür" kısayollarının SABİT başlangıç ayarı (2026-11-25).
+  ///
+  /// KÖK NEDEN (kullanıcı ekran görüntüsü: *"boyut düşürme çok abartıyor,
+  /// sesi de çıkarıyor, bu kadarına gerek yok"*): kısayol SON KULLANILAN
+  /// ayarla açılıyordu; kullanıcı bir kez "720p · En küçük dosya · Sesi
+  /// çıkar" kullanınca Yer aç her videoyu %97 küçültüp sessiz bırakmayı
+  /// öneriyordu. Yer açmak için video bozulmamalı: 1080p'nin üstü 1080p'ye
+  /// iner (altı olduğu gibi kalır), "Yüksek kalite" bit hızı, ses ve kare
+  /// sayısı korunur. Telefon kaydında (1080p30 ≈ 17–35 Mbit/s) bu yine
+  /// %60–80 kazanç; zaten verimli kaydedilmiş videoda kazanç küçük çıkar ve
+  /// kısayol hiç önerilmez ([worthShrinking]).
+  static const spaceSaver = MediaResizeOptions(
+    resolution: ResolutionChoice.p1080,
+    videoQuality: VideoQualityChoice.high,
+  );
+
+  /// Küçültme kısayolunun önerilmesi için gereken en az kazanç: tahmini
+  /// boyut aslın en çok %75'i. Altında yeniden kodlamanın kalite kaybı ve
+  /// beklemesi, kazanılan birkaç MB'a değmez.
+  static const double worthShrinkingRatio = 0.75;
+
+  /// [estimate] baytlık çıktı, [source] baytlık videoyu küçültmeye değer mi?
+  static bool worthShrinking(int source, int? estimate) =>
+      estimate != null &&
+      estimate > 0 &&
+      source > 0 &&
+      estimate <= source * worthShrinkingRatio;
+
   /// Diske yazılabilir hâli — **yarıda kalan işi yeniden başlatmak** için
   /// (bkz. `JobRecipe`). Kuyruktaki işin gövdesi bir closure ve kaydedilemez;
   /// kaydedilen şey işin tarifi: hangi dosyalara hangi ayarlar.

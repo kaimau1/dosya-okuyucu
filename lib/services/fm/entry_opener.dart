@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../core/edition.dart';
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/private_zone.dart';
@@ -66,6 +67,30 @@ enum OpenRoute {
 /// yalnız `home_screen` içindeydi).
 abstract final class EntryOpener {
   static final _fileService = FileService();
+  static final _playerFade = CurveTween(curve: Curves.easeOut);
+  static final _playerScale = Tween<double>(begin: 0.90, end: 1.0);
+
+  /// Etkin rotada [tag] ile eşleşen etkin bir [Hero] var mı?
+  /// Yoksa medya rotaları (video/fotoğraf) çat diye açılmak yerine yumuşak
+  /// ölçek + solma geçişi uygular.
+  static bool _hasMatchingHero(BuildContext context, Object tag) {
+    final route = ModalRoute.of(context);
+    final root = route?.subtreeContext;
+    if (root == null) return false;
+    var found = false;
+    void visit(Element el) {
+      if (found) return;
+      final w = el.widget;
+      if (w is Hero && w.tag == tag) {
+        found = true;
+        return;
+      }
+      if (w is HeroMode && !w.enabled) return;
+      el.visitChildren(visit);
+    }
+    root.visitChildElements(visit);
+    return found;
+  }
 
   /// Dosya hangi ekrana gider?
   ///
@@ -153,12 +178,14 @@ abstract final class EntryOpener {
     List<String>? siblings,
     bool startInk = false,
   }) async {
-    if (!File(path).existsSync()) {
+    if (!await File(path).exists()) {
+      if (!context.mounted) return;
       _snack(context, context.t('open.not_found'));
       // Listede kalan hayalet kaydı düşür — kullanıcı bir daha görmesin.
       FsEvents.reportUnreadable(path);
       return;
     }
+    if (!context.mounted) return;
     if (path.toLowerCase().endsWith('.pdf')) PdfProPerf.openTap(); // H0.3
     final route = routeFor(path);
     final group =
@@ -195,18 +222,58 @@ abstract final class EntryOpener {
     }
 
     if (route == OpenRoute.player) {
-      // Solarak gelen rota: video kapağı hücresinden büyüyerek açılır, geri
-      // dönüşte hücresine küçülür (Hero; kullanıcı 2026-11-15). Opak rota —
-      // geçiş bitince alttaki ızgara çizilmez (oynatma sırasında yük yok).
+      // Solarak gelen rota: kaynakta eşleşen Hero varsa video kapağı
+      // hücresinden büyür; Hero yoksa yumuşak ölçek + solma ile açılır
+      // (2026-11-24: çat diye açılma yok).
+      final hasHero = _hasMatchingHero(context, fmMediaHeroTag(path));
       final player = PageRouteBuilder<void>(
+        opaque: hasHero,
         transitionDuration: Motion.long,
         reverseTransitionDuration: Motion.medium,
-        pageBuilder: (_, _, _) =>
-            MediaPlayerScreen(path: path, playlist: group),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
+        pageBuilder: (_, _, _) => MediaPlayerScreen(
+          path: path,
+          playlist: group,
+          externalBackdrop: true,
         ),
+        transitionsBuilder: (ctx, animation, _, child) {
+          if (Motion.reduced(ctx)) return child;
+          final fade = animation.drive(_playerFade);
+          if (!hasHero) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Motion.enter,
+              reverseCurve: Motion.exit,
+            );
+            return Stack(
+              children: [
+                Positioned.fill(
+                  child: FadeTransition(
+                    opacity: fade,
+                    child: const ColoredBox(color: AppColors.mediaSurface),
+                  ),
+                ),
+                FadeTransition(
+                  opacity: curved,
+                  child: ScaleTransition(
+                    scale: _playerScale.animate(curved),
+                    child: child,
+                  ),
+                ),
+              ],
+            );
+          }
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: FadeTransition(
+                  opacity: fade,
+                  child: const ColoredBox(color: AppColors.mediaSurface),
+                ),
+              ),
+              child,
+            ],
+          );
+        },
       );
       final closed = Navigator.of(context).push(player);
       // Geçmiş kaydı + başlatıcı kısayolu (yerel çağrı, platform iş
@@ -227,12 +294,13 @@ abstract final class EntryOpener {
     // açılıyor"): şerit/Geçmiş kardeş listesi vermiyordu → tek öğe →
     // belge görüntüleyicisi. OCR/PDF yap/çeviri galerinin ⋮ menüsünde.
     if (route == OpenRoute.gallery && !startInk) {
-      // Saydam, solarak gelen rota: fotoğraf ızgaradaki hücresinden büyüyerek
-      // açılır (Hero) ve aşağı kaydırınca hücresine dönerek kapanır
-      // (2026-09-26 galeri turu, bkz. `imageGalleryRoute`).
+      // Saydam, solarak gelen rota: kaynakta Hero varsa hücreden büyür,
+      // yoksa yumuşak ölçek + solma ile açılır (bkz. `imageGalleryRoute`).
+      final hasHero = _hasMatchingHero(context, fmMediaHeroTag(path));
       final gallery = imageGalleryRoute(
         paths: group,
         initialIndex: group.indexOf(path),
+        hasHero: hasHero,
       );
       final closed = Navigator.of(context).push(gallery);
       // Geçmiş kaydı galeri KAPANIP geri dönüş geçişi bitince (U1,
@@ -267,15 +335,20 @@ abstract final class EntryOpener {
 
     LoadedDoc doc;
     try {
-      // Excel düzenleyicisi kitabı kendisi ayrıştırır (P12): burada ikinci
-      // bir ayrıştırma açılışı ikiye katlıyordu.
-      doc = await _fileService.load(path, spreadsheetText: false);
+      // Excel/Word/Slayt düzenleyicileri dosyayı kendisi ayrıştırır: burada
+      // ikinci bir tam metin çıkarması açılışı yavaşlatıyordu.
+      doc = await _fileService.load(
+        path,
+        spreadsheetText: false,
+        officeText: false,
+      );
     } catch (e) {
       closeBusy(); // yükleniyor penceresini kapat
       if (context.mounted) {
         _snack(context,
             AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));
       }
+      unawaited(PlayStore.noteFriction());
       return;
     } finally {
       _loadingDoc = false;
@@ -289,6 +362,7 @@ abstract final class EntryOpener {
     final page = SmoothOpenRoute<void>(
         builder: (_) => screenFor(doc, startInk: startInk));
     final closed = navigator.push(page);
+    unawaited(closed.whenComplete(PlayStore.maybeAskReviewAtCalmMoment));
     // Geçmiş + "Son belgeler" kaydı (tercih yazımı, yerel çağrı, ana ekranın
     // yeniden kurulması) geçiş BİTİNCE: eskiden itmeden hemen önce yapılıyor,
     // açılışın ilk karelerine karışıp geçişi takıltıyordu (2026-11-15).
@@ -477,6 +551,7 @@ abstract final class EntryOpener {
                 {'error': result?.replaceFirst('error:', '') ?? '-'}),
       );
     } catch (e) {
+      unawaited(PlayStore.noteFriction());
       if (context.mounted) {
         _snack(context,
             AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));

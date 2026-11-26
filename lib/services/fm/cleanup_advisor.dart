@@ -28,6 +28,10 @@ class CleanupSuggestion {
   /// varsayılan seçili gelmez** — yanlışlıkla anı silmek geri alınamaz.
   final bool safeByDefault;
 
+  /// Kopya/gönderilen önerilerinde silinecek dosyanın cihazda korunan aslı
+  /// (`kopya.path → asıl`). Kullanıcı satırda aslını görüp açarak emin olur.
+  final Map<String, FsEntry> originals;
+
   const CleanupSuggestion({
     required this.id,
     required this.titleKey,
@@ -36,6 +40,7 @@ class CleanupSuggestion {
     required this.bytes,
     this.files = const [],
     this.safeByDefault = false,
+    this.originals = const {},
   });
 }
 
@@ -55,9 +60,14 @@ List<CleanupSuggestion> adviseCleanup({
   required int trashCount,
   DateTime? now,
   List<String> emptyFolders = const [],
+  Map<String, FsEntry> verifiedSentOriginals = const {},
+  int appCacheBytes = 0,
 }) {
   final today = (now ?? DateTime.now()).millisecondsSinceEpoch;
   final out = <CleanupSuggestion>[];
+  // Aynı dosya birden fazla öneride çift sayılmasın (öncelikli güvenli
+  // öneriler dosyayı sahiplenir; yinelenenlerde yalnız fazladan kopyalar).
+  final claimed = <String>{};
 
   if (trashCount > 0) {
     out.add(CleanupSuggestion(
@@ -70,20 +80,43 @@ List<CleanupSuggestion> adviseCleanup({
     ));
   }
 
+  // Uygulama önbelleği (küçük resim/önizleme/paylaşım/seçici artıkları ≥ 1 MB):
+  // hiçbir kişisel dosyaya dokunmaz, gerektiğinde yeniden üretilir.
+  if (appCacheBytes >= 1024 * 1024) {
+    out.add(CleanupSuggestion(
+      id: 'app_cache',
+      titleKey: 'cln.app_cache',
+      detailKey: 'cln.app_cache_detail',
+      bytes: appCacheBytes,
+      safeByDefault: true,
+    ));
+  }
+
   // Kopyalar: her gruptan biri KALIR, kalanlar sayılır.
   if (duplicates.isNotEmpty) {
     final extras = <FsEntry>[];
+    final dupOriginals = <String, FsEntry>{};
     var bytes = 0;
     for (final group in duplicates) {
       final sorted = [...group.files]
-        ..sort((a, b) => a.modifiedMs.compareTo(b.modifiedMs));
-      // En eski kopya korunur (asıl dosya olma ihtimali en yüksek olan).
+        ..sort((a, b) {
+          // Sent klasörü dışında kopya varsa asla Sent kopyasını "asıl" seçme.
+          final sa = isChatSentCopy(a) ? 1 : 0;
+          final sb = isChatSentCopy(b) ? 1 : 0;
+          if (sa != sb) return sa.compareTo(sb);
+          return a.modifiedMs.compareTo(b.modifiedMs);
+        });
+      // En eski (ve Sent dışı) kopya korunur.
+      final kept = sorted.first;
       for (final extra in sorted.skip(1)) {
+        if (!claimed.add(extra.path)) continue;
         extras.add(extra);
+        dupOriginals[extra.path] = kept;
         bytes += extra.sizeBytes;
       }
     }
     if (extras.isNotEmpty) {
+      extras.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
       out.add(CleanupSuggestion(
         id: 'duplicates',
         titleKey: 'clean.duplicates',
@@ -92,30 +125,42 @@ List<CleanupSuggestion> adviseCleanup({
         bytes: bytes,
         files: extras,
         safeByDefault: true,
+        originals: dupOriginals,
       ));
     }
   }
 
-  // 180+ gündür dokunulmamış indirilenler.
-  final stale = downloads
-      .where((e) => ageLevelFor(daysBetween(e.lastTouchedMs, today)) ==
-          AgeLevel.ancient)
-      .toList()
-    ..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
-  if (stale.isNotEmpty) {
+  // Geçici / yarım kalmış indirmeler ve sistem artıkları (.tmp, .part,
+  // .crdownload, .log, Thumbs.db, boş yarım dosyalar) — güvenle silinir.
+  final tempJunk = <FsEntry>[];
+  void collectTemp(Iterable<FsEntry> list) {
+    for (final e in list) {
+      if (isTempJunk(e) && claimed.add(e.path)) tempJunk.add(e);
+    }
+  }
+
+  for (final c in FmCategory.values) {
+    collectTemp(index.files(c));
+  }
+  collectTemp(downloads);
+  if (tempJunk.isNotEmpty) {
+    tempJunk.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
     out.add(CleanupSuggestion(
-      id: 'stale_downloads',
-      titleKey: 'clean.stale_downloads',
-      detailKey: 'clean.stale_downloads_detail',
-      detailVars: {'n': stale.length},
-      bytes: stale.fold(0, (s, e) => s + e.sizeBytes),
-      files: stale,
-      safeByDefault: false,
+      id: 'temp_junk',
+      titleKey: 'cln.temp_junk',
+      detailKey: 'cln.temp_junk_detail',
+      detailVars: {'n': tempJunk.length},
+      bytes: tempJunk.fold(0, (s, e) => s + e.sizeBytes),
+      files: tempJunk,
+      safeByDefault: true,
     ));
   }
 
   // Kurulum dosyaları: uygulama kurulduysa APK'nın durmasına gerek yok.
-  final apks = index.files(FmCategory.apk);
+  final apks = [
+    for (final e in index.files(FmCategory.apk))
+      if (claimed.add(e.path)) e,
+  ]..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
   if (apks.isNotEmpty) {
     out.add(CleanupSuggestion(
       id: 'apk',
@@ -137,7 +182,7 @@ List<CleanupSuggestion> adviseCleanup({
   final backups = <FsEntry>[];
   for (final c in FmCategory.values) {
     for (final e in index.files(c)) {
-      if (isAppBackup(e)) backups.add(e);
+      if (isAppBackup(e) && claimed.add(e.path)) backups.add(e);
     }
   }
   if (backups.isNotEmpty) {
@@ -155,14 +200,51 @@ List<CleanupSuggestion> adviseCleanup({
     ));
   }
 
-  // En büyük videolar — kazanç burada, ama ASLA varsayılan seçili değil.
-  final bigVideos = index
-      .files(FmCategory.video)
-      .where((e) => e.sizeBytes >= 100 * 1024 * 1024)
-      .toList()
-    ..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+  // WhatsApp / Telegram gönderilen kopyalar (`.../Sent/`): YALNIZ cihazda
+  // aslı doğrulanan dosyalar önerilir (2026-11-24: aslı yoksa kullanıcı
+  // tek kopyasını yanlışlıkla silmesin; her satırda aslı da gösterilir).
+  if (verifiedSentOriginals.isNotEmpty) {
+    final chatSent = <FsEntry>[];
+    final chatOriginals = <String, FsEntry>{};
+    for (final c in FmCategory.values) {
+      for (final e in index.files(c)) {
+        if (!isChatSentCopy(e)) continue;
+        final orig = verifiedSentOriginals[e.path];
+        if (orig == null || orig.path == e.path || isChatSentCopy(orig)) {
+          continue;
+        }
+        if (claimed.add(e.path)) {
+          chatSent.add(e);
+          chatOriginals[e.path] = orig;
+        }
+      }
+    }
+    if (chatSent.isNotEmpty) {
+      chatSent.sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+      out.add(CleanupSuggestion(
+        id: 'chat_sent',
+        titleKey: 'cln.chat_sent',
+        detailKey: 'cln.chat_sent_detail',
+        detailVars: {'n': chatSent.length},
+        bytes: chatSent.fold(0, (s, e) => s + e.sizeBytes),
+        files: chatSent,
+        safeByDefault: false,
+        originals: chatOriginals,
+      ));
+    }
+  }
+
+  // Büyük videolar — kazanç burada, ama ASLA varsayılan seçili değil.
+  // 50 MB eşiği: WhatsApp/kamera videolarını da kapsar, küçültme adayı sunar.
+  final bigVideos = [
+    for (final e in index.files(FmCategory.video))
+      if (e.sizeBytes >= 50 * 1024 * 1024 && !claimed.contains(e.path)) e,
+  ]..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
   if (bigVideos.isNotEmpty) {
-    final top = bigVideos.take(30).toList();
+    final top = bigVideos.take(50).toList();
+    for (final e in top) {
+      claimed.add(e.path);
+    }
     out.add(CleanupSuggestion(
       id: 'big_videos',
       titleKey: 'clean.big_videos',
@@ -174,16 +256,43 @@ List<CleanupSuggestion> adviseCleanup({
     ));
   }
 
+  // 180+ gündür dokunulmamış indirilenler.
+  final stale = downloads
+      .where((e) =>
+          !claimed.contains(e.path) &&
+          ageLevelFor(daysBetween(e.lastTouchedMs, today)) == AgeLevel.ancient)
+      .toList()
+    ..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
+  if (stale.isNotEmpty) {
+    for (final e in stale) {
+      claimed.add(e.path);
+    }
+    out.add(CleanupSuggestion(
+      id: 'stale_downloads',
+      titleKey: 'clean.stale_downloads',
+      detailKey: 'clean.stale_downloads_detail',
+      detailVars: {'n': stale.length},
+      bytes: stale.fold(0, (s, e) => s + e.sizeBytes),
+      files: stale,
+      safeByDefault: false,
+    ));
+  }
+
   // ── Faz 41 / 5: akıllı öneriler ─────────────────────────────────────────
   // Eski ekran görüntüleri: 90+ gün dokunulmamış. Çoğu "o an lazım olan"
   // bir şeyin görüntüsü; varsayılan seçili DEĞİL (kullanıcı bakıp seçer).
   final shots = index
       .files(FmCategory.image)
       .where((e) =>
-          isScreenshot(e) && (daysBetween(e.lastTouchedMs, today) ?? 0) >= 90)
+          !claimed.contains(e.path) &&
+          isScreenshot(e) &&
+          (daysBetween(e.lastTouchedMs, today) ?? 0) >= 90)
       .toList()
     ..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
   if (shots.isNotEmpty) {
+    for (final e in shots) {
+      claimed.add(e.path);
+    }
     out.add(CleanupSuggestion(
       id: 'old_screenshots',
       titleKey: 'cln.old_screenshots',
@@ -204,7 +313,8 @@ List<CleanupSuggestion> adviseCleanup({
     FmCategory.other,
   ]) {
     for (final e in index.files(c)) {
-      if (e.sizeBytes >= 50 * 1024 * 1024 &&
+      if (!claimed.contains(e.path) &&
+          e.sizeBytes >= 50 * 1024 * 1024 &&
           (daysBetween(e.lastTouchedMs, today) ?? 0) >= 365 &&
           !isAppBackup(e)) {
         oldLarge.add(e);
@@ -253,9 +363,22 @@ List<CleanupSuggestion> adviseCleanup({
   return out;
 }
 
-/// Seçili önerilerin toplam kazancı.
-int cleanupTotal(Iterable<CleanupSuggestion> selected) =>
-    selected.fold(0, (sum, s) => sum + s.bytes);
+/// Seçili önerilerin toplam kazancı (aynı dosya birden fazla öneride geçse
+/// bile çift sayılmaz).
+int cleanupTotal(Iterable<CleanupSuggestion> selected) {
+  final seen = <String>{};
+  var total = 0;
+  for (final s in selected) {
+    if (s.files.isEmpty) {
+      total += s.bytes;
+    } else {
+      for (final f in s.files) {
+        if (seen.add(f.path)) total += f.sizeBytes;
+      }
+    }
+  }
+  return total;
+}
 
 /// Seçili önerilerin **uygulanma sırası** — çöp kutusu boşaltma her zaman ilk.
 ///
@@ -282,12 +405,56 @@ List<CleanupSuggestion> cleanupApplyOrder(
 }
 
 /// Ekran görüntüsü mü? (`Screenshots`/`Ekran görüntüleri` klasörü ya da
-/// `Screenshot_…` adı.)
+/// `Screenshot_…` / `Screen_shot` adı.)
 bool isScreenshot(FsEntry e) {
-  final lower = e.path.toLowerCase();
+  final lower = e.path.toLowerCase().replaceAll('\\', '/');
+  final name = e.name.toLowerCase();
   return lower.contains('/screenshots/') ||
       lower.contains('/ekran görüntüleri/') ||
-      e.name.toLowerCase().startsWith('screenshot');
+      lower.contains('/ekran_goruntuleri/') ||
+      name.startsWith('screenshot') ||
+      name.startsWith('screen_shot') ||
+      name.startsWith('ekran_goruntusu');
+}
+
+/// Geçici dosya, yarım kalmış indirme ya da masaüstü/sistem artığı mı?
+bool isTempJunk(FsEntry e) {
+  if (e.isDir) return false;
+  final name = e.name.toLowerCase();
+  if (name == 'thumbs.db' || name == '.ds_store' || name == 'desktop.ini') {
+    return true;
+  }
+  const exts = {
+    '.tmp',
+    '.temp',
+    '.crdownload',
+    '.part',
+    '.partial',
+    '.download',
+    '.dmp',
+  };
+  for (final ext in exts) {
+    if (name.endsWith(ext)) return true;
+  }
+  // İndirilenler veya geçici klasörlerde kalan 0 baytlık bozuk/yarım dosyalar.
+  if (e.sizeBytes == 0 && !name.startsWith('.')) {
+    final lower = e.path.toLowerCase().replaceAll('\\', '/');
+    if (lower.contains('/download/') ||
+        lower.contains('/downloads/') ||
+        lower.contains('/temp/') ||
+        lower.contains('/cache/')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// WhatsApp / Telegram gönderilen medya kopyası mı (`.../Sent/`)?
+bool isChatSentCopy(FsEntry e) {
+  if (e.isDir) return false;
+  final lower = e.path.toLowerCase().replaceAll('\\', '/');
+  return (lower.contains('whatsapp') || lower.contains('telegram')) &&
+      lower.contains('/sent/');
 }
 
 /// Dosya bir **uygulama yedeği** mi?
@@ -316,3 +483,89 @@ bool isAppBackup(FsEntry entry) {
 /// olmalı (ters alan adı). `yedek(1).bak` gibi adlar eşleşmez.
 final _packageInName =
     RegExp(r'\(([a-zA-Z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+){1,})\)\.bak$');
+
+/// **Temizlik sonrası taramasız güncelleme** (2026-11-24, kullanıcı: "temizle'ye
+/// basınca temizlemiyor, baştan tarama yapıyor gibi oluyor").
+///
+/// Eskiden her temizlikten sonra tam disk taraması kuyruğa ekleniyordu; ekran
+/// temizlik ilerlemesi yerine "çözümleniyor" görünümüne geçiyor, kullanıcı da
+/// temizliğin olmadığını sanıyordu. Artık temizlenen yollar listeden düşer,
+/// çöp kartı yeni çöp içeriğiyle ([trashBytes]/[trashCount]) yeniden kurulur.
+///
+/// Güvenlik: aslı ([CleanupSuggestion.originals]) silinmiş bir kopya artık
+/// "aslı duruyor" kanıtını yitirdiğinden listeden de düşer.
+List<CleanupSuggestion> cleanupAfterApply(
+  List<CleanupSuggestion> list, {
+  required Set<String> removedPaths,
+  int? trashBytes,
+  int? trashCount,
+  bool clearedAppCache = false,
+}) {
+  final out = <CleanupSuggestion>[];
+  for (final s in list) {
+    if (s.id == 'trash' && trashCount != null) continue;
+    if (s.id == 'app_cache' && clearedAppCache) continue;
+    if (s.files.isEmpty) {
+      out.add(s);
+      continue;
+    }
+    final kept = [
+      for (final f in s.files)
+        if (!removedPaths.contains(f.path) &&
+            !removedPaths.contains(s.originals[f.path]?.path))
+          f,
+    ];
+    if (kept.length == s.files.length) {
+      out.add(s);
+      continue;
+    }
+    if (kept.isEmpty) continue;
+    out.add(CleanupSuggestion(
+      id: s.id,
+      titleKey: s.titleKey,
+      detailKey: s.detailKey,
+      detailVars: s.detailVars.containsKey('n')
+          ? {...s.detailVars, 'n': kept.length}
+          : s.detailVars,
+      bytes: kept.fold<int>(0, (a, f) => a + f.sizeBytes),
+      files: kept,
+      safeByDefault: s.safeByDefault,
+      originals: s.originals.isEmpty
+          ? const {}
+          : {
+              for (final f in kept)
+                if (s.originals[f.path] case final orig?) f.path: orig,
+            },
+    ));
+  }
+  if (trashCount != null && trashCount > 0) {
+    out.insert(
+      0,
+      CleanupSuggestion(
+        id: 'trash',
+        titleKey: 'clean.trash',
+        detailKey: 'clean.trash_detail',
+        detailVars: {'n': trashCount},
+        bytes: trashBytes ?? 0,
+        safeByDefault: true,
+      ),
+    );
+  }
+  return out;
+}
+
+/// Aynı temizlikte bir kopyanın ASLI da siliniyorsa (ör. aslı "Eski
+/// indirilenler"de, kopyası "Sohbetten gönderilen"de) kopya korunur — iki
+/// öneri birlikte seçilince fotoğrafın hiçbir örneği kalmasın diye.
+Set<String> cleanupProtectedCopies(List<CleanupSuggestion> chosen) {
+  final deleting = <String>{
+    for (final s in chosen)
+      for (final f in s.files) f.path,
+  };
+  return {
+    for (final s in chosen)
+      for (final f in s.files)
+        if (s.originals[f.path] case final orig?)
+          if (deleting.contains(orig.path)) f.path,
+  };
+}

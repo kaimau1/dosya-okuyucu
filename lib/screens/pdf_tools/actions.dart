@@ -455,10 +455,24 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     if (mounted) _snack(_str.t('pt.merged', {'n': paths.length}));
   }
 
+  static bool _scanningAppend = false;
+
   /// Kameradan yeni sayfa(lar) tarayıp belgenin sonuna ekler — kâğıt eki olan
   /// sözleşme/rapor için asıl işe yarayan birleşim.
   Future<void> _scanAndAppend() async {
-    final scanned = await DocumentScanner.scanPages();
+    if (_busy || _scanningAppend) return;
+    _scanningAppend = true;
+    List<String>? scanned;
+    try {
+      scanned = await DocumentScanner.scanPages();
+    } catch (e) {
+      if (mounted) {
+        _snack(_str.t('sf.scanner_failed', {'error': userErrorText(e)}));
+      }
+      return;
+    } finally {
+      _scanningAppend = false;
+    }
     if (scanned == null || scanned.isEmpty || !mounted) return;
     if (!await _confirmAnnotationLoss(_str.t('pt.op_scan_append'))) return;
     // Ana tarama akışıyla aynı kural: tarayıcının verdiği sayfa OLDUĞU GİBİ
@@ -466,7 +480,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     // sayfayı ML Kit ekranında onayladı, bkz. `ScanPrepare`).
     // Hata/ilerleme yönetimi _apply'da; taranan sayfalar ızgarada görünür.
     await _apply(_str.t('pt.op_scan_append'), (b) async {
-      final pages = ScanPage.displays(await ScanPrepare.pages(scanned));
+      final pages = ScanPage.displays(await ScanPrepare.pages(scanned!));
       final doc = await _conversion.imagesToPdf(pages,
           uniformPage: PdfPageFormat.a4);
       return PdfTools.mergeInBackground([b, doc]);

@@ -403,21 +403,7 @@ class _FmGlyphPainter extends CustomPainter {
     // Yazı **gerçek punto ile** dizilir (bkz. [_withDeviceScale]): birim
     // karedeki 0,20'lik punto büyütülerek çizilseydi bulanık çıkardı.
     _withDeviceScale(canvas, side, () {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: label,
-          style: TextStyle(
-            color: AppColors.onMedia,
-            fontWeight: FontWeight.w800,
-            // Uzantı uzadıkça küçülür (3 harf: 0.20 · 4 harf: 0.155).
-            fontSize: FmGlyphMetrics.labelFontSize(label, side),
-            height: 1.0,
-            letterSpacing: FmGlyphMetrics.labelLetterSpacing(label, side),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-        maxLines: 1,
-      )..layout();
+      final painter = _obtainLabelPainter(label, side);
       // Yazı şeride sığmıyorsa (uzun uzantı) yatayda sıkıştırılır — taşıp
       // şeridin dışına çıkmasındansa bir tık dar yazılması yeğdir.
       final available = (band.width - 0.06) * side;
@@ -427,8 +413,75 @@ class _FmGlyphPainter extends CustomPainter {
       if (painter.width > available) canvas.scale(available / painter.width, 1);
       painter.paint(canvas, Offset(-painter.width / 2, -painter.height / 2));
       canvas.restore();
-      painter.dispose();
     });
+  }
+
+  static const int _maxPainterCache = 64;
+  static final Map<(FmGlyphSpec, int), TextPainter> _labelPainters =
+      <(FmGlyphSpec, int), TextPainter>{};
+  static final Map<(FmGlyphSpec, int), TextPainter> _overlayPainters =
+      <(FmGlyphSpec, int), TextPainter>{};
+
+  TextPainter _obtainLabelPainter(String label, double side) {
+    final key = (spec, side.round());
+    final existing = _labelPainters.remove(key);
+    if (existing != null) {
+      _labelPainters[key] = existing;
+      return existing;
+    }
+    final roundedSide = key.$2.toDouble();
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: AppColors.onMedia,
+          fontWeight: FontWeight.w800,
+          // Uzantı uzadıkça küçülür (3 harf: 0.20 · 4 harf: 0.155).
+          fontSize: FmGlyphMetrics.labelFontSize(label, roundedSide),
+          height: 1.0,
+          letterSpacing: FmGlyphMetrics.labelLetterSpacing(label, roundedSide),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    if (_labelPainters.length >= _maxPainterCache) {
+      final oldestKey = _labelPainters.keys.first;
+      _labelPainters.remove(oldestKey)?.dispose();
+    }
+    _labelPainters[key] = painter;
+    return painter;
+  }
+
+  TextPainter _obtainOverlayPainter(
+      IconData icon, double side, Color color, double glyphSize) {
+    final key = (spec, side.round());
+    final existing = _overlayPainters.remove(key);
+    if (existing != null) {
+      _overlayPainters[key] = existing;
+      return existing;
+    }
+    final roundedSide = key.$2.toDouble();
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          color: color,
+          // Punto birim karede değil GERÇEK ölçüde (bkz. [_withDeviceScale]).
+          fontSize: FmGlyphMetrics.overlayFontSize(glyphSize, roundedSide),
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          height: 1.0,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    if (_overlayPainters.length >= _maxPainterCache) {
+      final oldestKey = _overlayPainters.keys.first;
+      _overlayPainters.remove(oldestKey)?.dispose();
+    }
+    _overlayPainters[key] = painter;
+    return painter;
   }
 
   /// Arşiv fermuarı: sayfanın üstünden şeride inen dişler + çekme ucu.
@@ -479,23 +532,9 @@ class _FmGlyphPainter extends CustomPainter {
     // Çok küçük kutuda glif okunmaz; klasörün kendi biçimi zaten bilgi veriyor.
     if (side < 22) return;
     _withDeviceScale(canvas, side, () {
-      final painter = TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(icon.codePoint),
-          style: TextStyle(
-            color: color,
-            // Punto birim karede değil GERÇEK ölçüde (bkz. [_withDeviceScale]).
-            fontSize: FmGlyphMetrics.overlayFontSize(glyphSize, side),
-            fontFamily: icon.fontFamily,
-            package: icon.fontPackage,
-            height: 1.0,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
+      final painter = _obtainOverlayPainter(icon, side, color, glyphSize);
       painter.paint(canvas,
           center * side - Offset(painter.width / 2, painter.height / 2));
-      painter.dispose();
     });
   }
 

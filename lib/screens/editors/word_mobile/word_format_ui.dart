@@ -19,13 +19,17 @@ import 'package:flutter/material.dart';
 
 import '../../../core/app_icons.dart';
 import '../../../core/doc_fonts.dart';
+import '../../../core/edition.dart';
 import '../../../core/edit/editor_chrome.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/app_colors.dart';
+import '../../../core/theme.dart';
 import '../../../services/docx/docx_document.dart';
 import '../../../services/docx/docx_styles.dart';
+import '../../../widgets/app_dialog.dart';
 import '../../../widgets/docx_editor/docx_edit_controller.dart';
 import '../../../widgets/office_ribbon.dart';
+import '../../../widgets/pro_gate.dart';
 
 /// Office'in 10 standart rengi (renk menüsünün alt sırası).
 const kWordStandardColors = <int>[
@@ -67,7 +71,6 @@ const kWordProTools = <List<(String, IconData)>>[
   [
     ('page_setup', AppIcons.cropFree),
     ('print_preview', AppIcons.print),
-    ('export', AppIcons.iosShare),
     ('reader', AppIcons.chromeReaderMode),
   ],
   [
@@ -85,7 +88,6 @@ const kWordProTools = <List<(String, IconData)>>[
   [
     ('outline', AppIcons.accountTree),
     ('thumbnails', AppIcons.thumbnails),
-    ('stats', AppIcons.numbers),
   ],
   [
     ('review_bar', AppIcons.rule),
@@ -95,8 +97,6 @@ const kWordProTools = <List<(String, IconData)>>[
   ],
   [
     ('dictate', AppIcons.micNone),
-    ('ai_inline', AppIcons.ai),
-    ('ai_proof', AppIcons.spellcheck),
   ],
 ];
 
@@ -124,6 +124,7 @@ class WordFormatUi {
   /// Faz 24 kalanı: resim, yorum, dipnot, tarih (ekran açar).
   final VoidCallback? onInsertImage,
       onReplaceImage,
+      onResizeImage,
       onImageAlt,
       onComments,
       onNewComment,
@@ -139,6 +140,7 @@ class WordFormatUi {
     this.onPro,
     this.onInsertImage,
     this.onReplaceImage,
+    this.onResizeImage,
     this.onImageAlt,
     this.onComments,
     this.onNewComment,
@@ -264,100 +266,124 @@ class WordFormatUi {
 
   // ── şerit ────────────────────────────────────────────────────────────────
 
-  List<RibbonTab> ribbonTabs() => [
-        RibbonTab(_t('word.tab_home'), home()),
-        if (onInsertTable != null)
-          RibbonTab(_t('word.tab_insert'), [
-            RibbonButton(AppIcons.tableView, _t('word.insert_table'),
-                key: const ValueKey('word-ins-table'), onTap: onInsertTable),
-            RibbonButton(AppIcons.link, _t('word.insert_link'),
-                key: const ValueKey('word-ins-link'), onTap: onInsertLink),
-            RibbonButton(AppIcons.wrapText, _t('word.insert_break'),
-                key: const ValueKey('word-ins-break'),
-                onTap: c.insertPageBreak),
-            RibbonButton(AppIcons.textFields, _t('word.insert_symbol'),
-                key: const ValueKey('word-ins-symbol'), onTap: onSymbol),
-            if (onHeaderFooter != null)
-              RibbonButton(AppIcons.newWord, _t('word.insert_hf'),
-                  key: const ValueKey('word-ins-hf'), onTap: onHeaderFooter),
-            if (onInsertImage != null) ...[
-              const RibbonSep(),
-              RibbonButton(AppIcons.addPhoto, _t('word.insert_image'),
-                  key: const ValueKey('word-ins-image'), onTap: onInsertImage),
-              RibbonButton(AppIcons.addComment, _t('word.comment_new'),
-                  key: const ValueKey('word-ins-comment'),
-                  onTap: onNewComment),
-              RibbonButton(AppIcons.footnote, _t('word.insert_footnote'),
-                  key: const ValueKey('word-ins-footnote'), onTap: onFootnote),
-              if (onEndnote != null)
-                RibbonButton(AppIcons.footnote, _t('word.insert_endnote'),
-                    key: const ValueKey('word-ins-endnote'), onTap: onEndnote),
-              RibbonButton(AppIcons.horizontalRule, _t('word.insert_rule'),
-                  key: const ValueKey('word-ins-rule'),
-                  onTap: c.insertHorizontalRule),
-              RibbonButton(AppIcons.calendarMonth, _t('word.insert_date'),
-                  key: const ValueKey('word-ins-date'), onTap: onDate),
-            ],
-          ]),
-        if (c.selectedImage != null) RibbonTab(_t('word.tab_picture'), picture()),
-        if (c.inTable) RibbonTab(_t('word.tab_table'), table()),
-        if (onInsertTable != null) RibbonTab(_t('word.tab_layout'), layout()),
-        RibbonTab(_t('word.tab_view'), [
-          RibbonButton(AppIcons.device, _t('word.mobile_view'),
-              active: true, onTap: () {}),
-          RibbonButton(AppIcons.newWord, _t('word.page_layout'),
-              onTap: onPageLayout),
-          const RibbonSep(),
-          RibbonButton(OfficeIcons.zoomOut, _t('word.zoom_out'),
-              onTap: onZoomOut),
-          RibbonButton(OfficeIcons.zoomIn, _t('word.zoom_in'), onTap: onZoomIn),
-          const RibbonSep(),
-          RibbonButton(OfficeIcons.navigation, _t('word.navigation'),
-              key: const ValueKey('word-nav'), onTap: onNavigate),
-        ]),
-        RibbonTab(_t('word.tab_review'), [
-          if (onFind != null)
-            RibbonButton(OfficeIcons.search, _t('word.find'),
-                key: const ValueKey('word-find'), onTap: onFind),
-          RibbonButton(OfficeIcons.wordCount, _t('word.word_count'),
-              key: const ValueKey('word-count'), onTap: onWordCount),
-          RibbonButton(OfficeIcons.translate, _t('common.translate'),
-              onTap: () => onTranslate(c.selectedText())),
-          if (onComments != null) ...[
+  List<RibbonTab> ribbonTabs() {
+    RibbonChip chip(String key, IconData icon, String labelKey,
+            {String? tipKey, bool? active, VoidCallback? onTap}) =>
+        RibbonChip(
+          key: ValueKey(key),
+          icon: icon,
+          label: _t(labelKey),
+          tooltip: _t(tipKey ?? labelKey),
+          active: active,
+          onTap: onTap,
+        );
+    return [
+      RibbonTab(_t('word.tab_home'), home()),
+      if (onInsertTable != null)
+        RibbonTab(_t('word.tab_insert'), [
+          chip('word-ins-table', AppIcons.tableView, 'word.insert_table',
+              onTap: onInsertTable),
+          if (onInsertImage != null)
+            chip('word-ins-image', AppIcons.addPhoto, 'word.insert_image',
+                onTap: onInsertImage),
+          chip('word-ins-link', AppIcons.link, 'word.insert_link',
+              onTap: onInsertLink),
+          chip('word-ins-break', AppIcons.wrapText, 'word.insert_break',
+              onTap: c.insertPageBreak),
+          chip('word-ins-symbol', AppIcons.textFields, 'word.insert_symbol',
+              onTap: onSymbol),
+          if (onHeaderFooter != null)
+            chip('word-ins-hf', AppIcons.newWord, 'word.insert_hf',
+                onTap: onHeaderFooter),
+          if (onInsertImage != null) ...[
             const RibbonSep(),
-            RibbonButton(AppIcons.addComment, _t('word.comment_new'),
-                key: const ValueKey('word-rev-new-comment'),
-                onTap: onNewComment),
-            RibbonButton(AppIcons.comment, _t('word.comments'),
-                key: const ValueKey('word-rev-comments'), onTap: onComments),
-          ],
-          if (onTrackChanges != null) ...[
-            const RibbonSep(),
-            RibbonButton(AppIcons.editNote, _t('word.track_changes'),
-                key: const ValueKey('word-track-toggle'),
-                active: c.trackChanges,
-                onTap: onTrackChanges),
-          ],
-          if (onResolveTracked != null && c.trackedChanges > 0) ...[
-            const RibbonSep(),
-            RibbonButton(AppIcons.check, _t('word.track_accept'),
-                key: const ValueKey('word-track-accept'),
-                onTap: () => onResolveTracked!(true)),
-            RibbonButton(AppIcons.close, _t('word.track_reject'),
-                key: const ValueKey('word-track-reject'),
-                onTap: () => onResolveTracked!(false)),
+            chip('word-ins-footnote', AppIcons.footnote, 'word.insert_footnote',
+                onTap: onFootnote),
+            if (onEndnote != null)
+              chip('word-ins-endnote', AppIcons.footnote, 'word.insert_endnote',
+                  onTap: onEndnote),
+            chip('word-ins-rule', AppIcons.horizontalRule, 'word.insert_rule',
+                onTap: c.insertHorizontalRule),
+            chip('word-ins-date', AppIcons.calendarMonth, 'word.insert_date',
+                onTap: onDate),
           ],
         ]),
-        // Faz 37: en sonda — eski sekmelerin yeri değişmesin.
-        if (onPro != null) RibbonTab(_t('wp.tab'), proTab()),
-      ];
+      if (c.selectedImage != null) RibbonTab(_t('word.tab_picture'), picture()),
+      if (c.inTable) RibbonTab(_t('word.tab_table'), table()),
+      if (onInsertTable != null) RibbonTab(_t('word.tab_layout'), layout()),
+      RibbonTab(_t('word.tab_view'), [
+        RibbonChip(
+          icon: AppIcons.newWord,
+          label: _t('word.page_layout'),
+          tooltip: _t('word.page_layout'),
+          onTap: onPageLayout,
+        ),
+        const RibbonSep(),
+        RibbonButton(OfficeIcons.zoomOut, _t('word.zoom_out'), onTap: onZoomOut),
+        RibbonButton(OfficeIcons.zoomIn, _t('word.zoom_in'), onTap: onZoomIn),
+        const RibbonSep(),
+        chip('word-nav', OfficeIcons.navigation, 'word.navigation',
+            onTap: onNavigate),
+      ]),
+      RibbonTab(_t('word.tab_review'), [
+        // 2026-11-22 (kullanıcı): gözden geçirirken belge gerçek sayfa
+        // düzeninde görülsün — ilk yonga sayfa görünümüne geçer.
+        RibbonChip(
+          key: const ValueKey('word-rev-page'),
+          icon: AppIcons.newWord,
+          label: _t('word.review_page'),
+          tooltip: _t('word.page_layout'),
+          onTap: onPageLayout,
+        ),
+        const RibbonSep(),
+        if (onFind != null)
+          chip('word-find', OfficeIcons.search, 'word.search_short',
+              tipKey: 'word.find', onTap: onFind),
+        chip('word-count', OfficeIcons.wordCount, 'word.word_count',
+            onTap: onWordCount),
+        RibbonChip(
+          icon: OfficeIcons.translate,
+          label: _t('common.translate'),
+          tooltip: _t('common.translate'),
+          onTap: () => onTranslate(c.selectedText()),
+        ),
+        if (onComments != null) ...[
+          const RibbonSep(),
+          chip('word-rev-new-comment', AppIcons.addComment, 'word.comment_new',
+              onTap: onNewComment),
+          chip('word-rev-comments', AppIcons.comment, 'word.comments',
+              onTap: onComments),
+        ],
+        if (onTrackChanges != null) ...[
+          const RibbonSep(),
+          chip('word-track-toggle', AppIcons.editNote, 'word.track_changes',
+              active: c.trackChanges, onTap: onTrackChanges),
+        ],
+        if (onResolveTracked != null && c.trackedChanges > 0) ...[
+          const RibbonSep(),
+          chip('word-track-accept', AppIcons.check, 'word.track_accept',
+              onTap: () => onResolveTracked!(true)),
+          chip('word-track-reject', AppIcons.close, 'word.track_reject',
+              onTap: () => onResolveTracked!(false)),
+        ],
+      ]),
+      // Faz 37: en sonda — eski sekmelerin yeri değişmesin.
+      if (onPro != null) RibbonTab(_t('wp.tab'), proTab()),
+    ];
+  }
 
-  /// Faz 37 Araçlar sekmesi: gruplar [RibbonSep] ile ayrılır.
+  /// Faz 37 Araçlar sekmesi: her araç kısa adıyla görünür, gruplar ayrılır.
   List<Widget> proTab() => [
         for (final group in kWordProTools) ...[
           for (final (id, icon) in group)
-            RibbonButton(icon, _t('wp.$id'),
-                key: ValueKey('word-pro-$id'), onTap: () => onPro!(id)),
+            RibbonChip(
+              key: ValueKey('word-pro-$id'),
+              icon: icon,
+              label: _t('wp.$id'),
+              tooltip: _t('wp.$id'),
+              proBadge: ProGate.locked(Feature.wordSlidesPro),
+              onTap: () => onPro!(id),
+            ),
           if (!identical(group, kWordProTools.last)) const RibbonSep(),
         ],
       ];
@@ -368,23 +394,36 @@ class WordFormatUi {
     final a = c.selectedImage;
     final align = c.paraLook.align;
     return [
-      RibbonMenu<double>(
-        key: const ValueKey('word-img-size'),
-        icon: AppIcons.resize,
-        tooltip: _t('word.img_size'),
-        onSelected: c.resizeImage,
-        itemBuilder: (ctx) => [
-          for (final (k, pt) in const [
-            ('word.img_small', 144.0),
-            ('word.img_medium', 288.0),
-            ('word.img_large', 432.0),
-          ])
-            CheckedPopupMenuItem(
-                value: pt,
-                checked: a != null && (a.widthPt - pt).abs() < 1,
-                child: Text(ctx.t(k))),
-        ],
-      ),
+      if (onResizeImage != null)
+        RibbonChip(
+          key: const ValueKey('word-img-size'),
+          icon: AppIcons.sizeScale,
+          label: _t('word.img_size'),
+          tooltip: _t('word.img_size'),
+          onTap: onResizeImage,
+        )
+      else
+        PopupMenuButton<double>(
+          key: const ValueKey('word-img-size'),
+          tooltip: _t('word.img_size'),
+          onSelected: c.resizeImage,
+          itemBuilder: (ctx) => [
+            for (final (k, pt) in const [
+              ('word.img_small', 144.0),
+              ('word.img_medium', 288.0),
+              ('word.img_large', 432.0),
+            ])
+              CheckedPopupMenuItem(
+                  value: pt,
+                  checked: a != null && (a.widthPt - pt).abs() < 1,
+                  child: Text(ctx.t(k))),
+          ],
+          child: RibbonChip(
+            icon: AppIcons.resize,
+            label: _t('word.img_size'),
+            tooltip: _t('word.img_size'),
+          ),
+        ),
       RibbonButton(OfficeIcons.alignLeft, _t('common.align_left'),
           key: const ValueKey('word-img-left'),
           active: align == 'left',
@@ -399,51 +438,107 @@ class WordFormatUi {
           onTap: () => c.alignImage('right')),
       const RibbonSep(),
       if (onPro != null)
-        RibbonButton(AppIcons.wrapText, _t('wp.img_wrap'),
-            key: const ValueKey('word-pro-img_wrap'),
-            onTap: () => onPro!('img_wrap')),
-      RibbonButton(AppIcons.altText, _t('word.img_alt'),
-          key: const ValueKey('word-img-alt'), onTap: onImageAlt),
-      RibbonButton(AppIcons.image, _t('word.img_replace'),
-          key: const ValueKey('word-img-replace'), onTap: onReplaceImage),
-      RibbonButton(AppIcons.delete, _t('common.delete'),
-          key: const ValueKey('word-img-delete'),
-          onTap: () => c.deleteSelection()),
+        RibbonChip(
+          key: const ValueKey('word-pro-img_wrap'),
+          icon: AppIcons.wrapText,
+          label: _t('wp.img_wrap'),
+          tooltip: _t('wp.img_wrap'),
+          proBadge: ProGate.locked(Feature.wordSlidesPro),
+          onTap: () => onPro!('img_wrap'),
+        ),
+      RibbonChip(
+        key: const ValueKey('word-img-alt'),
+        icon: AppIcons.altText,
+        label: _t('word.img_alt'),
+        tooltip: _t('word.img_alt'),
+        onTap: onImageAlt,
+      ),
+      RibbonChip(
+        key: const ValueKey('word-img-replace'),
+        icon: AppIcons.image,
+        label: _t('word.img_replace'),
+        tooltip: _t('word.img_replace'),
+        onTap: onReplaceImage,
+      ),
+      RibbonChip(
+        key: const ValueKey('word-img-delete'),
+        icon: AppIcons.delete,
+        label: _t('common.delete'),
+        tooltip: _t('common.delete'),
+        onTap: () => c.deleteSelection(),
+      ),
     ];
   }
 
   /// Bağlamsal Tablo sekmesi (imleç bir hücredeyken).
   List<Widget> table() => [
-        RibbonButton(AppIcons.add, _t('word.tbl_row_above'),
-            key: const ValueKey('word-tbl-row-above'),
-            onTap: () => c.tableRow(below: false)),
-        RibbonButton(AppIcons.addCircleOutline, _t('word.tbl_row_below'),
-            key: const ValueKey('word-tbl-row-below'),
-            onTap: () => c.tableRow(below: true)),
-        RibbonButton(AppIcons.viewColumn, _t('word.tbl_col_left'),
-            key: const ValueKey('word-tbl-col-left'),
-            onTap: () => c.tableColumn(right: false)),
-        RibbonButton(AppIcons.viewColumn, _t('word.tbl_col_right'),
-            key: const ValueKey('word-tbl-col-right'),
-            onTap: () => c.tableColumn(right: true)),
+        RibbonChip(
+          key: const ValueKey('word-tbl-row-above'),
+          icon: AppIcons.keyboardArrowUp,
+          label: _t('word.tbl_row_up_short'),
+          tooltip: _t('word.tbl_row_above'),
+          onTap: () => c.tableRow(below: false),
+        ),
+        RibbonChip(
+          key: const ValueKey('word-tbl-row-below'),
+          icon: AppIcons.keyboardArrowDown,
+          label: _t('word.tbl_row_down_short'),
+          tooltip: _t('word.tbl_row_below'),
+          onTap: () => c.tableRow(below: true),
+        ),
+        RibbonChip(
+          key: const ValueKey('word-tbl-col-left'),
+          icon: AppIcons.keyboardArrowLeft,
+          label: _t('word.tbl_col_left_short'),
+          tooltip: _t('word.tbl_col_left'),
+          onTap: () => c.tableColumn(right: false),
+        ),
+        RibbonChip(
+          key: const ValueKey('word-tbl-col-right'),
+          icon: AppIcons.keyboardArrowRight,
+          label: _t('word.tbl_col_right_short'),
+          tooltip: _t('word.tbl_col_right'),
+          onTap: () => c.tableColumn(right: true),
+        ),
         const RibbonSep(),
-        RibbonButton(AppIcons.deleteSweep, _t('word.tbl_del_row'),
-            key: const ValueKey('word-tbl-del-row'),
-            onTap: c.deleteTableRow),
-        RibbonButton(AppIcons.delete, _t('word.tbl_del_col'),
-            key: const ValueKey('word-tbl-del-col'),
-            onTap: c.deleteTableColumn),
-        RibbonButton(AppIcons.deleteForever, _t('word.tbl_del'),
-            key: const ValueKey('word-tbl-del'), onTap: c.deleteWholeTable),
+        RibbonChip(
+          key: const ValueKey('word-tbl-del-row'),
+          icon: AppIcons.deleteSweep,
+          label: _t('word.tbl_del_row_short'),
+          tooltip: _t('word.tbl_del_row'),
+          onTap: c.deleteTableRow,
+        ),
+        RibbonChip(
+          key: const ValueKey('word-tbl-del-col'),
+          icon: AppIcons.delete,
+          label: _t('word.tbl_del_col_short'),
+          tooltip: _t('word.tbl_del_col'),
+          onTap: c.deleteTableColumn,
+        ),
+        RibbonChip(
+          key: const ValueKey('word-tbl-del'),
+          icon: AppIcons.deleteForever,
+          label: _t('word.tbl_del_short'),
+          tooltip: _t('word.tbl_del'),
+          onTap: c.deleteWholeTable,
+        ),
         const RibbonSep(),
-        RibbonButton(AppIcons.tableView, _t('word.tbl_header'),
-            key: const ValueKey('word-tbl-header'),
-            active: c.tableHeader,
-            onTap: () => c.setTableHeader(!c.tableHeader)),
-        RibbonButton(AppIcons.viewColumn, _t('word.tbl_banded'),
-            key: const ValueKey('word-tbl-banded'),
-            active: c.tableBanded,
-            onTap: () => c.setTableBanded(!c.tableBanded)),
+        RibbonChip(
+          key: const ValueKey('word-tbl-header'),
+          icon: AppIcons.tableView,
+          label: _t('word.tbl_header_short'),
+          tooltip: _t('word.tbl_header'),
+          active: c.tableHeader,
+          onTap: () => c.setTableHeader(!c.tableHeader),
+        ),
+        RibbonChip(
+          key: const ValueKey('word-tbl-banded'),
+          icon: AppIcons.viewColumn,
+          label: _t('word.tbl_banded_short'),
+          tooltip: _t('word.tbl_banded'),
+          active: c.tableBanded,
+          onTap: () => c.setTableBanded(!c.tableBanded),
+        ),
         if (onPro != null) ...[
           const RibbonSep(),
           for (final (id, icon) in const [
@@ -453,8 +548,14 @@ class WordFormatUi {
             ('tbl_autofit', AppIcons.fitScreen),
             ('tbl_sort', AppIcons.sort),
           ])
-            RibbonButton(icon, _t('wp.$id'),
-                key: ValueKey('word-pro-$id'), onTap: () => onPro!(id)),
+            RibbonChip(
+              key: ValueKey('word-pro-$id'),
+              icon: icon,
+              label: _t('wp.$id'),
+              tooltip: _t('wp.$id'),
+              proBadge: ProGate.locked(Feature.wordSlidesPro),
+              onTap: () => onPro!(id),
+            ),
         ],
         RibbonMenu<int>(
           key: const ValueKey('word-tbl-shade'),
@@ -472,7 +573,10 @@ class WordFormatUi {
                       height: 22,
                       decoration: BoxDecoration(
                           color: Color(col),
-                          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant))),
+                          border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant))),
                 ]),
               ),
           ],
@@ -482,10 +586,12 @@ class WordFormatUi {
   /// Düzen sekmesi: kenar boşlukları, yönlendirme, boyut, sütunlar.
   List<Widget> layout() {
     final ps = c.pageSetup;
+    final paperLabel = ps.paper == 'a4' || ps.paper == 'a5'
+        ? ps.paper.toUpperCase()
+        : ps.paper[0].toUpperCase() + ps.paper.substring(1);
     return [
-      RibbonMenu<String>(
+      PopupMenuButton<String>(
         key: const ValueKey('word-lay-margins'),
-        icon: AppIcons.cropFree,
         tooltip: _t('word.margins'),
         onSelected: c.setMargins,
         itemBuilder: (_) => [
@@ -495,10 +601,14 @@ class WordFormatUi {
                 checked: ps.marginPreset == k,
                 child: Text(_t('word.margin_$k'))),
         ],
+        child: RibbonChip(
+          icon: AppIcons.cropFree,
+          label: _t('word.margin_${ps.marginPreset}'),
+          tooltip: _t('word.margins'),
+        ),
       ),
-      RibbonMenu<bool>(
+      PopupMenuButton<bool>(
         key: const ValueKey('word-lay-orient'),
-        icon: AppIcons.device,
         tooltip: _t('word.orientation'),
         onSelected: c.setLandscape,
         itemBuilder: (_) => [
@@ -511,10 +621,14 @@ class WordFormatUi {
               checked: ps.landscape,
               child: Text(_t('word.landscape'))),
         ],
+        child: RibbonChip(
+          icon: AppIcons.device,
+          label: _t(ps.landscape ? 'word.landscape' : 'word.portrait'),
+          tooltip: _t('word.orientation'),
+        ),
       ),
-      RibbonMenu<String>(
+      PopupMenuButton<String>(
         key: const ValueKey('word-lay-size'),
-        icon: AppIcons.newWord,
         tooltip: _t('word.paper_size'),
         onSelected: c.setPaper,
         itemBuilder: (_) => [
@@ -522,12 +636,18 @@ class WordFormatUi {
             CheckedPopupMenuItem(
                 value: k,
                 checked: ps.paper == k,
-                child: Text(k == 'a4' || k == 'a5' ? k.toUpperCase() : k[0].toUpperCase() + k.substring(1))),
+                child: Text(k == 'a4' || k == 'a5'
+                    ? k.toUpperCase()
+                    : k[0].toUpperCase() + k.substring(1))),
         ],
+        child: RibbonChip(
+          icon: AppIcons.newWord,
+          label: paperLabel,
+          tooltip: _t('word.paper_size'),
+        ),
       ),
-      RibbonMenu<int>(
+      PopupMenuButton<int>(
         key: const ValueKey('word-lay-cols'),
-        icon: AppIcons.viewColumn,
         tooltip: _t('word.columns'),
         onSelected: c.setColumns,
         itemBuilder: (ctx) => [
@@ -537,6 +657,11 @@ class WordFormatUi {
                 checked: ps.columns == n,
                 child: Text(ctx.t('word.columns_n', {'n': n}))),
         ],
+        child: RibbonChip(
+          icon: AppIcons.viewColumn,
+          label: context.t('word.columns_n', {'n': ps.columns}),
+          tooltip: _t('word.columns'),
+        ),
       ),
     ];
   }
@@ -578,12 +703,18 @@ class WordFormatUi {
         // Stiller galerisi
         for (final g in c.doc.styles.gallery()) styleChip(g),
         if (onPro != null) ...[
-          RibbonButton(AppIcons.style, _t('wp.style_update'),
-              key: const ValueKey('word-style-update'),
-              onTap: () => onPro!('style_update')),
-          RibbonButton(AppIcons.palette, _t('wp.theme'),
-              key: const ValueKey('word-style-theme'),
-              onTap: () => onPro!('theme')),
+          ProBadged(
+            feature: Feature.wordSlidesPro,
+            child: RibbonButton(AppIcons.style, _t('wp.style_update'),
+                key: const ValueKey('word-style-update'),
+                onTap: () => onPro!('style_update')),
+          ),
+          ProBadged(
+            feature: Feature.wordSlidesPro,
+            child: RibbonButton(AppIcons.palette, _t('wp.theme'),
+                key: const ValueKey('word-style-theme'),
+                onTap: () => onPro!('theme')),
+          ),
         ],
       ];
 
@@ -667,43 +798,108 @@ class WordFormatUi {
     );
   }
 
-  Widget colorMenu() => RibbonMenu<int>(
-        icon: OfficeIcons.textColor,
-        tooltip: _t('word.text_color'),
-        onSelected: c.setColor,
-        itemBuilder: (_) => [
-          PopupMenuItem(
-              value: DocxRunPatch.autoColor, child: Text(_t('word.auto_color'))),
-          for (final argb in {
-            ...c.recentColors,
-            ...c.doc.styles.themeColors.skip(4),
-            ...kWordStandardColors,
-          })
-            PopupMenuItem(
-                value: argb,
-                child: Row(children: [
-                  _dot(argb),
-                  const SizedBox(width: 12),
-                  Text('#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}'),
-                ])),
-        ],
+  Widget colorMenu() {
+    final scheme = Theme.of(context).colorScheme;
+    final bar = c.recentColors.isEmpty
+        ? scheme.onSurface
+        : Color(c.recentColors.first | 0xFF000000);
+    return RibbonButton(
+      OfficeIcons.textColor,
+      _t('word.text_color'),
+      key: const ValueKey('word-color'),
+      indicator: bar,
+      onTap: _showColorSheet,
+    );
+  }
+
+  Widget highlightMenu() => RibbonButton(
+        OfficeIcons.highlight,
+        _t('word.highlight'),
+        key: const ValueKey('word-highlight'),
+        indicator: Color(DocxStyles.highlightArgb('yellow')!),
+        onTap: _showHighlightSheet,
       );
 
-  Widget highlightMenu() => RibbonMenu<String>(
-        icon: OfficeIcons.highlight,
-        tooltip: _t('word.highlight'),
-        onSelected: c.setHighlight,
-        itemBuilder: (_) => [
-          PopupMenuItem(value: '', child: Text(_t('word.no_highlight'))),
-          for (final name in DocxStyles.highlightNames)
-            PopupMenuItem(
-                value: name,
-                child: Row(children: [
-                  _dot(DocxStyles.highlightArgb(name)!),
-                  const SizedBox(width: 12),
-                  Text(name),
-                ])),
-        ],
+  Future<void> _showColorSheet() => showAppSheet<void>(
+        context,
+        title: _t('word.color_pick'),
+        builder: (ctx) {
+          void pick(int argb) {
+            Navigator.of(ctx).pop();
+            c.setColor(argb);
+          }
+
+          return Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                Gap.lg, 0, Gap.lg, Gap.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (c.recentColors.isNotEmpty) ...[
+                  _label(_t('word.recent_colors')),
+                  _swatches(c.recentColors, pick),
+                ],
+                _label(_t('word.theme_colors')),
+                _swatches(c.doc.styles.themeColors, pick),
+                _label(_t('word.standard_colors')),
+                _swatches(kWordStandardColors, pick),
+                const SizedBox(height: Gap.md),
+                TextButton.icon(
+                  icon: const Icon(AppIcons.formatColorReset),
+                  label: Text(_t('word.auto_color')),
+                  onPressed: () => pick(DocxRunPatch.autoColor),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+  Future<void> _showHighlightSheet() => showAppSheet<void>(
+        context,
+        title: _t('word.highlight_pick'),
+        builder: (ctx) {
+          void pick(String name) {
+            Navigator.of(ctx).pop();
+            c.setHighlight(name);
+          }
+
+          return Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                Gap.lg, Gap.sm, Gap.lg, Gap.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: Gap.md,
+                  runSpacing: Gap.md,
+                  children: [
+                    for (final name in DocxStyles.highlightNames)
+                      Semantics(
+                        button: true,
+                        label: name,
+                        child: InkWell(
+                          key: ValueKey('word-hl-$name'),
+                          customBorder: const CircleBorder(),
+                          onTap: () => pick(name),
+                          child: _dot(DocxStyles.highlightArgb(name)!,
+                              size: 40),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
+                TextButton.icon(
+                  icon: const Icon(AppIcons.formatColorReset),
+                  label: Text(_t('word.no_highlight')),
+                  onPressed: () => pick(''),
+                ),
+              ],
+            ),
+          );
+        },
       );
 
   Widget lineSpacingMenu() {

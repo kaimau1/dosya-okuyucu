@@ -4,6 +4,7 @@ import 'dart:ui' show DartPluginRegistrant;
 import 'package:flutter/widgets.dart';
 
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import 'fm_env.dart';
 import 'native_extras.dart';
 import 'smart_quota.dart';
@@ -22,10 +23,13 @@ import 'smart_sort.dart';
 /// seçenek kapatıldıysa, AI rızası kalıcı değilse ya da anahtar yoksa hiçbir
 /// istek atılmaz.
 abstract final class SmartSortBg {
-  /// Tek turda en çok bu kadar dosya (JobScheduler ~10 dk tanır).
-  static const limit = 60;
+  /// Tek turda en çok bu kadar dosya (JobScheduler ~10 dk tanır; 8 dk
+  /// dolunca tur kesilir, yapılanlar kalır). 2026-11-22: 60 → 300 — gece
+  /// şarjda tüm arşiv birkaç turda biter.
+  static const limit = 300;
 
   static Future<void> run() async {
+    if (!Edition.current.has(Feature.smartFolders)) return;
     await FmEnv.ensureInit();
     await SmartSort.readSettings();
     if (!SmartSort.wantsBackgroundJob) {
@@ -41,8 +45,9 @@ abstract final class SmartSortBg {
     await SmartSort.run(
       credentials: ai.credentials,
       scope: ai.scope,
-      scan: 400,
+      scan: SmartSort.scanAll,
       limit: limit,
+      silent: true,
     ).timeout(const Duration(minutes: 8), onTimeout: () {
       SmartSort.cancelRun();
       return const SmartRunResult(0, 0);

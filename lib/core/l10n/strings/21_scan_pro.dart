@@ -14,8 +14,6 @@ const Map<String, (String, String, String)> _t21 = {
   'sk.whiteboard': ('Beyaz tahta', 'Whiteboard', 'سبورة'),
   'sk.business_card': ('Kartvizit', 'Business card', 'بطاقة عمل'),
   'sk.photo': ('Fotoğraf', 'Photo', 'صورة'),
-  'sk.title': ('Belge türü', 'Document type', 'نوع المستند'),
-  'sk.tool': ('Tür', 'Type', 'النوع'),
   'sk.working': ('Tür uygulanıyor…', 'Applying type…', 'جارٍ تطبيق النوع…'),
   'sk.id_combined': ('Ön ve arka yüz tek sayfada birleştirildi', 'Front and back combined on one page', 'تم دمج الوجهين في صفحة واحدة'),
   'sk.id_need_two': ('Kimlik için ön ve arka yüzü tarayın (2 sayfa)', 'Scan front and back for an ID (2 pages)', 'امسح الوجه الأمامي والخلفي للهوية (صفحتان)'),

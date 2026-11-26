@@ -42,23 +42,72 @@ class PressScale extends StatefulWidget {
   State<PressScale> createState() => _PressScaleState();
 }
 
-class _PressScaleState extends State<PressScale> {
+class _PressScaleState extends State<PressScale>
+    with SingleTickerProviderStateMixin<PressScale> {
   static const _delay = Duration(milliseconds: 70);
   static const _slop = 10.0;
 
+  final _childKey = GlobalKey();
   bool _pressed = false;
   Timer? _timer;
   Offset? _down;
+  AnimationController? _ctl;
+  Animation<double>? _scaleAnim;
 
   @override
   void dispose() {
     _timer?.cancel();
+    _ctl?.dispose();
     super.dispose();
+  }
+
+  void _ensureController() {
+    if (_ctl != null) return;
+    final ctl = AnimationController(vsync: this, value: 0.0);
+    _ctl = ctl;
+    _scaleAnim = Tween<double>(begin: 1.0, end: widget.scale).animate(
+      CurvedAnimation(
+        parent: ctl,
+        curve: Curves.easeOut,
+        reverseCurve: Curves.easeOutBack,
+      ),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant PressScale oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scale != widget.scale && _ctl != null) {
+      _scaleAnim = Tween<double>(begin: 1.0, end: widget.scale).animate(
+        CurvedAnimation(
+          parent: _ctl!,
+          curve: Curves.easeOut,
+          reverseCurve: Curves.easeOutBack,
+        ),
+      );
+    }
   }
 
   void _set(bool value) {
     if (_pressed == value || !mounted) return;
-    setState(() => _pressed = value);
+    _pressed = value;
+    final hadCtl = _ctl != null;
+    if (value && !hadCtl) {
+      _ensureController();
+      setState(() {});
+    }
+    final ctl = _ctl;
+    if (ctl == null) return;
+    final dur = Motion.of(context, value ? Motion.short : Motion.medium);
+    if (dur == Duration.zero) {
+      ctl.value = value ? 1.0 : 0.0;
+    } else if (value) {
+      ctl.duration = dur;
+      ctl.forward();
+    } else {
+      ctl.reverseDuration = dur;
+      ctl.reverse();
+    }
   }
 
   void _onDown(PointerDownEvent e) {
@@ -81,6 +130,8 @@ class _PressScaleState extends State<PressScale> {
     _set(false);
   }
 
+  void _onCancel(PointerCancelEvent e) => _release();
+
   /// Gecikme dolmadan kalkan parmakta da (hızlı dokunuş) his kaybolmasın:
   /// kutu bir an çöküp geri gelir.
   void _onUp(PointerUpEvent e) {
@@ -92,20 +143,27 @@ class _PressScaleState extends State<PressScale> {
   }
 
   @override
-  Widget build(BuildContext context) => Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _onDown,
-        onPointerMove: _onMove,
-        onPointerUp: _onUp,
-        onPointerCancel: (e) => _release(),
-        child: AnimatedScale(
-          scale: _pressed ? widget.scale : 1,
-          // "Animasyonları kaldır" açıkken anında (Ferrari H6.2).
-          duration: Motion.of(context, _pressed ? Motion.short : Motion.medium),
-          curve: _pressed ? Curves.easeOut : Curves.easeOutBack,
-          child: widget.child,
-        ),
-      );
+  Widget build(BuildContext context) {
+    final child = KeyedSubtree(key: _childKey, child: widget.child);
+    final anim = _scaleAnim;
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _onDown,
+      onPointerMove: _onMove,
+      onPointerUp: _onUp,
+      onPointerCancel: _onCancel,
+      child: anim == null
+          ? child
+          : AnimatedBuilder(
+              animation: anim,
+              builder: (context, inner) => Transform.scale(
+                scale: anim.value,
+                child: inner,
+              ),
+              child: child,
+            ),
+    );
+  }
 }
 
 /// **Yumuşak giriş** — yeni beliren parça hafifçe büyüyüp yukarı süzülerek

@@ -17,7 +17,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
       _vBody.jumpTo(((_vBody.offset + focal.dy) * f - focal.dy)
           .clamp(0.0, _vBody.position.maxScrollExtent));
     }
-    _updateColWindow();
+    _updateColWindow(force: true);
     // Şeritteki zoom yüzdesi ölçekle birlikte yenilensin (rozet pinch'te
     // görünür, düğmeyle zoomda görünmez — kullanıcının tek göstergesi bu).
     if (mounted) _partSetState(() {});
@@ -50,62 +50,127 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
   Widget _cellBar() {
     final scheme = Theme.of(context).colorScheme;
     final pending = _hasPendingInput;
+    final showCommit = pending || _editing;
     return Container(
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsetsDirectional.fromSTEB(6, 2, 2, 2),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(
+          bottom: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 5, 4, 5),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Ad Kutusu: dokununca "Hücreye git" (Excel'de de yazılabilir bir
-          // alandır; telefonda diyalog daha güvenli).
-          InkWell(
-            onTap: _editor == null ? null : _showGoTo,
+          // Ad Kutusu: dokununca "Hücreye git".
+          Material(
+            color: scheme.primaryContainer.withValues(alpha: 0.65),
             borderRadius: BorderRadius.circular(Radii.control),
-            child: Container(
-              width: 62,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(Radii.control),
+            child: InkWell(
+              onTap: _editor == null ? null : _showGoTo,
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 58, maxWidth: 84),
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  border: Border.all(
+                    color: scheme.primary.withValues(alpha: 0.28),
+                  ),
+                ),
+                child: Text(
+                  _selectionLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.small.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: scheme.onPrimaryContainer,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
               ),
-              child: Text(
-                _selectionLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    context.type.small.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Tooltip(
+            message: context.t('excel.fx_library'),
+            child: Material(
+              color: _editor == null
+                  ? Colors.transparent
+                  : scheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(Radii.control),
+              child: InkWell(
+                key: const ValueKey('xl-bar-fx'),
+                onTap: _editor == null ? null : _showFunctionLibrary,
+                borderRadius: BorderRadius.circular(Radii.control),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.control),
+                    border: Border.all(
+                      color: scheme.primary.withValues(
+                          alpha: _editor == null ? 0.08 : 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    'fx',
+                    style: context.type.small.copyWith(
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w800,
+                      color: _editor == null
+                          ? scheme.onSurface.withValues(alpha: 0.38)
+                          : scheme.primary,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: TextField(
-              controller: _cellField,
-              focusNode: _barFocus,
-              onSubmitted: (_) {
-                final sheet = _sheet;
-                if (sheet == null) {
-                  _applyCell(_cellField.text);
-                  return;
-                }
-                _commitAndMoveDown(_rowCount(sheet));
-              },
-              onChanged: (_) => _partSetState(() {}),
-              textInputAction: TextInputAction.done,
-              minLines: 1,
-              maxLines: pending ? 3 : 1,
-              style: context.type.body,
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                filled: false,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                hintText: context.t('excel.cell_content'),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(Radii.control),
+                border: Border.all(
+                  color: showCommit
+                      ? scheme.primary.withValues(alpha: 0.45)
+                      : scheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              ),
+              child: TextField(
+                controller: _cellField,
+                focusNode: _barFocus,
+                onSubmitted: (_) {
+                  final sheet = _sheet;
+                  if (sheet == null) {
+                    _applyCell(_cellField.text);
+                    return;
+                  }
+                  _commitAndMoveDown();
+                },
+                onChanged: (_) => _partSetState(() {}),
+                textInputAction: TextInputAction.done,
+                minLines: 1,
+                maxLines: pending ? 3 : 1,
+                style: context.type.body,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  filled: false,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  hintText: context.t('excel.cell_content'),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                ),
               ),
             ),
           ),
@@ -118,25 +183,40 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               padding: EdgeInsets.zero,
               onPressed: _pickFromValidation,
             ),
-          // ✗ / ✓ yalnız onaylanmamış giriş varken. (Kaydetmek için ✓'e basmak
-          // ZORUNLU DEĞİL — başka hücreye geçmek de yazar, bkz. `_endEdit`.)
-          if (pending) ...[
+          // ✗ / ✓ yazma sırasında ya da onaylanmamış giriş varken.
+          if (showCommit) ...[
+            const SizedBox(width: 4),
             IconButton(
               tooltip: context.t('common.cancel'),
               visualDensity: VisualDensity.compact,
-              iconSize: 20,
+              iconSize: 18,
+              style: IconButton.styleFrom(
+                backgroundColor: scheme.errorContainer.withValues(alpha: 0.75),
+                foregroundColor: scheme.onErrorContainer,
+                shape: const CircleBorder(),
+                minimumSize: const Size(32, 32),
+              ),
               icon: const Icon(AppIcons.close),
               onPressed: _cancelEdit,
             ),
+            const SizedBox(width: 2),
             IconButton(
               tooltip: context.t('common.apply'),
               visualDensity: VisualDensity.compact,
-              iconSize: 20,
-              color: OfficeColors.excel,
+              iconSize: 18,
+              style: IconButton.styleFrom(
+                backgroundColor: OfficeColors.excel,
+                foregroundColor: AppColors.page,
+                shape: const CircleBorder(),
+                minimumSize: const Size(32, 32),
+              ),
               icon: const Icon(AppIcons.check),
               onPressed: () {
                 _editing = false;
                 _applyCell(_cellField.text);
+                _keypadPanel.close();
+                _barFocus.unfocus();
+                _cellFocus.unfocus();
               },
             ),
           ],
@@ -146,17 +226,87 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
               key: const ValueKey('xl-error-why'),
               tooltip: context.t('xp.err_why'),
               visualDensity: VisualDensity.compact,
-              iconSize: 20,
+              iconSize: 19,
+              style: IconButton.styleFrom(
+                backgroundColor: scheme.errorContainer.withValues(alpha: 0.65),
+                foregroundColor: scheme.error,
+                shape: const CircleBorder(),
+                minimumSize: const Size(32, 32),
+              ),
               icon: const Icon(AppIcons.help),
               onPressed: () => _snack(context.t(_errorKeyHere()!)),
             ),
+          const SizedBox(width: 2),
           IconButton(
-            tooltip: context.t(_ribbonOpen ? 'excel.ribbon_hide' : 'excel.ribbon_show'),
+            tooltip: context
+                .t(_ribbonOpen ? 'excel.ribbon_hide' : 'excel.ribbon_show'),
             visualDensity: VisualDensity.compact,
             iconSize: 20,
-            icon: Icon(
-                _ribbonOpen ? AppIcons.expandLess : AppIcons.expandMore),
+            style: IconButton.styleFrom(
+              backgroundColor:
+                  scheme.surfaceContainerHigh.withValues(alpha: 0.65),
+              foregroundColor: scheme.onSurfaceVariant,
+              shape: const CircleBorder(),
+              minimumSize: const Size(32, 32),
+            ),
+            icon:
+                Icon(_ribbonOpen ? AppIcons.expandLess : AppIcons.expandMore),
             onPressed: () => _partSetState(() => _ribbonOpen = !_ribbonOpen),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Seçili hücrede veri doğrulama giriş iletisi varsa kompakt, kapatılabilir
+  /// ipucu kartı.
+  Widget _validationPromptBanner() {
+    final v = _sheet?.validationAt(_selRow, _selCol);
+    if (v == null || !v.showInputMessage) return const SizedBox.shrink();
+    if (_dismissedPromptCell == (_selRow, _selCol)) {
+      return const SizedBox.shrink();
+    }
+    final title = v.promptTitle?.trim() ?? '';
+    final body = v.prompt?.trim() ?? '';
+    if (title.isEmpty && body.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('xl-validation-prompt'),
+      width: double.infinity,
+      color: scheme.secondaryContainer.withValues(alpha: 0.65),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 4, 4, 4),
+      child: Row(
+        children: [
+          Icon(AppIcons.info, size: 16, color: scheme.onSecondaryContainer),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: context.type.small
+                    .copyWith(color: scheme.onSecondaryContainer),
+                children: [
+                  if (title.isNotEmpty)
+                    TextSpan(
+                      text: body.isEmpty ? title : '$title: ',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  if (body.isNotEmpty) TextSpan(text: body),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('xl-validation-prompt-close'),
+            tooltip: context.t('common.close'),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            iconSize: 16,
+            icon: Icon(AppIcons.close, color: scheme.onSecondaryContainer),
+            onPressed: () => _partSetState(
+                () => _dismissedPromptCell = (_selRow, _selCol)),
           ),
         ],
       ),

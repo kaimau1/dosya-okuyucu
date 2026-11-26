@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Rect, Size;
 
@@ -133,45 +134,46 @@ Future<List<int>> applyPdfMarks(
   List<PdfMark> marks, {
   List<int>? fontBytes,
   String? password,
-}) async {
-  final doc = PdfDocument(inputBytes: bytes, password: password);
-  try {
-    final byPage = <int, List<PdfMark>>{};
-    for (final m in marks) {
-      if (m.page < 0 || m.page >= doc.pages.count) continue;
-      (byPage[m.page] ??= []).add(m);
-    }
-    for (final entry in byPage.entries) {
-      final page = doc.pages[entry.key];
-      final turns = page.rotation.index;
-      final raw = page.size;
-      // Görünen (döndürülmüş) ölçü: kullanıcı sayfayı böyle gördü.
-      final visible = turns.isOdd ? Size(raw.height, raw.width) : raw;
-      final t = stampTransform(raw, turns);
-      final g = page.graphics;
-      final state = g.save();
+}) =>
+    Isolate.run(() async {
+      final doc = PdfDocument(inputBytes: bytes, password: password);
       try {
-        if (t.angle != 0) {
-          g.translateTransform(t.translate.dx, t.translate.dy);
-          g.rotateTransform(t.angle);
+        final byPage = <int, List<PdfMark>>{};
+        for (final m in marks) {
+          if (m.page < 0 || m.page >= doc.pages.count) continue;
+          (byPage[m.page] ??= []).add(m);
         }
-        for (final m in entry.value) {
-          switch (m) {
-            case InkMark():
-              _drawInk(g, m, visible);
-            case TextMark():
-              if (fontBytes != null) _drawText(g, m, visible, fontBytes);
+        for (final entry in byPage.entries) {
+          final page = doc.pages[entry.key];
+          final turns = page.rotation.index;
+          final raw = page.size;
+          // Görünen (döndürülmüş) ölçü: kullanıcı sayfayı böyle gördü.
+          final visible = turns.isOdd ? Size(raw.height, raw.width) : raw;
+          final t = stampTransform(raw, turns);
+          final g = page.graphics;
+          final state = g.save();
+          try {
+            if (t.angle != 0) {
+              g.translateTransform(t.translate.dx, t.translate.dy);
+              g.rotateTransform(t.angle);
+            }
+            for (final m in entry.value) {
+              switch (m) {
+                case InkMark():
+                  _drawInk(g, m, visible);
+                case TextMark():
+                  if (fontBytes != null) _drawText(g, m, visible, fontBytes);
+              }
+            }
+          } finally {
+            g.restore(state);
           }
         }
+        return await doc.save();
       } finally {
-        g.restore(state);
+        doc.dispose();
       }
-    }
-    return await doc.save();
-  } finally {
-    doc.dispose();
-  }
-}
+    });
 
 PdfColor _color(int argb) =>
     PdfColor((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);

@@ -9,7 +9,9 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../fm/fm_env.dart';
+import 'azure_tts.dart';
 import 'kokoro_worker.dart';
 
 /// Bir indirme parçası: kaynak adres → yerel göreli yol (+ isteğe bağlı
@@ -59,13 +61,47 @@ enum NeuralVoice {
   kokoroTr,
 
   /// Kokoro English — onnx-community/Kokoro-82M-v1.0-ONNX, int8, "af_heart".
-  kokoroEn;
+  kokoroEn,
+
+  /// **Ahmet** (2026-11-25, kullanıcı: *"haritalardaki Ahmet sesini de ekle"*)
+  /// — Microsoft'un Türkçe erkek sinir ağı sesi `tr-TR-AhmetNeural`, resmî
+  /// Azure Speech API'si + kullanıcının KENDİ anahtarı ([AzureTts]). Model
+  /// indirilmez: ÇEVRİMİÇİ çalışır, okunan metin Microsoft'a gider (kart
+  /// açıklaması bunu söyler); hata olursa okuma cihaz sesine düşer.
+  ahmet;
+
+  /// Çevrimiçi ses mi (indirme yok, kurulu sayılır, sentez sunucuda).
+  bool get isOnline => this == NeuralVoice.ahmet;
+
+  /// Yalnız Kişisel derlemede (Play'e girmez): Kokoro'nun telaffuz motoru
+  /// eSpeak NG GPL-3.0 (2026-11-25 Play temizliğinin gerekçesi — kişisel
+  /// derlemede geri geldi); Ahmet metni üçüncü tarafa (Microsoft) gönderir,
+  /// Play gizlilik beyanı güncellenmeden oraya girmez.
+  bool get personalOnly => switch (this) {
+        NeuralVoice.kokoroTr || NeuralVoice.kokoroEn || NeuralVoice.ahmet =>
+          true,
+        _ => false,
+      };
+
+  /// Bu derlemede kullanılabilir mi ([Feature.extraVoices]). Sesli okuma
+  /// VE sesli kitapta (2026-11-25) aynı liste.
+  bool get available =>
+      !personalOnly || Edition.current.has(Feature.extraVoices);
+
+  /// Bu derlemede gösterilecek sesler (sıra = enum sırası).
+  static List<NeuralVoice> get usable =>
+      [for (final v in NeuralVoice.values) if (v.available) v];
+
+  /// Microsoft ses adı (yalnız çevrimiçi sesler).
+  String? get cloudName =>
+      this == NeuralVoice.ahmet ? 'tr-TR-AhmetNeural' : null;
 
   String get label => switch (this) {
         NeuralVoice.antalia => 'Antalia-2 Mini',
         NeuralVoice.ema => 'EMA Lightning',
         NeuralVoice.kokoroTr => 'Kokoro Türkçe',
         NeuralVoice.kokoroEn => 'Kokoro English',
+        NeuralVoice.ahmet => 'Ahmet',
       };
 
   /// Sesli okumada seçilince yazılan dil (`TtsPrefs.voiceLocale`).
@@ -76,6 +112,7 @@ enum NeuralVoice {
         NeuralVoice.ema => 'voice.ema_sub',
         NeuralVoice.kokoroTr => 'voice.kokoro_tr_sub',
         NeuralVoice.kokoroEn => 'voice.kokoro_en_sub',
+        NeuralVoice.ahmet => 'voice.ahmet_sub',
       };
 
   String get sourceUrl => switch (this) {
@@ -84,6 +121,8 @@ enum NeuralVoice {
         NeuralVoice.kokoroTr =>
           'https://huggingface.co/empiriolabsai/kokoro-turkish',
         NeuralVoice.kokoroEn => 'https://huggingface.co/hexgrad/Kokoro-82M',
+        NeuralVoice.ahmet =>
+          'https://learn.microsoft.com/azure/ai-services/speech-service/language-support',
       };
 
   // G9.9 artığı (2026-11-14): `resolve/main` yerine sabit commit — Space
@@ -168,11 +207,13 @@ enum NeuralVoice {
                 522240,
                 sha256: 'd583ccff3cdca2f7fae535cb998ac07e9fcb90f09737b9a41fa2734ec44a8f0b'),
           ],
+        NeuralVoice.ahmet => const [],
       };
 
   /// İndirilecek toplam (çalışma zamanı dahil, kurulu değilse).
-  int get approxBytes =>
-      [...files, ...runtime].fold(0, (a, f) => a + f.approxBytes);
+  int get approxBytes => isOnline
+      ? 0
+      : [...files, ...runtime].fold(0, (a, f) => a + f.approxBytes);
 
   /// EMA çalışanı ONNX Runtime'ı jsDelivr'den alıyor: yerel kopyaya çevrilir
   /// (internetsiz çalışsın) ve WebGPU denemesi kapatılır (WebView'da yok;
@@ -198,7 +239,11 @@ abstract final class NeuralVoiceId {
   static NeuralVoice? parse(String name) {
     if (!name.startsWith(prefix)) return null;
     final id = name.substring(prefix.length);
-    return NeuralVoice.values.where((v) => v.name == id).firstOrNull;
+    // Bu derlemede olmayan ses (Play'de Kokoro/Ahmet) yok sayılır → cihaz
+    // sesi; tercih dizesi silinmez (Kişisel'e dönünce yine seçili).
+    return NeuralVoice.values
+        .where((v) => v.name == id && v.available)
+        .firstOrNull;
   }
 }
 
@@ -223,8 +268,13 @@ class NeuralVoiceStore extends ChangeNotifier {
         return file.existsSync() && file.lengthSync() > 0;
       });
 
-  bool isInstalled(NeuralVoice v) =>
-      _complete(v.files) && _complete(NeuralVoice.runtime);
+  /// Çevrimiçi ses (Ahmet) anahtar girilince "kurulu" sayılır.
+  bool isInstalled(NeuralVoice v) => v.isOnline
+      ? AzureTts.configured.value
+      : (_complete(v.files) && _complete(NeuralVoice.runtime));
+
+  /// Dışarıdan değişen durum (Azure anahtarı) için yeniden çizim.
+  void refresh() => notifyListeners();
 
   /// Kurulu sesin diskteki boyutu (çalışma zamanı hariç).
   int installedBytes(NeuralVoice v) => v.files.fold(0, (a, f) {
@@ -237,7 +287,7 @@ class NeuralVoiceStore extends ChangeNotifier {
   /// değişir: yarım dosya "kurulu" sayılmaz.
   Future<void> install(NeuralVoice v,
       {http.Client? client, @visibleForTesting bool verify = true}) async {
-    if (_progress.containsKey(v)) return;
+    if (v.isOnline || _progress.containsKey(v)) return;
     final all = [...NeuralVoice.runtime, ...v.files];
     final total = all.fold<int>(0, (a, f) => a + f.approxBytes);
     var done = 0;
@@ -297,7 +347,10 @@ class NeuralVoiceStore extends ChangeNotifier {
   /// Sesi siler; başka kurulu ses yoksa çalışma zamanını da. Başka kurulu
   /// sesin de kullandığı dosya (Kokoro'ların ortak espeak-ng'si) kalır.
   Future<void> remove(NeuralVoice v) async {
-    final others = NeuralVoice.values.where((o) => o != v && isInstalled(o));
+    if (v.isOnline) return;
+    // Çevrimiçi ses (hep "kurulu") çalışma zamanını tutmaz.
+    final others = NeuralVoice.values
+        .where((o) => o != v && !o.isOnline && isInstalled(o));
     final shared = {for (final o in others) ...o.files.map((f) => f.path)};
     for (final f in v.files) {
       if (shared.contains(f.path)) continue;

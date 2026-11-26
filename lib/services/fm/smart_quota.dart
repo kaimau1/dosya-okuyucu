@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/edition.dart';
 import 'native_extras.dart';
 
 /// Akıllı düzen turunun neden başlamadığı ya da yarıda durduğu (hata değil).
@@ -62,9 +63,22 @@ abstract final class SmartQuota {
   static const prefLog = 'smart_sort_quota_log';
 
   /// Seçilebilir günlük sınırlar.
-  static const capChoices = [50, 100, 200, 500, 1000];
+  /// [unlimited] = "Sınırsız" (2026-11-22, kullanıcı: "arka planda tüm
+  /// dosyaları tarayacak şekilde de yapılabilsin").
+  static const unlimited = 1 << 30;
+  static const capChoices = [50, 100, 200, 500, 1000, 5000, unlimited];
+  static bool get isUnlimited => _cap >= unlimited;
   static const defaultCap = 200;
   static const historyDays = 7;
+
+  /// Pro sürümün kendi anahtarı olmadan sunduğu Akıllı Klasör başlangıç
+  /// hakkı (toplam dosya sınırı). Ekstra bulut analizi kendi anahtarı ya da
+  /// isteğe bağlı abonelikle sınırsızdır.
+  static const int proStarterLimit = 500;
+
+  /// Bu derlemede Akıllı Klasör için toplam dosya üst sınırı (sınırsızsa null).
+  static int? starterCapFor(Edition edition, {required bool hasOwnKey}) =>
+      edition == Edition.pro && !hasOwnKey ? proStarterLimit : null;
 
   static int _cap = defaultCap;
   static bool _wifiOnly = true;
@@ -72,6 +86,7 @@ abstract final class SmartQuota {
   static String _day = '';
   static int _requests = 0;
   static int _limited = 0;
+  static int _epoch = 0;
   static final List<SmartQuotaDay> _history = [];
 
   /// Sayım ya da ayar değişince artar (arayüz dinler).
@@ -136,13 +151,18 @@ abstract final class SmartQuota {
   }
 
   static Future<void> _save() async {
+    final opEpoch = _epoch;
+    final cap = _cap;
+    final wifi = _wifiOnly;
+    final log = [for (final d in days) d.encode()];
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(prefCap, _cap);
-      await prefs.setBool(prefWifi, _wifiOnly);
-      await prefs.setStringList(prefLog, [
-        for (final d in days) d.encode(),
-      ]);
+      if (opEpoch != _epoch) return;
+      await prefs.setInt(prefCap, cap);
+      if (opEpoch != _epoch) return;
+      await prefs.setBool(prefWifi, wifi);
+      if (opEpoch != _epoch) return;
+      await prefs.setStringList(prefLog, log);
     } catch (_) {
       // Bilinçli: yazılamazsa sayım yalnız bu oturumda.
     }
@@ -189,6 +209,14 @@ abstract final class SmartQuota {
     return true;
   }
 
+  /// Ağ isteği gönderilmeden yerel olarak kesilen bir hakkı iade eder.
+  static void refund() {
+    _roll();
+    if (_requests <= 0) return;
+    _requests--;
+    _changed();
+  }
+
   /// Kota (429) yanıtı geldi.
   static void noteLimited() {
     _roll();
@@ -215,6 +243,7 @@ abstract final class SmartQuota {
 
   /// Kota geçmişini sıfırlar (PrivacyWipe).
   static Future<void> clearLog() async {
+    _epoch++;
     _day = '';
     _requests = 0;
     _limited = 0;
@@ -230,6 +259,7 @@ abstract final class SmartQuota {
 
   @visibleForTesting
   static void debugReset() {
+    _epoch++;
     _cap = defaultCap;
     _wifiOnly = true;
     _read = false;

@@ -230,6 +230,10 @@ void main() {
 
     await tapIn(t, _ribbonTabs, 'Gözden Geçir');
     await t.pump();
+    // İlk yonga artık "Sayfa görünümü" (2026-11-22) — sayaç sağa kaydı.
+    expect(find.byKey(const ValueKey('word-rev-page')), findsOneWidget);
+    await t.ensureVisible(find.byKey(const ValueKey('word-count')));
+    await t.pump();
     await t.tap(find.byKey(const ValueKey('word-count')));
     await t.pumpAndSettle();
     expect(find.text('${c.counts().words}'), findsOneWidget);

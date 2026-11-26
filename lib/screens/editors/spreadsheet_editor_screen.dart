@@ -35,6 +35,7 @@ import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
+import '../../core/motion.dart';
 import '../../core/sheet_metrics.dart';
 import '../../core/sheet_overflow.dart';
 import '../../core/sheet_text_measure.dart';
@@ -42,6 +43,7 @@ import '../../core/theme.dart';
 import '../../models/document.dart';
 import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
+import '../../services/fm/fs_events.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/csv_codec.dart';
 import '../../services/text_decode.dart';
@@ -214,7 +216,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// önbellekleri bununla geçersiz olur.
   int _calcStamp = 0;
   final Map<XlsxCondRule, _CondStats> _condCache = {};
-  (Object, String)? _statusMemo;
+  (Object, _RangeStatusData)? _statusMemo;
+  ((String, int, int, int), List<(String, String)>)? _colTextCache;
 
   /// Faz 20: kirli durum, kaydetme durumu, taslak ve otomatik kaydetme.
   /// Kaynak = kaydetme HEDEFİ (eski .xls açıldıysa yeni .xlsx; o dosya henüz
@@ -285,11 +288,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   final _hTop = ScrollController();
   final _vBody = ScrollController();
   final _vLeft = ScrollController();
+  final _scrolledDown = ValueNotifier<bool>(false);
   bool _syncing = false;
+  bool _growScheduled = false;
 
-  /// Yatay sanallaştırma penceresi (görünen ilk/son sütun).
-  int _firstCol = 0;
-  int _lastCol = 0;
+  /// Yatay sanallaştırma penceresi (görünen ilk/son sütun): değişince yalnız
+  /// sütun şeritleri yenilenir, ekranın kökü yeniden kurulmaz.
+  final ValueNotifier<(int, int)> _colWindow = ValueNotifier((0, 0));
+
+  /// Seçim tutamakları ve yüzer editör için tek paylaşılan birleşik dinleyici.
+  late final Listenable _gridScroll = Listenable.merge([_hBody, _vBody]);
+  late final Listenable _editorScroll =
+      Listenable.merge([_hBody, _vBody, _cellField]);
 
   /// Kaydırılan bölgenin (sabit başlıklar/donmuş bölme HARİÇ) ölçüsü.
   double _viewportW = 400;
@@ -307,6 +317,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   /// Ölçü önbelleğini geçersiz kılan imza + önbellek.
   String _metricsKey = '';
+  String _autoFitKey = '';
+  int _autoFitVersion = 0;
   SheetAxisMetrics _colMetrics = SheetAxisMetrics.empty;
   SheetAxisMetrics _rowMetrics = SheetAxisMetrics.empty;
 
@@ -341,6 +353,11 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// Uygulama içi pano. Sistem panosu da yazılır (TSV) ama formül kaydırması
   /// ve "kesme" bilgisi yalnız burada durur.
   SheetClip? _clip;
+  String? _clipSheetName;
+  List<List<String>>? _clipDisplayValues;
+
+  /// Seçili hücrede kullanıcı tarafından kapatılan veri doğrulama ipucu.
+  (int, int)? _dismissedPromptCell;
 
   /// Doldurma tutamağı sürüklenirken hedeflenen son satır/sütun
   /// (null = sürükleme yok). Hedef aralık seçili gibi vurgulanır.
@@ -376,6 +393,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   int? _resizeCol;
   int? _resizeRow;
   double _resizeStart = 0;
+  double? _resizePreviewSize;
 
   @override
   void initState() {
@@ -414,6 +432,8 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
     _hTop.dispose();
     _vBody.dispose();
     _vLeft.dispose();
+    _scrolledDown.dispose();
+    _colWindow.dispose();
     super.dispose();
   }
 
@@ -497,7 +517,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// Levha metin alanları (Hücreleri biçimlendir > Özel, Veri doğrulama):
   /// ekranın ömrüne bağlı — levha kapanış animasyonu sürerken atılmasınlar.
   final _fcCustom = TextEditingController();
-  final _valCtl = List.generate(4, (_) => TextEditingController());
+  final _valCtl = List.generate(6, (_) => TextEditingController());
 
   // ── satır/sütun listeleri ─────────────────────────────────────────────────
 
@@ -559,6 +579,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
       kind: DocKind.spreadsheet,
       title: widget.name,
       session: _session,
+      hideKindPrefix: true,
       subtitle: visibleSheets.length >= 2
           ? context.t('shell.sheets', {'n': visibleSheets.length})
           : null,
@@ -572,18 +593,58 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
         undo: () => editor == null || !_undo.canUndo ? null : _undoStep,
         redo: () => editor == null || !_undo.canRedo ? null : _redoStep,
         extras: [
-          IconButton(
-            tooltip: context.t('common.search'),
-            icon: const Icon(OfficeIcons.search),
-            onPressed: editor == null ? null : _toggleFind,
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 2),
+            child: IconButton(
+              tooltip: context.t('common.search'),
+              isSelected: _finding,
+              style: EditorTopBar.iconStyle(context, selected: _finding),
+              icon: const Icon(OfficeIcons.search, size: 20),
+              onPressed: editor == null ? null : _toggleFind,
+            ),
           ),
         ],
-        // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
-        // altında tabloya özel işler ayrı renkte. CSV eskiden hem burada hem
-        // alt çubuktaydı — artık yalnız burada.
+        // ⋮ = ortak dosya levhası (2026-11-15 + menü araması): üstte dosya
+        // işlemleri, altında tabloya özel yazdırma/koruma/dışa aktarma işleri.
         filePath: widget.savePath ?? widget.path,
         menuTitle: context.t('dm.sheet'),
         menu: [
+          if (_excelPro) ...[
+            EditorMenuItem(
+              id: 'print_pdf',
+              icon: AppIcons.pdf,
+              label: context.t('xp.print_pdf'),
+              onTap: editor == null ? null : _printToPdf,
+            ),
+            EditorMenuItem(
+              id: 'print_area',
+              icon: AppIcons.print,
+              label: context.t(_sheet?.printArea != null
+                  ? 'xp.print_area_clear'
+                  : 'xp.print_area_set_btn'),
+              onTap: editor == null
+                  ? null
+                  : () => _setPrintArea(clear: _sheet?.printArea != null),
+            ),
+            EditorMenuItem(
+              id: 'password',
+              icon: _filePassword == null ? AppIcons.lock : AppIcons.unlock,
+              label: context.t(_filePassword == null
+                  ? 'xp.password_set'
+                  : 'xp.password_remove'),
+              onTap: editor == null
+                  ? null
+                  : (_filePassword == null
+                      ? _protectWithPassword
+                      : _removePassword),
+            ),
+          ],
+          EditorMenuItem(
+            id: 'chart',
+            icon: AppIcons.insertChart,
+            label: context.t('chart.insert'),
+            onTap: editor == null ? null : _insertChart,
+          ),
           EditorMenuItem(
             id: 'csv',
             icon: AppIcons.tableView,
@@ -619,6 +680,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
                     if (editor.truncated) _truncatedBanner(),
                     if (_finding) ...[_findBar(), _replaceBar()],
                     _cellBar(),
+                    _validationPromptBanner(),
                     _formulaSuggestions(),
                     _formulaPreview(),
                     ?_argumentHint(),
@@ -645,7 +707,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
       bottomBar: _editing ? null : Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (visibleSheets.length >= 2) _sheetTabs(visibleSheets),
+          if (visibleSheets.isNotEmpty) _sheetTabs(visibleSheets),
           DocActionBar(
             // Faz 40 / 1: aralık seçiliyken seçim eylemleri şeridin başında.
             contextual: _anchorRow != _selRow || _anchorCol != _selCol
@@ -776,4 +838,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
+}
+
+class _RangeStatusData {
+  const _RangeStatusData({
+    required this.cellCount,
+    required this.filled,
+    required this.count,
+    required this.sum,
+    required this.avg,
+    required this.min,
+    required this.max,
+  });
+  final int cellCount, filled, count;
+  final double sum, avg, min, max;
 }

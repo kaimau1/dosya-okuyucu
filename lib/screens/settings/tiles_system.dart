@@ -16,7 +16,6 @@ import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
 import '../../services/cloud_ocr.dart';
-import '../fm/share_shield.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/app_update.dart';
 import '../../services/play_store.dart';
@@ -26,6 +25,7 @@ import '../fm/sd_union_screen.dart';
 import '../fm/usb_diagnostics_screen.dart';
 import 'app_footprint_screen.dart';
 import 'crash_log_screen.dart';
+import 'feedback_screen.dart';
 import 'help_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'settings_widgets.dart';
@@ -374,6 +374,22 @@ class HelpTile extends StatelessWidget {
       );
 }
 
+/// Hata / istek bildir (2026-11-22).
+class FeedbackTile extends StatelessWidget {
+  const FeedbackTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: AppIcons.send,
+        title: context.t('fb.title'),
+        subtitle: context.t('fb.tile_sub'),
+        wrapSubtitle: true,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const FeedbackScreen()),
+        ),
+      );
+}
+
 /// "İpuçlarını yeniden göster" (Ferrari H7.3): bir kez gösterilen ipuçları
 /// ([OnceHints]) ve tarama rehberi yeniden çıkar.
 class HintsResetTile extends StatelessWidget {
@@ -635,6 +651,7 @@ class _AboutTileState extends State<AboutTile> {
   DateTime _lastTap = DateTime(0);
 
   Future<void> _onVersionTap() async {
+    if (!Edition.current.has(Feature.labs)) return;
     final now = DateTime.now();
     _taps = now.difference(_lastTap) > const Duration(seconds: 3) ? 1 : _taps + 1;
     _lastTap = now;
@@ -850,36 +867,15 @@ class _OcrScriptTileState extends State<OcrScriptTile> {
   }
 }
 
-/// **Paylaşmadan önce kişisel veri denetimi** (2026-11-18, [ShareShield]).
-class ShareShieldTile extends StatefulWidget {
-  const ShareShieldTile({super.key});
+/// Play derlemesinde mağaza değerlendirme sayfasını açar.
+class RateAppTile extends StatelessWidget {
+  const RateAppTile({super.key});
 
   @override
-  State<ShareShieldTile> createState() => _ShareShieldTileState();
-}
-
-class _ShareShieldTileState extends State<ShareShieldTile> {
-  bool? _on;
-
-  @override
-  void initState() {
-    super.initState();
-    ShareShield.enabled().then((v) {
-      if (mounted) setState(() => _on = v);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) => SettingSwitch(
-        icon: AppIcons.shield,
-        title: context.t('shield.setting'),
-        subtitle: context.t('shield.setting_sub'),
-        value: _on ?? false,
-        onChanged: _on == null
-            ? null
-            : (v) {
-                setState(() => _on = v);
-                unawaited(ShareShield.setEnabled(v));
-              },
+  Widget build(BuildContext context) => SettingTile(
+        icon: AppIcons.star,
+        title: context.t('set.rate_app'),
+        subtitle: context.t('set.rate_app_sub'),
+        onTap: () => unawaited(PlayStore.openStoreListing()),
       );
 }

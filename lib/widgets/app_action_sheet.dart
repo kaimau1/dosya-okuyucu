@@ -19,6 +19,7 @@ class AppAction<T> {
 
   /// Vurgulu (AI, öneri) — ana renkle çizilir.
   final bool accent;
+  final bool proBadge;
 
   const AppAction({
     required this.value,
@@ -27,6 +28,7 @@ class AppAction<T> {
     this.hint,
     this.destructive = false,
     this.accent = false,
+    this.proBadge = false,
   });
 }
 
@@ -107,6 +109,7 @@ Future<T?> showAppActionSheet<T>(
                       icon: a.icon,
                       label: a.label,
                       hint: a.hint,
+                      proBadge: a.proBadge,
                       tone: a.destructive
                           ? MenuTone.danger
                           : (a.accent ? MenuTone.accent : MenuTone.neutral),

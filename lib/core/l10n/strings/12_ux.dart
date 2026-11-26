@@ -60,7 +60,6 @@ const Map<String, (String, String, String)> _t12 = {
   'rc.view_side': ('Yan yana', 'Side by side', 'جنبًا إلى جنب'),
   'rc.before': ('Önce', 'Before', 'قبل'),
   'rc.after': ('Sonra', 'After', 'بعد'),
-  'gal.enh_failed': ('İyileştirilemedi: {error}', 'Could not enhance: {error}', 'تعذر التحسين: {error}'),
   'gal.repaired': (
     'Görsel bozuk — kurtarılabilen kısmı gösteriliyor',
     'Image is damaged — showing the recoverable part',

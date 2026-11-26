@@ -102,7 +102,6 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
         bottom: strip,
       );
     }
-    final theme = Theme.of(context);
     final shown = visible.length;
     final total = _files.length;
     final subtitle = shown == total
@@ -115,27 +114,8 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       toolbarHeight: _PhotosScreenState._toolbarHeight,
       // Sol üstte her zaman ☰ yan menü (2026-11-15, kullanıcı isteği).
       leading: const SideMenuButton(),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            _scopeTitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.3),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
-      ),
+      titleSpacing: 0,
+      title: FmBarTitle(title: _scopeTitle, subtitle: subtitle),
       actions: [
         if (_scopeActive)
           IconButton(
@@ -143,27 +123,17 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             tooltip: context.t('ph.show_all'),
             icon: const Icon(AppIcons.close),
             onPressed: _clearScope,
-          )
-        // Albüm düğmesi alan gizliyken de kalır (2026-11-15, kullanıcı: "albüm
-        // alanı gizlenince simgesi de gizleniyor, geri açamıyorum").
-        else
-          IconButton(
-            key: const ValueKey('ph-albums'),
-            tooltip: context.t('ph.albums'),
-            icon: const Icon(AppIcons.folderCopy),
-            onPressed: _showAlbums,
           ),
+        // Albümler + Görünüm ⋮'de (2026-11-22, kullanıcı: "üst alanları
+        // toparla" — 5 simgeyle başlık "Fotoğr…" diye kesiliyordu).
         IconButton(
           tooltip: context.t('ph.search_in', {'title': widget.title}),
           icon: const Icon(AppIcons.search),
           onPressed: () => _partSetState(() => _searching = true),
         ),
         FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
-        // Nadir işler menüde: çubuk Google Foto'daki gibi sade kalsın (eskiden
-        // dört simge + iki satırlı başlık sığmak için yarışıyordu).
-        // Nadir işler levhada (2026-10-23: ortada açılan menü yerine gruplu
-        // eylem levhası — bkz. `showAppActionSheet`); "Analiz ve düzenle"
-        // kategori ekranlarıyla aynı.
+        // Nadir işler tek katmanlı levhada (2 katlı "Analiz ve düzenle"
+        // yönlendirmesi olmadan doğrudan Tümünü seç · Görünüm · Analizler).
         IconButton(
           key: const ValueKey('ph-more'),
           tooltip: context.t('fm.more_actions'),
@@ -173,7 +143,17 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
               context,
               title: widget.title,
               groups: [
-                AppActionGroup(title: context.t('ph.view'), actions: [
+                AppActionGroup(title: context.t('ui.ct_list'), actions: [
+                  if (!_scopeActive)
+                    AppAction(
+                        value: 'albums',
+                        icon: AppIcons.folderCopy,
+                        label: context.t('ph.albums')),
+                  if (visible.isNotEmpty)
+                    AppAction(
+                        value: 'select',
+                        icon: AppIcons.selectAll,
+                        label: context.t('ph.select_all')),
                   AppAction(
                       value: 'view',
                       icon: AppIcons.layoutGrid,
@@ -183,28 +163,29 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                       icon: AppIcons.homeShortcut,
                       label: context.t('ph.pin_home'),
                       hint: context.t('ph.pin_home_hint')),
-                  if (visible.isNotEmpty)
-                    AppAction(
-                        value: 'select',
-                        icon: AppIcons.selectAll,
-                        label: context.t('ph.select_all')),
                 ]),
                 AppActionGroup(title: context.t('ct.group_analysis'), actions: [
-                  AppAction(
-                      value: 'tools',
-                      icon: AppIcons.insights,
-                      accent: true,
-                      label: context.t('ct.title'),
-                      hint: context.t('ct.menu_hint')),
                   AppAction(
                       value: 'similar',
                       icon: AppIcons.autoAwesomeMotion,
                       label: context.t('ph.similar_short')),
+                  AppAction(
+                      value: 'summary',
+                      icon: AppIcons.summarize,
+                      label: context.t('ct.summary'),
+                      hint: context.t('ct.summary_hint')),
+                  AppAction(
+                      value: 'analysis',
+                      icon: AppIcons.insights,
+                      label: context.t('ct.analysis'),
+                      hint: context.t('ct.analysis_hint')),
                 ]),
               ],
             );
             if (!mounted) return;
             switch (v) {
+              case 'albums':
+                await _showAlbums();
               case 'view':
                 _showViewSheet();
               case 'similar':
@@ -213,15 +194,12 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
                 _toggleSelectAll(visible);
               case 'pin':
                 await _pinToHome();
-              case 'tools':
-                await showCategoryTools(
-                  context,
-                  title: widget.title,
-                  visible: visible,
-                  onChanged: () async {
-                    if (mounted) _partSetState(() {});
-                  },
-                );
+              case 'summary':
+                await showCategoryInsights(context,
+                    title: widget.title, visible: visible, full: false);
+              case 'analysis':
+                await showCategoryInsights(context,
+                    title: widget.title, visible: visible, full: true);
             }
           },
         ),
@@ -301,7 +279,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
             ),
             trailing: [
               FmMoreChip(
-                active: _filter.activeCount + (_hiddenDuplicates > 0 ? 1 : 0),
+                active: _filter.activeCount,
                 sections: _moreSections,
               ),
             ],
@@ -492,75 +470,73 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
   /// İki ayar tek yerde çünkü iki parmakla yakınlaştırma da ikisini BİRLİKTE
   /// değiştiriyor; ayrı yerlerde dursalar biri değişince öteki "kendiliğinden
   /// değişti" sanılırdı.
-  Future<void> _showViewSheet() => showModalBottomSheet<void>(
-        context: context,
-        showDragHandle: true,
+  Future<void> _showViewSheet() => showAppSheet<void>(
+        context,
+        title: context.t('ph.view'),
         builder: (ctx) {
           final state = ctx.watchBrowse();
           final theme = Theme.of(ctx);
           final label = theme.textTheme.labelLarge
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(ctx.t('ph.view'), style: theme.textTheme.titleMedium),
-                  const SizedBox(height: Gap.md),
-                  Text(ctx.t('ph.view_scale'), style: label),
-                  const SizedBox(height: Gap.sm),
-                  SegmentedButton<PhotoGroup>(
-                    expandedInsets: EdgeInsets.zero,
-                    showSelectedIcon: false,
-                    segments: [
-                      for (final g in PhotoGroup.values)
-                        ButtonSegment(value: g, label: Text(ctx.t(g.labelKey))),
-                    ],
-                    selected: {state.fmPhotoGroup},
-                    onSelectionChanged: (s) =>
-                        state.setFmPhotoView(state.fmPhotoLayout, s.first),
-                  ),
-                  const SizedBox(height: Gap.md),
-                  Text(ctx.t('ph.view_columns'), style: label),
-                  const SizedBox(height: Gap.sm),
-                  SegmentedButton<FmLayout>(
-                    expandedInsets: EdgeInsets.zero,
-                    showSelectedIcon: false,
-                    segments: [
-                      for (final l in FmLayout.values.where((l) => l.isGrid))
-                        ButtonSegment(
-                          value: l,
-                          icon: Icon(_PhotosScreenState._columnsIcon(l.columns), size: 18),
-                          label: Text('${l.columns}'),
-                        ),
-                    ],
-                    selected: {state.fmPhotoLayout},
-                    onSelectionChanged: (s) =>
-                        state.setFmPhotoView(s.first, state.fmPhotoGroup),
-                  ),
-                  const SizedBox(height: Gap.md),
-                  Row(
-                    children: [
-                      Icon(AppIcons.pinch,
-                          size: 20, color: theme.colorScheme.onSurfaceVariant),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Text(ctx.t('ph.pinch_hint'),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
+          return Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                Gap.md, 0, Gap.md, Gap.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(ctx.t('ph.view_scale'), style: label),
+                const SizedBox(height: Gap.sm),
+                SegmentedButton<PhotoGroup>(
+                  expandedInsets: EdgeInsets.zero,
+                  showSelectedIcon: false,
+                  segments: [
+                    for (final g in PhotoGroup.values)
+                      ButtonSegment(value: g, label: Text(ctx.t(g.labelKey))),
+                  ],
+                  selected: {state.fmPhotoGroup},
+                  onSelectionChanged: (s) =>
+                      state.setFmPhotoView(state.fmPhotoLayout, s.first),
+                ),
+                const SizedBox(height: Gap.md),
+                Text(ctx.t('ph.view_columns'), style: label),
+                const SizedBox(height: Gap.sm),
+                SegmentedButton<FmLayout>(
+                  expandedInsets: EdgeInsets.zero,
+                  showSelectedIcon: false,
+                  segments: [
+                    for (final l in FmLayout.values.where((l) => l.isGrid))
+                      ButtonSegment(
+                        value: l,
+                        icon: Icon(_PhotosScreenState._columnsIcon(l.columns),
+                            size: 18),
+                        label: Text('${l.columns}'),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                  selected: {state.fmPhotoLayout},
+                  onSelectionChanged: (s) =>
+                      state.setFmPhotoView(s.first, state.fmPhotoGroup),
+                ),
+                const SizedBox(height: Gap.md),
+                Row(
+                  children: [
+                    Icon(AppIcons.pinch,
+                        size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Text(ctx.t('ph.pinch_hint'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ),
+                  ],
+                ),
+              ],
             ),
           );
         },
       );
 
-  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
+  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür, akıllı kategori).
   Future<void> _openFilterSheet() async {
     _ensureCounts();
     final result = await showFmFilterSheet(
@@ -572,6 +548,7 @@ extension _PhotosScreenToolbarPart on _PhotosScreenState {
       buckets: _bucketCache ?? const {},
       chatKinds: _chatKindCache ?? const {},
       tags: FileTags.counts(),
+      smartCats: smartCatCountsFor(_files, _filter),
       showDuplicateSwitch: true,
       // Fotoğraf ızgarasında "türe göre" sıralamanın karşılığı yok (uzantı
       // süzgeci zaten var); ada/tarihe/boyuta göre yeter.

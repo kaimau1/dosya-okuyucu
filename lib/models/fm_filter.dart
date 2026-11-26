@@ -466,17 +466,31 @@ class FmFilter {
   /// bakıyordu; ikinci ad yalnız genel aramadaydı (`SearchIndex.query`).
   static String Function(String path)? aliasOf;
 
-  bool matches(
+  static final RegExp _wsRe = RegExp(r'\s+');
+
+  bool _matchesCompiled(
     FsEntry entry, {
-    String query = '',
-    DateTime? now,
+    required List<String> trTerms,
+    required List<String> asciiTerms,
+    required FmTimeWindow timeWindow,
+    required int? untouchedCutoff,
+    required int? openedWithinCutoff,
     Set<String> Function(String path)? tagsOf,
     int? Function(String path)? openedAtOf,
   }) {
-    final q = turkishFold(query.trim());
-    if (q.isNotEmpty && !turkishFold(entry.name).contains(q)) {
-      final alias = aliasOf?.call(entry.path) ?? '';
-      if (alias.isEmpty || !turkishFold(alias).contains(q)) return false;
+    if (trTerms.isNotEmpty) {
+      final nameFold = turkishFold(entry.name);
+      if (!trTerms.every(nameFold.contains)) {
+        final alias = aliasOf?.call(entry.path) ?? '';
+        final combinedTr = alias.isEmpty
+            ? nameFold
+            : '$nameFold ${turkishFold(alias)}';
+        if (!trTerms.every(combinedTr.contains)) {
+          final combinedAscii = asciiFold(
+              alias.isEmpty ? entry.name : '${entry.name} $alias');
+          if (!asciiTerms.every(combinedAscii.contains)) return false;
+        }
+      }
     }
     if (!matchesVolume(entry.path)) return false;
     if (types.isNotEmpty && !types.contains(FmType.of(entry))) return false;
@@ -504,23 +518,12 @@ class FmFilter {
     if (extensions.isNotEmpty && !extensions.contains(entry.extension)) {
       return false;
     }
-    if (!window(now: now).contains(entry.modifiedMs)) return false;
-    final untouched = untouchedDays;
-    final openedWithin = openedWithinDays;
-    if (untouched != null || openedWithin != null) {
+    if (!timeWindow.contains(entry.modifiedMs)) return false;
+    if (untouchedCutoff != null || openedWithinCutoff != null) {
       if (entry.isDir) return false; // klasörün "açılma"sı ölçülemez
       final seen = lastSeenMs(entry, openedAtOf: openedAtOf);
-      final at = now ?? DateTime.now();
-      if (untouched != null) {
-        final cutoff =
-            at.subtract(Duration(days: untouched)).millisecondsSinceEpoch;
-        if (seen > cutoff) return false;
-      }
-      if (openedWithin != null) {
-        final cutoff =
-            at.subtract(Duration(days: openedWithin)).millisecondsSinceEpoch;
-        if (seen < cutoff) return false;
-      }
+      if (untouchedCutoff != null && seen > untouchedCutoff) return false;
+      if (openedWithinCutoff != null && seen < openedWithinCutoff) return false;
     }
     if (sizeRange != FmSizeRange.any) {
       // Klasörün boyutu 0'dır (özyinelemeli toplam tutulmaz) — boyut ölçütü
@@ -533,6 +536,49 @@ class FmFilter {
     return true;
   }
 
+  static (List<String>, List<String>) _compileQuery(String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return (const [], const []);
+    final tr = [
+      for (final t in turkishFold(trimmed).split(_wsRe))
+        if (t.isNotEmpty) t,
+    ];
+    final asc = [
+      for (final t in asciiFold(trimmed).split(_wsRe))
+        if (t.isNotEmpty) t,
+    ];
+    return (tr, asc);
+  }
+
+  bool matches(
+    FsEntry entry, {
+    String query = '',
+    DateTime? now,
+    Set<String> Function(String path)? tagsOf,
+    int? Function(String path)? openedAtOf,
+  }) {
+    final (trTerms, asciiTerms) = _compileQuery(query);
+    final at = (untouchedDays != null || openedWithinDays != null)
+        ? (now ?? DateTime.now())
+        : now;
+    return _matchesCompiled(
+      entry,
+      trTerms: trTerms,
+      asciiTerms: asciiTerms,
+      timeWindow: window(now: at),
+      untouchedCutoff: untouchedDays == null
+          ? null
+          : at!.subtract(Duration(days: untouchedDays!)).millisecondsSinceEpoch,
+      openedWithinCutoff: openedWithinDays == null
+          ? null
+          : at!
+              .subtract(Duration(days: openedWithinDays!))
+              .millisecondsSinceEpoch,
+      tagsOf: tagsOf,
+      openedAtOf: openedAtOf,
+    );
+  }
+
   /// Listeyi süzer (sıra korunur). [hideDuplicates] açıksa aynı ad+boyuttaki
   /// ikinci ve sonraki kopyalar düşer — **listedeki İLK kopya** kalır, yani
   /// sıralama neyi öne koyduysa o görünür.
@@ -543,11 +589,33 @@ class FmFilter {
     Set<String> Function(String path)? tagsOf,
     int? Function(String path)? openedAtOf,
   }) {
+    final (trTerms, asciiTerms) = _compileQuery(query);
+    final at = (untouchedDays != null ||
+            openedWithinDays != null ||
+            dateRange != FmDateRange.any)
+        ? (now ?? DateTime.now())
+        : now;
+    final timeWindow = window(now: at);
+    final untouchedCutoff = untouchedDays == null
+        ? null
+        : at!.subtract(Duration(days: untouchedDays!)).millisecondsSinceEpoch;
+    final openedWithinCutoff = openedWithinDays == null
+        ? null
+        : at!.subtract(Duration(days: openedWithinDays!)).millisecondsSinceEpoch;
+
     final out = <FsEntry>[];
     final seen = hideDuplicates ? <String>{} : null;
     for (final e in entries) {
-      if (!matches(e,
-          query: query, now: now, tagsOf: tagsOf, openedAtOf: openedAtOf)) {
+      if (!_matchesCompiled(
+        e,
+        trTerms: trTerms,
+        asciiTerms: asciiTerms,
+        timeWindow: timeWindow,
+        untouchedCutoff: untouchedCutoff,
+        openedWithinCutoff: openedWithinCutoff,
+        tagsOf: tagsOf,
+        openedAtOf: openedAtOf,
+      )) {
         continue;
       }
       if (seen != null && !seen.add(duplicateKey(e))) continue;

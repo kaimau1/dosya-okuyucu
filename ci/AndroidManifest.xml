@@ -286,6 +286,7 @@
                  Android'de pathPattern tam yolu eşler ve `\\.` kaçışı ister;
                  sorgu dizeli adresler (…apk?token=…) için ayrıca `.*` ekli
                  ikinci desen yazılır. -->
+            <!-- personal_download_filters -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -341,6 +342,7 @@
                 <data android:scheme="http" android:mimeType="application/octet-stream" />
                 <data android:scheme="https" android:mimeType="application/octet-stream" />
             </intent-filter>
+            <!-- /personal_download_filters -->
 
             <!-- Tarayıcıdan paylaşılan BAĞLANTI: Chrome/DuckDuckGo'da bir
                  bağlantıya uzun basıp "Paylaş → Dosya Okuyucu" denince adres
@@ -660,5 +662,6 @@
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH"/>
         </intent>
+        <package android:name="dev.kaimau.notlar"/>
     </queries>
 </manifest>

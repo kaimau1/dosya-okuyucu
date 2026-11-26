@@ -2,19 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
 
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/app_state.dart';
 import '../../core/theme.dart';
 import '../../models/chat_media.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/entry_opener.dart';
-import '../../services/fm/ai_meaning_search.dart';
 import '../../services/fm/content_indexer.dart';
 import '../../services/fm/content_search.dart';
 import '../../services/fm/saved_searches.dart';
@@ -27,12 +24,12 @@ import '../../services/fm/open_history.dart';
 import '../../services/fm/search_history.dart';
 import '../../services/fm/search_index.dart';
 import '../../services/fm/smart_query.dart';
-import '../../services/gemini_service.dart';
 import '../../widgets/fm/fm_more_sheet.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
 import '../../models/fm_layout.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
+import '../../widgets/fm/fm_entry_tiles.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
@@ -41,8 +38,6 @@ import 'entry_actions.dart';
 import '../../core/snack.dart';
 import '../help_screen.dart';
 import '../../core/safe_insets.dart';
-import '../../core/user_error.dart';
-import '../../widgets/ai_key_gate.dart';
 
 part 'search_screen/parts.dart';
 
@@ -62,12 +57,7 @@ class SearchScreen extends StatefulWidget {
   final String? root;
   final String? rootLabel;
 
-  /// Ekran **anlamla ara** (AI) kipinde mi açılsın? (Panodaki arama kutusunun
-  /// ✦ düğmesi.)
-  final bool meaning;
-
-  const SearchScreen(
-      {super.key, this.root, this.rootLabel, this.meaning = false});
+  const SearchScreen({super.key, this.root, this.rootLabel});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -97,14 +87,6 @@ class _SearchScreenState extends State<SearchScreen> {
   /// dosyaları OKUMAK demek ve saniyeler sürebiliyor. Kullanıcı bunu
   /// bilerek istemeli.
   bool _inContent = false;
-
-  /// **Anlamla ara** kipi (2026-10-23): sorgu AI ile eş anlamlı/ilgili
-  /// sözcüklere genişletilir, sonuçlar cihazda sıralanır (bkz.
-  /// [AiMeaningSearch]). Her tuşta değil, "Ara"ya basınca çalışır — istek
-  /// başına kota harcanır.
-  late bool _meaning = widget.meaning;
-  MeaningPlan? _plan;
-  Map<String, List<String>> _meaningMatched = const {};
   List<ContentHit> _contentHits = const [];
   FmSort _sort = FmSort.date;
   bool _desc = true;
@@ -115,7 +97,6 @@ class _SearchScreenState extends State<SearchScreen> {
   /// sorusunu doğurur.
   SmartQuery? _smart;
   bool _smartOn = true;
-  bool _aiBusy = false;
 
   /// Kaçıncı arama olduğunu sayar: geç dönen eski sonuç yenisini ezmesin.
   int _queryToken = 0;
@@ -197,11 +178,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onChanged(String value) {
     _debounce?.cancel();
-    if (_meaning) {
-      // Yazarken AI'ya gidilmez; eski planın çipleri yeni metinle çelişmesin.
-      if (_plan != null) setState(() => _plan = null);
-      return;
-    }
     // 250 ms: dizin sayesinde arama ucuzladı, eskisi (400 ms) fazla bekletiyor.
     _debounce = Timer(const Duration(milliseconds: 250), () => _run(value));
   }
@@ -298,34 +274,20 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   /// Sonuç satırının alt yazısı: içerik aramasında eşleşme, ad aramasında
-  /// boyut ve klasör.
+  /// kaynak/konum; tarih ve boyut sağda ayrı sabit alanlarda kesilmeden görünür.
   String _subtitleFor(FsEntry e) {
-    if (e.isDir) return p.dirname(e.path);
-    final terms = _meaning ? _meaningMatched[e.path] : null;
-    if (terms != null && terms.isNotEmpty) {
-      return '≈ ${terms.join(', ')} · ${FmLocation.subtitle(e.path, e.sizeBytes, e.modifiedMs, AppStrings.of(context).t, volumes: FmEnv.volumes)}';
-    }
+    final t = AppStrings.of(context).t;
+    final loc = FmLocation.label(e.path, t, volumes: FmEnv.volumes);
+    if (e.isDir) return loc;
     final hit = _inContent ? _contentHitOf(e.path) : null;
     if (hit != null) {
-      final head = AppStrings.of(context)
-          .t('srch.content_hits', {'n': hit.total, 'line': hit.line});
+      final head = t('srch.content_hits', {'n': hit.total, 'line': hit.line});
       return '$head · ${hit.snippet}';
     }
-    return FmLocation.subtitle(
-        e.path, e.sizeBytes, e.modifiedMs, AppStrings.of(context).t,
-        volumes: FmEnv.volumes);
+    return loc;
   }
 
   List<FsEntry> get _filtered {
-    // Anlamla aramada sıra = İLGİ (puan); tarih/ad sıralaması uygulanmaz.
-    if (_meaning && _plan != null) {
-      return [
-        for (final e in _results)
-          if (_filter.matches(e,
-              tagsOf: FileTags.forPath, openedAtOf: OpenHistory.forPath))
-            e,
-      ];
-    }
     final smart = _smart;
     final smartCategory = smart?.category;
     final list = [
@@ -382,7 +344,7 @@ class _SearchScreenState extends State<SearchScreen> {
           autofocus: true,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: _meaning ? context.t('srch.meaning_hint') : context.t('srch.in_hint',
+            hintText: context.t('srch.in_hint',
                 {
                   'name': (_everywhere ? null : widget.rootLabel) ??
                       (_root == null
@@ -401,7 +363,7 @@ class _SearchScreenState extends State<SearchScreen> {
             // düğmesi ya da bir sonucu açmak): her tuş vuruşunu kaydetmek
             // listeyi "f", "fa", "fat" gibi ön eklerle doldururdu.
             unawaited(SearchHistory.record(q));
-            unawaited(_meaning ? _runMeaning(q) : _run(q));
+            unawaited(_run(q));
           },
         ),
         actions: [
@@ -422,21 +384,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 _run('');
               },
             ),
-          // **Anlamla ara** (AI) — görünür düğme, menünün içinde değil.
-          IconButton(
-            key: const ValueKey('srch-meaning'),
-            tooltip: context.t(_meaning ? 'srch.meaning_off' : 'srch.meaning'),
-            isSelected: _meaning,
-            style: _meaning
-                ? IconButton.styleFrom(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primaryContainer,
-                    foregroundColor:
-                        Theme.of(context).colorScheme.onPrimaryContainer)
-                : null,
-            icon: const Icon(AppIcons.ai),
-            onPressed: _toggleMeaning,
-          ),
           FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
           PopupMenuButton<String>(
             tooltip: context.t('srch.options'),
@@ -452,8 +399,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (_controller.text.trim().length >= 2) {
                     _run(_controller.text);
                   }
-                case 'ai':
-                  await _askAi();
                 case 'help':
                   // **Ara ve Yardım** (2026-11-14): tüm özellikler. Çubukta
                   // ayrı düğme değil — başlıktaki arama kutusu daralırdı.
@@ -467,10 +412,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 value: 'smart',
                 child: Text(context
                     .t(_smartOn ? 'srch.smart_off' : 'srch.smart_on')),
-              ),
-              PopupMenuItem(
-                value: 'ai',
-                child: Text(context.t('srch.ai_interpret')),
               ),
               PopupMenuItem(
                 key: const ValueKey('srch-help'),
@@ -487,13 +428,12 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
       body: Column(
         children: [
-          if (_meaning) _meaningBanner(),
-          if (_smart != null && !_meaning) _smartChips(),
+          if (_smart != null) _smartChips(),
           _filterChips(),
-          if (_searching || _aiBusy || SearchIndex.isBuilding)
+          if (_searching || SearchIndex.isBuilding)
             const LinearProgressIndicator(minHeight: 2),
           _indexBanner(),
-          if (!_meaning) FeatureHelpMatches(query: _controller.text),
+          FeatureHelpMatches(query: _controller.text),
           if (_searched && _results.isNotEmpty) _resultSummary(results.length),
           Expanded(child: _body(results)),
         ],

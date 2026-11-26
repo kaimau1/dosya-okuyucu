@@ -104,11 +104,6 @@ const Map<String, (String, String, String)> _t5 = {
   'ph.show': ('Göster', 'Show', 'عرض'),
   'ph.search_in': ('{title} içinde ara', 'Search in {title}', 'ابحث في {title}'),
   'ph.search_in_hint': ('{title} içinde ara…', 'Search in {title}…', 'ابحث في {title}…'),
-  'ph.find_similar': (
-    'Benzer görüntüleri bul (yeniden sıkıştırılmış kopyalar)',
-    'Find similar images (re-compressed copies)',
-    'ابحث عن صور متشابهة (نسخ أُعيد ضغطها)',
-  ),
   'ph.layout': ('Görünüm: {name}', 'Layout: {name}', 'العرض: {name}'),
   'ph.selected_of': (
     '{n} / {total} seçildi',
@@ -119,8 +114,6 @@ const Map<String, (String, String, String)> _t5 = {
   'ph.select_below': ('Altındakileri de seç', 'Also select below', 'حدّد ما تحته أيضًا'),
   'ph.clear_selection': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
   'ph.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
-  'ph.all_count': ('Tümü ({n})', 'All ({n})', 'الكل ({n})'),
-  'ph.chip_count': ('{label} ({n})', '{label} ({n})', '{label} ({n})'),
   'ph.cat_empty': (
     'Bu kategoride dosya bulunamadı.',
     'No files found in this category.',
@@ -148,11 +141,6 @@ const Map<String, (String, String, String)> _t5 = {
     'KALICI olarak silinecek (çöp kutusu ayarlardan kapalı)',
     'will be deleted PERMANENTLY (the trash is turned off in settings)',
     'ستُحذف نهائيًا (سلة المهملات مُعطّلة في الإعدادات)',
-  ),
-  'ph.hidden_dupes': (
-    '{n} yinelenen kopya gizlendi',
-    '{n} duplicate copies hidden',
-    'تم إخفاء {n} نسخة مكررة',
   ),
   // Süzgeç şeridindeki pilin ÜSTÜNDE yazan kısa biçim; uzun biçim
   // (`ph.hidden_dupes`) pilin ipucunda ve menü başlığında durur. Şerit tek
@@ -192,11 +180,6 @@ const Map<String, (String, String, String)> _t5 = {
   'ph.fast_scroll': ('Hızlı kaydırma tutamacı', 'Fast scroll handle', 'مقبض التمرير السريع'),
 
   // ── AI sohbeti ────────────────────────────────────────────────────────────
-  'chat.key_required_body': (
-    'Akıllı özellikleri kullanmak için Gemini API anahtarınızı girin.',
-    'Enter your Gemini API key to use smart features.',
-    'أدخل مفتاح Gemini API لاستخدام الميزات الذكية.',
-  ),
 
   // ── PDF formu doldurma ────────────────────────────────────────────────────
   'pf.title': ('Formu doldur — {name}', 'Fill form — {name}', 'تعبئة النموذج — {name}'),
@@ -280,20 +263,6 @@ const Map<String, (String, String, String)> _t5 = {
   'rs.resolution': ('Çözünürlük', 'Resolution', 'الدقة'),
   'rs.width': ('Genişlik (px)', 'Width (px)', 'العرض (بكسل)'),
   'rs.height': ('Yükseklik (px)', 'Height (px)', 'الارتفاع (بكسل)'),
-  'rs.custom_note': (
-    'Yalnız birini yazarsan diğeri en/boy oranından hesaplanır ve resim '
-        'bozulmaz. İKİSİNİ de yazarsan verdiğin ölçü aynen uygulanır — oran '
-        'tutmuyorsa görüntü gerilir. Kaynaktan büyütme yapılmaz: kaynaktan '
-        'büyük bir değer yazarsan kaynağın ölçüsünde kalır.',
-    'If you fill in only one, the other is derived from the aspect ratio and '
-        'the image is not distorted. If you fill in BOTH, your exact numbers '
-        'are used — if the ratio does not match, the image is stretched. '
-        'Nothing is upscaled: a value larger than the source keeps the source '
-        'size.',
-    'إذا ملأت واحدًا فقط فسيُحسب الآخر من نسبة الأبعاد ولن تتشوّه الصورة. وإذا '
-        'ملأت الاثنين فستُطبَّق قياساتك حرفيًا — وإن لم تتطابق النسبة فستُمطّ '
-        'الصورة. لا يجري أي تكبير: القيمة الأكبر من المصدر تُبقي حجم المصدر.',
-  ),
   'rs.jpeg_quality': ('JPEG kalitesi (fotoğraf)', 'JPEG quality (photos)', 'جودة JPEG (الصور)'),
   'rs.format': ('Biçim (fotoğraf)', 'Format (photos)', 'الصيغة (الصور)'),
   'rs.video_quality': ('Video sıkıştırma', 'Video compression', 'ضغط الفيديو'),
@@ -348,107 +317,6 @@ const Map<String, (String, String, String)> _t5 = {
   'rs.start': ('Başlat', 'Start', 'ابدأ'),
 
   // ── PDF'i AI ile düzenle ──────────────────────────────────────────────────
-  'pa.preset_grammar': (
-    'Yazım/dil bilgisi düzelt',
-    'Fix spelling/grammar',
-    'صحّح الإملاء/النحو',
-  ),
-  'pa.preset_grammar_prompt': (
-    'Metindeki yazım ve dil bilgisi hatalarını düzelt. Anlamı ve üslubu '
-        'değiştirme, cümleleri yeniden kurma.',
-    'Fix the spelling and grammar mistakes in the text. Do not change the '
-        'meaning or the style, and do not rewrite the sentences.',
-    'صحّح الأخطاء الإملائية والنحوية في النص. لا تغيّر المعنى أو الأسلوب ولا '
-        'تُعِد صياغة الجمل.',
-  ),
-  'pa.preset_simplify': ('Sadeleştir', 'Simplify', 'بسّط'),
-  'pa.preset_simplify_prompt': (
-    'Metni daha kısa ve anlaşılır hâle getir. Bilgi kaybetme, gereksiz '
-        'tekrarları ve dolgu ifadeleri at.',
-    'Make the text shorter and clearer. Do not lose information; drop needless '
-        'repetition and filler.',
-    'اجعل النص أقصر وأوضح. لا تفقد أي معلومة؛ واحذف التكرار الزائد والحشو.',
-  ),
-  'pa.preset_summary': ('Özetle', 'Summarise', 'لخّص'),
-  'pa.preset_summary_prompt': (
-    'Metni ana başlıklar ve maddeler hâlinde özetle.',
-    'Summarise the text as headings and bullet points.',
-    'لخّص النص على شكل عناوين ونقاط.',
-  ),
-  'pa.preset_formal': ('Resmî dile çevir', 'Make it formal', 'حوّله إلى لغة رسمية'),
-  'pa.preset_formal_prompt': (
-    'Metni resmî yazışma diline uygun hâle getir.',
-    'Rewrite the text in formal correspondence style.',
-    'أعِد كتابة النص بأسلوب المراسلات الرسمية.',
-  ),
-  'pa.need_key': (
-    'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.',
-    'First enter your key under Settings > Gemini API key.',
-    'أدخل مفتاحك أولًا من الإعدادات > مفتاح Gemini API.',
-  ),
-  'pa.need_task': (
-    'Ne yapılmasını istediğinizi yazın ya da seçin.',
-    'Type or pick what you want done.',
-    'اكتب أو اختر ما تريد إنجازه.',
-  ),
-  'pa.prompt': (
-    'Aşağıdaki belgenin metnini şu yönergeye göre yeniden yaz:\n"{task}"\n\n'
-        'ÇOK ÖNEMLİ: yalnızca düzenlenmiş metni döndür. Açıklama, giriş '
-        'cümlesi, "işte metin" gibi ifadeler ve kod bloğu işaretleri EKLEME.',
-    'Rewrite the text of the document below according to this instruction:\n'
-        '"{task}"\n\nVERY IMPORTANT: return only the edited text. Do NOT add '
-        'explanations, an introductory sentence, phrases like "here is the '
-        'text", or code-block markers.',
-    'أعِد كتابة نص المستند أدناه وفق هذه التعليمات:\n"{task}"\n\n'
-        'مهم جدًا: أعِد النص المحرَّر فقط. لا تُضِف شروحًا أو جملة تمهيدية أو '
-        'عبارات مثل «إليك النص» أو علامات كتل الشيفرة.',
-  ),
-  'pa.job_title': (
-    'Akıllı düzenlendi',
-    'Smart-edited',
-    'حُرّر تحريرًا ذكيًا',
-  ),
-  'pa.save_note': (
-    'Yeni PDF düz metinden üretilir: özgün belgenin sayfa düzeni '
-        '(sütun, tablo, logo, imza) KORUNMAZ.',
-    'The new PDF is produced from plain text: the original document’s layout '
-        '(columns, tables, logos, signatures) is NOT preserved.',
-    'يُنتَج ملف PDF الجديد من نص عادي: لا يُحافَظ على تخطيط المستند الأصلي '
-        '(الأعمدة والجداول والشعارات والتواقيع).',
-  ),
-  'pa.save_pdf': ('PDF olarak kaydet', 'Save as PDF', 'حفظ بصيغة PDF'),
-  'pa.no_text': (
-    'Bu belgede okunabilir metin yok (taranmış olabilir).\n'
-        'Önce ⋮ menüsünden “Metni tanı (OCR)” çalıştırın.',
-    'This document has no readable text (it may be scanned).\n'
-        'Run “Recognize text (OCR)” from the ⋮ menu first.',
-    'لا يحتوي هذا المستند على نص قابل للقراءة (قد يكون ممسوحًا ضوئيًا).\n'
-        'شغّل «التعرّف على النص (OCR)» من قائمة ⋮ أولًا.',
-  ),
-  'pa.what': ('Ne yapılsın?', 'What should be done?', 'ما الذي تريد فعله؟'),
-  'pa.hint': (
-    'Örn. “Başlıkları numaralandır ve maddeleri kısalt”',
-    'E.g. “Number the headings and shorten the bullet points”',
-    'مثال: «رقّم العناوين واختصر النقاط»',
-  ),
-  'pa.working': ('Çalışıyor…', 'Working…', 'جارٍ العمل…'),
-  'pa.result': ('Sonuç', 'Result', 'النتيجة'),
-  'pa.editable': ('elle düzenlenebilir', 'you can edit it by hand', 'يمكنك تحريره يدويًا'),
-  'pa.result_hint': (
-    'Sonuç burada görünecek…',
-    'The result will appear here…',
-    'ستظهر النتيجة هنا…',
-  ),
-  'pa.footer': (
-    'Kaydederken üretilen PDF düz metindir: özgün sayfa düzeni '
-        '(sütun, tablo, logo) korunmaz. Özgün belgeyi bozmamak için '
-        '“Kopyasını kaydet”i seçin.',
-    'The PDF produced on save is plain text: the original layout (columns, '
-        'tables, logos) is not preserved. Choose “Save a copy” to keep the '
-        'original document intact.',
-    'ملف PDF المنتَج عند الحفظ نص عادي: لا يُحافَظ على التخطيط الأصلي (الأعمدة '
-        'والجداول والشعارات). اختر «حفظ نسخة» للإبقاء على المستند الأصلي كما هو.',
-  ),
 
   // ── PDF kaydetme penceresi ────────────────────────────────────────────────
   'ps.open': ('AÇ', 'OPEN', 'فتح'),
@@ -474,12 +342,6 @@ const Map<String, (String, String, String)> _t5 = {
   ),
 
   // ── PDF yerinde metin düzenleme akışı ─────────────────────────────────────
-  'pf.replaced_reflow': (
-    'Değiştirildi — satırın kalanı yeniden hizalandı.',
-    'Replaced — the rest of the line was re-aligned.',
-    'تم الاستبدال — أُعيدت محاذاة بقية السطر.',
-  ),
-  'pf.replaced': ('Değiştirildi.', 'Replaced.', 'تم الاستبدال.'),
 
   // ── Benzer görüntüler ─────────────────────────────────────────────────────
   'sim.title': ('Benzer görüntüler', 'Similar images', 'صور متشابهة'),
@@ -575,25 +437,12 @@ const Map<String, (String, String, String)> _t5 = {
   'flt.active_count': ('{n} filtre etkin', '{n} filters active', '{n} عامل تصفية نشط'),
 
   // ── Tarama önizleme ───────────────────────────────────────────────────────
-  'sr.rotate_failed': (
-    'Döndürülemedi: {error}',
-    'Could not rotate: {error}',
-    'تعذّر التدوير: {error}',
-  ),
   'sr.last_page': (
     'Son sayfa silinemez — taramayı iptal edin.',
     'You cannot delete the last page — cancel the scan instead.',
     'لا يمكن حذف الصفحة الأخيرة — ألغِ المسح بدلًا من ذلك.',
   ),
-  'sr.rotate_page': ('Sayfayı çevir (90°)', 'Rotate the page (90°)', 'تدوير الصفحة (90°)'),
-  'sr.delete_page': ('Bu sayfayı sil', 'Delete this page', 'حذف هذه الصفحة'),
   'sr.page_failed': ('Sayfa görüntülenemedi', 'Could not show the page', 'تعذّر عرض الصفحة'),
-  'sr.crop_hint': (
-    'Sayfa yamuk ya da fazla yer kaptıysa köşeleri düzeltin.',
-    'If the page is skewed or takes too much room, adjust the corners.',
-    'إن كانت الصفحة مائلة أو تشغل مساحة زائدة فاضبط الزوايا.',
-  ),
-  'sr.adjust_corners': ('Köşeleri ayarla', 'Adjust the corners', 'ضبط الزوايا'),
   // Elle düzleştirme: açılıştaki otomatik geçiş emin olmadığı sayfaya
   // dokunmuyor; eğik kaldığını gören kullanıcının düğmesi.
   'sr.straighten': ('Düzleştir', 'Straighten', 'تقويم'),
@@ -609,14 +458,6 @@ const Map<String, (String, String, String)> _t5 = {
   ),
   // Sayfaları düzenle ekranı (2026-10-17: tarama doğrudan kaydediliyor,
   // düzenleme sonuç ekranından açılıyor).
-  'sr.title': ('Sayfa {n} / {total}', 'Page {n} / {total}', 'الصفحة {n} / {total}'),
-  'sr.move_earlier': ('Sayfayı öne al', 'Move the page earlier', 'نقل الصفحة إلى الأمام'),
-  'sr.move_later': ('Sayfayı arkaya al', 'Move the page later', 'نقل الصفحة إلى الخلف'),
-  'sr.order_hint': (
-    'Sırayı değiştirmek için oklara dokunun',
-    'Tap the arrows to change the order',
-    'اضغط على الأسهم لتغيير الترتيب',
-  ),
 
   // ── Açılma geçmişi ────────────────────────────────────────────────────────
   'oh.title': ('Geçmiş', 'History', 'السجل'),
@@ -634,7 +475,6 @@ const Map<String, (String, String, String)> _t5 = {
     'لم يُفتح أي ملف بعد.\nعندما تفتح ملفًا سيظهر هنا.',
   ),
   'oh.no_match': ('“{query}” için sonuç yok.', 'No results for “{query}”.', 'لا نتائج لـ «{query}».'),
-  'oh.last_opened': ('Son açılma: ', 'Last opened: ', 'آخر فتح: '),
 
   // ── Arama ekranı ──────────────────────────────────────────────────────────
   'srch.in_hint': ('{name} içinde ara…', 'Search in {name}…', 'ابحث في {name}…'),
@@ -652,25 +492,10 @@ const Map<String, (String, String, String)> _t5 = {
     'تغيّرت الملفات — يجري تحديث الفهرس في الخلفية.',
   ),
   'srch.understood': ('Anladım:', 'Understood:', 'فهمت:'),
-  'srch.need_key': (
-    'Önce Ayarlar > Gemini API anahtarını girin.',
-    'First enter the Gemini API key under Settings.',
-    'أدخل مفتاح Gemini API من الإعدادات أولًا.',
-  ),
-  'srch.ai_fallback': (
-    'Akıllı arama bu sorguyu yorumlayamadı; yerel çözümleme kullanılıyor.',
-    'Smart search could not interpret this query; the local parser is used instead.',
-    'تعذّر على البحث الذكي تفسير هذا الاستعلام؛ يُستخدم التحليل المحلي.',
-  ),
   'srch.ai_error': (
     'Akıllı işlem yapılamadı: {error}',
     'The smart action failed: {error}',
     'تعذّر تنفيذ الإجراء الذكي: {error}',
-  ),
-  'srch.summary': (
-    '{n} sonuç · {sort} ({dir}){capped}',
-    '{n} results · {sort} ({dir}){capped}',
-    '{n} نتيجة · {sort} ({dir}){capped}',
   ),
   'srch.capped': (' · ilk 1000 sonuç', ' · first 1000 results', ' · أول 1000 نتيجة'),
   'srch.empty_hint': (
@@ -683,11 +508,6 @@ const Map<String, (String, String, String)> _t5 = {
     'اكتب جزءًا من اسم ملف أو مجلد.\n\n'
         'نصيحة: يمكنك أيضًا كتابة جمل مثل «فيديوهات واتساب الشهر الماضي» أو '
         '«pdf هذا الأسبوع» أو «صور 2024».',
-  ),
-  'srch.ai_interpret': (
-    'Akıllı yorumla',
-    'Smart interpret',
-    'تفسير ذكي',
   ),
   'srch.rebuild_index': ('Dizini yeniden kur', 'Rebuild the index', 'إعادة بناء الفهرس'),
   'srch.searching': ('Aranıyor…', 'Searching…', 'جارٍ البحث…'),
@@ -787,11 +607,6 @@ const Map<String, (String, String, String)> _t5 = {
     'No duplicate files found 🎉',
     'لم يُعثر على ملفات مكررة 🎉',
   ),
-  'dup.summary': (
-    '{n} grup · {size} boşa gidiyor',
-    '{n} groups · {size} wasted',
-    '{n} مجموعة · {size} مهدرة',
-  ),
   'dup.n_copies': ('{n} kopyayı', '{n} copies', '{n} نسخة'),
   'dup.none_short': ('Yinelenen dosya yok', 'No duplicate files', 'لا توجد ملفات مكررة'),
   'dup.job_summary': (
@@ -809,11 +624,6 @@ const Map<String, (String, String, String)> _t5 = {
     '{n} kopya · {size} · {waste} kazanılabilir',
     '{n} copies · {size} · {waste} can be freed',
     '{n} نسخة · {size} · يمكن تحرير {waste}',
-  ),
-  'dup.group_summary': (
-    '· {size} kazanılabilir',
-    '· {size} can be freed',
-    '· يمكن تحرير {size}',
   ),
 
   // ── Ses / video oynatıcı ──────────────────────────────────────────────────
@@ -833,11 +643,6 @@ const Map<String, (String, String, String)> _t5 = {
   'mp.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
   'mp.next': ('Sonraki', 'Next', 'التالي'),
   'mp.previous': ('Önceki', 'Previous', 'السابق'),
-  'mp.background_on': (
-    'Arka planda çalmaya devam eder',
-    'Keeps playing in the background',
-    'يستمر التشغيل في الخلفية',
-  ),
   'mp.now_playing': ('Çalıyor', 'Now playing', 'قيد التشغيل'),
   'mp.speed': ('Hız', 'Speed', 'السرعة'),
   'mp.back10': ('10 sn geri', 'Back 10s', 'إرجاع 10 ثوانٍ'),
@@ -853,7 +658,6 @@ const Map<String, (String, String, String)> _t5 = {
   'mp.speed_reset': ('1× yap', 'Reset to 1×', 'إعادة إلى 1×'),
   'mp.subtitles': ('Altyazı', 'Subtitles', 'الترجمة'),
   'mp.sub_off': ('Altyazı kapalı', 'Subtitles off', 'إيقاف الترجمة'),
-  'mp.audio_engine': ('Ses ve oynatma motoru', 'Audio and player engine', 'الصوت ومحرك التشغيل'),
   'mp.engine_mpv': (
     'Gelişmiş motorla aç (mpv — her kodek)',
     'Open with advanced engine (mpv — all codecs)',

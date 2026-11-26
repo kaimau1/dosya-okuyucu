@@ -1,6 +1,6 @@
 # Gizlilik Politikası — Dosya Okuyucu
 
-**Son güncelleme:** 19 Kasım 2026 · **Sürüm:** 0.3.0
+**Son güncelleme:** 26 Kasım 2026 · **Sürüm:** 1.2.0
 
 ## Özet
 
@@ -41,8 +41,9 @@ hata kayıtları; dosyalarınıza dokunulmaz). Uygulama verisi Android yedeğine
 | **Paylaş / Yazdır** | Seçtiğiniz uygulama | Paylaştığınız dosya |
 | **AI ile anlamla arama** | Google — `generativelanguage.googleapis.com` | **Yalnız yazdığınız arama sorgusu** (kendi anahtarınızla). Dosya adları ve içerikleri gitmez; eşleştirme cihazda yapılır. |
 | **AI ile etiketleme / kategorilere ayırma** | Google — `generativelanguage.googleapis.com` | Seçtiğiniz dosyaların **adı, uzantısı, bulunduğu klasörün ADI** (tam yol değil), boyutu ve ayı (kategori analizinde ayrıca sayı/boyut özeti). Dosya içeriği gitmez; kamera klasörü ve kilitli klasörler hiç gönderilmez. Öneriler siz onaylamadan yazılmaz. |
-| **Yapay zekâ sesleri** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Yalnız sesi **siz indirirken**: model dosyalarının indirme isteği. Metniniz gönderilmez — seslendirme cihazda, internetsiz yapılır. |
-| **Altyazı arama** (OpenSubtitles) | OpenSubtitles — `api.opensubtitles.com` | Yalnız video oynatıcıda **Altyazı ara** dediğinizde: yazdığınız arama sorgusu (film/video adı) ve seçtiğiniz altyazıyı indirme isteği. |
+| **Yapay zekâ sesleri** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co`, `cdn.jsdelivr.net` | Yalnız sesi **siz indirirken**: model ve ses motoru dosyalarının indirme isteği. Metniniz gönderilmez — seslendirme cihazda, internetsiz yapılır. |
+| **Görsel netleştirme (4× AI büyütme)** (isteğe bağlı) | TensorFlow Hub — `tfhub.dev` | Yalnız galeride **AI ile netleştir** dediğinizde, model dosyası cihazda yoksa ilk kurulum indirmesi yapılır. Fotoğrafınız sunucuya gönderilmez; büyütme cihazda çalışır. |
+| **Altyazı arama** (Kişisel/GitHub) | OpenSubtitles — `api.opensubtitles.com` | Yalnız Kişisel derlemede video oynatıcıda **Altyazı ara** dediğinizde: yazdığınız arama sorgusu (film/video adı) ve seçtiğiniz altyazıyı indirme isteği. |
 
 **Varsayılan metin tanıma (OCR), akıllı temizlik analizi, sesli kitap üretimi, belge
 tarama ve çeviri motorları cihazda çalışır** — Bulut OCR veya görsel AI özetini
@@ -99,13 +100,13 @@ hazırlar. Dosya adları, yollar, e-posta adresleri ve 6 haneden uzun sayılar
 
 | İzin | Niçin |
 |---|---|
-| Tüm dosyalara erişim (`MANAGE_EXTERNAL_STORAGE`) | Bir dosya yöneticisinin telefondaki klasörleri gezebilmesi için. Vermezseniz uygulama çalışır; yalnız medya klasörleri görünür. |
+| Tüm dosyalara erişim (`MANAGE_EXTERNAL_STORAGE`) | Bir dosya yöneticisinin telefondaki klasörleri gezebilmesi için. Vermezseniz uygulama yine çalışır; seçtiğiniz dosyaları sistem seçicisiyle açıp düzenleyebilirsiniz. |
 | Medya (görsel/video/ses) | Galeri, oynatıcı ve küçük resimler |
 | Kamera | Yalnız belge tarayıcı. Kamerasız cihazda uygulama tam çalışır. |
-| Mikrofon (`RECORD_AUDIO`) | Yalnız slayt sunumunda anlatım kaydı ve sesle yazma (dikte) başlattığınızda. Ses sunucularımıza gönderilmez. |
+| Mikrofon (`RECORD_AUDIO`) (Kişisel/GitHub) | Yalnız Kişisel derlemede slayt sunumunda anlatım kaydı ve sesle yazma (dikte) başlattığınızda. Play sürümlerinde bu izin kaldırılmıştır. |
 | Bildirimler | Uzun işlerin (kopyalama, sıkıştırma, indirme) ilerlemesi |
-| Kullanım erişimi (`PACKAGE_USAGE_STATS`) | "Uygulamalar" ekranındaki **son açılma tarihi**. Vermezseniz liste yine gelir. |
-| Bilinmeyen kaynak kurulumu | Bir `.apk` dosyasına dokunduğunuzda sistemin kurulum ekranını açmak |
+| Kullanım erişimi (`PACKAGE_USAGE_STATS`) (Kişisel/GitHub) | Yalnız Kişisel derlemede "Uygulamalar" ekranındaki **son açılma tarihi**. Play sürümlerinde kaldırılmıştır. |
+| Bilinmeyen kaynak kurulumu (Kişisel/GitHub) | Yalnız Kişisel derlemede `.apk` kurulumu için. Play sürümlerinde kaldırılmıştır. |
 | Bluetooth, yakındaki cihazlar, Wi-Fi durumu | Yakındakiler: yakındaki telefonu bulma, davet ve geçici ağ (yukarıda). Vermezseniz QR ve aynı Wi-Fi yolu çalışır. |
 | Konum (yalnız Android 12 ve öncesi) | Android eski sürümlerde Bluetooth taramayı ve geçici ağı konum iznine bağlıyor. Konum okunmaz. |
 | Yüklü uygulamaları görme | "Uygulamalar" ekranı: liste, boyut, sistemin kaldırma penceresi. Liste cihazdan çıkmaz. |
@@ -124,5 +125,6 @@ içinde (Ayarlar → Gizlilik → Gizlilik politikası) ve depoda bulunur.
 
 ## 7. İletişim
 
-Soru ve bildirimler için:
-<https://github.com/kaimau1/dosya-okuyucu/issues>
+Soru, gizlilik talebi ve hata bildirimleri için uygulama içinde
+**Ayarlar → Hakkında → Hata / istek bildir** bölümünü ya da Google Play
+mağaza sayfasındaki geliştirici iletişim adresini kullanabilirsiniz.

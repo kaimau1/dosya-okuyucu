@@ -1566,7 +1566,10 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   }
 
   void _onPointerDown(PointerDownEvent event) {
-    if (widget.scrollPhysics != null && _controller.isAnimating) {
+    // pdfrx-yama (dosya-okuyucu, 2026-11-22): fırlatma, scrollPhysics
+    // verilmese de (biz sürtünmeyle kaydırıyoruz) parmak değince durur —
+    // eskiden kayan sayfaya basmak akışı durdurmuyordu.
+    if (_controller.isAnimating) {
       // ability to stop a in-progress pan fling is particularly important
       // when scroll physics is enabled as the duration and distance of the
       // pan can be considerable.

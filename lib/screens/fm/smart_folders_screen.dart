@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
-import '../../services/fm/ai_buckets.dart';
+import '../../widgets/pro_gate.dart';
+import '../../models/fs_entry.dart';
 import '../../services/fm/ai_index.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_folders.dart';
@@ -23,6 +25,14 @@ import '../../widgets/app_dialog.dart';
 /// kategori klasörleriyle (asıl "Akıllı klasörler") aynı adı taşıyordu → iki
 /// ayrı şey tek ad. İçerik artık Akıllı düzen kayıtlarını da arar; hassas
 /// kategorili dosya varsa açılışta PIN ([unlockSensitiveCats]).
+FsEntry _entryOf(AiRecord r) => FsEntry(
+      path: r.path,
+      name: r.name,
+      isDir: false,
+      sizeBytes: r.sizeBytes,
+      modifiedMs: r.modifiedMs,
+    );
+
 class SmartFoldersScreen extends StatefulWidget {
   const SmartFoldersScreen({super.key});
 
@@ -34,6 +44,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.smartFolders)) return;
     SmartFolders.instance.ensureLoaded();
     Future.wait([AiIndex.ensureLoaded(), SmartSort.ensureLoaded()]).then((_) {
       if (mounted) setState(() {});
@@ -51,10 +62,12 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   }
 
   Future<void> _create() async {
+    if (!await ProGate.check(context, Feature.smartFolders)) return;
+    if (!mounted) return;
     final query = await _askText(context,
         title: context.t('smart.create'), hint: context.t('smart.query_hint'));
     if (query == null || query.trim().isEmpty || !mounted) return;
-    final folder = await SmartFolders.instance.add(query);
+    final folder = await SmartFolders.instance.add(query.trim());
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => SmartFolderScreen(folderId: folder.id)));
@@ -63,14 +76,25 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   @override
   Widget build(BuildContext context) {
     final scope = context.watchAi().aiScopeRules;
+    final unlocked = Edition.current.has(Feature.smartFolders);
     return Scaffold(
       appBar: AppBar(title: Text(context.t('smart.title'))),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _create,
-        icon: const Icon(AppIcons.add),
-        label: Text(context.t('smart.create')),
-      ),
-      body: ListenableBuilder(
+      floatingActionButton: unlocked
+          ? FloatingActionButton.extended(
+              onPressed: _create,
+              icon: const Icon(AppIcons.add),
+              label: Text(context.t('smart.create')),
+            )
+          : null,
+      body: !unlocked
+          ? ProLockedView(
+              feature: Feature.smartFolders,
+              title: context.t('smart.title'),
+              lockedTitle: context.t('pro.saved_locked_title'),
+              message: context.t('pro.saved_locked_sub'),
+              withScaffold: false,
+            )
+          : ListenableBuilder(
         listenable: Listenable.merge(
             [SmartFolders.instance, AiIndex.revision, SmartSort.revision]),
         builder: (context, _) {
@@ -172,17 +196,17 @@ class _FolderRow extends StatelessWidget {
                   ],
                 ),
               ),
-              // İlk üç dosyanın küçük resmi: klasörün ne içerdiği adı
-              // okumadan görülsün. Hassas belge PIN'siz gösterilmez.
+              // İlk iki (geniş ekranda üç) dosyanın küçük resmi: klasörün ne
+              // içerdiği adı okumadan görülsün. Hassas belge PIN'siz gösterilmez.
               for (final r in items
                   .where((r) => !SmartFolders.isSensitive(r))
-                  .take(3))
+                  .take(MediaQuery.sizeOf(context).width < 400 ? 2 : 3))
                 Padding(
                   padding: const EdgeInsetsDirectional.only(start: 4),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(6),
                     child: FmEntryIcon(
-                        entry: AiBuckets.entryOf(r), size: 36, radius: 6),
+                        entry: _entryOf(r), size: 36, radius: 6),
                   ),
                 ),
             ],
@@ -231,7 +255,8 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
   Future<void> _rename(SmartFolder folder) async {
     final name = await _askText(context,
         title: context.t('smart.rename'), initial: folder.name);
-    if (name != null) await SmartFolders.instance.rename(folder.id, name);
+    if (name == null || name.trim().isEmpty) return;
+    await SmartFolders.instance.rename(folder.id, name.trim());
   }
 
   Future<void> _delete(SmartFolder folder) async {
@@ -260,7 +285,7 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
         }
         final items = SmartFolders.contents(folder, scope);
         final seen = _seenAtOpen ?? folder.seenMs;
-        final bytes = AiBuckets.totalBytes(items);
+        final bytes = items.fold<int>(0, (s, r) => s + r.sizeBytes);
         return Scaffold(
           appBar: AppBar(
             title: Text(folder.name),
@@ -334,27 +359,20 @@ class _SmartFolderScreenState extends State<SmartFolderScreen> {
 }
 
 /// Tek satırlık metin sorar (yeni klasör sorgusu, yeniden adlandırma).
-Future<String?> _askText(BuildContext context,
-    {required String title, String? hint, String? initial}) {
-  final controller = TextEditingController(text: initial);
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: TextField(
-        controller: controller,
-        autofocus: true,
-        decoration: InputDecoration(hintText: hint),
-        onSubmitted: (v) => Navigator.pop(ctx, v),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(ctx.t('common.cancel'))),
-        FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text(ctx.t('common.ok'))),
-      ],
-    ),
-  ).whenComplete(controller.dispose);
+/// Boşluk-only adları reddeder.
+Future<String?> _askText(
+  BuildContext context, {
+  required String title,
+  String? hint,
+  String? initial,
+}) async {
+  final res = await showAppPrompt(
+    context,
+    title: title,
+    label: hint,
+    initial: initial ?? '',
+    confirmLabel: context.t('common.ok'),
+  );
+  final trimmed = res?.trim() ?? '';
+  return trimmed.isEmpty ? null : trimmed;
 }

@@ -95,11 +95,14 @@ class _UpdateBannerState extends State<UpdateBanner>
         : str.t(downloaded ? 'upd.b_ready_title' : 'upd.b_title');
     final line = str.t('upd.b_one', {'t': title, 'v': info.version});
     return Padding(
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 0),
+      padding: const EdgeInsets.only(bottom: Gap.sm),
       child: Material(
         key: const ValueKey('update-banner'),
         color: scheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(Radii.card),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.card),
+          side: BorderSide(color: scheme.outlineVariant),
+        ),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: working ? null : () => _tap(info),

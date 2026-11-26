@@ -56,23 +56,36 @@ class DocFindBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final pill = OutlineInputBorder(
       borderRadius: BorderRadius.circular(24),
-      borderSide: BorderSide.none,
+      borderSide: BorderSide(
+        color: scheme.outlineVariant.withValues(alpha: 0.65),
+      ),
     );
     return InputDecoration(
       isDense: true,
       filled: true,
-      fillColor: scheme.surfaceContainerHighest,
+      fillColor: scheme.surfaceContainerLow,
       hintText: hint,
-      prefixIcon: Icon(icon, size: 20),
-      prefixIconConstraints: const BoxConstraints(minWidth: 40),
+      prefixIcon: Padding(
+        padding: const EdgeInsetsDirectional.only(start: 6, end: 4),
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: scheme.primaryContainer.withValues(alpha: 0.65),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 16, color: scheme.primary),
+        ),
+      ),
+      prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 36),
       suffixIcon: suffix,
       suffixIconConstraints: const BoxConstraints(minWidth: 0),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
       border: pill,
       enabledBorder: pill,
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
-        borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        borderSide: BorderSide(color: scheme.primary, width: 1.7),
       ),
     );
   }
@@ -81,72 +94,98 @@ class DocFindBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final hasCount = countLabel.isNotEmpty;
+    final isEmptyHit = hasCount &&
+        (countLabel.startsWith('0/') || (onPrev == null && onNext == null));
+    final btnStyle = IconButton.styleFrom(
+      backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+      foregroundColor: scheme.onSurface,
+      disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.34),
+      disabledBackgroundColor: Colors.transparent,
+      shape: const CircleBorder(),
+      visualDensity: VisualDensity.compact,
+    );
     return Material(
       color: scheme.surface,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 4, 6),
-        child: Row(
-          children: [
-            ...leading,
-            Expanded(
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: autofocus,
-                textInputAction: TextInputAction.search,
-                onChanged: onChanged,
-                onSubmitted: onSubmitted,
-                decoration: decoration(
-                  context,
-                  hint: hint,
-                  suffix: hasCount
-                      ? Padding(
-                          padding: const EdgeInsetsDirectional.only(end: 6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: scheme.surface,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              countLabel,
-                              style: context.type.small.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: scheme.onSurfaceVariant,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(10, 7, 6, 7),
+          child: Row(
+            children: [
+              ...leading,
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  autofocus: autofocus,
+                  textInputAction: TextInputAction.search,
+                  onChanged: onChanged,
+                  onSubmitted: onSubmitted,
+                  decoration: decoration(
+                    context,
+                    hint: hint,
+                    suffix: hasCount
+                        ? Padding(
+                            padding: const EdgeInsetsDirectional.only(end: 6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 9, vertical: 3),
+                              decoration: ShapeDecoration(
+                                color: isEmptyHit
+                                    ? scheme.errorContainer
+                                    : scheme.primaryContainer,
+                                shape: const StadiumBorder(),
+                              ),
+                              child: Text(
+                                countLabel,
+                                style: context.type.small.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: isEmptyHit
+                                      ? scheme.onErrorContainer
+                                      : scheme.onPrimaryContainer,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                      : null,
+                          )
+                        : null,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 2),
-            IconButton(
-              tooltip: context.t('common.previous'),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(AppIcons.keyboardArrowUp),
-              onPressed: onPrev,
-            ),
-            IconButton(
-              tooltip: context.t('common.next'),
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(AppIcons.keyboardArrowDown),
-              onPressed: onNext,
-            ),
-            ...trailing,
-            if (onClose != null)
+              const SizedBox(width: 4),
               IconButton(
-                tooltip: context.t('common.close'),
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(AppIcons.close),
-                onPressed: onClose,
+                tooltip: context.t('common.previous'),
+                style: btnStyle,
+                icon: const Icon(AppIcons.keyboardArrowUp, size: 20),
+                onPressed: onPrev,
               ),
-          ],
+              const SizedBox(width: 2),
+              IconButton(
+                tooltip: context.t('common.next'),
+                style: btnStyle,
+                icon: const Icon(AppIcons.keyboardArrowDown, size: 20),
+                onPressed: onNext,
+              ),
+              ...trailing,
+              if (onClose != null) ...[
+                const SizedBox(width: 2),
+                IconButton(
+                  tooltip: context.t('common.close'),
+                  style: btnStyle,
+                  icon: const Icon(AppIcons.close, size: 19),
+                  onPressed: onClose,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

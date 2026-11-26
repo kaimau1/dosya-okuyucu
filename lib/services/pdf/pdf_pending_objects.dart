@@ -144,6 +144,12 @@ abstract final class PdfPendingWriter {
   static Uint8List? _regular;
   static Uint8List? _bold;
 
+  /// Bellek baskısında önbellekteki font baytlarını bırakır.
+  static void clearFontCache() {
+    _regular = null;
+    _bold = null;
+  }
+
   static Future<({Uint8List regular, Uint8List bold})> _fonts() async {
     _regular ??= (await rootBundle.load('assets/fonts/Carlito-Regular.ttf'))
         .buffer

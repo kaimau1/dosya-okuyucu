@@ -26,6 +26,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   /// Düzenleme kipine girer. false = bayrak kapalı (çağıran eski yola gider);
   /// true = bu yol üstlendi (kipe girildi ya da kullanıcı vazgeçti).
   Future<bool> _enterProEdit({int? page, PdfEditSelection? selection}) async {
+    if (!Edition.current.has(Feature.pdfAdvanced)) return true;
     if (_pro != null) return true;
     if (!await _proEnabled()) return false;
     final doc = _pdfDoc;
@@ -117,7 +118,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
       _snack(scanned);
       return;
     }
-    if (!await OnceHints.take('pdf_edit_tap')) return;
+    if (!await OnceHints.take('pdf_edit_tap2')) return;
     if (!mounted || _pro != pro) return;
     _snack(tap);
   }
@@ -129,6 +130,10 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<void> _closePro({bool keepRecovery = false, bool reload = true}) async {
     final pro = _pro;
     if (pro == null) return;
+    pro
+      ..armTextBox = false
+      ..armLasso = false
+      ..clearMarkup();
     pro.removeListener(_onProChanged);
     _pro = null;
     _pdfSelecting = false;
@@ -150,7 +155,10 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<bool> _exitProEdit() async {
     final pro = _pro;
     if (pro == null) return true;
-    if (pro.busy) return false;
+    if (pro.busy) {
+      _proBusyHint();
+      return false;
+    }
     // Geri tuşu sırası (etkileşim §8): önce yazma, sonra seçim, sonra kip.
     if (pro.live != null) {
       await _proDone();
@@ -207,38 +215,74 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         : context.t('pse.step_detail', {'name': name, 'detail': step.detail});
   }
 
-  /// Üst çubuk (etkileşim §5): geri al · yinele · Kaydet (dolgulu) · ⋮.
+  /// Üst çubuk (etkileşim §5): geri al · yinele · Kaydet (dolgulu) · çık · ⋮.
   List<Widget> _proActions(PdfProEditController pro) {
+    final scheme = Theme.of(context).colorScheme;
     final undo = pro.session.undoStep, redo = pro.session.redoStep;
+    final live = pro.live != null;
+    final canSave = pro.session.dirty || (pro.live?.changed ?? false);
+    final circleStyle = IconButton.styleFrom(
+      backgroundColor: scheme.surfaceContainerHigh.withValues(alpha: 0.72),
+      foregroundColor: scheme.onSurface,
+      disabledBackgroundColor: Colors.transparent,
+      disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.34),
+      shape: const CircleBorder(),
+      side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+      visualDensity: VisualDensity.compact,
+    );
     return [
-      IconButton(
-        key: const ValueKey('pse-undo'),
-        tooltip: undo == null
-            ? context.t('common.undo')
-            : context.t('pse.undo_named', {'name': _proStepName(undo)}),
-        icon: const Icon(AppIcons.undo),
-        onPressed: pro.busy || undo == null ? null : _proUndo,
-      ),
-      IconButton(
-        key: const ValueKey('pse-redo'),
-        tooltip: redo == null
-            ? context.t('common.redo')
-            : context.t('pse.redo_named', {'name': _proStepName(redo)}),
-        icon: const Icon(AppIcons.redo),
-        onPressed: pro.busy || redo == null ? null : _proRedo,
+      if (undo != null)
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: const ValueKey('pse-undo'),
+            style: circleStyle,
+            tooltip: context.t('pse.undo_named', {'name': _proStepName(undo)}),
+            icon: const Icon(AppIcons.undo, size: 20),
+            onPressed: pro.busy || live ? null : _proUndo,
+          ),
+        ),
+      if (redo != null)
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: 2),
+          child: IconButton(
+            key: const ValueKey('pse-redo'),
+            style: circleStyle,
+            tooltip: context.t('pse.redo_named', {'name': _proStepName(redo)}),
+            icon: const Icon(AppIcons.redo, size: 20),
+            onPressed: pro.busy || live ? null : _proRedo,
+          ),
+        ),
+      Padding(
+        padding: const EdgeInsetsDirectional.symmetric(horizontal: 4),
+        child: FilledButton.icon(
+          key: const ValueKey('pse-save'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            shape: const StadiumBorder(),
+            visualDensity: VisualDensity.compact,
+          ),
+          onPressed: pro.busy || !canSave ? null : _proSave,
+          icon: const Icon(AppIcons.save, size: 17),
+          label: Text(context.t('common.save')),
+        ),
       ),
       Padding(
-        padding: const EdgeInsetsDirectional.only(start: Gap.xs),
-        child: FilledButton(
-          key: const ValueKey('pse-save'),
-          onPressed: pro.busy || !pro.session.dirty ? null : _proSave,
-          child: Text(context.t('common.save')),
+        padding: const EdgeInsetsDirectional.only(end: 2),
+        child: IconButton(
+          key: const ValueKey('pse-exit'),
+          style: circleStyle,
+          tooltip: context.t('pdf.exit_edit'),
+          icon: const Icon(AppIcons.close, size: 20),
+          onPressed: pro.busy ? null : () => unawaited(_exitProEdit()),
         ),
       ),
       IconButton(
         key: const ValueKey('pse-more'),
+        style: circleStyle,
         tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
-        icon: const Icon(AppIcons.more),
+        icon: const Icon(AppIcons.more, size: 20),
         onPressed: pro.busy ? null : _proMore,
       ),
     ];
@@ -267,15 +311,12 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
               value: 'comments',
               icon: AppIcons.comment,
               label: context.t('pse.comments')),
-          AppAction(
-              value: 'ai',
-              icon: AppIcons.ai,
-              label: context.t('pse.tool_ai')),
-          AppAction(
-              value: 'legacy',
-              icon: AppIcons.editNote,
-              label: context.t('pse.tool_legacy'),
-              hint: context.t('pse.tool_legacy_hint')),
+          if (context.read<AppState>().labWordEditor)
+            AppAction(
+                value: 'legacy',
+                icon: AppIcons.editNote,
+                label: context.t('pse.tool_legacy'),
+                hint: context.t('pse.tool_legacy_hint')),
           AppAction(
               value: 'tools',
               icon: AppIcons.construction,
@@ -304,8 +345,6 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         await _proFindReplace();
       case 'comments':
         await _proComments();
-      case 'ai':
-        await _proAi();
       case 'legacy':
         await _openPdfEditor(legacy: true);
       case 'tools':
@@ -358,7 +397,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
 
   Future<void> _proUndo() async {
     final pro = _pro;
-    if (pro == null || pro.busy) return;
+    if (pro == null || pro.busy || pro.live != null) return;
     final failed = context.t('pse.undo_failed');
     if (!await pro.undo()) _snack(failed);
     _pdfText = '';
@@ -366,7 +405,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
 
   Future<void> _proRedo() async {
     final pro = _pro;
-    if (pro == null || pro.busy) return;
+    if (pro == null || pro.busy || pro.live != null) return;
     final failed = context.t('pse.undo_failed');
     if (!await pro.redo()) _snack(failed);
     _pdfText = '';
@@ -378,8 +417,14 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<_ProSaved> _proSave() async {
     final pro = _pro;
     if (pro == null || pro.busy) return _ProSaved.failed;
+    if (pro.live != null) {
+      await _proDone();
+      if (pro.live != null || !mounted || _pro != pro) return _ProSaved.failed;
+    }
+    if (!pro.session.dirty) return _ProSaved.failed;
     final saved = context.t('pse.saved');
     final failed = context.t('pse.save_failed');
+    final actDetail = context.t('ps.act_edited');
     if (!_proOverwriteOk.contains(widget.doc.path)) {
       final pick = await showAppActionSheet<String>(
         context,
@@ -399,14 +444,20 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
       );
       if (pick == null || !mounted || _pro != pro) return _ProSaved.failed;
       if (pick == 'copy') {
-        await _proSaveAs(documents: false);
-        return _ProSaved.copied;
+        final ok = await _proSaveAs(documents: false);
+        return ok ? _ProSaved.copied : _ProSaved.failed;
       }
-      _proOverwriteOk.add(widget.doc.path);
     }
     try {
       final r = await pro.save();
+      unawaited(ActivityLog.add(ActivityKind.pdfEdit, r.path,
+          detail: actDetail));
+      FsEvents.changed([r.path]);
+      if (mounted) {
+        await EntryOpener.rememberFile(context, r.path);
+      }
       if (r.overwritten) {
+        _proOverwriteOk.add(widget.doc.path);
         _snack(saved);
         return _ProSaved.overwritten;
       }
@@ -422,13 +473,24 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     }
   }
 
-  Future<void> _proSaveAs({required bool documents}) async {
+  Future<bool> _proSaveAs({required bool documents}) async {
     final pro = _pro;
-    if (pro == null || pro.busy) return;
+    if (pro == null || pro.busy) return false;
+    if (pro.live != null) {
+      await _proDone();
+      if (pro.live != null || !mounted || _pro != pro) return false;
+    }
     final failed = context.t('pse.save_failed');
+    final actDetail = context.t('ps.act_edited');
     try {
       final r = await pro.saveAs(documents: documents);
-      if (!mounted) return;
+      unawaited(ActivityLog.add(ActivityKind.pdfEdit, r.path,
+          detail: actDetail));
+      FsEvents.changed([r.path]);
+      if (mounted) {
+        await EntryOpener.rememberFile(context, r.path);
+      }
+      if (!mounted) return true;
       final name = {'name': p.basename(r.path)};
       await _proLeaveToCopy(
           pro,
@@ -436,8 +498,10 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
           r.fellBack
               ? context.t('pse.readonly_fallback', name)
               : context.t('pse.saved_copy', name));
+      return true;
     } catch (e) {
       _snack(failed.replaceAll('{error}', userErrorText(e)));
+      return false;
     }
   }
 
@@ -549,12 +613,19 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     final failed = context.t('pse.save_failed');
     final open = context.t('ps.open');
     final savedCopy = context.t('pse.saved_copy');
+    final actDetail = context.t('ps.act_edited');
     final messenger = ScaffoldMessenger.of(context);
     try {
       final docs = await DocsHome.resolve();
       final target = await PdfSave.copyTargetFor(
           p.join(docs.path, p.basename(widget.doc.path)));
       await snapshot.copy(target);
+      unawaited(ActivityLog.add(ActivityKind.pdfEdit, target,
+          detail: actDetail));
+      FsEvents.changed([target]);
+      if (mounted) {
+        await EntryOpener.rememberFile(context, target);
+      }
       showSnackOn(
         messenger,
         savedCopy.replaceAll('{name}', p.basename(target)),

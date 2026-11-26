@@ -77,29 +77,6 @@ void main() {
       expect(q.filter.isActive, isFalse);
       expect(q.text, contains('rapor2'));
     });
-
-    test('AI JSON çıktısı hoşgörülü ayrıştırılır', () {
-      const raw = '''
-Tabii, işte:
-```json
-{"category":"video","dateRange":"week","sizeRange":"large",
- "buckets":["whatsapp"],"extensions":[".mp4"],"text":"tatil"}
-```
-''';
-      final q = smartQueryFromJson(raw);
-      expect(q, isNotNull);
-      expect(q!.category, FmCategory.video);
-      expect(q.filter.dateRange, FmDateRange.week);
-      expect(q.filter.sizeRange, FmSizeRange.large);
-      expect(q.filter.buckets, {MediaBucket.whatsapp});
-      expect(q.filter.extensions, {'mp4'});
-      expect(q.text, 'tatil');
-    });
-
-    test('bozuk AI çıktısı null döner (arama BOZULMAZ)', () {
-      expect(smartQueryFromJson('özür dilerim, anlayamadım'), isNull);
-      expect(smartQueryFromJson('{bozuk json'), isNull);
-    });
   });
 
   group('belge sınıflandırma', () {

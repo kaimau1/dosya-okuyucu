@@ -2,6 +2,7 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_language.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/core/theme.dart';
+import 'package:dosya_okuyucu/models/fs_entry.dart';
 import 'package:dosya_okuyucu/screens/fm/analysis_screen.dart';
 import 'package:dosya_okuyucu/services/fm/fs_scan.dart';
 import 'package:dosya_okuyucu/services/fm/storage_stats.dart';
@@ -72,23 +73,61 @@ void main() {
     expect(find.text('%50'), findsOneWidget);
   });
 
-  testWidgets('üç analiz aracı TEK kartta, çizgilerle ayrılmış',
+  testWidgets('analiz araçları TEK kartta: Yer aç + klasör haritası',
       (tester) async {
     await pump(tester);
     const strings = AppStrings(AppLanguage.tr);
     for (final key in const [
       'ana.free_space',
-      'ana.find_dupes',
       'fmap.title',
     ]) {
       expect(find.text(strings.t(key)), findsOneWidget, reason: key);
     }
-    // Üç satır, iki ayraç: üç ayrı kart olsaydı hiç `Divider` olmazdı.
+    // Kopyalar/benzer/sohbet artık Yer aç'ın içinde (2026-11-25).
+    expect(find.text(strings.t('ana.find_dupes')), findsNothing);
+    // İki satır, bir ayraç: ayrı kartlar olsaydı `Divider` olmazdı.
     expect(find.byType(Divider), findsWidgets);
   });
 
   testWidgets('1.5 yazı ölçeğinde de taşmaz', (tester) async {
     await pump(tester, textScale: 1.5);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('kapasite çubuğu 14 dp yükseklikte çizilir ve taşma yapmaz',
+      (tester) async {
+    const index = StorageIndex(
+      stats: {
+        FmCategory.video: CategoryStat(10, 300 * gb),
+        FmCategory.image: CategoryStat(20, 100 * gb),
+      },
+      byCategory: {},
+      largest: [],
+      recent: [],
+      totalFiles: 30,
+      totalBytes: 400 * gb,
+      skipped: 0,
+    );
+    await tester.pumpWidget(ChangeNotifierProvider<AppState>.value(
+      value: AppState(),
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
+        localizationsDelegates: _delegates,
+        home: const AnalysisScreen(index: index, volumes: [volume]),
+      ),
+    ));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    final boxes = tester.widgetList<ColoredBox>(find.descendant(
+      of: find.byType(ClipRRect).first,
+      matching: find.byType(ColoredBox),
+    ));
+    expect(boxes, isNotEmpty);
+    for (final b in boxes) {
+      final size = tester.getSize(find.byWidget(b));
+      expect(size.height, 14);
+    }
   });
 }

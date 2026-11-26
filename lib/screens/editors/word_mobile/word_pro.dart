@@ -87,6 +87,8 @@ extension _WordProPart on _WordMobileEditorScreenState {
   Future<void> _onPro(String id) async {
     final c = _ctrl;
     if (c == null || _proBusy) return;
+    if (!await ProGate.check(context, Feature.wordSlidesPro)) return;
+    if (!mounted) return;
     switch (id) {
       case 'style_update':
         await _proApply(DocxStyleOps.updateStyleFromParagraph(c.extent.para),
@@ -173,10 +175,6 @@ extension _WordProPart on _WordMobileEditorScreenState {
         await _stats();
       case 'dictate':
         await _dictate();
-      case 'ai_inline':
-        await _aiInline();
-      case 'ai_proof':
-        await _aiProof();
       case 'tbl_merge':
         final dir = await _choose('wp.tbl_merge', const [
           ('right', 'wp.tbl_merge_right'),
@@ -586,34 +584,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
     }
   }
 
-  /// Seçim (yoksa imleç paragrafı) üzerinde AI görevi; önizleme → onay.
-  Future<void> _aiInline() async {
-    final c = _ctrl;
-    if (c == null) return;
-    if (c.collapsed) {
-      final i = c.extent.para;
-      c.select(DocPos(i, 0), DocPos(i, c.paras[i].length));
-    }
-    final text = c.selectedText();
-    if (text.trim().isEmpty) {
-      showSnack(context, context.t('wp.ai_empty'));
-      return;
-    }
-    final r = await showAppSheet<(String, String)>(
-      context,
-      title: context.t('wp.ai_inline'),
-      builder: (_) => _AiInlineSheet(text: text),
-    );
-    if (r == null || !mounted) return;
-    if (r.$1 == 'below') {
-      final e = c.end;
-      c.select(DocPos(e.para, c.paras[e.para].length),
-          DocPos(e.para, c.paras[e.para].length));
-      c.insertText('\n${r.$2}');
-    } else {
-      c.replaceSelection(r.$2);
-    }
-  }
+  // DocxAi tabanlı satır içi/yazım denetimi kaldırıldı.
 
   // ── Madde 7 + 11: dışa aktarım ───────────────────────────────────────────
 
@@ -776,17 +747,71 @@ extension _WordProPart on _WordMobileEditorScreenState {
     await showAppSheet<void>(
       context,
       title: context.t('wp.stats'),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (k, v) in rows)
-            ListTile(
-              dense: true,
-              title: Text(ctx.t(k)),
-              trailing: Text(v, style: Theme.of(ctx).textTheme.titleMedium),
-            ),
-        ],
-      ),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: LayoutBuilder(
+            builder: (_, box) {
+              final tileW = (box.maxWidth - Gap.sm) / 2;
+              return Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (var idx = 0; idx < rows.length; idx++)
+                    Container(
+                      width: tileW,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.md, vertical: Gap.sm + 2),
+                      decoration: BoxDecoration(
+                        color: idx == 0
+                            ? scheme.primaryContainer.withValues(alpha: 0.6)
+                            : scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        border: Border.all(
+                          color: idx == 0
+                              ? scheme.primary.withValues(alpha: 0.32)
+                              : scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            rows[idx].$2,
+                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: idx == 0
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.onSurface,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            ctx.t(rows[idx].$1),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.type.caption.copyWith(
+                              color: idx == 0
+                                  ? scheme.onPrimaryContainer
+                                      .withValues(alpha: 0.85)
+                                  : scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -957,51 +982,5 @@ extension _WordProPart on _WordMobileEditorScreenState {
     await _atCaret(DocxInsertPro.cite(
         DocxSource(r[0].trim(), r[1].trim(), r[2].trim(), r[3].trim()),
         heading: heading));
-  }
-
-  // ── Madde 10: AI yazım denetimi (kullanıcı onaylı) ───────────────────────
-
-  Future<void> _aiProof() async {
-    final c = _ctrl;
-    if (c == null) return;
-    final scope = await _choose('wp.ai_proof', const [
-      ('para', 'wp.proof_para'),
-      ('doc', 'wp.proof_doc'),
-    ]);
-    if (scope == null || !mounted) return;
-    final from = scope == 'doc' ? 0 : c.start.para;
-    final to = scope == 'doc' ? c.paras.length - 1 : c.end.para;
-    final chunks = proofChunks([
-      for (var i = from; i <= to; i++)
-        if (!c.paras[i].opaque) (i, c.paras[i].text.replaceAll(kDocxAtom, ' ')),
-    ]);
-    if (chunks.isEmpty) {
-      showSnack(context, context.t('wp.ai_empty'));
-      return;
-    }
-    await showAppSheet<void>(
-      context,
-      title: context.t('wp.ai_proof'),
-      builder: (_) => _ProofSheet(
-        chunks: chunks,
-        language: switch (AppStrings.of(context).language) {
-          AppLanguage.en => 'English',
-          AppLanguage.ar => 'Arabic',
-          _ => 'Türkçe',
-        },
-        apply: _applyFix,
-      ),
-    );
-  }
-
-  /// Öneriyi uygular: paragrafta ilk geçişi değiştirir (geri alınabilir).
-  bool _applyFix(int para, String wrong, String right) {
-    final c = _ctrl;
-    if (c == null || para >= c.paras.length) return false;
-    final k = c.paras[para].text.indexOf(wrong);
-    if (k < 0) return false;
-    c.select(DocPos(para, k), DocPos(para, k + wrong.length));
-    c.replaceSelection(right);
-    return true;
   }
 }

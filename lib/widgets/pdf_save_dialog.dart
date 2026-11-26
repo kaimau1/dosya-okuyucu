@@ -11,9 +11,27 @@ import '../core/l10n/app_strings.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/activity_log.dart';
 import '../services/fm/fs_events.dart';
+import '../services/fm/safe_write.dart';
 import '../services/pdf_save.dart';
 import '../core/snack.dart';
 import '../core/user_error.dart';
+
+export '../services/fm/activity_log.dart' show ActivityKind, ActivityLog;
+export '../services/fm/fs_events.dart' show FsEvents;
+
+/// Üretilen/düzenlenen PDF'i etkinlik günlüğüne, dosya olaylarına ve son
+/// dosyalara bildirir.
+Future<void> recordPdfEditActivity(
+  BuildContext context,
+  String path, {
+  String detail = '',
+}) async {
+  unawaited(ActivityLog.add(ActivityKind.pdfEdit, path, detail: detail));
+  FsEvents.changed([path]);
+  if (context.mounted) {
+    await EntryOpener.rememberFile(context, path);
+  }
+}
 
 /// Kaydetme sonucunun çağırana söylediği şey.
 class PdfSaveOutcome {
@@ -42,6 +60,7 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
   required String originalPath,
   required List<int> bytes,
   String? note,
+  String? activityDetail,
 }) async {
   final choice = await _askSaveChoice(context, originalPath, note);
   if (choice == null || !context.mounted) return null;
@@ -70,9 +89,10 @@ Future<PdfSaveOutcome?> savePdfWithChoice(
   }
 
   // "Yaptıklarım" defterine yazılır: kullanıcı düzenlediği PDF'i sonradan
-  // klasör klasör aramasın (istek 2026-08-07).
+  // klasör klasör aramasın (istek 2026-08-07). Diyalog açıklama metni (`note`)
+  // asla buraya yazılmaz; kısa geçmiş zamanlı özet (`activityDetail`) yazılır.
   unawaited(ActivityLog.add(ActivityKind.pdfEdit, written,
-      detail: note ?? ''));
+      detail: activityDetail ?? ''));
   // PS3 (PDF Pro Faz 51): kopya SON DOSYALAR'ın ve Belgeler'in başına hemen
   // düşer; genel klasördeyse MediaStore'a da bildirilir (FsEvents → MediaScan).
   FsEvents.changed([written]);
@@ -98,7 +118,7 @@ Future<String> _writeInto(
     target = p.join(dir, '$stem ($n).pdf');
     n++;
   }
-  await File(target).writeAsBytes(bytes, flush: true);
+  await SafeWrite.bytes(target, bytes);
   return target;
 }
 

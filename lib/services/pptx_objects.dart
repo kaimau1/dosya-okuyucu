@@ -59,7 +59,20 @@ class PptxLayoutInfo {
   final String part; // ppt/slideLayouts/slideLayoutN.xml
   final String name;
   final String type;
-  const PptxLayoutInfo(this.part, this.name, this.type);
+
+  /// Önizleme için yer tutucu kutuları (slayta oranla 0–1). Boşsa önizleme
+  /// düzen türünden tahmin edilir.
+  final List<PptxLayoutBox> boxes;
+  const PptxLayoutInfo(this.part, this.name, this.type,
+      {this.boxes = const []});
+}
+
+/// Düzen önizlemesinde bir yer tutucu: türü (`title`, `ctrTitle`,
+/// `subTitle`, `body`, `obj`, `pic`, `tbl`, `chart`…) ve slayta oranla kutu.
+class PptxLayoutBox {
+  final String type;
+  final double x, y, w, h;
+  const PptxLayoutBox(this.type, this.x, this.y, this.w, this.h);
 }
 
 extension PptxObjects on PptxEditor {
@@ -551,16 +564,113 @@ extension PptxObjects on PptxEditor {
         .where((n) => RegExp(r'^ppt/slideLayouts/slideLayout\d+\.xml$').hasMatch(n))
         .toList()
       ..sort((a, b) => PptxEditor._idx(a).compareTo(PptxEditor._idx(b)));
+    final (sw, sh) = _slideSizeEmu;
+    final masters = <String, List<(XmlElement, List<double>)>>{};
     for (final n in names) {
       final doc = PptxEditor._tryParse(_archive, n);
       if (doc == null) continue;
       final root = doc.rootElement;
       final cSld = PptxEditor._firstOrNull(root.findElements('p:cSld'));
       out.add(PptxLayoutInfo(
-          n, cSld?.getAttribute('name') ?? n.split('/').last, root.getAttribute('type') ?? ''));
+          n, cSld?.getAttribute('name') ?? n.split('/').last, root.getAttribute('type') ?? '',
+          boxes: _layoutBoxes(n, doc, sw, sh, masters)));
     }
     return out;
   }
+
+  /// Slaytın en/boy oranı (düzen önizlemesi için).
+  double get slideAspect {
+    final (sw, sh) = _slideSizeEmu;
+    return sh <= 0 ? 16 / 9 : sw / sh;
+  }
+
+  /// Yer tutucunun kutusu (EMU: x, y, cx, cy); `a:xfrm` yoksa null.
+  static List<double>? _phFrame(XmlElement sp) {
+    final spPr = PptxEditor._firstOrNull(sp.findElements('p:spPr'));
+    final xfrm = spPr == null
+        ? null
+        : PptxEditor._firstOrNull(spPr.findElements('a:xfrm'));
+    final off = xfrm == null
+        ? null
+        : PptxEditor._firstOrNull(xfrm.findElements('a:off'));
+    final ext = xfrm == null
+        ? null
+        : PptxEditor._firstOrNull(xfrm.findElements('a:ext'));
+    if (off == null || ext == null) return null;
+    final v = [
+      double.tryParse(off.getAttribute('x') ?? ''),
+      double.tryParse(off.getAttribute('y') ?? ''),
+      double.tryParse(ext.getAttribute('cx') ?? ''),
+      double.tryParse(ext.getAttribute('cy') ?? ''),
+    ];
+    if (v.any((e) => e == null)) return null;
+    return [for (final e in v) e!];
+  }
+
+  /// Düzenin ana slaytındaki yer tutucular (kutusu olanlar), önbellekli.
+  List<(XmlElement, List<double>)> _masterPhs(String layoutPart,
+      Map<String, List<(XmlElement, List<double>)>> cache) {
+    String? masterPart;
+    try {
+      for (final r in _relsDocOf(layoutPart).findAllElements('Relationship')) {
+        if ((r.getAttribute('Type') ?? '').endsWith('/slideMaster')) {
+          masterPart =
+              PptxEditor._resolve(layoutPart, r.getAttribute('Target') ?? '');
+          break;
+        }
+      }
+    } catch (_) {
+      return const []; // Bilinçli: ilişki okunamazsa tür varsayılanları.
+    }
+    if (masterPart == null) return const [];
+    return cache[masterPart] ??= () {
+      final mdoc = PptxEditor._tryParse(_archive, masterPart!);
+      if (mdoc == null) return const <(XmlElement, List<double>)>[];
+      return [
+        for (final sp in mdoc.findAllElements('p:sp'))
+          if (_phOf(sp) case final ph?)
+            if (_phFrame(sp) case final f?) (ph, f),
+      ];
+    }();
+  }
+
+  /// Düzenin yer tutucu kutuları: önce düzenin kendi `a:xfrm`'i, yoksa ana
+  /// slayttaki aynı sınıf yer tutucu, o da yoksa türün tipik yeri.
+  List<PptxLayoutBox> _layoutBoxes(String part, XmlDocument doc, int sw,
+      int sh, Map<String, List<(XmlElement, List<double>)>> masters) {
+    if (sw <= 0 || sh <= 0) return const [];
+    final out = <PptxLayoutBox>[];
+    for (final sp in doc.findAllElements('p:sp')) {
+      final ph = _phOf(sp);
+      if (ph == null) continue;
+      final type = ph.getAttribute('type') ?? 'obj';
+      if (const {'dt', 'ftr', 'sldNum', 'hdr'}.contains(type)) continue;
+      var f = _phFrame(sp);
+      if (f == null) {
+        final cls = _phClass(ph);
+        for (final (mph, mf) in _masterPhs(part, masters)) {
+          if (_phClass(mph) == cls) {
+            f = mf;
+            break;
+          }
+        }
+      }
+      final box = f == null
+          ? _typicalBox(type, out.where((b) => b.type == type).length)
+          : PptxLayoutBox(type, f[0] / sw, f[1] / sh, f[2] / sw, f[3] / sh);
+      if (box.w <= 0 || box.h <= 0) continue;
+      out.add(box);
+    }
+    return out;
+  }
+
+  static PptxLayoutBox _typicalBox(String type, int nth) => switch (type) {
+        'ctrTitle' => const PptxLayoutBox('ctrTitle', .1, .3, .8, .22),
+        'subTitle' => const PptxLayoutBox('subTitle', .18, .56, .64, .14),
+        'title' => const PptxLayoutBox('title', .07, .05, .86, .17),
+        _ => PptxLayoutBox(type, nth == 0 ? .07 : .52, .27, nth == 0 ? .86 : .41,
+            .62),
+      };
 
   /// [layout]'tan yer tutuculu yeni slayt ekler ([after]'ın ardına).
   PptxSlide? addSlideFromLayout(PptxLayoutInfo layout, {PptxSlide? after}) {

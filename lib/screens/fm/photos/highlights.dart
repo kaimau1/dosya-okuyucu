@@ -143,13 +143,18 @@ class _HighlightCard extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 FmEntryIcon(entry: item.cover, size: height, radius: 0),
-                // Yazı her fotoğrafın üstünde okunsun: alt yarıda koyu geçiş.
+                // Yazı her fotoğrafın üstünde okunsun: alt yarıda belirgin koyu geçiş.
                 const DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.center,
+                      begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [AppColors.none, AppColors.mediaChrome],
+                      stops: [0.35, 0.72, 1.0],
+                      colors: [
+                        AppColors.none,
+                        AppColors.mediaScrim,
+                        AppColors.mediaChrome,
+                      ],
                     ),
                   ),
                 ),
@@ -168,6 +173,13 @@ class _HighlightCard extends StatelessWidget {
                         style: text.labelLarge?.copyWith(
                           color: AppColors.onMedia,
                           fontWeight: FontWeight.w700,
+                          shadows: const [
+                            Shadow(
+                              color: AppColors.mediaChrome,
+                              blurRadius: 3,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
                         ),
                       ),
                       Text(
@@ -176,6 +188,13 @@ class _HighlightCard extends StatelessWidget {
                         style: text.labelSmall?.copyWith(
                           color: AppColors.onMediaSoft,
                           fontFeatures: const [FontFeature.tabularFigures()],
+                          shadows: const [
+                            Shadow(
+                              color: AppColors.mediaChrome,
+                              blurRadius: 3,
+                              offset: Offset(0, 1),
+                            ),
+                          ],
                         ),
                       ),
                     ],

@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../labs/word_editor/lab_word_screen.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_session.dart';
@@ -29,12 +30,12 @@ import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/docx_editor.dart';
 import '../../services/office_crypto.dart';
+import '../../widgets/app_dialog.dart';
 import '../../widgets/doc_action_bar.dart';
 import '../../widgets/editor_top_bar.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/doc_find_bar.dart';
-import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/docx_view.dart';
 import '../../widgets/office_ribbon.dart';
 import '../../widgets/office_shell.dart';
@@ -99,6 +100,11 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   bool _plainMode = false;
   bool _editing = false;
 
+  /// true → düzenleme SAYFA görünümünde kalır (akışa geçmez). 2026-11-22
+  /// (kullanıcı): "isterse normal bilgisayar görünümünde de yazı değiştirip
+  /// silip yeniden yazabilmeli".
+  bool _editKeepPage = false;
+
   /// Okuma kipi (Faz 18 / G20) — düzenleme kapalıyken.
   final ReadingBars _readingBars = ReadingBars();
 
@@ -131,8 +137,12 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   double _selSize = 0;
 
   /// Belgenin toplam sayfa sayısı ve görünen sayfa (canlı görünümden gelir).
+  /// Sayfa numarası [_pageN] ile yalnız rozeti yeniler — kaydırırken tam ekran
+  /// yeniden kurulmaz.
   int _pageCount = 0;
-  int _page = 1;
+  final ValueNotifier<int> _pageN = ValueNotifier<int>(1);
+  int get _page => _pageN.value;
+  set _page(int v) => _pageN.value = v;
 
   /// Mobil editörden dönüşte yeniden çizim bitince gidilecek sayfa (0: yok).
   int _resumePage = 0;
@@ -230,6 +240,7 @@ class _WordEditorScreenState extends State<WordEditorScreen>
   @override
   void dispose() {
     unawaited(ReadingPositions.save());
+    _pageN.dispose();
     _findCtrl.dispose();
     _replaceCtrl.dispose();
     _session.dispose();

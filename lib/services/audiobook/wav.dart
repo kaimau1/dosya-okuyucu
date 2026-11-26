@@ -141,21 +141,30 @@ abstract final class Wav {
     String? album,
     int? track,
     int gapMs = 250,
+    List<int>? gapsMs,
   }) async {
     WavFormat? fmt;
     final pcm = BytesBuilder(copy: false);
-    for (final path in parts) {
+    int? prevPartIndex;
+    for (var i = 0; i < parts.length; i++) {
+      final path = parts[i];
       final bytes = await File(path).readAsBytes();
       final info = parse(bytes);
       if (info == null) continue;
       fmt ??= info.format;
       if (info.format != fmt) continue;
-      if (pcm.length > 0 && gapMs > 0) {
+      final gap = (gapsMs != null &&
+              prevPartIndex != null &&
+              prevPartIndex < gapsMs.length)
+          ? gapsMs[prevPartIndex]
+          : gapMs;
+      if (pcm.length > 0 && gap > 0) {
         final block = fmt.channels * fmt.bitsPerSample ~/ 8;
-        pcm.add(Uint8List(fmt.sampleRate * gapMs ~/ 1000 * block));
+        pcm.add(Uint8List(fmt.sampleRate * gap ~/ 1000 * block));
       }
       pcm.add(Uint8List.sublistView(
           bytes, info.dataOffset, info.dataOffset + info.dataLength));
+      prevPartIndex = i;
     }
     if (fmt == null) return null;
     await File(target).writeAsBytes(

@@ -5,58 +5,73 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
 
   List<Widget> _selectionHandles() {
     if (_editing) return const [];
+    final surface = Theme.of(context).colorScheme.surface;
+    final startDot = _handleBody(surface, start: true);
+    final endDot = _handleBody(surface, start: false);
+    const touch = 34.0;
     return [
-      AnimatedBuilder(
-        animation: Listenable.merge([_hBody, _vBody]),
-        builder: (context, _) {
-          final tl = _rectOf(_tlKey);
-          final br = _rectOf(_brKey);
-          return Stack(
-            children: [
-              if (tl != null) _handle(tl.topLeft, start: true),
-              if (br != null) _handle(br.bottomRight, start: false),
-            ],
-          );
-        },
+      // Kendi katmanı: kaydırma boyunca tutamak konumu değişirken alttaki
+      // ızgaranın tamamını kirletmez.
+      Positioned.fill(
+        child: RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _gridScroll,
+            builder: (context, _) {
+              final tl = _rectOf(_tlKey);
+              final br = _rectOf(_brKey);
+              if (tl == null && br == null) return const SizedBox.shrink();
+              return Stack(
+                children: [
+                  if (tl != null)
+                    Positioned(
+                      left: tl.left - touch / 2,
+                      top: tl.top - touch / 2,
+                      child: startDot,
+                    ),
+                  if (br != null)
+                    Positioned(
+                      left: br.right + 8 - touch / 2,
+                      top: br.bottom + 8 - touch / 2,
+                      child: endDot,
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     ];
   }
 
-  Widget _handle(Offset at, {required bool start}) {
+  Widget _handleBody(Color surface, {required bool start}) {
     const touch = 34.0, dot = 14.0;
     // Doldurma karesi sağ-alt köşenin İÇİNDE; seçim tutamağı köşenin dışına
     // taşar — iki hedef çakışmaz.
-    final c = start ? at : at + const Offset(8, 8);
-    final scheme = Theme.of(context).colorScheme;
-    return Positioned(
-      left: c.dx - touch / 2,
-      top: c.dy - touch / 2,
-      child: RawGestureDetector(
-        key: ValueKey(start ? 'sel-handle-start' : 'sel-handle-end'),
-        behavior: HitTestBehavior.opaque,
-        gestures: {
-          ImmediateMultiDragGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<
-                  ImmediateMultiDragGestureRecognizer>(
-            ImmediateMultiDragGestureRecognizer.new,
-            (r) => r.onStart = (_) => _HandleDrag(
-                  onMove: (g) => _onHandleMove(g, start: start),
-                  onFling: (v) => _onHandleFling(v, start: start),
-                ),
-          ),
-        },
-        child: SizedBox(
-          width: touch,
-          height: touch,
-          child: Center(
-            child: Container(
-              width: dot,
-              height: dot,
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: OfficeColors.excel, width: 2.5),
+    return RawGestureDetector(
+      key: ValueKey(start ? 'sel-handle-start' : 'sel-handle-end'),
+      behavior: HitTestBehavior.opaque,
+      gestures: {
+        ImmediateMultiDragGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<
+                ImmediateMultiDragGestureRecognizer>(
+          ImmediateMultiDragGestureRecognizer.new,
+          (r) => r.onStart = (_) => _HandleDrag(
+                onMove: (g) => _onHandleMove(g, start: start),
+                onFling: (v) => _onHandleFling(v, start: start),
               ),
+        ),
+      },
+      child: SizedBox(
+        width: touch,
+        height: touch,
+        child: Center(
+          child: Container(
+            width: dot,
+            height: dot,
+            decoration: BoxDecoration(
+              color: surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: OfficeColors.excel, width: 2.5),
             ),
           ),
         ),
@@ -135,39 +150,190 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
     final picked = await showAppSheet<String>(
       context,
       title: _selectionLabel,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (id, icon, key) in [
-            ('cut', AppIcons.cut, 'excel.cut'),
-            ('copy', AppIcons.copy, 'common.copy'),
-            ('paste', AppIcons.paste, 'common.paste'),
-            ('paste_values', AppIcons.paste, 'excel.paste_values'),
-            ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
-            ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
-            ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
-            ('clear', AppIcons.backspace, 'excel.clear_contents'),
-            ('clear_formats', AppIcons.formatClear, 'excel.clear_formats'),
-            ('fill_down', AppIcons.arrowDown, 'excel.fill_down'),
-            ('fill_right', AppIcons.arrowForward, 'excel.fill_right'),
-            ('insert_row', OfficeIcons.insertRow, 'excel.insert_row'),
-            ('delete_row', OfficeIcons.deleteCells, 'excel.delete_row'),
-            ('insert_col', OfficeIcons.insertColumn, 'excel.insert_col'),
-            ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
-            ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
-            ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
-            ('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
-            ('note', AppIcons.comment, 'excel.note_new'),
-          ])
-            ListTile(
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget quickTile(String id, IconData icon, String key,
+                {bool danger = false}) =>
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Material(
+                  color: danger
+                      ? scheme.errorContainer.withValues(alpha: 0.4)
+                      : scheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  child: InkWell(
+                    key: ValueKey('cellmenu-$id'),
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    onTap: () => Navigator.pop(ctx, id),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.xs, vertical: Gap.sm + 2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        border: Border.all(
+                          color: danger
+                              ? scheme.error.withValues(alpha: 0.25)
+                              : scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: danger
+                                  ? scheme.error.withValues(alpha: 0.14)
+                                  : scheme.primaryContainer
+                                      .withValues(alpha: 0.7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 18,
+                              color: danger
+                                  ? scheme.error
+                                  : scheme.onPrimaryContainer,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            ctx.t(key),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.type.caption.copyWith(
+                              color: danger
+                                  ? scheme.error
+                                  : scheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+        Widget groupHeader(String key) => Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(
+                  Gap.lg, Gap.md, Gap.lg, Gap.xs),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(
+                  ctx.t(key),
+                  style: ctx.type.caption.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            );
+        Widget row(String id, IconData icon, String key) => ListTile(
               key: ValueKey('cellmenu-$id'),
               dense: true,
-              leading: Icon(icon),
-              title: Text(ctx.t(key)),
+              leading: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                ),
+                child: Icon(icon, size: 17, color: scheme.primary),
+              ),
+              title: Text(
+                ctx.t(key),
+                style: ctx.type.body.copyWith(fontWeight: FontWeight.w500),
+              ),
               onTap: () => Navigator.pop(ctx, id),
+            );
+        Widget groupCard(List<Widget> children) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+              child: Material(
+                color: scheme.surfaceContainerLow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  side: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < children.length; i++) ...[
+                      children[i],
+                      if (i < children.length - 1)
+                        Divider(
+                          height: 1,
+                          indent: 56,
+                          color: scheme.outlineVariant.withValues(alpha: 0.4),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            groupHeader('excel.quick_actions'),
+            Padding(
+              padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: Gap.md, vertical: Gap.xs),
+              child: Row(
+                children: [
+                  quickTile('cut', AppIcons.cut, 'excel.cut'),
+                  quickTile('copy', AppIcons.copy, 'common.copy'),
+                  quickTile('paste', AppIcons.paste, 'common.paste'),
+                  quickTile('clear', AppIcons.backspace, 'excel.clear_contents',
+                      danger: true),
+                ],
+              ),
             ),
-        ],
-      ),
+            const SizedBox(height: Gap.xs),
+            groupCard([
+              row('format_cells', AppIcons.cellStyles, 'excel.format_cells'),
+              row('note', AppIcons.comment, 'excel.note_new'),
+            ]),
+            groupHeader('excel.paste_special_group'),
+            groupCard([
+              for (final (id, icon, key) in const [
+                ('paste_values', AppIcons.paste, 'excel.paste_values'),
+                ('paste_formulas', AppIcons.paste, 'excel.paste_formulas'),
+                ('paste_formats', AppIcons.formatPaint, 'excel.paste_formats'),
+                ('paste_transpose', AppIcons.swapHoriz, 'excel.paste_transpose'),
+                ('clear_formats', AppIcons.formatClear, 'excel.clear_formats'),
+              ])
+                row(id, icon, key),
+            ]),
+            groupHeader('excel.fill_sort_group'),
+            groupCard([
+              for (final (id, icon, key) in const [
+                ('fill_down', AppIcons.arrowDown, 'excel.fill_down'),
+                ('fill_right', AppIcons.arrowForward, 'excel.fill_right'),
+                ('sort_asc', OfficeIcons.sortAsc, 'excel.sort_asc'),
+                ('sort_desc', OfficeIcons.sortDesc, 'excel.sort_desc'),
+              ])
+                row(id, icon, key),
+            ]),
+            groupHeader('excel.rows_cols_group'),
+            groupCard([
+              for (final (id, icon, key) in const [
+                ('insert_row', OfficeIcons.insertRow, 'excel.insert_row'),
+                ('delete_row', OfficeIcons.deleteCells, 'excel.delete_row'),
+                ('insert_col', OfficeIcons.insertColumn, 'excel.insert_col'),
+                ('delete_col', OfficeIcons.deleteCells, 'excel.delete_col'),
+              ])
+                row(id, icon, key),
+            ]),
+            const SizedBox(height: Gap.md),
+          ],
+        );
+      },
     );
     if (picked == null || !mounted) return;
     switch (picked) {
@@ -210,8 +376,25 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         final sheet = _sheet;
         if (sheet == null) break;
         final range = _range;
-        _sortByColumn(sheet, _selCol, range.top, math.max(range.bottom,
-            sheet.maxRows - 1), picked == 'sort_asc');
+        var r1 = range.top;
+        final r2 = _hasRange
+            ? range.bottom
+            : math.max(range.bottom, sheet.maxRows - 1);
+        if (!_hasRange && r1 == 0 && r2 > 0) {
+          final f = _filterRange(sheet);
+          final filterHeader = f != null && f.r1 == 0;
+          final row0Text = sheet.rawAt(0, _selCol).trim().isNotEmpty &&
+              !sheet.isNumericAt(0, _selCol);
+          final row1Diff = sheet.isNumericAt(1, _selCol) ||
+              (sheet.styleAt(0, _selCol)?.bold ?? false) !=
+                  (sheet.styleAt(1, _selCol)?.bold ?? false) ||
+              Iterable<int>.generate(sheet.maxCols).any(
+                  (c) => !sheet.isNumericAt(0, c) && sheet.isNumericAt(1, c));
+          if (filterHeader || (row0Text && row1Diff)) {
+            r1 = 1;
+          }
+        }
+        _sortByColumn(sheet, _selCol, r1, r2, picked == 'sort_asc');
     }
   }
 
@@ -224,7 +407,14 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
       _snack(context.t('excel.nothing_to_paste'));
       return;
     }
-    final engine = _engineFor(sheet);
+    final editor = _editor;
+    final srcSheetName = _clipSheetName ?? sheet.name;
+    final srcSheet = editor?.sheets
+            .where((s) => s.name == srcSheetName)
+            .firstOrNull ??
+        sheet;
+    final srcEngine = _engineFor(srcSheet);
+    final disp = _clipDisplayValues;
     final out = <CellRef, String>{};
     final fmt = <CellRef, CellRef>{};
     for (var i = 0; i < clip.rows; i++) {
@@ -235,9 +425,15 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         final src = CellRef(clip.origin.row + i, clip.origin.col + j);
         if (!formats) {
           final raw = clip.values[i][j];
-          out[dst] = values && raw.startsWith('=')
-              ? engine.displayValue(src.row, src.col)
-              : (transpose ? raw : raw);
+          final cachedDisp =
+              disp != null && i < disp.length && j < disp[i].length
+                  ? disp[i][j]
+                  : null;
+          out[dst] = values
+              ? (raw.startsWith('=')
+                  ? (cachedDisp ?? srcEngine.displayValue(src.row, src.col))
+                  : (cachedDisp ?? raw))
+              : raw;
         }
         if (formats || transpose) fmt[dst] = src;
       }
@@ -248,7 +444,33 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
         out[d] = sheet.rawAt(d.row, d.col);
       }
     }
-    _editCells('excel.undo_paste', out, formatSources: fmt.isEmpty ? null : fmt);
+    if (transpose && clip.cut) {
+      if (srcSheetName == sheet.name) {
+        for (var r = 0; r < clip.rows; r++) {
+          for (var c = 0; c < clip.cols; c++) {
+            final at = CellRef(clip.origin.row + r, clip.origin.col + c);
+            out.putIfAbsent(at, () => '');
+          }
+        }
+      } else if (editor != null) {
+        for (var r = 0; r < clip.rows; r++) {
+          for (var c = 0; c < clip.cols; c++) {
+            editor.setCell(
+                srcSheetName, clip.origin.row + r, clip.origin.col + c, '');
+          }
+        }
+      }
+    }
+    _editCells('excel.undo_paste', out,
+        formatSources: fmt.isEmpty ? null : fmt,
+        formatSourceSheet: srcSheetName);
+    if (transpose && clip.cut) {
+      _partSetState(() {
+        _clip = null;
+        _clipSheetName = null;
+        _clipDisplayValues = null;
+      });
+    }
   }
 
   /// Yalnız formüller (B10 m.7): değer/formül başvuruları normal yapıştırma
@@ -268,9 +490,11 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
     if (sheet == null || editor == null) return;
     final range = _range;
     final before = <CellRef, XlsxCellStyle?>{};
+    final editsBefore = <(int, int), XlsxStyleEdit?>{};
     for (var r = range.top; r <= range.bottom; r++) {
       for (var c = range.left; c <= range.right; c++) {
         before[CellRef(r, c)] = sheet.overrideAt(r, c);
+        editsBefore[(r, c)] = sheet.styleEdits[(r, c)];
       }
     }
     void apply() {
@@ -283,12 +507,19 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
     apply();
     _recordStep('excel.clear_formats', apply, () {
       before.forEach((at, s) {
+        final k = (at.row, at.col);
         sheet.patchStyle(at.row, at.col, s);
-        sheet.styleEdits.remove((at.row, at.col));
+        final prevEdit = editsBefore[k];
+        if (prevEdit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = prevEdit;
+        }
       });
     });
     _session.changed();
     _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
   }
 
@@ -326,6 +557,8 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
   // ── metin otomatik tamamlama (madde 10) ─────────────────────────────────
 
   /// Sütunda daha önce yazılmış ve yazılanla başlayan değer (yoksa null).
+  /// Sütun adayları (sayfa, sütun, satır, hesap damgası) başına bir kez
+  /// derlenir — her harfte 2.000 satır taranmaz.
   String? _textCompletion() {
     final t = _cellField.text;
     final sheet = _sheet;
@@ -333,16 +566,31 @@ extension _SpreadsheetEditorScreenEntryMenusPart on _SpreadsheetEditorScreenStat
       return null;
     }
     if (double.tryParse(t.replaceAll(',', '.')) != null) return null;
+    final key = (sheet.name, _selCol, _selRow, _calcStamp);
+    final cached = _colTextCache;
+    final List<(String, String)> entries;
+    if (cached != null && cached.$1 == key) {
+      entries = cached.$2;
+    } else {
+      final seen = <String>{};
+      final built = <(String, String)>[];
+      final n = math.min(sheet.maxRows, 2000);
+      for (var r = 0; r < n; r++) {
+        if (r == _selRow) continue;
+        final v = sheet.rawAt(r, _selCol);
+        if (v.length >= 2 && !v.startsWith('=') && seen.add(v)) {
+          built.add((v, v.toLowerCase()));
+        }
+      }
+      _colTextCache = (key, built);
+      entries = built;
+    }
     final low = t.toLowerCase();
     String? hit;
-    final n = math.min(sheet.maxRows, 2000);
-    for (var r = 0; r < n; r++) {
-      if (r == _selRow) continue;
-      final v = sheet.rawAt(r, _selCol);
-      if (v.length > t.length && !v.startsWith('=') &&
-          v.toLowerCase().startsWith(low)) {
-        if (hit != null && hit != v) return null; // belirsiz → önerme
-        hit = v;
+    for (final (raw, lower) in entries) {
+      if (raw.length > t.length && lower.startsWith(low)) {
+        if (hit != null && hit != raw) return null; // belirsiz → önerme
+        hit = raw;
       }
     }
     return hit;

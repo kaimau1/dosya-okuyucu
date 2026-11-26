@@ -14,6 +14,7 @@ import '../../../core/app_colors.dart';
 import '../../../core/app_haptics.dart';
 import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
+import '../../../core/edition.dart';
 import '../../../core/state/focused_states.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../core/motion.dart';
@@ -38,12 +39,14 @@ import '../../../services/fm/remote/transfer_keeper.dart';
 import '../../../services/fm/remote/transfer_history.dart';
 import '../../../services/fm/remote/trusted_peers.dart';
 import '../../../services/fm/remote/transfer_thumbs.dart';
+import '../../../widgets/app_action_sheet.dart';
 import '../../../widgets/app_dialog.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
 import '../../../widgets/fm/fm_file_image.dart';
 import '../../../widgets/fm/fresh_files_strip.dart';
 import '../../../widgets/fm/secure_badge.dart';
 import '../../../widgets/fm/transfer_offer_sheet.dart';
+import '../../../widgets/motion.dart';
 import '../../../widgets/qr_code.dart';
 import '../../../widgets/section_header.dart';
 import '../browser_screen.dart';
@@ -55,7 +58,6 @@ import 'link_share_card.dart';
 import 'qr_receive_flow.dart';
 import 'remote_connections_screen.dart';
 import '../pick_file_screen.dart';
-import '../share_shield.dart';
 
 part 'nearby/links.dart';
 part 'nearby/sections.dart';
@@ -169,41 +171,49 @@ class _NearbyScreenState extends State<NearbyScreen> {
   late final TextEditingController _textCtrl =
       TextEditingController(text: widget.sendText)..addListener(_onTextEdited);
 
-  /// Sistem panosunda bulunan, henüz eklenmemiş yazı (öneri çipi).
-  String? _clipSuggestion;
-  String? _clipDismissed;
+  /// Sistem panosunda metin var mı? (`Clipboard.hasStrings()` — Android 12+
+  /// pano okuma tostunu tetiklemez; veri yalnız kullanıcı "Panodan yapıştır"
+  /// düğmesine bastığında okunur.)
+  bool _hasClipText = false;
   AppLifecycleListener? _life;
 
   void _onTextEdited() {
     final v = _textCtrl.text;
     final next = v.isEmpty ? null : v;
-    if (next != _text) setState(() => _text = next);
+    if (next != _text) {
+      setState(() => _text = next);
+      _scheduleWeb();
+    }
   }
 
-  /// Panodaki yazıyı yoklar (açılışta ve uygulamaya dönüşte).
+  /// Panoda metin var mı yoklar (açılışta ve uygulamaya dönüşte).
+  /// KESİNLİKLE `Clipboard.getData` çağırmaz (Android 12+ tostunu önler).
   Future<void> _probeClipboard() async {
-    String? clip;
+    var has = false;
     try {
-      clip = await Clipboard.hasStrings()
-          ? (await Clipboard.getData(Clipboard.kTextPlain))?.text
-          : null;
+      has = await Clipboard.hasStrings();
     } catch (_) {
-      clip = null; // pano okunamadı — öneri gösterilmez
+      has = false;
     }
     if (!mounted) return;
-    final c = (clip == null || clip.trim().isEmpty) ? null : clip;
-    final show = c != null && c != _text && c != _clipDismissed ? c : null;
-    if (show != _clipSuggestion) setState(() => _clipSuggestion = show);
+    if (has != _hasClipText) setState(() => _hasClipText = has);
   }
 
-  void _useClipboardText() {
-    final c = _clipSuggestion;
-    if (c == null) return;
-    _textCtrl.text = _text == null ? c : '$_text\n$c';
-    setState(() {
-      _clipDismissed = c;
-      _clipSuggestion = null;
-    });
+  Future<void> _useClipboardText() async {
+    String? clip;
+    try {
+      clip = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+    } catch (_) {
+      clip = null;
+    }
+    if (!mounted) return;
+    final c = clip?.trim() ?? '';
+    if (c.isEmpty) {
+      setState(() => _hasClipText = false);
+      showSnack(context, context.t('ux47.clip_empty'));
+      return;
+    }
+    _textCtrl.text = (_text == null || _text!.isEmpty) ? c : '$_text\n$c';
   }
 
   /// Klavyeden (Gboard panosu, çıkartma, GIF) gelen görseli dosyaya yazıp
@@ -289,6 +299,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
   bool _hotspotBusy = false;
   int _hotspotStep = 0;
   int _served = 0;
+
+  /// Seçim kutusundaki gönderim sonucu: giden yol işaretli (QR/PC bağlantısı
+  /// indirildi), gidemeyen yol nedeniyle. Wi-Fi'de giden yol kutudan çıkar.
+  final Set<String> _sentDone = {};
+  final Map<String, String> _sendFailed = {};
 
   /// Kısa ömürlü bağlantı (Faz 41 / 4): süre ve tek seferlik indirme.
   Duration? _linkTtl;
@@ -641,7 +656,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
   }
 
   void _remove(String path) {
-    setState(() => _selection.remove(path));
+    setState(() {
+      _selection.remove(path);
+      _sentDone.remove(path);
+      _sendFailed.remove(path);
+    });
     _scheduleWeb();
   }
 
@@ -723,33 +742,89 @@ class _NearbyScreenState extends State<NearbyScreen> {
     }
   }
 
-  /// Yazı ekler/düzenler; panodaki metin hazır gelir.
+  /// Yazı ekler/düzenler; kullanıcı isterse levhadaki "Panodan yapıştır"
+  /// düğmesiyle panoyu okur (otomatik `Clipboard.getData` çağrılmaz).
   Future<void> _editText() async {
-    var initial = _text ?? '';
-    if (initial.isEmpty) {
-      try {
-        initial = (await Clipboard.getData(Clipboard.kTextPlain))?.text ?? '';
-      } catch (_) {
-        // Pano okunamadı: kutu boş açılır, kullanıcı yazar — söylenecek bir şey yok.
-      }
+    final draft = TextEditingController(text: _text ?? '');
+    try {
+      final res = await showAppSheet<String>(
+        context,
+        title: context.t('near.text_title'),
+        builder: (ctx) => Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                key: const ValueKey('near-paste-field'),
+                controller: draft,
+                autofocus: true,
+                minLines: 2,
+                maxLines: 6,
+                keyboardType: TextInputType.multiline,
+                contentInsertionConfiguration: ContentInsertionConfiguration(
+                  onContentInserted: _onKeyboardContent,
+                ),
+                decoration: InputDecoration(
+                  hintText: ctx.t('near.text_hint'),
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              Row(
+                children: [
+                  TextButton.icon(
+                    key: const ValueKey('near-sheet-paste'),
+                    onPressed: () async {
+                      String? clip;
+                      try {
+                        clip = (await Clipboard.getData(Clipboard.kTextPlain))
+                            ?.text;
+                      } catch (_) {
+                        clip = null;
+                      }
+                      final c = clip?.trim() ?? '';
+                      if (c.isEmpty) {
+                        if (ctx.mounted) {
+                          showSnack(ctx, ctx.t('ux47.clip_empty'));
+                        }
+                        return;
+                      }
+                      final cur = draft.text.trim();
+                      draft.text = cur.isEmpty ? c : '$cur\n$c';
+                      draft.selection = TextSelection.collapsed(
+                          offset: draft.text.length);
+                    },
+                    icon: const Icon(AppIcons.paste, size: 18),
+                    label: Text(ctx.t('ux47.paste_clipboard')),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(ctx.t('common.cancel')),
+                  ),
+                  const SizedBox(width: Gap.xs),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, draft.text.trim()),
+                    child: Text(ctx.t('common.ok')),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+      if (res == null || !mounted) return;
+      _textCtrl.text = res;
+    } finally {
+      draft.dispose();
     }
-    if (!mounted) return;
-    final text = await showAppPrompt(
-      context,
-      title: context.t('near.text_title'),
-      label: context.t('near.text_hint'),
-      initial: initial,
-      confirmLabel: context.t('common.ok'),
-      multiline: true,
-    );
-    if (text == null || !mounted) return;
-    _textCtrl.text = text;
   }
 
   Future<bool> _sendText(Peer peer) async {
     final strings = AppStrings.of(context);
     final ok = await PeerSender.sendText(peer, _text!,
-        senderName: _deviceName, identity: _key);
+        senderName: _deviceName, identity: _key, allowFileFallback: true);
     if (!mounted) return ok;
     if (ok) _textCtrl.clear();
     showSnack(context,
@@ -763,7 +838,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
     final appState = context.read<AppState>();
     final payload = [..._selection];
     final out = _Outgoing(peer.name);
-    setState(() => _out = out);
+    setState(() {
+      _out = out;
+      for (final path in payload) {
+        _sendFailed.remove(path);
+      }
+    });
     // Görünür yüzde değişmedikçe yeniden çizilmez (yığın başına değil).
     var shown = -1;
     void tick() {
@@ -814,8 +894,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
     // giden yüzde, süre. Kalem adı tek dosyada dosyanın adıdır; küçük
     // dosyalar pakete girdiyse dosyanın kendi satırı yoktur → genel yüzde.
     final elapsed = DateTime.now().difference(out.startedAt);
-    final allOk = result.sent > 0 && !result.hasError && !result.cancelled &&
-        !result.declined && !result.wrongCode;
+    final done = result.sentPaths.toSet();
+    final allOk = payload.every(done.contains);
     final overall = out.totalBytes > 0
         ? (out.sentBytes * 100 ~/ out.totalBytes).clamp(0, 100).toInt()
         : (allOk ? 100 : 0);
@@ -836,7 +916,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
             size: sizes[path] ?? 0,
             peer: peer.name,
             at: DateTime.now(),
-            ok: allOk || pct >= 100,
+            ok: done.contains(path),
             percent: pct,
             duration: elapsed,
           );
@@ -844,21 +924,51 @@ class _NearbyScreenState extends State<NearbyScreen> {
     ]);
     if (allOk) await appState.rememberPeer(peer.name, peer.host, peer.port);
     if (!mounted) return;
-    setState(() => _historyIncoming = false);
+    // Giden kutudan çıkar; gidemeyen nedeniyle işaretli kalır (yeniden
+    // dokununca kaldığı yerden sürer). Durdurulan iş işaretlenmez.
+    final failed = [for (final path in payload) if (!done.contains(path)) path];
+    final why =
+        failed.isEmpty || result.cancelled ? null : _failReason(result, strings);
+    setState(() {
+      _historyIncoming = false;
+      _selection.removeWhere(done.contains);
+      if (why != null) {
+        for (final path in failed) {
+          _sendFailed[path] = why;
+        }
+      }
+    });
+    if (done.isNotEmpty) _scheduleWeb();
+    final bad = failed.length;
     showSnackBarReplacing(
       messenger,
       SnackBar(
         content: Text(
-          result.declined
-              ? strings.t('peer.declined_by_peer')
-              : result.hasError
-                  ? '${strings.t('peer.send_failed', {'error': result.errors.first})} · ${strings.t('g5.resume_hint')}'
-                  : result.cancelled
-                      ? strings.t('peer.send_stopped', {'n': result.sent})
-                      : strings.t('peer.sent', {'n': result.sent, 'name': peer.name}),
+          why == null
+              ? (result.cancelled
+                  ? strings.t('peer.send_stopped', {'n': result.sent})
+                  : strings.t('peer.sent', {'n': result.sent, 'name': peer.name}))
+              : done.isEmpty
+                  ? '${strings.t('peer.send_failed', {'error': why})} · ${strings.t('g5.resume_hint')}'
+                  : strings.t('near.sent_partial',
+                      {'ok': payload.length - bad, 'bad': bad, 'why': why}),
         ),
       ),
     );
+  }
+
+  /// Gönderim neden olmadı — kullanıcı diliyle (iç hata kodu gösterilmez).
+  static String _failReason(PeerSendResult r, AppStrings strings) {
+    if (r.declined) return strings.t('peer.declined_by_peer');
+    if (r.wrongCode) return strings.t('near.fail_code');
+    if (r.identityMismatch) return strings.t('near.fail_identity');
+    final e = r.errors.isEmpty ? '' : r.errors.first;
+    if (e == 'handshake') return strings.t('near.fail_secure');
+    if (e.endsWith(': fatal')) return strings.t('near.fail_receiver');
+    if (e.isEmpty || e.endsWith(': network') || e.endsWith(': rekey')) {
+      return strings.t('near.fail_network');
+    }
+    return e; // userErrorText'ten gelen hazır cümle
   }
 
   // ── Ayarlar ────────────────────────────────────────────────────────────
@@ -910,12 +1020,25 @@ class _NearbyScreenState extends State<NearbyScreen> {
   /// Bölüm dosyaları (extension) `setState`'i doğrudan çağıramaz (korumalı üye).
   void _update(VoidCallback fn) => setState(fn);
 
+  void _clearSelection() {
+    if (_selection.isEmpty && _text == null) return;
+    setState(() {
+      _selection.clear();
+      _sentDone.clear();
+      _sendFailed.clear();
+      _text = null;
+    });
+    _textCtrl.clear();
+    _scheduleWeb();
+  }
+
   /// Bu genişlikten sonra iki sütun: solda gönderme akışı, sağda QR, geçmiş
   /// ve diğer yollar (pano ile aynı eşik ve en geniş içerik).
   static const _wideFrom = 840.0;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -937,27 +1060,59 @@ class _NearbyScreenState extends State<NearbyScreen> {
             ),
             _menu(context),
           ],
-          bottom: TabBar(
-            tabs: [
-              Tab(
-                key: const ValueKey('near-tab-quick'),
-                icon: const Icon(AppIcons.bolt, size: AppIcons.small),
-                iconMargin: const EdgeInsets.only(bottom: 2),
-                text: context.t('xft.tab_quick'),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(50),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.55),
+                  ),
+                ),
+                child: TabBar(
+                  padding: const EdgeInsets.all(3),
+                  dividerColor: Colors.transparent,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicator: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(Radii.control - 3),
+                  ),
+                  labelColor: scheme.onPrimaryContainer,
+                  unselectedLabelColor: scheme.onSurfaceVariant,
+                  splashBorderRadius: BorderRadius.circular(Radii.control - 3),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: Gap.xs),
+                  tabs: [
+                    Tab(
+                      key: const ValueKey('near-tab-quick'),
+                      height: 36,
+                      child: _TabPill(
+                        icon: AppIcons.bolt,
+                        label: context.t('xft.tab_quick'),
+                      ),
+                    ),
+                    Tab(
+                      key: const ValueKey('near-tab-other'),
+                      height: 36,
+                      child: _TabPill(
+                        icon: AppIcons.computer,
+                        label: context.t('near.other_ways'),
+                      ),
+                    ),
+                    Tab(
+                      key: const ValueKey('near-tab-history'),
+                      height: 36,
+                      child: _TabPill(
+                        icon: AppIcons.history,
+                        label: context.t('near.history'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              Tab(
-                key: const ValueKey('near-tab-other'),
-                icon: const Icon(AppIcons.computer, size: AppIcons.small),
-                iconMargin: const EdgeInsets.only(bottom: 2),
-                text: context.t('near.other_ways'),
-              ),
-              Tab(
-                key: const ValueKey('near-tab-history'),
-                icon: const Icon(AppIcons.history, size: AppIcons.small),
-                iconMargin: const EdgeInsets.only(bottom: 2),
-                text: context.t('near.history'),
-              ),
-            ],
+            ),
           ),
         ),
         // Güvenilenler listesi değişince (ekle/kaldır) rozetler ve bölüm tazelenir.

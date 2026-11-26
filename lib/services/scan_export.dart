@@ -131,10 +131,50 @@ abstract final class ScanExport {
 
   static List<int> _estimateFirst(String path) {
     final bytes = File(path).readAsBytesSync();
+    final decoded = ScanPageOps.decode(bytes);
+    if (decoded == null) {
+      return [for (final _ in ScanQuality.values) bytes.length];
+    }
+    final long = math.max(decoded.width, decoded.height);
     return [
       for (final q in ScanQuality.values)
-        compressBytes(bytes, q.maxEdge, q.jpegQuality).length,
+        () {
+          var image = decoded;
+          if (long > q.maxEdge) {
+            final ratio = q.maxEdge / long;
+            image = img.copyResize(
+              decoded,
+              width: (decoded.width * ratio).round(),
+              height: (decoded.height * ratio).round(),
+              interpolation: img.Interpolation.average,
+            );
+          }
+          return img.encodeJpg(image, quality: q.jpegQuality).length;
+        }(),
     ];
+  }
+
+  /// Sayfa görselini istenen biçimde (`jpg` veya `png`) kodlayıp [target]
+  /// yoluna yazar (`compute` ile izolatta çağrılır).
+  static void exportImageFile(
+      ({String source, String target, String format}) req) {
+    final bytes = File(req.source).readAsBytesSync();
+    if (req.format == 'jpg') {
+      final ext = p.extension(req.source).toLowerCase();
+      if (ext == '.jpg' || ext == '.jpeg') {
+        File(req.target).writeAsBytesSync(bytes, flush: true);
+        return;
+      }
+    }
+    final decoded = ScanPageOps.decode(bytes);
+    if (decoded == null) {
+      File(req.target).writeAsBytesSync(bytes, flush: true);
+      return;
+    }
+    final encoded = req.format == 'png'
+        ? img.encodePng(decoded)
+        : img.encodeJpg(decoded, quality: ScanQuality.high.jpegQuality);
+    File(req.target).writeAsBytesSync(encoded, flush: true);
   }
 
   /// Örnek sayfa boyutundan toplam: sayfa başı ~1,5 KB nesne/OCR katmanı +

@@ -69,11 +69,13 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
     );
   }
 
-  /// Ekle levhası: yeni slayt, metin kutusu, şekiller.
+  /// Ekle levhası: yeni slayt, metin kutusu, görsel, tablo, grafik, medya ve
+  /// şekiller tek yerden ulaşılabilir.
   Future<void> _openInsert() async {
     final editor = _editor;
     final slide = _targetSlide;
     if (editor == null || slide == null) return;
+    final proReady = _proOn && !_proBusy;
     final act = await showAppSheet<String>(
       context,
       title: context.t('sl.insert'),
@@ -88,8 +90,21 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
                   () => Navigator.pop(ctx, 'slide')),
             _tile(AppIcons.textFields, ctx.t('sl.text_box'),
                 () => Navigator.pop(ctx, 'text')),
+            if (editor.canEditStructure)
+              _tile(AppIcons.addPhoto, ctx.t('sl.insert_image'),
+                  () => Navigator.pop(ctx, 'img')),
             _tile(AppIcons.tableView, ctx.t('sl.table'),
                 () => Navigator.pop(ctx, 'table')),
+            if (proReady) ...[
+              _tile(AppIcons.insertChart, ctx.t('sp.chart_insert'),
+                  () => Navigator.pop(ctx, 'chart')),
+              _tile(AppIcons.videoLibrary, ctx.t('sp.media_insert'),
+                  () => Navigator.pop(ctx, 'media')),
+              _tile(AppIcons.dashboardCustomize, ctx.t('sp.shape_library'),
+                  () => Navigator.pop(ctx, 'shapes')),
+              _tile(AppIcons.accountTree, ctx.t('sp.smartart'),
+                  () => Navigator.pop(ctx, 'smartart')),
+            ],
             for (final k in kPptxShapeKinds)
               _tile(_shapeIcon(k), ctx.t('sl.shape_$k'),
                   () => Navigator.pop(ctx, 'shape:$k')),
@@ -100,6 +115,16 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
     if (act == null || !mounted) return;
     if (act == 'slide') {
       await _openLayoutGallery(slide);
+    } else if (act == 'img') {
+      _onSlideAction(slide, 'img');
+    } else if (act == 'chart') {
+      await _insertChart(_curIndex, SlideChartData.sample);
+    } else if (act == 'media') {
+      await _insertMedia(_curIndex);
+    } else if (act == 'shapes') {
+      await _insertFromLibrary(slide);
+    } else if (act == 'smartart') {
+      await _convertSmartArts();
     } else if (act == 'text') {
       XmlElement? el;
       if (_mutate('sl.text_box', () {
@@ -144,16 +169,28 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
       title: context.t(change ? 'sl.change_layout' : 'sl.new_slide'),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-        child: Wrap(
-          spacing: Gap.sm,
-          runSpacing: Gap.sm,
-          children: [
-            for (final l in list)
-              _tile(l.part == current ? AppIcons.checkCircle : AppIcons.slideshow,
-                  l.name, () => Navigator.pop(ctx, l),
-                  width: 104),
-          ],
-        ),
+        // 2026-11-24 (kullanıcı): kuru simge yerine düzenin yer tutucularıyla
+        // küçük slayt önizlemesi.
+        child: LayoutBuilder(builder: (ctx, box) {
+          final cols = box.maxWidth >= 520 ? 4 : 3;
+          final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
+          return Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final l in list)
+                SlidePreviewTile(
+                  key: ValueKey('sl-layout-${l.part}'),
+                  width: w.floorToDouble(),
+                  selected: l.part == current,
+                  label: l.name,
+                  preview: SlideLayoutThumb(
+                      boxes: l.boxes, aspect: editor.slideAspect),
+                  onTap: () => Navigator.pop(ctx, l),
+                ),
+            ],
+          );
+        }),
       ),
     );
     if (pick == null || !mounted) return;
@@ -172,7 +209,7 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
     }
   }
 
-  /// Tasarım levhası: arka plan rengi + geçiş.
+  /// Tasarım levhası: şablonlar, ana slayt, düzen, arka plan rengi + geçiş.
   Future<void> _openDesign() async {
     final editor = _editor;
     final slide = _targetSlide;
@@ -193,19 +230,51 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (editor.layouts().length > 1)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: Gap.md),
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('sl-change-layout'),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _openLayoutGallery(slide, change: true);
-                    },
-                    icon: const Icon(AppIcons.spaceDashboard),
-                    label: Text(ctx.t('sl.change_layout')),
-                  ),
-                ),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.xs,
+                children: [
+                  if (editor.layouts().length > 1)
+                    OutlinedButton.icon(
+                      key: const ValueKey('sl-change-layout'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openLayoutGallery(slide, change: true);
+                      },
+                      icon: const Icon(AppIcons.spaceDashboard, size: 18),
+                      label: Text(ctx.t('sl.change_layout')),
+                    ),
+                  if (_proOn && !_proBusy) ...[
+                    FilledButton.tonalIcon(
+                      key: const ValueKey('sl-design-templates'),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final id = await showTemplateGallery(context);
+                        if (id != null && mounted) {
+                          await _proApply(PptxTemplates.apply(id),
+                              doneKey: 'sp.applied');
+                        }
+                      },
+                      icon: const Icon(AppIcons.autoAwesomeMosaic, size: 18),
+                      label: Text(ctx.t('sp.templates')),
+                    ),
+                    OutlinedButton.icon(
+                      key: const ValueKey('sl-design-master'),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        final bytes = await _deckBytes();
+                        if (bytes == null || !mounted) return;
+                        await Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => SlidesMasterPage(
+                                bytes: bytes, apply: _proApply)));
+                      },
+                      icon: const Icon(AppIcons.spaceDashboard, size: 18),
+                      label: Text(ctx.t('sp.master')),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: Gap.md),
               Text(ctx.t('sl.background'), style: style),
               const SizedBox(height: Gap.sm),
               Wrap(spacing: 10, runSpacing: 10, children: [
@@ -241,14 +310,26 @@ extension _SlidesEditorScreenObjectsPart on _SlidesEditorScreenState {
               const SizedBox(height: Gap.md),
               Text(ctx.t('sl.transition'), style: style),
               const SizedBox(height: Gap.sm),
-              Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
-                for (final k in PptxTransition.values)
-                  _tile(AppIcons.slideshow, ctx.t('sl.tr_${k.name}'), () {
-                    _mutate('sl.transition',
-                        () => editor.setTransition(slide, k));
-                    set(() {});
-                  }, selected: t == k, width: 88),
-              ]),
+              // Her geçiş kendi küçük canlandırmasıyla (A → B slaytı).
+              LayoutBuilder(builder: (ctx, box) {
+                final cols = box.maxWidth >= 520 ? 6 : 3;
+                final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
+                return Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: [
+                  for (final k in PptxTransition.values)
+                    SlidePreviewTile(
+                      key: ValueKey('sl-tr-${k.name}'),
+                      width: w.floorToDouble(),
+                      selected: t == k,
+                      label: ctx.t('sl.tr_${k.name}'),
+                      preview: SlideTransitionThumb(kind: k),
+                      onTap: () {
+                        _mutate('sl.transition',
+                            () => editor.setTransition(slide, k));
+                        set(() {});
+                      },
+                    ),
+                ]);
+              }),
               if (t != PptxTransition.none && slide.view != null) ...[
                 const SizedBox(height: Gap.md),
                 Text(ctx.t('sl.tr_preview'), style: style),

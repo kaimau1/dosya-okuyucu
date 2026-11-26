@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
 import 'fm_env.dart';
@@ -88,27 +89,45 @@ class SaveToDownloads {
     String? intoDir,
   }) async {
     if (intoDir == null) await FmEnv.ensureInit();
-    final dir = Directory(intoDir ?? downloadDir);
-    if (!dir.existsSync()) await dir.create(recursive: true);
     final safeName = _safeName(name);
+    try {
+      final dir = Directory(intoDir ?? downloadDir);
+      if (!dir.existsSync()) await dir.create(recursive: true);
 
-    final existing = File(p.join(dir.path, safeName));
-    if (existing.existsSync() &&
-        await _sameContent(existing, source: source, bytes: bytes)) {
-      return SavedDownload(existing.path, alreadyThere: true);
-    }
+      final existing = File(p.join(dir.path, safeName));
+      if (existing.existsSync() &&
+          await _sameContent(existing, source: source, bytes: bytes)) {
+        return SavedDownload(existing.path, alreadyThere: true);
+      }
 
-    final target = File(p.join(
-      dir.path,
-      uniqueName(safeName, (n) => File(p.join(dir.path, n)).existsSync()),
-    ));
-    if (source != null) {
-      await source.copy(target.path);
-    } else {
-      await target.writeAsBytes(bytes!, flush: true);
+      final target = File(p.join(
+        dir.path,
+        uniqueName(safeName, (n) => File(p.join(dir.path, n)).existsSync()),
+      ));
+      if (source != null) {
+        await source.copy(target.path);
+      } else {
+        await target.writeAsBytes(bytes!, flush: true);
+      }
+      FsEvents.changed();
+      return SavedDownload(target.path, alreadyThere: false);
+    } on FileSystemException {
+      // Android 11+ Tüm dosyalara erişim izni yoksa (ör. Lite) doğrudan
+      // /sdcard/Download yazımı reddedilebilir → MediaStore.Downloads yolu.
+      if (intoDir == null && Platform.isAndroid) {
+        final saved = await const MethodChannel('dosya_okuyucu/app_storage')
+            .invokeMethod<String>('saveToDownloads', {
+          'name': safeName,
+          if (source != null) 'sourcePath': source.path,
+          if (bytes != null) 'bytes': Uint8List.fromList(bytes),
+        });
+        if (saved != null && saved.isNotEmpty) {
+          FsEvents.changed();
+          return SavedDownload(saved, alreadyThere: false);
+        }
+      }
+      rethrow;
     }
-    FsEvents.changed();
-    return SavedDownload(target.path, alreadyThere: false);
   }
 
   /// Dosya adında klasör ayırıcısı ya da boşluk kalmasın.

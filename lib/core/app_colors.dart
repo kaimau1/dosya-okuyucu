@@ -126,6 +126,12 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Yüzen öğe gölgesi (koyu).
   static const shadowStrong = Color(0x61000000);
 
+  /// Belge stüdyosu kabuk/kart gölgesi (açık/koyu tema uyumlu).
+  static const studioShadowLight = Color(0x16000000);
+  static const studioShadowDark = Color(0x47000000);
+  static Color studioShadow(bool dark) =>
+      dark ? studioShadowDark : studioShadowLight;
+
   /// Belgede bulunan eşleşme ve etkin eşleşme vurgusu.
   /// Koşullu biçimde renk seçilmezse Excel'in açık kırmızı dolgusu.
   static const condFillDefault = Color(0xFFFFC7CE);
@@ -279,12 +285,45 @@ abstract final class PdfEditTokens {
   static const floatBarWell = Color(0x1FFFFFFF);
   static const floatBarDanger = Color(0xFFF2B8B5);
 
+  /// Seçilebilir görsel (zümrüt/turkuaz) ve vektör şekil (mor) vurgu rolleri —
+  /// PDF sayfası üstünde hangi nesnenin seçilebilir olduğu tek bakışta
+  /// anlaşılır (kullanıcı sorusu: *"hangileri seçilebilir görünmüyor"*).
+  static const imageAccentLight = Color(0xFF0B8775);
+  static const imageAccentDark = Color(0xFF4FD1BE);
+  static Color imageAccent(bool dark) =>
+      dark ? imageAccentDark : imageAccentLight;
+
+  static const shapeAccentLight = Color(0xFF6B46C1);
+  static const shapeAccentDark = Color(0xFFB794F4);
+  static Color shapeAccent(bool dark) =>
+      dark ? shapeAccentDark : shapeAccentLight;
+
+  /// Tuval üstü küçük durum/ölçü rozeti (ör. "Görsel", "%125 · 240×180").
+  static const badgeBg = Color(0xE8161B26);
+  static const onBadge = Color(0xFFFFFFFF);
+  static TextStyle canvasBadgeStyle(Color fg, double px) => TextStyle(
+        color: fg,
+        fontSize: 10.5 * px,
+        fontWeight: FontWeight.w700,
+        height: 1.1,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
   // ── vurgu oranları (vurgu rengine `withValues(alpha:)`) ──────────────────
-  /// Dinlenmedeki blok kılavuzu — "her satırı gri kutuya boğma" YOK.
-  static const frameIdleAlpha = 0.14;
+  /// Dinlenmedeki düzenlenebilir metin kılavuzu: net görünür, metni boğmaz.
+  static const frameIdleAlpha = 0.28;
+  static const frameIdleFillAlpha = 0.04;
+
+  /// Kilitli / düzenlenemeyen blok dolgusu.
+  static const frameLockedFillAlpha = 0.07;
 
   /// Seçili blok dolgusu.
-  static const frameFillAlpha = 0.06;
+  static const frameFillAlpha = 0.11;
+
+  /// Dinlenmedeki seçilebilir görsel/şekil çerçevesi ve hafif tonu.
+  static const objectIdleAlpha = 0.62;
+  static const objectIdleFillAlpha = 0.06;
+  static const objectSelectedFillAlpha = 0.10;
 
   /// Metin seçimi dolgusu (yazma kipinde).
   static const textSelectionAlpha = 0.28;
@@ -293,25 +332,25 @@ abstract final class PdfEditTokens {
   static const topBar = 56.0;
   static const topBarTablet = 60.0;
   static const toolBar = 64.0;
-  static const contextBar = 52.0;
-  static const formatBar = 52.0;
+  static const contextBar = 56.0;
+  static const formatBar = 56.0;
   static const railCompact = 64.0;
   static const railWide = 84.0;
   static const propertyPanel = 320.0;
-  static const frameIdleWidth = 1.0;
-  static const frameActiveWidth = 2.0;
-  static const handle = 8.0;
+  static const frameIdleWidth = 1.25;
+  static const frameActiveWidth = 2.2;
+  static const handle = 11.0;
 
   /// Taşıma tutamacı: görünen çap ve dokunma alanı.
-  static const grip = 24.0;
-  static const gripHit = 40.0;
-  static const handleTablet = 10.0;
+  static const grip = 26.0;
+  static const gripHit = 44.0;
+  static const handleTablet = 12.0;
   static const caretWidth = 2.0;
   static const minHit = 44.0;
-  static const chip = 36.0;
+  static const chip = 38.0;
   static const floatGap = 8.0;
-  static const floatRadius = 12.0;
-  static const chipRadius = 18.0;
+  static const floatRadius = 14.0;
+  static const chipRadius = 19.0;
 
   /// Tablet düzeni (sol ray + sağ panel) bu kısa kenardan itibaren.
   static const tabletShortestSide = 600.0;

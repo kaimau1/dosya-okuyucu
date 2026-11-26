@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 
+import '../core/image_decode.dart';
+
 /// **Bozuk görseli açmayı dener** — görüntüleyici "açılamadı" demeden önce.
 ///
 /// Kullanıcı isteği 2026-11-02: *"bozuk görselleri açabilme"*. Sahada en çok
@@ -50,7 +52,7 @@ abstract final class ImageRepair {
       data = Uint8List.sublistView(bytes, pngAt);
     }
     try {
-      final decoded = img.decodeImage(data);
+      final decoded = decodeCommonImage(data);
       if (decoded != null) return img.encodeJpg(decoded, quality: 92);
     } catch (_) {
       // saf Dart çözücü de vazgeçti; aşağıda ham kırpılmış bayt deneniyor

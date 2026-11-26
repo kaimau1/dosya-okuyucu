@@ -19,12 +19,14 @@ import '../../services/fm/entry_opener.dart';
 import '../../services/fm/empty_folders.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/folder_size_cache.dart';
 import '../../services/fm/folder_sort_memory.dart';
 import '../../services/fm/folder_report.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
-import '../../services/fm/storage_stats.dart' show StorageKind;
+import '../../services/fm/saf_write.dart';
+import '../../services/fm/storage_stats.dart' show StorageKind, StorageStats;
 import '../../services/fm/paste_conflict.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
@@ -42,6 +44,7 @@ import '../../widgets/fm/fm_type_chips.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/paste_conflict_sheet.dart';
 import '../../widgets/fm/pin_dialog.dart';
+import '../../widgets/fm/saf_grant.dart';
 import 'archive_screen.dart';
 import 'entry_actions.dart';
 import 'organize_screen.dart';
@@ -347,7 +350,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           if (wide)
             Row(
               children: [
-                SizedBox(width: 280, child: _sidePane(context, appState)),
+                SizedBox(width: 248, child: _sidePane(context, appState)),
                 const VerticalDivider(width: 1),
                 Expanded(child: listColumn),
               ],

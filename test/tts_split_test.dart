@@ -6,6 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 /// telaffuz bozulur. Konuşma motoru cihaz gerektirir; bölme saf metin işi.
 void main() {
   _cleanForSpeechTests();
+  test('hız: flutter_tts Android ×2 yapar → normal 1.0 motora 0.5 gider', () {
+    // KÖK 2026-11-25: "hız 1'de ama 1.5–2 katı okuyor".
+    expect(TtsService.platformRate(1.0), 0.5);
+    expect(TtsService.platformRate(1.3), closeTo(0.65, 1e-9));
+    expect(TtsService.platformRate(2.0), 1.0);
+    expect(TtsService.platformRate(0.5), 0.25);
+    expect(TtsService.platformRate(9), 1.0);
+  });
+
   test('boş metin parça üretmez', () {
     expect(splitForSpeech(''), isEmpty);
     expect(splitForSpeech('   \n  '), isEmpty);
@@ -78,6 +87,46 @@ void _cleanForSpeechTests() {
     test('satır sonu tiresi birleşir (hece ikiye bölünmez)', () {
       expect(cleanForSpeech('miktarda ener-\njiye ihtiyaç var.'),
           'miktarda enerjiye ihtiyaç var.');
+    });
+
+    // 2026-11-25 (kullanıcı: "noktalama, cümle geçişi denetlenmeli,
+    // gereksiz şeyler okunmamalı").
+    test('PDF başlığı sonraki cümleye yapışmaz (kendi cümlesi olur)', () {
+      const pdf = 'METEOROLOJİK UYARI\n'
+          "Ankara'da yerel kuvvetli yağış bekleniyor ve akşam saatlerinden "
+          'itibaren etkisini artırması bekleniyor.\n'
+          'Beklenen Hadise\n'
+          'Gökgürültülü sağanak yağış ve yer yer dolu bekleniyor, dikkatli '
+          'olunmalı.';
+      final out = cleanForSpeech(pdf);
+      expect(out, contains('METEOROLOJİK UYARI.'));
+      expect(out, contains('Beklenen Hadise.'));
+      final parts = splitForSpeech(out);
+      expect(parts.first, 'METEOROLOJİK UYARI.');
+    });
+
+    test('evrak no, e-posta, emoji ve içindekiler nokta dizisi okunmaz', () {
+      final out = cleanForSpeech(
+          'Sayı: E-69668904-903.05-337146229 için bilgi@ornek.com yazın 🙂.\n'
+          'Giriş ............ 5');
+      expect(out, isNot(contains('69668904')));
+      expect(out, isNot(contains('@')));
+      expect(out, isNot(contains('🙂')));
+      expect(out, isNot(contains('....')));
+      expect(out, contains('Giriş'));
+      expect(cleanForSpeech('16.10.2026 tarihli yazı'), '16.10.2026 tarihli yazı');
+    });
+
+    test('boşluklu tire duraklamaya, ve/veya boşluğa döner; aralık korunur', () {
+      expect(cleanForSpeech('Ankara – İstanbul hattı'), 'Ankara, İstanbul hattı');
+      expect(cleanForSpeech('ve/veya seçilir'), 've veya seçilir');
+      expect(cleanForSpeech('10 - 15 kişi'), '10 - 15 kişi');
+    });
+
+    test('sıra sayısı ve baş harf noktasında bölünmez', () {
+      expect(splitForSpeech('9. Bölge Müdürlüğü yazdı. A. Yılmaz imzaladı.'),
+          ['9. Bölge Müdürlüğü yazdı.', 'A. Yılmaz imzaladı.']);
+      expect(cleanForSpeech('örn. bir dosya'), 'örneğin bir dosya');
     });
   });
 }

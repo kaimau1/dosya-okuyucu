@@ -11,9 +11,12 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
     List<int> cols, {
     Map<int, XlsxCellView>? views,
     SheetSpillPlan spill = SheetSpillPlan.empty,
+    XlsxCellStyle? style,
+    XlsxMerge? merge,
+    bool mergeResolved = false,
   }) {
     final sheet = ctx.sheet;
-    final merge = sheet.mergeAt(r, c);
+    final resolvedMerge = mergeResolved ? merge : sheet.mergeAt(r, c);
     var width = sheet.colWidth(c) * _zoom;
     // Yükseklik DAİMA kendi satırının yüksekliğidir: satırlar tembel listede
     // sabit uzantıyla çizilir, daha yüksek bir çocuk komşu satıra taşardı.
@@ -21,16 +24,16 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
     final height = sheet.rowHeight(r) * _zoom;
     var hideContent = false;
 
-    if (merge != null) {
-      if (merge.colStart == c) {
+    if (resolvedMerge != null) {
+      if (resolvedMerge.colStart == c) {
         width = 0;
-        for (var k = merge.colStart; k <= merge.colEnd; k++) {
+        for (var k = resolvedMerge.colStart; k <= resolvedMerge.colEnd; k++) {
           if (!cols.contains(k)) continue;
           width += sheet.colWidth(k) * _zoom;
         }
         if (width <= 0) width = sheet.colWidth(c) * _zoom;
       }
-      if (!merge.isAnchor(r, c)) hideContent = true;
+      if (!resolvedMerge.isAnchor(r, c)) hideContent = true;
     }
 
     final selected = _inSelection(r, c);
@@ -71,7 +74,7 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
       width: width,
       height: height,
       zoom: _zoom,
-      style: sheet.styleAt(r, c),
+      style: style ?? sheet.styleAt(r, c),
       view: hideContent
           ? const XlsxCellView('')
           : (views?[c] ?? sheet.viewAt(r, c, ctx.engine.displayValue(r, c))),
@@ -83,13 +86,17 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
       rangeEdges: rangeEdges,
       refEdges: refEdges,
       refColor: refColor,
+      onSurface: ctx.onSurface,
+      docSurface: ctx.docSurface,
+      gridColor: ctx.gridColor,
+      isRtl: sheet.rightToLeft,
       spillLeft: spillHere.left * _zoom,
       spillRight: spillHere.right * _zoom,
       // Sarkan metnin ALTINDAKİ hücre kendi ızgara çizgisini çizmez: çizerse
       // harflerin ortasından geçen bir kıl çizgi kalırdı (Excel de gizler).
       showGridLines: sheet.showGridLines && !spill.isCovered(c),
       controller: _cellField,
-      onSubmitted: () => _commitAndMoveDown(_rowCount(sheet)),
+      onSubmitted: _commitAndMoveDown,
       onEditingComplete: _endEdit,
     );
     // Hücre notu (Excel'in "Açıklama"sı): sağ ÜST köşede küçük kırmızı üçgen,

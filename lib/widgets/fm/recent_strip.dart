@@ -194,9 +194,12 @@ class _RecentStripState extends State<RecentStrip> {
     OpenHistory.changes.addListener(_onHistory);
     final mem = _memOpened;
     if (widget.entriesForTest == null && mem != null) _opened = mem;
+    // Silme/taşıma (çöpe atma dahil) her şeritte olur: "son açılan" kayıtları
+    // da yeniden denetlenir (2026-11-22, kullanıcı: "silinen şeyler son
+    // dosyalarda gözüküyor" — olay yalnız Yeniler'i tazeliyordu).
+    FsEvents.version.addListener(_onFs);
     if (_live) {
       FsEvents.returned.addListener(_onFs);
-      FsEvents.version.addListener(_onFs);
       final fresh = FreshCache.last;
       if (fresh != null) _fresh = _pick(fresh);
       unawaited(StripPrefs.ensureLoaded().then((_) {
@@ -263,7 +266,32 @@ class _RecentStripState extends State<RecentStrip> {
   }
 
   void _onFs() {
-    if (mounted && _wantsFresh && widget.scan) unawaited(_loadFresh());
+    if (!mounted) return;
+    unawaited(_load());
+    if (!_wantsFresh) return;
+    if (widget.scan) {
+      unawaited(_loadFresh());
+    } else {
+      unawaited(_restatFresh());
+    }
+  }
+
+  /// Taramasız şeritte Yeniler listesinden artık var olmayanlar düşer
+  /// (yalnız `stat`, en çok limit×2 yol).
+  Future<void> _restatFresh() async {
+    final cur = _fresh;
+    if (cur == null || cur.isEmpty) return;
+    try {
+      final alive = {
+        for (final e in await FsScan.statPaths([for (final e in cur) e.path]))
+          e.path
+      };
+      if (!mounted || alive.length == cur.length) return;
+      _fresh = [for (final e in cur) if (alive.contains(e.path)) e];
+      _remerge();
+    } catch (_) {
+      // Bilinçli: denetlenemezse liste bir sonraki taramada düzelir.
+    }
   }
 
   Future<void> _loadFresh() async {
@@ -366,8 +394,8 @@ class _RecentStripState extends State<RecentStrip> {
 
   @override
   Widget build(BuildContext context) {
-    // Canlı şerit boş olsa da yerini korur (yeniler gelince zıplamasın).
-    if (_items.isEmpty && !_live) return const SizedBox.shrink();
+    // Kayıt yoksa 108dp boşluk ayrılmaz (gizle / sıfır yükseklik).
+    if (_items.isEmpty) return const SizedBox.shrink();
     final items = _items;
     final thumb = _thumb;
     // Yazı ölçeğiyle büyüyen yükseklik: 2,0× yazıda ad satırı kesilmesin.
@@ -493,12 +521,13 @@ class _StripTile extends StatelessWidget {
                       )
                     else
                       PositionedDirectional(
-                        bottom: 2,
-                        end: 2,
+                        top: 2,
+                        start: 2,
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: scheme.surface,
                             shape: BoxShape.circle,
+                            border: Border.all(color: scheme.outlineVariant),
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(2),

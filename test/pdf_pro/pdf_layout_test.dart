@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:dosya_okuyucu/services/pdf/pro/pdf_ai_rewrite.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_bridge.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/pdf_edit_session.dart';
 import 'package:dosya_okuyucu/services/pdf/pro/ttf_subset.dart';
@@ -124,6 +123,33 @@ void main() {
       expect(by('OCR katmanı').lock, PdfBlockLock.invisible);
       expect(by('Düz metin').editable, isTrue);
       expect(by('Dikey birinci').angle, closeTo(1.5708, 0.001));
+    });
+
+    test('tire, tırnak, para birimi ve BOM RTL sayılmaz (NFC regresyonu)', () {
+      final blocks = groupTextBlocks([
+        o(0, 'General Practitioner – Compulsory Public Service', 50, 760),
+        o(1, 'November 28, 2025 – present — “Ankara” • … ₺ €', 50, 720),
+        o(2, '\uFEFFTürkiye · ÇĞİıÖŞÜ', 50, 680),
+        o(3, 'שלום עולם', 50, 640),
+        o(4, '\uFB1D', 50, 600),
+        o(5, '\uFEFB', 50, 560),
+      ]);
+      PdfTextBlock by(String sub) =>
+          blocks.firstWhere((b) => b.text.contains(sub));
+      for (final s in const [
+        'General Practitioner',
+        'November 28',
+        'Türkiye',
+      ]) {
+        expect(by(s).rtl, isFalse, reason: '$s RTL olmamalı');
+        expect(by(s).lock, PdfBlockLock.none, reason: '$s kilitli olmamalı');
+        expect(by(s).editable, isTrue, reason: '$s düzenlenebilmeli');
+      }
+      for (final s in const ['שלום', '\uFB1D', '\uFEFB']) {
+        expect(by(s).rtl, isTrue, reason: '$s gerçek RTL');
+        expect(by(s).lock, PdfBlockLock.rtl);
+        expect(by(s).editable, isFalse);
+      }
     });
 
     test('böl / birleştir', () {
@@ -320,15 +346,5 @@ void main() {
     expect(pdfRuneIndex(s, 3), 2);
     expect(pdfUtf16Index(s, 2), 3);
     expect(pdfRuneIndex(s, 99), 3);
-  });
-
-  test('AI istemi: kip ve dil; yanıt temizliği', () {
-    final p = PdfAiRewrite.buildPrompt('Örnek metin.', PdfAiMode.translate,
-        language: 'English');
-    expect(p, contains('English'));
-    expect(p, endsWith('Örnek metin.'));
-    expect(PdfAiRewrite.buildPrompt('x', PdfAiMode.grammar), contains('dilbilgisi'));
-    expect(PdfAiRewrite.clean('```\n"Yeni\nmetin"\n```'), 'Yeni metin');
-    expect(PdfAiRewrite.clean('   '), isNull);
   });
 }

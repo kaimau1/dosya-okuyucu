@@ -1,30 +1,10 @@
 part of '../analysis_screen.dart';
 
 extension _AnalysisScreenActionsPart on _AnalysisScreenState {
-  /// Benzer görseller: panonun önbelleğiyle anında açılır, kilitli klasörler
-  /// hariç eksiksiz liste arka planda gelir (eski pano kutusuyla aynı yol).
-  void _openSimilar() {
-    final locked = context.read<AppState>().fmLockedFolders;
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => SimilarScreen(
-        scopeId: 'tum-medya',
-        files: [
-          ..._index.files(FmCategory.image),
-          ..._index.files(FmCategory.video),
-        ],
-        loadAll: () async => [
-          ...await MediaLibrary.categoryFiles(FmCategory.image,
-              lockedFolders: locked),
-          ...await MediaLibrary.categoryFiles(FmCategory.video,
-              lockedFolders: locked),
-        ],
-      ),
-    ));
-  }
-
   bool get _selecting => _selected.isNotEmpty;
 
   Future<void> _loadApps({bool force = false}) async {
+    if (!Edition.current.has(Feature.installedApps)) return;
     final summary = await InstalledAppsService.summary(force: force);
     if (!mounted || !summary.hasData) return;
     _partSetState(() => _apps = summary);
@@ -47,6 +27,9 @@ extension _AnalysisScreenActionsPart on _AnalysisScreenState {
   /// `StorageStatsManager`dan geliyor; ikisinin toplamı birim doluluğuna eşit
   /// olmak zorunda değil (uygulama verisi taranan ağacın dışında).
   Widget _appsBar(int maxBytes) {
+    if (!Edition.current.has(Feature.installedApps)) {
+      return const SizedBox.shrink();
+    }
     final apps = _apps;
     if (apps == null) return const SizedBox.shrink();
     return _CategoryBar(

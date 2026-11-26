@@ -7,12 +7,14 @@ class _SniffedImage extends StatefulWidget {
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   const _SniffedImage({
     required this.path,
     required this.size,
     required this.fallback,
     this.radius = Radii.control,
+    this.dpr,
   });
 
   @override
@@ -54,7 +56,7 @@ class _SniffedImageState extends State<_SniffedImage> {
         image: FmFileImage(widget.path,
             cover: true,
             cacheWidth: fmThumbWidth(widget.size,
-                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+                widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,
@@ -75,12 +77,14 @@ class _ApkIconImage extends StatefulWidget {
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   const _ApkIconImage({
     required this.path,
     required this.size,
     required this.fallback,
     this.radius = Radii.control,
+    this.dpr,
   });
 
   @override
@@ -120,7 +124,7 @@ class _ApkIconImageState extends State<_ApkIconImage> {
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
         image: FmFileImage(icon, cacheWidth: fmThumbWidth(widget.size,
-                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+                widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
         height: widget.size,
         // `contain`: uygulama simgeleri kare ama kenar boşluklu olabiliyor;
@@ -140,9 +144,11 @@ class _ApkIconImageState extends State<_ApkIconImage> {
 /// [fallback] simgesi görünür, liste asla boş kutu göstermez.
 class _PdfThumb extends StatefulWidget {
   final String path;
+  final String ext;
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   /// Kapak üreticisi (yol, piksel boyu); verilmezse PDF'in ilk sayfası.
   /// Office belgeleri aynı "kâğıt" çerçevesini kullanır.
@@ -152,8 +158,10 @@ class _PdfThumb extends StatefulWidget {
     required this.path,
     required this.size,
     required this.fallback,
+    this.ext = 'pdf',
     this.radius = Radii.control,
     this.loader,
+    this.dpr,
   });
 
   @override
@@ -161,39 +169,63 @@ class _PdfThumb extends StatefulWidget {
 }
 
 class _PdfThumbState extends State<_PdfThumb> {
+  static final Map<String, String> _memCache = <String, String>{};
   String? _thumb;
+  bool _failed = false;
+
+  int get _pixelSize => (widget.size * 2).round().clamp(96, 512);
+  String get _cacheKey => '${widget.path}|$_pixelSize';
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _thumb = _memCache[_cacheKey];
+    if (_thumb == null) _load();
   }
 
   @override
   void didUpdateWidget(covariant _PdfThumb old) {
     super.didUpdateWidget(old);
     // Liste öğesi geri dönüştürülüp başka belgeye bağlanabilir.
-    if (old.path != widget.path) {
-      _thumb = null;
-      _load();
+    if (old.path != widget.path || old.size != widget.size) {
+      _failed = false;
+      _thumb = _memCache[_cacheKey];
+      if (_thumb == null) _load();
     }
   }
 
   Future<void> _load() async {
     final path = widget.path;
-    final size = (widget.size * 2).round().clamp(96, 512);
+    final size = _pixelSize;
+    final key = '$path|$size';
+    final cached = _memCache[key];
+    if (cached != null) {
+      if (mounted && path == widget.path) {
+        setState(() => _thumb = cached);
+      }
+      return;
+    }
     final loader = widget.loader;
     final result = loader != null
         ? await loader(path, size)
         : await PdfThumbnail.forPdf(path, size: size, wanted: () => mounted);
+    if (result != null) {
+      if (_memCache.length >= 256) {
+        _memCache.remove(_memCache.keys.first);
+      }
+      _memCache[key] = result;
+    }
     if (!mounted || path != widget.path) return;
-    setState(() => _thumb = result);
+    setState(() {
+      _thumb = result;
+      _failed = result == null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final thumb = _thumb;
-    if (thumb == null) return widget.fallback;
+    if (thumb == null || _failed) return widget.fallback;
     // **Kağıt sayfası gibi çizilir** (2026-09-23 tasarım turu, kullanıcı
     // ekran görüntüsü: Belgeler listesi). Kapak kutuya `contain` ile
     // oturuyordu ama çerçevesi yoktu: beyaz sayfa beyaz zeminde eriyor,
@@ -202,36 +234,91 @@ class _PdfThumbState extends State<_PdfThumb> {
     // kapağı duruyor. Kutu kare kalıyor (satır hizası bozulmaz); sayfa
     // oranı korunuyor (kırpılmış kapak yanlış belgeymiş gibi görünür).
     final scheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      width: widget.size,
-      height: widget.size,
-      child: Center(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.onMedia,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: scheme.outlineVariant, width: 0.8),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1F000000),
-                blurRadius: 4,
-                offset: Offset(0, 1.5),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3.5),
-            child: Image(
-              image: FmFileImage(thumb, cacheWidth: fmThumbWidth(widget.size,
-                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.low,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => widget.fallback,
-            ),
-          ),
+    final ext = widget.ext.toLowerCase();
+    final badgeLabel = FmColors.labelForExtension(ext);
+    final badgeColor =
+        OfficeColors.forKind(FileService.iconKindForExtension(ext));
+    return Image(
+      image: FmFileImage(
+        thumb,
+        cacheWidth: fmThumbWidth(
+          widget.size,
+          widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3,
         ),
       ),
+      width: widget.size,
+      height: widget.size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.low,
+      gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (!wasSynchronouslyLoaded && frame == null) {
+          return widget.fallback;
+        }
+        return SizedBox(
+          width: widget.size,
+          height: widget.size,
+          child: Center(
+            child: Stack(
+              alignment: AlignmentDirectional.center,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.onMedia,
+                    borderRadius: BorderRadius.circular(4),
+                    border:
+                        Border.all(color: scheme.outlineVariant, width: 0.8),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x1F000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 1.5),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(3.5),
+                    child: child,
+                  ),
+                ),
+                if (badgeLabel.isNotEmpty)
+                  PositionedDirectional(
+                    bottom: 1,
+                    end: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: badgeColor,
+                        borderRadius: BorderRadius.circular(2.5),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsetsDirectional.symmetric(
+                          horizontal: 3,
+                          vertical: 1,
+                        ),
+                        child: Text(
+                          badgeLabel,
+                          style: context.type.micro.copyWith(
+                            color: AppColors.onMedia,
+                            fontWeight: FontWeight.w800,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+      errorBuilder: (_, _, _) {
+        if (!_failed) {
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (mounted && !_failed) setState(() => _failed = true);
+          });
+        }
+        return widget.fallback;
+      },
     );
   }
 }
@@ -245,14 +332,16 @@ class _PhotoThumb extends StatefulWidget {
   final FsEntry entry;
   final double size;
   final double radius;
-  final Widget fallback;
+  final Widget Function() fallbackBuilder;
 
   const _PhotoThumb({
     required this.entry,
     required this.size,
     required this.radius,
-    required this.fallback,
+    required this.fallbackBuilder,
   });
+
+  Widget buildFallback() => fallbackBuilder();
 
   @override
   State<_PhotoThumb> createState() => _PhotoThumbState();
@@ -308,6 +397,7 @@ class _PhotoThumbState extends State<_PhotoThumb> {
           if (mounted && path == _path && _thumb == null && !_failed) _load();
         });
       });
+      SchedulerBinding.instance.scheduleFrame();
       return;
     }
     final result = await ThumbnailCache.forImage(path,
@@ -323,7 +413,7 @@ class _PhotoThumbState extends State<_PhotoThumb> {
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) return widget.fallback;
+    if (_failed) return widget.buildFallback();
     final exact = _thumb;
     final thumb = exact ?? _preview;
     if (thumb == null) {
@@ -356,7 +446,7 @@ class _PhotoThumbState extends State<_PhotoThumb> {
         filterQuality: FilterQuality.medium,
         gaplessPlayback: true,
         frameBuilder: _placeholder(widget.size),
-        errorBuilder: (_, _, _) => widget.fallback,
+        errorBuilder: (_, _, _) => widget.buildFallback(),
       ),
     );
   }
@@ -375,15 +465,19 @@ int videoThumbBucket(double cellSize) => cellSize * 2 <= 256 ? 256 : 512;
 
 class _VideoThumb extends StatefulWidget {
   final String path;
+  final int modifiedMs;
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   const _VideoThumb({
     required this.path,
     required this.size,
     required this.fallback,
+    this.modifiedMs = 0,
     this.radius = Radii.control,
+    this.dpr,
   });
 
   @override
@@ -476,8 +570,10 @@ class _VideoThumbState extends State<_VideoThumb> {
       return;
     }
     unawaited(_loadDuration(path));
+    final mod = widget.modifiedMs > 0 ? widget.modifiedMs : null;
     final result = await ThumbnailCache.forVideo(path,
         size: videoThumbBucket(widget.size),
+        modifiedMs: mod,
         // Sırası geldiğinde hücre ekrandan çıkmışsa kare hiç çözülmez.
         wanted: () => mounted && path == widget.path);
     if (!mounted || path != widget.path) return;
@@ -496,7 +592,8 @@ class _VideoThumbState extends State<_VideoThumb> {
   }
 
   Future<void> _loadDuration(String path) async {
-    final duration = await MediaDuration.forVideo(path);
+    final mod = widget.modifiedMs > 0 ? widget.modifiedMs : null;
+    final duration = await MediaDuration.forVideo(path, modifiedMs: mod);
     if (!mounted || path != widget.path || duration == null) return;
     setState(() => _duration = MediaDuration.format(duration));
   }
@@ -505,8 +602,11 @@ class _VideoThumbState extends State<_VideoThumb> {
   Widget build(BuildContext context) {
     final thumb = _thumb;
     if (thumb == null) {
-      // Liste satırı (küçük) ya da üretilemeyen: dosya simgesi.
-      if (_failed || widget.size < 56) return widget.fallback;
+      // Liste satırı (küçük) ya da yüklenemeyen büyük video kartı.
+      if (widget.size < 56) return widget.fallback;
+      if (_failed) {
+        return _VideoFallback(size: widget.size, radius: widget.radius);
+      }
       return _VideoLoading(size: widget.size, radius: widget.radius);
     }
     return ClipRRect(
@@ -518,7 +618,7 @@ class _VideoThumbState extends State<_VideoThumb> {
             image: FmFileImage(thumb,
                 cover: true,
                 cacheWidth: fmThumbWidth(widget.size,
-                    MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+                    widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
             width: widget.size,
             height: widget.size,
             fit: BoxFit.cover,
@@ -580,6 +680,48 @@ class _VideoLoading extends StatelessWidget {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   color: scheme.onSurfaceVariant.withValues(alpha: .6),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Küçük resim üretilemediğinde büyük video kartında dev belge simgesi yerine
+/// koyu ve dengeli bir video yer tutucusu gösterir.
+class _VideoFallback extends StatelessWidget {
+  final double size;
+  final double radius;
+
+  const _VideoFallback({required this.size, required this.radius});
+
+  @override
+  Widget build(BuildContext context) {
+    final pill = (size * 0.34).clamp(32.0, 52.0);
+    final iconSize = (size * 0.18).clamp(18.0, 28.0);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: ColoredBox(
+        color: AppColors.mediaSurface,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: AppColors.onMediaWell,
+                shape: BoxShape.circle,
+              ),
+              child: SizedBox(
+                width: pill,
+                height: pill,
+                child: Icon(
+                  AppIcons.video,
+                  size: iconSize,
+                  color: AppColors.onMediaSoft,
                 ),
               ),
             ),

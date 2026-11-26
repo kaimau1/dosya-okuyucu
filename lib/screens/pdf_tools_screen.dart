@@ -156,6 +156,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.pdfAdvanced)) return;
     _load();
   }
 
@@ -173,6 +174,12 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.pdfAdvanced)) {
+      return ProLockedView(
+        feature: Feature.pdfAdvanced,
+        title: context.t('pro.f.pdfAdvanced'),
+      );
+    }
     final bytes = _bytes;
     return PopScope(
       canPop: !_dirty,

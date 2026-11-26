@@ -5,6 +5,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/image_decode.dart';
 import 'scan_dewarp.dart';
 import 'scan_enhance.dart';
 import 'scan_page_ops.dart' show ScanPageOps;
@@ -94,7 +95,7 @@ abstract final class ScanPrepare {
     final bytes = File(request.sourcePath).readAsBytesSync();
     img.Image? image;
     try {
-      image = img.decodeImage(bytes);
+      image = decodeCommonImage(bytes);
     } catch (_) {
       image = null; // bozuk dosyada `image` paketi hata da atabiliyor
     }

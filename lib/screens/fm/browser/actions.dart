@@ -24,15 +24,14 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
   /// Ölçüm ekranda görünen klasör için İSTENİYOR (bkz. [FolderSizeCache]);
   /// gelene kadar yalnız tarih yazıyor — "…" gibi bir yer tutucu, listede
   /// her kaydırmada titreşen bir metin demek olurdu.
-  String _folderSubtitle(FsEntry entry) {
-    final date = FsPaths.humanDate(entry.modifiedMs);
-    if (!context.read<AppState>().fmFolderSizes) return date;
+  String? _folderSizeEnd(FsEntry entry) {
+    if (!context.read<AppState>().fmFolderSizes) return null;
     final size = FolderSizeCache.sizeOf(entry.path);
     if (size == null) {
       FolderSizeCache.request(entry.path);
-      return date;
+      return null;
     }
-    return '${FsPaths.humanSize(size)} · $date';
+    return FsPaths.humanSize(size);
   }
 
   /// Kilit denetimi: klasör kilitliyse PIN sorulur, yanlışsa geri çıkılır.
@@ -273,6 +272,10 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     );
     appState.clearClipboard();
     if (!mounted) return;
+    if (result.errors.contains(SafWrite.noGrant)) {
+      showSafGrantSnack(context, widget.path);
+      return;
+    }
     if (result.hasError) {
       _snack(context.t('fm.transfer_partial', {'error': result.errors.first}));
     } else if (result.cancelled) {
@@ -399,20 +402,12 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
     }
   }
 
-  /// **Buraya tara** (Faz 6 / U7): ortak tarama akışı PDF'i Belgeler'e
-  /// yazar; sonuç bu klasöre TAŞINIR (aynı ad varsa yeni ad alır).
+  /// **Buraya tara** (Faz 6 / U7): ortak tarama akışı PDF'i doğrudan bu
+  /// klasöre yazar ve Tarama Stüdyosunu açar (`recentFiles` ve `ActivityLog`
+  /// doğrudan hedef yolla kaydedilir).
   Future<void> _scanHere() async {
-    final strings = AppStrings.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final made = await ScanFlow.run(context, open: false);
+    final made = await ScanFlow.run(context, targetDir: widget.path);
     if (made == null || !mounted) return;
-    final result = await FileOps.moveAll([made], widget.path);
-    if (!mounted) return;
-    showSnackOn(
-        messenger,
-        result.hasError
-            ? strings.t('fm.transfer_partial', {'error': result.errors.first})
-            : strings.t('create.scanned'));
     _load();
   }
 
@@ -436,6 +431,10 @@ extension _BrowserScreenActionsPart on _BrowserScreenState {
           onProgress: report, isCancelled: isCancelled),
     );
     if (!mounted) return;
+    if (result.errors.contains(SafWrite.noGrant)) {
+      showSafGrantSnack(context, widget.path);
+      return;
+    }
     showSnackOn(
         messenger,
         result.hasError

@@ -1867,8 +1867,10 @@ class XlsxRange {
     return (row - 1, col - 1);
   }
 
-  /// 0 → "A", 27 → "AB"
-  static String colName(int index) {
+  static final List<String> _colNames =
+      List<String>.generate(256, _buildColName, growable: false);
+
+  static String _buildColName(int index) {
     var n = index;
     final buf = <int>[];
     do {
@@ -1877,6 +1879,10 @@ class XlsxRange {
     } while (n >= 0);
     return String.fromCharCodes(buf.reversed);
   }
+
+  /// 0 → "A", 27 → "AB"
+  static String colName(int index) =>
+      index >= 0 && index < _colNames.length ? _colNames[index] : _buildColName(index);
 }
 
 class XlsxCondRule {

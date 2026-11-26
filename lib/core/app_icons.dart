@@ -572,4 +572,11 @@ abstract final class AppIcons {
   // Faz 38 — slayt pro
   static const IconData gradient = Icons.gradient_rounded;
   static const IconData turnRight = Icons.turn_right_rounded;
+
+  // Belge stüdyosu tasarım yenilemesi (2026-11-24).
+  static const IconData vectorShape = Icons.polyline_rounded;
+  static const IconData pageJump = Icons.find_in_page_rounded;
+  static const IconData sizeScale = Icons.aspect_ratio_rounded;
+  static const IconData checkDone = Icons.done_all_rounded;
+  static const IconData sparkles = Icons.auto_awesome_rounded;
 }

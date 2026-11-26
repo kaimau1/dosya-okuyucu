@@ -97,6 +97,9 @@ abstract final class MediaFingerprint {
     _failed.add(path);
   }
 
+  /// Önbellekte zaten varsa anında döner (disk/çözme yok).
+  static int? cachedOf(FsEntry entry) => _cache[_key(entry)];
+
   /// [entry] için parmak izi (önbellekten ya da üreterek). Üretilemezse null.
   ///
   /// Videolarda **küçük resim karesi** kullanılır (native

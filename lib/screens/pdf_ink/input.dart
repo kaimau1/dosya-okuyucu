@@ -202,6 +202,7 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
         originalPath: widget.path,
         bytes: out,
         note: strings.t('ink.save_note'),
+        activityDetail: strings.t('ps.act_ink'),
       );
       if (outcome == null || !mounted) return;
       _marks = const [];

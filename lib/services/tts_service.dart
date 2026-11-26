@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:video_player/video_player.dart';
 
 import 'scan_text_fix.dart' show ScanTextFix;
+import 'voice/azure_tts.dart';
 import 'voice/neural_engine.dart';
 import 'voice/neural_voices.dart';
 
@@ -61,11 +62,15 @@ class TtsPrefs {
   /// Ses perdesi (1.0 = normal).
   final double pitch;
 
+  /// Tercih edilen Android TTS motoru paket adı (boş = sistem varsayılanı).
+  final String engineName;
+
   const TtsPrefs({
     this.voiceName = '',
     this.voiceLocale = '',
     this.rate = 1.0,
     this.pitch = 1.0,
+    this.engineName = '',
   });
 
   static const defaults = TtsPrefs();
@@ -75,16 +80,18 @@ class TtsPrefs {
     String? voiceLocale,
     double? rate,
     double? pitch,
+    String? engineName,
   }) =>
       TtsPrefs(
         voiceName: voiceName ?? this.voiceName,
         voiceLocale: voiceLocale ?? this.voiceLocale,
         rate: rate ?? this.rate,
         pitch: pitch ?? this.pitch,
+        engineName: engineName ?? this.engineName,
       );
 
-  /// `ad|yerel|hız|perde` — tek bir tercih dizesi (SharedPreferences).
-  String encode() => '$voiceName|$voiceLocale|$rate|$pitch';
+  /// `ad|yerel|hız|perde|motor` — tek bir tercih dizesi (SharedPreferences).
+  String encode() => '$voiceName|$voiceLocale|$rate|$pitch|$engineName';
 
   static TtsPrefs decode(String? source) {
     if (source == null || source.isEmpty) return defaults;
@@ -95,6 +102,7 @@ class TtsPrefs {
       voiceLocale: parts[1],
       rate: double.tryParse(parts[2])?.clamp(0.5, 2.0) ?? 1.0,
       pitch: double.tryParse(parts[3])?.clamp(0.5, 2.0) ?? 1.0,
+      engineName: parts.length >= 5 ? parts[4] : '',
     );
   }
 }
@@ -127,22 +135,61 @@ class TtsService {
   int get index => _index;
   int get total => _chunks.length;
 
+  /// Cihazda kurulu Android konuşma motorları (paket adları).
+  static Future<List<String>> engines() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return const [];
+    }
+    try {
+      final raw = await FlutterTts().getEngines;
+      if (raw is! List) return const [];
+      final out = <String>{
+        for (final entry in raw)
+          if (entry != null && '$entry'.trim().isNotEmpty) '$entry'.trim(),
+      }.toList()
+        ..sort();
+      return out;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Paket adından okunaklı motor etiketi.
+  static String engineLabel(String pkg) => switch (pkg) {
+        'com.google.android.tts' => 'Google TTS ($pkg)',
+        'com.samsung.SMT' => 'Samsung TTS ($pkg)',
+        _ => pkg,
+      };
+
   /// Cihazda kurulu sesler; [languagePrefix] verilirse yalnız o dile ait
-  /// olanlar (`tr`). Motor listeyi vermezse boş liste (arayüz "varsayılan ses"
-  /// der, hata göstermez).
-  static Future<List<TtsVoiceInfo>> voices({String? languagePrefix}) async {
+  /// olanlar (`tr`, alt çizgili `tr_TR` dahil). [engineName] verilirse önce
+  /// ilgili Android motoru seçilir.
+  static Future<List<TtsVoiceInfo>> voices({
+    String? languagePrefix,
+    String? engineName,
+  }) async {
     if (kIsWeb) return const [];
     try {
-      final raw = await FlutterTts().getVoices;
+      final tts = FlutterTts();
+      if (engineName != null &&
+          engineName.isNotEmpty &&
+          defaultTargetPlatform == TargetPlatform.android) {
+        await tts.setEngine(engineName);
+      }
+      final raw = await tts.getVoices;
       if (raw is! List) return const [];
+      final wantPrefix = languagePrefix?.replaceAll('_', '-').toLowerCase();
       final out = <TtsVoiceInfo>{};
       for (final entry in raw) {
         if (entry is! Map) continue;
         final name = '${entry['name'] ?? ''}';
         final locale = '${entry['locale'] ?? ''}';
         if (name.isEmpty || locale.isEmpty) continue;
-        if (languagePrefix != null &&
-            !locale.toLowerCase().startsWith(languagePrefix.toLowerCase())) {
+        if (wantPrefix != null &&
+            !locale
+                .replaceAll('_', '-')
+                .toLowerCase()
+                .startsWith(wantPrefix)) {
           continue;
         }
         out.add(TtsVoiceInfo(name: name, locale: locale));
@@ -157,6 +204,15 @@ class TtsService {
   /// Tercihleri motora yazar. Motor bir ayarı desteklemiyorsa sessizce
   /// atlanır — tek bir ayar yüzünden okumanın hiç başlamaması saçma olurdu.
   Future<void> _applyPrefs() async {
+    if (prefs.engineName.isNotEmpty &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      try {
+        await _tts.setEngine(prefs.engineName);
+      } catch (_) {
+        // Bilinçli: seçilen motor kaldırılmışsa varsayılan motorla sürer.
+      }
+    }
     try {
       final locale = prefs.voiceLocale.isNotEmpty ? prefs.voiceLocale : 'tr-TR';
       if (await _tts.isLanguageAvailable(locale) == true) {
@@ -185,15 +241,15 @@ class TtsService {
 
   /// Hız çarpanını platformun beklediği değere çevirir.
   ///
-  /// **TUZAK:** `flutter_tts`ta 1.0 her yerde "normal" değil — Android'de
-  /// normal 1.0 iken iOS'ta normal 0.5'tir (0.5 üstü hızlanır). Çarpanı
-  /// olduğu gibi geçirmek iOS'ta iki kat hızlı konuşmaya yol açardı.
+  /// **KÖK (2026-11-25, kullanıcı: *"hız 1'de ama 1.5–2'de okuyor; sesli
+  /// kitap oluştururken de"*):** `flutter_tts` (4.2.5) Android'de gelen
+  /// değeri **2 ile çarpar** (`FlutterTtsPlugin.kt`: `rate * 2.0f` — API'yi
+  /// iOS'la eşlemek için flutter 0.5 = Android 1.0). Eski kod yalnız iOS'ta
+  /// yarıya bölüyordu; Android'de 1.0 gönderip sistem motorunu 2 KAT hızda
+  /// çalıştırıyordu (1.3× ayar → 2,6×). Artık her platformda normal = 0.5.
   static double platformRate(double multiplier) {
     final m = multiplier.clamp(0.5, 2.0);
-    final isApple = !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.macOS);
-    return isApple ? (m * 0.5).clamp(0.0, 1.0) : m;
+    return (m * 0.5).clamp(0.0, 1.0);
   }
 
   /// [text]i cihazın motoruyla **WAV dosyasına** yazar (sesli kitap,
@@ -325,12 +381,21 @@ class TtsService {
 
   Future<String> _synth(int i) async {
     final voice = _neuralVoice!;
-    final engine = _engine ??= await NeuralVoiceEngine.acquire();
-    final bytes = await engine.synthesize(voice, _chunks[i],
-        speed: prefs.rate.clamp(0.5, 2.0));
+    final online = voice.cloudName;
+    final List<int> bytes;
+    if (online != null) {
+      // Çevrimiçi ses (Ahmet, Azure): MP3 döner; hız/perde SSML'de.
+      bytes = await AzureTts.synthesize(_chunks[i],
+          voice: online, rate: prefs.rate, pitch: prefs.pitch);
+    } else {
+      final engine = _engine ??= await NeuralVoiceEngine.acquire();
+      bytes = await engine.synthesize(voice, _chunks[i],
+          speed: prefs.rate.clamp(0.5, 2.0));
+    }
     final dir = Directory(p.join(Directory.systemTemp.path, 'tts_neural'));
     await dir.create(recursive: true);
-    final f = File(p.join(dir.path, 'p${_fileSeq++}.wav'));
+    final f = File(
+        p.join(dir.path, 'p${_fileSeq++}.${online != null ? 'mp3' : 'wav'}'));
     await f.writeAsBytes(bytes, flush: true);
     return f.path;
   }
@@ -418,55 +483,309 @@ class TtsService {
   void _notify() => onProgress?.call(_index, _chunks.length, _playing);
 }
 
+/// Sesli okuma / sesli kitap öncesi metin temizleme seçenekleri.
+class SpeechCleanOptions {
+  final bool stripPageNumbers;
+  final bool stripParentheticals;
+  final bool stripSymbolsAndUrls;
+  final bool expandAbbreviations;
+  final bool preserveParagraphs;
+
+  const SpeechCleanOptions({
+    this.stripPageNumbers = true,
+    this.stripParentheticals = true,
+    this.stripSymbolsAndUrls = true,
+    this.expandAbbreviations = true,
+    this.preserveParagraphs = true,
+  });
+}
+
+/// Sesli kitap için parça ve arkasından eklenecek doğal sessizlik süresi.
+class SpeechSegment {
+  final String text;
+  final int pauseAfterMs;
+  const SpeechSegment(this.text, this.pauseAfterMs);
+}
+
+final RegExp _pageFractionRe = RegExp(
+  r'^(sayfa|page|s\.|p\.)?\s*\d{1,4}\s*(/|of)\s*\d{1,4}$',
+  caseSensitive: false,
+);
+final RegExp _pageLabelRe = RegExp(
+  r'^[-–—\[\(\s]*(sayfa|page|s\.|p\.)\s*\d{1,4}[-–—\]\)\s]*$',
+  caseSensitive: false,
+);
+final RegExp _decorRuleRe = RegExp(r'^[\-=_\*~#\|•·\.]{3,}$');
+final RegExp _urlRe = RegExp(r'https?://\S+|www\.\S+', caseSensitive: false);
+final RegExp _mdPrefixRe = RegExp(r'^(?:#{1,6}\s+|>\s+|[-*•▪◦►→]+\s+)');
+final RegExp _footnoteBracketRe = RegExp(r'\[\s*\d+(?:\s*[,\-–]\s*\d+)*\s*\]');
+final RegExp _shortRefParenRe = RegExp(
+  r'\(\s*(?:bkz\.?|cf\.?|s\.|p\.|pp\.|tablo|şekil|not)?\s*[\d,\-–\s]{0,16}\s*\)',
+  caseSensitive: false,
+);
+
+const List<(String pattern, String expansion)> _abbrExpansions = [
+  (r'\bT\.C\.?', 'Türkiye Cumhuriyeti'),
+  (r'\bM\.Ö\.?', 'milattan önce'),
+  (r'\bM\.S\.?', 'milattan sonra'),
+  (r'\bProf\.', 'Profesör'),
+  (r'\bDoç\.', 'Doçent'),
+  (r'\bDr\.', 'Doktor'),
+  (r'\bAv\.', 'Avukat'),
+  (r'\bMüh\.', 'Mühendis'),
+  (r'\bvb\.', 've benzeri'),
+  (r'\bvs\.', 'vesaire'),
+  (r'\bvd\.', 've diğerleri'),
+  (r'\bbkz\.', 'bakınız'),
+  // `\b` ASCII'dir: "ö" ile başlayan kısaltmada hiç eşleşmiyordu.
+  (r'(?<![\wçğıöşüÇĞİÖŞÜ])örn\.', 'örneğin'),
+  (r'(?<![\wçğıöşüÇĞİÖŞÜ])ör\.', 'örneğin'),
+  (r'\byy\.', 'yüzyıl'),
+  (r'\be\.g\.', 'for example'),
+  (r'\bi\.e\.', 'that is'),
+  (r'\betc\.', 'et cetera'),
+];
+
+final RegExp _emailRe = RegExp(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+');
+
+/// İçindekiler satırının nokta dizisi + sayfa no ("Giriş ........ 5").
+final RegExp _leaderRe = RegExp(r'\s*(?:\.\s?){4,}\s*\d{0,4}\s*$');
+
+/// Emoji ve sembol resimleri (motor "gülen yüz" diye okuyordu).
+final RegExp _emojiRe = RegExp(
+    r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]',
+    unicode: true);
+
+/// Boşluklu tire/uzun çizgi ayraç: duraklama (virgül) olarak okunur.
+/// Sayı aralığı ("10 - 15") dokunulmaz.
+final RegExp _dashSepRe = RegExp(r'(?<!\d)[ \t]+[–—-][ \t]+(?!\d)');
+
+/// Sözcük arası eğik çizgi ("ve/veya") → boşluk; "eğik çizgi" denmesin.
+final RegExp _wordSlashRe =
+    RegExp(r'(?<=\p{L})/(?=\p{L})', unicode: true);
+
+/// En az 10 rakam taşıyan belirteç: evrak/sayı/kimlik numarası
+/// ("E-69668904-903.05-337146229", 11 haneli numaralar). Motor bunları
+/// rakam rakam ya da milyarlarca diye okuyor — dinleyene bir şey anlatmaz.
+String _dropLongIds(String line) => line.replaceAllMapped(RegExp(r'\S+'), (m) {
+      final tok = m.group(0)!;
+      final digits = RegExp(r'\d').allMatches(tok).length;
+      if (digits < 10) return tok;
+      // Cümle sonu işareti korunur (duraklama kaybolmasın).
+      final tail = RegExp(r'[.,;:!?]+$').firstMatch(tok)?.group(0) ?? '';
+      return tail;
+    });
+
+final RegExp _lowerRe = RegExp(r'[a-zçğıöşüâîû]');
+final RegExp _upperRe = RegExp(r'[A-ZÇĞİÖŞÜÂÎÛ]');
+
+/// Paragraf içinde ardından başka satır gelen BAŞLIK mı? PDF metninde
+/// başlıkla gövde arasında boş satır olmuyor; noktasız başlık sonraki
+/// cümleye yapışıp tek nefeste okunuyordu ("METEOROLOJİK UYARI Ankara'da
+/// …"). Başlık: noktalamasız, kısa (≤ 10 sözcük) ve sonraki satır büyük
+/// harf/rakamla başlıyor; üstüne TÜMÜ BÜYÜK HARF ya da metnin olağan satır
+/// boyunun çok altında (satır kaydırması değil).
+bool _looksLikeHeading(String line, String next, int typicalLen) {
+  if (RegExp(r'[.!?…:;,]$').hasMatch(line)) return false;
+  if (!RegExp(r'^[A-ZÇĞİÖŞÜÂÎÛ0-9"“(]').hasMatch(next)) return false;
+  if (line.length > 70 || line.split(' ').length > 10) return false;
+  final allCaps = !_lowerRe.hasMatch(line) &&
+      _upperRe.allMatches(line).length >= 3;
+  return allCaps || line.length < typicalLen * 0.6;
+}
+
 /// Sesli okumadan ÖNCE metni temizler.
 ///
-/// Kullanıcı isteği 2026-08-06: *"sayfadaki sayfa numaralarının okunmaması
-/// lazım."* Taranmış kitapta sayfa numarası metnin ortasında kendi satırı
-/// olarak durur ve motor onu "otuz beş" diye okuyup cümleyi böler. Aynı
-/// mantıkla satır sonu tiresi de birleştirilir — yoksa "ener… jiye" diye iki
-/// parça duyulur.
+/// Yalnız sayfa numaralarını ve satır sonu hece tiresini değil; TTS motorunun
+/// kelimelere çevirip okuduğu dekoratif çizgileri, dipnot köşeli parantezlerini,
+/// URL'leri, parantez içi kısa atıfları ve kısaltmaları temizler. Saf -> testli.
 ///
-/// Saf fonksiyon → birim testli.
-String cleanForSpeech(String text) {
-  final lines = text.split('\n');
-  final kept = <String>[];
-  for (var raw in lines) {
-    final line = raw.trim();
-    // Sayfa numarası / "Sayfa 35" / "- 35 -": tek başına duran satır atılır.
-    // Cümlenin İÇİNDEKİ sayılara dokunulmaz (looksLikePageNumber tüm satırı
-    // arar), yoksa "35 kişi geldi" de kaybolurdu.
-    if (line.isEmpty || ScanTextFix.looksLikePageNumber(line)) continue;
-    kept.add(line);
-  }
+/// 2026-11-25 (kullanıcı: *"okurken noktalama, cümle geçişi denetlenmeli,
+/// gereksiz şeyler okunmamalı"*): başlıktan sonra duraklama, e-posta /
+/// uzun evrak-kimlik numarası / emoji / içindekiler nokta dizisi atılır,
+/// boşluklu tire ve sözcük arası eğik çizgi duraklamaya çevrilir.
+String cleanForSpeech(
+  String text, {
+  SpeechCleanOptions options = const SpeechCleanOptions(),
+}) {
+  final normalized = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  final rawLines = normalized.split('\n');
+  final kept = <String?>[]; // null = paragraf boş satırı
 
-  final buffer = StringBuffer();
-  for (var i = 0; i < kept.length; i++) {
-    final line = kept[i];
-    if (line.endsWith('-') && i + 1 < kept.length) {
-      buffer.write(line.substring(0, line.length - 1)); // hece birleşir
+  for (var raw in rawLines) {
+    final line = raw.trim();
+    if (line.isEmpty) {
+      if (options.preserveParagraphs && kept.isNotEmpty && kept.last != null) {
+        kept.add(null);
+      }
       continue;
     }
-    buffer.write(line);
-    if (i + 1 < kept.length) buffer.write('\n');
+    if (options.stripPageNumbers &&
+        (ScanTextFix.looksLikePageNumber(line) ||
+            _pageFractionRe.hasMatch(line) ||
+            _pageLabelRe.hasMatch(line))) {
+      continue;
+    }
+    if (options.stripSymbolsAndUrls && _decorRuleRe.hasMatch(line)) {
+      continue;
+    }
+    var cleanLine = line;
+    if (options.stripSymbolsAndUrls) {
+      cleanLine = _dropLongIds(cleanLine
+          .replaceFirst(_mdPrefixRe, '')
+          .replaceAll(_urlRe, ' ')
+          .replaceAll(_emailRe, ' ')
+          .replaceAll(_leaderRe, '')
+          .replaceAll(_emojiRe, ' ')
+          .replaceAll(RegExp(r'\*{1,3}|_{2,}|`+'), '')
+          .replaceAll(RegExp(r'[|•▪◦★☆►▶→←↔※†‡§]'), ' ')
+          .replaceAll(_wordSlashRe, ' ')
+          .replaceAll(_dashSepRe, ', '))
+          .replaceAll(RegExp(r'[ \t]+'), ' ')
+          .replaceAll(RegExp(r'^[,;:]\s*'), '')
+          .trim();
+    }
+    if (cleanLine.isEmpty) continue;
+    kept.add(cleanLine);
   }
-  return buffer.toString().trim();
+  while (kept.isNotEmpty && kept.last == null) {
+    kept.removeLast();
+  }
+
+  // Olağan satır boyu (başlık sezgisi): ≥ 25 karakterli satırların ortancası.
+  final lens = [
+    for (final k in kept)
+      if (k != null && k.length >= 25) k.length,
+  ]..sort();
+  final typicalLen = lens.isEmpty ? 60 : lens[lens.length ~/ 2];
+
+  // Satır sonu hece tiresini birleştir ve paragraf akışını koru.
+  final buf = StringBuffer();
+  for (var i = 0; i < kept.length; i++) {
+    final item = kept[i];
+    if (item == null) {
+      buf.write('\n\n');
+      continue;
+    }
+    final prevWasPara = i > 0 && kept[i - 1] == null;
+    if (i > 0 && !prevWasPara) {
+      // Önceki satır birleştirildi (tire) veya satır ayracı gerekiyor.
+      final prev = kept[i - 1]!;
+      if (prev.endsWith('-') &&
+          prev.length >= 2 &&
+          RegExp(r'^[a-zçğıöşü]').hasMatch(item)) {
+        // Tire önceki adımda silinmedi; geriye gidip değiştir.
+        final s = buf.toString();
+        buf
+          ..clear()
+          ..write(s.substring(0, s.length - 1))
+          ..write(item);
+        continue;
+      }
+      final endsSentence = RegExp(r'[.!?…:]$').hasMatch(prev);
+      if (!endsSentence && _looksLikeHeading(prev, item, typicalLen)) {
+        // Başlık: kendi cümlesi olsun (motor burada duraklar).
+        buf.write('.\n');
+      } else {
+        buf.write(endsSentence ? '\n' : ' ');
+      }
+    }
+    buf.write(item);
+  }
+
+  var out = buf.toString();
+  if (options.stripParentheticals) {
+    out = out.replaceAll(_footnoteBracketRe, '');
+    out = out.replaceAll(_shortRefParenRe, ' ');
+    // Kısa/uzun düz parantezleri doğal duraklamaya (virgül) çevir.
+    out = out.replaceAllMapped(
+      RegExp(r'\(([^()\n]{1,160})\)'),
+      (m) {
+        final inner = m.group(1)!.trim();
+        if (inner.isEmpty) return '';
+        return ', $inner,';
+      },
+    );
+    out = out.replaceAll(RegExp(r'[()\[\]]'), '');
+  }
+  if (options.expandAbbreviations) {
+    for (final (pat, exp) in _abbrExpansions) {
+      out = out.replaceAll(RegExp(pat, caseSensitive: false), exp);
+    }
+  }
+  if (options.stripSymbolsAndUrls) {
+    out = out
+        .replaceAll(RegExp(r'\.{2,}'), '.')
+        .replaceAll(RegExp(r'!{2,}'), '!')
+        .replaceAll(RegExp(r'\?{2,}'), '?')
+        .replaceAll(RegExp(r',{2,}'), ',');
+  }
+  out = out
+      .replaceAllMapped(RegExp(r'[ \t]+([,.;:!?])'), (m) => m.group(1)!)
+      .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
+      .replaceAll(RegExp(r' *\n *'), '\n')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+  return out;
+}
+
+/// Metni sesli kitap bölümlerine uygun doğal duraklamalı parçalara böler.
+/// Paragraf geçişleri (650 ms), kısa başlık satırları (800 ms), cümle sonları
+/// (350 ms) ve uzun cümle içi bölünmeler (180 ms) için ayrı duraklama üretir.
+List<SpeechSegment> splitForAudiobook(
+  String text, {
+  int maxLength = 320,
+  SpeechCleanOptions options = const SpeechCleanOptions(),
+}) {
+  final cleaned = cleanForSpeech(text, options: options);
+  if (cleaned.isEmpty) return const [];
+  final paragraphs = [
+    for (final p in cleaned.split(RegExp(r'\n\s*\n')))
+      if (p.trim().isNotEmpty) p.trim(),
+  ];
+  final out = <SpeechSegment>[];
+  for (final para in paragraphs) {
+    final isShortHeading = para.length < 70 &&
+        !para.contains('\n') &&
+        !RegExp(r'[.!?…]$').hasMatch(para);
+    if (para.length <= maxLength) {
+      out.add(SpeechSegment(para, isShortHeading ? 800 : 650));
+      continue;
+    }
+    final pieces = splitForSpeech(para, maxLength: maxLength);
+    final buf = StringBuffer();
+    for (var i = 0; i < pieces.length; i++) {
+      final piece = pieces[i];
+      if (buf.isNotEmpty && buf.length + 1 + piece.length > maxLength) {
+        final chunk = buf.toString();
+        final ended = RegExp(r'[.!?…]$').hasMatch(chunk);
+        out.add(SpeechSegment(chunk, ended ? 350 : 180));
+        buf.clear();
+      }
+      if (buf.isNotEmpty) buf.write(' ');
+      buf.write(piece);
+    }
+    if (buf.isNotEmpty) {
+      out.add(SpeechSegment(buf.toString(), 650));
+    }
+  }
+  return out;
 }
 
 /// Metni konuşma parçalarına böler: önce cümle sonlarından, uzun kalırsa
 /// virgül/boşluktan. Motorlar çok uzun metinde kesiliyor, çok kısa parçada da
 /// tonlama bozuluyor — [maxLength] ikisinin arası.
-///
-/// Bölme sezgiseldir: noktalama + boşluk + büyük harf. Kısaltmadan sonra
-/// büyük harf gelirse ("Dr. Ahmet") erken böler — okunan metin aynı kalır,
-/// yalnız duraklama bir kelime öne kayar. Doğruluk için değer vermeye değmez;
-/// ponytail: şikayet gelirse kısaltma sözlüğü eklenir.
 List<String> splitForSpeech(String text, {int maxLength = 240}) {
   final clean = text.replaceAll(RegExp(r'[ \t]+'), ' ').trim();
   if (clean.isEmpty) return const [];
 
   final sentences = <String>[];
   var start = 0;
-  final pattern = RegExp(r'[.!?…:;]\s+(?=[A-ZÇĞİÖŞÜ0-9])|\n+');
+  // Sıra sayısı ("9. Bölge") ve baş harf ("A. Yılmaz") noktası cümle sonu
+  // DEĞİL: eskiden "9." tek başına okunup "dokuz" deniyor, sıra anlamı
+  // ("dokuzuncu") ve cümlenin akışı kayboluyordu.
+  final pattern = RegExp(
+      r'(?:(?<!(?:^|\s)(?:\d{1,3}|[A-ZÇĞİÖŞÜ]))\.|[!?…:;])\s+(?=[A-ZÇĞİÖŞÜ0-9])|\n+');
   for (final m in pattern.allMatches(clean)) {
     final piece = clean.substring(start, m.end).trim();
     if (piece.isNotEmpty) sentences.add(piece);
@@ -475,7 +794,7 @@ List<String> splitForSpeech(String text, {int maxLength = 240}) {
   final tail = clean.substring(start).trim();
   if (tail.isNotEmpty) sentences.add(tail);
 
-  // Hâlâ uzun olanları kelime sınırından kes (motor ortadan kesmesin).
+  // Hâlâ uzun olanları virgül/kelime sınırından kes (motor ortadan kesmesin).
   final out = <String>[];
   for (final s in sentences) {
     if (s.length <= maxLength) {
@@ -484,7 +803,8 @@ List<String> splitForSpeech(String text, {int maxLength = 240}) {
     }
     var rest = s;
     while (rest.length > maxLength) {
-      var cut = rest.lastIndexOf(' ', maxLength);
+      var cut = rest.lastIndexOf(', ', maxLength);
+      if (cut <= maxLength ~/ 2) cut = rest.lastIndexOf(' ', maxLength);
       if (cut <= 0) cut = maxLength; // boşluksuz dev kelime
       out.add(rest.substring(0, cut).trim());
       rest = rest.substring(cut).trim();

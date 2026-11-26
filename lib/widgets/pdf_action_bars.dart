@@ -37,9 +37,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/motion.dart';
-import '../core/app_colors.dart';
+import 'pro_gate.dart';
 
 /// Ortak kap: tema yüzeyi, katmanlı yumuşak gölge, ince kenarlık.
 class PdfFloatingCard extends StatelessWidget {
@@ -103,6 +104,9 @@ class PdfBarAction extends StatelessWidget {
   /// Simgenin altına küçük renk çizgisi (Vurgula: şu anki vurgu rengi).
   final Color? accent;
 
+  /// Simge üstünde küçük "PRO" rozeti gösterir (sürprize karşı).
+  final bool proBadge;
+
   const PdfBarAction({
     super.key,
     required this.icon,
@@ -110,6 +114,7 @@ class PdfBarAction extends StatelessWidget {
     this.onPressed,
     this.emphasized = false,
     this.accent,
+    this.proBadge = false,
   });
 
   @override
@@ -117,31 +122,44 @@ class PdfBarAction extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final enabled = onPressed != null;
     final bg = emphasized
-        ? scheme.primaryContainer
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.7);
-    final fg = emphasized ? scheme.onPrimaryContainer : scheme.onSurface;
-    final iconColor = emphasized ? scheme.onPrimaryContainer : scheme.primary;
+        ? scheme.primary
+        : scheme.surfaceContainerLow;
+    final fg = emphasized ? scheme.onPrimary : scheme.onSurface;
+    final iconColor = emphasized ? scheme.onPrimary : scheme.primary;
     final fade = enabled ? 1.0 : 0.38;
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Material(
           color: bg,
-          borderRadius: BorderRadius.circular(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: emphasized
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.6),
+            ),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onPressed,
             child: Opacity(
               opacity: fade,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Icon(icon, size: 21, color: iconColor),
+                        Icon(icon, size: 20, color: iconColor),
+                        if (proBadge)
+                          const PositionedDirectional(
+                            top: -5,
+                            end: -16,
+                            child: ProBadge(),
+                          ),
                         if (accent != null)
                           Positioned(
                             left: 1,
@@ -165,7 +183,7 @@ class PdfBarAction extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: fg,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                     ),
                   ],
@@ -263,6 +281,9 @@ class PdfSelectionBar extends StatelessWidget {
   final String expandTooltip;
   final String collapseTooltip;
 
+  /// Düzenle düğmesinde PRO rozeti gösterilsin mi (Lite sürüm).
+  final bool editProBadge;
+
   const PdfSelectionBar({
     super.key,
     required this.preview,
@@ -294,6 +315,7 @@ class PdfSelectionBar extends StatelessWidget {
     this.onToggleExpanded,
     this.expandTooltip = '',
     this.collapseTooltip = '',
+    this.editProBadge = false,
   });
 
   bool get _canExpand =>
@@ -440,7 +462,8 @@ class PdfSelectionBar extends StatelessWidget {
                       icon: AppIcons.edit,
                       label: editLabel,
                       onPressed: onEdit,
-                      emphasized: true),
+                      emphasized: true,
+                      proBadge: editProBadge),
                   PdfBarAction(
                       icon: AppIcons.translate,
                       label: translateLabel,

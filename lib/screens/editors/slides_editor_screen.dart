@@ -19,6 +19,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
+import '../../widgets/pro_gate.dart';
 import '../../core/busy_dialog.dart';
 import '../../core/doc_fonts.dart';
 import '../../core/edit/edit_history.dart';
@@ -64,6 +66,7 @@ import '../../widgets/office_shell.dart';
 import '../../widgets/pinch_zoom_area.dart';
 import '../../widgets/slide_box_editor.dart';
 import '../../widgets/slide_canvas.dart';
+import '../../widgets/slide_previews.dart';
 import '../../widgets/slide_text_controller.dart';
 import '../../widgets/slide_snapshot.dart';
 import '../../widgets/translate_flow.dart';
@@ -169,7 +172,9 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   // tek karede doğru sonucu verir — ölçüme dayansaydı henüz çizilmemiş bir
   // slayda atlanamazdı.
   double _baseW = 0;
-  int _currentSlide = 1;
+  final ValueNotifier<int> _currentSlideN = ValueNotifier<int>(1);
+  int get _currentSlide => _currentSlideN.value;
+  set _currentSlide(int v) => _currentSlideN.value = v;
 
   /// Kaldığın yerden devam: dosya boyutu (kayıt anahtarı, bkz. [ReadingPositions]).
   int _docSize = 0;
@@ -237,6 +242,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   @override
   void dispose() {
     _flashTimer?.cancel();
+    _currentSlideN.dispose();
     _session.dispose();
     _history.dispose();
     _textCtrl?.dispose();
@@ -311,18 +317,27 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
           redo: editing ? null : () => _history.canRedo ? _redoDeck : null,
           extras: [
             if (!editing)
-              IconButton(
-                key: const ValueKey('sl-outline'),
-                tooltip: context.t('sl.outline'),
-                isSelected: _outline,
-                icon: const Icon(AppIcons.outline),
-                onPressed: editor == null ? null : _toggleOutline,
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: IconButton(
+                  key: const ValueKey('sl-outline'),
+                  tooltip: context.t('sl.outline'),
+                  isSelected: _outline,
+                  style: EditorTopBar.iconStyle(context, selected: _outline),
+                  icon: const Icon(AppIcons.outline, size: 20),
+                  onPressed: editor == null ? null : _toggleOutline,
+                ),
               ),
             if (!editing && !_outline)
-              IconButton(
-                tooltip: context.t('common.search'),
-                icon: const Icon(AppIcons.search),
-                onPressed: editor == null ? null : _toggleFind,
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: IconButton(
+                  tooltip: context.t('common.search'),
+                  isSelected: _finding,
+                  style: EditorTopBar.iconStyle(context, selected: _finding),
+                  icon: const Icon(AppIcons.search, size: 20),
+                  onPressed: editor == null ? null : _toggleFind,
+                ),
               ),
           ],
           // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
@@ -349,6 +364,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                 id: 'tools',
                 icon: AppIcons.handyman,
                 label: context.t('sp.tools'),
+                proBadge: ProGate.locked(Feature.wordSlidesPro),
                 onTap: editor == null || _proBusy ? null : _openProTools,
               ),
             EditorMenuItem(
@@ -455,8 +471,12 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
                     // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —
                     // Ekle · Tasarım · Oynat · AI · Paylaş. Küçük resimler,
                     // slayt sırası, araçlar, özet, çeviri, PDF ⋮'da.
-                    DocAction(AppIcons.add, context.t('sl.insert'),
-                        editor == null ? null : _openInsert),
+                    DocAction(
+                      AppIcons.add,
+                      context.t('sl.insert'),
+                      editor == null ? null : _openInsert,
+                      primary: true,
+                    ),
                     DocAction(AppIcons.palette, context.t('sl.design'),
                         editor == null ? null : _openDesign),
                     DocAction(AppIcons.play, context.t('sl.play'),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../core/app_icons.dart';
+import '../core/motion.dart';
 import '../core/theme.dart';
+import 'pro_gate.dart';
 import '../core/app_colors.dart';
 
 /// **Üç Office editörünün ortak simge dili.**
@@ -137,26 +139,31 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final tabs = widget.tabs.isEmpty ? const [RibbonTab('', [])] : widget.tabs;
     final wanted = widget.selectedTab ?? _tab;
     final index = wanted < tabs.length ? wanted : 0;
     final fg = widget.onBrand ? AppColors.onBrand : scheme.onSurface;
+    final dur = Motion.of(context, Motion.short);
+    final surfaceBg = widget.onBrand
+        ? Colors.transparent
+        : Color.lerp(scheme.surface, scheme.surfaceContainerLow, 0.45)!;
 
-    // 2026-09-23 tasarım turu: sekmeler alt çizgili düz metin değil, HAP
-    // (M3 "segmented" dili): etkin sekme vurgu dolgusuyla okunur, parmakla
-    // hedeflemesi kolay. Şerit zemini kabukla aynı yüzeyde + alt cetvel.
     return RibbonStyle(
       onBrand: widget.onBrand,
+      compact: widget.compact,
       child: Container(
-        color: widget.onBrand ? Colors.transparent : scheme.surface,
-        // Cetvel ÖN süslemede: `decoration` kenarlığı yüksekliğe 1 px ekler
-        // ve `heightFor` sözleşmesini (PreferredSize) bozardı.
+        color: surfaceBg,
         foregroundDecoration: widget.onBrand
             ? null
             : BoxDecoration(
-                border:
-                    Border(bottom: BorderSide(color: scheme.outlineVariant))),
+                border: Border(
+                  bottom: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.72),
+                  ),
+                ),
+              ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -165,20 +172,30 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                 height: widget.compact ? 28 : 36,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.fromLTRB(8, widget.compact ? 2 : 4, 8, 0),
+                  padding: EdgeInsets.fromLTRB(8, widget.compact ? 2 : 4, 8, 2),
                   itemCount: tabs.length,
                   itemBuilder: (_, i) {
                     final active = i == index;
                     final activeBg = widget.onBrand
                         ? AppColors.onBrandWell
-                        : scheme.primaryContainer;
+                        : scheme.primary;
                     final activeFg = widget.onBrand
                         ? AppColors.onBrand
-                        : scheme.onPrimaryContainer;
+                        : scheme.onPrimary;
+                    final idleBg = widget.onBrand
+                        ? Colors.transparent
+                        : scheme.surfaceContainerHigh.withValues(alpha: 0.55);
+                    final labelStyle = (widget.compact
+                            ? theme.textTheme.labelSmall
+                            : theme.textTheme.labelMedium)
+                        ?.copyWith(
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                      color: active ? activeFg : fg.withValues(alpha: 0.78),
+                    );
                     return Padding(
-                      padding: const EdgeInsetsDirectional.only(end: 4),
+                      padding: const EdgeInsetsDirectional.only(end: 6),
                       child: Material(
-                        color: active ? activeBg : Colors.transparent,
+                        color: Colors.transparent,
                         shape: const StadiumBorder(),
                         clipBehavior: Clip.antiAlias,
                         child: InkWell(
@@ -186,20 +203,25 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                             setState(() => _tab = i);
                             widget.onTabChanged?.call(i);
                           },
-                          child: Container(
+                          child: AnimatedContainer(
+                            duration: dur,
+                            curve: Motion.standard,
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             alignment: Alignment.center,
-                            child: Text(
-                              tabs[i].label,
-                              style: TextStyle(
-                                fontSize: widget.compact ? 12 : 13,
-                                fontWeight:
-                                    active ? FontWeight.w700 : FontWeight.w600,
-                                color: active
-                                    ? activeFg
-                                    : fg.withValues(alpha: 0.7),
+                            decoration: ShapeDecoration(
+                              color: active ? activeBg : idleBg,
+                              shape: StadiumBorder(
+                                side: widget.onBrand
+                                    ? BorderSide.none
+                                    : BorderSide(
+                                        color: active
+                                            ? scheme.primary
+                                            : scheme.outlineVariant
+                                                .withValues(alpha: 0.45),
+                                      ),
                               ),
                             ),
+                            child: Text(tabs[i].label, style: labelStyle),
                           ),
                         ),
                       ),
@@ -222,14 +244,12 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
                     ),
                   ),
                   if (widget.trailing != null) ...[
-                    // Kayan simgelerle sabit düğme arasına ince ayraç: "Bitti"
-                    // simge sırasının bir parçası sanılmasın.
                     Container(
                       width: 1,
                       height: 24,
                       color: widget.onBrand
                           ? AppColors.onBrandMuted
-                          : scheme.outlineVariant,
+                          : scheme.outlineVariant.withValues(alpha: 0.8),
                     ),
                     widget.trailing!,
                   ],
@@ -247,18 +267,28 @@ class _OfficeRibbonState extends State<OfficeRibbon> {
 /// tek tek bayrak geçirmek yerine.
 class RibbonStyle extends InheritedWidget {
   final bool onBrand;
-  const RibbonStyle({super.key, required this.onBrand, required super.child});
+  final bool compact;
+  const RibbonStyle({
+    super.key,
+    required this.onBrand,
+    this.compact = false,
+    required super.child,
+  });
 
   static bool of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<RibbonStyle>()?.onBrand ??
       false;
 
+  static bool compactOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<RibbonStyle>()?.compact ??
+      false;
+
   @override
   bool updateShouldNotify(RibbonStyle oldWidget) =>
-      oldWidget.onBrand != onBrand;
+      oldWidget.onBrand != onBrand || oldWidget.compact != compact;
 }
 
-/// Şerit düğmesi (simge + isteğe bağlı etkin durum).
+/// Şerit düğmesi (simge + isteğe bağlı etkin durum + renk göstergesi).
 ///
 /// [active] verilen düğme bir **aç/kapa** düğmesidir: TalkBack onu "Kalın,
 /// açık / kapalı" diye okur (Faz 33 / madde 3). Verilmeyen (null) düğme düz
@@ -267,6 +297,7 @@ class RibbonButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final bool? active;
+  final Color? indicator;
   final VoidCallback? onTap;
 
   const RibbonButton(
@@ -274,6 +305,7 @@ class RibbonButton extends StatelessWidget {
     this.tooltip, {
     super.key,
     this.active,
+    this.indicator,
     this.onTap,
   });
 
@@ -282,6 +314,27 @@ class RibbonButton extends StatelessWidget {
     final onBrand = RibbonStyle.of(context);
     final scheme = Theme.of(context).colorScheme;
     final on = active == true;
+    final iconColor = onBrand
+        ? AppColors.onBrand
+        : (on ? scheme.primary : scheme.onSurface);
+    final Widget iconWidget = indicator == null
+        ? Icon(icon)
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17),
+              const SizedBox(height: 1),
+              Container(
+                width: 16,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: indicator,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
+          );
     return Semantics(
       button: true,
       toggled: active,
@@ -289,22 +342,25 @@ class RibbonButton extends StatelessWidget {
       label: tooltip,
       excludeSemantics: true,
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        decoration: on
-            ? BoxDecoration(
-                color: onBrand ? AppColors.onBrandWell : scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              )
-            : null,
+      child: AnimatedContainer(
+        duration: Motion.of(context, Motion.short),
+        curve: Motion.standard,
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        decoration: BoxDecoration(
+          color: on
+              ? (onBrand ? AppColors.onBrandWell : scheme.primaryContainer)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: on && !onBrand
+              ? Border.all(color: scheme.primary.withValues(alpha: 0.36))
+              : null,
+        ),
         child: IconButton(
           tooltip: tooltip,
           visualDensity: VisualDensity.compact,
           iconSize: 20,
-          color: onBrand
-              ? AppColors.onBrand
-              : (on ? scheme.onPrimaryContainer : scheme.onSurface),
-          icon: Icon(icon),
+          color: iconColor,
+          icon: iconWidget,
           onPressed: onTap,
         ),
       ),
@@ -345,59 +401,82 @@ class RibbonChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final String tooltip;
+  final bool? active;
   final VoidCallback? onTap;
+  final bool proBadge;
 
   const RibbonChip({
     super.key,
     required this.icon,
     required this.label,
     required this.tooltip,
+    this.active,
     this.onTap,
+    this.proBadge = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final onBrand = RibbonStyle.of(context);
+    final compact = RibbonStyle.compactOf(context);
     final scheme = Theme.of(context).colorScheme;
-    final fg = onBrand ? AppColors.onBrand : scheme.onSurface;
-    // [onTap] null ise HİÇ jest kurulmaz: bu çip çoğu zaman bir
-    // `PopupMenuButton`ın çocuğudur ve araya giren bir `InkWell` dokunuşu
-    // yutup menüyü açtırmazdı (Word'ün yazı tipi/punto menüleri).
+    final on = active == true;
+    final bg = onBrand
+        ? (on ? AppColors.onBrand : AppColors.onBrandWell)
+        : (on ? scheme.primaryContainer : scheme.surfaceContainerLow);
+    final fg = onBrand
+        ? AppColors.onBrand
+        : (on ? scheme.primary : scheme.onSurface);
     Widget wrap(Widget child) => onTap == null
         ? child
         : InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(Radii.control),
+            borderRadius: BorderRadius.circular(14),
             child: child,
           );
-    return Tooltip(
-      message: tooltip,
-      child: wrap(
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: onBrand ? AppColors.onBrandWell : scheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(10),
-            border: onBrand ? null : Border.all(color: scheme.outlineVariant),
-          ),
-          constraints: const BoxConstraints(maxWidth: 150),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: fg),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.type.compact.copyWith(
-                      fontWeight: FontWeight.w600,
+    return Semantics(
+      toggled: active,
+      child: Tooltip(
+        message: tooltip,
+        child: wrap(
+          AnimatedContainer(
+            duration: Motion.of(context, Motion.short),
+            margin: EdgeInsets.symmetric(
+                horizontal: 2, vertical: compact ? 4 : 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(14),
+              border: onBrand
+                  ? null
+                  : Border.all(
+                      color: on
+                          ? scheme.primary.withValues(alpha: 0.45)
+                          : scheme.outlineVariant.withValues(alpha: 0.65),
+                    ),
+            ),
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: fg),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.type.compact.copyWith(
+                      fontWeight: on ? FontWeight.w700 : FontWeight.w600,
                       color: fg,
                     ),
+                  ),
                 ),
-              ),
-            ],
+                if (proBadge) ...[
+                  const SizedBox(width: 4),
+                  const ProBadge(),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -415,7 +494,7 @@ class RibbonSep extends StatelessWidget {
     return Container(
       width: 1,
       height: 22,
-      margin: const EdgeInsets.symmetric(horizontal: 5),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       color: onBrand
           ? AppColors.onBrandMuted
           : Theme.of(context).colorScheme.outlineVariant,

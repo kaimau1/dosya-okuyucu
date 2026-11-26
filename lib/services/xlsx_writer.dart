@@ -387,8 +387,16 @@ class XlsxWriter {
   /// 0 tabanlı satır/sütun → `A1` gösterimi.
   static String _cellRef(int r, int c) => '${colName(c)}${r + 1}';
 
+  static final List<String> _colNames =
+      List<String>.generate(256, _computeColName, growable: false);
+
   /// 0 tabanlı sütun indeksi → `A`, `Z`, `AA`…
   static String colName(int index) {
+    if (index >= 0 && index < _colNames.length) return _colNames[index];
+    return _computeColName(index);
+  }
+
+  static String _computeColName(int index) {
     var n = index;
     final sb = StringBuffer();
     while (true) {

@@ -43,6 +43,7 @@ import '../core/edition.dart';
 import 'ai_tasks.dart';
 import 'gemini_service.dart';
 import 'offline_mode.dart';
+import 'shared_ai_pool_client.dart';
 
 /// Kullanıcının girdiği anahtarlar ve model sırası.
 class AiCredentials {
@@ -62,9 +63,9 @@ class AiCredentials {
 
   /// Boş/yinelenen değerler ayıklanmış, sınırlara kırpılmış hâli.
   AiCredentials get normalized => AiCredentials(
-        keys: _clean(keys, maxKeys),
-        models: _clean(models, maxModels),
-      );
+    keys: _clean(keys, maxKeys),
+    models: _clean(models, maxModels),
+  );
 
   static List<String> _clean(List<String> raw, int limit) {
     final out = <String>[];
@@ -177,6 +178,18 @@ abstract final class AiPool {
 
   /// Kaldırılmış/erişilemeyen olduğu görülen modeller.
   static Set<String> get deadModels => Set.unmodifiable(_deadModels);
+
+  /// Açık kaynak seçimi kuralı: BYOK kipinde 401/403/429 hatasında ortak AI
+  /// havuzuna sessiz geçiş yapılmaz.
+  static void guardExplicitMode(AiSourceMode mode, GeminiException error) {
+    if (mode == AiSourceMode.byok &&
+        const {401, 403, 429}.contains(error.statusCode)) {
+      SharedAiPoolClient.guardByokFailure(
+        mode: mode,
+        statusCode: error.statusCode,
+      );
+    }
+  }
 
   /// Bir hatanın **ne tür** bir hata olduğu. Genel (public): davranışın
   /// tamamı buna bağlı olduğu için doğrudan test ediliyor.
@@ -306,8 +319,8 @@ abstract final class AiPool {
     final previous = _cooldowns[slot.id];
     final strikes = (previous?.strikes ?? 0) + 1;
     final grown = _baseCooldownMs * (1 << (strikes - 1).clamp(0, 10));
-    final duration = fixedMs ??
-        (grown > _maxCooldownMs ? _maxCooldownMs : grown);
+    final duration =
+        fixedMs ?? (grown > _maxCooldownMs ? _maxCooldownMs : grown);
     _cooldowns[slot.id] = (
       untilMs: DateTime.now().millisecondsSinceEpoch + duration,
       strikes: strikes,
@@ -330,12 +343,13 @@ abstract final class AiPool {
     final clean = creds.normalized;
     final slots = <AiSlot>[
       for (final key in clean.keys)
-        for (final model in clean.models) AiSlot(key, model)
+        for (final model in clean.models) AiSlot(key, model),
     ];
     final last = _lastGood;
     if (last == null) return slots;
-    final index =
-        slots.indexWhere((s) => s.key == last.key && s.model == last.model);
+    final index = slots.indexWhere(
+      (s) => s.key == last.key && s.model == last.model,
+    );
     if (index <= 0) return slots;
     final rotated = [...slots];
     final preferred = rotated.removeAt(index);
@@ -365,8 +379,10 @@ abstract final class AiPool {
   ) async {
     // AI yalnız Pro (ve Kişisel) sürümde (kullanıcı kararı 2026-11-15).
     if (!Edition.current.has(Feature.ai)) {
-      throw GeminiException(AppStrings.current.t('aiterms.pro_only'),
-          statusCode: -2);
+      throw GeminiException(
+        AppStrings.current.t('aiterms.pro_only'),
+        statusCode: -2,
+      );
     }
     // Çevrimdışı kip: anahtar/onay sormadan, kalıcı hata (-1).
     if (OfflineMode.enabled) {
@@ -374,23 +390,31 @@ abstract final class AiPool {
     }
     // G10.3: kasadan açılan dosya ekrandayken hiçbir şey buluta gitmez.
     if (PrivateZone.active) {
-      throw GeminiException(AppStrings.current.t('aisend.private'),
-          statusCode: -2);
+      throw GeminiException(
+        AppStrings.current.t('aisend.private'),
+        statusCode: -2,
+      );
     }
     await ensureLoaded();
     final creds = credentials.normalized;
     if (creds.keys.isEmpty) {
-      throw GeminiException('Önce Ayarlar > Yapay zekâ bölümünden en az bir '
-          'Gemini API anahtarı girin.');
+      throw GeminiException(
+        'Önce Ayarlar > Yapay zekâ bölümünden en az bir '
+        'Gemini API anahtarı girin.',
+      );
     }
     if (creds.models.isEmpty) {
-      throw GeminiException('Önce Ayarlar > Yapay zekâ bölümünden en az bir '
-          'model seçin.');
+      throw GeminiException(
+        'Önce Ayarlar > Yapay zekâ bölümünden en az bir '
+        'model seçin.',
+      );
     }
     final ask = consent;
     if (ask != null && !await ask()) {
-      throw GeminiException(AppStrings.current.t('aisend.cancelled'),
-          statusCode: -2);
+      throw GeminiException(
+        AppStrings.current.t('aisend.cancelled'),
+        statusCode: -2,
+      );
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -459,8 +483,9 @@ abstract final class AiPool {
           final slot = AiSlot(key, model);
           if (_isCooling(slot, now)) continue;
           try {
-            final value =
-                await action(GeminiService(apiKey: key, model: model));
+            final value = await action(
+              GeminiService(apiKey: key, model: model),
+            );
             _forgive(slot);
             return value;
           } on GeminiException catch (e) {
@@ -494,8 +519,9 @@ abstract final class AiPool {
         'Tüm anahtar ve modellerin kotası doldu. Ayarlar > Yapay zekâ\'dan '
             'yedek anahtar ekleyebilir ya da model sırasına yeni model '
             'ekleyebilirsiniz.',
-      AiFailure.auth => 'API anahtarı kabul edilmedi. Ayarlar > Yapay zekâ\'dan '
-          'anahtarı kontrol edin. ($detail)',
+      AiFailure.auth =>
+        'API anahtarı kabul edilmedi. Ayarlar > Yapay zekâ\'dan '
+            'anahtarı kontrol edin. ($detail)',
       AiFailure.modelMissing =>
         'Seçili modellerin hiçbiri bu anahtarla kullanılamıyor (model '
             'kaldırılmış olabilir). Ayarlar > Yapay zekâ > Model sırası\'ndan '
@@ -505,9 +531,8 @@ abstract final class AiPool {
       AiFailure.transient =>
         'Gemini sunucusu şu an yanıt vermiyor. Biraz sonra yeniden deneyin. '
             '($detail)',
-      AiFailure.content => detail.isEmpty
-          ? 'Model isteği yanıtlayamadı.'
-          : detail,
+      AiFailure.content =>
+        detail.isEmpty ? 'Model isteği yanıtlayamadı.' : detail,
       null => 'Yapay zekâ isteği tamamlanamadı. $detail',
     };
   }
@@ -522,8 +547,8 @@ abstract final class AiPool {
       }
     }
     if (earliest == 0) return 'Tüm anahtar ve modellerin kotası dolu.';
-    final minutes =
-        ((earliest - DateTime.now().millisecondsSinceEpoch) / 60000).ceil();
+    final minutes = ((earliest - DateTime.now().millisecondsSinceEpoch) / 60000)
+        .ceil();
     return 'Tüm anahtar ve modellerin kotası dolu. '
         'En erken $minutes dakika sonra yeniden denenebilir.';
   }
@@ -540,25 +565,28 @@ class PooledGemini extends GeminiService {
   final AiCredentials credentials;
 
   PooledGemini(AiCredentials credentials)
-      : credentials = credentials.normalized,
-        super(
-          // Taban sınıfın alanları yalnız "anahtar var mı" kontrolleri ve hata
-          // metinleri için; gerçek istek her seferinde havuzdan seçilen
-          // ikiliyle kurulur.
-          apiKey: credentials.normalized.keys.isEmpty
-              ? ''
-              : credentials.normalized.keys.first,
-          model: credentials.normalized.models.isEmpty
-              ? AiPool.safetyNet.first
-              : credentials.normalized.models.first,
-        );
+    : credentials = credentials.normalized,
+      super(
+        // Taban sınıfın alanları yalnız "anahtar var mı" kontrolleri ve hata
+        // metinleri için; gerçek istek her seferinde havuzdan seçilen
+        // ikiliyle kurulur.
+        apiKey: credentials.normalized.keys.isEmpty
+            ? ''
+            : credentials.normalized.keys.first,
+        model: credentials.normalized.models.isEmpty
+            ? AiPool.safetyNet.first
+            : credentials.normalized.models.first,
+      );
 
   /// Görevin model sırasıyla kimlik kümesi (bkz. `ai_tasks.dart`).
   AiCredentials _forTask(AiTask task, {bool shortInput = true}) =>
       AiCredentials(
         keys: credentials.keys,
-        models: AiTaskModels.resolve(task, credentials.models,
-            shortInput: shortInput),
+        models: AiTaskModels.resolve(
+          task,
+          credentials.models,
+          shortInput: shortInput,
+        ),
       );
 
   @override
@@ -566,18 +594,17 @@ class PooledGemini extends GeminiService {
     required List<ChatTurn> history,
     String? fileContext,
     List<String> memory = const [],
-  }) =>
-      AiPool.run(
-        _forTask(AiTask.chat,
-            shortInput: (fileContext?.length ?? 0) +
-                    history.fold<int>(0, (n, t) => n + t.text.length) <
-                aiShortInputChars),
-        (gemini) => gemini.chat(
-          history: history,
-          fileContext: fileContext,
-          memory: memory,
-        ),
-      );
+  }) => AiPool.run(
+    _forTask(
+      AiTask.chat,
+      shortInput:
+          (fileContext?.length ?? 0) +
+              history.fold<int>(0, (n, t) => n + t.text.length) <
+          aiShortInputChars,
+    ),
+    (gemini) =>
+        gemini.chat(history: history, fileContext: fileContext, memory: memory),
+  );
 
   @override
   Future<String> generateJson({
@@ -585,16 +612,15 @@ class PooledGemini extends GeminiService {
     required Map<String, Object?> schema,
     String? fileContext,
     String? systemInstruction,
-  }) =>
-      AiPool.run(
-        _forTask(AiTask.structured, shortInput: false),
-        (gemini) => gemini.generateJson(
-          prompt: prompt,
-          schema: schema,
-          fileContext: fileContext,
-          systemInstruction: systemInstruction,
-        ),
-      );
+  }) => AiPool.run(
+    _forTask(AiTask.structured, shortInput: false),
+    (gemini) => gemini.generateJson(
+      prompt: prompt,
+      schema: schema,
+      fileContext: fileContext,
+      systemInstruction: systemInstruction,
+    ),
+  );
 
   @override
   Future<String> generateJsonFromImage({
@@ -602,10 +628,13 @@ class PooledGemini extends GeminiService {
     required Map<String, Object?> schema,
     required Uint8List image,
     required String mimeType,
-  }) =>
-      AiPool.run(
-        _forTask(AiTask.vision, shortInput: false),
-        (gemini) => gemini.generateJsonFromImage(
-            prompt: prompt, schema: schema, image: image, mimeType: mimeType),
-      );
+  }) => AiPool.run(
+    _forTask(AiTask.vision, shortInput: false),
+    (gemini) => gemini.generateJsonFromImage(
+      prompt: prompt,
+      schema: schema,
+      image: image,
+      mimeType: mimeType,
+    ),
+  );
 }

@@ -32,6 +32,14 @@ void main() {
     removeTempDir(dir);
   });
 
+  // Etiketli şerit yongaları genişledi: düğme ekran dışında kalabilir.
+  Future<void> rib(WidgetTester t, String key) async {
+    final f = find.byKey(ValueKey(key));
+    await t.ensureVisible(f);
+    await t.pump();
+    await t.tap(f);
+  }
+
   Future<void> settle(WidgetTester t) async {
     await t.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 80)));
@@ -84,7 +92,7 @@ void main() {
     final c = await open(t);
     final before = c.paras.where((p) => p.cell != null).length;
     await tab(t, 'Ekle');
-    await t.tap(find.byKey(const ValueKey('word-ins-table')));
+    await rib(t, 'word-ins-table');
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('word-cell-3-4')));
     await t.pump();
@@ -102,12 +110,12 @@ void main() {
     final i = c.paras.indexWhere((p) => p.text.startsWith('Ortalanmış'));
     c.select(DocPos(i, 0), DocPos(i, 0));
     await tab(t, 'Ekle');
-    await t.tap(find.byKey(const ValueKey('word-ins-symbol')));
+    await rib(t, 'word-ins-symbol');
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('word-sym-€')));
     await settle(t);
     expect(c.paras[i].text.startsWith('€'), isTrue);
-    await t.tap(find.byKey(const ValueKey('word-ins-break')));
+    await rib(t, 'word-ins-break');
     await t.pump();
     expect(c.paras[i].atoms.any((a) => a != null), isTrue);
   });
@@ -115,7 +123,7 @@ void main() {
   testWidgets('Düzen > Yönlendirme: yatay', (t) async {
     final c = await open(t);
     await tab(t, 'Düzen');
-    await t.tap(find.byKey(const ValueKey('word-lay-orient')));
+    await rib(t, 'word-lay-orient');
     await t.pumpAndSettle();
     await t.tap(find.text('Yatay').last);
     await t.pumpAndSettle();
@@ -126,7 +134,7 @@ void main() {
       (t) async {
     final c = await open(t);
     await tab(t, 'Gözden Geçir');
-    await t.tap(find.byKey(const ValueKey('word-find')));
+    await rib(t, 'word-find');
     await settle(t);
     expect(find.byKey(const ValueKey('word-find-bar')), findsOneWidget);
     await t.enterText(find.byType(TextField).first, 'proje');
@@ -148,13 +156,13 @@ void main() {
     expect(c.inTable, isTrue);
     await tab(t, 'Tablo');
     final before = c.paras.where((p) => p.cell != null).length;
-    await t.tap(find.byKey(const ValueKey('word-tbl-row-below')));
+    await rib(t, 'word-tbl-row-below');
     await settle(t);
     expect(c.paras.where((p) => p.cell != null).length, before + 2);
-    await t.tap(find.byKey(const ValueKey('word-tbl-del-row')));
+    await rib(t, 'word-tbl-del-row');
     await settle(t);
     expect(c.paras.where((p) => p.cell != null).length, before);
-    await t.tap(find.byKey(const ValueKey('word-tbl-header')));
+    await rib(t, 'word-tbl-header');
     await settle(t);
     expect(c.tableHeader, isFalse);
   });
@@ -162,7 +170,7 @@ void main() {
   testWidgets('Ekle > Üst/alt bilgi: yaz → uygula', (t) async {
     final c = await open(t);
     await tab(t, 'Ekle');
-    await t.tap(find.byKey(const ValueKey('word-ins-hf')));
+    await rib(t, 'word-ins-hf');
     await t.pumpAndSettle();
     await t.enterText(find.byKey(const ValueKey('word-hf-header')), 'Gizli');
     await t.ensureVisible(find.byKey(const ValueKey('word-hf-apply')));

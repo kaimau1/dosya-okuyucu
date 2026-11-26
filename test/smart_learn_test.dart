@@ -1,4 +1,3 @@
-import 'package:dosya_okuyucu/screens/fm/image_insight.dart';
 import 'package:dosya_okuyucu/screens/fm/tools_screen.dart';
 import 'package:dosya_okuyucu/services/fm/smart_folder_prefs.dart';
 import 'package:dosya_okuyucu/services/fm/smart_learn.dart';
@@ -81,24 +80,6 @@ void main() {
     final q = SmartTaxonomy.questions(image: true, nowYear: 2026, learned: h);
     expect(q.first.instructions, endsWith(h));
     SmartLearn.debugReset();
-  });
-
-  group('ImageInsight.parse', () {
-    test('JSON → açıklama, en çok dört ayrıntı', () {
-      final r = ImageInsight.parse(
-          '{"kind":"Uygulama ekran görüntüsü","summary":"Dosya yöneticisinin ana ekranı.",'
-          '"points":["197 GB boş","a","b","c","d"],"app":"Dosya Okuyucu"}');
-      expect(r, isNotNull);
-      expect(r!.kind, 'Uygulama ekran görüntüsü');
-      expect(r.points, hasLength(4));
-      expect(r.app, 'Dosya Okuyucu');
-    });
-
-    test('kod çiti ve bozuk yanıt', () {
-      expect(ImageInsight.parse('```json\n{"summary":"x"}\n```')?.summary, 'x');
-      expect(ImageInsight.parse('bozuk'), isNull);
-      expect(ImageInsight.parse('{"kind":"y"}'), isNull);
-    });
   });
 
   test('akıllı klasör düzeni: kullanıcı sırası önce, sütun 2–4', () async {

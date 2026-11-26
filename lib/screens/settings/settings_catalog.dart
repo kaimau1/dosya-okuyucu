@@ -23,6 +23,9 @@ import 'tiles_smart.dart';
 import 'tiles_system.dart';
 import 'tiles_trash.dart';
 import '../../core/app_version.dart';
+import '../../core/ecosystem_apps.dart';
+import '../../core/theme.dart';
+import '../../widgets/cross_app_promo_card.dart';
 import '../audiobook/voices_screen.dart';
 import '../fm/smart_bench_screen.dart';
 import '../audiobook/audiobook_library_screen.dart';
@@ -76,17 +79,14 @@ class SettingRow {
   /// Sıra önemli: ilk öğe başlıktır ve [SettingsSearch.score] başlıktaki
   /// eşleşmeye daha yüksek puan verir.
   List<String> searchFields(BuildContext context) => [
-        context.t(titleKey),
-        ...AppStrings.variants(titleKey),
-        if (subtitleKey != null) ...[
-          context.t(subtitleKey!),
-          ...AppStrings.variants(subtitleKey!),
-        ],
-        for (final key in altKeys) ...[
-          context.t(key),
-          ...AppStrings.variants(key),
-        ],
-      ];
+    context.t(titleKey),
+    ...AppStrings.variants(titleKey),
+    if (subtitleKey != null) ...[
+      context.t(subtitleKey!),
+      ...AppStrings.variants(subtitleKey!),
+    ],
+    for (final key in altKeys) ...[context.t(key), ...AppStrings.variants(key)],
+  ];
 
   /// [query] bu ayara uyuyor mu?
   bool matches(BuildContext context, String query) =>
@@ -157,706 +157,779 @@ List<String> suggestedSettingIds({
   required bool appLock,
   required bool autoSave,
   int max = 4,
-}) =>
-    [
-      if (!hasApiKey) 'api_key',
-      if (!autoSave) 'auto_save',
-      if (!appLock) 'app_lock',
-      'ui_text_size',
-      'skin',
-      'language',
-    ].take(max).toList();
+  Edition edition = Edition.current,
+}) => [
+  if (edition.has(Feature.ai) && !hasApiKey) 'api_key',
+  if (!autoSave) 'auto_save',
+  if (!appLock) 'app_lock',
+  'ui_text_size',
+  'skin',
+  'language',
+].take(max).toList();
 
-/// Yedi kategori (+ [developer] açıksa Geliştirici). **Sıra bilinçli:** önce her açılışta göze çarpan şey
-/// (görünüm), sonra en çok kullanılan (dosya listeleri), sonra yetenek açan
-/// ayarlar (yapay zekâ, hesap), sonra koruma (gizlilik), sonra yer açma
-/// (silme), sonra pil, en sonda hakkında.
-List<SettingsCategory> settingsCategories({bool developer = false}) => [
-      // ── 1. GÖRÜNÜM VE DİL ────────────────────────────────────────────────
-      SettingsCategory(
-        id: 'appearance',
-        color: AppHues.purple,
-        icon: AppIcons.palette,
-        titleKey: 'set.cat_appearance',
-        subtitleKey: 'set.cat_appearance_sub',
-        summary: (context) {
-          final s = context.watch<AppState>();
-          return '${context.t(s.appSkin.labelKey)} · '
-              '${_themeModeLabel(context, s.themeMode)} · '
-              '${s.language.nativeLabel}';
-        },
-        sections: const [
-          SettingsSection('set.sec_theme', [
-            SettingRow(
-                id: 'skin',
-                titleKey: 'skin.title',
-                altKeys: [
-                  'skin.sage',
-                  'skin.porcelain',
-                  'skin.clay',
-                  'skin.modern',
-                  'skin.night',
-                  'skin.lavender',
-                  'skin.mint',
-                  'thp.amoled',
-                  'thp.paper',
-                  'set.kw_dark',
-                ],
-                builder: _skinTile),
-            SettingRow(
-                id: 'theme',
-                titleKey: 'settings.theme',
-                altKeys: ['settings.theme_dark', 'settings.theme_light',
-                    'set.kw_dark'],
-                builder: _themeTile),
-            SettingRow(
-                id: 'background',
-                titleKey: 'bgc.title',
-                builder: _backgroundTile),
-          ]),
-          SettingsSection('set.sec_text', [
-            SettingRow(
-                id: 'ui_font',
-                titleKey: 'settings.ui_font',
-                altKeys: ['set.kw_font'],
-                builder: _fontTile),
-            SettingRow(
-                id: 'ui_text_size',
-                titleKey: 'settings.ui_text_size',
-                subtitleKey: 'settings.ui_text_size_note',
-                altKeys: ['set.kw_font'],
-                builder: _textSizeTile),
-          ]),
-          SettingsSection('set.sec_language', [
-            SettingRow(
-                id: 'language',
-                titleKey: 'settings.language',
-                subtitleKey: 'settings.language_note',
-                builder: _languageTile),
-          ]),
-          // Alt çubuk kısayolları (2026-10-18) — yazı tipi/dil satırlarının
-          // ALTINDA: kategori ekranındaki yerleri testlerde sabit.
-          SettingsSection('nav.section', [
-            SettingRow(
-                id: 'haptics',
-                titleKey: 'set.haptics',
-                subtitleKey: 'set.haptics_sub',
-                builder: _hapticsTile),
-          ]),
-          // Vurgu rengi kategorinin SONUNDA (üstteki satırların yerleri
-          // testlerde sabit; 2026-11-07'de hızlı tema çipleri kalktı).
-          SettingsSection('acc.title', [
-            SettingRow(
-                id: 'accent',
-                titleKey: 'acc.title',
-                altKeys: ['acc.blue', 'acc.teal'],
-                builder: _accentTile),
-          ]),
-          // Menü görünümü (2026-11-15) — en sonda: üstteki satırların yerleri
-          // testlerde sabit.
-          SettingsSection('menu.look_title', [
-            SettingRow(
-                id: 'menu_look',
-                titleKey: 'menu.look_title',
-                subtitleKey: 'menu.look_sub',
-                altKeys: ['menu.look_tabbed', 'menu.look_bento'],
-                builder: _menuLookTile),
-          ]),
-        ],
-      ),
-
-      // ── 2. DOSYA LİSTELERİ ───────────────────────────────────────────────
-      SettingsCategory(
-        id: 'browsing',
-        color: AppHues.honey,
-        icon: AppIcons.layoutList,
-        titleKey: 'set.cat_browsing',
-        subtitleKey: 'set.cat_browsing_sub',
-        summary: (context) {
-          final s = context.watchBrowse();
-          return '${context.t(s.fmLayout.labelKey)} · '
-              '${context.t(s.fmSort.labelKey)}';
-        },
-        sections: const [
-          SettingsSection('set.sec_lists', [
-            SettingRow(
-                id: 'list_layout',
-                titleKey: 'fmset.list_layout',
-                subtitleKey: 'fmset.grid_density',
-                builder: _listLayoutTile),
-            SettingRow(
-                id: 'default_sort',
-                titleKey: 'fmset.default_sort',
-                builder: _defaultSortTile),
-            SettingRow(
-                id: 'thumbnails',
-                titleKey: 'fmset.thumbnails',
-                subtitleKey: 'fmset.thumbnails_sub',
-                builder: _thumbnailsTile),
-            SettingRow(
-                id: 'show_hidden',
-                titleKey: 'fmset.show_hidden',
-                subtitleKey: 'fmset.show_hidden_sub',
-                builder: _showHiddenTile),
-            SettingRow(
-                id: 'folder_sizes',
-                titleKey: 'fmset.folder_sizes',
-                subtitleKey: 'fmset.folder_sizes_sub',
-                builder: _folderSizesTile),
-            SettingRow(
-                id: 'resume_position',
-                titleKey: 'fmset.resume',
-                subtitleKey: 'fmset.resume_sub',
-                builder: _resumePositionTile),
-            SettingRow(
-                id: 'audio_background',
-                titleKey: 'fmset.audio_bg',
-                subtitleKey: 'fmset.audio_bg_sub',
-                builder: _audioBackgroundTile),
-          ]),
-          SettingsSection('set.sec_documents', [
-            SettingRow(
-                id: 'auto_save',
-                titleKey: 'edit.autosave',
-                subtitleKey: 'edit.autosave_sub',
-                builder: _autoSaveTile),
-            SettingRow(
-                id: 'word_spellcheck',
-                titleKey: 'word.spellcheck',
-                subtitleKey: 'word.spellcheck_sub',
-                builder: _wordSpellTile),
-            SettingRow(
-                id: 'word_autoformat',
-                titleKey: 'word.autoformat',
-                subtitleKey: 'word.autoformat_sub',
-                builder: _wordAutoFormatTile),
-            SettingRow(
-                id: 'excel_formula_english',
-                titleKey: 'excel.formula_english',
-                subtitleKey: 'excel.formula_english_sub',
-                builder: _formulaEnTile),
-            SettingRow(
-                id: 'ocr_script',
-                titleKey: 'ocr.script',
-                altKeys: ['ocr.script_arabic'],
-                builder: _ocrScriptTile),
-          ]),
-          SettingsSection('set.sec_photos', [
-            SettingRow(
-                id: 'photo_grid',
-                titleKey: 'fmset.photo_grid',
-                builder: _photoGridTile),
-            SettingRow(
-                id: 'photo_group',
-                titleKey: 'fmset.group_photos',
-                builder: _photoGroupTile),
-          ]),
-          SettingsSection('set.sec_opening', [
-            SettingRow(
-                id: 'media_open_with',
-                titleKey: 'fmset.media_open_with',
-                builder: _mediaOpenWithTile),
-            SettingRow(
-                id: 'start_folder',
-                titleKey: 'fmset.start_folder',
-                builder: _startFolderTile),
-          ]),
-        ],
-      ),
-
-      // ── 3. OKUMA VE SESLİ OKUMA ──────────────────────────────────────────
-      // 2026-08-29'da EKLENDİ: `TtsPrefs` (ses, hız, perde) ve "AI yanıtlarını
-      // sesli oku" tercihleri uygulamada VARDI ama yalnız okuyucu ekranının
-      // içindeki alt sayfadan ulaşılabiliyordu — Ayarlar'da hiç yoktu, yani
-      // kullanıcı bir belge açmadan sesini seçemiyordu.
-      SettingsCategory(
-        id: 'reading',
-        color: AppHues.sea,
-        icon: AppIcons.voice,
-        titleKey: 'set.cat_reading',
-        subtitleKey: 'set.cat_reading_sub',
-        summary: (context) {
-          final s = context.watch<AppState>();
-          final speed = s.ttsPrefs.rate.toStringAsFixed(1);
-          return context.t('set.tts_summary', {'x': speed});
-        },
-        sections: const [
-          SettingsSection('set.sec_tts', [
-            SettingRow(
-                id: 'tts_voice',
-                titleKey: 'set.tts_voice',
-                subtitleKey: 'set.tts_voice_sub',
-                altKeys: ['set.kw_speak'],
-                builder: _ttsVoiceTile),
-            SettingRow(
-                id: 'tts_ai_read',
-                titleKey: 'set.tts_ai_read',
-                subtitleKey: 'set.tts_ai_read_sub',
-                altKeys: ['set.kw_speak'],
-                builder: _ttsAiReadTile),
-            SettingRow(
-                id: 'neural_voices',
-                titleKey: 'voice.title',
-                altKeys: ['set.kw_speak', 'ab.library'],
-                builder: _neuralVoicesTile),
-            SettingRow(
-                id: 'audiobooks',
-                titleKey: 'ab.library',
-                altKeys: ['set.kw_speak'],
-                builder: _audiobooksTile),
-          ]),
-        ],
-      ),
-
-      // ── 4. YAPAY ZEKÂ ────────────────────────────────────────────────────
-      // U4 (2026-11-20, kullanıcı: "Yapay zekâ ayar sayfası yeni duruma göre
-      // baştan yazılsın, artık ana özelliğimiz akıllı klasörler"): EN ÜSTTE
-      // Akıllı klasörler (Akıllı düzen ayarları, hassas kategori PIN'i,
-      // Kategorilerim), sonra erişim (anahtar), sonra gizlilik ve onay
-      // (Gizlilik kategorisinden AI'ya özgü iki satır buraya geldi). Sohbetle
-      // işlevsiz kalan "AI Kalıcı Hafıza" bölümü kalktı (notlar silinmedi).
-      SettingsCategory(
-        id: 'ai',
-        color: AppHues.royal,
-        icon: AppIcons.ai,
-        titleKey: 'set.cat_ai',
-        subtitleKey: 'set.cat_ai_sub',
-        summary: (context) {
-          final s = context.watchAi();
-          if (!s.hasApiKey) return context.t('set.ai_no_key');
-          return '${s.model} · ${context.t('set.ai_key_count', {
-                'n': s.apiKeys.length
-              })}';
-        },
-        sections: const [
-          SettingsSection('set.sec_smart', [
-            SettingRow(
-              id: 'smart_sort',
-              titleKey: 'sm.title',
-              subtitleKey: 'set.smart_sort_sub',
-              altKeys: ['sm.folders', 'sm.cap_title', 'sm.bg', 'sm.camera'],
-              builder: _smartSortTile,
-            ),
-            SettingRow(
-              id: 'smart_sensitive',
-              titleKey: 'set.smart_pin',
-              subtitleKey: 'set.smart_pin_none',
-              builder: _smartPinTile,
-            ),
-            SettingRow(
-              id: 'smart_user_cats',
-              titleKey: 'suc.section',
-              subtitleKey: 'suc.sub',
-              builder: _smartUserCatsTile,
-            ),
-          ]),
-          SettingsSection('set.sec_key', [
-            SettingRow(
-              id: 'api_key',
-              titleKey: 'settings.api_key',
-              subtitleKey: 'set.api_key_sub',
-              altKeys: ['set.kw_gemini'],
-              builder: _aiAccessTile,
-            ),
-            SettingRow(
-              id: 'ai_task_models',
-              titleKey: 'aitask.title',
-              subtitleKey: 'aitask.title_sub',
-              builder: _aiTaskModelsTile,
-            ),
-          ]),
-          SettingsSection('set.sec_ai_privacy', [
-            SettingRow(
-              id: 'ai_send_ask',
-              titleKey: 'aisend.setting',
-              subtitleKey: 'aisend.setting_sub',
-              builder: _aiSendAskTile,
-            ),
-            SettingRow(
-              id: 'ai_pii_mask',
-              titleKey: 'pii.setting',
-              subtitleKey: 'pii.setting_sub',
-              builder: _piiMaskTile,
-            ),
-            SettingRow(
-              id: 'ai_privacy',
-              titleKey: 'aiset.send_text',
-              subtitleKey: 'aiset.send_text_sub',
-              altKeys: ['aiset.send_images', 'aiset.hidden', 'aiset.excerpt'],
-              builder: _aiPrivacyTile,
-            ),
-            SettingRow(
-              id: 'share_shield',
-              titleKey: 'shield.setting',
-              subtitleKey: 'shield.setting_sub',
-              builder: _shareShieldTile,
-            ),
-          ]),
-          SettingsSection('set.sec_ai_scope', [
-            SettingRow(
-              id: 'ai_excluded',
-              titleKey: 'aiset.excluded',
-              subtitleKey: 'aiset.excluded_sub',
-              builder: _aiExcludedTile,
-            ),
-            SettingRow(
-              id: 'ai_types',
-              titleKey: 'aiset.types',
-              builder: _aiTypesTile,
-            ),
-            // Akıllı dosya asistanının (eski analiz) kendiliğinden turu.
-            SettingRow(
-              id: 'ai_auto_new',
-              titleKey: 'aiset.auto_new',
-              subtitleKey: 'aiset.auto_new_sub',
-              builder: _aiAutoNewTile,
-            ),
-          ]),
-          // Uzman işi: model zinciri, yedek anahtar havuzu, günlük bütçe.
-          SettingsSection('set.sec_advanced', [
-            SettingRow(
-              id: 'ai_backup_keys',
-              titleKey: 'aipool.backup_keys',
-              subtitleKey: 'aipool.backup_keys_sub',
-              builder: _aiBackupKeysTile,
-            ),
-            SettingRow(
-              id: 'ai_model_chain',
-              titleKey: 'aipool.model_chain',
-              subtitleKey: 'aipool.model_chain_sub',
-              builder: _aiModelChainTile,
-            ),
-            SettingRow(
-              id: 'ai_budget',
-              titleKey: 'aiset.budget',
-              subtitleKey: 'aiset.budget_sub',
-              builder: _aiBudgetTile,
-            ),
-          ], advanced: true),
-        ],
-      ),
-
-      // ── 5. GİZLİLİK VE HESAP ─────────────────────────────────────────────
-      // "Hesap & Senkron" tek satırlık AYRI bir kategoriydi; girip tek bir
-      // satır görmek kullanıcıya bir şey kazandırmıyordu. Giriş yapmak da,
-      // klasör kilitlemek de, izin vermek de aynı soruya bakıyor: "verime kim
-      // erişiyor" (birleştirme, 2026-08-29).
-      SettingsCategory(
-        id: 'privacy',
-        color: AppHues.leaf,
-        icon: AppIcons.shield,
-        titleKey: 'set.cat_privacy',
-        subtitleKey: 'set.cat_privacy_sub',
-        summary: (context) {
-          final s = context.watchBrowse();
-          return s.fmHasLockPin
-              ? context.t('fmset.pin_sub_locked', {'n': s.fmLockedFolders.length})
-              : context.t('fmset.pin_sub_unset');
-        },
-        sections: const [
-          SettingsSection('settings.privacy_policy', [
-            SettingRow(
-              id: 'privacy_policy',
-              titleKey: 'settings.privacy_policy',
-              subtitleKey: 'settings.privacy_policy_sub',
-              builder: _privacyPolicyTile,
-            ),
-          ]),
-          SettingsSection('set.sec_lock', [
-            SettingRow(
-              id: 'pin',
-              titleKey: 'fmset.pin_set',
-              altKeys: ['fmset.pin_change', 'fmset.sec_privacy'],
-              builder: _pinTile,
-            ),
-            // Uygulama kilidi PIN'in HEMEN ALTINDA: aynı sayıyı kullanıyor
-            // ve PIN kurulmadan açılamıyor, yani sırası bir yönerge.
-            SettingRow(
-              id: 'app_lock',
-              titleKey: 'lock.app_title',
-              subtitleKey: 'lock.app_sub_on',
-              builder: _appLockTile,
-            ),
-            SettingRow(
-                id: 'locked_folders',
-                titleKey: 'fmset.unlock',
-                builder: _lockedFoldersTile),
-          ]),
-          // Play yorum çalışması aşama 2 (2026-11-08): "verim nereye gidiyor"
-          // sorusunun cevabı tek sayfada — ağ önce, sonra her izin (neden ·
-          // durum · ver/geri al).
-          SettingsSection('set.sec_network', [
-            SettingRow(
-              id: 'offline_mode',
-              titleKey: 'offline.title',
-              subtitleKey: 'offline.sub',
-              altKeys: ['set.kw_offline'],
-              builder: _offlineTile,
-            ),
-            SettingRow(
-              id: 'privacy_wipe',
-              titleKey: 'wipe.title',
-              subtitleKey: 'wipe.sub',
-              builder: _privacyWipeTile,
-            ),
-          ]),
-          SettingsSection('fmset.sec_permissions', [
-            SettingRow(
-                id: 'full_access',
-                titleKey: 'fmset.full_access',
-                builder: _fullAccessTile),
-            SettingRow(
-                id: 'notif_access',
-                titleKey: 'perm.notifications_title',
-                builder: _notifAccessTile),
-            SettingRow(
-                id: 'camera_access',
-                titleKey: 'perm.camera_title',
-                builder: _cameraAccessTile),
-            SettingRow(
-                id: 'location_access',
-                titleKey: 'perm.location_title',
-                builder: _locationAccessTile),
-            SettingRow(
-                id: 'overlay_access',
-                titleKey: 'perm.overlay_title',
-                builder: _overlayAccessTile),
-            SettingRow(
-                id: 'saf_folders',
-                titleKey: 'saf.folders_title',
-                subtitleKey: 'saf.folders_sub',
-                builder: _safFoldersTile),
-            SettingRow(
-                id: 'usage_access',
-                titleKey: 'fmset.usage_access',
-                builder: _usageAccessTile),
-          ]),
-        ],
-      ),
-
-      // ── 6. DEPOLAMA VE BAŞARIM ───────────────────────────────────────────
-      // "Çöp kutusu" ve "Pil ve başarım" ayrı iki kategoriydi; ikisi de dört
-      // satırdı ve ikisi de aynı soruya bakıyordu: "yer ve hız". Birleşti;
-      // bakım işleri (dizin, önbellek, birimler) Gelişmiş'e indi.
-      SettingsCategory(
-        id: 'storage',
-        color: AppHues.red,
-        icon: AppIcons.speed,
-        titleKey: 'set.cat_storage',
-        subtitleKey: 'set.cat_storage_sub',
-        summary: (context) {
-          final s = context.watchBrowse();
-          final trash = context.t(
-              s.fmUseTrash ? 'fmset.use_trash' : 'set.trash_off');
-          final refresh = !s.highRefreshRate
-              ? context.t('set.refresh_60')
-              : s.dynamicRefresh
-                  ? context.t('settings.perf_dynamic_refresh')
-                  : context.t('settings.perf_high_refresh');
-          return '$trash · $refresh';
-        },
-        sections: const [
-          // İlk sırada: "uygulama neden bu kadar yer tutuyor" sorusunun
-          // cevabı Gelişmiş'in içinde saklanmamalı (2026-09-26).
-          SettingsSection('foot.section', [
-            SettingRow(
-                id: 'app_footprint',
-                titleKey: 'foot.title',
-                subtitleKey: 'foot.tile_sub',
-                altKeys: ['fmset.clear_thumbs', 'foot.kw_cache'],
-                builder: _appFootprintTile),
-          ]),
-          // Haftalık temizlik bildirimi (2026-10-18).
-          SettingsSection('nx.weekly', [
-            SettingRow(
-                id: 'weekly_cleanup',
-                titleKey: 'nx.weekly',
-                subtitleKey: 'nx.weekly_sub',
-                builder: _weeklyCleanupTile),
-          ]),
-          SettingsSection('fmset.sec_delete', [
-            SettingRow(
-                id: 'use_trash',
-                titleKey: 'fmset.use_trash',
-                subtitleKey: 'fmset.use_trash_sub',
-                builder: _useTrashTile),
-            SettingRow(
-                id: 'confirm_delete',
-                titleKey: 'fmset.confirm_delete',
-                builder: _confirmDeleteTile),
-            SettingRow(
-                id: 'trash_auto',
-                titleKey: 'fmset.trash_auto',
-                altKeys: ['set.kw_days'],
-                builder: _trashAutoTile),
-            SettingRow(
-                id: 'empty_trash',
-                titleKey: 'fmset.empty_trash_now',
-                builder: _emptyTrashTile),
-          ]),
-          SettingsSection('set.sec_speed', [
-            SettingRow(
-                id: 'perf_mode',
-                titleKey: 'perf.mode',
-                subtitleKey: 'perf.mode_sub',
-                builder: _perfModeTile),
-            SettingRow(
-                id: 'high_refresh',
-                titleKey: 'settings.perf_high_refresh',
-                subtitleKey: 'settings.perf_high_refresh_sub',
-                builder: _highRefreshTile),
-            SettingRow(
-                id: 'dynamic_refresh',
-                titleKey: 'settings.perf_dynamic_refresh',
-                subtitleKey: 'settings.perf_dynamic_refresh_sub',
-                builder: _dynamicRefreshTile),
-            SettingRow(
-                id: 'auto_rescan',
-                titleKey: 'settings.perf_auto_rescan',
-                subtitleKey: 'settings.perf_auto_rescan_sub',
-                builder: _autoRescanTile),
-          ]),
-          SettingsSection('fmset.sec_maintenance', [
-            SettingRow(
-                id: 'search_index',
-                titleKey: 'fmset.index',
-                builder: _searchIndexTile),
-            SettingRow(
-                id: 'content_index',
-                titleKey: 'ci.ocr',
-                subtitleKey: 'ci.ocr_sub',
-                altKeys: ['ci.clear'],
-                builder: _contentIndexTile),
-            SettingRow(
-                id: 'volumes',
-                titleKey: 'fmset.volumes',
-                builder: _volumesTile),
-            // **Ayar yedeği** (2026-09-06): uygulama mağazadan değil
-            // Releases'ten geliyor, yani Android'in otomatik yedeği bir
-            // güvence değil.
-            SettingRow(
-              id: 'settings_backup',
-              titleKey: 'backup.title',
-              subtitleKey: 'backup.sub',
-              altKeys: ['backup.restore'],
-              builder: _settingsBackupTile,
-            ),
-          ], advanced: true),
-          // **Deneysel** (2026-10-21, K8): SD kartla birleşik depolama
-          // kullanıcı dosyalarını arka planda TAŞIYOR — varsayılan kapalı,
-          // Gelişmiş'in altında ve adı üstünde "deneysel".
-          SettingsSection('set.sec_experimental', [
-            SettingRow(
-                id: 'sd_union',
-                titleKey: 'sdu.title',
-                subtitleKey: 'sdu.tile_sub',
-                altKeys: ['sdu.kw', 'set.sec_experimental'],
-                builder: _sdUnionTile),
-          ], advanced: true),
-        ],
-      ),
-
-      // ── 7. HAKKINDA ──────────────────────────────────────────────────────
-      SettingsCategory(
-        id: 'about',
-        color: AppHues.gray,
-        icon: AppIcons.info,
-        titleKey: 'settings.about',
-        subtitleKey: 'settings.about_sub',
-        summary: (context) => 'v$appVersionName',
-        sections: const [
-          // Lite'ta Pro tanıtımı (SÜRÜM PLANI §3 madde 3) — yalnız Lite.
-          if (Edition.current == Edition.lite)
-            SettingsSection('pro.title', [
-              SettingRow(
-                  id: 'pro_version',
-                  titleKey: 'pro.title',
-                  subtitleKey: 'pro.row_sub',
-                  builder: _proTile),
-            ]),
-          SettingsSection('settings.about', [
-            SettingRow(
-                id: 'about', titleKey: 'settings.about', builder: _aboutTile),
-            if (Edition.current == Edition.kisisel)
-              SettingRow(
-                  id: 'app_update',
-                  titleKey: 'upd.title',
-                  subtitleKey: 'upd.auto_sub',
-                  altKeys: ['upd.check', 'upd.auto'],
-                  builder: _appUpdateTile),
-            SettingRow(
-                id: 'help',
-                titleKey: 'help.title',
-                subtitleKey: 'help.tile_sub',
-                builder: _helpTile),
-            SettingRow(
-                id: 'hints_reset',
-                titleKey: 'set.hints_reset',
-                subtitleKey: 'set.hints_reset_sub',
-                builder: _hintsResetTile),
-            SettingRow(
-              id: 'crash_log',
-              titleKey: 'settings.crash_log',
-              subtitleKey: 'settings.crash_log_sub',
-              builder: _crashLogTile,
-            ),
-          ]),
-        ],
-      ),
-
-      // ── 8. GELİŞTİRİCİ (gizli) ───────────────────────────────────────────
-      if (developer)
-        SettingsCategory(
-          id: 'developer',
-          color: const Color(0xFF5B6470),
-          icon: AppIcons.developerMode,
-          titleKey: 'dev.title',
-          subtitleKey: 'dev.sub',
-          summary: (context) => context.t('dev.on'),
-          sections: const [
-            SettingsSection('dev.title', [
-              // "Bellek takılı ama görünmüyor" sorununun ÖLÇÜMÜ.
-              SettingRow(
-                  id: 'usb_diagnostics',
-                  titleKey: 'usb.diag_title',
-                  subtitleKey: 'usb.diag_sub',
-                  builder: _usbDiagnosticsTile),
-              // Anahtar havuzunun canlı durumu — teşhis bilgisi.
-              SettingRow(
-                  id: 'ai_pool_status',
-                  titleKey: 'aipool.status',
-                  builder: _aiPoolStatusTile),
-              // Akıllı düzen doğruluk tezgâhı (PLAN §1.1 m.4).
-              SettingRow(
-                  id: 'smart_bench',
-                  titleKey: 'sb.title',
-                  subtitleKey: 'sb.sub',
-                  builder: _smartBenchTile),
-              SettingRow(
-                  id: 'lab_word_editor',
-                  titleKey: 'lab.word_flag',
-                  subtitleKey: 'lab.word_flag_sub',
-                  builder: _labWordTile),
-              SettingRow(
-                  id: 'editor_perf',
-                  titleKey: 'edit.perf_overlay',
-                  subtitleKey: 'edit.perf_overlay_sub',
-                  builder: _editorPerfTile),
-              SettingRow(
-                  id: 'developer_off',
-                  titleKey: 'dev.turn_off',
-                  builder: _developerOffTile),
-            ]),
+/// Sürüme göre ayar kategorileri (+ [developer] ve labs açıksa Geliştirici).
+List<SettingsCategory> settingsCategories({
+  bool developer = false,
+  Edition edition = Edition.current,
+}) => [
+  // ── 1. GÖRÜNÜM VE DİL ────────────────────────────────────────────────
+  SettingsCategory(
+    id: 'appearance',
+    color: AppHues.purple,
+    icon: AppIcons.palette,
+    titleKey: 'set.cat_appearance',
+    subtitleKey: 'set.cat_appearance_sub',
+    summary: (context) {
+      final s = context.watch<AppState>();
+      return '${context.t(s.appSkin.labelKey)} · '
+          '${_themeModeLabel(context, s.themeMode)} · '
+          '${s.language.nativeLabel}';
+    },
+    sections: const [
+      SettingsSection('set.sec_theme', [
+        SettingRow(
+          id: 'skin',
+          titleKey: 'skin.title',
+          altKeys: [
+            'skin.sage',
+            'skin.porcelain',
+            'skin.clay',
+            'skin.modern',
+            'skin.night',
+            'skin.lavender',
+            'skin.mint',
+            'thp.amoled',
+            'thp.paper',
+            'set.kw_dark',
           ],
+          builder: _skinTile,
         ),
-    ];
+        SettingRow(
+          id: 'theme',
+          titleKey: 'settings.theme',
+          altKeys: [
+            'settings.theme_dark',
+            'settings.theme_light',
+            'set.kw_dark',
+          ],
+          builder: _themeTile,
+        ),
+        SettingRow(
+          id: 'background',
+          titleKey: 'bgc.title',
+          builder: _backgroundTile,
+        ),
+      ]),
+      SettingsSection('set.sec_text', [
+        SettingRow(
+          id: 'ui_font',
+          titleKey: 'settings.ui_font',
+          altKeys: ['set.kw_font'],
+          builder: _fontTile,
+        ),
+        SettingRow(
+          id: 'ui_text_size',
+          titleKey: 'settings.ui_text_size',
+          subtitleKey: 'settings.ui_text_size_note',
+          altKeys: ['set.kw_font'],
+          builder: _textSizeTile,
+        ),
+      ]),
+      SettingsSection('set.sec_language', [
+        SettingRow(
+          id: 'language',
+          titleKey: 'settings.language',
+          subtitleKey: 'settings.language_note',
+          builder: _languageTile,
+        ),
+      ]),
+      // Alt çubuk kısayolları (2026-10-18) — yazı tipi/dil satırlarının
+      // ALTINDA: kategori ekranındaki yerleri testlerde sabit.
+      SettingsSection('nav.section', [
+        SettingRow(
+          id: 'haptics',
+          titleKey: 'set.haptics',
+          subtitleKey: 'set.haptics_sub',
+          builder: _hapticsTile,
+        ),
+      ]),
+      // Vurgu rengi kategorinin SONUNDA (üstteki satırların yerleri
+      // testlerde sabit; 2026-11-07'de hızlı tema çipleri kalktı).
+      SettingsSection('acc.title', [
+        SettingRow(
+          id: 'accent',
+          titleKey: 'acc.title',
+          altKeys: ['acc.blue', 'acc.teal'],
+          builder: _accentTile,
+        ),
+      ]),
+      // Menü görünümü (2026-11-15) — en sonda: üstteki satırların yerleri
+      // testlerde sabit.
+      SettingsSection('menu.look_title', [
+        SettingRow(
+          id: 'menu_look',
+          titleKey: 'menu.look_title',
+          subtitleKey: 'menu.look_sub',
+          altKeys: ['menu.look_tabbed', 'menu.look_bento'],
+          builder: _menuLookTile,
+        ),
+      ]),
+    ],
+  ),
+
+  // ── 2. DOSYA LİSTELERİ ───────────────────────────────────────────────
+  SettingsCategory(
+    id: 'browsing',
+    color: AppHues.honey,
+    icon: AppIcons.layoutList,
+    titleKey: 'set.cat_browsing',
+    subtitleKey: 'set.cat_browsing_sub',
+    summary: (context) {
+      final s = context.watchBrowse();
+      return '${context.t(s.fmLayout.labelKey)} · '
+          '${context.t(s.fmSort.labelKey)}';
+    },
+    sections: const [
+      SettingsSection('set.sec_lists', [
+        SettingRow(
+          id: 'list_layout',
+          titleKey: 'fmset.list_layout',
+          subtitleKey: 'fmset.grid_density',
+          builder: _listLayoutTile,
+        ),
+        SettingRow(
+          id: 'default_sort',
+          titleKey: 'fmset.default_sort',
+          builder: _defaultSortTile,
+        ),
+        SettingRow(
+          id: 'thumbnails',
+          titleKey: 'fmset.thumbnails',
+          subtitleKey: 'fmset.thumbnails_sub',
+          builder: _thumbnailsTile,
+        ),
+        SettingRow(
+          id: 'show_hidden',
+          titleKey: 'fmset.show_hidden',
+          subtitleKey: 'fmset.show_hidden_sub',
+          builder: _showHiddenTile,
+        ),
+        SettingRow(
+          id: 'folder_sizes',
+          titleKey: 'fmset.folder_sizes',
+          subtitleKey: 'fmset.folder_sizes_sub',
+          builder: _folderSizesTile,
+        ),
+        SettingRow(
+          id: 'resume_position',
+          titleKey: 'fmset.resume',
+          subtitleKey: 'fmset.resume_sub',
+          builder: _resumePositionTile,
+        ),
+        SettingRow(
+          id: 'audio_background',
+          titleKey: 'fmset.audio_bg',
+          subtitleKey: 'fmset.audio_bg_sub',
+          builder: _audioBackgroundTile,
+        ),
+      ]),
+      SettingsSection('set.sec_documents', [
+        SettingRow(
+          id: 'auto_save',
+          titleKey: 'edit.autosave',
+          subtitleKey: 'edit.autosave_sub',
+          builder: _autoSaveTile,
+        ),
+        SettingRow(
+          id: 'word_spellcheck',
+          titleKey: 'word.spellcheck',
+          subtitleKey: 'word.spellcheck_sub',
+          builder: _wordSpellTile,
+        ),
+        SettingRow(
+          id: 'word_autoformat',
+          titleKey: 'word.autoformat',
+          subtitleKey: 'word.autoformat_sub',
+          builder: _wordAutoFormatTile,
+        ),
+        SettingRow(
+          id: 'excel_formula_english',
+          titleKey: 'excel.formula_english',
+          subtitleKey: 'excel.formula_english_sub',
+          builder: _formulaEnTile,
+        ),
+        SettingRow(
+          id: 'ocr_script',
+          titleKey: 'ocr.script',
+          altKeys: ['ocr.script_arabic'],
+          builder: _ocrScriptTile,
+        ),
+      ]),
+      SettingsSection('set.sec_photos', [
+        SettingRow(
+          id: 'photo_grid',
+          titleKey: 'fmset.photo_grid',
+          builder: _photoGridTile,
+        ),
+        SettingRow(
+          id: 'photo_group',
+          titleKey: 'fmset.group_photos',
+          builder: _photoGroupTile,
+        ),
+      ]),
+      SettingsSection('set.sec_opening', [
+        SettingRow(
+          id: 'media_open_with',
+          titleKey: 'fmset.media_open_with',
+          builder: _mediaOpenWithTile,
+        ),
+        SettingRow(
+          id: 'start_folder',
+          titleKey: 'fmset.start_folder',
+          builder: _startFolderTile,
+        ),
+      ]),
+    ],
+  ),
+
+  // ── 3. OKUMA VE SESLİ OKUMA ──────────────────────────────────────────
+  // 2026-08-29'da EKLENDİ: `TtsPrefs` (ses, hız, perde) ve "AI yanıtlarını
+  // sesli oku" tercihleri uygulamada VARDI ama yalnız okuyucu ekranının
+  // içindeki alt sayfadan ulaşılabiliyordu — Ayarlar'da hiç yoktu, yani
+  // kullanıcı bir belge açmadan sesini seçemiyordu.
+  SettingsCategory(
+    id: 'reading',
+    color: AppHues.sea,
+    icon: AppIcons.voice,
+    titleKey: 'set.cat_reading',
+    subtitleKey: 'set.cat_reading_sub',
+    summary: (context) {
+      final s = context.watch<AppState>();
+      final speed = s.ttsPrefs.rate.toStringAsFixed(1);
+      return context.t('set.tts_summary', {'x': speed});
+    },
+    sections: [
+      SettingsSection('set.sec_tts', [
+        const SettingRow(
+          id: 'tts_voice',
+          titleKey: 'set.tts_voice',
+          subtitleKey: 'set.tts_voice_sub',
+          altKeys: ['set.kw_speak'],
+          builder: _ttsVoiceTile,
+        ),
+        if (edition.has(Feature.ai))
+          const SettingRow(
+            id: 'tts_ai_read',
+            titleKey: 'set.tts_ai_read',
+            subtitleKey: 'set.tts_ai_read_sub',
+            altKeys: ['set.kw_speak'],
+            builder: _ttsAiReadTile,
+          ),
+        const SettingRow(
+          id: 'neural_voices',
+          titleKey: 'voice.title',
+          altKeys: ['set.kw_speak', 'ab.library'],
+          builder: _neuralVoicesTile,
+        ),
+        const SettingRow(
+          id: 'audiobooks',
+          titleKey: 'ab.library',
+          altKeys: ['set.kw_speak'],
+          builder: _audiobooksTile,
+        ),
+      ]),
+    ],
+  ),
+
+  // ── 4. YAPAY ZEKÂ ────────────────────────────────────────────────────
+  // U4 (2026-11-20, kullanıcı: "Yapay zekâ ayar sayfası yeni duruma göre
+  // baştan yazılsın, artık ana özelliğimiz akıllı klasörler"): Lite'ta gizli.
+  if (edition.has(Feature.ai))
+    SettingsCategory(
+    id: 'ai',
+    color: AppHues.royal,
+    icon: AppIcons.ai,
+    titleKey: 'set.cat_ai',
+    subtitleKey: 'set.cat_ai_sub',
+    summary: (context) {
+      final s = context.watchAi();
+      if (!s.hasApiKey) return context.t('set.ai_no_key');
+      return '${s.model} · ${context.t('set.ai_key_count', {'n': s.apiKeys.length})}';
+    },
+    sections: const [
+      SettingsSection('set.sec_smart', [
+        SettingRow(
+          id: 'smart_sort',
+          titleKey: 'sm.title',
+          subtitleKey: 'set.smart_sort_sub',
+          altKeys: ['sm.folders', 'sm.cap_title', 'sm.bg', 'sm.camera'],
+          builder: _smartSortTile,
+        ),
+        SettingRow(
+          id: 'smart_sensitive',
+          titleKey: 'set.smart_pin',
+          subtitleKey: 'set.smart_pin_none',
+          builder: _smartPinTile,
+        ),
+        SettingRow(
+          id: 'smart_user_cats',
+          titleKey: 'suc.section',
+          subtitleKey: 'suc.sub',
+          builder: _smartUserCatsTile,
+        ),
+      ]),
+      SettingsSection('set.sec_key', [
+        SettingRow(
+          id: 'api_key',
+          titleKey: 'settings.api_key',
+          subtitleKey: 'set.api_key_sub',
+          altKeys: ['set.kw_gemini'],
+          builder: _aiAccessTile,
+        ),
+      ]),
+      SettingsSection('set.sec_ai_privacy', [
+        SettingRow(
+          id: 'ai_send_ask',
+          titleKey: 'aisend.setting',
+          subtitleKey: 'aisend.setting_sub',
+          builder: _aiSendAskTile,
+        ),
+        SettingRow(
+          id: 'ai_pii_mask',
+          titleKey: 'pii.setting',
+          subtitleKey: 'pii.setting_sub',
+          builder: _piiMaskTile,
+        ),
+        SettingRow(
+          id: 'ai_privacy',
+          titleKey: 'aiset.send_text',
+          subtitleKey: 'aiset.send_text_sub',
+          altKeys: ['aiset.send_images', 'aiset.hidden', 'aiset.excerpt'],
+          builder: _aiPrivacyTile,
+        ),
+      ]),
+      SettingsSection('set.sec_ai_scope', [
+        SettingRow(
+          id: 'ai_excluded',
+          titleKey: 'aiset.excluded',
+          subtitleKey: 'aiset.excluded_sub',
+          builder: _aiExcludedTile,
+        ),
+        SettingRow(
+          id: 'ai_types',
+          titleKey: 'aiset.types',
+          builder: _aiTypesTile,
+        ),
+      ]),
+      // Uzman işi: model zinciri, yedek anahtar havuzu, günlük bütçe.
+      SettingsSection('set.sec_advanced', [
+        SettingRow(
+          id: 'ai_backup_keys',
+          titleKey: 'aipool.backup_keys',
+          subtitleKey: 'aipool.backup_keys_sub',
+          builder: _aiBackupKeysTile,
+        ),
+        SettingRow(
+          id: 'ai_model_chain',
+          titleKey: 'aipool.model_chain',
+          subtitleKey: 'aipool.model_chain_sub',
+          builder: _aiModelChainTile,
+        ),
+        SettingRow(
+          id: 'ai_budget',
+          titleKey: 'aiset.budget',
+          subtitleKey: 'aiset.budget_sub',
+          builder: _aiBudgetTile,
+        ),
+      ], advanced: true),
+    ],
+  ),
+
+  // ── 5. GİZLİLİK VE HESAP ─────────────────────────────────────────────
+  // "Hesap & Senkron" tek satırlık AYRI bir kategoriydi; girip tek bir
+  // satır görmek kullanıcıya bir şey kazandırmıyordu. Giriş yapmak da,
+  // klasör kilitlemek de, izin vermek de aynı soruya bakıyor: "verime kim
+  // erişiyor" (birleştirme, 2026-08-29).
+  SettingsCategory(
+    id: 'privacy',
+    color: AppHues.leaf,
+    icon: AppIcons.shield,
+    titleKey: 'set.cat_privacy',
+    subtitleKey: 'set.cat_privacy_sub',
+    summary: (context) {
+      final s = context.watchBrowse();
+      final appLock = context.select<AppState, bool>((a) => a.appLock);
+      if (!s.fmHasLockPin) return context.t('ux47.privacy_unset');
+      return context.t(
+        appLock ? 'ux47.privacy_lock_on' : 'ux47.privacy_lock_off',
+        {'n': s.fmLockedFolders.length},
+      );
+    },
+    sections: [
+      const SettingsSection('settings.privacy_policy', [
+        SettingRow(
+          id: 'privacy_policy',
+          titleKey: 'settings.privacy_policy',
+          subtitleKey: 'settings.privacy_policy_sub',
+          builder: _privacyPolicyTile,
+        ),
+      ]),
+      const SettingsSection('set.sec_lock', [
+        SettingRow(
+          id: 'pin',
+          titleKey: 'fmset.pin_set',
+          altKeys: ['fmset.pin_change', 'fmset.sec_privacy'],
+          builder: _pinTile,
+        ),
+        // Uygulama kilidi PIN'in HEMEN ALTINDA: aynı sayıyı kullanıyor
+        // ve PIN kurulmadan açılamıyor, yani sırası bir yönerge.
+        SettingRow(
+          id: 'app_lock',
+          titleKey: 'lock.app_title',
+          subtitleKey: 'lock.app_sub_on',
+          builder: _appLockTile,
+        ),
+        SettingRow(
+          id: 'locked_folders',
+          titleKey: 'fmset.unlock',
+          builder: _lockedFoldersTile,
+        ),
+      ]),
+      // Play yorum çalışması aşama 2 (2026-11-08): "verim nereye gidiyor"
+      // sorusunun cevabı tek sayfada — ağ önce, sonra her izin (neden ·
+      // durum · ver/geri al).
+      const SettingsSection('set.sec_network', [
+        SettingRow(
+          id: 'offline_mode',
+          titleKey: 'offline.title',
+          subtitleKey: 'offline.sub',
+          altKeys: ['set.kw_offline'],
+          builder: _offlineTile,
+        ),
+        SettingRow(
+          id: 'privacy_wipe',
+          titleKey: 'wipe.title',
+          subtitleKey: 'wipe.sub',
+          builder: _privacyWipeTile,
+        ),
+      ]),
+      SettingsSection('fmset.sec_permissions', [
+        const SettingRow(
+          id: 'full_access',
+          titleKey: 'fmset.full_access',
+          builder: _fullAccessTile,
+        ),
+        const SettingRow(
+          id: 'notif_access',
+          titleKey: 'perm.notifications_title',
+          builder: _notifAccessTile,
+        ),
+        const SettingRow(
+          id: 'camera_access',
+          titleKey: 'perm.camera_title',
+          builder: _cameraAccessTile,
+        ),
+        const SettingRow(
+          id: 'location_access',
+          titleKey: 'perm.location_title',
+          builder: _locationAccessTile,
+        ),
+        if (edition.has(Feature.labs))
+          const SettingRow(
+            id: 'overlay_access',
+            titleKey: 'perm.overlay_title',
+            builder: _overlayAccessTile,
+          ),
+        const SettingRow(
+          id: 'saf_folders',
+          titleKey: 'saf.folders_title',
+          subtitleKey: 'saf.folders_sub',
+          builder: _safFoldersTile,
+        ),
+        if (edition.has(Feature.installedApps))
+          const SettingRow(
+            id: 'usage_access',
+            titleKey: 'fmset.usage_access',
+            builder: _usageAccessTile,
+          ),
+      ]),
+    ],
+  ),
+
+  // ── 6. DEPOLAMA VE BAŞARIM ───────────────────────────────────────────
+  // "Çöp kutusu" ve "Pil ve başarım" ayrı iki kategoriydi; ikisi de dört
+  // satırdı ve ikisi de aynı soruya bakıyordu: "yer ve hız". Birleşti;
+  // bakım işleri (dizin, önbellek, birimler) Gelişmiş'e indi.
+  SettingsCategory(
+    id: 'storage',
+    color: AppHues.red,
+    icon: AppIcons.speed,
+    titleKey: 'set.cat_storage',
+    subtitleKey: 'set.cat_storage_sub',
+    summary: (context) {
+      final s = context.watchBrowse();
+      final trash = context.t(
+        s.fmUseTrash ? 'fmset.use_trash' : 'set.trash_off',
+      );
+      final refresh = !s.highRefreshRate
+          ? context.t('set.refresh_60')
+          : s.dynamicRefresh
+          ? context.t('settings.perf_dynamic_refresh')
+          : context.t('settings.perf_high_refresh');
+      return '$trash · $refresh';
+    },
+    sections: [
+      // İlk sırada: "uygulama neden bu kadar yer tutuyor" sorusunun
+      // cevabı Gelişmiş'in içinde saklanmamalı (2026-09-26).
+      const SettingsSection('foot.section', [
+        SettingRow(
+          id: 'app_footprint',
+          titleKey: 'foot.title',
+          subtitleKey: 'foot.tile_sub',
+          altKeys: ['fmset.clear_thumbs', 'foot.kw_cache'],
+          builder: _appFootprintTile,
+        ),
+      ]),
+      // Haftalık temizlik bildirimi (2026-10-18).
+      const SettingsSection('nx.weekly', [
+        SettingRow(
+          id: 'weekly_cleanup',
+          titleKey: 'nx.weekly',
+          subtitleKey: 'nx.weekly_sub',
+          builder: _weeklyCleanupTile,
+        ),
+      ]),
+      const SettingsSection('fmset.sec_delete', [
+        SettingRow(
+          id: 'use_trash',
+          titleKey: 'fmset.use_trash',
+          subtitleKey: 'fmset.use_trash_sub',
+          builder: _useTrashTile,
+        ),
+        SettingRow(
+          id: 'confirm_delete',
+          titleKey: 'fmset.confirm_delete',
+          builder: _confirmDeleteTile,
+        ),
+        SettingRow(
+          id: 'trash_auto',
+          titleKey: 'fmset.trash_auto',
+          altKeys: ['set.kw_days'],
+          builder: _trashAutoTile,
+        ),
+        SettingRow(
+          id: 'empty_trash',
+          titleKey: 'fmset.empty_trash_now',
+          builder: _emptyTrashTile,
+        ),
+      ]),
+      const SettingsSection('set.sec_speed', [
+        SettingRow(
+          id: 'perf_mode',
+          titleKey: 'perf.mode',
+          subtitleKey: 'perf.mode_sub',
+          builder: _perfModeTile,
+        ),
+        SettingRow(
+          id: 'high_refresh',
+          titleKey: 'settings.perf_high_refresh',
+          subtitleKey: 'settings.perf_high_refresh_sub',
+          builder: _highRefreshTile,
+        ),
+        SettingRow(
+          id: 'dynamic_refresh',
+          titleKey: 'settings.perf_dynamic_refresh',
+          subtitleKey: 'settings.perf_dynamic_refresh_sub',
+          builder: _dynamicRefreshTile,
+        ),
+        SettingRow(
+          id: 'auto_rescan',
+          titleKey: 'settings.perf_auto_rescan',
+          subtitleKey: 'settings.perf_auto_rescan_sub',
+          builder: _autoRescanTile,
+        ),
+      ]),
+      const SettingsSection('fmset.sec_maintenance', [
+        SettingRow(
+          id: 'search_index',
+          titleKey: 'fmset.index',
+          builder: _searchIndexTile,
+        ),
+        SettingRow(
+          id: 'content_index',
+          titleKey: 'ci.ocr',
+          subtitleKey: 'ci.ocr_sub',
+          altKeys: ['ci.clear'],
+          builder: _contentIndexTile,
+        ),
+        SettingRow(
+          id: 'volumes',
+          titleKey: 'fmset.volumes',
+          builder: _volumesTile,
+        ),
+        // **Ayar yedeği** (2026-09-06): uygulama mağazadan değil
+        // Releases'ten geliyor, yani Android'in otomatik yedeği bir
+        // güvence değil.
+        SettingRow(
+          id: 'settings_backup',
+          titleKey: 'backup.title',
+          subtitleKey: 'backup.sub',
+          altKeys: ['backup.restore'],
+          builder: _settingsBackupTile,
+        ),
+      ], advanced: true),
+      // **Deneysel** (2026-10-21, K8): SD kartla birleşik depolama
+      // kullanıcı dosyalarını arka planda TAŞIYOR — varsayılan kapalı,
+      // Gelişmiş'in altında ve adı üstünde "deneysel".
+      if (edition.has(Feature.labs))
+        const SettingsSection('set.sec_experimental', [
+          SettingRow(
+            id: 'sd_union',
+            titleKey: 'sdu.title',
+            subtitleKey: 'sdu.tile_sub',
+            altKeys: ['sdu.kw', 'set.sec_experimental'],
+            builder: _sdUnionTile,
+          ),
+        ], advanced: true),
+    ],
+  ),
+
+  // ── 7. HAKKINDA ──────────────────────────────────────────────────────
+  SettingsCategory(
+    id: 'about',
+    color: AppHues.gray,
+    icon: AppIcons.info,
+    titleKey: 'settings.about',
+    subtitleKey: 'settings.about_sub',
+    summary: (context) => 'v$appVersionName',
+    sections: [
+      // Lite'ta Pro tanıtımı (SÜRÜM PLANI §3 madde 3) — yalnız Lite.
+      if (edition == Edition.lite)
+        const SettingsSection('pro.title', [
+          SettingRow(
+            id: 'pro_version',
+            titleKey: 'pro.title',
+            subtitleKey: 'pro.row_sub',
+            builder: _proTile,
+          ),
+        ]),
+      SettingsSection('settings.about', [
+        const SettingRow(
+          id: 'about',
+          titleKey: 'settings.about',
+          builder: _aboutTile,
+        ),
+        if (edition.isPlay)
+          const SettingRow(
+            id: 'rate_app',
+            titleKey: 'set.rate_app',
+            subtitleKey: 'set.rate_app_sub',
+            builder: _rateAppTile,
+          ),
+        if (edition.has(Feature.selfUpdate))
+          const SettingRow(
+            id: 'app_update',
+            titleKey: 'upd.title',
+            subtitleKey: 'upd.auto_sub',
+            altKeys: ['upd.check', 'upd.auto'],
+            builder: _appUpdateTile,
+          ),
+        const SettingRow(
+          id: 'help',
+          titleKey: 'help.title',
+          subtitleKey: 'help.tile_sub',
+          builder: _helpTile,
+        ),
+        const SettingRow(
+          id: 'feedback',
+          titleKey: 'fb.title',
+          subtitleKey: 'fb.tile_sub',
+          builder: _feedbackTile,
+        ),
+        const SettingRow(
+          id: 'hints_reset',
+          titleKey: 'set.hints_reset',
+          subtitleKey: 'set.hints_reset_sub',
+          builder: _hintsResetTile,
+        ),
+        const SettingRow(
+          id: 'crash_log',
+          titleKey: 'settings.crash_log',
+          subtitleKey: 'settings.crash_log_sub',
+          builder: _crashLogTile,
+        ),
+      ]),
+      if (!edition.isPlay || EcosystemApps.notlarPublished)
+        const SettingsSection('eco.notlar_title', [
+          SettingRow(
+            id: 'eco_notlar',
+            titleKey: 'eco.notlar_title',
+            subtitleKey: 'eco.notlar_sub',
+            builder: _ecoNotlarTile,
+          ),
+        ]),
+    ],
+  ),
+
+  // ── 8. GELİŞTİRİCİ (gizli) ───────────────────────────────────────────
+  if (developer && edition.has(Feature.labs))
+    SettingsCategory(
+      id: 'developer',
+      color: const Color(0xFF5B6470),
+      icon: AppIcons.developerMode,
+      titleKey: 'dev.title',
+      subtitleKey: 'dev.sub',
+      summary: (context) => context.t('dev.on'),
+      sections: const [
+        SettingsSection('dev.title', [
+          // "Bellek takılı ama görünmüyor" sorununun ÖLÇÜMÜ.
+          SettingRow(
+            id: 'usb_diagnostics',
+            titleKey: 'usb.diag_title',
+            subtitleKey: 'usb.diag_sub',
+            builder: _usbDiagnosticsTile,
+          ),
+          // Anahtar havuzunun canlı durumu — teşhis bilgisi.
+          SettingRow(
+            id: 'ai_pool_status',
+            titleKey: 'aipool.status',
+            builder: _aiPoolStatusTile,
+          ),
+          // Akıllı düzen doğruluk tezgâhı (PLAN §1.1 m.4).
+          SettingRow(
+            id: 'smart_bench',
+            titleKey: 'sb.title',
+            subtitleKey: 'sb.sub',
+            builder: _smartBenchTile,
+          ),
+          SettingRow(
+            id: 'lab_word_editor',
+            titleKey: 'lab.word_flag',
+            subtitleKey: 'lab.word_flag_sub',
+            builder: _labWordTile,
+          ),
+          SettingRow(
+            id: 'editor_perf',
+            titleKey: 'edit.perf_overlay',
+            subtitleKey: 'edit.perf_overlay_sub',
+            builder: _editorPerfTile,
+          ),
+          SettingRow(
+            id: 'developer_off',
+            titleKey: 'dev.turn_off',
+            builder: _developerOffTile,
+          ),
+        ]),
+      ],
+    ),
+];
 
 /// Tema modunun okunur adı (kategori kartındaki özet için).
 String _themeModeLabel(BuildContext context, ThemeMode mode) => switch (mode) {
-      ThemeMode.light => context.t('settings.theme_light'),
-      ThemeMode.dark => context.t('settings.theme_dark'),
-      ThemeMode.system => context.t('settings.theme_system'),
-    };
+  ThemeMode.light => context.t('settings.theme_light'),
+  ThemeMode.dark => context.t('settings.theme_dark'),
+  ThemeMode.system => context.t('settings.theme_system'),
+};
 
 // `const` bir `SettingRow` listesi kurabilmek için üst düzey işlevler
 // (kapanış/lambda `const` olamaz).
@@ -867,18 +940,29 @@ Widget _accentTile(BuildContext _) => const AccentColorTile();
 Widget _menuLookTile(BuildContext _) => const MenuLookTile();
 Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(
-      icon: AppIcons.voice,
-      title: context.t('voice.title'),
-      subtitle: 'Antalia-2 Mini · EMA Lightning',
-      onTap: () => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const VoicesScreen())),
-    );
+  icon: AppIcons.voice,
+  title: context.t('voice.title'),
+  subtitle: 'Antalia-2 Mini · EMA Lightning',
+  trailing: ProGate.locked(Feature.audiobook) ? const ProBadge() : null,
+  onTap: () => ProGate.guard(
+    context,
+    Feature.audiobook,
+    () => Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const VoicesScreen())),
+  ),
+);
 Widget _audiobooksTile(BuildContext context) => SettingTile(
-      icon: AppIcons.audiobook,
-      title: context.t('ab.library'),
-      onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AudiobookLibraryScreen())),
-    );
+  icon: AppIcons.audiobook,
+  title: context.t('ab.library'),
+  trailing: ProGate.locked(Feature.audiobook) ? const ProBadge() : null,
+  onTap: () => ProGate.guard(
+    context,
+    Feature.audiobook,
+    () => Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AudiobookLibraryScreen()),
+    ),
+  ),
+);
 Widget _fontTile(BuildContext _) => const UiFontTile();
 Widget _textSizeTile(BuildContext _) => const UiTextSizeTile();
 Widget _languageTile(BuildContext _) => const LanguageTile();
@@ -894,7 +978,6 @@ Widget _photoGroupTile(BuildContext _) => const PhotoGroupTile();
 Widget _mediaOpenWithTile(BuildContext _) => const MediaOpenWithTile();
 Widget _startFolderTile(BuildContext _) => const StartFolderTile();
 Widget _aiAccessTile(BuildContext _) => const AiAccessTile();
-Widget _aiTaskModelsTile(BuildContext _) => const AiTaskModelsTile();
 Widget _smartSortTile(BuildContext _) => const SmartSortSettingsTile();
 Widget _smartPinTile(BuildContext _) => const SmartSensitivePinTile();
 Widget _smartUserCatsTile(BuildContext _) => const SmartUserCatsTile();
@@ -905,20 +988,27 @@ Widget _aiExcludedTile(BuildContext _) => const AiExcludedFoldersTile();
 Widget _aiTypesTile(BuildContext _) => const AiScopeTypesTile();
 Widget _aiPrivacyTile(BuildContext _) => const AiPrivacyTile();
 Widget _aiBudgetTile(BuildContext _) => const AiBudgetTile();
-Widget _aiAutoNewTile(BuildContext _) => const AiAutoNewTile();
 Widget _pinTile(BuildContext _) => const PinTile();
 Widget _appLockTile(BuildContext _) => const AppLockTile();
 Widget _lockedFoldersTile(BuildContext _) => const LockedFoldersTile();
-Widget _fullAccessTile(BuildContext _) =>
-    const PermissionStatusRow(permission: AppPermission.allFiles, detailed: true);
+Widget _fullAccessTile(BuildContext _) => const PermissionStatusRow(
+  permission: AppPermission.allFiles,
+  detailed: true,
+);
 Widget _notifAccessTile(BuildContext _) => const PermissionStatusRow(
-    permission: AppPermission.notifications, detailed: true);
+  permission: AppPermission.notifications,
+  detailed: true,
+);
 Widget _cameraAccessTile(BuildContext _) =>
     const PermissionStatusRow(permission: AppPermission.camera, detailed: true);
 Widget _locationAccessTile(BuildContext _) => const PermissionStatusRow(
-    permission: AppPermission.location, detailed: true);
-Widget _overlayAccessTile(BuildContext _) =>
-    const PermissionStatusRow(permission: AppPermission.overlay, detailed: true);
+  permission: AppPermission.location,
+  detailed: true,
+);
+Widget _overlayAccessTile(BuildContext _) => const PermissionStatusRow(
+  permission: AppPermission.overlay,
+  detailed: true,
+);
 Widget _offlineTile(BuildContext _) => const OfflineModeTile();
 Widget _safFoldersTile(BuildContext _) => const SafFoldersTile();
 Widget _aiSendAskTile(BuildContext _) => const AiSendAskTile();
@@ -936,7 +1026,6 @@ Widget _autoRescanTile(BuildContext _) => const AutoRescanTile();
 Widget _searchIndexTile(BuildContext _) => const SearchIndexTile();
 Widget _contentIndexTile(BuildContext _) => const ContentIndexTile();
 Widget _ocrScriptTile(BuildContext _) => const OcrScriptTile();
-Widget _shareShieldTile(BuildContext _) => const ShareShieldTile();
 Widget _appFootprintTile(BuildContext _) => const AppFootprintTile();
 Widget _sdUnionTile(BuildContext _) => const SdUnionTile();
 Widget _weeklyCleanupTile(BuildContext _) => const WeeklyCleanupTile();
@@ -945,11 +1034,11 @@ Widget _settingsBackupTile(BuildContext _) => const SettingsBackupTile();
 Widget _usbDiagnosticsTile(BuildContext _) => const UsbDiagnosticsTile();
 Widget _developerOffTile(BuildContext _) => const DeveloperOffTile();
 Widget _smartBenchTile(BuildContext context) => SettingTile(
-      icon: AppIcons.insights,
-      title: context.t('sb.title'),
-      subtitle: context.t('sb.sub'),
-      onTap: () => SmartBenchScreen.open(context),
-    );
+  icon: AppIcons.insights,
+  title: context.t('sb.title'),
+  subtitle: context.t('sb.sub'),
+  onTap: () => SmartBenchScreen.open(context),
+);
 Widget _autoSaveTile(BuildContext _) => const AutoSaveTile();
 Widget _wordSpellTile(BuildContext _) => const WordSpellcheckTile();
 Widget _wordAutoFormatTile(BuildContext _) => const WordAutoFormatTile();
@@ -957,16 +1046,22 @@ Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
-Widget _proTile(BuildContext context) => SettingTile(
-      icon: AppIcons.pro,
-      title: context.t('pro.title'),
-      subtitle: context.t('pro.row_sub'),
-      onTap: () => showProSheet(context),
+Widget _rateAppTile(BuildContext _) => const RateAppTile();
+Widget _ecoNotlarTile(BuildContext _) => const Padding(
+      padding: EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+      child: CrossAppPromoCard(),
     );
+Widget _proTile(BuildContext context) => SettingTile(
+  icon: AppIcons.pro,
+  title: context.t('pro.title'),
+  subtitle: context.t('pro.row_sub'),
+  onTap: () => showProSheet(context),
+);
 Widget _appUpdateTile(BuildContext _) => const AppUpdateTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();
 Widget _ttsAiReadTile(BuildContext _) => const TtsAiReadTile();
 Widget _crashLogTile(BuildContext _) => const CrashLogTile();
 Widget _helpTile(BuildContext _) => const HelpTile();
+Widget _feedbackTile(BuildContext _) => const FeedbackTile();
 Widget _hintsResetTile(BuildContext _) => const HintsResetTile();
 Widget _privacyPolicyTile(BuildContext _) => const PrivacyPolicyTile();

@@ -20,7 +20,6 @@ import '../../models/fs_entry.dart';
 import '../../models/photo_group.dart';
 import '../../services/fm/image_rotate.dart';
 import '../../services/fm/important_files.dart';
-import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../core/user_error.dart';
 import '../../services/image_enhance.dart';
@@ -42,16 +41,23 @@ import 'resize_compare_screen.dart';
 part 'image_gallery/widgets.dart';
 
 
-/// Galerinin rotası (2026-09-26 galeri turu).
+final _galleryFadeCurve = CurveTween(curve: Curves.easeOut);
+final _galleryScaleTween = Tween<double>(begin: 0.90, end: 1.0);
+final _galleryChromeCurve =
+    CurveTween(curve: const Interval(0.28, 1.0, curve: Curves.easeOut));
+
+/// Galerinin rotası (2026-09-26 galeri turu · 2026-11-24 animasyon güvencesi).
 ///
-/// **Saydam** (`opaque: false`) ve SOLARAK gelir: fotoğraf hücreden büyürken
-/// (Hero) arkadaki siyah yumuşakça belirir; aşağı kaydırıp kapatırken siyah
-/// incelir ve altta ızgara görünür — Google Foto'daki his. Eskiden standart
-/// sayfa geçişiyle sağdan kayıyordu: fotoğraf ile açılan sayfa arasında
-/// görsel bir bağ yoktu.
+/// **Saydam** (`opaque: false`) ve arka plan perdesi solarak gelir:
+/// - Kaynak ekranda eşleşen bir `Hero` varsa ([hasHero] true) fotoğraf
+///   hücreden doğrudan büyür; tam ekran `saveLayer` açılmaz.
+/// - Kaynakta `Hero` yoksa ([hasHero] false — ör. temizlik, bildirim veya
+///   kısayol satırları) fotoğraf çat diye açılmak yerine yumuşak ölçek +
+///   solma ile açılır ve kapanır.
 PageRouteBuilder<void> imageGalleryRoute({
   required List<String> paths,
   required int initialIndex,
+  bool hasHero = true,
 }) =>
     PageRouteBuilder<void>(
       opaque: false,
@@ -59,10 +65,21 @@ PageRouteBuilder<void> imageGalleryRoute({
       reverseTransitionDuration: Motion.medium,
       pageBuilder: (_, _, _) =>
           ImageGalleryScreen(paths: paths, initialIndex: initialIndex),
-      transitionsBuilder: (_, animation, _, child) => FadeTransition(
-        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-        child: child,
-      ),
+      transitionsBuilder: (context, animation, _, child) {
+        if (Motion.reduced(context) || hasHero) return child;
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Motion.enter,
+          reverseCurve: Motion.exit,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: _galleryScaleTween.animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
 
 /// Galeri: aynı klasördeki görselleri **sağa/sola kaydırarak** gezme.
@@ -144,12 +161,13 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
   }
 
   // ── Aşağı kaydırıp kapatma (2026-09-26) ───────────────────────────────────
-  /// Sayfanın dikey kayması (aşağı artı). Sürükleme bitince ya kapanır ya da
-  /// [_snap] ile 0'a yaylanır.
-  double _dragDy = 0;
+  /// Sayfanın dikey kayması (aşağı artı). Yalnız arka perde + Transform
+  /// dinler — sürüklerken tüm PageView yeniden kurulmaz.
+  final ValueNotifier<double> _dragDy = ValueNotifier<double>(0);
   bool _dragging = false;
   double _snapFrom = 0;
   late final AnimationController _snap;
+  Timer? _precacheTimer;
 
   @override
   void initState() {
@@ -159,7 +177,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
       duration: Motion.medium,
     )..addListener(() {
         final t = Curves.easeOutCubic.transform(_snap.value);
-        setState(() => _dragDy = _snapFrom * (1 - t));
+        _dragDy.value = _snapFrom * (1 - t);
+      })
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed && mounted) setState(() {});
       });
     // Komşuların çözümü açılış geçişi BİTİNCE (2026-11-18): iki tam boy
     // çözüm büyüme animasyonuyla aynı çekirdekleri paylaşıp kare
@@ -194,27 +215,38 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     _unhideMenuHandle?.call();
     _enhanceSub?.cancel();
     _slideTimer?.cancel();
+    _precacheTimer?.cancel();
+    _dragDy.dispose();
     _snap.dispose();
     _pages.dispose();
     super.dispose();
   }
 
+  void _schedulePrecache(int i) {
+    _precacheTimer?.cancel();
+    // 150 ms yerleşme gecikmesi: hızlı sayfa kaydırmada ara görselleri çözme.
+    _precacheTimer = Timer(const Duration(microseconds: 150000), () {
+      if (mounted) _precacheAround(i);
+    });
+  }
+
   /// Komşu sayfaları önceden çözer: sağa/sola geçişte görsel HAZIR gelir
   /// (Google Foto'daki anında geçiş). Anahtar sayfanın kendi çözme
-  /// genişliğiyle aynı (`ImageBudget.forViewport`, ölçek 1) — önbellekte
+  /// boyuyla aynı (`ImageBudget.forViewport`, ölçek 1) — önbellekte
   /// aynı kayıt kullanılır, ikinci kez çözülmez.
   void _precacheAround(int i) {
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
-    final width = ImageBudget.forViewport(
+    final budget = ImageBudget.forViewport(
       logicalWidth: media.size.width,
+      logicalHeight: media.size.height,
       devicePixelRatio: media.devicePixelRatio,
       scale: 1,
     );
     for (final j in [i + 1, i - 1]) {
       if (j < 0 || j >= _paths.length) continue;
       precacheImage(
-        FmFileImage(_paths[j], cacheWidth: width),
+        FmFileImage(_paths[j], cacheWidth: budget, maxLongSide: budget),
         context,
         onError: (_, _) {},
       );
@@ -230,62 +262,64 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     // Yukarı sürükleme dirençli (bilgi sayfası için kısa bir çekiş yeter;
     // görsel yukarı uçup gitmesin).
     final dy = d.primaryDelta ?? d.delta.dy;
-    setState(() => _dragDy += _dragDy + dy < 0 ? dy * 0.35 : dy);
+    final cur = _dragDy.value;
+    _dragDy.value = cur + (cur + dy < 0 ? dy * 0.35 : dy);
   }
 
   void _onDragEnd(DragEndDetails d) {
     final v = d.primaryVelocity ?? 0;
+    final dy = _dragDy.value;
     setState(() => _dragging = false);
-    if (_dragDy > 110 || (v > 900 && _dragDy > 0)) {
+    if (dy > 110 || (v > 900 && dy > 0)) {
       popOwnPage(context);
       return;
     }
-    final showInfo = _dragDy < -60 || (v < -900 && _dragDy < 0);
-    _snapFrom = _dragDy;
+    final showInfo = dy < -60 || (v < -900 && dy < 0);
+    _snapFrom = dy;
     _snap.forward(from: 0);
     if (showInfo) showProperties(context, _currentEntry);
   }
 
   /// Sürüklemenin ilerlemesi (0 → 1): arka plan inceltmesi ve küçülme.
-  double _dragProgress(double height) =>
-      height <= 0 ? 0 : (_dragDy / (height * 0.55)).clamp(0.0, 1.0);
+  double _dragProgress(double height, double dy) =>
+      height <= 0 ? 0 : (dy / (height * 0.55)).clamp(0.0, 1.0);
 
   String get _current => _paths[_index];
 
-  /// Dosya bilgisi (boyut/tarih) yol başına bir kez ölçülür.
-  ///
-  /// **Niye önbellek:** bu getter `build` içinden çağrılıyor ve `statSync`
-  /// SENKRON disk erişimidir. Yakınlaştırma, çubuğu gizleme, sayfa değişimi —
-  /// her `setState` bir kare içinde diske gidiyordu; kaydırırken saniyede
-  /// onlarca kez. Ölçüm dosya yolu başına bir kez yapılıp saklanıyor.
+  /// Dosya bilgisi (boyut/tarih) yol başına bir kez EŞZAMANSIZ ölçülür.
   final Map<String, FsEntry> _statCache = {};
+  final Set<String> _statLoading = {};
 
   FsEntry get _currentEntry => _entryFor(_current);
 
   FsEntry _entryFor(String path) {
     final cached = _statCache[path];
     if (cached != null) return cached;
-    // Binlerce fotoğraflı klasörde sırayla geçilen her dosya birikmesin;
-    // önbellek yalnız "şu an bakılan birkaç dosya" için var.
-    if (_statCache.length > 64) _statCache.clear();
-    var size = 0;
-    var modified = 0;
-    try {
-      final stat = File(path).statSync();
-      size = stat.size;
-      modified = stat.modified.millisecondsSinceEpoch;
-    } catch (_) {
-      // Bilinçli: bilgi satırı (boyut/tarih) için; dosya o an silindiyse 0 gösterilir, galeri sonraki tazelemede düşürür.
+    if (!_statLoading.contains(path)) {
+      _statLoading.add(path);
+      unawaited(File(path).stat().then((stat) {
+        _statLoading.remove(path);
+        if (!mounted) return;
+        if (_statCache.length > 64) _statCache.clear();
+        _statCache[path] = FsEntry(
+          path: path,
+          name: p.basename(path),
+          isDir: false,
+          sizeBytes: stat.size,
+          modifiedMs: stat.modified.millisecondsSinceEpoch,
+        );
+        if (path == _current) setState(() {});
+      }, onError: (Object _) {
+        _statLoading.remove(path);
+      }));
     }
-    final entry = FsEntry(
+    return FsEntry(
       path: path,
       name: p.basename(path),
       isDir: false,
-      sizeBytes: size,
-      modifiedMs: modified,
+      sizeBytes: 0,
+      modifiedMs: 0,
     );
-    _statCache[path] = entry;
-    return entry;
   }
 
   // ── Seçim kipi (kullanıcı isteği 2026-11-07: *"alt alanda seç seçeneği …
@@ -516,12 +550,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     return null;
   }
 
-  /// Bu görselin biten son iyileştirmesinin kopyası (hâlâ diskteyse).
+  final Map<String, bool> _enhancedExists = {};
+  final Set<String> _enhancedChecking = {};
+
+  /// Bu görselin biten son iyileştirmesinin kopyası (hâlâ diskteyse, eşzamansız).
   String? _enhancedOf(String path) {
     for (final j in JobQueue.instance.jobs) { // en yeni önce
       if (j.target?.kind != FmJobTargetKind.enhance) continue;
       for (final out in j.outputs) {
-        if (j.outputSources[out] == path && File(out).existsSync()) return out;
+        if (j.outputSources[out] != path) continue;
+        final cached = _enhancedExists[out];
+        if (cached == true) return out;
+        if (cached == null && !_enhancedChecking.contains(out)) {
+          _enhancedChecking.add(out);
+          unawaited(File(out).exists().then((ok) {
+            _enhancedChecking.remove(out);
+            if (!mounted) return;
+            _enhancedExists[out] = ok;
+            if (ok) setState(() {});
+          }));
+        }
       }
     }
     return null;
@@ -708,9 +756,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     final entry = _currentEntry;
     final padding = MediaQuery.paddingOf(context);
     final height = MediaQuery.sizeOf(context).height;
-    final progress = _dragProgress(height);
+    final routeAnim = ModalRoute.of(context)?.animation;
+    final reduced = Motion.reduced(context);
     // Sürüklerken çubuklar hızla söner (fotoğrafla birlikte kaymasınlar).
-    final chromeOpacity = _chromeVisible && !_dragging && _dragDy.abs() < 1
+    final chromeOpacity = _chromeVisible && !_dragging && _dragDy.value.abs() < 1
         ? 1.0
         : 0.0;
 
@@ -725,15 +774,24 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
     // gövdenin ölçüsü hiç değişmez → dokununca görsel ZIPLAMAZ (kullanıcı
     // hatası 2026-07-30: "resimlerde üzerine tıklayınca zıplama oluyor" —
     // `appBar: null` ile gövde ~80 px uzuyor, görsel yeniden ölçekleniyordu).
-    Widget chrome({required Widget child}) => IgnorePointer(
-          // Gizliyken dokunuşları yutmasın: görünmez çubuğa değil resme gitsin.
-          ignoring: chromeOpacity == 0,
-          child: AnimatedOpacity(
-            opacity: chromeOpacity,
-            duration: Motion.of(context, Motion.short),
-            child: child,
-          ),
+    Widget chrome({required Widget child}) {
+      Widget body = IgnorePointer(
+        // Gizliyken dokunuşları yutmasın: görünmez çubuğa değil resme gitsin.
+        ignoring: chromeOpacity == 0,
+        child: AnimatedOpacity(
+          opacity: chromeOpacity,
+          duration: Motion.of(context, Motion.short),
+          child: child,
+        ),
+      );
+      if (routeAnim != null && !reduced) {
+        body = FadeTransition(
+          opacity: routeAnim.drive(_galleryChromeCurve),
+          child: body,
         );
+      }
+      return body;
+    }
 
     // Başlık dosya ADI, altında yalnız TARİH (kullanıcı 2026-11-15: *"tarihi
     // varsa adının altına yazsın, diğer detay bilgiler gereksiz"*). Sıra/boyut
@@ -756,8 +814,21 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
         body: Stack(
           children: [
             Positioned.fill(
-              child: ColoredBox(
-                color: AppColors.mediaSurface.withValues(alpha: 1 - progress),
+              child: ListenableBuilder(
+                listenable: Listenable.merge([
+                  _dragDy,
+                  if (routeAnim != null && !reduced) routeAnim,
+                ]),
+                builder: (context, _) {
+                  final routeAlpha = (routeAnim == null || reduced)
+                      ? 1.0
+                      : _galleryFadeCurve.evaluate(routeAnim);
+                  final progress = _dragProgress(height, _dragDy.value);
+                  final alpha = (routeAlpha * (1 - progress)).clamp(0.0, 1.0);
+                  return ColoredBox(
+                    color: AppColors.mediaSurface.withValues(alpha: alpha),
+                  );
+                },
               ),
             ),
             Positioned.fill(
@@ -768,26 +839,35 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                 onVerticalDragStart: _zoomed ? null : _onDragStart,
                 onVerticalDragUpdate: _zoomed ? null : _onDragUpdate,
                 onVerticalDragEnd: _zoomed ? null : _onDragEnd,
-                child: Transform.translate(
-                  offset: Offset(0, _dragDy),
-                  child: Transform.scale(
-                    scale: 1 - progress * 0.22,
-                    child: PageView.builder(
-                      controller: _pages,
-                      physics: _zoomed || _dragging
-                          ? const NeverScrollableScrollPhysics()
-                          : const PageScrollPhysics(),
-                      onPageChanged: (i) {
-                        setState(() {
-                          _index = i;
-                          _zoomed = false;
-                        });
-                        _precacheAround(i);
-                      },
-                      itemCount: _paths.length,
-                      itemBuilder: (context, i) => RotatedBox(
-                       quarterTurns: _turnsOf(_paths[i]),
-                       child: _ZoomableImage(
+                child: ValueListenableBuilder<double>(
+                  valueListenable: _dragDy,
+                  builder: (context, dy, child) {
+                    final progress = _dragProgress(height, dy);
+                    return Transform.translate(
+                      offset: Offset(0, dy),
+                      child: Transform.scale(
+                        scale: 1 - progress * 0.22,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: PageView.builder(
+                    controller: _pages,
+                    physics: _zoomed || _dragging
+                        ? const NeverScrollableScrollPhysics()
+                        : const PageScrollPhysics(),
+                    onPageChanged: (i) {
+                      setState(() {
+                        _index = i;
+                        _zoomed = false;
+                      });
+                      _schedulePrecache(i);
+                    },
+                    itemCount: _paths.length,
+                    itemBuilder: (context, i) => RotatedBox(
+                      quarterTurns: _turnsOf(_paths[i]),
+                      child: _ZoomableImage(
+                        key: ValueKey(_paths[i]),
                         path: _paths[i],
                         heroTag: fmMediaHeroTag(_paths[i]),
                         onTap: () => _slideshow
@@ -798,7 +878,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             setState(() => _zoomed = zoomed);
                           }
                         },
-                       ),
                       ),
                     ),
                   ),
@@ -921,8 +1000,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                             onPick: _selecting ? _pickInSelect : _jumpTo,
                             selected: _selecting ? _selected : null,
                           ),
+                        // KÖK (kullanıcı 2026-11-25: "silindi bildirimi silme
+                        // alanını kapatıyor, sıradaki fotoğrafı silemiyorum"):
+                        // "Geri al" kartı ekranın en altına oturuyor ve bu
+                        // satırın üstüne biniyordu. Satır yüksekliğini
+                        // bildirir → kart düğmelerin ÜSTÜNDE durur, Sil'e art
+                        // arda basılabilir.
                         if (_selecting)
-                          Row(
+                          ToastAvoider(child: Row(
                             children: [
                               _GalleryAction(
                                 icon: _selected.contains(_current)
@@ -945,14 +1030,14 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                                 onTap: _deleteSelected,
                               ),
                             ],
-                          )
+                          ))
                         else
                         // Ortak düzen (2026-11-15): en çok 5 düğme — Paylaş ·
                         // Düzenle · İyileştir · Metin ve PDF · Sil. Boyut ve
                         // Bilgi ⋮'da (Boyut düşür, Özellikler), Seç de ⋮'da.
                         // Sil bilerek altta da var: fotoğraf ayıklamak
                         // galerinin en sık işi.
-                        Row(
+                        ToastAvoider(child: Row(
                           children: [
                             _GalleryAction(
                               icon: AppIcons.share,
@@ -981,7 +1066,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
                               onTap: _delete,
                             ),
                           ],
-                        ),
+                        )),
                       ],
                     ),
                   ),

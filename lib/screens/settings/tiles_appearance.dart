@@ -9,6 +9,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/menu_look.dart';
 import '../../core/skin.dart';
 import '../../core/theme.dart';
+import '../../widgets/app_dialog.dart';
 import 'settings_widgets.dart';
 import 'theme_gallery.dart';
 import '../../core/app_haptics.dart';
@@ -74,34 +75,26 @@ class UiFontTile extends StatelessWidget {
       title: context.t('settings.ui_font'),
       value: labelOf(appState.uiFont),
       onTap: () async {
-        final pick = await showModalBottomSheet<String>(
-          context: context,
-          isScrollControlled: true,
-          builder: (ctx) => SafeArea(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
-                  child: Text(ctx.t('settings.ui_font'),
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                ),
-                for (final f in AppTheme.uiFonts)
-                  ListTile(
-                    title: Text(f.$1,
-                        style: context.type.heading.copyWith(fontFamily: f.$2)),
-                    subtitle: Text(
-                      ctx.t('settings.font_sample'),
-                      style: TextStyle(fontFamily: f.$2),
-                    ),
-                    trailing: f.$2 == appState.uiFont
-                        ? const Icon(AppIcons.check)
-                        : null,
-                    onTap: () => Navigator.pop(ctx, f.$2),
+        final pick = await showAppSheet<String>(
+          context,
+          title: context.t('settings.ui_font'),
+          builder: (ctx) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final f in AppTheme.uiFonts)
+                ListTile(
+                  title: Text(f.$1,
+                      style: context.type.heading.copyWith(fontFamily: f.$2)),
+                  subtitle: Text(
+                    ctx.t('settings.font_sample'),
+                    style: TextStyle(fontFamily: f.$2),
                   ),
-              ],
-            ),
+                  trailing: f.$2 == appState.uiFont
+                      ? const Icon(AppIcons.check)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, f.$2),
+                ),
+            ],
           ),
         );
         if (pick != null) await appState.setUiFont(pick);

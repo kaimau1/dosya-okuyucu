@@ -15,6 +15,7 @@ library;
 import 'dart:async';
 
 import '../../core/secure_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -98,8 +99,7 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
                     obscureText: _obscure,
                     decoration: InputDecoration(
                       isDense: true,
-                      labelText:
-                          context.t('aipool.key_n', {'n': i + 2}),
+                      labelText: context.t('aipool.key_n', {'n': i + 2}),
                       hintText: 'AIza...',
                     ),
                     onChanged: (_) => _save(),
@@ -107,8 +107,7 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
                 ),
                 IconButton(
                   tooltip: context.t('aipool.show_keys'),
-                  icon: Icon(
-                      _obscure ? AppIcons.hidden : AppIcons.hiddenOff),
+                  icon: Icon(_obscure ? AppIcons.hidden : AppIcons.hiddenOff),
                   onPressed: () => setState(() => _obscure = !_obscure),
                 ),
                 IconButton(
@@ -124,7 +123,10 @@ class _AiBackupKeysTileState extends State<AiBackupKeysTile> {
           ),
         if (canAdd)
           Padding(
-            padding: const EdgeInsetsDirectional.only(start: Gap.md, bottom: Gap.sm),
+            padding: const EdgeInsetsDirectional.only(
+              start: Gap.md,
+              bottom: Gap.sm,
+            ),
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
@@ -194,7 +196,7 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
     final available = _available ?? _fallback;
     final addable = [
       for (final model in available)
-        if (!chain.contains(model)) model
+        if (!chain.contains(model)) model,
     ];
     final canAdd = chain.length < AiCredentials.maxModels && addable.isNotEmpty;
 
@@ -211,7 +213,8 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : null,
         ),
         for (var i = 0; i < chain.length; i++)
@@ -219,53 +222,62 @@ class _AiModelChainTileState extends State<AiModelChainTile> {
           // ölü bir model listede sessizce durursa her işte bir başarısız
           // istek üretir. İki kaynak birleştiriliyor: anahtarın canlı model
           // listesi (varsa) ve havuzun 404 gördüğü modeller.
-          Builder(builder: (context) {
-            final dead = AiPool.deadModels.contains(chain[i]) ||
-                (_available != null && !_available!.contains(chain[i]));
-            return ListTile(
-            dense: true,
-            contentPadding: const EdgeInsetsDirectional.only(start: 56, end: Gap.sm),
-            leading: null,
-            title: Text('${i + 1}. ${chain[i]}',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: !dead
-                ? null
-                : Text(
-                    context.t('aipool.model_gone'),
-                    style: context.type.caption.copyWith(
-                      color: Theme.of(context).colorScheme.error,
+          Builder(
+            builder: (context) {
+              final dead =
+                  AiPool.deadModels.contains(chain[i]) ||
+                  (_available != null && !_available!.contains(chain[i]));
+              return ListTile(
+                dense: true,
+                contentPadding: const EdgeInsetsDirectional.only(
+                  start: 56,
+                  end: Gap.sm,
+                ),
+                leading: null,
+                title: Text(
+                  '${i + 1}. ${chain[i]}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: !dead
+                    ? null
+                    : Text(
+                        context.t('aipool.model_gone'),
+                        style: context.type.caption.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: context.t('aipool.move_up'),
+                      icon: const Icon(AppIcons.arrowUp, size: 20),
+                      onPressed: i == 0
+                          ? null
+                          : () {
+                              final next = [...chain];
+                              final moved = next.removeAt(i);
+                              next.insert(i - 1, moved);
+                              context.read<AppState>().setAiModels(next);
+                            },
                     ),
-                  ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  tooltip: context.t('aipool.move_up'),
-                  icon: const Icon(AppIcons.arrowUp, size: 20),
-                  onPressed: i == 0
-                      ? null
-                      : () {
-                          final next = [...chain];
-                          final moved = next.removeAt(i);
-                          next.insert(i - 1, moved);
-                          context.read<AppState>().setAiModels(next);
-                        },
+                    IconButton(
+                      tooltip: context.t('common.delete'),
+                      icon: const Icon(AppIcons.close, size: 20),
+                      // Son model silinemez: modelsiz bir havuz hiçbir iş yapamaz.
+                      onPressed: chain.length == 1
+                          ? null
+                          : () {
+                              final next = [...chain]..removeAt(i);
+                              context.read<AppState>().setAiModels(next);
+                            },
+                    ),
+                  ],
                 ),
-                IconButton(
-                  tooltip: context.t('common.delete'),
-                  icon: const Icon(AppIcons.close, size: 20),
-                  // Son model silinemez: modelsiz bir havuz hiçbir iş yapamaz.
-                  onPressed: chain.length == 1
-                      ? null
-                      : () {
-                          final next = [...chain]..removeAt(i);
-                          context.read<AppState>().setAiModels(next);
-                        },
-                ),
-              ],
-            ),
-          );
-          }),
+              );
+            },
+          ),
         Padding(
           padding: const EdgeInsetsDirectional.only(start: 56, bottom: Gap.sm),
           child: Align(

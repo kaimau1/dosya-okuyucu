@@ -395,7 +395,13 @@ class _ToastCardState extends State<_ToastCard>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final toast = widget.toast;
-    final fg = scheme.onInverseSurface;
+    // 2026-11-22 (kullanıcı: "tost mesajları görselimizle uyumlu değil,
+    // rengi farklı"): koyu ters yüzey yerine uygulamanın KART dili —
+    // kart zemini, ince kenarlık, mürekkep yazı, başta vurgu çizgisi
+    // (bölüm başlıklarıyla aynı), eylem ve süre çubuğu vurgu renginde.
+    // Renkler şemadan: temayla, koyu kipte ve vurgu seçimiyle birlikte döner.
+    final fg = scheme.onSurface;
+    final accent = scheme.primary;
     return Dismissible(
       key: ValueKey('toast-${toast.id}'),
       direction: DismissDirection.horizontal,
@@ -418,16 +424,24 @@ class _ToastCardState extends State<_ToastCard>
             );
           },
           child: Material(
-            color: scheme.inverseSurface,
-            elevation: 6,
+            color: scheme.surfaceContainerLow,
+            elevation: 4,
             shadowColor: AppColors.shadowStrong,
-            borderRadius: BorderRadius.circular(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: scheme.outlineVariant),
+            ),
             clipBehavior: Clip.antiAlias,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ConstrainedBox(
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(width: 4, color: accent),
+                      Expanded(child: ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 46),
                   child: Padding(
                     padding: EdgeInsetsDirectional.only(
@@ -452,7 +466,7 @@ class _ToastCardState extends State<_ToastCard>
                         if (toast.actionLabel != null)
                           TextButton(
                             style: TextButton.styleFrom(
-                              foregroundColor: scheme.inversePrimary,
+                              foregroundColor: accent,
                               textStyle: theme.textTheme.labelLarge
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
@@ -465,6 +479,9 @@ class _ToastCardState extends State<_ToastCard>
                       ],
                     ),
                   ),
+                )),
+                    ],
+                  ),
                 ),
                 if (!_sticky)
                   AnimatedBuilder(
@@ -475,7 +492,7 @@ class _ToastCardState extends State<_ToastCard>
                         widthFactor: _remaining(_life.value),
                         child: Container(
                           height: 3,
-                          color: scheme.inversePrimary.withValues(alpha: 0.8),
+                          color: accent.withValues(alpha: 0.7),
                         ),
                       ),
                     ),

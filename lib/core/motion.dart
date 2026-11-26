@@ -58,6 +58,10 @@ abstract final class Motion {
   /// H10.2): kısa işte pencere yanıp sönmesin.
   static const busyDefer = Duration(milliseconds: 300);
 
+  /// Görünüm son bu süre içinde kıpırdadıysa parmak değişi süren bir
+  /// fırlatmayı durdurmak içindir (PDF; çubukları açıp kapamaz).
+  static const flingStopWindow = Duration(milliseconds: 60);
+
   /// Açılış ilerleme YAZISI ancak bekleme bundan uzun sürerse belirir
   /// (B13 m.4): kısa açılışta yazı yanıp sönmesin; ince çizgi hemen görünür.
   static const progressLabelDelay = Duration(seconds: 1);

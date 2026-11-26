@@ -2,6 +2,7 @@ import 'package:dosya_okuyucu/core/app_state.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/models/fm_filter.dart';
 import 'package:dosya_okuyucu/models/fs_entry.dart';
+import 'package:dosya_okuyucu/widgets/fm/fm_list_controls.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_more_sheet.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_quick_filters.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_type_chips.dart';
@@ -98,5 +99,63 @@ void main() {
     await t.tap(find.text('Son 7 gün'));
     await t.pumpAndSettle();
     expect(filter.dateRange, FmDateRange.week);
+  });
+
+  testWidgets('akıllı kategori varken de en fazla 3 hap, seçim Kaynak levhasında',
+      (t) async {
+    FmFilter.smartCatOf = (p) => p.endsWith('.pdf') ? 'invoice' : null;
+    addTearDown(() => FmFilter.smartCatOf = null);
+    var filter = FmFilter.none;
+    await t.pumpWidget(host(
+      StatefulBuilder(
+        builder: (c, set) => Column(
+          children: [
+            FmQuickFilters(
+              source: files,
+              filter: filter,
+              onChanged: (v) => set(() => filter = v),
+              leading: FmTypeChips.forEntries(c,
+                  source: files,
+                  filter: filter,
+                  onChanged: (v) => set(() => filter = v)),
+              trailing: [
+                FmMoreChip(
+                    sections: (c) => fmDateSizeSections(c,
+                        filter: filter,
+                        onChanged: (v) => set(() => filter = v))),
+              ],
+            ),
+            FmActiveCriteria(
+              filter: filter,
+              onChanged: (v) => set(() => filter = v),
+            ),
+          ],
+        ),
+      ),
+      const Locale('tr'),
+    ));
+    await t.pump();
+    expect(find.byKey(const ValueKey('type-pill')), findsOneWidget);
+    expect(find.byKey(const ValueKey('source-pill')), findsOneWidget);
+    expect(find.byKey(const ValueKey('more-pill')), findsOneWidget);
+    expect(find.byKey(const ValueKey('smartcat-pill')), findsNothing);
+
+    await t.tap(find.byKey(const ValueKey('source-pill')));
+    await t.pumpAndSettle();
+    // Akıllı kategoriler en altta, katlı başlar (2026-11-22).
+    expect(find.byKey(const ValueKey('smartcat-invoice')), findsNothing);
+    await t.ensureVisible(find.byKey(const ValueKey('src-smart-toggle')));
+    await t.tap(find.byKey(const ValueKey('src-smart-toggle')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('smartcat-invoice')), findsOneWidget);
+    await t.ensureVisible(find.byKey(const ValueKey('smartcat-invoice')));
+    await t.tap(find.byKey(const ValueKey('smartcat-invoice')));
+    await t.pumpAndSettle();
+    expect(filter.smartCats, {'invoice'});
+    await t.ensureVisible(find.byKey(const ValueKey('src-done')));
+    await t.tap(find.byKey(const ValueKey('src-done')));
+    await t.pumpAndSettle();
+    // Seçili akıllı kategori FmActiveCriteria altında kaldırılabilir çipte görünür.
+    expect(find.byType(InputChip), findsOneWidget);
   });
 }

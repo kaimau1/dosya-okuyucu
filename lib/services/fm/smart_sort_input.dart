@@ -6,7 +6,9 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:image/image.dart' as imglib;
 import 'package:path/path.dart' as p;
+import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:xml/xml_events.dart';
 
 import '../../models/fs_entry.dart';
@@ -17,6 +19,7 @@ import '../gemini_service.dart';
 import '../legacy_text.dart';
 import '../office_reader.dart';
 import '../office_zip_guard.dart';
+import '../pdf_raster.dart';
 import '../text_decode.dart';
 import '../udf_reader.dart';
 import '../xls_legacy.dart';
@@ -45,7 +48,8 @@ enum SmartInputKind {
   /// Ses kaydı: `audio` bloğu (≤ 14 MB satır içi, üstü Files API).
   audio,
 
-  /// Video: `video` bloğu, düşük çözünürlük, yalnız ilk 60 sn.
+  /// Video: varsayılan yalnız kapak karesi (görsel blok,
+  /// [SmartSortInput.videoCoverOnly]); eski yol `video` bloğu, ilk 60 sn.
   video,
 }
 
@@ -89,19 +93,30 @@ class SmartPrepared {
 /// ODF/EPUB/RTF/HTML için burada küçük, sınırlı okuyucular (zip + XML olay
 /// akışı, `archive`/`xml` zaten bağımlılık).
 abstract final class SmartSortInput {
-  /// Yazı bloğunun en çok karakteri (~5 bin girdi belirteci).
-  static const maxTextChars = 20000;
+  /// Yazı bloğunun en çok karakteri (~1500 girdi belirteci — baş + son korunur).
+  static const maxTextChars = 6000;
 
   /// Tablodan gönderilen en çok satır (boş satırlar sayılmaz).
-  static const maxSheetRows = 200;
+  static const maxSheetRows = 60;
 
   /// Tabloda en çok sütun (geniş sayfalar kesilir).
-  static const maxSheetCols = 64;
+  static const maxSheetCols = 24;
+
+  /// Görsel yeniden boyutlandırma tavanı (uzun kenar px): 1024px yazıyı net
+  /// okuturken görsel belirteç ve yükleme boyutunu ~8–15× düşürür.
+  static const maxImageDim = 1024;
+  static const imageJpegQuality = 78;
+  static const imageOptimizeThresholdBytes = 120 * 1024;
+
+  /// Metin katmanlı PDF'lerde yerel metin çıkarımı (sayfa başına ~258 görsel
+  /// belirteç yerine kompakt metin bloğu — %70–90 belirteç tasarrufu).
+  static const maxPdfTextPages = 6;
+  static const minPdfTextChars = 180;
 
   /// İçeriği okunacak en büyük kaynak dosya (zip/OLE belleğe alınır).
   static const maxExtractBytes = 40 * 1024 * 1024;
 
-  /// Düz yazı dosyalarında okunan baş kısım (20 bin karaktere fazlasıyla
+  /// Düz yazı dosyalarında okunan baş kısım (metin tavanına fazlasıyla
   /// yeter; HTML'de etiket payı).
   static const _headBytes = 512 * 1024;
 
@@ -136,6 +151,22 @@ abstract final class SmartSortInput {
     return null;
   }
 
+  /// Yalnız küçük ses (<=512 KB) satır içi ses olarak gider; daha büyüğü
+  /// varsayılan olarak ucuz meta yazısıyla sınıflanır ([allowAudioFilesUpload]).
+  static const maxInlineAudioBytes = 512 * 1024;
+
+  /// Taranmış (metinsiz) PDF için satır içi PDF sınırı; üstü ilk sayfa JPEG
+  /// veya meta yazısı olarak gider (hiçbir zaman multi-MB base64 PDF gitmez).
+  static const maxInlineScannedPdfBytes = 400 * 1024;
+
+  /// Varsayılan `false`: >512 KB ses Files API'ye yüklenmez, meta yazısına düşer.
+  static bool allowAudioFilesUpload = false;
+
+  /// Taranmış büyük PDF ilk sayfa rasterizer kancası (testte geçersiz kılınabilir).
+  @visibleForTesting
+  static Future<Uint8List?> Function(Uint8List pdfBytes)?
+      scannedPdfFirstPageRaster;
+
   /// Files API ile yüklenecek en büyük ses (~100 dakikalık mp3).
   static const maxAudioUploadBytes = 100 * 1024 * 1024;
 
@@ -157,23 +188,48 @@ abstract final class SmartSortInput {
     return switch (kind) {
       SmartInputKind.media => bytes <= GeminiDecisions.maxInlineBytes,
       SmartInputKind.meta => true,
-      SmartInputKind.audio => bytes <= maxAudioUploadBytes,
+      SmartInputKind.audio =>
+        allowAudioFilesUpload ? bytes <= maxAudioUploadBytes : true,
       SmartInputKind.video => bytes <= maxVideoSourceBytes,
       _ => bytes <= maxExtractBytes,
     };
   }
 
-  /// Dosyanın Decisions girdi bloğu. Yazı izolatta çıkarılır; okunamayan
-  /// ya da boş çıkan belgede [GeminiException] (durum -1: tur durmaz, dosya
-  /// "yapılamadı" sayılır).
+  /// Dosyanın Decisions girdi bloğu. Yazı, görsel küçültme ve PDF metin
+  /// çıkarımı izolatta yapılır; okunamayan ya da boş çıkan belgede
+  /// [GeminiException] (durum -1: tur durmaz, dosya "yapılamadı" sayılır).
   static Future<Map<String, Object?>> blockFor(FsEntry e) async {
     final kind = kindOf(e.path);
     switch (kind) {
       case null:
         throw GeminiException('desteklenmeyen tür', statusCode: -1);
       case SmartInputKind.media:
-        return GeminiDecisions.fileBlock(e.path);
+        final path = e.path;
+        final media = GeminiDecisions.mediaFor(path);
+        if (media == null) {
+          throw GeminiException('desteklenmeyen tür', statusCode: -1);
+        }
+        if (media.type == 'document' && media.mime == 'application/pdf') {
+          return _preparePdfBlock(e);
+        }
+        return Isolate.run(() => _prepareMediaBlock(path, media.type, media.mime));
       case SmartInputKind.audio:
+        if (!allowAudioFilesUpload && e.sizeBytes > maxInlineAudioBytes) {
+          return GeminiDecisions.textBlock(metaText(
+            name: p.basename(e.path),
+            sizeBytes: e.sizeBytes,
+            folder: _folderOf(e.path),
+            apk: false,
+          ));
+        }
+        if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
+          throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
+        }
+        final media = GeminiDecisions.mediaFor(e.path)!;
+        final src = e.path;
+        final data = await Isolate.run(
+            () => base64Encode(File(src).readAsBytesSync()));
+        return avBlock(media.mime, video: false, data: data);
       case SmartInputKind.video:
         if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
           throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
@@ -184,8 +240,7 @@ abstract final class SmartSortInput {
         // sonucu alır.
         final data = await Isolate.run(
             () => base64Encode(File(src).readAsBytesSync()));
-        return avBlock(media.mime,
-            video: kind == SmartInputKind.video, data: data);
+        return avBlock(media.mime, video: true, data: data);
       case SmartInputKind.meta:
         return GeminiDecisions.textBlock(metaText(
           name: p.basename(e.path),
@@ -206,12 +261,16 @@ abstract final class SmartSortInput {
     }
   }
 
-  /// Turda kullanılan giriş: ses/video 14 MB üstüyse **Files API** ile
-  /// yüklenir (anahtarlar sırayla; kota/yetki hatasında sıradaki), blokta
-  /// yalnız `file_uri` gider. Öteki türler [blockFor] ile, anahtarlar aynen.
+  /// Turda kullanılan giriş: ses/video 14 MB üstüyse (yalnız izinliyken)
+  /// **Files API** ile yüklenir; varsayılan olarak videoda yalnız kapak karesi,
+  /// büyük seste yalnız meta yazısı gider.
   static Future<SmartPrepared> prepare(FsEntry e, List<String> keys) async {
     final kind = kindOf(e.path);
-    final av = kind == SmartInputKind.audio || kind == SmartInputKind.video;
+    if (kind == SmartInputKind.video && videoCoverOnly) {
+      return _coverPrepared(e, keys);
+    }
+    final av = (kind == SmartInputKind.audio && allowAudioFilesUpload) ||
+        kind == SmartInputKind.video;
     if (!av || e.sizeBytes <= GeminiDecisions.maxInlineBytes) {
       final block = await blockFor(e);
       // Sunum (m.2 kalanı): dosyanın içindeki hazır ilk slayt resmi
@@ -247,6 +306,51 @@ abstract final class SmartSortInput {
     }
     final mime = GeminiDecisions.mediaFor(e.path)!.mime;
     return _upload(e.path, mime, video: video, keys: keys);
+  }
+
+  /// **Video = yalnız kapak karesi** (2026-11-22, kullanıcı: "videoyu sadece
+  /// kapak karesi olarak yapmak gerekiyor" — maliyet doğru hesaplansın).
+  /// Video bloğu dakikada ~15–20 bin belirteç; tek JPEG kare bir görselle
+  /// aynı (~260). Kare satır içi gider, yükleme/kesit yok; geçici kare
+  /// silinir. Kare alınamazsa dosya gönderilmez ("yapılamadı").
+  /// false = eski yol (ilk dakika kesiti / Files API) — testler ve ileride
+  /// "ayrıntılı video" seçeneği için duruyor.
+  static bool videoCoverOnly = true;
+
+  /// Kapak karesinin zamanı (ilk karedeki siyah geçişi atlar) ve genişliği.
+  static const coverAtMs = 1500;
+  static const coverWidth = 768;
+
+  /// Videonun kapak karesini geçici JPEG olarak çıkarır; olmazsa null.
+  static Future<String?> Function(String path) coverFrame = _defaultCover;
+
+  static Future<String?> _defaultCover(String path) async {
+    final dir = p.join(Directory.systemTemp.path, 'smart_cover');
+    Directory(dir).createSync(recursive: true);
+    return await VideoTranscoder.frameAt(path,
+            dir: dir, ms: coverAtMs, width: coverWidth) ??
+        await VideoTranscoder.frameAt(path,
+            dir: dir, ms: 0, width: coverWidth);
+  }
+
+  static Future<SmartPrepared> _coverPrepared(
+      FsEntry e, List<String> keys) async {
+    String? frame;
+    try {
+      frame = await coverFrame(e.path);
+    } catch (_) {
+      frame = null;
+    }
+    if (frame == null) {
+      throw GeminiException('video karesi alınamadı', statusCode: -1);
+    }
+    try {
+      final data = await _b64File(frame);
+      return SmartPrepared(
+          {'type': 'image', 'mime_type': 'image/jpeg', 'data': data}, keys);
+    } finally {
+      _deleteQuietly(frame);
+    }
   }
 
   /// Files API yüklemesi: anahtarlar sırayla; kota/yetki hatasında
@@ -381,19 +485,243 @@ abstract final class SmartSortInput {
 
   // ── Saf yardımcılar (test edilir) ──────────────────────────────────────
 
+  /// Görsel/PDF bloğunu izolatta hazırlar:
+  /// * PDF'de yeterli gömülü metin (>= [minPdfTextChars]) varsa ham PDF yerine
+  ///   kompakt metin bloğu gönderilir (çok sayfalı PDF'lerde %70–90 tasarruf).
+  /// * Görsel büyükse uzun kenar <= [maxImageDim] px JPEG olarak sıkıştırılır.
+  static Future<Map<String, Object?>> _preparePdfBlock(FsEntry e) async {
+    final path = e.path;
+    final res = await Isolate.run(() {
+      final raw = File(path).readAsBytesSync();
+      if (raw.isEmpty) return (empty: true, text: '', raw: Uint8List(0));
+      final text = extractPdfText(raw);
+      return (empty: false, text: text, raw: raw);
+    });
+    if (res.empty) {
+      throw GeminiException('Dosya boş.', statusCode: -1);
+    }
+    if (res.text.isNotEmpty) {
+      return GeminiDecisions.textBlock(
+          _header(SmartInputKind.text) + res.text);
+    }
+    if (res.raw.length <= maxInlineScannedPdfBytes) {
+      final b64 = await Isolate.run(() => base64Encode(res.raw));
+      return {
+        'type': 'document',
+        'mime_type': 'application/pdf',
+        'data': b64,
+      };
+    }
+    Uint8List? jpeg;
+    try {
+      final hook = scannedPdfFirstPageRaster;
+      if (hook != null) {
+        jpeg = await hook(res.raw);
+      } else {
+        final pages = await PdfRaster.renderJpegs(
+          res.raw,
+          const [0],
+          dpi: 110,
+          quality: imageJpegQuality,
+        );
+        if (pages.isNotEmpty) jpeg = pages.first.jpeg;
+      }
+    } catch (_) {
+      jpeg = null;
+    }
+    if (jpeg != null && jpeg.isNotEmpty) {
+      final bytes = jpeg;
+      final opt = await Isolate.run(
+          () => optimizeImageBytes(bytes, mime: 'image/jpeg'));
+      final b64 = await Isolate.run(() => base64Encode(opt.bytes));
+      return {
+        'type': 'image',
+        'mime_type': opt.mime,
+        'data': b64,
+      };
+    }
+    return GeminiDecisions.textBlock(metaText(
+      name: p.basename(e.path),
+      sizeBytes: e.sizeBytes,
+      folder: _folderOf(e.path),
+      apk: false,
+    ));
+  }
+
+  static Map<String, Object?> _prepareMediaBlock(
+      String path, String type, String mime) {
+    final raw = File(path).readAsBytesSync();
+    if (raw.isEmpty) {
+      throw GeminiException('Dosya boş.', statusCode: -1);
+    }
+    if (type == 'document' && mime == 'application/pdf') {
+      final text = extractPdfText(raw);
+      if (text.isNotEmpty) {
+        return GeminiDecisions.textBlock(_header(SmartInputKind.text) + text);
+      }
+      if (raw.length <= maxInlineScannedPdfBytes) {
+        return {
+          'type': 'document',
+          'mime_type': mime,
+          'data': base64Encode(raw),
+        };
+      }
+      return GeminiDecisions.textBlock(metaText(
+        name: p.basename(path),
+        sizeBytes: raw.length,
+        folder: _folderOf(path),
+        apk: false,
+      ));
+    }
+    if (type == 'image') {
+      final opt = optimizeImageBytes(raw, mime: mime);
+      return {
+        'type': 'image',
+        'mime_type': opt.mime,
+        'data': base64Encode(opt.bytes),
+      };
+    }
+    return {
+      'type': type,
+      'mime_type': mime,
+      'data': base64Encode(raw),
+    };
+  }
+
+  /// Görseli model için optimize eder: uzun kenarı [maxDim] px üstündeyse ya da
+  /// [imageOptimizeThresholdBytes] üstündeyse yeniden boyutlandırıp JPEG
+  /// ([quality]) kodlar. Küçük ve zaten sınırı aşmayan görsellerde sıfır CPU
+  /// için ham bayt döner; çözülemezse ham bayta düşer.
+  static ({Uint8List bytes, String mime}) optimizeImageBytes(
+    Uint8List raw, {
+    required String mime,
+    int maxDim = maxImageDim,
+    int quality = imageJpegQuality,
+  }) {
+    try {
+      final decoder = imglib.findDecoderForData(raw);
+      if (decoder == null) return (bytes: raw, mime: mime);
+      final info = decoder.startDecode(raw);
+      if (info == null || info.width <= 0 || info.height <= 0) {
+        return (bytes: raw, mime: mime);
+      }
+      final needsResize = info.width > maxDim || info.height > maxDim;
+      if (!needsResize && raw.length <= imageOptimizeThresholdBytes) {
+        return (bytes: raw, mime: mime);
+      }
+      final decoded = decoder.decode(raw);
+      if (decoded == null) return (bytes: raw, mime: mime);
+      final target = needsResize
+          ? (decoded.width >= decoded.height
+              ? imglib.copyResize(decoded,
+                  width: maxDim, interpolation: imglib.Interpolation.linear)
+              : imglib.copyResize(decoded,
+                  height: maxDim, interpolation: imglib.Interpolation.linear))
+          : decoded;
+      final jpg = Uint8List.fromList(imglib.encodeJpg(target, quality: quality));
+      if (needsResize || jpg.length < raw.length) {
+        return (bytes: jpg, mime: 'image/jpeg');
+      }
+      return (bytes: raw, mime: mime);
+    } catch (_) {
+      return (bytes: raw, mime: mime);
+    }
+  }
+
+  /// Metin katmanlı PDF'ten ilk [maxPages] sayfa (+ varsa son sayfa: toplam
+  /// tutar, imza, son ödeme tarihi için) metnini çıkarır. Yeterli harf/rakam
+  /// ([minPdfTextChars]) yoksa boş döner → çağıran taranmış PDF olarak ham
+  /// `document` bloğuna düşer.
+  static String extractPdfText(
+    Uint8List bytes, {
+    int maxPages = maxPdfTextPages,
+  }) {
+    PdfDocument? doc;
+    try {
+      doc = PdfDocument(inputBytes: bytes);
+      final total = doc.pages.count;
+      if (total <= 0) return '';
+      final extractor = PdfTextExtractor(doc);
+      final buf = StringBuffer();
+      final headCount = total < maxPages ? total : maxPages;
+      for (var i = 0; i < headCount; i++) {
+        final pageText =
+            extractor.extractText(startPageIndex: i, endPageIndex: i).trim();
+        if (pageText.isNotEmpty) {
+          if (buf.isNotEmpty) buf.write('\n\n');
+          buf.write(pageText);
+        }
+        if (buf.length > maxTextChars * 2) break;
+      }
+      if (total > headCount) {
+        final lastText = extractor
+            .extractText(startPageIndex: total - 1, endPageIndex: total - 1)
+            .trim();
+        if (lastText.isNotEmpty) {
+          if (buf.isNotEmpty) buf.write('\n\n');
+          buf.write(lastText);
+        }
+      }
+      final cleaned = clip(buf.toString());
+      if (_alnumCount(cleaned) < minPdfTextChars) return '';
+      return cleaned;
+    } catch (_) {
+      return '';
+    } finally {
+      doc?.dispose();
+    }
+  }
+
+  static int _alnumCount(String text) {
+    var count = 0;
+    for (var i = 0; i < text.length; i++) {
+      final c = text.codeUnitAt(i);
+      final isAscii = (c >= 0x30 && c <= 0x39) ||
+          (c >= 0x41 && c <= 0x5A) ||
+          (c >= 0x61 && c <= 0x7A);
+      if (isAscii || c >= 0x00C0) count++;
+    }
+    return count;
+  }
+
+  static final RegExp _reTrailWsNl = RegExp(r'[ \t]+\n');
+  static final RegExp _reLeadNlWs = RegExp(r'\n[ \t]+');
+  static final RegExp _reManyNl = RegExp(r'\n{3,}');
+  static final RegExp _reMultiWs = RegExp(r'[ \t]{2,}');
+
   /// Yazıyı sadeleştirip (satır sonu, fazla boş satır/boşluk) en çok [max]
-  /// karaktere keser; vekil çifti ortadan bölünmez.
+  /// karaktere keser; vekil çifti ortadan bölünmez. Uzun belgelerde ([max] >=
+  /// 400) baş (%78) + son (%22) korunur: fatura toplamı, son ödeme tarihi ve
+  /// imza alt kısımda olsa da kaybolmaz.
   static String clip(String text, [int max = maxTextChars]) {
     var s = text
         .replaceAll('\r\n', '\n')
         .replaceAll('\r', '\n')
         .replaceAll('\u00a0', ' ')
-        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
-        .replaceAll(RegExp(r'\n[ \t]+'), '\n')
-        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-        .replaceAll(RegExp(r'[ \t]{2,}'), ' ')
+        .replaceAll(_reTrailWsNl, '\n')
+        .replaceAll(_reLeadNlWs, '\n')
+        .replaceAll(_reManyNl, '\n\n')
+        .replaceAll(_reMultiWs, ' ')
         .trim();
     if (s.length <= max) return s;
+    if (max >= 400) {
+      const sep = '\n…\n';
+      final avail = max - sep.length;
+      var headEnd = (avail * 0.78).floor();
+      var tailLen = avail - headEnd;
+      if (headEnd > 0) {
+        final last = s.codeUnitAt(headEnd - 1);
+        if (last >= 0xD800 && last <= 0xDBFF) headEnd--;
+      }
+      var tailStart = s.length - tailLen;
+      if (tailStart < s.length) {
+        final first = s.codeUnitAt(tailStart);
+        if (first >= 0xDC00 && first <= 0xDFFF) tailStart++;
+      }
+      final head = s.substring(0, headEnd).trimRight();
+      final tail = s.substring(tailStart).trimLeft();
+      return '$head$sep$tail';
+    }
     var end = max;
     final last = s.codeUnitAt(end - 1);
     if (last >= 0xD800 && last <= 0xDBFF) end--;

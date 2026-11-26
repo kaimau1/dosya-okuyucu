@@ -16,9 +16,9 @@ const Map<String, (String, String, String)> _t33 = {
   'pse.step_paragraph': ('Paragraf düzenlendi', 'Paragraph edited', 'تم تحرير الفقرة'),
   'pse.step_detail': ('{name}: “{detail}”', '{name}: “{detail}”', '{name}: «{detail}»'),
   'pse.hint_tap': (
-    'Bir paragrafa dokunup seçin; yeniden dokununca olduğu yerde yazarsınız.',
-    'Tap a paragraph to select it; tap again to type right on the page.',
-    'اضغط على فقرة لتحديدها، ثم اضغط مرة أخرى للكتابة في مكانها.',
+    'Yazmak için metne dokunun; taşımak ya da biçimlemek için basılı tutun.',
+    'Tap text to type; press and hold to move or style it.',
+    'اضغط على النص للكتابة؛ اضغط مطولاً لنقله أو تنسيقه.',
   ),
   'pse.hint_scanned': (
     'Bu sayfa taranmış bir görüntü, seçilecek metin yok. Yazı eklemek için “Metin kutusu”na, metni tanıtmak için “Metni tanı (OCR)”a dokunun.',
@@ -36,6 +36,11 @@ const Map<String, (String, String, String)> _t33 = {
     'Belgenin yazı tipinde bu harflerin bazıları yok; paragraf değiştirilmedi.',
     "The document's font lacks some of these letters; the paragraph was not changed.",
     'خط المستند لا يحتوي على بعض هذه الأحرف؛ لم تتغير الفقرة.',
+  ),
+  'pse.busy_wait': (
+    'Sayfa işleniyor, birkaç saniye bekleyin…',
+    'Processing the page, please wait a few seconds…',
+    'تتم معالجة الصفحة، يرجى الانتظار بضع ثوانٍ…',
   ),
   'pse.refused': (
     'Bu paragraf bu sürümde düzenlenemiyor; belge değiştirilmedi.',

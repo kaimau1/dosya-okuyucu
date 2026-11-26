@@ -13,67 +13,38 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       _snack(context.t('vw.pdf_loading'));
       return;
     }
-    // Uzun PDF'te OCR dakikalar sürer: pencerede "Sayfa 4 / 30 · %13 · ~3 dk
-    // kaldı", 1,5 sn'yi geçince ana ekran şeridinde ve bildirimde de (bkz.
-    // `widgets/tracked_busy.dart`). Metinler await'ten önce alınır.
-    final str = AppStrings.of(context);
-    final busy = showTrackedBusy(
-      context,
-      title: str.t('vw.ocr_running'),
-      name: str.t('vw.ocr_job_name'),
-      message: str.t('vw.preparing'),
+    final currentPage = onlyPage ??
+        (_pdfController.isReady ? (_pdfController.pageNumber ?? 1) : 1);
+    final res = await Navigator.of(context).push<OcrStudioResult>(
+      MaterialPageRoute(
+        builder: (_) => OcrStudioScreen(
+          imagePath: doc.kind == DocKind.image ? doc.path : null,
+          pdfDoc: doc.kind == DocKind.pdf ? _pdfDoc : null,
+          title: p.basename(doc.path),
+          currentPage: currentPage,
+          startDirectly: onlyPage != null,
+        ),
+      ),
     );
-
-    String text = '';
+    if (!mounted || res == null || res.text.trim().isEmpty) return;
+    final text = res.text.trim();
     var lines = const <OcrLine>[];
-    String? error;
-    try {
-      if (doc.kind == DocKind.image) {
-        busy.status(str.t('vw.ocr_running'));
+    if (doc.kind == DocKind.image && res.openImageOverlay) {
+      try {
         lines = await OcrService.recognizeImageLines(doc.path,
-            allowCloud: true);
-        text = lines.map((l) => l.text).join('\n').trim();
-      } else if (doc.kind == DocKind.pdf) {
-        void progress(int done, int total) => busy.status(
-            done >= total
-                ? str.t('vw.ocr_finishing')
-                : str.t('vw.ocr_page', {'n': done + 1, 'total': total}),
-            done: done,
-            total: total,
-          );
-        text = onlyPage == null
-            ? await OcrService.recognizePdf(_pdfDoc!,
-                onProgress: progress, allowCloud: true)
-            : OcrService.joinPages(
-                await OcrService.recognizePdfPages(_pdfDoc!,
-                    onlyPages: {onlyPage}, onProgress: progress, allowCloud: true),
-                (n) => '— Sayfa $n —');
+            allowCloud: true, mode: OcrQualityMode.fast);
+      } catch (_) {
+        // Bilinçli: metin stüdyoda zaten hazır; katman başarısızsa yalnız metin saklanır.
       }
-    } catch (e) {
-      error = userErrorText(e);
-    }
-    if (error != null) {
-      await busy.failed(error);
-    } else {
-      await busy.done();
-    }
-    if (!mounted) return;
-
-    if (error != null) {
-      _snack(context.t('vw.ocr_failed', {'error': error}));
-      return;
-    }
-    if (text.isEmpty) {
-      _snack(context.t('vw.ocr_none'));
-      return;
+      if (!mounted) return;
     }
     _partSetState(() {
       if (doc.kind == DocKind.image) {
         _ocrImageText = text;
-        _ocrImageLines = lines;
-        // Görselde metin doğrudan resmin üstünden seçilir (Lens gibi);
-        // liste penceresi yalnız istenirse açılır.
-        _ocrOverlay = lines.isNotEmpty;
+        if (lines.isNotEmpty) {
+          _ocrImageLines = lines;
+          _ocrOverlay = true;
+        }
       }
       // Taranmış PDF'te metin katmanı boştur → OCR sonucu AI bağlamı olur.
       if (doc.kind == DocKind.pdf && _pdfText.isEmpty) _pdfText = text;
@@ -81,9 +52,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     if (doc.kind == DocKind.image && lines.isNotEmpty) {
       // Kaydırma/yakınlaştırma seçimi bozmasın diye sığdır.
       _imgTx.value = Matrix4.identity();
-      return;
     }
-    _showOcrSheet(text);
   }
 
   /// Görselin üstündeki OCR katmanı açıkken alttaki panel (notlar
@@ -232,25 +201,27 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     );
   }
 
-  /// Gece modu açıksa çocuğu renk-tersleyen matrisle sarar.
-  ///
-  /// Matris: R'=255-R, G'=255-G, B'=255-B (alfa aynı). Beyaz kağıt siyah,
-  /// siyah yazı beyaz olur — karanlıkta göz yormaz. `AppColors.onMedia` yerine
-  /// matris kullanılıyor çünkü sayfadaki resim/grafikler de terslenmeli.
+  static const _nightMatrixFilter = ColorFilter.matrix(<double>[
+    -1, 0, 0, 0, 255, //
+    0, -1, 0, 0, 255, //
+    0, 0, -1, 0, 255, //
+    0, 0, 0, 1, 0, //
+  ]);
+
+  /// PDF sayfa görüntüsü renk süzgeci (`PdfViewerParams.pageImageColorFilter`):
+  /// dış `ColorFiltered` (`saveLayer`) olmadan yalnız sayfa görüntüsünü boyar.
+  ColorFilter? get _pdfPageColorFilter {
+    if (_pdfNight) return _nightMatrixFilter;
+    if (_pdfSepia) return _sepiaFilter;
+    return null;
+  }
+
+  /// Gece/Sepya modu açıksa açılış köprüsünü süzgeçler (PdfViewer'ın kendisi
+  /// [_pdfPageColorFilter] kullanır, dış `saveLayer` yok).
   Widget _nightFilter({required Widget child}) {
-    if (!_pdfNight && _pdfSepia) {
-      return ColorFiltered(colorFilter: _sepiaFilter, child: child);
-    }
-    if (!_pdfNight) return child;
-    return ColorFiltered(
-      colorFilter: const ColorFilter.matrix(<double>[
-        -1, 0, 0, 0, 255, //
-        0, -1, 0, 0, 255, //
-        0, 0, -1, 0, 255, //
-        0, 0, 0, 1, 0, //
-      ]),
-      child: child,
-    );
+    final filter = _pdfPageColorFilter;
+    if (filter == null) return child;
+    return ColorFiltered(colorFilter: filter, child: child);
   }
 
   /// Sayfaları [_pdfColumns] sütun hâlinde dizer.
@@ -444,7 +415,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       // Başarı bildirimi YOK (2026-09-27): rozet zaten yeni sayfayı
       // gösteriyor; "2. sayfa (toplam 3239)" şeridi ekranın altını boşuna
       // kapatıyordu.
-      if (_pdfPage != target) _partSetState(() => _pdfPage = target);
+      if (_pdfPage != target) _pdfPage = target;
       // Okuma kipi: sayfanın üstü çubuğun altında kalmasın — atlayış
       // okumaya başlamaktır, çubuklar çekilir (dokununca geri gelir).
       _readingBars.hide();
@@ -521,39 +492,49 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     }
   }
 
-  /// Kaydırma çubuğunun topuzu.
-  ///
-  /// 2026-09-27: eskiden sağ üstte büyük, dolu mavi bir sekmeydi ve alttaki
-  /// rozetle AYNI numarayı gösteriyordu (kullanıcının ekran görüntülerinde
-  /// "5" iki kez). Şimdi ince, yarı saydam bir tutamaç: yakalanabileceği
-  /// biçiminden (⇕) belli, numara küçük.
-  Widget _scrollThumb(int? pageNumber) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-      elevation: 2,
-      shadowColor: AppColors.barrier,
-      shape: RoundedRectangleBorder(
-        borderRadius: const BorderRadius.horizontal(
-          left: Radius.circular(14),
-          right: Radius.circular(4),
-        ),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(AppIcons.unfoldMore, size: 16, color: scheme.primary),
-          Text(
-            '${pageNumber ?? _pdfPage}',
-            maxLines: 1,
-            style: context.type.micro.copyWith(
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
+  /// Kaydırma çubuğunun ince tutamacı: dururken belgeyi örtmez, sürüklenirken
+  /// canlı sayfa/yüzde balonu [PdfInsetScrollThumb] içinde açılır.
+  Widget _scrollThumb(int? pageNumber, {bool dragging = false}) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    return RepaintBoundary(
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: AnimatedContainer(
+          duration: Motion.of(context, Motion.short),
+          curve: Motion.standard,
+          width: dragging ? 24 : 18,
+          height: dragging ? 50 : 44,
+          decoration: BoxDecoration(
+            color: dragging
+                ? scheme.primary
+                : scheme.surfaceContainerLowest.withValues(alpha: 0.92),
+            borderRadius: const BorderRadiusDirectional.horizontal(
+              start: Radius.circular(14),
+              end: Radius.circular(3),
+            ),
+            border: Border.all(
+              color: dragging
+                  ? scheme.primary
+                  : scheme.outlineVariant.withValues(alpha: 0.75),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: dragging ? 10 : 6,
+                offset: const Offset(-1, 2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              AppIcons.unfoldMore,
+              size: 16,
+              color: dragging ? scheme.onPrimary : scheme.primary,
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -666,15 +647,37 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     );
   }
 
-  /// PDF sayfa rozeti: dokununca sayfa gezgini, uzun basınca yıldızla.
+  /// Yüzen kapsüldeki ‹ / › ile yumuşak tek sayfa geçişi.
+  Future<void> _stepPdfPage(int delta) async {
+    final total = _pageCount;
+    if (total <= 1) return;
+    final target = (_pdfPageN.value + delta).clamp(1, total);
+    if (target == _pdfPageN.value) return;
+    AppHaptics.step();
+    final ok = await _tryGoToPage(target, animate: true);
+    if (ok && mounted && _pdfPage != target) {
+      _pdfPage = target;
+    }
+  }
+
+  /// PDF sayfa rozeti: tek dokunuşla ‹/› sayfa geçişi, ortaya dokununca
+  /// görsel sayfa gezgini, uzun basınca yıldızla.
   Widget _pageBadge() {
-    return PdfPageChip(
-      page: _pdfPage,
-      count: _pageCount,
-      bookmarked:
-          PdfBookmarks.isMarked(widget.doc.path, _pdfPage, size: _docSize),
-      onTap: _askGoToPage,
-      onLongPress: () => _toggleBookmark(_pdfPage),
+    return ListenableBuilder(
+      listenable: Listenable.merge([_pdfPageN, _bookmarkRevN]),
+      builder: (_, _) {
+        final page = _pdfPageN.value;
+        return PdfPageChip(
+          page: page,
+          count: _pageCount,
+          bookmarked:
+              PdfBookmarks.isMarked(widget.doc.path, page, size: _docSize),
+          onTap: _askGoToPage,
+          onLongPress: () => _toggleBookmark(page),
+          onPrev: _pageCount > 1 ? () => unawaited(_stepPdfPage(-1)) : null,
+          onNext: _pageCount > 1 ? () => unawaited(_stepPdfPage(1)) : null,
+        );
+      },
     );
   }
 
@@ -684,25 +687,33 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     final now =
         await PdfBookmarks.toggle(widget.doc.path, page, size: _docSize);
     if (!mounted) return now;
-    _partSetState(() {});
+    _bookmarkRevN.value++;
     _snack(context.t(now ? 'pn.starred' : 'pn.unstarred', {'n': page}));
     return now;
   }
 
-  /// Yıldızlı sayfanın sağ üst köşesindeki kurdele.
-  Widget? _bookmarkRibbon(PdfPage page, Rect pageRect) {
-    if (!PdfBookmarks.isMarked(widget.doc.path, page.pageNumber,
-        size: _docSize)) {
-      return null;
-    }
+  /// Yıldızlı sayfanın sağ üst köşesindeki kurdele (yalnız [_bookmarkRevN] dinler).
+  Widget _bookmarkRibbon(PdfPage page, Rect pageRect) {
     final w = (pageRect.width * 0.045).clamp(12.0, 28.0);
-    return Positioned(
+    return PositionedDirectional(
       top: 0,
-      right: w,
-      child: IgnorePointer(
-        child: Icon(AppIcons.bookmark,
-            size: w * 1.6,
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85)),
+      end: w,
+      child: ValueListenableBuilder<int>(
+        valueListenable: _bookmarkRevN,
+        builder: (context, _, _) {
+          if (!PdfBookmarks.isMarked(widget.doc.path, page.pageNumber,
+              size: _docSize)) {
+            return const SizedBox.shrink();
+          }
+          return IgnorePointer(
+            child: Icon(
+              AppIcons.bookmark,
+              size: w * 1.6,
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
+            ),
+          );
+        },
       ),
     );
   }

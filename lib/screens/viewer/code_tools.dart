@@ -42,11 +42,13 @@ extension _ViewerCodeToolsPart on _ViewerScreenState {
   List<AccessoryItem> _codeAccessoryItems() {
     final undo = _undoCtl.value;
     final items = <AccessoryItem>[
+      if (undo.canUndo)
       AccessoryItem(
           key: const ValueKey('code-undo'),
           icon: AppIcons.undo,
           tooltip: context.t('code.undo'),
           onPressed: undo.canUndo ? _undoCtl.undo : null),
+      if (undo.canRedo)
       AccessoryItem(
           key: const ValueKey('code-redo'),
           icon: AppIcons.redo,

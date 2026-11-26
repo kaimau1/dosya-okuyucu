@@ -17,22 +17,81 @@ abstract final class ReadAloudAi {
   /// Kısalma eşiği: bunun altına düşen yanıt özet sayılır ve reddedilir.
   static const minLengthRatio = 0.6;
 
+  /// Tek istekte gönderilen en uzun parça (karakter).
+  ///
+  /// KÖK (2026-11-25 fatura denetimi): Sesli Kitap bir BÖLÜMÜN tamamını (on
+  /// binlerce karakter) tek istekte gönderiyordu. Yanıt modelin çıktı
+  /// sınırına takılınca kesik geliyor, %60 kilidi onu reddediyor → hem girdi
+  /// hem çıktı belirteci ÖDENİYOR, sonuç çöpe gidiyordu. Paragraf sınırında
+  /// ≤ 8000 karakterlik parçalar hem sınırın çok altında kalır hem de
+  /// reddedilen bir parça yalnız kendi ücretini boşa harcar.
+  static const maxChunkChars = 8000;
+
   /// [text]'i sesli okumaya uygun hâle getirir; iş görmezse özgün metin döner.
+  ///
+  /// Uzun metin parçalara bölünür; bir parçada AI'ya ulaşılamazsa (anahtar,
+  /// ağ, kota) KALAN parçalar için istek atılmaz (boşuna istek/ücret yok).
   static Future<String> tidyOrOriginal(
     GeminiService gemini,
     String text,
   ) async {
     final source = text.trim();
     if (source.length < 40) return source; // kısa metinde kazanç yok
-    try {
-      final answer = await gemini.chat(
-        history: [ChatTurn(fromUser: true, text: buildPrompt(source))],
-      );
-      return accept(answer, source);
-    } catch (_) {
-      // AI'ya ulaşılamadı (anahtar, ağ, kota): okuma DURMAZ, özgün metin okunur.
-      return source;
+    final parts = splitForTidy(source);
+    final out = <String>[];
+    var aiDown = false;
+    for (final part in parts) {
+      if (aiDown || part.trim().length < 40) {
+        out.add(part);
+        continue;
+      }
+      try {
+        final answer = await gemini.chat(
+          history: [ChatTurn(fromUser: true, text: buildPrompt(part))],
+        );
+        out.add(accept(answer, part));
+      } catch (_) {
+        // AI'ya ulaşılamadı: okuma DURMAZ, özgün metin okunur.
+        aiDown = true;
+        out.add(part);
+      }
     }
+    return out.join('\n\n');
+  }
+
+  /// Metni paragraf (boş satır), yoksa satır, o da yoksa sözcük sınırında
+  /// ≤ [maxChunkChars] parçalara böler. Saf → testli.
+  static List<String> splitForTidy(String text, {int max = maxChunkChars}) {
+    if (text.length <= max) return [text];
+    final out = <String>[];
+    var buf = StringBuffer();
+    void flush() {
+      final t = buf.toString().trim();
+      if (t.isNotEmpty) out.add(t);
+      buf = StringBuffer();
+    }
+
+    for (final para in text.split(RegExp(r'\n\s*\n'))) {
+      final p = para.trim();
+      if (p.isEmpty) continue;
+      if (buf.length + p.length + 2 > max) flush();
+      if (p.length <= max) {
+        if (buf.isNotEmpty) buf.write('\n\n');
+        buf.write(p);
+        continue;
+      }
+      // Tek paragraf sınırı aşıyor: sözcük sınırında böl.
+      var rest = p;
+      while (rest.length > max) {
+        var cut = rest.lastIndexOf(RegExp(r'\s'), max);
+        if (cut <= max ~/ 2) cut = max;
+        out.add(rest.substring(0, cut).trim());
+        rest = rest.substring(cut).trim();
+      }
+      buf.write(rest);
+    }
+    flush();
+    return out;
   }
 
   /// Modele gidecek istem. Saf → testli.

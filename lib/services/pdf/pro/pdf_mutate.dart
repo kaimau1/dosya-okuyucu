@@ -735,7 +735,7 @@ String? _stampLook(pdfium_bindings.PDFium p, pdfium_bindings.FPDF_DOCUMENT doc,
   final font = p.FPDFText_LoadFont(doc, buf, bytes.length, 2, 1);
   if (font == nullptr) return 'Yazı tipi yüklenemedi.';
   try {
-    final size = c.fontSize;
+    final size = c.textSize;
     final lead = size * 1.25;
     final pad = c.boxed ? size * 0.5 : size * 0.2;
     final x0 = c.rect[0], top = c.rect[3];

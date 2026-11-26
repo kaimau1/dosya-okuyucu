@@ -104,8 +104,6 @@ const Map<String, (String, String, String)> _t4 = {
     'Opened in the last {n} months',
     'فُتح خلال آخر {n} أشهر',
   ),
-  'fm.storage_analysis': ('Bellek Analizi', 'Storage analysis', 'تحليل التخزين'),
-  'fm.used_percent': ('Kullanılan %{n}', '{n}% used', 'مستخدَم %{n}'),
   'fm.used': ('Kullanılan', 'Used', 'مستخدَم'),
   'apps.sort_size': ('Boyuta göre', 'By size', 'حسب الحجم'),
   'apps.storage_settings': (
@@ -233,13 +231,6 @@ const Map<String, (String, String, String)> _t4 = {
   ),
 
   // ── Dosya yöneticisi ayarları ─────────────────────────────────────────────
-  'fmset.title': (
-    'Dosya yöneticisi ayarları',
-    'File manager settings',
-    'إعدادات مدير الملفات',
-  ),
-  'fmset.sec_view': ('Görünüm', 'Appearance', 'المظهر'),
-  'fmset.sec_open': ('Açma', 'Opening', 'الفتح'),
   'fmset.start_folder': (
     'Açılış klasörü',
     'Start folder',
@@ -260,12 +251,10 @@ const Map<String, (String, String, String)> _t4 = {
     'Clear the start folder',
     'إزالة مجلد البداية',
   ),
-  'fmset.sec_search': ('Arama', 'Search', 'البحث'),
   'fmset.sec_privacy': ('Gizlilik', 'Privacy', 'الخصوصية'),
   'fmset.sec_delete': ('Silme', 'Deleting', 'الحذف'),
   'fmset.sec_permissions': ('İzinler', 'Permissions', 'الأذونات'),
   'fmset.sec_maintenance': ('Bakım', 'Maintenance', 'الصيانة'),
-  'fmset.sec_app': ('Uygulama', 'App', 'التطبيق'),
   'fmset.list_layout': (
     'Dosya listesi görünümü',
     'File list layout',
@@ -291,8 +280,6 @@ const Map<String, (String, String, String)> _t4 = {
     'معاينات الصور والفيديو (أوقفها على الأجهزة البطيئة)',
   ),
   'fmset.default_sort': ('Varsayılan sıralama', 'Default sorting', 'الترتيب الافتراضي'),
-  'fmset.desc': ('azalan', 'descending', 'تنازلي'),
-  'fmset.asc': ('artan', 'ascending', 'تصاعدي'),
   'fmset.reverse_dir': ('Yönü ters çevir', 'Reverse direction', 'عكس الاتجاه'),
   'fmset.group_photos': ('Fotoğrafları grupla', 'Group photos', 'تجميع الصور'),
   'fmset.group_photos_sub': (
@@ -441,16 +428,6 @@ const Map<String, (String, String, String)> _t4 = {
     'All-files access',
     'الوصول إلى كل الملفات',
   ),
-  'fmset.full_access_on': (
-    'Verildi — tüm klasörler görünüyor',
-    'Granted — all folders are visible',
-    'مُمنوح — تظهر جميع المجلدات',
-  ),
-  'fmset.full_access_off': (
-    'Verilmedi — yalnız medya klasörleri görünür',
-    'Not granted — only media folders are visible',
-    'غير ممنوح — تظهر مجلدات الوسائط فقط',
-  ),
   'fmset.usage_access': ('Kullanım erişimi', 'Usage access', 'الوصول إلى الاستخدام'),
   'fmset.usage_access_on': (
     'Verildi — uygulamaların son açılma tarihi görünüyor',
@@ -575,12 +552,6 @@ const Map<String, (String, String, String)> _t4 = {
   ),
   'fmset.volumes': ('Birimler', 'Volumes', 'وحدات التخزين'),
   'fmset.volumes_none': ('Bulunamadı', 'None found', 'لم يُعثر على شيء'),
-  'fmset.general': ('Genel ayarlar', 'General settings', 'الإعدادات العامة'),
-  'fmset.general_sub': (
-    'Gemini anahtarı, tema, hesap',
-    'Gemini key, theme, account',
-    'مفتاح Gemini، السمة، الحساب',
-  ),
 
   // ── İndirmeler ────────────────────────────────────────────────────────────
   'dl.title': ('İndirmeler', 'Downloads', 'التنزيلات'),
@@ -712,7 +683,6 @@ const Map<String, (String, String, String)> _t4 = {
     'Could not scan background items: {error}',
     'تعذّر فحص عناصر الخلفية: {error}',
   ),
-  'pe.undone': ('Geri alındı', 'Undone', 'تم التراجع'),
   'pe.paragraph_updated': ('Paragraf güncellendi', 'Paragraph updated', 'تم تحديث الفقرة'),
   'pe.delete_image': ('Görseli sil', 'Delete image', 'حذف الصورة'),
   'pe.delete_image_body': (
@@ -778,17 +748,6 @@ const Map<String, (String, String, String)> _t4 = {
     'Where should we save the edited document?',
     'أين نحفظ المستند المحرَّر؟',
   ),
-  'pe.unsaved_title': (
-    'Kaydedilmemiş değişiklikler',
-    'Unsaved changes',
-    'تغييرات غير محفوظة',
-  ),
-  'pe.unsaved_body': (
-    'Yaptığınız düzenlemeler henüz kaydedilmedi. Ne yapalım?',
-    'Your edits have not been saved yet. What should we do?',
-    'لم تُحفظ تعديلاتك بعد. ماذا نفعل؟',
-  ),
-  'pe.discard_leave': ('Kaydetme, çık', 'Don’t save, leave', 'اخرج دون حفظ'),
   'pe.hint_text_none': (
     'Bu sayfada düzenlenebilir metin bulunamadı. Yeni yazı için “Yazı ekle”ye dokunun.',
     'No editable text on this page. Tap “Add text” to write on it.',
@@ -869,14 +828,6 @@ const Map<String, (String, String, String)> _t4 = {
     'Nothing to correct — the page already looks clean.',
     'لا شيء لتصحيحه — تبدو الصفحة نظيفة بالفعل.',
   ),
-  'pe.fix_needs_key': (
-    'Akıllı düzeltme için Ayarlar > Gemini API anahtarı gerekiyor. '
-        'Anahtarsız "Düzelt" düğmesi cihaz içinde çalışmaya devam eder.',
-    'Smart fix needs a Gemini API key (Settings). The plain “Fix” '
-        'button keeps working on-device without a key.',
-    'يتطلب الإصلاح بالذكاء مفتاح Gemini من الإعدادات. يظل زر «إصلاح» '
-        'يعمل على الجهاز بدون مفتاح.',
-  ),
   'pe.hint_text': (
     'Değiştirmek istediğiniz paragrafa dokunun.',
     'Tap the paragraph you want to change.',
@@ -942,21 +893,6 @@ const Map<String, (String, String, String)> _t4 = {
     'Seçilenleri kaldır ({n})',
     'Remove selected ({n})',
     'إزالة المحدد ({n})',
-  ),
-  'pe.edit_paragraph': ('Paragrafı düzenle', 'Edit paragraph', 'تحرير الفقرة'),
-  'pe.current_text': ('Şu anki metin', 'Current text', 'النص الحالي'),
-  'pe.new_text': ('Yeni metin', 'New text', 'النص الجديد'),
-  'pe.new_text_help': (
-    'Yazı tipi, punto ve sayfa düzeni korunur.',
-    'The font, size and page layout are preserved.',
-    'يُحافظ على الخط والحجم وتخطيط الصفحة.',
-  ),
-  'pe.font_size': ('Punto', 'Font size', 'حجم الخط'),
-  'pe.font_size_help': (
-    'Belgedeki ölçülen punto. Değiştirirseniz paragrafın tamamı ölçeklenir.',
-    'The measured size from the document. Changing it scales the whole '
-        'paragraph.',
-    'الحجم المقاس من المستند. تغييره يقيس الفقرة بأكملها.',
   ),
   'pe.font_smaller': ('Küçült', 'Smaller', 'أصغر'),
   'pe.font_bigger': ('Büyüt', 'Bigger', 'أكبر'),
@@ -1032,7 +968,6 @@ const Map<String, (String, String, String)> _t4 = {
   ),
   'sl.open_failed': ('Açılamadı: {error}', 'Could not open: {error}', 'تعذّر الفتح: {error}'),
   'sl.slide_of': ('Slayt {n} / {total}', 'Slide {n} / {total}', 'الشريحة {n} / {total}'),
-  'sl.goto': ('Slayta git', 'Go to slide', 'الانتقال إلى شريحة'),
   'sl.goto_hint': (
     '1 – {total} arası',
     'Between 1 and {total}',

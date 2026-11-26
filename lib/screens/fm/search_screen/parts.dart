@@ -107,137 +107,6 @@ extension _SearchScreenStateParts on _SearchScreenState {
     );
   }
 
-  void _toggleMeaning() {
-    _update(() {
-      _meaning = !_meaning;
-      _plan = null;
-      _meaningMatched = const {};
-      if (_meaning) {
-        _inContent = false;
-        _smart = null;
-      }
-    });
-    final q = _controller.text.trim();
-    if (q.length >= 2) {
-      unawaited(_meaning ? _runMeaning(q) : _run(q));
-    }
-  }
-
-  /// Anlamla arama: sorgu (yalnız sorgu) AI'ya, sıralama cihazda.
-  Future<void> _runMeaning(String query) async {
-    final q = query.trim();
-    if (q.length < 2) return;
-    final appState = context.read<AppState>();
-    final str = AppStrings.of(context);
-    if (!await ensureAiKey(context) || !mounted) return;
-    final token = ++_queryToken;
-    _update(() {
-      _aiBusy = true;
-      _searching = true;
-    });
-    try {
-      final (plan, hits) = await AiMeaningSearch.search(
-        q,
-        gemini: appState.gemini,
-        root: _root,
-        scope: appState.aiScopeRules,
-      );
-      if (!mounted || token != _queryToken) return;
-      _update(() {
-        _aiBusy = false;
-        _searching = false;
-        _searched = true;
-        _plan = plan;
-        _results = [for (final h in hits) h.entry];
-        _meaningMatched = {for (final h in hits) h.entry.path: h.matched};
-      });
-    } catch (e) {
-      if (!mounted || token != _queryToken) return;
-      _update(() {
-        _aiBusy = false;
-        _searching = false;
-      });
-      showSnack(context, str.t('srch.ai_error', {'error': userErrorText(e)}));
-    }
-  }
-
-  /// Anlamla arama şeridi: ne yapıldığını söyler; arama sonrası AI'nın
-  /// hangi sözcüklerle aradığını çip olarak yazar ("neden bu sonuç?").
-  Widget _meaningBanner() {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final plan = _plan;
-    return Container(
-      key: const ValueKey('srch-meaning-banner'),
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, 0),
-      padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.sm, Gap.sm, Gap.sm),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(Radii.control),
-      ),
-      child: plan == null
-          ? Row(
-              children: [
-                Icon(AppIcons.ai, size: 18, color: scheme.primary),
-                const SizedBox(width: Gap.sm),
-                Expanded(
-                  child: Text(context.t('srch.meaning_intro'),
-                      style: theme.textTheme.bodySmall),
-                ),
-              ],
-            )
-          : Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Icon(AppIcons.ai, size: 16, color: scheme.primary),
-                Text(context.t('srch.meaning_terms'),
-                    style: theme.textTheme.labelMedium),
-                for (final t in plan.terms)
-                  Chip(
-                    label: Text(t),
-                    visualDensity: VisualDensity.compact,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-              ],
-            ),
-    );
-  }
-
-  /// Sorguyu Gemini'ye yorumlatır. **Yerel çözümleme yine geçerlidir**: AI
-  /// başarısız olursa ya da anlamsız yanıt dönerse arama bozulmaz.
-  Future<void> _askAi() async {
-    final q = _controller.text.trim();
-    if (q.isEmpty) return;
-    final appState = context.read<AppState>();
-    // Metinler await'ten ÖNCE (asenkron boşluktan sonra `context` yok).
-    final str = AppStrings.of(context);
-    if (!await ensureAiKey(context) || !mounted) return;
-    _update(() => _aiBusy = true);
-    try {
-      final gemini =
-          appState.gemini;
-      final answer = await gemini.chat(history: [
-        ChatTurn(fromUser: true, text: smartQueryPrompt(q, DateTime.now())),
-      ]);
-      final parsed = smartQueryFromJson(answer);
-      if (!mounted) return;
-      _update(() {
-        _aiBusy = false;
-        if (parsed != null) _smart = parsed;
-      });
-      if (parsed == null && mounted) {
-        showSnack(context, str.t('srch.ai_fallback'));
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _update(() => _aiBusy = false);
-      showSnack(context, str.t('srch.ai_error', {'error': userErrorText(e)}));
-    }
-  }
-
   /// Kaç sonuç gösteriliyor, hangi ölçütle sıralı ve liste sınıra takıldı mı.
   /// (Sessizce kırpılmış bir liste "dosyam yok" sanılır.)
   Widget _resultSummary(int shown) {
@@ -297,11 +166,6 @@ extension _SearchScreenStateParts on _SearchScreenState {
                     _update(() {
                       _inContent = !_inContent;
                       _contentHits = const [];
-                      // İçerik araması ile anlamla arama aynı anda olmaz.
-                      if (_inContent) {
-                        _meaning = false;
-                        _plan = null;
-                      }
                     });
                     _run(_controller.text);
                   },
@@ -432,10 +296,11 @@ extension _SearchScreenStateParts on _SearchScreenState {
           }
         }
       }),
-      // İçerik aramasında alt satır **eşleşmeyi** gösteriyor:
-      // "3 eşleşme · 12. satır · …fatura no: 2024/17…". Boyut ve
-      // klasör orada işe yaramaz; kullanıcı METNİ arıyor.
+      // İçerik aramasında alt satır eşleşmeyi gösterir; tarih ve boyut sağda
+      // kesilmeden sabitlenir.
       subtitle: _subtitleFor,
+      dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+      subtitleEnd: (e) => e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
       onMore: (e) async {
         await showEntryActions(
           context,
@@ -506,31 +371,31 @@ extension _SearchScreenStateParts on _SearchScreenState {
             ],
           ),
         ),
-      for (final (o, e) in shown)
-        ListTile(
-          key: ValueKey('opened-${e.path}'),
-          contentPadding: EdgeInsets.zero,
-          leading: FmEntryIcon(entry: e, size: 44),
-          title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(
-            [
-              if (o.query.isNotEmpty) '“${o.query}”',
-              FsPaths.humanDate(o.openedMs),
-            ].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: IconButton(
+      for (var i = 0; i < shown.length; i++)
+        FmEntryRow(
+          key: ValueKey('opened-${shown[i].$2.path}'),
+          entry: shown[i].$2,
+          selected: false,
+          selecting: false,
+          subtitle: shown[i].$1.query.isNotEmpty
+              ? '“${shown[i].$1.query}”'
+              : FmLocation.label(shown[i].$2.path, context.t,
+                  volumes: FmEnv.volumes),
+          dateText: FmLocation.shortDate(shown[i].$1.openedMs),
+          subtitleEnd: FsPaths.humanSize(shown[i].$2.sizeBytes),
+          showDivider: i < shown.length - 1,
+          badge: IconButton(
             tooltip: context.t('common.delete'),
             icon: const Icon(AppIcons.close, size: 20),
             onPressed: () async {
-              await SearchHistory.removeOpened(e.path);
+              await SearchHistory.removeOpened(shown[i].$2.path);
               if (mounted) _update(() {});
             },
           ),
           onTap: () async {
-            unawaited(SearchHistory.recordOpened(e.path, o.query));
-            await EntryOpener.open(context, e.path, siblings: paths);
+            final item = shown[i];
+            unawaited(SearchHistory.recordOpened(item.$2.path, item.$1.query));
+            await EntryOpener.open(context, item.$2.path, siblings: paths);
             if (mounted) _update(() {});
           },
         ),

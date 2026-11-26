@@ -19,6 +19,11 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
         for (var c = c1; c <= c2; c++)
           CellRef(r, c): sheet.overrideAt(r, c),
     };
+    final editsBefore = <(int, int), XlsxStyleEdit?>{
+      for (var r = r1; r <= r2; r++)
+        for (var c = c1; c <= c2; c++)
+          (r, c): sheet.styleEdits[(r, c)],
+    };
     void applyNow() {
       for (var r = r1; r <= r2; r++) {
         for (var c = c1; c <= c2; c++) {
@@ -31,6 +36,13 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
     applyNow();
     _recordStep('excel.undo_format', applyNow, () {
       before.forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+      editsBefore.forEach((k, edit) {
+        if (edit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = edit;
+        }
+      });
     });
     _session.changed();
     _partSetState(() {});
@@ -61,6 +73,16 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
         for (var c = range.left; c <= range.right; c++)
           CellRef(r, c): sheet.styleAt(r, c) ?? const XlsxCellStyle(),
     };
+    final overridesBefore = <CellRef, XlsxCellStyle?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): sheet.overrideAt(r, c),
+    };
+    final editsBefore = <(int, int), XlsxStyleEdit?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          (r, c): sheet.styleEdits[(r, c)],
+    };
     void applyNow() {
       for (var r = range.top; r <= range.bottom; r++) {
         for (var c = range.left; c <= range.right; c++) {
@@ -72,8 +94,19 @@ extension _SpreadsheetEditorScreenFormattingPart on _SpreadsheetEditorScreenStat
     applyNow();
     _recordStep(label, applyNow, () {
       before.forEach((at, style) => restore(editor, name, at.row, at.col, style));
+      overridesBefore
+          .forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+      editsBefore.forEach((k, edit) {
+        if (edit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = edit;
+        }
+      });
     });
     _session.changed();
+    _gridVersion++;
+    _autoFitVersion++;
     _partSetState(() {});
   }
 

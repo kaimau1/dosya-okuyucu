@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../fm/fm_env.dart';
 import '../fm/video_transcode.dart';
+import '../gemini_service.dart';
+import '../read_aloud_ai.dart';
 import '../tts_service.dart';
+import '../voice/azure_tts.dart';
 import '../voice/neural_engine.dart';
 import '../voice/neural_voices.dart';
 import 'doc_chapters.dart';
@@ -18,8 +22,13 @@ enum AudiobookVoice {
   system,
   antalia,
   ema,
+  // Kokoro (2026-11-25 geri geldi; yalnız Kişisel — [NeuralVoice.available]).
   kokoroTr,
-  kokoroEn;
+  kokoroEn,
+  // Ahmet (çevrimiçi, Azure; kullanıcı 2026-11-25: "sesli kitapta da yeni
+  // sesler kullanılabilmeli"). Kitabın metni Microsoft'a gider — ses kartı
+  // bunu yazar; ücretsiz katman ayda 500 bin karakter.
+  ahmet;
 
   NeuralVoice? get neural => switch (this) {
         AudiobookVoice.system => null,
@@ -27,7 +36,12 @@ enum AudiobookVoice {
         AudiobookVoice.ema => NeuralVoice.ema,
         AudiobookVoice.kokoroTr => NeuralVoice.kokoroTr,
         AudiobookVoice.kokoroEn => NeuralVoice.kokoroEn,
+        AudiobookVoice.ahmet => NeuralVoice.ahmet,
       };
+
+  /// [v] için sesli kitap sesi (yoksa null — ör. çevrimiçi Ahmet).
+  static AudiobookVoice? of(NeuralVoice v) =>
+      AudiobookVoice.values.where((a) => a.neural == v).firstOrNull;
 
   String get folderTag => switch (this) {
         AudiobookVoice.system => '',
@@ -35,7 +49,13 @@ enum AudiobookVoice {
         AudiobookVoice.ema => ' (EMA)',
         AudiobookVoice.kokoroTr => ' (Kokoro)',
         AudiobookVoice.kokoroEn => ' (Kokoro EN)',
+        AudiobookVoice.ahmet => ' (Ahmet)',
       };
+}
+
+/// Kullanıcı durdurdu (uzun bir adım beklenirken). Bkz. [AudiobookMaker.orCancel].
+class AudiobookCancelled implements Exception {
+  const AudiobookCancelled();
 }
 
 /// Üretim ilerlemesi.
@@ -65,11 +85,19 @@ class AudiobookMaker {
     this.engine,
     this._tts,
     this.speed = 1.0,
+    this.ttsPrefs,
+    this.cleanOptions = const SpeechCleanOptions(),
+    this.aiTidy = false,
+    this.aiGemini,
   });
 
   final AudiobookVoice voice;
   final NeuralVoiceEngine? engine;
   final double speed;
+  final TtsPrefs? ttsPrefs;
+  final SpeechCleanOptions cleanOptions;
+  final bool aiTidy;
+  final GeminiService? aiGemini;
   TtsService? _tts;
 
   /// Sesli kitapların kökü.
@@ -112,6 +140,39 @@ class AudiobookMaker {
     return out;
   }
 
+  /// İptal yoklama aralığı (testte kısaltılır). Saniyede bir yeter: "Durdur"
+  /// en geç ~1 sn içinde etkili olur.
+  @visibleForTesting
+  static Duration cancelPoll = const Duration(seconds: 1);
+
+  /// [work]ü bekler; beklerken [isCancelled] true olursa BEKLEMEYİ BIRAKIR
+  /// ([AudiobookCancelled]). Arkada süren iş bitince sonucu/hatası yutulur.
+  ///
+  /// KÖK (2026-11-25, kullanıcı: "sesli kitap oluşturma durdurulamıyor",
+  /// ekranda "Durduruluyor…" asılı): iptal yalnız parçalar ARASINDA
+  /// denetleniyordu. Kokoro parça başına harf başına ~1 sn (900 karakter ≈
+  /// 15 dk), ses modeli hazırlığı ve AI toparlama da uzun sürebiliyor;
+  /// "Durdur" o adım bitene dek etkisizdi.
+  static Future<T> orCancel<T>(Future<T> work, bool Function()? isCancelled) {
+    if (isCancelled == null) return work;
+    if (isCancelled()) {
+      work.then((_) {}, onError: (Object _) {});
+      return Future.error(const AudiobookCancelled());
+    }
+    final done = Completer<T>();
+    work.then((v) {
+      if (!done.isCompleted) done.complete(v);
+    }, onError: (Object e, StackTrace st) {
+      if (!done.isCompleted) done.completeError(e, st);
+    });
+    final timer = Timer.periodic(cancelPoll, (t) {
+      if (!isCancelled()) return;
+      t.cancel();
+      if (!done.isCompleted) done.completeError(const AudiobookCancelled());
+    });
+    return done.future.whenComplete(timer.cancel);
+  }
+
   Future<List<String>> make({
     required String docName,
     required List<AudioChapter> chapters,
@@ -138,26 +199,57 @@ class AudiobookMaker {
         continue;
       }
       final parts = <String>[];
-      final texts = pieces(c.text, voice == AudiobookVoice.system ? 3500 : 1800);
+      var chapterText = c.text;
+      if (aiTidy && Edition.current.has(Feature.ai) && aiGemini != null) {
+        try {
+          chapterText = await orCancel(
+              ReadAloudAi.tidyOrOriginal(aiGemini!, chapterText), isCancelled);
+        } on AudiobookCancelled {
+          break;
+        }
+      }
+      final maxLen = voice == AudiobookVoice.system ? 1800 : 900;
+      var segments =
+          splitForAudiobook(chapterText, maxLength: maxLen, options: cleanOptions);
+      if (segments.isEmpty && chapterText.trim().isNotEmpty) {
+        segments = [SpeechSegment(chapterText.trim(), 350)];
+      }
+      if (segments.isEmpty) {
+        onProgress?.call(AudiobookProgress(i, chapters.length, 1, 'skip'));
+        continue;
+      }
+      final texts = [for (final s in segments) s.text];
+      final gaps = [for (final s in segments) s.pauseAfterMs];
+      var stopped = false;
       try {
         for (var k = 0; k < texts.length; k++) {
           if (isCancelled?.call() ?? false) break;
           final part = p.join(tmp.path, 'p${i}_$k.wav');
-          await _synth(texts[k], part, (d, t) {
-            final within = t == 0 ? 0.0 : d / t;
-            onProgress?.call(AudiobookProgress(
-                i, chapters.length, ((k + within) / texts.length) * 0.9, 'synth'));
-          });
+          try {
+            await orCancel(
+                _synth(texts[k], part, (d, t) {
+                  final within = t == 0 ? 0.0 : d / t;
+                  onProgress?.call(AudiobookProgress(i, chapters.length,
+                      ((k + within) / texts.length) * 0.9, 'synth'));
+                }),
+                isCancelled);
+          } on AudiobookCancelled {
+            // Cihaz sesi sentezini de kes (yapay ses motoru kendi kuyruğunda
+            // biter; sonucu atılır).
+            stopped = true;
+            unawaited(_tts?.stop());
+            break;
+          }
           parts.add(part);
           onProgress?.call(AudiobookProgress(
               i, chapters.length, ((k + 1) / texts.length) * 0.9, 'synth'));
         }
-        if (isCancelled?.call() ?? false) break;
+        if (stopped || (isCancelled?.call() ?? false)) break;
         onProgress?.call(AudiobookProgress(i, chapters.length, 0.92, 'merge'));
         final base = p.join(folder, chapterBase(n, c));
         final wavPath = '$base.wav';
         final fmt = await Wav.concat(parts, wavPath,
-            title: c.title, album: docName, track: n + 1);
+            gapsMs: gaps, title: c.title, album: docName, track: n + 1);
         if (fmt == null) throw StateError('ses üretilemedi');
         onProgress?.call(AudiobookProgress(i, chapters.length, 0.95, 'encode'));
         var out = wavPath;
@@ -186,10 +278,23 @@ class AudiobookMaker {
       void Function(int done, int total) progress) async {
     final neural = voice.neural;
     if (neural == null) {
-      final tts = _tts ??= TtsService();
+      final tts = _tts ??=
+          TtsService(prefs: (ttsPrefs ?? TtsPrefs.defaults).copyWith(rate: speed));
       if (!await tts.synthesizeToFile(text, target)) {
         throw StateError('cihaz sesi dosya üretemedi');
       }
+      return;
+    }
+    final cloud = neural.cloudName;
+    if (cloud != null) {
+      // Azure doğrudan 24 kHz 16 bit WAV verir: birleştirme hattına aynen girer.
+      final bytes = await AzureTts.synthesize(text,
+          voice: cloud,
+          rate: speed,
+          pitch: (ttsPrefs ?? TtsPrefs.defaults).pitch,
+          wav: true);
+      await File(target).writeAsBytes(bytes, flush: true);
+      progress(1, 1);
       return;
     }
     final e = engine;

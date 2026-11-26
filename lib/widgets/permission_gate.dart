@@ -5,6 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
+import '../core/device_profile.dart';
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../services/fm/fm_env.dart';
@@ -309,6 +311,16 @@ class _PermissionStatusRowState extends State<PermissionStatusRow>
     if (StoragePermission.readerBuild &&
         const {AppPermission.allFiles, AppPermission.location,
             AppPermission.overlay}.contains(widget.permission)) {
+      return const SizedBox.shrink();
+    }
+    // Play derlemelerinde SYSTEM_ALERT_WINDOW çıkarılır: Ayarlar/Yardım'da
+    // ölü satır gösterme. Android 13+ (SDK >= 33) cihazlarda ise konum izni
+    // maxSdkVersion="32" ile geçersizdir (Yakındakiler NEARBY_WIFI_DEVICES kullanır).
+    if (widget.permission == AppPermission.overlay && Edition.current.isPlay) {
+      return const SizedBox.shrink();
+    }
+    if (widget.permission == AppPermission.location &&
+        DeviceProfile.info.androidSdk >= 33) {
       return const SizedBox.shrink();
     }
     final k = PermissionCard.keyOf(widget.permission);

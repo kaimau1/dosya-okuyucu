@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/media_resize.dart';
 import '../../models/video_edit.dart';
@@ -156,6 +157,10 @@ abstract final class VideoTranscoder {
     JobHandle? handle,
     String? progressPrefix,
   }) async {
+    if (!Edition.current.has(Feature.videoCompress)) {
+      throw VideoTranscodeException(
+          AppStrings.current.t('vt.unsupported'));
+    }
     final before = File(path).lengthSync();
     final base = p.basenameWithoutExtension(path);
     // Çıktı her zaman MP4/H.264; uzantıyı korumak (ör. .mkv) oynatıcıları

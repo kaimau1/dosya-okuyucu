@@ -384,6 +384,9 @@ class PdfEditSession extends ChangeNotifier {
   }) =>
       _serial(() async {
         _ensureAlive();
+        if (_livePage != null) {
+          throw StateError('Canlı yazma sürerken komut uygulanamaz.');
+        }
         final sw = PdfProPerf.start();
         final before = await _snapshots.take(pageIndex);
         if (before == 0) {
@@ -485,7 +488,7 @@ class PdfEditSession extends ChangeNotifier {
   /// Son adımı geri alır; alınamazsa false (yığın değişmez).
   Future<bool> undo() => _serial(() async {
         _ensureAlive();
-        if (_done.isEmpty) return false;
+        if (_livePage != null || _done.isEmpty) return false;
         final sw = PdfProPerf.start();
         final step = _done.last;
         if (step._after == 0) {
@@ -505,7 +508,7 @@ class PdfEditSession extends ChangeNotifier {
 
   Future<bool> redo() => _serial(() async {
         _ensureAlive();
-        if (_undone.isEmpty) return false;
+        if (_livePage != null || _undone.isEmpty) return false;
         final sw = PdfProPerf.start();
         final step = _undone.last;
         if (!await _snapshots.restore(step.pageIndex, step._after)) {

@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../core/image_decode.dart';
 import '../../models/media_resize.dart';
 import 'exif_reader.dart';
 import 'file_ops.dart';
@@ -185,7 +186,7 @@ abstract final class ImageResizer {
       final head = await file.openRead(0, length < _headBytes ? length : _headBytes)
           .fold<List<int>>(<int>[], (a, b) => a..addAll(b));
       final bytes = Uint8List.fromList(head);
-      final decoder = img.findDecoderForData(bytes);
+      final decoder = findCommonDecoderForData(bytes);
       if (decoder == null) return null;
       final info = decoder.startDecode(bytes);
       if (info == null || info.width <= 0 || info.height <= 0) return null;
@@ -235,7 +236,7 @@ abstract final class ImageResizer {
   }
 
   static Uint8List? _previewSync(String path, int maxEdge) {
-    final decoded = img.decodeImage(File(path).readAsBytesSync());
+    final decoded = decodeCommonImage(File(path).readAsBytesSync());
     if (decoded == null) return null;
     final longEdge =
         decoded.width > decoded.height ? decoded.width : decoded.height;
@@ -252,9 +253,9 @@ abstract final class ImageResizer {
 
   static ({int width, int height}) _resizeSync(_ResizeArgs args) {
     final bytes = File(args.sourcePath).readAsBytesSync();
-    // `decodeImage` EXIF yönünü UYGULAR (Faz 10b piksel testi) → ölçüler
+    // `decodeCommonImage` EXIF yönünü UYGULAR (Faz 10b piksel testi) → ölçüler
     // görünen yönde.
-    final decoded = img.decodeImage(bytes);
+    final decoded = decodeCommonImage(bytes);
     if (decoded == null) {
       throw _ResizeFailure('Görüntü çözülemedi: '
           '${p.basename(args.sourcePath)}');

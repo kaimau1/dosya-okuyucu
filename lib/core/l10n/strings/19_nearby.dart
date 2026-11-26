@@ -17,11 +17,6 @@ const Map<String, (String, String, String)> _t19 = {
     'إلى هاتف قريب أو عبر QR إلى أي متصفح — دون تطبيق',
   ),
   'peer.other_apps_title': ('Başka uygulamayla', 'With another app', 'بتطبيق آخر'),
-  'near.visible': (
-    'Görünürsün — yakındakiler seni görüyor ve sana dosya gönderebilir',
-    'You are visible — nearby phones can see you and send you files',
-    'أنت مرئي — يمكن للهواتف القريبة رؤيتك وإرسال الملفات إليك',
-  ),
   'near.starting': ('Hazırlanıyor…', 'Getting ready…', 'جارٍ التحضير…'),
   'near.wifi_on': ('Wi-Fi', 'Wi-Fi', 'Wi-Fi'),
   'near.wifi_off': ('Wi-Fi yok', 'No Wi-Fi', 'لا Wi-Fi'),
@@ -31,12 +26,6 @@ const Map<String, (String, String, String)> _t19 = {
   'near.bt_none': ('Bluetooth LE yok', 'No Bluetooth LE', 'لا يوجد بلوتوث LE'),
   'near.bt_failed': ('Bluetooth başlamadı · yeniden', 'Bluetooth failed · retry', 'تعذّر البلوتوث · أعد'),
   'near.bt_wait': ('Bluetooth…', 'Bluetooth…', 'بلوتوث…'),
-  'near.pick_title': ('Ne gönderilecek?', 'What to send?', 'ماذا ترسل؟'),
-  'near.pick_sub': (
-    'Dosya ya da klasör seç, sonra aşağıdaki cihaza dokun. Bir şey seçmesen de karşıdan gelenleri alırsın.',
-    'Pick files or a folder, then tap a device below. You receive incoming files either way.',
-    'اختر ملفات أو مجلدًا ثم المس جهازًا أدناه. تستلم الملفات الواردة في كل الأحوال.',
-  ),
   'near.selected': ('{n} öğe seçili', '{n} items selected', '{n} عنصر محدد'),
   'near.tap_device': (
     'Göndermek için aşağıdaki cihaza dokun · klasörler klasör olarak, çok sayıda küçük dosya tek pakette gider',
@@ -47,13 +36,7 @@ const Map<String, (String, String, String)> _t19 = {
   'near.add_folder': ('Klasör ekle', 'Add folder', 'أضف مجلدًا'),
   'near.pick_this_folder': ('Bu klasörü gönder', 'Send this folder', 'أرسل هذا المجلد'),
   'near.what_to_send': ('{name} cihazına ne gönderilsin?', 'What to send to {name}?', 'ماذا ترسل إلى {name}؟'),
-  'near.devices': ('Yakındaki cihazlar', 'Nearby devices', 'الأجهزة القريبة'),
   'near.searching': ('Yakındaki Dosyalarım aranıyor…', 'Looking for nearby Dosyalarım…', 'جارٍ البحث عن Dosyalarım قريب…'),
-  'near.searching_sub': (
-    'Karşı telefonda da Yakındakiler\'i açın. Aynı Wi-Fi ya da açık Bluetooth yeterli.',
-    'Open Nearby on the other phone too. Same Wi-Fi or Bluetooth on is enough.',
-    'افتح «القريبون» على الهاتف الآخر أيضًا. تكفي نفس شبكة Wi-Fi أو تشغيل البلوتوث.',
-  ),
   'near.receiving': ('Alınıyor', 'Receiving', 'جارٍ الاستلام'),
   'near.receiving_n': (
     'Alınıyor · {n} dosya',
@@ -73,7 +56,6 @@ const Map<String, (String, String, String)> _t19 = {
     'Connection lost — will resume where it stopped…',
     'انقطع الاتصال — سيستأنف من حيث توقف…',
   ),
-  'near.no_app': ('Karşıda uygulama yok mu?', 'No app on the other side?', 'لا يوجد التطبيق لدى الطرف الآخر؟'),
   'near.web_idle': ('QR ile tarayıcıdan indirme', 'Download in a browser via QR', 'التنزيل من المتصفح عبر QR'),
   'near.web_idle_sub': (
     'Dosya seçince burada QR ve kısa bir adres çıkar; karşı taraf kamerayla okutup tarayıcıdan indirir.',
@@ -176,13 +158,7 @@ const Map<String, (String, String, String)> _t19 = {
 
   // ── Süzgeç içi arama kipleri ──
   'srch.mode_name': ('Adında', 'In name', 'في الاسم'),
-  'srch.mode_meaning': ('Anlamla', 'By meaning', 'بالمعنى'),
   'srch.mode_content': ('Dosyaların içinde', 'Inside files', 'داخل الملفات'),
-  'srch.mode_content_ai': (
-    'Akıllı içerik',
-    'Smart content',
-    'محتوى ذكي',
-  ),
   'srch.mode_scope': (
     'Seçili süzgeçteki {n} dosyanın adında aranır',
     'Searching names of the {n} files in the current filter',
@@ -206,12 +182,6 @@ const Map<String, (String, String, String)> _t19 = {
   ),
   // ── Aktar 2026-11-03: yazı gönderme, güvenilen cihazlar, yeni düzen ───────
   'near.add_text': ('Yazı', 'Text', 'نص'),
-  'near.paste_hint': (
-    'Buraya yazın ya da yapıştırın (klavyeden görsel de olur)',
-    'Type or paste here (images from the keyboard too)',
-    'اكتب أو الصق هنا (والصور من لوحة المفاتيح أيضًا)',
-  ),
-  'near.clip_text': ('Panodan ekle: {text}', 'Add from clipboard: {text}', 'إضافة من الحافظة: {text}'),
   'near.clip_files': ('Kopyalanan {n} dosyayı ekle', 'Add {n} copied files', 'إضافة {n} ملفات منسوخة'),
   'near.text_title': ('Gönderilecek yazı', 'Text to send', 'النص المراد إرساله'),
   'near.text_hint': (
@@ -219,7 +189,6 @@ const Map<String, (String, String, String)> _t19 = {
     'Type or paste — it appears on the other device, ready to copy',
     'اكتب أو الصق — يظهر على الجهاز الآخر جاهزًا للنسخ',
   ),
-  'near.text_chip': ('Yazı · {n} karakter', 'Text · {n} characters', 'نص · {n} حرفًا'),
   'near.text_sent': ('Yazı {name} cihazına gönderildi', 'Text sent to {name}', 'أُرسل النص إلى {name}'),
   'near.text_failed': (
     'Yazı gönderilemedi — karşıda Aktar açık ve uygulama güncel mi?',
@@ -235,18 +204,12 @@ const Map<String, (String, String, String)> _t19 = {
   'near.text_copy': ('Kopyala', 'Copy', 'نسخ'),
   'near.step_what': ('1 · Ne gönderilecek?', '1 · What to send?', '1 · ماذا ترسل؟'),
   'near.step_who': ('2 · Kime?', '2 · To whom?', '2 · إلى من؟'),
-  'near.you': ('Bu cihaz', 'This device', 'هذا الجهاز'),
   'near.trust_this': (
     'Bu cihaza güven — bir daha sorma',
     "Trust this device — don't ask again",
     'ثق بهذا الجهاز — لا تسأل مرة أخرى',
   ),
   'near.trusted': ('Güvenilen cihazlar', 'Trusted devices', 'الأجهزة الموثوقة'),
-  'near.trusted_sub': (
-    'Bunlardan gelen dosyalar sorulmadan alınır',
-    'Files from these are received without asking',
-    'تُستلم الملفات منها دون سؤال',
-  ),
   'near.trusted_badge': ('Güvenilir', 'Trusted', 'موثوق'),
   'near.untrust': ('Güveni kaldır', 'Remove trust', 'إزالة الثقة'),
   'near.trusted_added': ('{name} güvenilenlere eklendi', '{name} added to trusted devices', 'أُضيف {name} إلى الأجهزة الموثوقة'),
@@ -259,18 +222,10 @@ const Map<String, (String, String, String)> _t19 = {
   'ops.tab_organize': ('Düzenle', 'Organize', 'تنظيم'),
   'ops.active': ('Sürenler', 'Running', 'قيد التشغيل'),
   'ops.finished': ('Biten işler', 'Finished', 'المنتهية'),
-  'srch.ai_toggle_on': ('Anlamla arama açık — kapatmak için dokun', 'Meaning search on — tap to turn off', 'البحث بالمعنى مفعّل — اضغط للإيقاف'),
-  'srch.ai_toggle_off': (
-    'Akıllı aramayı aç',
-    'Turn on smart search',
-    'تشغيل البحث الذكي',
-  ),
-  'srch.hint_ai': ('Anlamla ara: kendi cümlenle yaz', 'Search by meaning: describe it', 'ابحث بالمعنى: صِف ما تريد'),
   'dock.edit_title': ('Alt paneli düzenle', 'Edit bottom panel', 'تعديل اللوحة السفلية'),
   'dock.edit_body': ('Çöp, Aktar ve Tara sabit. Sola ve sağa en çok 2\'şer ek düğme ekleyebilirsin (Drive da ek düğme).', 'Trash, Transfer and Scan stay. You can add up to 2 extra buttons on each side (Drive is an extra too).', 'المهملات والنقل والمسح ثابتة. يمكنك إضافة زرين إضافيين كحد أقصى على كل جانب (Drive أيضًا).'),
   'dock.extra_left': ('Sol ek düğmeler', 'Extra buttons (left)', 'أزرار إضافية (يسار)'),
   'dock.extra_right': ('Sağ ek düğmeler', 'Extra buttons (right)', 'أزرار إضافية (يمين)'),
-  'dock.none': ('Yok', 'None', 'لا شيء'),
   'dock.long_press': ('Basılı tut: alt paneli düzenle', 'Long-press: edit bottom panel', 'اضغط مطولًا: تعديل اللوحة'),
   'dock.jobs': ('İşlemler', 'Jobs', 'المهام'),
   'dock.library': ('Kitaplık', 'Library', 'المكتبة'),
@@ -300,4 +255,14 @@ const Map<String, (String, String, String)> _t19 = {
   'lib.share': ('Paylaş', 'Share', 'مشاركة'),
   'lib.clean_missing': ('Bulunamayanları kaldır ({n})', 'Remove missing ({n})', 'إزالة المفقودة ({n})'),
   'lib.page_of': ('%{p} okundu', '{p}% read', 'قُرئ {p}%'),
+
+  // ── Gönderim sonucu (seçim kutusunda) ──────────────────────────────────
+  'near.sent_tile': ('Gönderildi', 'Sent', 'تم الإرسال'),
+  'near.fail_tile': ('Gönderilemedi', 'Not sent', 'لم يُرسل'),
+  'near.sent_partial': ('{ok} dosya gönderildi · {bad} gönderilemedi: {why}', '{ok} file(s) sent · {bad} not sent: {why}', 'أُرسل {ok} ملف · لم يُرسل {bad}: {why}'),
+  'near.fail_network': ('bağlantı koptu, alıcıya ulaşılamadı', 'connection lost, receiver unreachable', 'انقطع الاتصال، تعذر الوصول إلى المستلم'),
+  'near.fail_receiver': ('alıcı dosyayı kaydedemedi (yer dolu ya da izin yok)', 'the receiver could not save it (no space or permission)', 'تعذر على المستلم حفظه (لا مساحة أو لا إذن)'),
+  'near.fail_secure': ('güvenli bağlantı kurulamadı', 'secure connection failed', 'تعذر إنشاء اتصال آمن'),
+  'near.fail_code': ('eşleşme kodu kabul edilmedi', 'pairing code was rejected', 'رُفض رمز الإقران'),
+  'near.fail_identity': ('alıcının kimliği değişmiş, güvenlik için durduruldu', 'receiver identity changed, stopped for safety', 'تغيرت هوية المستلم، أُوقف للأمان'),
 };

@@ -1,13 +1,16 @@
 part of '../spreadsheet_editor_screen.dart';
 
 extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
-  Widget _colHeader(XlsxSheet sheet, int c) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _colHeader(_RenderContext ctx, int c) {
+    final sheet = ctx.sheet;
     final active = _inSelection(_selRow, c) ||
         (c >= math.min(_anchorCol, _selCol) &&
             c <= math.max(_anchorCol, _selCol));
     final width = sheet.colWidth(c) * _zoom;
     final height = _SpreadsheetEditorScreenState._headerH * _zoom;
+    final filterRange = ctx.filterRange;
+    final hasFilter =
+        filterRange != null && c >= filterRange.c1 && c <= filterRange.c2;
     return SizedBox(
       width: width,
       height: height,
@@ -30,9 +33,8 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
                 decoration: BoxDecoration(
                   color: active
                       ? OfficeColors.excel.withValues(alpha: 0.22)
-                      : scheme.surfaceContainerHighest,
-                  border: Border.all(
-                      color: Theme.of(context).dividerColor, width: 0.5),
+                      : ctx.surfaceContainerHighest,
+                  border: Border.all(color: ctx.dividerColor, width: 0.5),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -48,7 +50,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
                     ),
                     // Otomatik süzgeç oku: dosyada `<autoFilter>` varsa ve bu
                     // sütun aralığındaysa çizilir.
-                    if (_filterCoversColumn(sheet, c))
+                    if (hasFilter)
                       GestureDetector(
                         onTap: () => _showColumnFilter(sheet, c),
                         child: Icon(
@@ -70,7 +72,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
             bottom: 0,
             right: 0,
             width: math.min(_SpreadsheetEditorScreenState._resizeGrip, math.max(8, width * 0.45)),
-            child: _resizeGripFor(col: c),
+            child: _resizeGripFor(col: c, idleColor: ctx.outlineHalf),
           ),
         ],
       ),
@@ -202,13 +204,15 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
       for (final r in order) before[r - firstData],
     ];
     // B10 m.5: süzgeç aralığının sıralaması dosyaya `sortState` olarak yazılır.
+    final inFilter = _filterCoversColumn(sheet, c);
     final sortBefore = sheet.filterSort;
-    final sortAfter = [(col: c, descending: !ascending)];
+    final sortAfter =
+        inFilter ? [(col: c, descending: !ascending)] : sortBefore;
     void write(List<SheetLineSnapshot> rows, List<SortLevelRef> sort) {
       for (var i = 0; i < rows.length; i++) {
         editor.restoreRow(name, firstData + i, rows[i]);
       }
-      sheet.setFilterSort(sort);
+      if (inFilter) sheet.setFilterSort(sort);
     }
 
     write(after, sortAfter);
@@ -219,8 +223,8 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
     _partSetState(() {});
   }
 
-  Widget _rowHeader(XlsxSheet sheet, int r) {
-    final scheme = Theme.of(context).colorScheme;
+  Widget _rowHeader(_RenderContext ctx, int r) {
+    final sheet = ctx.sheet;
     final active = r >= math.min(_anchorRow, _selRow) &&
         r <= math.max(_anchorRow, _selRow);
     final width = _SpreadsheetEditorScreenState._rowHeaderW * _zoom;
@@ -247,9 +251,8 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
                 decoration: BoxDecoration(
                   color: active
                       ? OfficeColors.excel.withValues(alpha: 0.22)
-                      : scheme.surfaceContainerHighest,
-                  border: Border.all(
-                      color: Theme.of(context).dividerColor, width: 0.5),
+                      : ctx.surfaceContainerHighest,
+                  border: Border.all(color: ctx.dividerColor, width: 0.5),
                 ),
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -265,7 +268,7 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
             right: 0,
             bottom: 0,
             height: math.min(_SpreadsheetEditorScreenState._resizeGrip, math.max(6, height * 0.45)),
-            child: _resizeGripFor(row: r),
+            child: _resizeGripFor(row: r, idleColor: ctx.outlineHalf),
           ),
         ],
       ),
@@ -276,29 +279,47 @@ extension _SpreadsheetEditorScreenHeadersPart on _SpreadsheetEditorScreenState {
   /// kaplar, kapsanan sütunlar atlanır (yoksa satır taşar). Çapa görünen
   /// pencerenin solunda kalmışsa kapsanan hücreler boş çizilir.
   List<Widget> _rowCells(_RenderContext ctx, int r, List<int> cols) {
+    if (cols.isEmpty) return const [];
     final sheet = ctx.sheet;
     final out = <Widget>[];
-    final drawn = <int>{};
-    // Görünen değerler satır başına BİR KEZ çözülür: hem taşma hesabı hem
-    // hücre çizimi aynı değeri kullanır (formül hücrelerinde motor iki kez
-    // koşmasın).
-    final views = <int, XlsxCellView>{
-      for (final c in cols)
-        c: sheet.viewAt(r, c, ctx.engine.displayValue(r, c)),
-    };
-    final spill = _spillPlan(ctx, r, cols, views);
-    for (final c in cols) {
-      if (drawn.contains(c)) continue;
-      final merge = sheet.mergeAt(r, c);
+    final hasMerges = sheet.merges.isNotEmpty;
+    final drawn = hasMerges ? <int>{} : null;
+    // Görünen değer, stil ve birleşmeler satır başına BİR KEZ çözülür:
+    // taşma hesabı ve hücre çizimi aynı veriyi paylaşır.
+    final views = <int, XlsxCellView>{};
+    final styles = List<XlsxCellStyle?>.filled(cols.length, null);
+    final merges = hasMerges ? List<XlsxMerge?>.filled(cols.length, null) : null;
+    for (var i = 0; i < cols.length; i++) {
+      final c = cols[i];
+      views[c] = sheet.viewAt(r, c, ctx.engine.displayValue(r, c));
+      styles[i] = sheet.styleAt(r, c);
+      if (merges != null) merges[i] = sheet.mergeAt(r, c);
+    }
+    final spill =
+        _spillPlan(ctx, r, cols, views, styles: styles, merges: merges);
+    for (var i = 0; i < cols.length; i++) {
+      final c = cols[i];
+      if (drawn != null && drawn.contains(c)) continue;
+      final merge = merges?[i];
       if (merge != null && merge.colStart < c && cols.contains(merge.colStart)) {
         continue; // çapa bu satırda zaten çizildi ve genişliği kapsıyor
       }
       if (merge != null && merge.colStart == c) {
         for (var k = merge.colStart; k <= merge.colEnd; k++) {
-          drawn.add(k);
+          drawn!.add(k);
         }
       }
-      out.add(_cell(ctx, r, c, cols, views: views, spill: spill));
+      out.add(_cell(
+        ctx,
+        r,
+        c,
+        cols,
+        views: views,
+        spill: spill,
+        style: styles[i],
+        merge: merge,
+        mergeResolved: true,
+      ));
     }
     return out;
   }

@@ -328,6 +328,7 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   /// Kabuktan: bu tek dokunuş çekik çubukları getirsin mi? Sayfa sayfa
   /// kipinde kenar dokunuşu sayfa çevirir, çubuk getirmez.
   bool _tapShowsBars(Offset global) {
+    if (_pdfTapStoppedFling) return false;
     if (!_pagedLocked) return true;
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.hasSize) return true;
@@ -338,6 +339,11 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   void _pagedPointerDown(PointerDownEvent e) {
     _pagedPointers++;
     if (_pagedPointers == 1) {
+      // pdfrx fırlatmayı parmak değince durdurur (yama 3); görünüm son
+      // karede kıpırdadıysa bu dokunuş akışı durdurmak içindir.
+      final at = _pdfMatrixAt;
+      _pdfTapStoppedFling = at != null &&
+          DateTime.now().difference(at) < Motion.flingStopWindow;
       _pagedMulti = false;
       _pagedDownAt = e.position;
       _pagedDownTime = DateTime.now();
@@ -367,19 +373,35 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
   // ── Sayfa rozeti (H3.7) ─────────────────────────────────────────────────
 
   /// Görünüm kıpırdadı (kaydırma, yakınlık, sayfa geçişi): rozet görünür,
-  /// hareket durduktan [Motion.badgeLinger] sonra solar. Zamanlayıcı her
-  /// harekette baştan kurulur; durum yalnız değişince yenilenir.
+  /// hareket durduktan [Motion.badgeLinger] sonra solar. Zamanlayıcı en çok
+  /// 300 ms aralıkla tazelenir; yalnız [_pageBadgeOnN] güncellenir.
   void _pokePageBadge() {
-    _pageBadgeTimer?.cancel();
-    _pageBadgeTimer = Timer(Motion.badgeLinger, () {
-      if (mounted && _pageBadgeOn) _partSetState(() => _pageBadgeOn = false);
-    });
-    if (!_pageBadgeOn && mounted) _matrixSetState(() => _pageBadgeOn = true);
+    final now = DateTime.now();
+    final recent = _lastBadgePoke != null &&
+        now.difference(_lastBadgePoke!) < Motion.busyDefer;
+    if (!recent || _pageBadgeTimer == null) {
+      _lastBadgePoke = now;
+      _pageBadgeTimer?.cancel();
+      _pageBadgeTimer = Timer(Motion.badgeLinger, () {
+        if (mounted && _pageBadgeOn) _setPageBadgeOn(false);
+      });
+    }
+    if (!_pageBadgeOn && mounted) _setPageBadgeOn(true);
+  }
+
+  void _setPageBadgeOn(bool on) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pageBadgeOn = on;
+      });
+    } else {
+      _pageBadgeOn = on;
+    }
   }
 
   /// Matris dinleyicisinden durum yenileme: pdfrx matrisi yerleşim sırasında
-  /// da değiştirebiliyor (düzen değişince yeniden konumlama) — o an
-  /// `setState` hata verir, kare sonuna ertelenir.
+  /// da değiştirebiliyor — o an `setState` hata verir, kare sonuna ertelenir.
   void _matrixSetState(VoidCallback fn) {
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {

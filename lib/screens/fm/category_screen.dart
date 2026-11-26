@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../core/app_state.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
@@ -13,7 +11,6 @@ import '../../models/fm_filter.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
-import '../../services/fm/ai_meaning_search.dart';
 import '../../services/fm/doc_text_search.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_tags.dart';
@@ -26,6 +23,7 @@ import '../../services/fm/open_history.dart';
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../widgets/side_menu_view.dart';
+import '../../widgets/fm/fm_bar_title.dart';
 import '../../widgets/fm/fm_file_list_view.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/fm/fm_filter_sheet.dart';
@@ -36,7 +34,6 @@ import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_selection_bar.dart';
 import '../../widgets/fm/fm_search_field.dart';
 import '../../widgets/fm/fm_type_chips.dart';
-import '../../widgets/ai_key_gate.dart';
 import 'browser_screen.dart';
 import 'category_tools.dart';
 import 'entry_actions.dart';
@@ -114,9 +111,8 @@ class CategoryScreen extends StatefulWidget {
   State<CategoryScreen> createState() => _CategoryScreenState();
 }
 
-/// Arama kipi (2026-10-29): adında (canlı) · anlamla (AI) · içinde ·
-/// içinde (AI). Hepsi o an seçili süzgecin İÇİNDE arar.
-enum _SearchMode { name, meaning, content, contentAi }
+/// Arama kipi (2026-10-29): adında (canlı) · içinde.
+enum _SearchMode { name, content }
 
 class _CategoryScreenState extends State<CategoryScreen> {
   late List<FsEntry> _files = [...widget.files];
@@ -404,15 +400,11 @@ class _CategoryScreenState extends State<CategoryScreen> {
     }
   }
 
-  /// AI/içerik araması — klavyedeki "Ara" ya da kip çipi başlatır.
+  /// İçerik araması — klavyedeki "Ara" ya da kip çipi başlatır.
   Future<void> _runMode() async {
     final q = _query.trim();
     if (_mode == _SearchMode.name || q.length < 2) return;
-    final appState = context.read<AppState>();
     final str = AppStrings.of(context);
-    final needsAi =
-        _mode == _SearchMode.meaning || _mode == _SearchMode.contentAi;
-    if (needsAi && (!await ensureAiKey(context) || !mounted)) return;
     final token = ++_modeToken;
     final scope = _scope;
     setState(() {
@@ -424,28 +416,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
       List<FsEntry> results;
       Map<String, String> subs;
       switch (_mode) {
-        case _SearchMode.meaning:
-          final plan =
-              await AiMeaningSearch.planFor(q, gemini: appState.gemini);
-          final hits = await AiMeaningSearch.rankIn(plan, scope);
-          results = [for (final h in hits) h.entry];
-          subs = {
-            for (final h in hits)
-              if (h.matched.isNotEmpty) h.entry.path: '✦ ${h.matched.join(' · ')}',
-          };
         case _SearchMode.content:
-        case _SearchMode.contentAi:
-          var terms = [q];
-          if (_mode == _SearchMode.contentAi) {
-            // Yalnız SORGU AI'ya gider; dosya içeriği cihazda kalır.
-            final plan =
-                await AiMeaningSearch.planFor(q, gemini: appState.gemini);
-            terms = [q, ...plan.terms.where((t) => t != q)];
-          }
-          if (!mounted || token != _modeToken) return;
           final hits = await DocTextSearch.search(
             scope,
-            terms,
+            [q],
             isCancelled: () => !mounted || token != _modeToken,
             onProgress: (done, total) {
               if (!mounted || token != _modeToken) return;
@@ -460,11 +434,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           results = [for (final h in hits) h.entry];
           subs = {
             for (final h in hits)
-              h.entry.path: h.snippet.isEmpty
-                  ? h.terms.join(' · ')
-                  : (_mode == _SearchMode.contentAi && h.terms.isNotEmpty
-                      ? '✦ ${h.terms.take(3).join(' · ')} — ${h.snippet}'
-                      : h.snippet),
+              h.entry.path: h.snippet.isEmpty ? h.terms.join(' · ') : h.snippet,
           };
         case _SearchMode.name:
           return;
@@ -517,11 +487,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           child: Row(
             children: [
               chip(_SearchMode.name, context.t('srch.mode_name')),
-              chip(_SearchMode.meaning, context.t('srch.mode_meaning'), ai: true),
               if (docs) chip(_SearchMode.content, context.t('srch.mode_content')),
-              if (docs)
-                chip(_SearchMode.contentAi, context.t('srch.mode_content_ai'),
-                    ai: true),
             ],
           ),
         ),
@@ -654,16 +620,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
               onOpen: _open,
               onToggle: _toggle,
               onSelectRange: (a, b, sel) => _selectRange(files, a, b, sel),
-              // Tam yol yerine kaynak adı ("WhatsApp", "İndirilenler") —
-              // bkz. [FmLocation] (2026-09-23 tasarım turu).
-              // Kaynak · tarih solda, boyut sağda (Ferrari H4.1).
+              // Kaynak solda esner, tarih ve boyut sağda kesilmeden sabitlenir;
+              // ikinci ad ve etiketler kendi katmanlarında görünür.
               subtitle: (e) =>
                   _modeSubs[e.path] ??
-                  FmLocation.meta(e.path, e.modifiedMs, context.t,
-                      volumes: FmEnv.volumes),
-              subtitleEnd: (e) => _modeSubs[e.path] != null || e.isDir
-                  ? null
-                  : FsPaths.humanSize(e.sizeBytes),
+                  FmLocation.label(e.path, context.t, volumes: FmEnv.volumes),
+              dateText: (e) => FmLocation.shortDate(e.modifiedMs),
+              subtitleEnd: (e) =>
+                  e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
               onMore: (e) async {
                 await showEntryActions(context, e,
                     allowReveal: true, onReveal: _reveal);

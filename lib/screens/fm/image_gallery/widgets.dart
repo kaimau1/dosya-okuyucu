@@ -139,6 +139,8 @@ class _FilmStripState extends State<_FilmStrip> {
   static const _item = 48.0;
   static const _gap = 6.0;
   final _scroll = ScrollController();
+  final Map<String, ImageProvider<Object>> _thumbProviders = {};
+  double _lastDpr = 0;
 
   @override
   void initState() {
@@ -149,7 +151,24 @@ class _FilmStripState extends State<_FilmStrip> {
   @override
   void didUpdateWidget(_FilmStrip old) {
     super.didUpdateWidget(old);
+    if (old.paths.length != widget.paths.length ||
+        !identical(old.paths, widget.paths)) {
+      _thumbProviders.clear();
+    }
     if (old.index != widget.index) _center();
+  }
+
+  ImageProvider<Object> _providerFor(String path, double dpr) {
+    if (_lastDpr != dpr) {
+      _lastDpr = dpr;
+      _thumbProviders.clear();
+    }
+    if (_thumbProviders.length > 128) _thumbProviders.clear();
+    return _thumbProviders.putIfAbsent(
+      path,
+      () => fmCachedThumb(path) ??
+          FmFileImage(path, cacheWidth: fmThumbWidth(_item, dpr)),
+    );
   }
 
   @override
@@ -194,12 +213,12 @@ class _FilmStripState extends State<_FilmStrip> {
           final active = i == widget.index;
           final sel = widget.selected;
           final picked = sel != null && sel.contains(widget.paths[i]);
+          final dimmed = !active && !picked;
           return Padding(
            padding: const EdgeInsets.symmetric(horizontal: _gap / 2),
-           child: PressScale(child: GestureDetector(
+           child: GestureDetector(
             onTap: () => widget.onPick(i),
-            child: AnimatedContainer(
-              duration: Motion.of(context, Motion.short),
+            child: Container(
               width: _item,
               height: _item,
               decoration: BoxDecoration(
@@ -211,42 +230,39 @@ class _FilmStripState extends State<_FilmStrip> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Opacity(
-                  opacity: active || picked ? 1 : 0.6,
-                  child: Stack(fit: StackFit.expand, children: [
-                   Image(
-                    // Izgaranın çözdüğü küçük resim önbellekteyse o (disk
-                    // okuması yok); değilse kademeli küçük bir çözme.
-                    // `Image.file` DEĞİL: baytları Dart yığınına kopyalıyordu
-                    // (bkz. `FmFileImage`).
-                    image: fmCachedThumb(widget.paths[i]) ??
-                        FmFileImage(widget.paths[i],
-                            cacheWidth: fmThumbWidth(_item, dpr)),
+                child: Stack(fit: StackFit.expand, children: [
+                  Image(
+                    image: _providerFor(widget.paths[i], dpr),
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
                     errorBuilder: (_, _, _) =>
-                        const ColoredBox(color: Color(0xFF222222)),
-                   ),
-                   if (sel != null)
-                     PositionedDirectional(
-                       end: 2,
-                       top: 2,
-                       child: Icon(
-                         picked
-                             ? AppIcons.checkCircle
-                             : AppIcons.checkCircleOutline,
-                         size: 18,
-                         color: AppColors.onMedia,
-                         shadows: const [
-                           Shadow(color: AppColors.mediaChrome, blurRadius: 3)
-                         ],
-                       ),
-                     ),
-                  ]),
-                ),
+                        const ColoredBox(color: AppColors.mediaSurface),
+                  ),
+                  if (dimmed)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: AppColors.mediaSurface.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  if (sel != null)
+                    PositionedDirectional(
+                      end: 2,
+                      top: 2,
+                      child: Icon(
+                        picked
+                            ? AppIcons.checkCircle
+                            : AppIcons.checkCircleOutline,
+                        size: 18,
+                        color: AppColors.onMedia,
+                        shadows: const [
+                          Shadow(color: AppColors.mediaChrome, blurRadius: 3)
+                        ],
+                      ),
+                    ),
+                ]),
               ),
             ),
-          )));
+          ));
         },
       ),
     );
@@ -268,6 +284,7 @@ class _ZoomableImage extends StatefulWidget {
   final void Function(bool zoomed) onZoomChanged;
 
   const _ZoomableImage({
+    super.key,
     required this.path,
     required this.onTap,
     required this.onZoomChanged,
@@ -303,13 +320,13 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   void _reportLock() => widget.onZoomChanged(
       _tx.value.getMaxScaleOnAxis() > 1.02 || _pointers >= 2);
 
-  /// Görselin kaç piksel genişlikte çözüleceği. Yakınlaştırınca kademeli
+  /// Görselin kaç piksel boyunda çözüleceği. Yakınlaştırınca kademeli
   /// olarak artar (bkz. [ImageBudget]); tam çözünürlükte açmak 12 MP'lik bir
   /// fotoğrafta 48 MB bitmap demekti.
   int _decodeWidth = ImageBudget.minWidth;
 
   /// Izgaradan kalan küçük resim (önbellekte duruyorsa) — ilk kare.
-  late final FmFileImage? _thumb = fmCachedThumb(widget.path);
+  late FmFileImage? _thumb = fmCachedThumb(widget.path);
 
   /// Görselin en-boy oranı; bilinene kadar null (kutu ekranı kaplar).
   late double? _aspect = _initialAspect();
@@ -321,6 +338,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
 
   ImageStream? _aspectStream;
   ImageStreamListener? _aspectListener;
+  Timer? _decodeTimer;
 
   /// Açılış geçişi sürerken (küçük resim varsa) yalnız küçük resim çizilir;
   /// tam boy çözüm geçiş bitince başlar (2026-11-18, kullanıcı: "fotoğraf
@@ -350,6 +368,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
     final listener = _routeListener;
     if (listener != null) _routeAnim?.removeStatusListener(listener);
     _routeListener = null;
+    _routeAnim = null;
   }
 
   @override
@@ -359,7 +378,27 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   }
 
   @override
+  void didUpdateWidget(covariant _ZoomableImage old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) {
+      _decodeTimer?.cancel();
+      _stopRoute();
+      _stopAspect();
+      _tx.value = Matrix4.identity();
+      _pointers = 0;
+      _hadFullFrame = false;
+      _full = true;
+      _thumb = fmCachedThumb(widget.path);
+      _aspect = _initialAspect();
+      _syncDecodeWidth(1.0);
+      _watchRoute();
+      _watchAspect();
+    }
+  }
+
+  @override
   void dispose() {
+    _decodeTimer?.cancel();
     _stopRoute();
     _stopAspect();
     _tx.removeListener(_onTransform);
@@ -368,22 +407,26 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   }
 
   void _onTransform() {
-    final scale = _tx.value.getMaxScaleOnAxis();
-    // Ölçek 1'in üstündeyken (ya da iki parmak ekrandayken) sayfa kaydırma
-    // kilitlenir (üst ekran dinler).
+    // Çimdik sırasında her karede tam çözünürlük çözme: yalnız kilidi güncelle.
     _reportLock();
-    _syncDecodeWidth(scale);
+  }
+
+  void _scheduleDecodeSync() {
+    _decodeTimer?.cancel();
+    // 150 ms yerleşme sonrası çöz.
+    _decodeTimer = Timer(const Duration(microseconds: 150000), () {
+      if (mounted) _syncDecodeWidth(_tx.value.getMaxScaleOnAxis());
+    });
   }
 
   /// Yakınlaştırma kademe atladıysa görseli daha yüksek çözünürlükte açar.
-  /// Kademe içinde kalan hareketler hiçbir şey tetiklemez — her karede yeniden
-  /// çözmek yakınlaştırmayı takılır hale getirirdi.
   void _syncDecodeWidth(double scale) {
     if (!mounted) return;
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
     final want = ImageBudget.forViewport(
       logicalWidth: media.size.width,
+      logicalHeight: media.size.height,
       devicePixelRatio: media.devicePixelRatio,
       scale: scale,
     );
@@ -403,7 +446,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
   /// (kapanıştaki kahraman geçişi de görselin tam kutusundan başlasın diye).
   void _watchAspect() {
     if (_aspect != null || _aspectStream != null) return;
-    final stream = FmFileImage(widget.path, cacheWidth: _decodeWidth)
+    final stream = FmFileImage(widget.path,
+            cacheWidth: _decodeWidth, maxLongSide: _decodeWidth)
         .resolve(createLocalImageConfiguration(context));
     final listener = ImageStreamListener((info, _) {
       final w = info.image.width;
@@ -423,11 +467,13 @@ class _ZoomableImageState extends State<_ZoomableImage> {
     final listener = _aspectListener;
     if (listener != null) _aspectStream?.removeListener(listener);
     _aspectListener = null;
+    _aspectStream = null;
   }
 
   void _handleDoubleTap() {
     if (_tx.value.getMaxScaleOnAxis() > 1.02) {
       _tx.value = Matrix4.identity();
+      _syncDecodeWidth(1.0);
       return;
     }
     final position = _doubleTapAt?.localPosition;
@@ -436,6 +482,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
     _tx.value = Matrix4.identity()
       ..translateByDouble(-position.dx * 1.5, -position.dy * 1.5, 0, 1)
       ..scaleByDouble(2.5, 2.5, 1, 1);
+    _syncDecodeWidth(2.5);
   }
 
   @override
@@ -451,7 +498,8 @@ class _ZoomableImageState extends State<_ZoomableImage> {
         : Image(
       // `Image.file` DEĞİL: dosyayı Dart yığınına kopyalıyordu (bkz.
       // `FmFileImage`, 2026-08-17 donma kök nedeni).
-      image: FmFileImage(widget.path, cacheWidth: _decodeWidth),
+      image: FmFileImage(widget.path,
+          cacheWidth: _decodeWidth, maxLongSide: _decodeWidth),
       fit: fit,
       // Yeni çözünürlük gelene kadar eskisi ekranda kalsın: yoksa her
       // kademede görsel bir kare boyunca kayboluyordu.
@@ -482,6 +530,7 @@ class _ZoomableImageState extends State<_ZoomableImage> {
         transformationController: _tx,
         minScale: 1,
         maxScale: 6,
+        onInteractionEnd: (_) => _scheduleDecodeSync(),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final box = constraints.biggest;

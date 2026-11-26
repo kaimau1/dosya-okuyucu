@@ -1,17 +1,26 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
+import '../../core/app_state.dart';
 import '../../core/bidi.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/safe_insets.dart';
+import '../../core/state/focused_states.dart';
 import '../../core/theme.dart';
 import '../../models/fm_layout.dart';
 import '../../models/fm_list_groups.dart';
 import '../../models/fm_type.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/ai_index.dart';
+import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_colors_store.dart';
 import '../../services/fm/fs_scan.dart';
+import '../../services/fm/smart_sort.dart';
 import '../motion.dart';
 import 'drag_select.dart';
 import 'fm_entry_icon.dart' show fmMediaHeroTag;
@@ -47,6 +56,13 @@ class FmFileListView extends StatelessWidget {
   final void Function(FsEntry)? onMore;
   final String Function(FsEntry) subtitle;
 
+  /// Alt bilgi şeridinde kesilmeden gösterilen tarih metni (bkz.
+  /// [FmEntryRow.dateText]).
+  final String? Function(FsEntry)? dateText;
+
+  /// Tarih metninin rengi (bkz. [FmEntryRow.dateColor]).
+  final Color? Function(FsEntry)? dateColor;
+
   /// Alt satırın sağına hizalanan bilgi (bkz. [FmEntryRow.subtitleEnd]).
   final String? Function(FsEntry)? subtitleEnd;
 
@@ -80,6 +96,8 @@ class FmFileListView extends StatelessWidget {
     required this.onOpen,
     required this.onToggle,
     required this.subtitle,
+    this.dateText,
+    this.dateColor,
     this.subtitleEnd,
     this.controller,
     this.onSelectRange,
@@ -96,6 +114,13 @@ class FmFileListView extends StatelessWidget {
     this.focusPath,
     this.focusKey,
   });
+
+  static final Listenable _metaListenable = Listenable.merge([
+    AiIndex.revision,
+    SmartSort.revision,
+    FileTags.changes,
+    FmColorsStore.revision,
+  ]);
 
   /// Vurgulanacak öğe ("İndirilenlerde göster", 2026-10-22) — satırı
   /// [focusKey] ile işaretlenir ki çağıran onu görünür alana kaydırabilsin.
@@ -149,14 +174,46 @@ class FmFileListView extends StatelessWidget {
     }
     final items = groupBy == null
         ? [for (var i = 0; i < entries.length; i++) FmEntryItem(entries[i], i)]
-        : groupEntries(entries, groupBy!,
+        : _groupEntriesFast(entries, groupBy!,
             now: DateTime.now(), timeOf: groupTimeOf);
 
-    Widget view = _FreshRows(
-      entries: entries,
-      builder: (fresh) => layout.isGrid
-          ? _grid(context, items, fresh)
-          : _list(context, items, fresh),
+    context.dependOnBrowse();
+    final thumbsOn = context.select<AppState, bool>((s) => s.fmThumbnails);
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 3.0;
+    final minRowHeight = MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0;
+    final largeText = MediaQuery.textScalerOf(context).scale(12) > 17.5;
+    final iconScale = context.fmIconScale;
+    final reducedMotion = Motion.reduced(context);
+    // Etiketler ve renkleri başka ekranlarda da anında görünsün (eşzamanlı
+    // çağrılar aynı Future'ı paylaşır).
+    unawaited(FileTags.ensureLoaded());
+    unawaited(FmColorsStore.ensureLoaded());
+
+    Widget view = ListenableBuilder(
+      listenable: _metaListenable,
+      builder: (context, _) => _FreshRows(
+        entries: entries,
+        builder: (fresh) => layout.isGrid
+            ? _grid(
+                context,
+                items,
+                fresh,
+                thumbsOn: thumbsOn,
+                dpr: dpr,
+                reducedMotion: reducedMotion,
+              )
+            : _list(
+                context,
+                items,
+                fresh,
+                thumbsOn: thumbsOn,
+                dpr: dpr,
+                minRowHeight: minRowHeight,
+                largeText: largeText,
+                iconScale: iconScale,
+                reducedMotion: reducedMotion,
+              ),
+      ),
     );
     if (onSelectRange != null) {
       view = DragSelectArea(
@@ -177,7 +234,7 @@ class FmFileListView extends StatelessWidget {
     // Ada göre sıralı uzun listede hızlı kaydırıcı baş harfi gösterir.
     if (controller != null && groupBy == FmSort.name && !layout.isGrid) {
       final rowExtent = layout.iconSizeFor(0) * context.fmIconScale +
-          (layout == FmLayout.detail ? Gap.md : 12);
+          (layout == FmLayout.detail ? Gap.lg : 24);
       view = Stack(
         children: [
           view,
@@ -201,31 +258,48 @@ class FmFileListView extends StatelessWidget {
       withNavInset(context, EdgeInsets.fromLTRB(h, Gap.xs, h, bottomPadding));
 
   Widget _list(
-      BuildContext context, List<FmListItem> items, Set<String> fresh) {
-    // **Sabit satır yüksekliği** (Faz 17 / G14): 5.000 öğede YUKARI
-    // kaydırmada p99 50 ms ölçülmüştü — yukarıdan giren her satır ölçülüyor,
-    // kaydırma ofseti tahminle düzeltiliyordu. Başlıksız listede bütün
-    // satırlar aynı yükseklikte → ilk satır prototip olur, liste hiçbir
-    // satırı ölçmeden konumlar. (Başlıklı listede yükseklik karışık; orada
-    // eski yol.) Prototip GERÇEK satır: yazı ölçeği/tema ne olursa olsun
-    // yükseklik birebir aynı, tahmin yok.
+    BuildContext context,
+    List<FmListItem> items,
+    Set<String> fresh, {
+    required bool thumbsOn,
+    required double dpr,
+    required double minRowHeight,
+    required bool largeText,
+    required double iconScale,
+    required bool reducedMotion,
+  }) {
+    // 2026-11-23 satır yenilemesi: satırlar artık değişken yükseklikli (2
+    // satıra kadar dosya adı + ayrı ikinci ad satırı + renkli etiket hapları
+    // + kesilmeyen tarih/boyut şeridi). Sabit prototip yüksekliği değişken
+    // satırları kırpar/taşırır; bu yüzden `ListView.builder` /
+    // `SliverList.builder` kullanılır (`addAutomaticKeepAlives: false`).
     final uniform = items.isNotEmpty && items.every((it) => it is FmEntryItem);
     if (uniform) {
       return ListView.builder(
         controller: controller,
         padding: _pad(context, Gap.xs),
+        addAutomaticKeepAlives: false,
         itemCount: items.length,
-        prototypeItem: _row(items.first as FmEntryItem),
-        itemBuilder: (context, i) =>
-            _focus(context, (items[i] as FmEntryItem).entry,
-                _row(items[i] as FmEntryItem), fresh),
+        itemBuilder: (context, i) => _focus(
+            context,
+            (items[i] as FmEntryItem).entry,
+            _row(
+              items[i] as FmEntryItem,
+              thumbsOn: thumbsOn,
+              dpr: dpr,
+              showDivider: i < items.length - 1,
+              minRowHeight: minRowHeight,
+              largeText: largeText,
+              iconScale: iconScale,
+              reducedMotion: reducedMotion,
+            ),
+            fresh),
       );
     }
     // **Yapışkan grup başlıkları** (Ferrari H4.5, 2026-11-14): "Bugün ·
     // Bu hafta · Daha eski" başlığı grubunun satırları kaydıkça üstte
     // durur, grup bitince bir sonrakine yer verir (`SliverMainAxisGroup` +
-    // sabitlenmiş başlık). Grup İÇİNDE satırlar yine eş boylu → her grup
-    // prototip satırla konumlanır (eski karışık `ListView`'dan da hızlı).
+    // sabitlenmiş başlık).
     final inset = _pad(context, Gap.xs);
     final headerExtent = FmGroupHeader.extentOf(context);
     final background = Theme.of(context).scaffoldBackgroundColor;
@@ -250,17 +324,76 @@ class FmFileListView extends StatelessWidget {
             if (cells.isNotEmpty)
               SliverPadding(
                 padding: inset.copyWith(top: 0, bottom: 0),
-                sliver: SliverPrototypeExtentList.builder(
-                  prototypeItem: _row(cells.first),
+                sliver: SliverList.builder(
+                  addAutomaticKeepAlives: false,
                   itemCount: cells.length,
-                  itemBuilder: (context, i) =>
-                      _focus(context, cells[i].entry, _row(cells[i]), fresh),
+                  itemBuilder: (context, i) => _focus(
+                      context,
+                      cells[i].entry,
+                      _row(
+                        cells[i],
+                        thumbsOn: thumbsOn,
+                        dpr: dpr,
+                        showDivider: i < cells.length - 1,
+                        minRowHeight: minRowHeight,
+                        largeText: largeText,
+                        iconScale: iconScale,
+                        reducedMotion: reducedMotion,
+                      ),
+                      fresh),
                 ),
               ),
           ]),
         SliverPadding(padding: EdgeInsets.only(bottom: inset.bottom)),
       ],
     );
+  }
+
+  static List<FmListItem> _groupEntriesFast(
+    List<FsEntry> entries,
+    FmSort sort, {
+    required DateTime now,
+    int Function(FsEntry e)? timeOf,
+  }) {
+    if (entries.isEmpty) return const [];
+    if (sort != FmSort.date) {
+      return groupEntries(entries, sort, now: now, timeOf: timeOf);
+    }
+    final today = DateTime(now.year, now.month, now.day);
+    final todayMs = today.millisecondsSinceEpoch;
+    final weekMs = today.subtract(const Duration(days: 6)).millisecondsSinceEpoch;
+    final monthMs =
+        today.subtract(const Duration(days: 29)).millisecondsSinceEpoch;
+    String bucketOf(FsEntry e) {
+      final ms = timeOf != null ? timeOf(e) : e.modifiedMs;
+      if (ms >= todayMs) return 'grp.today';
+      if (ms >= weekMs) return 'grp.week';
+      if (ms >= monthMs) return 'grp.month';
+      return 'grp.older';
+    }
+
+    final counts = <String, int>{};
+    final keys = List<String>.generate(entries.length, (i) {
+      final k = bucketOf(entries[i]);
+      counts[k] = (counts[k] ?? 0) + 1;
+      return k;
+    }, growable: false);
+    if (counts.length <= 1) {
+      return [
+        for (var i = 0; i < entries.length; i++) FmEntryItem(entries[i], i),
+      ];
+    }
+    final out = <FmListItem>[];
+    String? current;
+    for (var i = 0; i < entries.length; i++) {
+      final key = keys[i];
+      if (key != current) {
+        current = key;
+        out.add(FmHeaderItem(key, counts[key]!));
+      }
+      out.add(FmEntryItem(entries[i], i));
+    }
+    return out;
   }
 
   /// Başlık + altındaki satırlar (ilk başlıktan önceki satırlar başlıksız).
@@ -279,7 +412,16 @@ class FmFileListView extends StatelessWidget {
     return groups;
   }
 
-  Widget _row(FmEntryItem item) {
+  Widget _row(
+    FmEntryItem item, {
+    required bool thumbsOn,
+    required double dpr,
+    required bool showDivider,
+    required double minRowHeight,
+    required bool largeText,
+    required double iconScale,
+    required bool reducedMotion,
+  }) {
     final entry = item.entry;
     return DragSelectItem(
       index: item.index,
@@ -289,6 +431,8 @@ class FmFileListView extends StatelessWidget {
         selected: selected.contains(entry.path),
         selecting: _selecting,
         subtitle: subtitle(entry),
+        dateText: dateText?.call(entry),
+        dateColor: dateColor?.call(entry),
         subtitleEnd: subtitleEnd?.call(entry),
         showChevron: showChevron,
         badge: badge?.call(entry),
@@ -297,6 +441,16 @@ class FmFileListView extends StatelessWidget {
         onMore: onMore == null || _selecting ? null : () => onMore!(entry),
         audioQueue: _audioQueue,
         heroTag: _heroTag(entry),
+        thumbnails: true,
+        thumbsOn: thumbsOn,
+        dpr: dpr,
+        alias: AiIndex.aliasOf(entry.path),
+        tags: FileTags.forPath(entry.path),
+        showDivider: showDivider,
+        minRowHeight: minRowHeight,
+        largeText: largeText,
+        iconScale: iconScale,
+        reducedMotion: reducedMotion,
       ),
     );
   }
@@ -316,7 +470,13 @@ class FmFileListView extends StatelessWidget {
       ];
 
   Widget _grid(
-      BuildContext context, List<FmListItem> items, Set<String> fresh) {
+    BuildContext context,
+    List<FmListItem> items,
+    Set<String> fresh, {
+    required bool thumbsOn,
+    required double dpr,
+    required bool reducedMotion,
+  }) {
     // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür;
     // başlık listede olduğu gibi yapışkan (H4.5).
     final groups = _groups(items);
@@ -362,6 +522,11 @@ class FmFileListView extends StatelessWidget {
                           selecting: _selecting,
                           onTap: () => _tap(c.entry),
                           heroTag: _heroTag(c.entry),
+                          thumbsOn: thumbsOn,
+                          dpr: dpr,
+                          reducedMotion: reducedMotion,
+                          alias: AiIndex.aliasOf(c.entry.path),
+                          tags: FileTags.forPath(c.entry.path),
                         ),
                       ),
                       fresh);
@@ -531,8 +696,21 @@ class _PinnedGroupHeader extends SliverPersistentHeaderDelegate {
   @override
   Widget build(
           BuildContext context, double shrinkOffset, bool overlapsContent) =>
-      ColoredBox(
-        color: background,
+      DecoratedBox(
+        decoration: BoxDecoration(
+          color: background,
+          border: overlapsContent
+              ? Border(
+                  bottom: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withValues(alpha: 0.55),
+                    width: 0.5,
+                  ),
+                )
+              : null,
+        ),
         child: Padding(
           padding: padding,
           child: FmGroupHeader(label: label, count: count),

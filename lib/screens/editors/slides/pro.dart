@@ -94,6 +94,8 @@ extension _SlidesProPart on _SlidesEditorScreenState {
   Future<void> _openProTools() async {
     final editor = _editor;
     if (editor == null) return;
+    if (!await ProGate.check(context, Feature.wordSlidesPro)) return;
+    if (!mounted) return;
     final pick = await showAppActionSheet<String>(context,
         title: context.t('sp.tools'),
         groups: [
@@ -163,11 +165,12 @@ extension _SlidesProPart on _SlidesEditorScreenState {
                 icon: AppIcons.schedule,
                 label: context.t('sp.rehearse'),
                 hint: context.t('sp.rehearse_hint')),
-            AppAction(
-                value: 'record',
-                icon: AppIcons.micNone,
-                label: context.t('sp.record'),
-                hint: context.t('sp.record_hint')),
+            if (!Edition.current.isPlay)
+              AppAction(
+                  value: 'record',
+                  icon: AppIcons.micNone,
+                  label: context.t('sp.record'),
+                  hint: context.t('sp.record_hint')),
             AppAction(
                 value: 'png_one',
                 icon: AppIcons.image,
@@ -275,6 +278,7 @@ extension _SlidesProPart on _SlidesEditorScreenState {
   // ── Madde 9: kayıtlı anlatım ──────────────────────────────────────────────
 
   Future<void> _recordNarration() async {
+    if (Edition.current.isPlay) return;
     final editor = _editor;
     if (editor == null) return;
     final perm = await Permission.microphone.request();

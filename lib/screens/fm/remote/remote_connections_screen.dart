@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/app_icons.dart';
 import '../../../core/app_state.dart';
+import '../../../core/edition.dart';
 import '../../../core/l10n/app_strings.dart';
 import '../../../models/remote_connection.dart';
 import '../../../services/fm/remote/lan_discovery.dart';
@@ -144,16 +145,17 @@ class _RemoteConnectionsScreenState extends State<RemoteConnectionsScreen> {
       appBar: AppBar(
         title: Text(context.t('nas.title')),
         actions: [
-          // "Ağdan erişim" 2026-08-29'da panoya kendi kutusu olarak taşındı;
-          // burada da duruyor (ağ işleri aynı yerde toplansın), ama artık tek
-          // kapısı bu köşe değil.
-          IconButton(
-            tooltip: context.t('ftpd.title'),
-            icon: const Icon(AppIcons.phonelink),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const FtpServerScreen()),
+          if (Edition.current.has(Feature.ftpServer))
+            // "Ağdan erişim" 2026-08-29'da panoya kendi kutusu olarak taşındı;
+            // burada da duruyor (ağ işleri aynı yerde toplansın), ama artık tek
+            // kapısı bu köşe değil.
+            IconButton(
+              tooltip: context.t('ftpd.title'),
+              icon: const Icon(AppIcons.phonelink),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const FtpServerScreen()),
+              ),
             ),
-          ),
         ],
       ),
       body: ListView(

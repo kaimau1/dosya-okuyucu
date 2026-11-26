@@ -9,6 +9,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../core/image_decode.dart';
 import 'fm/fm_env.dart';
 
 /// **Görsel iyileştirme** — bulanık/karanlık/kumlu fotoğrafı düzeltip yanına
@@ -146,7 +147,7 @@ abstract final class ImageEnhance {
     try {
       img.Image? src;
       try {
-        src = img.decodeImage(File(path).readAsBytesSync());
+        src = decodeCommonImage(File(path).readAsBytesSync());
       } on FileSystemException {
         rethrow;
       } catch (_) {

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_version.dart';
@@ -10,6 +11,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/save_to_downloads.dart';
 import '../../services/settings_backup.dart';
 import 'settings_widgets.dart';
 import '../../core/user_error.dart';
@@ -83,18 +85,30 @@ class SettingsBackupTile extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Yedek **İndirilenler**e yazılıyor: kullanıcının dosya paylaşırken
-      // ilk baktığı yer ve uygulamanın kendi dizini gibi silinince kaybolan
-      // bir yer değil.
-      final downloads = p.join(FmEnv.primaryRoot, 'Download');
-      final dir = await Directory(downloads).exists()
-          ? downloads
-          : FmEnv.primaryRoot;
-      final target =
-          FileOps.uniquePath(p.join(dir, SettingsBackup.suggestedName()));
-      await SettingsBackup.saveTo(target, prefs, appVersion: appVersionName);
-      showSnackOn(messenger,
-          strings.t('backup.saved', {'name': p.basename(target)}));
+      final suggested = SettingsBackup.suggestedName();
+      String savedName;
+      try {
+        final downloads = p.join(FmEnv.primaryRoot, 'Download');
+        final dir = await Directory(downloads).exists()
+            ? downloads
+            : FmEnv.primaryRoot;
+        final target = FileOps.uniquePath(p.join(dir, suggested));
+        await SettingsBackup.saveTo(target, prefs, appVersion: appVersionName);
+        savedName = p.basename(target);
+      } on FileSystemException {
+        final tmpDir = await getTemporaryDirectory();
+        final tmp = File(p.join(tmpDir.path, suggested));
+        try {
+          await SettingsBackup.saveTo(tmp.path, prefs,
+              appVersion: appVersionName);
+          final saved =
+              await SaveToDownloads.saveFile(tmp.path, name: suggested);
+          savedName = p.basename(saved.path);
+        } finally {
+          if (await tmp.exists()) await tmp.delete();
+        }
+      }
+      showSnackOn(messenger, strings.t('backup.saved', {'name': savedName}));
     } catch (e) {
       showSnackOn(messenger, strings.t('backup.failed', {'error': userErrorText(e)}));
     }

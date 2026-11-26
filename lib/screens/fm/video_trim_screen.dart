@@ -924,12 +924,14 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
           foregroundColor: AppColors.onMedia,
           title: Text(context.t('ved.title')),
           actions: [
+            if (_history.isNotEmpty)
             IconButton(
               key: const ValueKey('edit-undo'),
               tooltip: context.t('ved.undo'),
               onPressed: _history.isEmpty || _tool != null ? null : _undo,
               icon: const Icon(AppIcons.undo),
             ),
+            if (_future.isNotEmpty)
             IconButton(
               key: const ValueKey('edit-redo'),
               tooltip: context.t('common.redo'),

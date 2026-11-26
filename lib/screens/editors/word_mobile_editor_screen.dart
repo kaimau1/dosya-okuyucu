@@ -8,8 +8,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/doc_fonts.dart';
+import '../../core/edition.dart';
 import '../../core/edit/edit_session.dart';
 import '../../core/edit/editor_chrome.dart';
 import '../../core/edit/editor_shortcuts.dart';
@@ -22,9 +24,9 @@ import '../../models/document.dart';
 import '../../services/docx/docx_document.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/safe_write.dart';
-import '../../widgets/ai_rewrite_sheet.dart';
 import '../../widgets/editor_top_bar.dart';
 import '../../widgets/pinch_zoom_area.dart';
+import '../../widgets/pro_gate.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/share_export_sheet.dart';
 import '../../widgets/docx_editor/docx_edit_controller.dart';
@@ -53,11 +55,7 @@ import '../../services/docx/pro/docx_fonts.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../widgets/download_action.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../services/docx/pro/docx_ai.dart';
-import '../../services/gemini_service.dart';
-import '../../core/app_state.dart';
 import '../../core/l10n/app_language.dart';
-import 'package:provider/provider.dart';
 import 'package:printing/printing.dart' show Printing;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -120,6 +118,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   DocxEditController? _ctrl;
   String? _error;
   int _seenRevision = 0;
+  int _wordsCached = 0;
+  int _wordsCachedRev = -1;
   final _panel = FormatPanelController();
 
   /// Faz 37: yapısal (paket düzeyi) işlemlerin geri alma yığını — her biri
@@ -157,6 +157,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
     _head?.dispose();
+    _memoWidget = null;
+    _memoCtrl = null;
     _panel.dispose();
     _session.dispose();
     super.dispose();
@@ -195,7 +197,9 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       }
       final isolate = WordMobileEditorScreen.parseInIsolate;
       // Önizleme ve tam ayrıştırma AYNI ANDA başlar; önizleme önce biter.
-      if (isolate) {
+      // 512 KB altı belgelerde tam ayrıştırma zaten çok hızlı; çift isolate
+      // önizleme yükünü atla.
+      if (isolate && bytes.length >= 512 * 1024) {
         void plain() {
           unawaited(compute(_previewParas, bytes).then((list) {
             if (mounted && _doc == null && list.isNotEmpty) {
@@ -241,9 +245,12 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     _ctrl?.dispose();
     _head?.dispose();
     _head = null;
+    _memoWidget = null;
+    _memoCtrl = null;
     _doc = doc;
     _ctrl = DocxEditController(doc)..addListener(_onEdit);
     _seenRevision = 0;
+    _wordsCachedRev = -1;
     if (doc.trackChanges) unawaited(_loadRevAuthor(doc));
   }
 
@@ -342,13 +349,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (mounted) Navigator.of(context).pop(true);
   }
 
-  Future<void> _aiFix(String text) async {
-    final c = _ctrl;
-    if (c == null || text.trim().isEmpty) return;
-    final result = await showAiRewriteSheet(context, text);
-    if (result == null || !mounted) return;
-    c.replaceSelection(result);
-  }
+  // DocxAi tabanlı satır içi/yazım denetimi yardımcıları kaldırıldı.
 
   void _translate(String text) {
     if (text.trim().isEmpty) return;
@@ -370,36 +371,51 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     if (next != null) _pinch.setZoom(next / _baseScale);
   }
 
+  Widget? _memoWidget;
+  DocxEditController? _memoCtrl;
+  double? _memoZoom;
+  ScrollPhysics? _memoPhysics;
+  double? _memoBaseScale;
+  bool? _memoSpellcheck;
+  bool? _memoAutoFormat;
+
   /// Belge görünümü kurucusu. Çimdik sürerken `PinchZoomArea` her parmak
   /// hareketinde kurucuyu çağırır ama ölçek ancak parmak kalkınca değişir →
-  /// aynı widget örneği döner, belge her karede yeniden kurulmaz. Ekran
-  /// yeniden kurulunca kapanış (ve önbelleği) de yenilenir.
+  /// aynı widget örneği döner, belge her karede yeniden kurulmaz.
   Widget Function(BuildContext, double, ScrollPhysics?) _memoView(
       DocxEditController c) {
-    Widget? memo;
-    double? memoZoom;
-    ScrollPhysics? memoPhysics;
     return (context, zoom, physics) {
-      if (memo == null || zoom != memoZoom || physics != memoPhysics) {
-        memoZoom = zoom;
-        memoPhysics = physics;
-        memo = DocxEditorView(
+      final spell = EditPrefs.wordSpellcheck;
+      final autoFmt = EditPrefs.wordAutoFormat;
+      if (_memoWidget == null ||
+          !identical(c, _memoCtrl) ||
+          zoom != _memoZoom ||
+          physics != _memoPhysics ||
+          _baseScale != _memoBaseScale ||
+          spell != _memoSpellcheck ||
+          autoFmt != _memoAutoFormat) {
+        _memoCtrl = c;
+        _memoZoom = zoom;
+        _memoPhysics = physics;
+        _memoBaseScale = _baseScale;
+        _memoSpellcheck = spell;
+        _memoAutoFormat = autoFmt;
+        _memoWidget = DocxEditorView(
           key: _viewKey,
           controller: c,
           scale: _baseScale * zoom,
           physics: physics,
-          spellcheck: EditPrefs.wordSpellcheck,
-          autoFormat: EditPrefs.wordAutoFormat,
+          spellcheck: spell,
+          autoFormat: autoFmt,
           actions: DocxEditorActions(
               translate: _translate,
-              aiFix: _aiFix,
               openNote: _openFootnote,
               openComment: (id) => _comments(focus: id),
               openLink: _editLink,
               openControl: _fillControl),
         );
       }
-      return memo!;
+      return _memoWidget!;
     };
   }
 
@@ -411,6 +427,14 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   }
 
   final _viewKey = GlobalKey<DocxEditorViewState>();
+
+  int _liveWordCount(DocxEditController c) {
+    if (_wordsCachedRev != c.revision) {
+      _wordsCachedRev = c.revision;
+      _wordsCached = c.counts().words;
+    }
+    return _wordsCached;
+  }
 
   WordFormatUi _ui(DocxEditController c) => WordFormatUi(
         context: context,
@@ -430,6 +454,7 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onTrackChanges: _toggleTrack,
         onInsertImage: () => _pickImage(replace: false),
         onReplaceImage: () => _pickImage(replace: true),
+        onResizeImage: _resizeImageSheet,
         onImageAlt: _imageAlt,
         onComments: () => _comments(),
         onNewComment: _newComment,
@@ -438,6 +463,151 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
         onDate: _insertDate,
         onPro: _proOn ? _onPro : null,
       );
+
+  /// Seçili görsel için canlı kaydırıcı ve hazır boyutlarla boyutlandırma levhası.
+  Future<void> _resizeImageSheet() async {
+    final c = _ctrl;
+    final img = c?.selectedImage;
+    if (c == null || img == null) return;
+    final ps = c.pageSetup;
+    final contentPt =
+        ((ps.width - ps.left - ps.right) / 20.0).clamp(240.0, 560.0);
+    final origW = img.widthPt <= 0 ? contentPt * 0.6 : img.widthPt;
+    final ratio = img.widthPt <= 0 ? 0.75 : img.heightPt / img.widthPt;
+    var pct = ((origW / contentPt) * 100).round().clamp(15, 100);
+    final chosenW = await showAppSheet<double>(
+      context,
+      title: context.t('word.img_resize_title'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          final targetW = (contentPt * pct / 100).clamp(48.0, contentPt);
+          final targetH = targetW * ratio;
+
+          Widget preset(String label, int p) {
+            final active = (pct - p).abs() <= 2;
+            return Material(
+              color: active
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHigh,
+              shape: StadiumBorder(
+                side: BorderSide(
+                  color: active
+                      ? scheme.primary.withValues(alpha: 0.45)
+                      : scheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              ),
+              child: InkWell(
+                customBorder: const StadiumBorder(),
+                onTap: () => setSheet(() => pct = p),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.md, vertical: Gap.sm),
+                  child: Text(
+                    label,
+                    style: ctx.type.small.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: active
+                          ? scheme.onPrimaryContainer
+                          : scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(Gap.md),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(Radii.card),
+                    border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: Gap.md, vertical: Gap.xs),
+                            decoration: BoxDecoration(
+                              color: scheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(Radii.pill),
+                            ),
+                            child: Text(
+                              ctx.t('word.img_width_pct', {'n': pct}),
+                              style: ctx.type.small.copyWith(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w700,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${targetW.round()} × ${targetH.round()} pt',
+                            style: ctx.type.caption.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Gap.sm),
+                      Slider(
+                        value: pct.toDouble(),
+                        min: 15,
+                        max: 100,
+                        divisions: 17,
+                        onChanged: (v) => setSheet(() => pct = v.round()),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Gap.md),
+                Wrap(
+                  spacing: Gap.xs,
+                  runSpacing: Gap.xs,
+                  children: [
+                    preset(ctx.t('pse.size_small'), 30),
+                    preset(ctx.t('word.img_medium'), 60),
+                    preset(ctx.t('pse.size_large'), 85),
+                    preset(ctx.t('pse.size_fit'), 100),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () => Navigator.pop(ctx, targetW),
+                  icon: const Icon(AppIcons.checkDone, size: 18),
+                  label: Text(ctx.t('pse.apply_size')),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    if (chosenW != null && mounted) c.resizeImage(chosenW);
+  }
 
   Future<void> _pickImage({required bool replace}) async {
     final c = _ctrl;
@@ -694,24 +864,80 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     final c = _ctrl;
     if (c == null) return;
     final n = c.counts();
+    final rows = [
+      ('word.count_words', '${n.words}'),
+      ('word.count_chars', '${n.chars}'),
+      ('word.count_chars_ns', '${n.charsNoSpace}'),
+      ('word.count_paras', '${n.paragraphs}'),
+    ];
     await showAppSheet<void>(
       context,
       title: context.t('word.word_count'),
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final (k, v) in [
-            ('word.count_words', n.words),
-            ('word.count_chars', n.chars),
-            ('word.count_chars_ns', n.charsNoSpace),
-            ('word.count_paras', n.paragraphs),
-          ])
-            ListTile(
-              title: Text(ctx.t(k)),
-              trailing: Text('$v', style: Theme.of(ctx).textTheme.titleMedium),
-            ),
-        ],
-      ),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: LayoutBuilder(
+            builder: (_, box) {
+              final tileW = (box.maxWidth - Gap.sm) / 2;
+              return Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (var idx = 0; idx < rows.length; idx++)
+                    Container(
+                      width: tileW,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.md, vertical: Gap.sm + 2),
+                      decoration: BoxDecoration(
+                        color: idx == 0
+                            ? scheme.primaryContainer.withValues(alpha: 0.6)
+                            : scheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(Radii.card),
+                        border: Border.all(
+                          color: idx == 0
+                              ? scheme.primary.withValues(alpha: 0.32)
+                              : scheme.outlineVariant.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            rows[idx].$2,
+                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: idx == 0
+                                  ? scheme.onPrimaryContainer
+                                  : scheme.onSurface,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            ctx.t(rows[idx].$1),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: ctx.type.caption.copyWith(
+                              color: idx == 0
+                                  ? scheme.onPrimaryContainer
+                                      .withValues(alpha: 0.85)
+                                  : scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -727,14 +953,27 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       );
 
   Widget _ribbon(WordFormatUi ui) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surface,
-      shape: Border(top: BorderSide(color: scheme.outlineVariant)),
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        border: Border(
+          top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.65)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.studioShadow(dark),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           child: OfficeRibbon(tabs: ui.ribbonTabs()),
         ),
       ),
@@ -744,30 +983,45 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   /// Biçim boyacısı etkinken belgenin üstünde ince şerit (kilitliyse ✕).
   Widget _painterBanner(DocxEditController c) {
     final scheme = Theme.of(context).colorScheme;
-    return Material(
+    return Container(
       key: const ValueKey('word-painter-banner'),
-      color: scheme.secondaryContainer,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.only(start: 12),
-        child: Row(children: [
-          Icon(OfficeIcons.formatPainter,
-              size: 18, color: scheme.onSecondaryContainer),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              context.t(c.painterLocked
-                  ? 'word.format_painter_locked'
-                  : 'word.format_painter_hint'),
-              style: TextStyle(color: scheme.onSecondaryContainer),
+      margin: const EdgeInsets.fromLTRB(Gap.sm, Gap.xs, Gap.sm, Gap.xs),
+      padding: const EdgeInsetsDirectional.fromSTEB(Gap.sm, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(Radii.pill),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.14),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(OfficeIcons.formatPainter,
+              size: 15, color: scheme.onSecondaryContainer),
+        ),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: Text(
+            context.t(c.painterLocked
+                ? 'word.format_painter_locked'
+                : 'word.format_painter_hint'),
+            style: context.type.small.copyWith(
+              color: scheme.onSecondaryContainer,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          IconButton(
-            tooltip: context.t('common.close'),
-            icon: const Icon(AppIcons.close),
-            onPressed: c.cancelPainter,
-          ),
-        ]),
-      ),
+        ),
+        IconButton(
+          tooltip: context.t('common.close'),
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(AppIcons.close, size: 18),
+          onPressed: c.cancelPainter,
+        ),
+      ]),
     );
   }
 
@@ -806,10 +1060,24 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
   @override
   Widget build(BuildContext context) {
     final c = _ctrl;
+    final hasLayer = _findOpen ||
+        _panel.isOpen ||
+        _review != null ||
+        (c?.painterActive ?? false);
     return EditExitGuard(
       session: _session,
-      hasOpenLayer: false,
-      closeLayer: () {},
+      hasOpenLayer: hasLayer,
+      closeLayer: () {
+        if (c != null && c.painterActive) {
+          c.cancelPainter();
+        } else if (_findOpen) {
+          setState(() => _findOpen = false);
+        } else if (_review != null) {
+          setState(() => _review = null);
+        } else if (_panel.isOpen) {
+          _panel.close();
+        }
+      },
       child: EditorShortcuts(
         save: c == null ? null : _save,
         undo: c?.undo,
@@ -825,7 +1093,10 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
           kind: DocKind.word,
           title: widget.name,
           session: _session,
-          subtitle: context.t('word.mobile_view'),
+          hideKindPrefix: true,
+          subtitle: c == null
+              ? context.t('word.mobile_view')
+              : context.t('word.words_n', {'n': _liveWordCount(c)}),
           // ↶ ↷ hep üst çubukta (§5 madde 5); Sayfa düzeni M365'teki gibi
           // tepede — şerit yazı işlerine kalır.
           // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · düzen · ⋮).
@@ -838,17 +1109,71 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
                 : (_proUndo.isNotEmpty && !_proBusy ? _proUndoLast : null),
             redo: () => c != null && c.canRedo ? c.redo : null,
             extras: [
-              IconButton(
-                key: const ValueKey('word-page-layout'),
-                tooltip: context.t('word.page_layout'),
-                icon: const Icon(AppIcons.newWord),
-                onPressed: c == null ? null : _pageLayout,
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: IconButton(
+                  key: const ValueKey('word-top-find'),
+                  tooltip: context.t('word.find'),
+                  isSelected: _findOpen,
+                  style: EditorTopBar.iconStyle(context, selected: _findOpen),
+                  icon: Icon(_findOpen ? AppIcons.searchOff : AppIcons.search,
+                      size: 20),
+                  onPressed: c == null
+                      ? null
+                      : () => setState(() => _findOpen = !_findOpen),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: IconButton(
+                  key: const ValueKey('word-page-layout'),
+                  tooltip: context.t('word.page_layout'),
+                  style: EditorTopBar.iconStyle(context),
+                  icon: const Icon(AppIcons.newWord, size: 20),
+                  onPressed: c == null ? null : _pageLayout,
+                ),
               ),
             ],
-            // ⋮ = ortak dosya levhası (2026-11-15 ortak düzen).
+            // ⋮ = ortak dosya levhası (2026-11-15 ortak düzen + menü araması).
             filePath: widget.path,
             menuTitle: context.t('dm.word'),
             menu: [
+              EditorMenuItem(
+                id: 'navigate',
+                icon: OfficeIcons.navigation,
+                label: context.t('word.navigation'),
+                onTap: c == null ? null : _navigate,
+              ),
+              EditorMenuItem(
+                id: 'word_count',
+                icon: OfficeIcons.wordCount,
+                label: context.t('word.word_count'),
+                onTap: c == null ? null : (_proOn ? _stats : _wordCount),
+              ),
+              EditorMenuItem(
+                id: 'page_setup',
+                icon: AppIcons.cropFree,
+                label: context.t('wp.page_setup'),
+                onTap: c == null ? null : _pageSetup,
+              ),
+              EditorMenuItem(
+                id: 'print_preview',
+                icon: AppIcons.print,
+                label: context.t('wp.print_preview'),
+                onTap: c == null ? null : _printPreview,
+              ),
+              EditorMenuItem(
+                id: 'header_footer',
+                icon: AppIcons.newWord,
+                label: context.t('word.insert_hf'),
+                onTap: c == null ? null : _headerFooter,
+              ),
+              EditorMenuItem(
+                id: 'comments',
+                icon: AppIcons.comment,
+                label: context.t('word.comments'),
+                onTap: c == null ? null : () => _comments(),
+              ),
               EditorMenuItem(
                 id: 'export',
                 icon: AppIcons.share,

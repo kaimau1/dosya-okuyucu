@@ -10,6 +10,7 @@ import '../gemini_decisions.dart';
 import '../offline_mode.dart';
 import 'ai_scope.dart';
 import 'fs_scan.dart';
+import 'smart_quota.dart';
 import 'smart_sort.dart';
 import 'smart_sort_input.dart';
 
@@ -462,6 +463,7 @@ abstract final class SmartUserCats {
     // U4: anahtarsız/çevrimdışı deneme sessizce "dosya yok" demesin.
     final hold = _holdText(keys);
     if (hold != null) return SmartTrial(n, a, const [], stoppedBy: hold);
+    await SmartQuota.read();
     await SmartSort.ensureLoaded();
     final files = (await candidates(scope)).take(trialFiles).toList();
     final q = questionFor('uc_try', n, a);
@@ -474,6 +476,10 @@ abstract final class SmartUserCats {
     Future<void> worker() async {
       while (queue.isNotEmpty && stoppedBy == null) {
         final e = queue.removeAt(0);
+        if (!SmartQuota.take()) {
+          stoppedBy = AppStrings.current.t('uerr.ai_quota');
+          break;
+        }
         try {
           final yes = await _askOne(e, keys, q);
           if (yes == null) {
@@ -511,11 +517,13 @@ abstract final class SmartUserCats {
   /// Bu kategorinin hiç sorulmadığı (düzenlenmiş) dosya sayısı.
   static int pendingCount(String id) => SmartSort.pendingCountFor(id);
 
+  static const maxApplyPerRun = 100;
+
   static void stopApply() => _stop = true;
 
-  /// Düzenlenmiş dosyalara YALNIZ bu kategorinin sorusu; ilerleme
-  /// [applying]'de, [stopApply] ile durur. Kota/yetki hatasında durur
-  /// (kalanlar sonraki uygulamada).
+  /// Düzenlenmiş dosyalara YALNIZ bu kategorinin sorusu (tur başına en çok
+  /// [maxApplyPerRun] dosya); ilerleme [applying]'de, [stopApply] ile durur.
+  /// Kota/yetki hatasında durur (kalanlar sonraki uygulamada).
   static Future<SmartApplyResult> apply(
     String id, {
     required AiCredentials credentials,
@@ -528,6 +536,7 @@ abstract final class SmartUserCats {
     }
     final hold = _holdText(keys);
     if (hold != null) return SmartApplyResult(0, 0, stoppedBy: hold);
+    await SmartQuota.read();
     await SmartSort.ensureLoaded();
     _stop = false;
     applying.value = SmartApplyProgress(id, 0, 0, 0);
@@ -545,13 +554,17 @@ abstract final class SmartUserCats {
                   SmartSort.supports(e) &&
                   scope.allowsFile(e))
             e
-      ];
+      ].take(maxApplyPerRun).toList();
       final q = cat.question;
       final queue = [...todo];
       applying.value = SmartApplyProgress(id, 0, todo.length, 0);
       Future<void> worker() async {
         while (queue.isNotEmpty && stoppedBy == null && !_stop) {
           final e = queue.removeAt(0);
+          if (!SmartQuota.take()) {
+            stoppedBy = AppStrings.current.t('uerr.ai_quota');
+            break;
+          }
           try {
             final yes = await _askOne(e, keys, q);
             // Bu arada kategori silindiyse yazılmaz.

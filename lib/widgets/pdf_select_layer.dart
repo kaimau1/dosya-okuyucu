@@ -15,6 +15,7 @@ import '../core/app_icons.dart';
 import '../core/motion.dart';
 import '../core/theme.dart';
 import '../core/app_colors.dart';
+import '../core/device_profile.dart';
 
 // Seçim geometrisi 2026-08-05'te servise taşındı (OCR araması da kullanıyor);
 // eski adresten içe aktaran dosyalar/testler kırılmasın diye yeniden sunulur.
@@ -239,7 +240,6 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   List<int> _charTextIndex = const [];
   PdfPageText? _geomText;
   Size? _geomSize;
-
 
   Timer? _textTimer;
   Future<void>? _textLoad;
@@ -592,13 +592,14 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   /// isteği 2026-08-05: *"kullanıcıya bir şey bırakmamalısın, otomatik
   /// olmalı"*). Sessiz çalışır — çip yalnız kullanıcı sonucu beklerken
   /// görünür. 350 ms gecikme: hızla kaydırılıp geçilen sayfa (katman söküldüğü
-  /// için zamanlayıcısı iptal olur) hiç OCR'lanmaz, pil korunur; önbellek
-  /// sayesinde aynı sayfa ikinci görünüşünde anında hazırdır.
+  /// için zamanlayıcısı iptal olur) hiç OCR'lanmaz, pil korunur; hafif
+  /// cihazlarda arka plan OCR'ı kapatılır (uzun basış hâlâ tetikler).
   void _maybeAutoOcr() {
     if (!_textLoaded || _ocrTried || _ocrRunning) return;
+    if (!DeviceProfile.budget.contentIndexOcrDefault) return;
     if (!PdfOcrText.isSupported || !_textThin) return;
     _autoOcrTimer?.cancel();
-    _autoOcrTimer = Timer(const Duration(milliseconds: 350), () {
+    _autoOcrTimer = Timer(Motion.long, () {
       if (mounted) _startOcr();
     });
   }
@@ -889,17 +890,19 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
               onPointerUp: _onPointerUp,
               onPointerCancel: _onPointerUp,
               onPointerHover: _onPointerHover,
-              child: CustomPaint(
-                size: widget.pageSize,
-                painter: _SelectionPainter(
-                  text: _text,
-                  page: widget.page,
-                  pageSize: widget.pageSize,
-                  start: _selStart,
-                  end: _selEnd,
-                  color: scheme.primary.withValues(alpha: 0.28),
-                ),
-              ),
+              child: _hasSelection
+                  ? CustomPaint(
+                      size: widget.pageSize,
+                      painter: _SelectionPainter(
+                        text: _text,
+                        page: widget.page,
+                        pageSize: widget.pageSize,
+                        start: _selStart,
+                        end: _selEnd,
+                        color: scheme.primary.withValues(alpha: 0.28),
+                      ),
+                    )
+                  : const SizedBox.expand(),
             ),
           ),
           if (_hasSelection) ...[

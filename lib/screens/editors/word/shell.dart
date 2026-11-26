@@ -16,59 +16,67 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       // Faz 40 / 1: ortak üst çubuk sırası (kaydet · ↶ · ↷ · ara · ⋮).
       actions: EditorTopBar.actions(
         context,
+        showSave: _editing || _plainMode || _session.isDirty,
         onSave: editor == null ? null : _save,
-        // Geri al / yinele: yapısal işlemler (paragraf ekle/sil) için —
-        // paragraf silmenin geri dönüşü yoktu.
-        undo: () => !_canUndo ? null : _undoAny,
-        redo: () => !_canRedo ? null : _redoAny,
+        // Geri al / yinele yalnızca etkin düzenleme kipinde anlamlı;
+        // salt okunur sayfa görünümünde gri/ölü düğme kalabalığı yapmaz.
+        undo: _editing || _plainMode ? () => !_canUndo ? null : _undoAny : null,
+        redo: _editing || _plainMode ? () => !_canRedo ? null : _redoAny : null,
         extras: [
-          // Belge içi arama: slaytta ve Excel'de zaten vardı, Word'de yoktu.
           if (!_plainMode)
-            IconButton(
-              tooltip: context.t('common.search'),
-              isSelected: _finding,
-              icon: const Icon(AppIcons.search),
-              onPressed: editor == null ? null : _toggleFind,
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 2),
+              child: IconButton(
+                key: const ValueKey('word-flow-toggle'),
+                tooltip:
+                    context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
+                isSelected: _flow,
+                style: EditorTopBar.iconStyle(context, selected: _flow),
+                icon: Icon(_flow ? AppIcons.newWord : AppIcons.device, size: 20),
+                onPressed: editor == null ? null : _toggleFlow,
+              ),
+            ),
+          if (!_plainMode)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 2),
+              child: IconButton(
+                tooltip: context.t('common.search'),
+                isSelected: _finding,
+                style: EditorTopBar.iconStyle(context, selected: _finding),
+                icon: const Icon(AppIcons.search, size: 20),
+                onPressed: editor == null ? null : _toggleFind,
+              ),
             ),
         ],
-        // ⋮ = ortak dosya levhası (2026-11-15): üstte taşı/kopyala/SİL,
-        // altında Word'e özel işler ayrı renkte. Eskiden simgesiz küçük
-        // açılır menüydü; "Mobil" ve seçim işleri alt çubuğu yana
-        // kaydırıyordu (6+ düğme) — buraya indiler.
+        // ⋮ = ortak dosya levhası.
         filePath: widget.path,
         menuTitle: context.t('dm.word'),
         menu: [
-          if (!_plainMode)
+          if (_plainMode)
             EditorMenuItem(
-              id: 'flow',
-              icon: _flow ? AppIcons.newWord : AppIcons.device,
-              label: context.t(_flow ? 'word.page_layout' : 'word.mobile_flow'),
-              onTap: editor == null ? null : _toggleFlow,
+              id: 'page',
+              icon: AppIcons.newWord,
+              label: context.t('word.page_view'),
+              onTap: () async {
+                if (_dirty) await _save();
+                if (!mounted) return;
+                // Yedek editördeki değişiklikler görünüme taşınsın.
+                _partSetState(() {
+                  _viewBytes = _editor?.viewBytes();
+                  _plainMode = false;
+                });
+              },
+            )
+          else if (context.read<AppState>().labWordEditor)
+            EditorMenuItem(
+              id: 'plain',
+              icon: AppIcons.textFields,
+              label: context.t('word.text_editor'),
+              onTap: () => _partSetState(() {
+                _plainMode = true;
+                _editing = false;
+              }),
             ),
-          _plainMode
-              ? EditorMenuItem(
-                  id: 'page',
-                  icon: AppIcons.newWord,
-                  label: context.t('word.page_view'),
-                  onTap: () async {
-                    if (_dirty) await _save();
-                    if (!mounted) return;
-                    // Yedek editördeki değişiklikler görünüme taşınsın.
-                    _partSetState(() {
-                      _viewBytes = _editor?.viewBytes();
-                      _plainMode = false;
-                    });
-                  },
-                )
-              : EditorMenuItem(
-                  id: 'plain',
-                  icon: AppIcons.textFields,
-                  label: context.t('word.text_editor'),
-                  onTap: () => _partSetState(() {
-                    _plainMode = true;
-                    _editing = false;
-                  }),
-                ),
           if (!_plainMode)
             EditorMenuItem(
               id: 'night',
@@ -80,13 +88,6 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
           // Seçili metin işleri: canlı görünümde seçim WebView tarafında
           // yaşıyor, `sendSelectionText` köprüsüyle alınıyor. Yedek metin
           // editöründe seçim Flutter'da olduğu için bu yol kapalı.
-          if (!_plainMode)
-            EditorMenuItem(
-              id: 'rewrite',
-              icon: AppIcons.ai,
-              label: context.t('word.rewrite_selection'),
-              onTap: editor == null ? null : _rewriteSelection,
-            ),
           if (!_plainMode)
             EditorMenuItem(
               id: 'translate_sel',
@@ -101,8 +102,9 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
             onTap: editor == null ? null : () => unawaited(_shareExport()),
           ),
           // K19 (b), Faz 23: sayfa üzerinde (WebView) düzenleme yalnız
-          // geliştirici denemesi bayrağıyla.
-          if (!_plainMode &&
+          // geliştirici denemesi bayrağıyla (yalnız Kişisel derleme).
+          if (Edition.current.has(Feature.labs) &&
+              !_plainMode &&
               !_editing &&
               context.read<AppState>().labWordEditor)
             EditorMenuItem(
@@ -111,7 +113,8 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               label: context.t('word.edit_page'),
               onTap: _toggleEdit,
             ),
-          if (context.read<AppState>().labWordEditor)
+          if (Edition.current.has(Feature.labs) &&
+              context.read<AppState>().labWordEditor)
             EditorMenuItem(
               id: 'lab',
               icon: AppIcons.developerMode,
@@ -134,7 +137,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
       // Etiketli eylem çubuğu (2026-07-28 kullanıcı isteği — PDF'teki gibi).
       // Düzenleme sırasında gizli: o sırada klavye + biçim çubuğu zaten
       // ekranın yarısını alıyor.
-      bottomBar: _editing
+      bottomBar: _editing || _error != null
           ? null
           : DocActionBar([
               // Ortak düzen (2026-11-15): en çok 5 düğme, kaydırma yok —
@@ -142,8 +145,25 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               // seçili metin işleri ⋮'da.
               if (!_plainMode)
                 // Faz 22 (K18 = b-ii): "Düzenle" Mobil görünüm editörünü açar.
-                DocAction(AppIcons.edit, context.t('common.edit'),
-                    editor == null ? null : _openMobileEditor),
+                DocAction(
+                  AppIcons.edit,
+                  context.t('common.edit'),
+                  editor == null ? null : _openMobileEditor,
+                  primary: true,
+                ),
+              // 2026-11-22 (kullanıcı): sayfa görünümünü bozmadan yazı
+              // değiştirme / silip yeniden yazma (canlı sayfa düzenleme).
+              if (!_plainMode)
+                DocAction(
+                  AppIcons.newWord,
+                  context.t('word.edit_on_page'),
+                  editor == null
+                      ? null
+                      : () {
+                          _editKeepPage = true;
+                          unawaited(_toggleEdit());
+                        },
+                ),
               DocAction(
                 AppIcons.translate,
                 context.t('common.translate'),
@@ -199,7 +219,7 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
                             if (n != _pageCount) _partSetState(() => _pageCount = n);
                           },
                           onPage: (n) {
-                            if (n != _page) _partSetState(() => _page = n);
+                            if (n != _page) _page = n;
                             ReadingPositions.record(widget.path, n, _pageCount,
                                 size: _docSize);
                           },
@@ -281,12 +301,112 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
     );
   }
 
-  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage].
+  /// "Sayfa 3 / 12" rozeti — dokununca [_showGoToPage], yan oklarla tek
+  /// dokunuşta önceki/sonraki sayfa. Yalnız [_pageN] dinler.
   Widget _pageBadge() {
-    return DocPill(
-      text: context.t('word.page_of', {'n': _page, 'total': _pageCount}),
-      icon: AppIcons.unfoldMore,
-      onTap: _showGoToPage,
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return ValueListenableBuilder<int>(
+      valueListenable: _pageN,
+      builder: (_, page, _) {
+        if (_pageCount <= 1) {
+          return DocPill(
+            text: context.t('word.page_of', {'n': page, 'total': _pageCount}),
+            icon: AppIcons.unfoldMore,
+            onTap: _showGoToPage,
+          );
+        }
+        final canPrev = page > 1;
+        final canNext = page < _pageCount;
+        Widget step(IconData icon, String tip, VoidCallback? onTap) => Tooltip(
+              message: tip,
+              child: InkWell(
+                onTap: onTap,
+                customBorder: const CircleBorder(),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    icon,
+                    size: 18,
+                    color: onTap == null
+                        ? scheme.onSurface.withValues(alpha: 0.28)
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Material(
+            color: scheme.surfaceContainerLowest.withValues(alpha: 0.96),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.65),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  step(
+                    AppIcons.keyboardArrowLeft,
+                    context.t('pn.prev_page'),
+                    canPrev
+                        ? () => _viewKey.currentState?.goToPage(page - 1)
+                        : null,
+                  ),
+                  InkWell(
+                    customBorder: const StadiumBorder(),
+                    onTap: _showGoToPage,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Gap.sm, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            context.t('word.page_of',
+                                {'n': page, 'total': _pageCount}),
+                            style: context.type.small.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            AppIcons.unfoldMore,
+                            size: 15,
+                            color: scheme.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  step(
+                    AppIcons.keyboardArrowRight,
+                    context.t('pn.next_page'),
+                    canNext
+                        ? () => _viewKey.currentState?.goToPage(page + 1)
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -524,13 +644,14 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
         // düğmesi kaybolmamalı.
         trailing: Padding(
           padding: const EdgeInsetsDirectional.only(end: 8),
-          child: FilledButton.tonalIcon(
+          child: FilledButton.icon(
             style: FilledButton.styleFrom(
+              shape: const StadiumBorder(),
               minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
             ),
             onPressed: _toggleEdit,
-            icon: const Icon(AppIcons.check, size: 18),
+            icon: const Icon(AppIcons.check, size: 17),
             label: Text(context.t('word.done')),
           ),
         ),
@@ -538,47 +659,73 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
     );
   }
 
-  /// Renk seçici (yazı rengi / vurgu). Renkler biçim çubuğunun kendi
-  /// paletinden; `null` seçeneği rengi kaldırır.
+  /// Renk seçici (yazı rengi / vurgu): ham `#HEX` listesi yerine görsel
+  /// renk kartelası levhası; `null` seçeneği rengi kaldırır.
   Widget _colorMenu(IconData icon, String tip, List<String> palette,
       void Function(String?) onPick) {
-    return PopupMenuButton<String>(
+    return IconButton(
       tooltip: tip,
       icon: Icon(icon, size: 20),
-      onSelected: (v) => onPick(v == 'none' ? null : v),
-      itemBuilder: (_) => [
-        for (final hex in palette)
-          PopupMenuItem(
-            value: hex,
-            child: Row(
-              children: [
-                Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse('FF$hex', radix: 16)),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text('#$hex'),
-              ],
-            ),
-          ),
-        PopupMenuItem(
-          value: 'none',
-          child: Row(
+      onPressed: () => unawaited(_showSwatchPicker(tip, palette, onPick)),
+    );
+  }
+
+  Future<void> _showSwatchPicker(
+    String title,
+    List<String> palette,
+    void Function(String?) onPick,
+  ) async {
+    final res = await showAppSheet<String>(
+      context,
+      title: title,
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(AppIcons.formatColorReset, size: 20),
-              const SizedBox(width: 10),
-              Text(context.t('excel.color_none')),
+              Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (final hex in palette)
+                    Semantics(
+                      button: true,
+                      label: hex,
+                      child: InkWell(
+                        onTap: () => Navigator.pop(ctx, hex),
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Color(int.parse('FF$hex', radix: 16)),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: scheme.outlineVariant,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pop(ctx, 'none'),
+                icon: const Icon(AppIcons.formatColorReset, size: 18),
+                label: Text(ctx.t('excel.color_none')),
+              ),
             ],
           ),
-        ),
-      ],
+        );
+      },
     );
+    if (res == null || !mounted) return;
+    onPick(res == 'none' ? null : res);
   }
 
   /// Madde işareti / numaralandırma düğmesi. Aynı biçime tekrar basmak

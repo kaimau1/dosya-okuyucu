@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../core/image_decode.dart';
 import 'file_ops.dart';
 import 'safe_write.dart';
 import 'fs_events.dart';
@@ -79,7 +80,7 @@ abstract final class ImageRotate {
       };
 
   static Uint8List _rotateSync(String path, int turns) {
-    final decoded = img.decodeImage(File(path).readAsBytesSync());
+    final decoded = decodeCommonImage(File(path).readAsBytesSync());
     if (decoded == null) {
       throw const FormatException('Görsel çözümlenemedi');
     }

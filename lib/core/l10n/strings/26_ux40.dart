@@ -28,6 +28,11 @@ const Map<String, (String, String, String)> _t26 = {
     'Your files stay on the phone; no ads, no tracking. AI is optional and runs only when you start it, with your own key.',
     'تبقى ملفاتك على الهاتف؛ لا إعلانات ولا تتبّع. الذكاء الاصطناعي اختياري ولا يعمل إلا عندما تبدأه وبمفتاحك الخاص.',
   ),
+  'onb.privacy_note_lite': (
+    'Dosyaların telefonunda kalır; hesap zorunluluğu, reklam ve takip yok.',
+    'Your files stay on your phone; no account required, no ads, no tracking.',
+    'تبقى ملفاتك على هاتفك؛ بلا حساب إجباري ولا إعلانات ولا تتبّع.',
+  ),
   'onb.samples': ('Örnek belgeleri ekle', 'Add sample documents', 'إضافة مستندات نموذجية'),
   'onb.samples_done': ('Eklendi: {folder} klasörü', 'Added: {folder} folder', 'تمت الإضافة: مجلد {folder}'),
   'onb.samples_failed': ('Örnek belgeler yazılamadı', 'Could not write sample documents', 'تعذّرت كتابة المستندات النموذجية'),
@@ -70,11 +75,6 @@ const Map<String, (String, String, String)> _t26 = {
   'ux.send_nearby': ('Yakındaki cihaza gönder', 'Send to a nearby device', 'إرسال إلى جهاز قريب'),
   'ux.send_nearby_hint': ('Kayıtlı hâli · QR ya da yerel ağ', 'Saved version · QR or local network', 'النسخة المحفوظة · رمز QR أو الشبكة المحلية'),
   // ── Madde 8: tema ──────────────────────────────────────────────────────
-  'thp.section': ('Hızlı tema ve vurgu', 'Quick theme & accent', 'سمة سريعة ولون التمييز'),
-  'thp.title': ('Tema ön ayarı', 'Theme preset', 'سمة جاهزة'),
-  'thp.sub': ('Tek dokunuşla açık, koyu, AMOLED ya da kâğıt', 'Light, dark, AMOLED or paper in one tap', 'فاتح أو داكن أو AMOLED أو ورقي بلمسة واحدة'),
-  'thp.light': ('Açık', 'Light', 'فاتح'),
-  'thp.dark': ('Koyu', 'Dark', 'داكن'),
   'thp.amoled': ('AMOLED siyah', 'AMOLED black', 'أسود AMOLED'),
   'thp.paper': ('Kâğıt', 'Paper', 'ورقي'),
   'thp.size_max': ('2×', '2×', '2×'),

@@ -5,8 +5,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
+import '../../widgets/pro_gate.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/video_transcode.dart';
 import '../../services/fm/fm_env.dart';
@@ -28,10 +30,16 @@ import 'resize_compare_screen.dart';
 /// bildiriminde görünür.
 ///
 /// Dönüş: kuyruğa iş konduysa true (arayüz "başladı" diyebilir).
+///
+/// [preset] verilirse ayar sayfası SON AYARLA değil bununla açılır: Yer aç
+/// ve Bellek Analizi'nin "Boyut düşür" kısayolları
+/// [MediaResizeOptions.spaceSaver] verir — kısayolun yazdığı tahmin de o
+/// ayarla hesaplanır, sayfa açılınca aynı sayı görünür.
 Future<bool> startResizeJob(
   BuildContext context,
-  List<FsEntry> entries,
-) async {
+  List<FsEntry> entries, {
+  MediaResizeOptions? preset,
+}) async {
   final media = [
     for (final e in entries)
       if (!e.isDir &&
@@ -48,13 +56,16 @@ Future<bool> startResizeJob(
 
   final hasImages = media.any((e) => e.category == FmCategory.image);
   final hasVideos = media.any((e) => e.category == FmCategory.video);
+  if (hasVideos && !await ProGate.check(context, Feature.videoCompress)) {
+    return false;
+  }
   // Kaynak özellikleri ÖLÇÜLÜR (çözünürlük/kare sayısı/süre) — ayar sayfası
   // "şu an ne var, sonra ne olacak" diyebilsin (kullanıcı isteği 2026-08-07).
   final sources = await _describeSources(media);
   // **Son kullanılan ayar** (Faz 14, G4g): her seferinde 1080p varsayılanıyla
   // başlamak, aynı işi tekrar eden kullanıcıya her sefer aynı dokunuşları
-  // yaptırıyordu.
-  final last = await ResizeMemory.load();
+  // yaptırıyordu. Kısayoldan gelindiyse onun ölçülü ayarı geçer.
+  final last = preset ?? await ResizeMemory.load();
   if (!context.mounted) return false;
   final options = await showMediaResizeSheet(
     context,
@@ -210,7 +221,11 @@ void registerResizeJobRunner() {
       final entry = FsEntry.ofPath(path);
       // Aradan silinmiş/taşınmış dosya sessizce atlanır: iş "bulunamadı"
       // diye tamamen düşmemeli, kalanlar yine küçültülmeli.
-      if (entry != null) media.add(entry);
+      if (entry != null &&
+          (entry.category != FmCategory.video ||
+              Edition.current.has(Feature.videoCompress))) {
+        media.add(entry);
+      }
     }
     if (media.isEmpty) {
       // Kalan dosya kalmadıysa iş BİTMİŞTİR; sessiz çıkmak kartı "0/0" ile

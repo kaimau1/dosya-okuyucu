@@ -28,6 +28,12 @@ class ResizePreset {
 /// "Özgün dosyayı çöpe at" BİLEREK hatırlanmaz: geri alınamaz bir seçimin
 /// bir sonraki işe kendiliğinden taşınması, kullanıcının fark etmeden
 /// özgünlerini kaybetmesi demek olurdu. Ön ayarlarda da aynı kural.
+///
+/// "Sesi çıkar" da SON AYAR olarak hatırlanmaz (2026-11-25, kullanıcı:
+/// *"sesi çıkarıyor videolarda"*): bir kez sessiz video istemek, sonraki her
+/// videonun sessiz çıkması demekti ve bu ancak çıktı oynatılınca fark
+/// ediliyordu. Adıyla kaydedilen ön ayar sesi çıkarmayı korur — orada
+/// kullanıcı bilerek seçti.
 abstract final class ResizeMemory {
   static const _key = 'resize.last';
   static const _presetsKey = 'resize.presets';
@@ -41,7 +47,7 @@ abstract final class ResizeMemory {
       final raw = prefs.getString(_key);
       if (raw == null) return null;
       return MediaResizeOptions.fromJson(jsonDecode(raw))
-          .copyWith(replaceOriginal: false);
+          .copyWith(replaceOriginal: false, removeAudio: false);
     } catch (_) {
       return null; // bozuk kayıt: varsayılanla açılır
     }
@@ -50,7 +56,10 @@ abstract final class ResizeMemory {
   static Future<void> save(MediaResizeOptions options) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-        _key, jsonEncode(options.copyWith(replaceOriginal: false).toJson()));
+        _key,
+        jsonEncode(options
+            .copyWith(replaceOriginal: false, removeAudio: false)
+            .toJson()));
   }
 
   static Future<List<ResizePreset>> presets() async {

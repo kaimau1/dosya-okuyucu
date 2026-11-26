@@ -129,6 +129,8 @@ void main() {
     expect(after.heightPt / after.widthPt, closeTo(ratio, 0.001));
     // Sil
     await tab(t, 'Resim');
+    await t.ensureVisible(find.byKey(const ValueKey('word-img-delete')));
+    await t.pump();
     await t.tap(find.byKey(const ValueKey('word-img-delete')));
     await t.pump();
     expect(c.selectedImage, isNull);
@@ -141,6 +143,8 @@ void main() {
     final p = c.paras.indexWhere((p) => p.text.length > 5);
     c.select(DocPos(p, 0), DocPos(p, 4));
     await tab(t, 'Gözden Geçir');
+    await t.ensureVisible(find.byKey(const ValueKey('word-rev-new-comment')));
+    await t.pump();
     await t.tap(find.byKey(const ValueKey('word-rev-new-comment')));
     await settle(t);
     await t.pumpAndSettle();

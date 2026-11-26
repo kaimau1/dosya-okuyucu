@@ -4,45 +4,86 @@ part of '../nearby_screen.dart';
 /// QR, geçmiş, diğer yollar) — mantık [_NearbyScreenState]'te.
 extension _NearbySections on _NearbyScreenState {
   Widget _menu(BuildContext context) {
-    return PopupMenuButton<String>(
+    return IconButton(
+      tooltip: context.t('common.more'),
       icon: const Icon(AppIcons.more),
-      onSelected: (v) async {
-        switch (v) {
-          case 'name':
-            await _editDeviceName();
-          case 'dir':
-            await _pickSaveDir();
-          case 'confirm':
-            _update(() => _confirmIncoming = !_confirmIncoming);
-            if (widget.services) await _startReceiving();
-          case 'bg':
-            await _toggleBg();
-        }
-      },
-      itemBuilder: (ctx) => [
-        PopupMenuItem(value: 'name', child: Text(ctx.t('peer.device_name'))),
-        PopupMenuItem(
-          value: 'dir',
-          child: Text(ctx.t('peer.save_to', {'path': p.basename(_saveDir)})),
-        ),
-        CheckedPopupMenuItem(
-          value: 'confirm',
-          checked: _confirmIncoming,
-          child: Text(ctx.t('peer.ask_switch')),
-        ),
-        if (_bgAvailable)
-          CheckedPopupMenuItem(
-            value: 'bg',
-            checked: _bgOn,
-            child: Text(ctx.t('near.bg_switch')),
-          ),
-      ],
+      onPressed: () => unawaited(_showTransferMenu(context)),
     );
   }
 
-  /// **1 · Ne gönderilecek?** — üç büyük kutu (Dosya / Klasör / Yazı), altında
-  /// seçilenler. 2026-11-03 yeniden tasarım: eskiden iki çerçeveli düğme ve
-  /// uzun bir açıklama vardı; "yazı" yolu yoktu.
+  Future<void> _showTransferMenu(BuildContext context) async {
+    final picked = await showAppActionSheet<String>(
+      context,
+      title: context.t('xfer.title'),
+      subtitle: _deviceName,
+      groups: [
+        AppActionGroup<String>(
+          title: context.t('near.sec_prefs'),
+          actions: [
+            AppAction(
+              value: 'name',
+              icon: AppIcons.device,
+              label: context.t('peer.device_name'),
+              hint: _deviceName,
+            ),
+            AppAction(
+              value: 'dir',
+              icon: AppIcons.folder,
+              label: context.t('peer.save_to', {'path': p.basename(_saveDir)}),
+            ),
+            AppAction(
+              value: 'confirm',
+              icon: _confirmIncoming ? AppIcons.shield : AppIcons.check,
+              label: context.t('peer.ask_switch'),
+              accent: _confirmIncoming,
+            ),
+            if (_bgAvailable)
+              AppAction(
+                value: 'bg',
+                icon: AppIcons.bolt,
+                label: context.t('near.bg_switch'),
+                accent: _bgOn,
+              ),
+          ],
+        ),
+        AppActionGroup<String>(
+          title: context.t('xft.tab_quick'),
+          actions: [
+            AppAction(
+              value: 'scan',
+              icon: AppIcons.qrScan,
+              label: context.t('qrf.scan'),
+              hint: context.t('qrf.scan_sub'),
+            ),
+            AppAction(
+              value: 'share',
+              icon: AppIcons.share,
+              label: context.t('near.share_apps'),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (picked == null || !mounted) return;
+    switch (picked) {
+      case 'name':
+        await _editDeviceName();
+      case 'dir':
+        await _pickSaveDir();
+      case 'confirm':
+        _update(() => _confirmIncoming = !_confirmIncoming);
+        if (widget.services) await _startReceiving();
+      case 'bg':
+        await _toggleBg();
+      case 'scan':
+        await _scanQr();
+      case 'share':
+        await _shareToApps();
+    }
+  }
+
+  /// **1 · Ne gönderilecek?** — renk kodlu üç büyük kutu (Dosya ekle ·
+  /// Klasör ekle · Yazı / Pano), altında seçilenler ve tek dokunuşla temizle.
   Widget _selectionCard(BuildContext context) {
     final text = _text;
     final count = _selection.length + (text == null ? 0 : 1);
@@ -56,8 +97,15 @@ extension _NearbySections on _NearbyScreenState {
             _StepHeader(
               title: context.t('near.step_what'),
               sub: count == 0
-                  ? context.t('near.pick_sub')
+                  ? null
                   : context.t('near.selected', {'n': count}),
+              trailing: count > 0
+                  ? TextButton(
+                      key: const ValueKey('near-clear-sel'),
+                      onPressed: _clearSelection,
+                      child: Text(context.t('near.clear_sel')),
+                    )
+                  : null,
             ),
             Row(
               children: [
@@ -66,6 +114,7 @@ extension _NearbySections on _NearbyScreenState {
                     key: const ValueKey('near-add-files'),
                     icon: AppIcons.addFile,
                     label: context.t('near.add_files'),
+                    accent: AppHues.teal,
                     onTap: _addFiles,
                   ),
                 ),
@@ -75,6 +124,7 @@ extension _NearbySections on _NearbyScreenState {
                     key: const ValueKey('near-add-folder'),
                     icon: AppIcons.addFolder,
                     label: context.t('near.add_folder'),
+                    accent: AppHues.amber,
                     onTap: _addFolder,
                   ),
                 ),
@@ -83,70 +133,47 @@ extension _NearbySections on _NearbyScreenState {
                   child: _ActionTile(
                     key: const ValueKey('near-add-text'),
                     icon: AppIcons.textSnippet,
-                    label: context.t('near.add_text'),
+                    label: context.t('ux47.text_or_clip'),
+                    accent: AppHues.indigo,
                     onTap: _editText,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: Gap.xs),
-            TextField(
-              key: const ValueKey('near-paste-field'),
-              controller: _textCtrl,
-              minLines: 1,
-              maxLines: 5,
-              keyboardType: TextInputType.multiline,
-              // Android klavyesinden görsel/GIF/çıkartma yapıştırma.
-              contentInsertionConfiguration: ContentInsertionConfiguration(
-                onContentInserted: _onKeyboardContent,
-              ),
-              decoration: InputDecoration(
-                hintText: context.t('near.paste_hint'),
-                prefixIcon: const Icon(AppIcons.paste),
-                suffixIcon: text == null
-                    ? null
-                    : IconButton(
-                        tooltip: context.t('common.clear'),
-                        icon: const Icon(AppIcons.close),
-                        onPressed: _textCtrl.clear,
-                      ),
-                border: const OutlineInputBorder(),
-                // Sıkı: ilk sekme (hızlı aktar + QR) 360×780'e kaydırmasız sığar.
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: Gap.sm, vertical: Gap.sm),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 40, minHeight: 36),
-              ),
-            ),
-            if (_clipSuggestion != null ||
-                _appClip.hasItems) ...[
-              const SizedBox(height: Gap.xs),
+            if (text != null || _hasClipText || _appClip.hasItems) ...[
+              const SizedBox(height: Gap.sm),
               Wrap(
                 spacing: Gap.xs,
                 runSpacing: Gap.xs,
                 children: [
-                  if (_clipSuggestion != null)
-                    ActionChip(
-                      key: const ValueKey('near-clip-text'),
-                      avatar: const Icon(AppIcons.paste, size: AppIcons.small),
+                  if (text != null)
+                    InputChip(
+                      key: const ValueKey('near-selected-text'),
+                      avatar: const Icon(AppIcons.textSnippet,
+                          size: AppIcons.small),
                       label: Text(
-                        context.t('near.clip_text', {
-                          'text': _clipSuggestion!.length > 40
-                              ? '${_clipSuggestion!.substring(0, 40)}…'
-                              : _clipSuggestion!.replaceAll('\n', ' '),
-                        }),
+                        text.length > 36
+                            ? '${text.substring(0, 36).replaceAll('\n', ' ')}…'
+                            : text.replaceAll('\n', ' '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      onPressed: _useClipboardText,
+                      onPressed: _editText,
+                      onDeleted: _textCtrl.clear,
+                    ),
+                  if (_hasClipText)
+                    ActionChip(
+                      key: const ValueKey('near-clip-text'),
+                      avatar: const Icon(AppIcons.paste, size: AppIcons.small),
+                      label: Text(context.t('ux47.paste_clipboard')),
+                      onPressed: () => unawaited(_useClipboardText()),
                     ),
                   if (_appClip.hasItems)
                     ActionChip(
                       key: const ValueKey('near-clip-files'),
                       avatar: const Icon(AppIcons.copy, size: AppIcons.small),
-                      label: Text(context.t('near.clip_files',
-                          {'n': _appClip.length})),
+                      label: Text(
+                          context.t('near.clip_files', {'n': _appClip.length})),
                       onPressed: _addAppClipboard,
                     ),
                 ],
@@ -163,21 +190,25 @@ extension _NearbySections on _NearbyScreenState {
                   itemBuilder: (_, i) => _SelectedTile(
                     key: ValueKey(_selection[i]),
                     path: _selection[i],
+                    sent: _sentDone.contains(_selection[i]),
+                    failed: _sendFailed[_selection[i]],
                     onRemove: () => _remove(_selection[i]),
                   ),
                 ),
               ),
             ],
-            if (count > 0)
+            if (count > 0) ...[
+              const SizedBox(height: Gap.xs),
               Align(
                 alignment: AlignmentDirectional.centerEnd,
-                child: TextButton.icon(
+                child: FilledButton.tonalIcon(
                   key: const ValueKey('near-share-apps-inline'),
                   onPressed: _shareToApps,
                   icon: const Icon(AppIcons.share, size: AppIcons.small),
                   label: Text(context.t('near.share_apps')),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -193,33 +224,43 @@ extension _NearbySections on _NearbyScreenState {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          for (final t in items)
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const Divider(height: 1),
             ListTile(
-              leading: Icon(t.keyed ? AppIcons.lock : AppIcons.verified,
-                  color: Paper.success(context)),
-              title: Text(t.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: t.keyed ? Text(context.t('g5.trusted_keyed')) : null,
+              leading: _IconWell(
+                icon: items[i].keyed ? AppIcons.lock : AppIcons.verified,
+                accent: Paper.success(context),
+              ),
+              title: Text(items[i].name,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle:
+                  items[i].keyed ? Text(context.t('g5.trusted_keyed')) : null,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (t.keyed)
+                  if (items[i].keyed)
                     IconButton(
                       tooltip: context.t('sync.menu'),
                       icon: Icon(AppIcons.sync,
-                          color: AutoSync.instance.rule(t.fp)?.on ?? false
+                          color: AutoSync.instance.rule(items[i].fp)?.on ??
+                                  false
                               ? Paper.success(context)
                               : null),
                       onPressed: () => unawaited(showAutoSyncSheet(context,
-                          fp: t.fp, name: t.name, id: t.id)),
+                          fp: items[i].fp,
+                          name: items[i].name,
+                          id: items[i].id)),
                     ),
                   IconButton(
                     tooltip: context.t('near.untrust'),
                     icon: const Icon(AppIcons.close),
-                    onPressed: () => unawaited(TrustedPeers.instance.remove(t)),
+                    onPressed: () =>
+                        unawaited(TrustedPeers.instance.remove(items[i])),
                   ),
                 ],
               ),
             ),
+          ],
         ],
       ),
     );
@@ -251,7 +292,8 @@ extension _NearbySections on _NearbyScreenState {
         'speed': FsPaths.humanSize((out.sentBytes * 1000 / elapsed).round()),
       });
     } else {
-      detail = '${FsPaths.humanSize(out.sentBytes)} / ${FsPaths.humanSize(out.totalBytes)}';
+      detail =
+          '${FsPaths.humanSize(out.sentBytes)} / ${FsPaths.humanSize(out.totalBytes)}';
     }
     return _TransferCard(
       key: const ValueKey('near-outgoing'),
@@ -263,7 +305,8 @@ extension _NearbySections on _NearbyScreenState {
       tint: scheme.secondaryContainer,
       action: TextButton(
         key: const ValueKey('near-out-stop'),
-        onPressed: out.cancelled ? null : () => _update(() => out.cancelled = true),
+        onPressed:
+            out.cancelled ? null : () => _update(() => out.cancelled = true),
         child: Text(context.t('common.stop')),
       ),
       rows: [
@@ -299,7 +342,9 @@ extension _NearbySections on _NearbyScreenState {
             : context.t('near.receiving_n', {'n': files.length}),
         if (all > 0) '%${(got * 100 ~/ all).clamp(0, 100).toInt()}',
       ].join(' · '),
-      detail: all > 0 ? '${FsPaths.humanSize(got)} / ${FsPaths.humanSize(all)}' : null,
+      detail: all > 0
+          ? '${FsPaths.humanSize(got)} / ${FsPaths.humanSize(all)}'
+          : null,
       tint: scheme.primaryContainer,
       rows: [
         for (final f in files)
@@ -318,7 +363,8 @@ extension _NearbySections on _NearbyScreenState {
     final scheme = theme.colorScheme;
     final web = _web;
     final hs = _hotspot;
-    if (_selection.isEmpty) {
+    final hasText = _text != null && _text!.trim().isNotEmpty;
+    if (_selection.isEmpty && !hasText) {
       return Card(
         margin: EdgeInsets.zero,
         child: ListTile(
@@ -339,7 +385,8 @@ extension _NearbySections on _NearbyScreenState {
       qr = _hotspotStep == 0
           ? QrPayload.wifi(hs.ssid, hs.pass, sec: hs.sec)
           : QrPayload.encode(u, ssid: hs.ssid, pass: hs.pass, sec: hs.sec);
-      hint = context.t(_hotspotStep == 0 ? 'near.web_step1' : 'near.web_step2');
+      hint =
+          context.t(_hotspotStep == 0 ? 'near.web_step1' : 'near.web_step2');
     } else if (_webHost != null) {
       url = web.urlFor(_webHost!).toString();
       qr = url;
@@ -355,16 +402,23 @@ extension _NearbySections on _NearbyScreenState {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _StepHeader(
+              title: context.t('xft.qr_title'),
+              sub: hint,
+            ),
             if (hs != null && _hotspotHost != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: Gap.sm),
                 child: SegmentedButton<int>(
                   segments: [
-                    ButtonSegment(value: 0, label: Text(context.t('near.step_wifi'))),
-                    ButtonSegment(value: 1, label: Text(context.t('near.step_page'))),
+                    ButtonSegment(
+                        value: 0, label: Text(context.t('near.step_wifi'))),
+                    ButtonSegment(
+                        value: 1, label: Text(context.t('near.step_page'))),
                   ],
                   selected: {_hotspotStep},
-                  onSelectionChanged: (s) => _update(() => _hotspotStep = s.first),
+                  onSelectionChanged: (s) =>
+                      _update(() => _hotspotStep = s.first),
                 ),
               ),
             // Faz 41 / 4: kısa ömürlü bağlantı — süre + tek seferlik.
@@ -407,7 +461,8 @@ extension _NearbySections on _NearbyScreenState {
                         '${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}'
                   }),
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ),
             if (_linkExpired)
@@ -421,17 +476,25 @@ extension _NearbySections on _NearbyScreenState {
               ),
             const SizedBox(height: Gap.sm),
             Center(
-              child: qr == null
-                  ? SizedBox.square(
-                      dimension: size,
-                      child: const Center(child: CircularProgressIndicator()),
-                    )
-                  : QrCode(key: ValueKey(qr), data: qr, size: size),
+              child: Container(
+                padding: const EdgeInsets.all(Gap.md),
+                decoration: BoxDecoration(
+                  color: AppColors.page,
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.75),
+                  ),
+                ),
+                child: qr == null
+                    ? SizedBox.square(
+                        dimension: size,
+                        child: const Center(child: CircularProgressIndicator()),
+                      )
+                    : QrCode(key: ValueKey(qr), data: qr, size: size),
+              ),
             ),
-            const SizedBox(height: Gap.sm),
-            Text(hint, textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
             if (hs != null && _hotspotStep == 0) ...[
-              const SizedBox(height: Gap.xs),
+              const SizedBox(height: Gap.sm),
               SelectableText(
                 '${context.t('near.network')}: ${hs.ssid}\n${context.t('near.password')}: ${hs.pass}',
                 textAlign: TextAlign.center,
@@ -445,10 +508,15 @@ extension _NearbySections on _NearbyScreenState {
               ),
             ],
             if (url != null && (hs == null || _hotspotStep == 1)) ...[
-              const SizedBox(height: Gap.sm),
+              const SizedBox(height: Gap.md),
               Material(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(Radii.control),
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.control),
+                  side: BorderSide(
+                    color: scheme.outlineVariant.withValues(alpha: 0.65),
+                  ),
+                ),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(Radii.control),
                   onTap: () {
@@ -471,7 +539,8 @@ extension _NearbySections on _NearbyScreenState {
                           ),
                         ),
                         Icon(AppIcons.copyPlain,
-                            size: AppIcons.small, color: scheme.onSurfaceVariant),
+                            size: AppIcons.small,
+                            color: scheme.onSurfaceVariant),
                       ],
                     ),
                   ),
@@ -494,7 +563,8 @@ extension _NearbySections on _NearbyScreenState {
               const SizedBox(height: Gap.sm),
               Text(_webError!,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.error)),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.error)),
             ],
             if (hs == null && web != null) ...[
               const SizedBox(height: Gap.xs),
@@ -545,15 +615,34 @@ extension _NearbySections on _NearbyScreenState {
                 _historyAll = false;
               }),
             ),
-            const SizedBox(height: Gap.sm),
+            const SizedBox(height: Gap.md),
             if (all.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: Gap.md),
-                child: Text(
-                  context.t(_historyIncoming ? 'near.none_received' : 'near.none_sent'),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant),
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.lg, vertical: Gap.xl),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _IconWell(
+                        icon: _historyIncoming
+                            ? AppIcons.download
+                            : AppIcons.uploadArrow,
+                        accent: scheme.primary,
+                        size: 48,
+                      ),
+                      const SizedBox(height: Gap.sm),
+                      Text(
+                        context.t(_historyIncoming
+                            ? 'near.none_received'
+                            : 'near.none_sent'),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
                 ),
               )
             else
@@ -562,14 +651,20 @@ extension _NearbySections on _NearbyScreenState {
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
-                    for (final r in shown) _historyRow(context, r),
+                    for (var i = 0; i < shown.length; i++) ...[
+                      if (i > 0) const Divider(height: 1),
+                      _historyRow(context, shown[i]),
+                    ],
                   ],
                 ),
               ),
             if (!_historyAll && all.length > shown.length)
-              TextButton(
-                onPressed: () => _update(() => _historyAll = true),
-                child: Text(context.t('near.show_all', {'n': all.length})),
+              Padding(
+                padding: const EdgeInsets.only(top: Gap.xs),
+                child: TextButton(
+                  onPressed: () => _update(() => _historyAll = true),
+                  child: Text(context.t('near.show_all', {'n': all.length})),
+                ),
               ),
           ],
         );
@@ -587,20 +682,71 @@ extension _NearbySections on _NearbyScreenState {
     return context.t('near.dur_ms', {'m': m, 's': rest});
   }
 
+  Future<void> _showHistoryRowMenu(
+    BuildContext context,
+    TransferRecord r, {
+    required bool exists,
+    required bool isDir,
+  }) async {
+    final picked = await showAppActionSheet<String>(
+      context,
+      title: r.name,
+      subtitle: r.peer,
+      groups: [
+        AppActionGroup<String>(
+          actions: [
+            if (exists && !isDir)
+              AppAction(
+                value: 'open',
+                icon: AppIcons.open,
+                label: context.t('common.open'),
+                accent: true,
+              ),
+            if (exists)
+              AppAction(
+                value: 'reveal',
+                icon: AppIcons.folder,
+                label: context.t('near.reveal'),
+              ),
+            AppAction(
+              value: 'remove',
+              icon: AppIcons.delete,
+              label: context.t('near.remove_record'),
+              destructive: true,
+            ),
+          ],
+        ),
+      ],
+    );
+    if (picked == null || !mounted || !context.mounted) return;
+    switch (picked) {
+      case 'open':
+        EntryOpener.open(context, r.path);
+      case 'reveal':
+        unawaited(Navigator.of(context).push(browserRoute(BrowserScreen(
+            path: p.dirname(r.path), focusPath: r.path))));
+      case 'remove':
+        unawaited(TransferHistory.instance.remove(r));
+    }
+  }
+
   Widget _historyRow(BuildContext context, TransferRecord r) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final exists = r.exists;
     final isDir = exists && FileSystemEntity.isDirectorySync(r.path);
     final ext = p.extension(r.name).replaceFirst('.', '').toLowerCase();
     final c = isDir ? FmCategory.folder : FsEntry.categoryForExtension(ext);
     final (glyph, color) = isDir
         ? (AppIcons.folder, FmColors.folder)
-        : FmColors.forExtension(ext) ?? (FmColors.iconFor(c), FmColors.forCategory(c));
+        : FmColors.forExtension(ext) ??
+            (FmColors.iconFor(c), FmColors.forCategory(c));
     final when = MaterialLocalizations.of(context).formatShortDate(r.at);
     final time = TimeOfDay.fromDateTime(r.at).format(context);
     return ListTile(
-      leading: Icon(glyph, color: exists ? color : scheme.outline),
+      leading: _IconWell(
+        icon: glyph,
+        accent: exists ? color : scheme.outline,
+      ),
       title: Text(r.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: r.incoming || (r.percent == null && r.duration == null)
           ? Text(
@@ -628,7 +774,9 @@ extension _NearbySections on _NearbyScreenState {
                 ),
                 Text(
                   [
-                    r.ok ? '✓ ${context.t('near.sent_ok')}' : '✗ ${context.t('near.sent_fail')}',
+                    r.ok
+                        ? '✓ ${context.t('near.sent_ok')}'
+                        : '✗ ${context.t('near.sent_fail')}',
                     if (r.percent != null) '%${r.percent}',
                     if (r.duration != null) _durationText(context, r.duration!),
                     if (!exists) context.t('near.missing'),
@@ -637,7 +785,7 @@ extension _NearbySections on _NearbyScreenState {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: r.ok ? scheme.primary : scheme.error,
+                    color: r.ok ? Paper.success(context) : scheme.error,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -653,68 +801,67 @@ extension _NearbySections on _NearbyScreenState {
                 EntryOpener.open(context, r.path);
               }
             },
-      trailing: PopupMenuButton<String>(
+      trailing: IconButton(
+        tooltip: context.t('common.more'),
         icon: const Icon(AppIcons.more, size: AppIcons.small),
-        onSelected: (v) {
-          switch (v) {
-            case 'open':
-              EntryOpener.open(context, r.path);
-            case 'reveal':
-              Navigator.of(context).push(browserRoute(BrowserScreen(
-                  path: p.dirname(r.path), focusPath: r.path)));
-            case 'remove':
-              unawaited(TransferHistory.instance.remove(r));
-          }
-        },
-        itemBuilder: (ctx) => [
-          if (exists && !isDir)
-            PopupMenuItem(value: 'open', child: Text(ctx.t('common.open'))),
-          if (exists)
-            PopupMenuItem(value: 'reveal', child: Text(ctx.t('near.reveal'))),
-          PopupMenuItem(value: 'remove', child: Text(ctx.t('near.remove_record'))),
-        ],
+        onPressed: () => unawaited(
+          _showHistoryRowMenu(context, r, exists: exists, isDir: isDir),
+        ),
       ),
     );
   }
 
   Widget _otherWays(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([FtpService.instance, DownloadService.instance]),
+      listenable:
+          Listenable.merge([FtpService.instance, DownloadService.instance]),
       builder: (context, _) {
-        final sharing = FtpService.instance.running;
-        final downloading = DownloadService.instance.activeTasks.length;
+        final showFtp = Edition.current.has(Feature.ftpServer);
+        final showDownloads = Edition.current.has(Feature.downloadManager);
+        final sharing = showFtp && FtpService.instance.running;
+        final downloading =
+            showDownloads ? DownloadService.instance.activeTasks.length : 0;
         return Card(
           margin: EdgeInsets.zero,
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
-              _wayTile(
-                context,
-                icon: sharing ? AppIcons.hotspot : AppIcons.computer,
-                title: context.t('xfer.computer'),
-                note: sharing ? context.t('ftpd.running') : context.t('xfer.computer_note'),
-                live: sharing,
-                screen: const FtpServerScreen(),
-              ),
-              const Divider(height: 1),
+              if (showFtp) ...[
+                _wayTile(
+                  context,
+                  icon: sharing ? AppIcons.hotspot : AppIcons.computer,
+                  accent: AppHues.teal,
+                  title: context.t('xfer.computer'),
+                  note: sharing
+                      ? context.t('ftpd.running')
+                      : context.t('xfer.computer_note'),
+                  live: sharing,
+                  screen: const FtpServerScreen(),
+                ),
+                const Divider(height: 1),
+              ],
               _wayTile(
                 context,
                 icon: AppIcons.dns,
+                accent: AppHues.blue,
                 title: context.t('fm.network_storage'),
                 note: context.t('xfer.nas_note'),
                 screen: const RemoteConnectionsScreen(),
               ),
-              const Divider(height: 1),
-              _wayTile(
-                context,
-                icon: AppIcons.downloadForOffline,
-                title: context.t('xfer.downloads'),
-                note: downloading > 0
-                    ? context.t('fm.jobs_running', {'n': downloading})
-                    : context.t('xfer.downloads_note'),
-                live: downloading > 0,
-                screen: const DownloadManagerScreen(),
-              ),
+              if (showDownloads) ...[
+                const Divider(height: 1),
+                _wayTile(
+                  context,
+                  icon: AppIcons.downloadForOffline,
+                  accent: AppHues.green,
+                  title: context.t('xfer.downloads'),
+                  note: downloading > 0
+                      ? context.t('fm.jobs_running', {'n': downloading})
+                      : context.t('xfer.downloads_note'),
+                  live: downloading > 0,
+                  screen: const DownloadManagerScreen(),
+                ),
+              ],
             ],
           ),
         );
@@ -725,20 +872,39 @@ extension _NearbySections on _NearbyScreenState {
   Widget _wayTile(
     BuildContext context, {
     required IconData icon,
+    required Color accent,
     required String title,
     required String note,
     required Widget screen,
     bool live = false,
   }) {
     final scheme = Theme.of(context).colorScheme;
+    final ok = Paper.success(context);
     return ListTile(
-      leading: Icon(icon, color: scheme.primary),
+      leading: _IconWell(icon: icon, accent: live ? ok : accent),
       title: Text(title),
-      subtitle: Text(note,
-          maxLines: 2,
-          style: live ? TextStyle(color: Paper.success(context)) : null),
-      trailing: Icon(AppIcons.chevron, color: scheme.onSurfaceVariant),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)),
+      subtitle: Text(
+        note,
+        maxLines: 2,
+        style: live
+            ? TextStyle(color: ok, fontWeight: FontWeight.w600)
+            : null,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (live)
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsetsDirectional.only(end: Gap.xs),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: ok),
+            ),
+          Icon(AppIcons.chevron, color: scheme.onSurfaceVariant),
+        ],
+      ),
+      onTap: () =>
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen)),
     );
   }
 }

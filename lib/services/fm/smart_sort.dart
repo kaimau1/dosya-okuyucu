@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier, visibleForTesting;
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/edition.dart';
 import '../../core/l10n/app_language.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/text_search.dart';
@@ -25,7 +28,9 @@ import 'native_extras.dart';
 import 'path_side_index.dart';
 import 'smart_folder_prefs.dart';
 import 'smart_learn.dart';
+import 'smart_local_rules.dart';
 import 'smart_quota.dart';
+import 'smart_scope_pick.dart';
 import 'smart_sort_input.dart';
 import 'smart_sort_taxonomy.dart';
 import 'smart_user_cats.dart';
@@ -124,10 +129,54 @@ class SmartRecord {
       SmartTaxonomy.dueCategories.contains(cat) &&
       SmartDates.overdue(due, asked, today);
 
+  /// Ödemesi yaklaşan fatura mı (henüz geçmemiş, 31 gün içinde)?
+  bool upcomingDueAt(int today) =>
+      SmartTaxonomy.dueCategories.contains(cat) &&
+      SmartDates.upcomingDue(due, asked, today);
+
   /// Süresi dolmuş belge mi?
   bool expiredAt(int today) =>
       SmartTaxonomy.expiringCategories.contains(cat) &&
       SmartDates.expired(valid, asked, today);
+
+  /// Süresi yaklaşan belge mi (henüz dolmamış, ~31 gün içinde)?
+  bool expiringSoonAt(int today) =>
+      SmartTaxonomy.expiringCategories.contains(cat) &&
+      SmartDates.expiringSoon(valid, asked, today);
+
+  /// Düşük güvenli sınıflandırma (kullanıcının hızlıca gözden geçirmesi için).
+  bool isLowConfidence({double maxConf = 0.65}) =>
+      !hidden &&
+      !user &&
+      cat != SmartTaxonomy.other &&
+      conf > 0 &&
+      conf < maxConf;
+
+  /// Bayt bayt özdeş içerikli başka bir dosya için kaydı klonlar (0 belirteç).
+  SmartRecord cloneFor(FsEntry e) => SmartRecord(
+    path: e.path,
+    size: e.sizeBytes,
+    modifiedMs: e.modifiedMs,
+    cat: cat,
+    conf: conf,
+    sub: sub,
+    bank: bank,
+    month: month,
+    year: year,
+    blurry: blurry,
+    accidental: accidental,
+    user: false,
+    hidden: false,
+    provider: provider,
+    due: due,
+    valid: valid,
+    amount: amount,
+    asked: asked,
+    lang: lang,
+    quality: quality,
+    uc: uc,
+    uq: uq,
+  );
 
   /// Tutar süzgecine girer mi (yalnız tutarlı kategorilerde)?
   String get amountBucket =>
@@ -163,8 +212,8 @@ class SmartRecord {
   String? get clutterReason => SmartTaxonomy.clutterCategories.contains(cat)
       ? cat
       : (_junkShot
-          ? (accidental ? 'accidental' : 'blurry')
-          : (oldScreenshot ? 'old_shot' : null));
+            ? (accidental ? 'accidental' : 'blurry')
+            : (oldScreenshot ? 'old_shot' : null));
 
   /// Baskın kullanıcı kategorisi: en yüksek eşleşme, yerleşik kategorinin
   /// güveninden yüksekse ya da yerleşik ikinci ad boş kalacaksa ([builtinEmpty]).
@@ -207,7 +256,10 @@ class SmartRecord {
     if (!uq.contains(id) && !uc.containsKey(id)) return this;
     return _with(
       uc: {...uc}..remove(id),
-      uq: [for (final x in uq) if (x != id) x],
+      uq: [
+        for (final x in uq)
+          if (x != id) x,
+      ],
     );
   }
 
@@ -266,29 +318,29 @@ class SmartRecord {
   }
 
   Map<String, Object?> toJson() => {
-        'p': path,
-        's': size,
-        'm': modifiedMs,
-        'c': cat,
-        if (conf > 0) 'f': (conf * 100).round(),
-        if (sub.isNotEmpty) 'st': sub,
-        if (bank.isNotEmpty) 'b': bank,
-        if (month > 0) 'mo': month,
-        if (year > 0) 'y': year,
-        if (blurry) 'bl': 1,
-        if (accidental) 'ac': 1,
-        if (user) 'u': 1,
-        if (hidden) 'h': 1,
-        if (provider.isNotEmpty) 'pv': provider,
-        if (due.isNotEmpty) 'du': due,
-        if (valid.isNotEmpty) 'va': valid,
-        if (amount.isNotEmpty) 'am': amount,
-        if (asked > 0) 'ad': asked,
-        if (lang.isNotEmpty) 'lg': lang,
-        if (quality.isNotEmpty) 'ql': quality,
-        if (uc.isNotEmpty) 'uc': uc,
-        if (uq.isNotEmpty) 'uq': uq,
-      };
+    'p': path,
+    's': size,
+    'm': modifiedMs,
+    'c': cat,
+    if (conf > 0) 'f': (conf * 100).round(),
+    if (sub.isNotEmpty) 'st': sub,
+    if (bank.isNotEmpty) 'b': bank,
+    if (month > 0) 'mo': month,
+    if (year > 0) 'y': year,
+    if (blurry) 'bl': 1,
+    if (accidental) 'ac': 1,
+    if (user) 'u': 1,
+    if (hidden) 'h': 1,
+    if (provider.isNotEmpty) 'pv': provider,
+    if (due.isNotEmpty) 'du': due,
+    if (valid.isNotEmpty) 'va': valid,
+    if (amount.isNotEmpty) 'am': amount,
+    if (asked > 0) 'ad': asked,
+    if (lang.isNotEmpty) 'lg': lang,
+    if (quality.isNotEmpty) 'ql': quality,
+    if (uc.isNotEmpty) 'uc': uc,
+    if (uq.isNotEmpty) 'uq': uq,
+  };
 
   static SmartRecord? fromJson(Object? j) {
     if (j is! Map) return null;
@@ -337,7 +389,12 @@ class SmartRecord {
                   e.key as String: (e.value as num).toInt(),
             }
           : const {},
-      uq: rawUq is List ? [for (final x in rawUq) if (x is String) x] : const [],
+      uq: rawUq is List
+          ? [
+              for (final x in rawUq)
+                if (x is String) x,
+            ]
+          : const [],
     );
   }
 }
@@ -362,6 +419,9 @@ class SmartRunResult {
   final int processed;
   final int failed;
 
+  /// Bayt özdeşliğiyle yerelden 0 belirteçle eşleşen dosya sayısı.
+  final int reused;
+
   /// Kota (429) ya da yetki hatasıyla erken bitti — kullanıcı dilinde
   /// ([SmartSort.stopText]).
   final String? stoppedBy;
@@ -374,8 +434,15 @@ class SmartRunResult {
 
   /// Hata değil, ayar: yalnız Wi-Fi'de ya da günlük sınır ([SmartQuota]).
   final SmartHold? hold;
-  const SmartRunResult(this.processed, this.failed,
-      {this.stoppedBy, this.lastError, this.usage, this.hold});
+  const SmartRunResult(
+    this.processed,
+    this.failed, {
+    this.reused = 0,
+    this.stoppedBy,
+    this.lastError,
+    this.usage,
+    this.hold,
+  });
 }
 
 /// Tur belirteç raporu (PLAN §1.1 m.1 "soru sayısı ölçülür"): `usage`
@@ -385,7 +452,15 @@ class SmartUsage {
   final int requests;
   final int inputTokens;
   final int questions;
-  const SmartUsage(this.requests, this.inputTokens, this.questions);
+
+  /// Yerelden 0 belirteçle eşleşen kopya sayısı.
+  final int reused;
+  const SmartUsage(
+    this.requests,
+    this.inputTokens,
+    this.questions, {
+    this.reused = 0,
+  });
 
   int get tokensPerFile => requests == 0 ? 0 : (inputTokens / requests).round();
   int get questionsPerFile =>
@@ -405,11 +480,22 @@ class SmartUsage {
 /// * Gereksizler **gizlenir** (karar 3): listelerden ve galeriden kalkar
 ///   ([isHidden] — `MediaLibrary.categoryFiles`), dosya diskte durur; geri
 ///   getirilir ya da kullanıcı isterse silinir.
-/// * Dosya başına TEK Decisions isteği ([SmartTaxonomy.questions]); aynı
-///   anda [_parallel]; kota hatasında tur sessizce durur, sonraki tur devam.
+/// * Dosya başına TEK Decisions isteği ([SmartTaxonomy.questions]); uyarlanabilir
+///   eşzamanlılık ([workerCountFor]); özdeş dosyalar yerelden 0 belirteçle
+///   eşlenir; kota hatasında tur sessizce durur, sonraki tur devam.
 abstract final class SmartSort {
   static const _fileName = 'smart_sort.json';
-  static const _parallel = 2;
+
+  /// Uyarlanabilir işçi sayısı: tek anahtarda 4, çoklu anahtarda 6; 429
+  /// görülürse çalışma sırasında 2'ye düşer.
+  static int workerCountFor(int keyCount) => keyCount >= 2 ? 6 : 4;
+
+  /// Aday havuzu: kapsamdaki en yeni bu kadar dosya. KÖK (2026-11-22,
+  /// kullanıcı: "günlerdir parça parça yapıyorum, bitmiyor"): havuz en yeni
+  /// 1500 (arka planda 400) dosyaydı — düzenlenmişler havuzu doldurunca daha
+  /// eski dosyalara HİÇ sıra gelmiyordu. Tarama isolate'te; bellekte yalnız
+  /// en yeni N tutulur.
+  static const scanAll = 100000;
   static const _isolateParseBytes = 256 * 1024;
 
   static const prefEnabled = 'smart_sort_on';
@@ -450,7 +536,7 @@ abstract final class SmartSort {
   // ── Ayarlar ────────────────────────────────────────────────────────────
   static bool _enabled = false;
   static bool _camera = false;
-  static bool _auto = true;
+  static bool _auto = false;
   static bool _bg = false;
   static bool _prefsRead = false;
 
@@ -465,7 +551,7 @@ abstract final class SmartSort {
       final prefs = await SharedPreferences.getInstance();
       _enabled = prefs.getBool(prefEnabled) ?? false;
       _camera = prefs.getBool(prefCamera) ?? false;
-      _auto = prefs.getBool(prefAuto) ?? true;
+      _auto = prefs.getBool(prefAuto) ?? false;
       _bg = prefs.getBool(prefBg) ?? false;
     } catch (_) {
       // Bilinçli: okunamazsa varsayılanlar (kapalı, kamera kapalı).
@@ -473,8 +559,12 @@ abstract final class SmartSort {
     _prefsRead = true;
   }
 
-  static Future<void> setSettings(
-      {bool? enabled, bool? camera, bool? auto, bool? bg}) async {
+  static Future<void> setSettings({
+    bool? enabled,
+    bool? camera,
+    bool? auto,
+    bool? bg,
+  }) async {
     await readSettings();
     if (enabled != null) _enabled = enabled;
     if (camera != null) _camera = camera;
@@ -494,8 +584,12 @@ abstract final class SmartSort {
   }
 
   /// Arka plan işi yalnız düzen + otomatik + şarj/Wi-Fi seçeneği açıkken
-  /// kurulu (kapalıysa iptal edilir).
-  static bool get wantsBackgroundJob => _enabled && _auto && _bg;
+  /// ve arka plan servisleri desteklenen sürümde kurulu (aksi halde iptal edilir).
+  static bool get wantsBackgroundJob =>
+      Edition.current.has(Feature.backgroundServices) &&
+      _enabled &&
+      _auto &&
+      _bg;
 
   static Future<void> syncBackgroundJob() async {
     try {
@@ -525,12 +619,17 @@ abstract final class SmartSort {
       try {
         if (await file.exists()) {
           final filePath = file.path;
-          final list = await file.length() > _isolateParseBytes
-              ? await Isolate.run(() => _parse(File(filePath).readAsStringSync()))
-              : _parse(await file.readAsString());
-          for (final r in list) {
+          final parsed = await file.length() > _isolateParseBytes
+              ? await Isolate.run(
+                  () => _parseWithFailures(File(filePath).readAsStringSync()),
+                )
+              : _parseWithFailures(await file.readAsString());
+          for (final r in parsed.records) {
             _records[r.path] = r;
           }
+          _failures
+            ..clear()
+            ..addAll(parsed.failures);
           _diskMs = (await file.lastModified()).millisecondsSinceEpoch;
         }
       } catch (_) {
@@ -541,13 +640,33 @@ abstract final class SmartSort {
     _changed(save: false);
   }
 
-  static List<SmartRecord> _parse(String raw) {
+  static ({
+    List<SmartRecord> records,
+    Map<String, (int, int, int, int)> failures,
+  }) _parseWithFailures(String raw) {
     final data = jsonDecode(raw);
-    final list = data is Map ? data['r'] : null;
-    if (list is! List) return const [];
-    return [
-      for (final j in list) ?SmartRecord.fromJson(j),
-    ];
+    if (data is! Map) {
+      return (records: const [], failures: const {});
+    }
+    final list = data['r'];
+    final recs = list is List
+        ? [for (final j in list) ?SmartRecord.fromJson(j)]
+        : const <SmartRecord>[];
+    final failsRaw = data['f'];
+    final fails = <String, (int, int, int, int)>{};
+    if (failsRaw is List) {
+      for (final item in failsRaw) {
+        if (item is Map && item['p'] is String) {
+          final pth = item['p'] as String;
+          final s = (item['s'] as num?)?.toInt() ?? 0;
+          final m = (item['m'] as num?)?.toInt() ?? 0;
+          final c = (item['c'] as num?)?.toInt() ?? 1;
+          final t = (item['t'] as num?)?.toInt() ?? 0;
+          fails[pth] = (s, m, c, t);
+        }
+      }
+    }
+    return (records: recs, failures: fails);
   }
 
   static void _changed({bool save = true}) {
@@ -571,9 +690,21 @@ abstract final class SmartSort {
       final body = jsonEncode({
         'v': 1,
         'r': [for (final r in _records.values) r.toJson()],
+        if (_failures.isNotEmpty)
+          'f': [
+            for (final e in _failures.entries)
+              {
+                'p': e.key,
+                's': e.value.$1,
+                'm': e.value.$2,
+                'c': e.value.$3,
+                't': e.value.$4,
+              },
+          ],
       });
-      final tmp =
-          File('$_path.${pid}_${DateTime.now().microsecondsSinceEpoch}.tmp');
+      final tmp = File(
+        '$_path.${pid}_${DateTime.now().microsecondsSinceEpoch}.tmp',
+      );
       await tmp.writeAsString(body, flush: true);
       await tmp.rename(_path);
       _diskMs = (await File(_path).lastModified()).millisecondsSinceEpoch;
@@ -605,12 +736,18 @@ abstract final class SmartSort {
       final ms = (await file.lastModified()).millisecondsSinceEpoch;
       if (ms == _diskMs) return;
       final filePath = file.path;
-      final list = await Isolate.run(
-          () => _parse(File(filePath).readAsStringSync()));
+      final parsed = await file.length() > _isolateParseBytes
+          ? await Isolate.run(
+              () => _parseWithFailures(File(filePath).readAsStringSync()),
+            )
+          : _parseWithFailures(await file.readAsString());
       if (isRunning || (_saveTimer?.isActive ?? false)) return;
       _records
         ..clear()
-        ..addEntries(list.map((r) => MapEntry(r.path, r)));
+        ..addEntries(parsed.records.map((r) => MapEntry(r.path, r)));
+      _failures
+        ..clear()
+        ..addAll(parsed.failures);
       _diskMs = ms;
       _changed(save: false);
     } catch (_) {
@@ -623,6 +760,8 @@ abstract final class SmartSort {
     _records
       ..clear()
       ..addEntries(records.map((r) => MapEntry(r.path, r)));
+    _failures.clear();
+    GeminiDecisions.clearCooldowns();
     _loaded = true;
     _aliasCache.clear();
     _kwCache.clear();
@@ -657,7 +796,7 @@ abstract final class SmartSort {
     final copies = waCopies();
     return [
       for (final r in _records.values)
-        if (!r.hidden && (r.clutter || copies.contains(r.path))) r
+        if (!r.hidden && (r.clutter || copies.contains(r.path))) r,
     ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
   }
 
@@ -683,8 +822,10 @@ abstract final class SmartSort {
     return _waCopies;
   }
 
-  static final _waDir = RegExp(r'[\\/](whatsapp|com\.whatsapp)[\\/]',
-      caseSensitive: false);
+  static final _waDir = RegExp(
+    r'[\\/](whatsapp|com\.whatsapp)[\\/]',
+    caseSensitive: false,
+  );
   static const _waImageExt = {'.jpg', '.jpeg', '.png', '.webp'};
 
   @visibleForTesting
@@ -710,27 +851,28 @@ abstract final class SmartSort {
   }
 
   static List<SmartRecord> hiddenRecords() => [
-        for (final r in _records.values)
-          if (r.hidden) r
-      ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    for (final r in _records.values)
+      if (r.hidden) r,
+  ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
 
   /// Kategorideki dosyalar; [cat] kullanıcı kategorisiyse ([SmartUserCats])
   /// o soruya "evet" denenler (bir dosya birden çok kategoride olabilir).
   static List<String> pathsOf(String cat) => SmartUserCats.isUserId(cat)
       ? [
           for (final r in _records.values)
-            if (!r.hidden && r.uc.containsKey(cat)) r.path
+            if (!r.hidden && r.uc.containsKey(cat)) r.path,
         ]
       : [
           for (final r in _records.values)
-            if (!r.hidden && r.cat == cat) r.path
+            if (!r.hidden && r.cat == cat) r.path,
         ];
 
   /// Taşıma kurallarının ([SmartFolderPrefs.ruleOf]) bekleyen işi: hedef
   /// klasör → oraya gidecek yollar. Zaten hedefte duran ve ikinci kurala
   /// takılan dosya atlanır. Kural yoksa boş (varsayılan KAPALI).
-  static Map<String, List<String>> pendingRuleMoves(
-      [Map<String, String>? rules]) {
+  static Map<String, List<String>> pendingRuleMoves([
+    Map<String, String>? rules,
+  ]) {
     final out = <String, List<String>>{};
     final seen = <String>{};
     for (final e in (rules ?? SmartFolderPrefs.rules).entries) {
@@ -767,8 +909,11 @@ abstract final class SmartSort {
   }
 
   /// Kullanıcı kategorisi yanıtlarını kayda yazar (kayıt yoksa yazılmaz).
-  static void setUserAnswers(String path, Map<String, double> yes,
-      {bool notify = true}) {
+  static void setUserAnswers(
+    String path,
+    Map<String, double> yes, {
+    bool notify = true,
+  }) {
     final r = _records[path];
     if (r == null) return;
     _records[path] = r.withUserAnswers(yes);
@@ -781,7 +926,8 @@ abstract final class SmartSort {
   static Future<void> addToUserCat(Iterable<String> paths, String id) async {
     await ensureLoaded();
     for (final path in paths) {
-      final r = _records[path] ??
+      final r =
+          _records[path] ??
           SmartRecord(
             path: path,
             size: FsEntry.ofPath(path)?.sizeBytes ?? 0,
@@ -799,7 +945,9 @@ abstract final class SmartSort {
   /// Elle eklenen (ya da AI'ın koyduğu) kullanıcı kategorisinden çıkarır;
   /// soru "soruldu" sayılır (AI yeniden koymaz).
   static Future<void> removeFromUserCat(
-      Iterable<String> paths, String id) async {
+    Iterable<String> paths,
+    String id,
+  ) async {
     await ensureLoaded();
     for (final path in paths) {
       final r = _records[path];
@@ -846,9 +994,9 @@ abstract final class SmartSort {
   /// Bu kullanıcı kategorisinin henüz sorulmadığı kayıtlar (gizliler hariç),
   /// en yeni önce.
   static List<SmartRecord> pendingFor(String id) => [
-        for (final r in _records.values)
-          if (!r.hidden && !r.uq.contains(id)) r
-      ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    for (final r in _records.values)
+      if (!r.hidden && !r.uq.contains(id)) r,
+  ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
 
   // ── İkinci ad ──────────────────────────────────────────────────────────
   static final Map<String, String> _aliasCache = {};
@@ -865,7 +1013,8 @@ abstract final class SmartSort {
 
   /// Saf: kayıt → ikinci ad. Birim testli.
   static String render(SmartRecord r, AppStrings s) {
-    final empty = SmartTaxonomy.isPersonalPhoto(r.cat) ||
+    final empty =
+        SmartTaxonomy.isPersonalPhoto(r.cat) ||
         // Aile videosu da kişisel fotoğraf gibi: her kareye ad gürültü.
         (r.cat == SmartTaxonomy.video && r.sub == 'family_video') ||
         r.cat == SmartTaxonomy.other ||
@@ -880,44 +1029,48 @@ abstract final class SmartSort {
     final head = mine != null
         ? mine.name
         : (r.sub.isNotEmpty && r.sub != 'other'
-            ? s.t('sm.s_${r.sub}')
-            : s.t('sm.c_${r.cat}'));
+              ? s.t('sm.s_${r.sub}')
+              : s.t('sm.c_${r.cat}'));
     final date = !SmartTaxonomy.isDoc(r.cat) || r.year == 0
         ? ''
         : (r.month > 0 ? '${s.t('sm.m${r.month}')} ${r.year}' : '${r.year}');
-    return [head, institutionOf(r), date]
-        .where((x) => x.isNotEmpty)
-        .join(' · ');
+    return [
+      head,
+      institutionOf(r),
+      date,
+    ].where((x) => x.isNotEmpty).join(' · ');
   }
 
   /// Kurumun görünen adı: banka belgesinde banka, faturada fatura kesen
   /// şirket (kurum yalnız ilgili kategoride); yoksa ''.
   static String institutionOf(SmartRecord r) => switch (r.cat) {
-        'bank' => SmartTaxonomy.bankName(r.bank),
-        'invoice' => SmartTaxonomy.providerFits(r.provider, r.cat, r.sub)
-            ? SmartTaxonomy.providerName(r.provider)
-            : '',
-        _ => '',
-      };
+    'bank' => SmartTaxonomy.bankName(r.bank),
+    'invoice' =>
+      SmartTaxonomy.providerFits(r.provider, r.cat, r.sub)
+          ? SmartTaxonomy.providerName(r.provider)
+          : '',
+    _ => '',
+  };
 
   /// Arama için bütün dillerdeki adlar + eşanlamlar (katlanmış). Arayüz
   /// Türkçe olsa da "invoice" ya da "فاتورة" yazan bulur.
-  static String keywordsOf(String path) =>
-      _kwCache[path] ??= _keywords(path);
+  static String keywordsOf(String path) => _kwCache[path] ??= _keywords(path);
   static final Map<String, String> _kwCache = {};
 
   static String _keywords(String path) {
     final r = _records[path];
     if (r == null) return '';
     // Eşleşen kullanıcı kategorilerinin adları da aransın.
-    final mine = [
-      for (final id in r.uc.keys) ?SmartUserCats.byId(id)?.name,
-    ];
+    final mine = [for (final id in r.uc.keys) ?SmartUserCats.byId(id)?.name];
     if (r.cat == SmartTaxonomy.other && mine.isEmpty) return '';
     final parts = <String>{
       ...mine,
       if (r.cat != SmartTaxonomy.other) ...[
-        for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar]) ...[
+        for (final lang in const [
+          AppLanguage.tr,
+          AppLanguage.en,
+          AppLanguage.ar,
+        ]) ...[
           AppStrings(lang).t('sm.c_${r.cat}'),
           if (r.sub.isNotEmpty && r.sub != 'other')
             AppStrings(lang).t('sm.s_${r.sub}'),
@@ -929,7 +1082,11 @@ abstract final class SmartSort {
         if (r.year > 0) '${r.year}',
         // Ses kaydında konuşma dili: "ingilizce ders" aransın.
         if (r.lang.isNotEmpty && r.lang != 'other' && r.lang != 'none')
-          for (final lang in const [AppLanguage.tr, AppLanguage.en, AppLanguage.ar])
+          for (final lang in const [
+            AppLanguage.tr,
+            AppLanguage.en,
+            AppLanguage.ar,
+          ])
             AppStrings(lang).t('sm.l_${r.lang}'),
       ],
     };
@@ -941,23 +1098,27 @@ abstract final class SmartSort {
     }.join(' ');
   }
 
-  /// Genel arama: bütün terimler ikinci adda ya da üç dildeki adlarda geçen
-  /// kayıtlar (katlanmış karşılaştırma). Ayıkla'da gizlenenler girmez (U4:
-  /// tek yerde — arama ve akıllı aramalar aynı kapıdan geçer).
+  static final RegExp _wsRe = RegExp(r'\s+');
+
+  /// Genel arama: bütün terimler dosya adında, ikinci adda ya da üç dildeki
+  /// adlarda geçen kayıtlar (katlanmış karşılaştırma). Ayıkla'da gizlenenler
+  /// girmez (U4: tek yerde — arama ve akıllı aramalar aynı kapıdan geçer).
   static List<SmartRecord> matches(String query, {int limit = 200}) {
     final terms = asciiFold(query)
-        .split(RegExp(r'\s+'))
+        .split(_wsRe)
         .where((t) => t.isNotEmpty)
         .toList();
     if (terms.isEmpty || limit <= 0) return const [];
     final out = <SmartRecord>[];
     for (final r in _records.values) {
       if (r.hidden) continue;
-      final key = asciiFold('${aliasOf(r.path)} ${keywordsOf(r.path)}');
+      final name = p.basename(r.path);
+      final key = asciiFold('$name ${aliasOf(r.path)} ${keywordsOf(r.path)}');
       if (key.trim().isEmpty || !terms.every(key.contains)) continue;
       out.add(r);
       if (out.length >= limit) break;
     }
+    out.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
     return out;
   }
 
@@ -1010,8 +1171,12 @@ abstract final class SmartSort {
   /// dilim 2 kökü: eskiden yalnız kategori değişiyor, bunlar düşüyordu —
   /// öğrenilen faturanın adı "Elektrik faturası · Ekim 2026" yerine "Fatura"
   /// kalıyor, son ödeme süzgecine girmiyordu. Yanıt yoksa null.
-  static SmartRecord? _answered(FsEntry e, DecisionResult result,
-      {required DateTime today, required bool image}) {
+  static SmartRecord? _answered(
+    FsEntry e,
+    DecisionResult result, {
+    required DateTime today,
+    required bool image,
+  }) {
     final raw = fromAnswers(e, result, today: today);
     // Kurulum/arşiv/ses/video uzantıdan kesin; öğrenme çevirmez (çevirse
     // `needs` her turda yeniden sorardı).
@@ -1021,8 +1186,9 @@ abstract final class SmartSort {
     final to = SmartLearn.adjust(raw.path, raw.cat, image: image);
     if (to == null) return raw;
     // copyWith(cat): öğrenilen kategorinin güveni 1 (eskisi gibi).
-    return (fromAnswers(e, result, today: today, asCat: to) ?? raw)
-        .copyWith(cat: to);
+    return (fromAnswers(e, result, today: today, asCat: to) ?? raw).copyWith(
+      cat: to,
+    );
   }
 
   /// "Gereksiz değil": kutlama/mem ise kişisel fotoğrafa çevrilir, bulanık /
@@ -1035,7 +1201,9 @@ abstract final class SmartSort {
       path: r.path,
       size: r.size,
       modifiedMs: r.modifiedMs,
-      cat: SmartTaxonomy.clutterCategories.contains(r.cat) ? 'photo_other' : r.cat,
+      cat: SmartTaxonomy.clutterCategories.contains(r.cat)
+          ? 'photo_other'
+          : r.cat,
       conf: 1,
       sub: r.sub,
       bank: r.bank,
@@ -1057,9 +1225,9 @@ abstract final class SmartSort {
 
   // ── Rozet ve süzgeç (şema 2.0, Akıllı düzen ekranı) ─────────────────────
   static List<SmartRecord> _where(bool Function(SmartRecord r) test) => [
-        for (final r in _records.values)
-          if (!r.hidden && test(r)) r
-      ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    for (final r in _records.values)
+      if (!r.hidden && test(r)) r,
+  ]..sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
 
   /// Ödemesi geçmiş faturalar ([today] verilmezse bugün).
   static List<SmartRecord> overdue([DateTime? today]) {
@@ -1067,10 +1235,116 @@ abstract final class SmartSort {
     return _where((r) => r.overdueAt(d));
   }
 
+  /// Ödemesi yaklaşan faturalar (henüz geçmemiş, 31 gün içinde).
+  static List<SmartRecord> upcomingDue([DateTime? today]) {
+    final d = SmartDates.dayOf(today ?? DateTime.now());
+    return _where((r) => r.upcomingDueAt(d));
+  }
+
   /// Süresi dolmuş belgeler.
   static List<SmartRecord> expired([DateTime? today]) {
     final d = SmartDates.dayOf(today ?? DateTime.now());
     return _where((r) => r.expiredAt(d));
+  }
+
+  /// Süresi yaklaşan belgeler (henüz dolmamış, ~31 gün içinde).
+  static List<SmartRecord> expiringSoon([DateTime? today]) {
+    final d = SmartDates.dayOf(today ?? DateTime.now());
+    return _where((r) => r.expiringSoonAt(d));
+  }
+
+  /// Düşük güvenli sınıflandırmalar (kullanıcı gözden geçirsin / düzeltsin).
+  static List<SmartRecord> lowConfidence({double maxConf = 0.65}) =>
+      _where((r) => r.isLowConfidence(maxConf: maxConf))
+        ..sort((a, b) => a.conf.compareTo(b.conf));
+
+  /// Belgedeki yıla göre kayıtlar.
+  static List<SmartRecord> withYear(int year) => _where((r) => r.year == year);
+
+  /// Belge yılı → sayı (yeniden eskiye sıralı).
+  static Map<int, int> yearCounts() {
+    final out = <int, int>{};
+    for (final r in _records.values) {
+      if (r.hidden || r.year <= 0) continue;
+      out[r.year] = (out[r.year] ?? 0) + 1;
+    }
+    final sorted = out.keys.toList()..sort((a, b) => b.compareTo(a));
+    return {for (final y in sorted) y: out[y]!};
+  }
+
+  /// Kurum / banka adına göre kayıtlar.
+  static List<SmartRecord> withInstitution(String name) =>
+      _where((r) => institutionOf(r) == name);
+
+  /// Kurum / banka adı → sayı (en çok dosyadan aza).
+  static Map<String, int> institutionCounts() {
+    final out = <String, int>{};
+    for (final r in _records.values) {
+      if (r.hidden) continue;
+      final inst = institutionOf(r);
+      if (inst.isEmpty) continue;
+      out[inst] = (out[inst] ?? 0) + 1;
+    }
+    final sorted = out.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final e in sorted) e.key: e.value};
+  }
+
+  static bool _matchesCat(SmartRecord r, String cat) =>
+      SmartUserCats.isUserId(cat) ? r.uc.containsKey(cat) : r.cat == cat;
+
+  /// Bir akıllı klasörün içindeki alt tür → sayı (en çoktan aza).
+  static Map<String, int> subtypeCounts(String cat) {
+    final out = <String, int>{};
+    for (final r in _records.values) {
+      if (r.hidden || !_matchesCat(r, cat)) continue;
+      if (r.sub.isEmpty || r.sub == SmartTaxonomy.other) continue;
+      out[r.sub] = (out[r.sub] ?? 0) + 1;
+    }
+    final sorted = out.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return {for (final e in sorted) e.key: e.value};
+  }
+
+  /// Bir akıllı klasörün içindeki belge yılları (yeniden eskiye).
+  static List<int> yearsOf(String cat) {
+    final out = <int>{};
+    for (final r in _records.values) {
+      if (r.hidden || !_matchesCat(r, cat) || r.year <= 0) continue;
+      out.add(r.year);
+    }
+    return out.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  /// Bir akıllı klasörün içindeki kurum/banka adları (en çoktan aza).
+  static List<String> institutionsOf(String cat) {
+    final counts = <String, int>{};
+    for (final r in _records.values) {
+      if (r.hidden || !_matchesCat(r, cat)) continue;
+      final inst = institutionOf(r);
+      if (inst.isEmpty) continue;
+      counts[inst] = (counts[inst] ?? 0) + 1;
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return [for (final e in sorted) e.key];
+  }
+
+  /// Bir akıllı klasörün alt tür / belge yılı / kurum süzülmüş yolları.
+  static List<String> pathsOfFiltered(
+    String cat, {
+    String? sub,
+    int? year,
+    String? institution,
+  }) {
+    final list = _where((r) {
+      if (!_matchesCat(r, cat)) return false;
+      if (sub != null && r.sub != sub) return false;
+      if (year != null && r.year != year) return false;
+      if (institution != null && institutionOf(r) != institution) return false;
+      return true;
+    });
+    return [for (final r in list) r.path];
   }
 
   /// Tutar aralığındaki fatura/fiş/banka belgeleri.
@@ -1128,19 +1402,20 @@ abstract final class SmartSort {
   /// (asıl yolunda — geri yüklenince yerinde, B2 dilim 2 kararı) ve takılı
   /// olmayan birimdeki (SD kart çıkarılmış) kayıt. Çöp okunamazsa hiçbir şey
   /// silinmez. Tur sürerken dokunulmaz. Düşen kayıt sayısını döner.
-  static Future<int> pruneMissing(
-      {Future<Set<String>> Function()? trashed}) async {
+  static Future<int> pruneMissing({
+    Future<Set<String>> Function()? trashed,
+  }) async {
     await ensureLoaded();
     if (isRunning || _records.isEmpty) return 0;
     final paths = _records.keys.toList();
     final alive = {for (final e in await FsScan.statPaths(paths)) e.path};
     final roots = [
       for (final r in FmEnv.volumeRoots)
-        if (r.isNotEmpty && await Directory(r).exists()) r
+        if (r.isNotEmpty && await Directory(r).exists()) r,
     ];
     final gone = [
       for (final x in paths)
-        if (!alive.contains(x) && roots.any((r) => p.isWithin(r, x))) x
+        if (!alive.contains(x) && roots.any((r) => p.isWithin(r, x))) x,
     ];
     if (gone.isEmpty) return 0;
     Set<String> inTrash;
@@ -1159,8 +1434,9 @@ abstract final class SmartSort {
     return n;
   }
 
-  static Future<Set<String>> _trashedOriginals() async =>
-      {for (final i in await FmEnv.trash.list()) i.originalPath};
+  static Future<Set<String>> _trashedOriginals() async => {
+    for (final i in await FmEnv.trash.list()) i.originalPath,
+  };
 
   // ── Yanıt → kayıt ──────────────────────────────────────────────────────
   /// Saf: Decisions yanıtı → kayıt. Birim testli.
@@ -1171,8 +1447,12 @@ abstract final class SmartSort {
   ///
   /// [asCat]: modelin kategorisi yerine bu kategoriyle kur (öğrenilen
   /// düzeltme — alt tür vb. o kategorinin yanıtından okunur).
-  static SmartRecord? fromAnswers(FsEntry e, DecisionResult r,
-      {DateTime? today, String? asCat}) {
+  static SmartRecord? fromAnswers(
+    FsEntry e,
+    DecisionResult r, {
+    DateTime? today,
+    String? asCat,
+  }) {
     final by = {for (final a in r.answers) a.question.id: a};
     final kind = SmartSortInput.kindOf(e.path);
     if (kind == SmartInputKind.audio || kind == SmartInputKind.video) {
@@ -1242,7 +1522,8 @@ abstract final class SmartSort {
       year: pick('year'),
       blurry: yes('blurry'),
       accidental: yes('accidental'),
-      provider: provAns != null &&
+      provider:
+          provAns != null &&
               provAns.confidence >= 0.5 &&
               SmartTaxonomy.providerFits(prov, cat, cleanSub)
           ? prov
@@ -1257,8 +1538,12 @@ abstract final class SmartSort {
   /// Ses/video yanıtı → kayıt: kategori uzantıdan sabit, alt tür (güven
   /// ≥ 0,4), seste dil + kalite (≥ 0,5), videoda "yanlışlıkla" (≥ 0,65 →
   /// Ayıkla). Alt tür yanıtı yoksa kayıt yok.
-  static SmartRecord? _avFromAnswers(FsEntry e, Map<String, DecisionAnswer> by,
-      bool video, DateTime? today) {
+  static SmartRecord? _avFromAnswers(
+    FsEntry e,
+    Map<String, DecisionAnswer> by,
+    bool video,
+    DateTime? today,
+  ) {
     final cat = video ? SmartTaxonomy.video : SmartTaxonomy.audio;
     final a = by['sub_$cat'];
     final choice = a?.choice;
@@ -1288,18 +1573,23 @@ abstract final class SmartSort {
   /// Dosya türüne göre tek istekteki sorular + yer kalan kadar kullanıcı
   /// kategorisi sorusu ([SmartUserCats]; ayrı `noul`, sığmayanı geriye dönük
   /// uygulama sorar).
-  static List<DecisionQuestion> questionsFor(String path,
-      {required DateTime today, required String learned}) {
+  static List<DecisionQuestion> questionsFor(
+    String path, {
+    required DateTime today,
+    required String learned,
+  }) {
     final kind = SmartSortInput.kindOf(path);
     final base = SmartTaxonomy.questions(
-        image: GeminiDecisions.mediaFor(path)?.type == 'image',
-        meta: kind == SmartInputKind.meta,
-        audio: kind == SmartInputKind.audio,
-        video: kind == SmartInputKind.video,
-        today: today,
-        learned: learned);
-    final mine =
-        SmartUserCats.fitting(GeminiDecisions.maxQuestions - base.length);
+      image: GeminiDecisions.mediaFor(path)?.type == 'image',
+      meta: kind == SmartInputKind.meta,
+      audio: kind == SmartInputKind.audio,
+      video: kind == SmartInputKind.video,
+      today: today,
+      learned: learned,
+    );
+    final mine = SmartUserCats.fitting(
+      GeminiDecisions.maxQuestions - base.length,
+    );
     if (mine.isEmpty) return base;
     return [...base, for (final c in mine) c.question];
   }
@@ -1322,9 +1612,9 @@ abstract final class SmartSort {
     final now = DateTime.now();
     final kind = SmartSortInput.kindOf(entry.path);
     final keys = credentials.normalized.keys;
-    // Ses/video kendi bloğuyla ([input] yok sayılır): video ilk 60 sn,
-    // 14 MB üstü Files API.
-    final prep = kind == SmartInputKind.audio || kind == SmartInputKind.video
+    final prep = input.isEmpty ||
+            kind == SmartInputKind.audio ||
+            kind == SmartInputKind.video
         ? await SmartSortInput.prepare(entry, keys)
         : null;
     final DecisionResult result;
@@ -1332,8 +1622,11 @@ abstract final class SmartSort {
       result = await GeminiDecisions.ask(
         keys: prep?.keys ?? keys,
         input: prep == null ? input : prep.input,
-        questions: questionsFor(entry.path,
-            today: now, learned: SmartLearn.hint(image: image)),
+        questions: questionsFor(
+          entry.path,
+          today: now,
+          learned: SmartLearn.hint(image: image),
+        ),
       );
     } finally {
       prep?.release();
@@ -1343,8 +1636,9 @@ abstract final class SmartSort {
     final rec = _withUser(learned, result);
     final old = _records[entry.path];
     final kept = _keepManual(old, rec);
-    _records[entry.path] =
-        (old?.hidden ?? false) ? kept.copyWith(hidden: true) : kept;
+    _records[entry.path] = (old?.hidden ?? false)
+        ? kept.copyWith(hidden: true)
+        : kept;
     _changed();
     return _records[entry.path];
   }
@@ -1370,12 +1664,13 @@ abstract final class SmartSort {
         keys: prep.keys,
         input: prep.input,
         questions: SmartTaxonomy.questions(
-            image: image,
-            meta: kind == SmartInputKind.meta,
-            audio: kind == SmartInputKind.audio,
-            video: kind == SmartInputKind.video,
-            today: now,
-            learned: SmartLearn.hint(image: image)),
+          image: image,
+          meta: kind == SmartInputKind.meta,
+          audio: kind == SmartInputKind.audio,
+          video: kind == SmartInputKind.video,
+          today: now,
+          learned: SmartLearn.hint(image: image),
+        ),
       );
     } finally {
       prep.release();
@@ -1415,7 +1710,7 @@ abstract final class SmartSort {
     ];
     return [
       for (final d in out)
-        if (Directory(d).existsSync()) d
+        if (Directory(d).existsSync()) d,
     ];
   }
 
@@ -1434,10 +1729,13 @@ abstract final class SmartSort {
   static bool needs(FsEntry e) {
     final r = _records[e.path];
     if (r == null) {
-      // Bu oturumda iki kez yanıt alınamayan dosya tekrar tekrar sorulmaz
-      // (her tur aynı 300 başarısız dosyaya takılıyordu — 2026-11-18).
+      // Başarısız dosyalar kalıcı üstel bekleme + en fazla 2 denemeyle sınırlandırılır.
       final f = _failures[e.path];
-      return f == null || f.$1 != e.sizeBytes || f.$2 != e.modifiedMs || f.$3 < 2;
+      if (f == null || f.$1 != e.sizeBytes || f.$2 != e.modifiedMs) {
+        return true;
+      }
+      if (f.$3 >= 2) return false;
+      return DateTime.now().millisecondsSinceEpoch >= f.$4;
     }
     if (r.user) return false;
     // Eski şemada belgeye görsel kategorisi verilmiş olabilir (PDF →
@@ -1455,8 +1753,9 @@ abstract final class SmartSort {
     return r.size != e.sizeBytes || r.modifiedMs != e.modifiedMs;
   }
 
-  /// Oturum içi başarısızlık sayacı: yol → (boyut, değişme, deneme).
-  static final Map<String, (int, int, int)> _failures = {};
+  /// Kalıcı başarısızlık sayacı: yol → (boyut, değişme, deneme, nextRetryMs).
+  static final Map<String, (int, int, int, int)> _failures = {};
+  static const List<int> _backoffHours = [1, 6, 24, 72];
   static bool _cancelRequested = false;
 
   /// Süren turu güvenli bir noktada durdurur (arka plan zaman aşımı / temizlik).
@@ -1489,19 +1788,113 @@ abstract final class SmartSort {
     }
     final f = _failures[e.path];
     final same = f != null && f.$1 == e.sizeBytes && f.$2 == e.modifiedMs;
-    _failures[e.path] = (e.sizeBytes, e.modifiedMs, same ? f.$3 + 1 : 1);
+    final count = same ? f.$3 + 1 : 1;
+    final hours = _backoffHours[(count - 1).clamp(0, _backoffHours.length - 1)];
+    final nextRetryMs =
+        DateTime.now().millisecondsSinceEpoch + hours * 3600 * 1000;
+    _failures[e.path] = (e.sizeBytes, e.modifiedMs, count, nextRetryMs);
+  }
+
+  /// Özdeş dosya tespiti için hızlı içerik parmak izi: boyut + ilk 32 KB +
+  /// (varsa) son 32 KB SHA-256 özeti. Büyük dosyalarda tüm dosyayı okumadan
+  /// mikrosaniyeler içinde hesaplanır; okunamazsa null.
+  static Future<String?> contentFingerprint(String path, int sizeBytes) async {
+    if (sizeBytes <= 0) return null;
+    try {
+      const chunk = 32 * 1024;
+      final f = await File(path).open();
+      try {
+        final len = await f.length();
+        if (len <= 0 || len != sizeBytes) return null;
+        final head = await f.read(len < chunk ? len : chunk);
+        final tail = len > chunk * 2
+            ? await (await f.setPosition(len - chunk)).read(chunk)
+            : (len > chunk ? await f.read(len - chunk) : const <int>[]);
+        final data = <int>[...utf8.encode('$len:'), ...head, ...tail];
+        return sha256.convert(data).toString();
+      } finally {
+        await f.close();
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Aynı boyuttaki mevcut bir kayıtla bayt özdeşliği eşleşirse o kaydı
+  /// döndürür (0 belirteç).
+  static Future<SmartRecord?> _findDuplicateRecord(
+    FsEntry e,
+    String? fp,
+    Map<int, List<SmartRecord>> bySize,
+    Map<String, SmartRecord> fpByHash,
+    Map<String, String?> pathFpCache,
+  ) async {
+    if (fp == null) return null;
+    final kind = SmartSortInput.kindOf(e.path);
+    final cached = fpByHash[fp];
+    if (cached != null && SmartSortInput.kindOf(cached.path) == kind) {
+      return cached;
+    }
+    final candidates = bySize[e.sizeBytes];
+    if (candidates == null || candidates.isEmpty) return null;
+    for (final cand in candidates) {
+      if (cand.path == e.path || SmartSortInput.kindOf(cand.path) != kind) {
+        continue;
+      }
+      final candFp = pathFpCache.containsKey(cand.path)
+          ? pathFpCache[cand.path]
+          : (pathFpCache[cand.path] = await contentFingerprint(
+              cand.path,
+              cand.size,
+            ));
+      if (candFp != null) {
+        fpByHash.putIfAbsent(candFp, () => cand);
+        if (candFp == fp) return cand;
+      }
+    }
+    return null;
   }
 
   // ── Çalıştırma ─────────────────────────────────────────────────────────
+  /// Sıfır kredili yerel sınıflandırma ön denemesi.
+  static SmartRecord? classifyLocal(
+    FsEntry entry, {
+    String? textSnippet,
+    bool applyLearn = true,
+  }) => SmartLocalRules.classify(
+    entry,
+    textSnippet: textSnippet,
+    applyLearn: applyLearn,
+  );
+
   /// Kapsamdaki en yeni [scan] dosyadan sorulmamış en çok [limit] tanesini
   /// düzenler. Kota/yetki hatasında durur ([SmartRunResult.stoppedBy]).
+  ///
+  /// [persistent] (ekrandaki "Başlat", 2026-11-25): KÖK — kullanıcı *"akıllı
+  /// düzen sık sık duruyor, sürekli başlata basmam gerekiyor"*. Ücretsiz
+  /// anahtarın DAKİKALIK sınırı (429, 4 işçiyle birkaç saniyede dolar),
+  /// anahtarın 60 sn soğuması, ağın bir an kopması (uygulama arka plana
+  /// geçince MIUI bağlantıyı kesiyor) ya da sunucunun "yoğun" (5xx) demesi
+  /// turu TAMAMEN bitiriyordu. Kalıcı turda bunlar geçici sayılır: dosya
+  /// kuyruğa geri konur, artan aralıkla beklenir ([transientWait]) ve kalınan
+  /// yerden sürülür; 429 görülünce istekler aralıklanır (dakikada ≤ 12).
+  /// Yetki (401/403), günlük kota, çevrimdışı kip ve art arda
+  /// [maxTransientStreak] başarısız bekleme YİNE durdurur — gece boyu boşa
+  /// deneyip pil yakmasın. Otomatik/arka plan turları bu kipte değil.
   static Future<SmartRunResult> run({
     required AiCredentials credentials,
     required AiScope scope,
-    int scan = 1500,
+    int scan = scanAll,
     int limit = 300,
     bool reportBatch = false,
+    bool localPrepass = true,
+    bool silent = false,
+    bool persistent = false,
   }) async {
+    if (!Edition.current.has(Feature.smartFolders) ||
+        !Edition.current.has(Feature.ai)) {
+      return const SmartRunResult(0, 0, hold: SmartHold.noKey);
+    }
     if (isRunning) return const SmartRunResult(0, 0);
     await ensureLoaded();
     // U4 (2026-11-20): neden söylenir — eskiden üçü de "yeni dosya yok"tu.
@@ -1522,6 +1915,7 @@ abstract final class SmartSort {
     progress.value = const SmartProgress(0, 0);
     var processed = 0;
     var failed = 0;
+    var reused = 0;
     String? stoppedBy;
     String? lastError;
     SmartHold? hold;
@@ -1531,98 +1925,371 @@ abstract final class SmartSort {
     final done = <String>[];
     try {
       final fresh = await FsScan.freshFiles(roots, limit: scan);
-      final todo = [
+      // "Neyi düzenleyelim?" seçimi + önce değerli dosyalar (2026-11-22).
+      await SmartScopePick.read();
+      final todo = SmartScopePick.ordered([
         for (final e in fresh)
-          if (supports(e) && needs(e) && scope.allowsFile(e)) e
-      ].take(limit).toList();
+          if (supports(e) &&
+              needs(e) &&
+              scope.allowsFile(e) &&
+              SmartScopePick.allows(e.path))
+            e,
+      ]).take(limit).toList();
       progress.value = SmartProgress(0, todo.length);
       // İstekteki "bugün" tur boyunca sabit (tarih aralıkları buna göre).
       final today = DateTime.now();
       // Kullanıcının düzeltmelerinden geri bildirim (tur başına bir kez).
       final imageHint = SmartLearn.hint(image: true);
       final docHint = SmartLearn.hint(image: false);
+
+      // Sıfır belirteçli yerel özdeş kopya dizini (yalnız aynı boyutta
+      // aday varsa diskten parmak izi okunur → benzersiz dosyalarda 0 I/O).
+      final existingBySize = <int, List<SmartRecord>>{};
+      for (final r in _records.values) {
+        if (r.size <= 0 || r.cat == SmartTaxonomy.other) continue;
+        (existingBySize[r.size] ??= []).add(r);
+      }
+      final batchSizeCount = <int, int>{};
+      for (final e in todo) {
+        if (e.sizeBytes > 0) {
+          batchSizeCount[e.sizeBytes] = (batchSizeCount[e.sizeBytes] ?? 0) + 1;
+        }
+      }
+      final fpByHash = <String, SmartRecord>{};
+      final pathFpCache = <String, String?>{};
+      final inFlightHashes = <String, Completer<SmartRecord?>>{};
+
       final queue = [...todo];
-      Future<void> worker() async {
+      final workers = workerCountFor(keys.length);
+      var throttled = false;
+
+      // ── Kalıcı tur: geçici engelde bekle, kaldığın yerden sür ──────────
+      var streak = 0; // art arda geçici olay (başarı sıfırlar)
+      var pauseUntilMs = 0; // ortak bekleme: tüm işçiler birlikte bekler
+      var nextStartMs = 0; // 429 sonrası istek aralığı
+
+      bool transient(Object err) =>
+          persistent && !OfflineMode.enabled && isTransient(err);
+
+      /// Ortak bekleme. Yeni bir olaysa sayaç artar ve süre uzar; bekleme
+      /// sürerken gelen başka işçinin hatası AYNI olay sayılır (4 işçi tek
+      /// 429'u dört kez saymasın). Sürdürülecekse true.
+      Future<bool> waitOut(Object err, {Duration minimum = Duration.zero}) async {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now >= pauseUntilMs) {
+          streak++;
+          if (streak > maxTransientStreak) {
+            stoppedBy ??= stopText(err);
+            return false;
+          }
+          var wait = transientWait(err, streak);
+          if (retryDelay > Duration.zero && minimum > wait) wait = minimum;
+          pauseUntilMs = now + wait.inMilliseconds;
+        }
+        final until = pauseUntilMs;
+        waitingUntilMs.value = until;
+        try {
+          // Pil (2026-11-25, "gece pilim bitti"): uygulama arka plandayken
+          // YENİDEN DENENMEZ — öne gelince sürer. Ekran kapalıyken saatlerce
+          // ağ denemesi yapılmasın; bekleme yalnız ucuz bir durum yoklaması.
+          while (!isForeground()) {
+            if (_cancelRequested || stoppedBy != null || hold != null) {
+              return false;
+            }
+            await Future<void>.delayed(const Duration(seconds: 5));
+          }
+          while (DateTime.now().millisecondsSinceEpoch < until) {
+            if (_cancelRequested || stoppedBy != null || hold != null) {
+              return false;
+            }
+            await Future<void>.delayed(const Duration(seconds: 1));
+          }
+        } finally {
+          if (waitingUntilMs.value == until) waitingUntilMs.value = null;
+        }
+        return !_cancelRequested && stoppedBy == null && hold == null;
+      }
+
+      /// 429 görüldükten sonra istekler en az [retryDelay] / 6 (≈ 5 sn)
+      /// aralıkla çıkar: ücretsiz anahtarın dakikalık sınırı (10–15) aşılmaz.
+      Future<void> pace() async {
+        if (!persistent || !throttled) return;
+        final gap = (retryDelay ~/ 6).inMilliseconds;
+        if (gap <= 0) return;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final at = nextStartMs > now ? nextStartMs : now;
+        nextStartMs = at + gap;
+        if (at > now) await Future<void>.delayed(Duration(milliseconds: at - now));
+      }
+
+      Future<void> worker(int workerIndex) async {
         while (queue.isNotEmpty &&
             stoppedBy == null &&
             hold == null &&
             !_cancelRequested) {
-          // Günlük sınır: hak yoksa dosya sorulmaz (sonraki gün sırada).
-          if (SmartQuota.remaining <= 0) {
-            hold = SmartHold.cap;
-            break;
-          }
+          // 429 görüldüyse ek işçiler geri çekilir (yalnız 2 işçi sürer).
+          if (throttled && workerIndex >= 2) break;
           final e = queue.removeAt(0);
           try {
-            final image = GeminiDecisions.mediaFor(e.path)?.type == 'image';
-            final questions = questionsFor(e.path,
-                today: today, learned: image ? imageHint : docHint);
-            // Büyük ses/video Files API ile yüklenir (yalnız yükleyen anahtar).
-            final prep = await SmartSortInput.prepare(e, keys);
-            final input = prep.input;
-            // Hak istekten hemen önce alınır (paralel işçi sınırı aşmasın).
-            if (!SmartQuota.take()) {
-              prep.release();
-              hold = SmartHold.cap;
-              break;
+            // Önce sıfır belirteçli yerel kopya denetimi (kota harcamaz).
+            final maybeDup =
+                e.sizeBytes > 0 &&
+                (existingBySize.containsKey(e.sizeBytes) ||
+                    (batchSizeCount[e.sizeBytes] ?? 0) > 1);
+            final fp = maybeDup
+                ? await contentFingerprint(e.path, e.sizeBytes)
+                : null;
+            final dup = maybeDup
+                ? await _findDuplicateRecord(
+                    e,
+                    fp,
+                    existingBySize,
+                    fpByHash,
+                    pathFpCache,
+                  )
+                : null;
+            if (dup != null) {
+              final old = _records[e.path];
+              final cloned = _keepManual(old, dup.cloneFor(e));
+              _records[e.path] = (old?.hidden ?? false)
+                  ? cloned.copyWith(hidden: true)
+                  : cloned;
+              processed++;
+              reused++;
+              done.add(e.path);
+              progress.value = SmartProgress(processed + failed, todo.length);
+              if ((processed + failed) % 10 == 0) _changed();
+              continue;
             }
-            DecisionResult result;
+            if (localPrepass) {
+              final old = _records[e.path];
+              if (!(old?.user ?? false)) {
+                final local = SmartLocalRules.classify(e);
+                if (local != null) {
+                  final kept = _keepManual(old, local);
+                  final savedLocal = (old?.hidden ?? false)
+                      ? kept.copyWith(hidden: true)
+                      : kept;
+                  _records[e.path] = savedLocal;
+                  if (fp != null && savedLocal.cat != SmartTaxonomy.other) {
+                    fpByHash[fp] = savedLocal;
+                  }
+                  processed++;
+                  reused++;
+                  done.add(e.path);
+                  progress.value = SmartProgress(
+                    processed + failed,
+                    todo.length,
+                  );
+                  if ((processed + failed) % 10 == 0) _changed();
+                  continue;
+                }
+              }
+            }
+            Completer<SmartRecord?>? mine;
+            SmartRecord? settledForDup;
+            if (fp != null) {
+              final active = inFlightHashes[fp];
+              if (active != null) {
+                final waited = await active.future;
+                if (waited != null) {
+                  final old = _records[e.path];
+                  final cloned = _keepManual(old, waited.cloneFor(e));
+                  _records[e.path] = (old?.hidden ?? false)
+                      ? cloned.copyWith(hidden: true)
+                      : cloned;
+                  processed++;
+                  reused++;
+                  done.add(e.path);
+                  progress.value = SmartProgress(
+                    processed + failed,
+                    todo.length,
+                  );
+                  if ((processed + failed) % 10 == 0) _changed();
+                  continue;
+                }
+              }
+              mine = Completer<SmartRecord?>();
+              inFlightHashes[fp] = mine;
+            }
             try {
+              if (stoppedBy != null || hold != null || _cancelRequested) {
+                break;
+              }
+              final preCooled = GeminiDecisions.cooledStatusFor(keys);
+              if (preCooled != null) {
+                final err = GeminiException(
+                  'API anahtarı soğumada.',
+                  statusCode: preCooled,
+                  networkAttempted: false,
+                );
+                if (transient(err)) {
+                  // Soğuma bitene dek bekle, aynı dosyayla sür.
+                  queue.insert(0, e);
+                  throttled = true;
+                  final left = GeminiDecisions.cooledRemainingMs(keys);
+                  if (await waitOut(err,
+                      minimum: Duration(milliseconds: left + 1000))) {
+                    continue;
+                  }
+                  break;
+                }
+                stoppedBy ??= stopText(err);
+                break;
+              }
+              if (SmartQuota.remaining <= 0) {
+                hold = SmartHold.cap;
+                break;
+              }
+              final image = GeminiDecisions.mediaFor(e.path)?.type == 'image';
+              final questions = questionsFor(
+                e.path,
+                today: today,
+                learned: image ? imageHint : docHint,
+              );
+              // Büyük ses/video Files API ile yüklenir (yalnız yükleyen anahtar).
+              final prep = await SmartSortInput.prepare(e, keys);
+              final input = prep.input;
+              DecisionResult result;
               try {
-                result = await GeminiDecisions.ask(
-                    keys: prep.keys, input: input, questions: questions);
-              } on GeminiException catch (err) {
-                // Dakikalık sınır (429) çoğu zaman geçicidir: bir kez
-                // bekleyip yeniden dene, yine olursa dur (kalanlar sonraki
-                // turda).
-                if (err.statusCode != 429) rethrow;
-                await Future<void>.delayed(retryDelay);
-                // Yeniden deneme de bir istek: hakkı yoksa dur. Her 429
-                // tek yerde sayılır (bu ilk 429 burada, sonraki dışarıda).
-                if (stoppedBy != null || !SmartQuota.take()) rethrow;
-                SmartQuota.noteLimited();
-                result = await GeminiDecisions.ask(
-                    keys: prep.keys, input: input, questions: questions);
+                if (stoppedBy != null || hold != null || _cancelRequested) {
+                  break;
+                }
+                final postCooled = GeminiDecisions.cooledStatusFor(prep.keys);
+                if (postCooled != null) {
+                  final err = GeminiException(
+                    'API anahtarı soğumada.',
+                    statusCode: postCooled,
+                    networkAttempted: false,
+                  );
+                  if (transient(err)) {
+                    queue.insert(0, e);
+                    throttled = true;
+                    final left = GeminiDecisions.cooledRemainingMs(prep.keys);
+                    if (await waitOut(err,
+                        minimum: Duration(milliseconds: left + 1000))) {
+                      continue;
+                    }
+                    break;
+                  }
+                  stoppedBy ??= stopText(err);
+                  break;
+                }
+                await pace();
+                if (stoppedBy != null || hold != null || _cancelRequested) {
+                  queue.insert(0, e);
+                  break;
+                }
+                if (!SmartQuota.take()) {
+                  hold = SmartHold.cap;
+                  break;
+                }
+                try {
+                  result = await GeminiDecisions.ask(
+                    keys: prep.keys,
+                    input: input,
+                    questions: questions,
+                    silent: silent,
+                  );
+                } on GeminiException catch (err) {
+                  if (!err.networkAttempted) {
+                    SmartQuota.refund();
+                    rethrow;
+                  }
+                  // Dakikalık sınır (429) çoğu zaman geçicidir: eşzamanlılığı
+                  // 2'ye çek, bir kez bekleyip yeniden dene, yine olursa dur.
+                  if (err.statusCode != 429) rethrow;
+                  throttled = true;
+                  await Future<void>.delayed(retryDelay);
+                  // Yeniden deneme de bir istek: hakkı yoksa dur. Her 429
+                  // tek yerde sayılır (bu ilk 429 burada, sonraki dışarıda).
+                  if (stoppedBy != null ||
+                      GeminiDecisions.cooledStatusFor(prep.keys) != null ||
+                      !SmartQuota.take()) {
+                    rethrow;
+                  }
+                  SmartQuota.noteLimited();
+                  try {
+                    result = await GeminiDecisions.ask(
+                      keys: prep.keys,
+                      input: input,
+                      questions: questions,
+                      silent: silent,
+                    );
+                  } on GeminiException catch (retryErr) {
+                    if (!retryErr.networkAttempted) SmartQuota.refund();
+                    rethrow;
+                  }
+                }
+              } finally {
+                prep.release();
+              }
+              streak = 0; // sunucu yanıt verdi: geçici olay dizisi bitti
+              final tokens = result.inputTokens;
+              if (tokens != null) {
+                usedRequests++;
+                usedTokens += tokens;
+                usedQuestions += questions.length;
+              }
+              final learned = _answered(e, result, today: today, image: image);
+              final rec = learned == null ? null : _withUser(learned, result);
+              if (rec != null) {
+                final old = _records[e.path];
+                final kept = _keepManual(old, rec);
+                final saved = (old?.hidden ?? false)
+                    ? kept.copyWith(hidden: true)
+                    : kept;
+                _records[e.path] = saved;
+                if (fp != null && saved.cat != SmartTaxonomy.other) {
+                  fpByHash[fp] = saved;
+                  settledForDup = saved;
+                }
+                processed++;
+                done.add(e.path);
+              } else {
+                failed++;
+                _markFailed(e);
+                lastError = AppStrings.current.t(
+                  result.blockReason != null
+                      ? 'sm.fail_blocked'
+                      : 'sm.fail_empty',
+                );
               }
             } finally {
-              prep.release();
-            }
-            final tokens = result.inputTokens;
-            if (tokens != null) {
-              usedRequests++;
-              usedTokens += tokens;
-              usedQuestions += questions.length;
-            }
-            final learned =
-                _answered(e, result, today: today, image: image);
-            final rec = learned == null ? null : _withUser(learned, result);
-            if (rec != null) {
-              final old = _records[e.path];
-              final kept = _keepManual(old, rec);
-              _records[e.path] =
-                  (old?.hidden ?? false) ? kept.copyWith(hidden: true) : kept;
-              processed++;
-              done.add(e.path);
-            } else {
-              failed++;
-              _markFailed(e);
-              lastError = AppStrings.current.t(result.blockReason != null
-                  ? 'sm.fail_blocked'
-                  : 'sm.fail_empty');
+              if (mine != null) {
+                if (!mine.isCompleted) mine.complete(settledForDup);
+                if (fp != null && identical(inFlightHashes[fp], mine)) {
+                  inFlightHashes.remove(fp);
+                }
+              }
             }
           } on GeminiException catch (err) {
-            if (err.statusCode == 429) SmartQuota.noteLimited();
+            if (err.statusCode == 429 && err.networkAttempted) {
+              throttled = true;
+              SmartQuota.noteLimited();
+            }
+            if (transient(err)) {
+              // Kalıcı tur: dosya geri sıraya, bekle, sür.
+              queue.insert(0, e);
+              if (await waitOut(err)) continue;
+              break;
+            }
             if (stopsRun(err)) {
               // Dosyanın suçu değil: başarısız sayılmaz, sonraki turda sorulur.
-              stoppedBy = stopText(err);
+              stoppedBy ??= stopText(err);
             } else {
               failed++;
               _markFailed(e);
               lastError = err.message;
             }
           } catch (err) {
+            if (transient(err)) {
+              queue.insert(0, e);
+              if (await waitOut(err)) continue;
+              break;
+            }
             if (stopsRun(err)) {
-              stoppedBy = stopText(err);
+              stoppedBy ??= stopText(err);
             } else {
               failed++;
               _markFailed(e);
@@ -1634,9 +2301,10 @@ abstract final class SmartSort {
         }
       }
 
-      await Future.wait([for (var i = 0; i < _parallel; i++) worker()]);
+      await Future.wait([for (var i = 0; i < workers; i++) worker(i)]);
     } finally {
       progress.value = null;
+      waitingUntilMs.value = null;
       _changed();
     }
     if (reportBatch && done.isNotEmpty) {
@@ -1648,12 +2316,118 @@ abstract final class SmartSort {
       }
       if (by.isNotEmpty) lastBatch.value = SmartBatch(done, by, DateTime.now());
     }
-    final usage = usedRequests == 0
+    final usage = (usedRequests == 0 && reused == 0)
         ? null
-        : SmartUsage(usedRequests, usedTokens, usedQuestions);
+        : SmartUsage(usedRequests, usedTokens, usedQuestions, reused: reused);
     if (usage != null) lastUsage.value = usage;
-    return SmartRunResult(processed, failed,
-        stoppedBy: stoppedBy, lastError: lastError, usage: usage, hold: hold);
+    return SmartRunResult(
+      processed,
+      failed,
+      reused: reused,
+      stoppedBy: stoppedBy,
+      lastError: lastError,
+      usage: usage,
+      hold: hold,
+    );
+  }
+
+  /// **Anahtarsız yerel kural turu** (Pro sürümde API anahtarı olmadan
+  /// doğrudan çalışır; 0 kredi, 0 ağ isteği).
+  ///
+  /// [SmartLocalRules.classify] ile tanınan fatura, dekont, resmi evrak,
+  /// sağlık, ekran görüntüsü, APK ve öğrenilen düzeltmeleri kaydeder;
+  /// belirsiz dosyalar dokunulmadan bırakılır.
+  static Future<SmartRunResult> runLocalOnly({
+    required AiScope scope,
+    int scan = scanAll,
+    int limit = 2000,
+    int? maxTotal,
+  }) async {
+    if (!Edition.current.has(Feature.smartFolders)) {
+      return const SmartRunResult(0, 0, hold: SmartHold.noKey);
+    }
+    if (isRunning) return const SmartRunResult(0, 0);
+    await ensureLoaded();
+    final cap = maxTotal ??
+        SmartQuota.starterCapFor(Edition.current, hasOwnKey: false);
+    var remainingSlots = cap == null ? null : (cap - _records.length);
+    if (remainingSlots != null && remainingSlots <= 0) {
+      return const SmartRunResult(0, 0, hold: SmartHold.cap);
+    }
+    final roots = scopeRoots();
+    if (roots.isEmpty) {
+      return const SmartRunResult(0, 0, hold: SmartHold.noScope);
+    }
+    _cancelRequested = false;
+    progress.value = const SmartProgress(0, 0);
+    var processed = 0;
+    var reused = 0;
+    final done = <String>[];
+    var hitStarterCap = false;
+    try {
+      final fresh = await FsScan.freshFiles(roots, limit: scan);
+      await SmartScopePick.read();
+      final todoAll = SmartScopePick.ordered([
+        for (final e in fresh)
+          if (supports(e) &&
+              needs(e) &&
+              scope.allowsFile(e) &&
+              SmartScopePick.allows(e.path))
+            e,
+      ]);
+      final takeN = remainingSlots == null || remainingSlots >= limit
+          ? limit
+          : remainingSlots;
+      final todo = todoAll.take(takeN).toList();
+      progress.value = SmartProgress(0, todo.length);
+      for (var i = 0; i < todo.length; i++) {
+        if (_cancelRequested) break;
+        if (remainingSlots != null && processed >= remainingSlots) {
+          hitStarterCap = true;
+          break;
+        }
+        final e = todo[i];
+        final old = _records[e.path];
+        if (!(old?.user ?? false)) {
+          final local = SmartLocalRules.classify(e);
+          if (local != null) {
+            final kept = _keepManual(old, local);
+            final savedLocal = (old?.hidden ?? false)
+                ? kept.copyWith(hidden: true)
+                : kept;
+            _records[e.path] = savedLocal;
+            processed++;
+            reused++;
+            done.add(e.path);
+          }
+        }
+        progress.value = SmartProgress(i + 1, todo.length);
+        if ((i + 1) % 25 == 0) {
+          _changed();
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+      if (remainingSlots != null &&
+          processed >= remainingSlots &&
+          todoAll.length > processed) {
+        hitStarterCap = true;
+      }
+      if (done.isNotEmpty) await _save();
+    } finally {
+      progress.value = null;
+      waitingUntilMs.value = null;
+      _changed();
+    }
+    final usage =
+        reused == 0 ? null : SmartUsage(0, 0, 0, reused: reused);
+    if (usage != null) lastUsage.value = usage;
+    return SmartRunResult(
+      processed,
+      0,
+      hold: hitStarterCap ? SmartHold.cap : null,
+      reused: reused,
+      usage: usage,
+    );
   }
 
   /// Turu durduran hatanın kullanıcı dilindeki açıklaması: ne oldu + ne
@@ -1672,11 +2446,92 @@ abstract final class SmartSort {
       OfflineMode.enabled ||
       UserError.classify(err) == UserErrorKind.offline ||
       (err is GeminiException &&
-          const {401, 403, 429}.contains(err.statusCode));
+          // -2: onay verilmedi / Pro değil / gizli kasa açık — dosyanın suçu
+          // değil; durmazsa her dosyada onay penceresi yeniden açılırdı.
+          const {401, 403, 429, -2}.contains(err.statusCode));
 
   /// Dakikalık sınırda (429) yeniden denemeden önceki bekleme (testte 0).
+  /// Kalıcı turun bütün beklemeleri bunun katlarıdır ([transientWait]).
   @visibleForTesting
   static Duration retryDelay = const Duration(seconds: 30);
+
+  /// Kalıcı turda art arda en çok bu kadar geçici olay beklenir (arada bir
+  /// başarı sayacı sıfırlar). 429'da toplam ≈ 20 dk; sonra tur durur —
+  /// günlük kota bitmişse gece boyu boşa denenmesin.
+  static const maxTransientStreak = 8;
+
+  /// Beklemekle geçebilecek hata mı: dakikalık sınır (429, günlük kota
+  /// değilse), ağ kopması, sunucu yoğun (5xx). Yetki (400/401/403), günlük
+  /// kota ve yerel engeller (çevrimdışı kip, gizli kasa, onay) değil.
+  static bool isTransient(Object err) {
+    if (err is GeminiException) {
+      final c = err.statusCode;
+      if (c == 429) return !isDailyQuota(err.message);
+      return c == 0 || (c >= 500 && c < 600);
+    }
+    return UserError.classify(err) == UserErrorKind.offline;
+  }
+
+  /// 429 iletisi GÜNLÜK kotayı mı söylüyor ("PerDay" kota kimliği ya da
+  /// saatler sonrası "retry in"). Saf → testli.
+  static bool isDailyQuota(String message) {
+    final m = message.toLowerCase();
+    if (m.contains('perday') || m.contains('per day') || m.contains('daily')) {
+      return true;
+    }
+    final retry = retryAfter(message);
+    return retry != null && retry > const Duration(minutes: 15);
+  }
+
+  /// Gemini 429 iletisindeki "Please retry in 34.5s" / "retry in 2m10s".
+  static Duration? retryAfter(String message) {
+    final m = RegExp(
+      r'retry in\s+(?:(\d+)h)?\s*(?:(\d+)m(?!s))?\s*(?:(\d+(?:\.\d+)?)s)?',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (m == null || (m.group(1) == null && m.group(2) == null && m.group(3) == null)) {
+      return null;
+    }
+    final h = int.tryParse(m.group(1) ?? '') ?? 0;
+    final min = int.tryParse(m.group(2) ?? '') ?? 0;
+    final s = double.tryParse(m.group(3) ?? '') ?? 0;
+    return Duration(
+        milliseconds: ((h * 3600 + min * 60) * 1000 + s * 1000).round());
+  }
+
+  /// [n]. art arda geçici olayda beklenecek süre: 429'da sunucunun söylediği
+  /// (artan basamaktan uzunsa), yoksa 30 sn → 4 dk artan; ağ/sunucu
+  /// hatasında 15 sn → 2 dk. Testte [retryDelay] = 0 → 0.
+  static Duration transientWait(Object err, int n) {
+    if (retryDelay <= Duration.zero) return Duration.zero;
+    final i = (n - 1).clamp(0, 7);
+    if (err is GeminiException && err.statusCode == 429) {
+      final told = retryAfter(err.message);
+      const grows = [1, 2, 3, 4, 6, 8, 8, 8];
+      final grow = retryDelay * grows[i];
+      if (told != null && told > grow) return told + const Duration(seconds: 1);
+      return grow;
+    }
+    const steps = [0.5, 1, 1, 2, 2, 4, 4, 4];
+    return retryDelay * steps[i];
+  }
+
+  /// Uygulama önde mi (bağlama yoksa — test, arka plan motoru — evet).
+  @visibleForTesting
+  static bool Function() isForeground = () {
+    try {
+      final s = WidgetsBinding.instance.lifecycleState;
+      return s == null || s == AppLifecycleState.resumed;
+    } catch (_) {
+      return true;
+    }
+  };
+
+  /// Kalıcı tur bekliyorsa bitiş anı (ms) — ekran "kısa bekleme" yazar.
+  static final ValueNotifier<int?> waitingUntilMs = ValueNotifier<int?>(null);
+
+  /// Son turda kullanıcı "Durdur"a bastı mı (ekran sonraki turu açmaz).
+  static bool get cancelRequested => _cancelRequested;
 
   /// Son turun belirteç raporu (Akıllı düzen ekranında; oturum içi).
   static final ValueNotifier<SmartUsage?> lastUsage =
@@ -1714,8 +2569,15 @@ abstract final class SmartSort {
       final s = _scope;
       if (c == null || s == null || isRunning) return;
       if (_bg && !await chargingOnWifi()) return;
-      unawaited(run(
-          credentials: c(), scope: s(), scan: 200, limit: 40, reportBatch: true));
+      unawaited(
+        run(
+          credentials: c(),
+          scope: s(),
+          scan: 200,
+          limit: 40,
+          reportBatch: true,
+        ),
+      );
     });
   }
 

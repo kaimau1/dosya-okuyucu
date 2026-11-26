@@ -141,17 +141,6 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
               icon: AppIcons.check,
               tooltip: context.t('common.apply'),
               onPressed: _acceptEntry),
-          for (final (k, icon, dr, dc) in [
-            ('left', AppIcons.keyboardArrowLeft, 0, -1),
-            ('right', AppIcons.keyboardArrowRight, 0, 1),
-            ('up', AppIcons.keyboardArrowUp, -1, 0),
-            ('down', AppIcons.keyboardArrowDown, 1, 0),
-          ])
-            AccessoryItem(
-                key: ValueKey('acc-$k'),
-                icon: icon,
-                tooltip: context.t('excel.move_$k'),
-                onPressed: () => _arrow(dr, dc)),
           AccessoryItem(
               key: const ValueKey('acc-tab'),
               icon: AppIcons.keyboardTab,
@@ -173,6 +162,19 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
                 _cancelEdit();
                 _autoSum();
               }),
+          for (final (k, icon, dr, dc) in [
+            ('left', AppIcons.keyboardArrowLeft, 0, -1),
+            ('right', AppIcons.keyboardArrowRight, 0, 1),
+            ('up', AppIcons.keyboardArrowUp, -1, 0),
+            ('down', AppIcons.keyboardArrowDown, 1, 0),
+          ])
+            AccessoryItem(
+                key: ValueKey('acc-$k'),
+                icon: icon,
+                tooltip: context.t('excel.move_$k'),
+                onPressed: () => _arrow(dr, dc)),
+        ],
+        pinnedTrailing: [
           AccessoryItem(
               key: const ValueKey('acc-fx'),
               text: 'fx',
@@ -181,7 +183,9 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
           AccessoryItem(
               key: const ValueKey('acc-keypad'),
               text: _keypad ? 'ABC' : '123',
-              tooltip: context.t(_keypad ? 'excel.keyboard_abc' : 'excel.keyboard_123'),
+              selected: _keypad,
+              tooltip: context.t(
+                  _keypad ? 'excel.keyboard_abc' : 'excel.keyboard_123'),
               onPressed: _toggleKeypad),
         ],
       );
@@ -430,7 +434,7 @@ extension _SpreadsheetEditorScreenEntryPart on _SpreadsheetEditorScreenState {
 
   Widget _floatingEditor(BoxConstraints area) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_hBody, _vBody, _cellField]),
+      animation: _editorScroll,
       builder: (context, _) {
         final rect = _rectOf(_cursorKey);
         final sheet = _sheet;

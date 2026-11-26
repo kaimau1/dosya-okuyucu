@@ -3,14 +3,19 @@ import '../../models/fs_entry.dart';
 import '../../widgets/fm/fm_entry_tiles.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/safe_insets.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fm_type.dart';
+import '../../services/fm/ai_index.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/file_tags.dart';
 import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/trash_service.dart';
+import '../../widgets/fm/fm_bar_title.dart';
 import '../../widgets/fm/fm_progress_dialog.dart';
 import '../../widgets/fm/fm_quick_filters.dart';
 import '../../widgets/fm/fm_type_chips.dart';
@@ -299,7 +304,22 @@ class _TrashScreenState extends State<TrashScreen> {
               ),
             )
           : AppBar(
-              title: Text(context.t('trash.title')),
+              // Sayı + boyut başlığın altında (2026-11-22, kullanıcı: "üst
+              // alan gereksiz büyük") — ayrı özet satırı kalktı.
+              title: FmBarTitle(
+                title: context.t('trash.title'),
+                subtitle: _items.isEmpty
+                    ? null
+                    : (_query.trim().isEmpty && _types.isEmpty
+                        ? context.t('tr.count_size', {
+                            'n': _items.length,
+                            'size': FsPaths.humanSize(total),
+                          })
+                        : context.t('trash.filtered', {
+                            'n': shown.length,
+                            'total': _items.length,
+                          })),
+              ),
               actions: [
                 if (_items.isNotEmpty)
                   IconButton(
@@ -336,18 +356,31 @@ class _TrashScreenState extends State<TrashScreen> {
                   children: [
                     _summaryBand(total, shown.length),
                     const Divider(height: 1),
-                    FmFilterBar(
-                      children: FmTypeChips.build(
-                        context,
-                        counts: _typeCounts,
-                        selected: _types,
-                        onChanged: (t) => setState(() => _types = t),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: FmFilterBar(
+                          children: FmTypeChips.build(
+                            context,
+                            counts: _typeCounts,
+                            selected: _types,
+                            onChanged: (t) => setState(() => _types = t),
+                          ),
+                        ),
                       ),
                     ),
                     Expanded(
                       // Kart yerine 1px ayraç: liste ekranlarında kağıt
                       // temasının kuralı (kart yalnız pano ve son belgelerde).
                       child: ListView.separated(
+                        padding: withNavInset(
+                          context,
+                          EdgeInsets.symmetric(
+                            horizontal: MediaQuery.sizeOf(context).width > 960
+                                ? (MediaQuery.sizeOf(context).width - 960) / 2
+                                : 0,
+                          ),
+                        ),
                         itemCount: shown.length,
                         separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, i) {
@@ -362,8 +395,15 @@ class _TrashScreenState extends State<TrashScreen> {
                             ),
                             selected: false,
                             selecting: false,
-                            subtitle: '${FsPaths.humanDate(item.deletedAtMs)} · '
-                                '${item.originalPath}',
+                            subtitle: FmLocation.label(
+                                item.originalPath, context.t,
+                                volumes: FmEnv.volumes),
+                            dateText: FmLocation.shortDate(item.deletedAtMs),
+                            subtitleEnd: item.isDir
+                                ? null
+                                : FsPaths.humanSize(item.sizeBytes),
+                            alias: AiIndex.aliasOf(item.originalPath),
+                            tags: FileTags.forPath(item.originalPath),
                             onTap: () {
                               if (!item.isDir) _preview(shown, item);
                             },
@@ -394,69 +434,45 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
-  /// Özet şeridi: kaç öğe / ne kadar yer + **otomatik temizleme bilgisi**.
-  /// Kullanıcı "çöpteki dosya ne zaman gidiyor" sorusunun cevabını ayarlara
-  /// girmeden göremiyordu; kapalıysa ayara kısayol verilir.
+  /// Tek satırlık şerit: **otomatik temizleme bilgisi** + Tümünü geri yükle
+  /// (2026-11-22: sayı/boyut başlığa taşındı, büyük düğme metin düğmesi
+  /// oldu — üç satırlık bant tek satıra indi). Kapalıysa ayara kısayol.
   Widget _summaryBand(int total, int shownCount) {
     final scheme = Theme.of(context).colorScheme;
     final days = context.watchBrowse().fmTrashAutoDays;
+    final w = MediaQuery.sizeOf(context).width;
+    final hPad = w > 960 ? (w - 960) / 2 + Gap.md : Gap.md;
     return Container(
       width: double.infinity,
       color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.all(Gap.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsetsDirectional.only(start: hPad, end: hPad - Gap.sm),
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(AppIcons.deleteSweep, size: 20),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Text(_query.trim().isEmpty && _types.isEmpty
-                    ? context.t('tr.count_size', {
-                        'n': _items.length,
-                        'size': FsPaths.humanSize(total),
-                      })
-                    : context.t('trash.filtered', {
-                        'n': shownCount,
-                        'total': _items.length,
-                      })),
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.xs),
-          Row(
-            children: [
-              Icon(AppIcons.schedule, size: 14, color: Paper.faint(context)),
-              const SizedBox(width: Gap.xs),
-              Expanded(
-                child: Text(
-                  days > 0
-                      ? context.t('trash.auto_days', {'n': days})
-                      : context.t('trash.auto_off'),
-                  style:
-                      context.type.small.copyWith(color: Paper.faint(context)),
-                ),
-              ),
-              if (days <= 0)
-                TextButton(
-                  // Ana ayar listesine değil, ayarın KENDİ sayfasına gider.
-                  onPressed: () => openSettingsCategory(context, 'trash'),
-                  child: Text(context.t('common.settings')),
-                ),
-            ],
-          ),
-          if (_items.isNotEmpty) ...[
-            const SizedBox(height: Gap.sm),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: OutlinedButton.icon(
-                onPressed: _restoreAll,
-                icon: const Icon(AppIcons.restore, size: 18),
-                label: Text(context.t('trash.restore_all')),
-              ),
+          Icon(AppIcons.schedule, size: 16, color: Paper.faint(context)),
+          const SizedBox(width: Gap.xs),
+          Expanded(
+            child: Text(
+              days > 0
+                  ? context.t('trash.auto_days', {'n': days})
+                  : context.t('trash.auto_off'),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: context.type.small.copyWith(color: Paper.faint(context)),
             ),
-          ],
+          ),
+          if (days <= 0)
+            TextButton(
+              // Ana ayar listesine değil, ayarın KENDİ sayfasına gider.
+              onPressed: () => openSettingsCategory(context, 'trash'),
+              child: Text(context.t('common.settings')),
+            ),
+          if (_items.isNotEmpty)
+            TextButton.icon(
+              key: const ValueKey('trash-restore-all'),
+              onPressed: _restoreAll,
+              icon: const Icon(AppIcons.restore, size: 18),
+              label: Text(context.t('trash.restore_all')),
+            ),
         ],
       ),
     );

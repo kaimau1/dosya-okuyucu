@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'package:path/path.dart' as p;
 
+import '../../../core/edition.dart';
 import '../../../models/remote_connection.dart';
 import '../usb/block_device.dart';
 import '../usb/exfat_fs.dart';
@@ -46,6 +49,35 @@ class UsbFs extends RemoteFs {
   /// Yol → dosya sistemi tutamağı (kök dahil).
   final Map<String, Object> _handles = {};
 
+  /// Yazma işlemleri SIRAYLA (2026-11-25 USB denetimi).
+  ///
+  /// KÖK: FAT/exFAT boş küme aramasıyla kümeyi "dolu" işaretlemek arasında
+  /// `await` var. Aynı anda iki kopyalama/silme koşarsa (iki iş kuyruğu, ya
+  /// da kopyalarken silme) ikisi AYNI boş kümeleri bulup birbirinin verisinin
+  /// üstüne yazabiliyordu — sessiz bozulma. Yerel köprü (`UsbMass`) yalnız
+  /// tek SCSI komutunu kilitliyor; dosya sistemi işlemini kilitleyen yoktu.
+  Future<void> _writeTail = Future<void>.value();
+
+  Future<T> _serial<T>(Future<T> Function() body) {
+    final previous = _writeTail;
+    final done = Completer<void>();
+    _writeTail = done.future;
+    return previous.then((_) => body()).whenComplete(done.complete);
+  }
+
+  /// [path] ve altındaki (harf büyüklüğü farklı takma adlar dahil) bütün
+  /// önbellek tutamaklarını düşürür. Klasör yeniden adlandırılınca/silinince
+  /// eski yoldaki çocuk tutamakları kalıyordu: aynı adla yeni klasör
+  /// açıldığında eski yol (yer imi, son açılanlar) ESKİ klasörün kümelerine
+  /// gidip yanlış dosyayı açabiliyor, hatta silebiliyordu.
+  void _forgetTree(String path) {
+    final lower = path.toLowerCase();
+    _handles.removeWhere((k, _) {
+      final l = k.toLowerCase();
+      return l == lower || l.startsWith('$lower/');
+    });
+  }
+
   UsbFs({
     required this.fs,
     required this.device,
@@ -87,7 +119,8 @@ class UsbFs extends RemoteFs {
       return UsbOpenOutcome(error: result.error, steps: result.steps);
     }
     final steps = [...result.steps];
-    final device = CachedBlockDevice(raw);
+    final device = CachedBlockDevice(
+        Edition.current.isPlay ? _ReadOnlyBlockDevice(raw) : raw);
     try {
       final parts = await PartitionTable.read(device);
       steps.add('bölüm sayısı: ${parts.length}');
@@ -127,15 +160,6 @@ class UsbFs extends RemoteFs {
         ));
         final wanted = partitionIndex == null ? chosen == null : partitionIndex == i;
         if (wanted && chosen == null) {
-          // Önceki yazma yarıda kesildiyse (bellek yazarken çekildi) kayıp
-          // kümeleri geri ver — K8 sağlamlaştırma. Onarım başarısızsa
-          // okuma yine açılır; yalnız günlüğe düşer.
-          try {
-            final freed = await fs.checkAndRepair();
-            if (freed > 0) steps.add('onarım: $freed kayıp küme boşaltıldı');
-          } catch (e) {
-            steps.add('onarım yapılamadı: $e');
-          }
           chosen = UsbFs(fs: fs, device: device, label: name, format: probe.$2);
         }
       }
@@ -377,18 +401,27 @@ class UsbFs extends RemoteFs {
       // **Akışla yazılıyor:** 2 GB'lık bir videoyu önce belleğe almak
       // uygulamayı öldürürdü.
       final length = await local.length();
-      await fs.writeFileStream(
-          await _dirHandle(remoteDir), target, local.openRead(), length);
-      await device.flush();
+      await _serial(() async {
+        final written = await fs.writeFileStream(
+            await _dirHandle(remoteDir), target, local.openRead(), length);
+        // Üzerine yazılan dosyanın ESKİ tutamağı (boşaltılan kümeler)
+        // önbellekte kalırsa sonraki açma çöp okurdu.
+        final dir = remoteDir.endsWith('/')
+            ? remoteDir.substring(0, remoteDir.length - 1)
+            : remoteDir;
+        final path = dir.isEmpty ? '/$target' : '$dir/$target';
+        _forgetTree(path);
+        _handles[path] = written.id;
+        await device.flush();
+      });
     } catch (e) {
       throw _wrap(e);
     }
   }
 
   @override
-  Future<void> delete(RemoteEntry entry) async {
-    await _delete(entry, 0);
-  }
+  Future<void> delete(RemoteEntry entry) =>
+      _serial(() => _delete(entry, 0));
 
   /// **Klasör İÇİNDEKİLERLE birlikte silinir** (önce çocuklar).
   ///
@@ -419,7 +452,7 @@ class UsbFs extends RemoteFs {
             id: handle,
             sizeBytes: entry.sizeBytes,
           ));
-      _handles.remove(entry.path);
+      _forgetTree(entry.path);
       if (depth == 0) await device.flush();
     } on RemoteException {
       rethrow;
@@ -434,9 +467,12 @@ class UsbFs extends RemoteFs {
       final cut = path.lastIndexOf('/');
       final parent = await _dirHandle(cut <= 0 ? '/' : path.substring(0, cut));
       final name = path.substring(cut + 1);
-      final created = await fs.createDirectory(parent, name);
-      _handles[path] = created.id;
-      await device.flush();
+      await _serial(() async {
+        final created = await fs.createDirectory(parent, name);
+        _forgetTree(path);
+        _handles[path] = created.id;
+        await device.flush();
+      });
     } catch (e) {
       throw _wrap(e);
     }
@@ -451,18 +487,20 @@ class UsbFs extends RemoteFs {
         throw const RemoteException(RemoteError.notFound,
             detail: 'Öğe bulunamadı.');
       }
-      await fs.renameEntry(
-        parent,
-        UsbEntry(
-          name: entry.name,
-          isDir: entry.isDir,
-          id: handle,
-          sizeBytes: entry.sizeBytes,
-        ),
-        newName,
-      );
-      _handles.remove(entry.path);
-      await device.flush();
+      await _serial(() async {
+        await fs.renameEntry(
+          parent,
+          UsbEntry(
+            name: entry.name,
+            isDir: entry.isDir,
+            id: handle,
+            sizeBytes: entry.sizeBytes,
+          ),
+          newName,
+        );
+        _forgetTree(entry.path);
+        await device.flush();
+      });
     } on RemoteException {
       rethrow;
     } catch (e) {
@@ -518,4 +556,34 @@ class UsbVolumeInfo {
     required this.format,
     required this.firstLba,
   });
+}
+
+/// Play sürümünde ham USB belleğini kesinlikle salt okunur tutan sarmalayıcı:
+/// yanlış bir FAT/exFAT yazması kullanıcının harici belleğini bozamasın.
+class _ReadOnlyBlockDevice extends BlockDevice {
+  final BlockDevice _inner;
+  _ReadOnlyBlockDevice(this._inner);
+
+  @override
+  int get blockSize => _inner.blockSize;
+
+  @override
+  int get blockCount => _inner.blockCount;
+
+  @override
+  Future<Uint8List> readBlocks(int lba, int count) =>
+      _inner.readBlocks(lba, count);
+
+  @override
+  bool get writable => false;
+
+  @override
+  Future<void> writeBlocks(int lba, Uint8List data) =>
+      throw const BlockDeviceException('Play sürümünde ham USB salt okunur');
+
+  @override
+  Future<void> flush() => _inner.flush();
+
+  @override
+  Future<void> close() => _inner.close();
 }

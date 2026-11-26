@@ -15,8 +15,13 @@ import '../../core/safe_insets.dart';
 /// ağırlıklandı: sık kullanılan üstte ve açık, uzman işi olan altta ve kapalı.
 class SettingsCategoryScreen extends StatelessWidget {
   final SettingsCategory category;
+  final bool embedded;
 
-  const SettingsCategoryScreen({super.key, required this.category});
+  const SettingsCategoryScreen({
+    super.key,
+    required this.category,
+    this.embedded = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +29,10 @@ class SettingsCategoryScreen extends StatelessWidget {
     final normal = category.sections.where((s) => !s.advanced).toList();
     final advanced = category.sections.where((s) => s.advanced).toList();
     return Scaffold(
-      appBar: AppBar(title: Text(context.t(category.titleKey))),
+      appBar: AppBar(
+        automaticallyImplyLeading: !embedded,
+        title: Text(context.t(category.titleKey)),
+      ),
       body: ListView(
         padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
         children: [

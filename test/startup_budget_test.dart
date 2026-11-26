@@ -22,10 +22,12 @@ void main() {
     'OpenHistory.movePath',
     'FmColorsStore.moveFolder',
     'SmartSort.movePath', // B2 dilim 2: taşıma geri çağrısında, açılış yolunda değil
+    'ActivityLog.movePath', // Taşıma geri çağrısında, açılış yolunda değil
   };
 
   String mainBody() {
-    final src = File('lib/main.dart').readAsStringSync();
+    final src =
+        File('lib/main.dart').readAsStringSync().replaceAll('\r\n', '\n');
     // main() artık tek satır: _main'i çevrimdışı kip bölgesinde koşturur (offline_mode.dart).
     final start = src.indexOf('Future<void> _main() async {');
     expect(start, isNonNegative, reason: 'main() imzası bulunamadı');
@@ -56,6 +58,7 @@ void main() {
     'OpenHistory.movePath',
     'FmColorsStore.moveFolder',
     'SmartSort.movePath', // B2 dilim 2: taşıma geri çağrısında, açılış yolunda değil
+    'ActivityLog.movePath', // Taşıma geri çağrısında, açılış yolunda değil
   };
 
   test('runApp öncesi await sayısı tavanı (mandal)', () {

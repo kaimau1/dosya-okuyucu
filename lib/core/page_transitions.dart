@@ -225,6 +225,10 @@ class _FastPageTransition extends StatelessWidget {
     end: const Offset(0.05, 0),
   ).chain(CurveTween(curve: Motion.enter));
 
+  /// Derinlik hissi veren çok hafif ölçek (yalnız GPU dönüşümü, `saveLayer` yok).
+  static final _exitScale = Tween<double>(begin: 1.0, end: 0.982)
+      .chain(CurveTween(curve: Motion.enter));
+
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
@@ -233,10 +237,104 @@ class _FastPageTransition extends StatelessWidget {
       // `transformHitTests: false`: çıkan sayfa kaydırılmış hâldeyken
       // dokunuşları yakalamasın (geçiş sırasında yanlış öğeye basılması).
       transformHitTests: false,
-      child: SlideTransition(
-        position: animation.drive(rtl ? _enterRtl : _enterLtr),
-        child: child,
+      child: ScaleTransition(
+        scale: secondaryAnimation.drive(_exitScale),
+        child: _PrimarySlide(
+          animation: animation,
+          enter: rtl ? _enterRtl : _enterLtr,
+          exitSign: rtl ? -1 : 1,
+          child: child,
+        ),
       ),
     );
   }
+}
+
+/// Üstteki (giren/çıkan) sayfanın kayması.
+///
+/// KÖK NEDEN (kullanıcı 2026-11-22: "PDF'ten / Word'den geri dönüşte
+/// animasyonda kasma, takılma var"): geri dönüşte de giriş eğrisi tersine
+/// oynuyordu — opak sayfa yalnız ekranın %14'ü kadar sağa kayıp son karede
+/// BİRDEN kayboluyor, alttaki liste kademeli açılmak yerine aniden beliriyordu.
+/// Göz bunu "takılma" olarak görüyor. Artık düğmeyle/geri tuşuyla başlayan
+/// kapanışta sayfa ekranın TAMAMI kadar kayarak çıkar (alttaki sayfa sürekli
+/// açılır). Yine yalnız dönüşüm: katman/opaklık yok, maliyet aynı.
+///
+/// Öngörülü geri hareketi ([_PredictiveBackPreview]) parmakla sürülür ve
+/// kapanış yarıda başlar — o yolda eski eşleme korunur (sıçrama olmasın).
+class _PrimarySlide extends StatefulWidget {
+  final Animation<double> animation;
+  final Animatable<Offset> enter;
+  final double exitSign;
+  final Widget child;
+
+  const _PrimarySlide({
+    required this.animation,
+    required this.enter,
+    required this.exitSign,
+    required this.child,
+  });
+
+  @override
+  State<_PrimarySlide> createState() => _PrimarySlideState();
+}
+
+class _PrimarySlideState extends State<_PrimarySlide> {
+  /// Bu kapanış tam genişlikte mi oynuyor?
+  bool _fullExit = false;
+  late Animation<Offset> _position;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.animation.addStatusListener(_onStatus);
+    _position = _build();
+  }
+
+  @override
+  void didUpdateWidget(_PrimarySlide old) {
+    super.didUpdateWidget(old);
+    if (old.animation != widget.animation) {
+      old.animation.removeStatusListener(_onStatus);
+      widget.animation.addStatusListener(_onStatus);
+    }
+    if (old.animation != widget.animation ||
+        old.enter != widget.enter ||
+        old.exitSign != widget.exitSign) {
+      _position = _build();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.animation.removeStatusListener(_onStatus);
+    super.dispose();
+  }
+
+  void _onStatus(AnimationStatus status) {
+    // Kapanış TAM açık sayfadan başladıysa (düğme/geri tuşu) tam genişlik;
+    // hareketle yarıdan başlayan kapanış eski eşlemede kalır.
+    final full = status == AnimationStatus.reverse &&
+        widget.animation.value >= 0.999;
+    if (status == AnimationStatus.reverse && !full) return;
+    if (full == _fullExit) return;
+    setState(() {
+      _fullExit = full;
+      _position = _build();
+    });
+  }
+
+  Animation<Offset> _build() {
+    if (!_fullExit) return widget.animation.drive(widget.enter);
+    // value 1 → 0: kayma 0 → tam genişlik; başta hızlı, sonda yumuşak.
+    final exit = Tween<Offset>(
+      begin: Offset(widget.exitSign, 0),
+      end: Offset.zero,
+    ).chain(CurveTween(curve: Motion.exit.flipped));
+    return widget.animation.drive(exit);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      SlideTransition(position: _position, child: widget.child);
 }

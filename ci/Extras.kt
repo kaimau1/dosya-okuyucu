@@ -301,7 +301,7 @@ object Extras {
     // ── Akıllı düzen arka plan işi (2026-11-19) ────────────────────────────
     const val SMART_JOB_ID = 0x5E02
 
-    /** Şarjda + ölçülü olmayan ağda ~3 saatte bir [SmartBgJob]; [on] false iptal. */
+    /** Şarjda + ölçülü olmayan ağda ~saatte bir [SmartBgJob]; [on] false iptal. */
     fun scheduleSmartBg(ctx: Context, on: Boolean): Boolean {
         val scheduler = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
             ?: return false
@@ -309,15 +309,23 @@ object Extras {
             scheduler.cancel(SMART_JOB_ID)
             return true
         }
-        if (scheduler.getPendingJob(SMART_JOB_ID) != null) return true
-        val info = JobInfo.Builder(SMART_JOB_ID, ComponentName(ctx, SmartBgJob::class.java))
-            .setPeriodic(TimeUnit.HOURS.toMillis(3))
+        // 2026-11-22: 3 sa → 1 sa (kullanıcı: "bitmiyor"); eski aralıklı iş
+        // varsa yenisiyle değiştirilir.
+        val interval = TimeUnit.HOURS.toMillis(1)
+        val pending = scheduler.getPendingJob(SMART_JOB_ID)
+        if (pending != null && pending.intervalMillis == interval) return true
+        val builder = JobInfo.Builder(SMART_JOB_ID, ComponentName(ctx, SmartBgJob::class.java))
+            .setPeriodic(interval)
             .setRequiresCharging(true)
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
-            .setPersisted(true)
-            .build()
-        return runCatching { scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS }
-            .getOrDefault(false)
+        return try {
+            scheduler.schedule(builder.setPersisted(true).build()) == JobScheduler.RESULT_SUCCESS
+        } catch (_: Exception) {
+            // RECEIVE_BOOT_COMPLETED yoksa (Play derlemesi) kalıcılık olmadan sür.
+            runCatching {
+                scheduler.schedule(builder.setPersisted(false).build()) == JobScheduler.RESULT_SUCCESS
+            }.getOrDefault(false)
+        }
     }
 
     fun isCharging(ctx: Context): Boolean {
@@ -330,12 +338,15 @@ object Extras {
         val scheduler = ctx.getSystemService(Context.JOB_SCHEDULER_SERVICE) as? JobScheduler
             ?: return false
         if (scheduler.getPendingJob(JOB_ID) != null) return true
-        val info = JobInfo.Builder(JOB_ID, ComponentName(ctx, DailyJob::class.java))
+        val builder = JobInfo.Builder(JOB_ID, ComponentName(ctx, DailyJob::class.java))
             .setPeriodic(TimeUnit.HOURS.toMillis(12))
-            .setPersisted(true)
-            .build()
-        return runCatching { scheduler.schedule(info) == JobScheduler.RESULT_SUCCESS }
-            .getOrDefault(false)
+        return try {
+            scheduler.schedule(builder.setPersisted(true).build()) == JobScheduler.RESULT_SUCCESS
+        } catch (_: Exception) {
+            runCatching {
+                scheduler.schedule(builder.setPersisted(false).build()) == JobScheduler.RESULT_SUCCESS
+            }.getOrDefault(false)
+        }
     }
 
     /** Bir hatırlatma: kalan gün (bugün 0, geçmiş negatif). Saf, test edilir. */
@@ -440,7 +451,7 @@ object Extras {
         runCatching {
             manager.notify(
                 id,
-                builder.setSmallIcon(ctx.applicationInfo.icon)
+                builder.setSmallIcon(ctx.applicationInfo.icon).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
                     .setContentTitle(title)
                     .setContentText(body)
                     .setStyle(android.app.Notification.BigTextStyle().bigText(body))

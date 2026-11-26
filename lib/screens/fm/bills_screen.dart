@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
-import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/state/focused_states.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
@@ -15,6 +14,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/native_extras.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/permission_gate.dart';
+import '../../widgets/pro_gate.dart';
 
 /// **Faturalar ve giderler** ekranı (bkz. [Bills]).
 ///
@@ -33,6 +33,7 @@ class _BillsScreenState extends State<BillsScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.smartFolders)) return;
     Future.wait([Bills.instance.ensureLoaded(), AiIndex.ensureLoaded()])
         .then((_) {
       if (!mounted) return;
@@ -44,10 +45,8 @@ class _BillsScreenState extends State<BillsScreen> {
   }
 
   Future<void> _refresh() async {
-    final state = context.read<AppState>();
     final strings = AppStrings.of(context);
     final n = await Bills.instance.refresh(
-      gemini: state.hasApiKey ? state.gemini : null,
       onProgress: (done, total) {
         if (mounted) setState(() => _progress = (done: done, total: total));
       },
@@ -70,6 +69,12 @@ class _BillsScreenState extends State<BillsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.smartFolders)) {
+      return ProLockedView(
+        feature: Feature.smartFolders,
+        title: context.t('bills.title'),
+      );
+    }
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final hasKey = context.watchAi().hasApiKey;

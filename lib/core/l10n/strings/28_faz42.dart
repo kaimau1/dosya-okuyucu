@@ -26,11 +26,6 @@ const Map<String, (String, String, String)> _t28 = {
   'alias.manual': ('İkinci ad ver', 'Give a second name', 'إعطاء اسم ثانٍ'),
   'alias.label': ('İkinci ad (dosyanın adı değişmez)', 'Second name (file name stays)', 'الاسم الثاني (يبقى اسم الملف)'),
   'alias.saved': ('İkinci ad: {name}', 'Second name: {name}', 'الاسم الثاني: {name}'),
-  'alias.busy': (
-    'Akıllı analiz zaten sürüyor; bitince yeniden deneyin.',
-    'Smart analysis is already running; try again when it finishes.',
-    'التحليل الذكي قيد التشغيل؛ أعد المحاولة عند انتهائه.',
-  ),
   'skin.classic': ('Klasik', 'Classic', 'كلاسيكي'),
   'skin.classic_sub': ('Sarı klasörler, sade sayfa simgeleri — eski tip dosya yöneticisi', 'Yellow folders, plain page icons — old-school file manager', 'مجلدات صفراء وأيقونات صفحات بسيطة — مدير ملفات كلاسيكي'),
   'skin.ledger': ('Defter', 'Ledger', 'دفتر'),
@@ -42,8 +37,8 @@ const Map<String, (String, String, String)> _t28 = {
   'flt.none_left': ('Hiç dosya kalmadı', 'No files left', 'لم يتبق أي ملف'),
   // 2026-11-19: ikinci ad + kategori menüsü, toplu AI ikinci ad, arka plan düzen.
   'ea.sec_name': ('İkinci ad ve kategori', 'Second name & category', 'الاسم الثاني والفئة'),
-  'alias.action_hint': ('Yeni model ad ve kategori verir; dosya adı değişmez', 'The new model gives a name and category; the file name stays', 'يعطي النموذج الجديد اسمًا وفئة؛ يبقى اسم الملف'),
-  'alias.batch_hint': ('Seçilenlerin hepsine yeni modelle ad ve kategori', 'A name and category for all selected, with the new model', 'اسم وفئة لكل المحدد بالنموذج الجديد'),
+  'alias.action_hint': ('Yapay zekâ ad ve kategori önerir; dosya adı değişmez', 'AI suggests a name and category; the file name stays', 'يقترح الذكاء الاصطناعي اسمًا وفئة؛ يبقى اسم الملف'),
+  'alias.batch_hint': ('Seçilenlerin hepsine yapay zekâ ile ad ve kategori öner', 'Suggest a name and category for all selected with AI', 'اقتراح اسم وفئة لكل المحدد بالذكاء الاصطناعي'),
   'alias.batch_title': (
     'Akıllı ikinci ad veriliyor',
     'Giving smart second names',

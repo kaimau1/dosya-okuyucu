@@ -88,10 +88,16 @@ abstract final class DuplicateFinder {
       (bySize[entry.sizeBytes] ??= []).add(entry);
     }
 
-    final groups = <DuplicateGroup>[];
-    for (final entry in bySize.entries) {
-      if (entry.value.length < 2) continue;
+    // En çok yer kazandırabilecek boyut kovaları önce incelenir: `maxGroups`
+    // sınırına gelinse bile en büyük kopyalar (videolar, arşivler) kaçmaz.
+    final buckets = [
+      for (final e in bySize.entries)
+        if (e.value.length >= 2) e,
+    ]..sort((a, b) => (b.key * (b.value.length - 1))
+        .compareTo(a.key * (a.value.length - 1)));
 
+    final groups = <DuplicateGroup>[];
+    for (final entry in buckets) {
       // 2) parmak izine göre alt gruplar
       final byPrint = <int, List<FsEntry>>{};
       for (final file in entry.value) {
@@ -138,6 +144,10 @@ abstract final class DuplicateFinder {
       if (size > window * 2) {
         raf.setPositionSync(size - window);
         tail = raf.readSync(window);
+      } else if (size > window) {
+        // 64–128 KB arası dosyalarda kalan kısım da özete girer (yanlış
+        // çakışma ve gereksiz dosya açılışını önler).
+        tail = raf.readSync(size - window);
       } else {
         tail = Uint8List(0);
       }
@@ -167,7 +177,8 @@ abstract final class DuplicateFinder {
     }
   }
 
-  /// İki dosya birebir aynı mı? (Parçalar hâlinde okur; ilk farkta durur.)
+  /// İki dosya birebir aynı mı? (Parçalar hâlinde 8 baytlık sözcüklerle
+  /// karşılaştırır; ilk farkta durur.)
   static bool sameContent(String a, String b) {
     RandomAccessFile? fa;
     RandomAccessFile? fb;
@@ -182,12 +193,28 @@ abstract final class DuplicateFinder {
       while (read < sa) {
         final ba = fa.readSync(chunk);
         final bb = fb.readSync(chunk);
-        if (ba.length != bb.length) return false;
-        for (var i = 0; i < ba.length; i++) {
-          if (ba[i] != bb[i]) return false;
+        final len = ba.length;
+        if (len != bb.length) return false;
+        if (len == 0) break;
+        // 64-bit hizalı blok karşılaştırması (~6–8× hızlı).
+        final words = len >> 3;
+        if (words > 0 &&
+            (ba.offsetInBytes & 7) == 0 &&
+            (bb.offsetInBytes & 7) == 0) {
+          final wa = ba.buffer.asUint64List(ba.offsetInBytes, words);
+          final wb = bb.buffer.asUint64List(bb.offsetInBytes, words);
+          for (var i = 0; i < words; i++) {
+            if (wa[i] != wb[i]) return false;
+          }
+          for (var i = words << 3; i < len; i++) {
+            if (ba[i] != bb[i]) return false;
+          }
+        } else {
+          for (var i = 0; i < len; i++) {
+            if (ba[i] != bb[i]) return false;
+          }
         }
-        if (ba.isEmpty) break;
-        read += ba.length;
+        read += len;
       }
       return true;
     } catch (_) {

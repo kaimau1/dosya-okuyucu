@@ -1665,11 +1665,47 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Katmanlar: katmanlı bir PDF'te Araçlar → Pro araçlar → Katmanlar → bir katmanı kapat → Tamam → o katmanın çizimi görünmez; yeniden aç → geri gelir; başka okuyucuda (Acrobat/Chrome) da gizli açılır. Katmansız PDF'te "Bu belgede katman yok".
 - [ ] Kamera: Düzenle → Görsel → Görsel ekle → "Kameradan çek" → tarayıcı açılır, çek → görsel sayfanın ortasına gelir. Vazgeçince hiçbir şey eklenmez.
 
-## B4-P17i PDF işaretleme stüdyosu (2026-11-21, dal faz-oto-B4-isaret) — yazıldı, cihazda doğrulanmadı
-- [ ] Kalem düğmesi: PDF görüntüleyicide Düzenle → Kalem → ayrı ekran AÇILMAZ, düzenleme kipi "İşaretle" aracı Kalem seçili gelir; tek parmakla çiz, iki parmakla yakınlaş. Chrome'un PDF'indeki kalem düğmesiyle (dışarıdan "işaretle") açınca da aynı.
+## Editör kolaylıkları + geri dönüş geçişi (2026-11-22, main) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF → Düzenle → Metin: düzenlenebilir metne TEK dokunuş → klavye açılır, imleç dokunulan harfte; üstte ⊕ tutamacı çıkmaz. Basılı tut → tutamaçlar + Biçim/Renk/Kopyala yongaları; "Metni düzenle" yongası okunur (koyu zemin, açık yazı).
+- [ ] Geri al / yinele: hiç değişiklik yokken üst çubukta görünmez; bir değişiklikten sonra geri al çıkar; geri alınca yinele çıkar (Word, Excel, Slayt, PDF Pro, görsel, video, kalem, kod).
+- [ ] Word sayfa görünümü: alt çubukta "Sayfada düzenle" → sayfa düzeni bozulmadan yazı değiştirilebilir/silinebilir; Mobil editörde Gözden Geçir → ilk yonga "Sayfa görünümü".
+- [ ] PDF'ten ve Word'den geri tuşuyla Belgeler'e dön: sayfa sağa tam kayarak çıkar, liste kademeli açılır, son karede sıçrama yok. A/B (kare p99 ≤ 24 ms) C2'de.
+
+## PDF Pro klavye/yazma + taranmış yazı + slayt önizlemeleri (2026-11-24, main) — yazıldı, cihazda doğrulanmadı
+- [ ] Tek sayfalık PDF'te en alttaki paragrafa dokun → klavye açılınca sayfa kendiliğinden yukarı kayar, imleç satırı biçim çubuğunun üstünde kalır. Klavye kapanınca sayfa altındaki boşluk geri çekilir.
+- [ ] Yazarken satırın hemen altına/sonuna dokun → yazma bitmez, imleç oraya gider. Başka bir paragrafa dokun → klavye KAPANMADAN o paragrafa geçilir (tek dokunuş). Geri tuşuyla klavyeyi kapat, metne dokun → klavye yeniden açılır.
+- [ ] Yazarken/silerken harf imleçten belirgin geride kalmıyor (önceki sürümle yan yana bak); taranmış sayfada da.
+- [ ] Taranmış kitap sayfası (görünmez tanıma katmanlı) → paragrafa dokun → "Yazıyı değiştir" → eski yazı kâğıt rengiyle örtülür (sarımsı kâğıtta sarımsı), tanınan metin düzenlenebilir kutuda; yazarken uygulama donmaz. Geri al → sayfa eski hâline döner. Anahtar varsa "Yapay zekâ ile oku ve değiştir" el yazısını daha doğru okur.
+- [ ] İşlem sürerken geri tuşu → "Sayfa işleniyor, birkaç saniye bekleyin…" bildirimi (sessiz kalmamalı).
+- [ ] El yazılı sayfa tara (Ayarlar → Metin tanıma dili: Otomatik, AI anahtarı var) → tanınan metin el yazısına çok daha yakın.
+- [ ] Slayt → Tasarım: geçiş kutularında her geçiş küçük slaytta birkaç kez oynar, sonra durur. "Düzeni değiştir": her düzen başlık/içerik/resim yerleriyle küçük slayt olarak görünür, şimdiki düzen seçili.
+
+## Liste sadeleştirme + AI onay/önbellek + USB sıralı yazma (2026-11-25) — yazıldı, cihazda doğrulanmadı
+- [ ] Belgeler ve İndirilenler: her satırda ad (en çok 2 satır) + tek satır "ikinci ad  #etiket" + "kaynak … tarih · boyut"; yalnız ad kalın. İndirilenler'de sağda ayrı "7 gün önce" sütunu yok, yaş tarih yerinde renkli. Kaydırmada takılma yok (A/B C2'de).
+- [ ] Akıllı düzeni elle başlat (gönderim onayı daha önce verilmemiş) → onay penceresi BİR kez çıkar; "Vazgeç" → tur durur, her dosyada yeniden sormaz.
+- [ ] Görseli OCR Stüdyosu'nda AI ile oku → "metni görselin üstünde seç" → ikinci bir AI isteği gitmez (Google AI Studio kullanım sayacında tek istek).
+- [ ] USB bellekte iki ayrı kopyalama işini aynı anda başlat → ikisi de bitince dosyalar açılır, bozuk dosya yok. Klasörü yeniden adlandır, eski adla yeni klasör aç → yeni klasör boş görünür.
+
+## Sesli kitap durdurma + Yer aç araçları + analiz kutusu (2026-11-25 akşam) — yazıldı, cihazda doğrulanmadı
+- [ ] Sesli kitap (Kokoro ya da cihaz sesi) üretirken "Durdur" → en geç ~1 sn içinde durur; ana ekrandaki kart "Durduruluyor…"da asılı kalmaz; o ana dek biten bölümler klasörde.
+- [ ] Yer aç → en altta "TEMİZLİK ARAÇLARI": Kopyalar, Benzer görseller, Sohbet medyası, Akıllı temizlik analizi, Klasör haritası açılır. Temizlenecek bir şey yokken de görünür. İşlemler'de "Sohbet medyası" sekmesi yok.
+- [ ] Bellek Analizi → Araçlar'da yalnız "Yer aç" ve "Klasör haritası". En büyük dosyalar kendi kutusunda kayar, sayfa yerinde kalır; kapsam çipine dokununca kutu başa döner.
+- [ ] Belgeler/İndirilenler/Analiz satırı: "WhatsApp · 24 Kas · 12 MB" tek akışta, ortada boşluk yok.
+- [ ] Yer aç → Büyük videolar → bir video seç → "Bunu temizle" yanında "Boyut düşür · ≈ …" çıkar (tahmin birkaç saniyede gelir); dokununca boyut düşürme ayarı açılır, iş kuyruğa girer.
+- [ ] Bellek Analizi → en büyük dosyalarda video satırında "≈ 320 MB" hapı; dokununca aynı ayar sayfası. Kaydırma takılmıyor.
+
+## Yer aç birleştirme + ölçülü video küçültme + tek tarama (2026-11-25 gece) — yazıldı, cihazda doğrulanmadı
+- [ ] Yer aç → Büyük videolar → 1 GB'lık telefon videosu seç → "Boyut düşür · ≈ 200 MB" civarı yazar (33 MB DEĞİL). Dokununca ayar sayfası **1080p · Yüksek kalite · Sesi çıkar KAPALI · fps Değiştirme** ile açılır; çıkan video sesli.
+- [ ] Önceden "Sesi çıkar" açık bir küçültme yap → sonra dosyadan normal "Boyut düşür" aç → "Sesi çıkar" kapalı gelir (çözünürlük/kalite son ayardan gelir).
+- [ ] Zaten küçük/verimli bir videoyu (WhatsApp'tan gelen) Büyük videolarda seç → "Boyut düşür" düğmesi çıkmaz; Bellek Analizi hapında "Küçült" yazar (tahmin yok).
+- [ ] Yer aç → kopya kartında "Grupları tek tek incele" → kopya ekranı BEKLEMEDEN gruplarla açılır; orada sil → Yer aç'a dön → silinenler kartlardan düşmüş, çöp kartı büyümüş.
+- [ ] Yer aç en altı "DAHA FAZLA YER BUL": yalnız Sohbet medyası, Benzer fotoğraflar, Görsel içerik taraması. Kopyalar ve Klasör haritası satırı YOK (harita Bellek Analizi'nde). Bir taramayı bitir → satırda "N dosya · X temizlenebilir" yazar.
+- [ ] Yer aç "Yenile" süresi öncekinden kısa (aynı telefonda kronometreyle; önceki sürümde 5 adım, şimdi 3 adım). Tarama sürerken ekran takılmıyor.
+
+## B4-P17i PDF işaretleme stüdyosu (2026-11-26, dal faz-oto-B4-isaret) — yazıldı, cihazda doğrulanmadı
+- [ ] Kalem düğmesi (Pro/Kişisel): PDF görüntüleyicide Kalem / dışarıdan "işaretle" (ANNOTATE) → ayrı ekran AÇILMAZ, düzenleme kipi "İşaretle" aracı Kalem seçili gelir; tek parmakla çiz, iki parmakla yakınlaş. Lite sürümde ve eski motorda (`pdf_pro_engine` kapalı) eski kalem ekranı açılır.
 - [ ] Kalemle çizerken akıcı mı (kare p99 ≤ 24 ms, kalabalık sayfada da); A/B C2'de.
 - [ ] Fosforlu: yarı saydam geniş çizgi, alttaki yazı okunur; kaydedip Chrome/Acrobat'ta aç → aynı görünür.
-- [ ] Bulut: parmakla dikdörtgen sürükle → tırtıklı çerçeve; Silgi dokununca siler; Yorumlar listesinde görünür.
+- [ ] Bulut (`Şekiller` levhasından): parmakla dikdörtgen sürükle → tırtıklı çerçeve; Silgi dokununca siler; Yorumlar listesinde görünür.
 - [ ] Serbest metin: dokun → yaz (çok satır, Türkçe harfler) → dokunulan yerde yazı; Damga: dokun → Onaylandı / Reddedildi / Gizli / Tarih ve saat / Kendi damgam → çerçeveli renkli damga. Kaydedip başka okuyucuda aç → aynı görünür. Arapça yazınca açık "harf yok" uyarısı.
 - [ ] Kalem (stylus) olan tablette: kalemle çizerken avucunu ekrana koy → çizgi bozulmaz; kalemle bir kez dokunduktan sonra parmak çizmez. Sert basınca çizgi kalın, hafif basınca ince.
-- [ ] Eski motor (pdf_pro_engine kapalı) seçiliyken Kalem eski kalem ekranını açar (geri dönüş yolu).

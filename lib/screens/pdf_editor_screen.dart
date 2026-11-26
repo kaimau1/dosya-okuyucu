@@ -45,9 +45,10 @@ import '../core/user_error.dart';
 import '../widgets/ai_key_gate.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import '../services/pdf/pdf_markup.dart';
-import 'pdf_ai_edit_screen.dart';
 import 'pdf_ink_screen.dart';
 import '../core/theme.dart';
+import '../core/edition.dart';
+import '../widgets/pro_gate.dart';
 import 'fm/pick_file_screen.dart';
 
 part 'pdf_editor/actions.dart';
@@ -97,7 +98,9 @@ class PdfEditorScreen extends StatefulWidget {
     required String path,
     int initialPage = 1,
     PdfEditSelection? selection,
-  }) {
+  }) async {
+    if (!await ProGate.check(context, Feature.pdfAdvanced)) return null;
+    if (!context.mounted) return null;
     return Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => PdfEditorScreen(
@@ -112,7 +115,7 @@ class PdfEditorScreen extends StatefulWidget {
 
 /// Şerit sekmeleri = düzenleme kipleri (Faz 31: Office editörleriyle aynı
 /// şerit dili; eskiden alt `NavigationBar`).
-enum _EditMode { text, image, sign, form, draw, ai, background, page }
+enum _EditMode { text, image, sign, form, draw, background, page }
 
 /// Yerinde alanın özgün geometrisi (PDF noktası) — bkz. `_inlineGeometry`.
 typedef _InlineGeom = ({
@@ -273,6 +276,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
     super.initState();
     _page = widget.initialPage;
     PdfEditorScreen.lastPage = _page;
+    if (!Edition.current.has(Feature.pdfAdvanced)) return;
     WidgetsBinding.instance.addObserver(this);
     _prepare();
   }
@@ -292,7 +296,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    if (Edition.current.has(Feature.pdfAdvanced)) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
     _revealTimer?.cancel();
     _inlineTimer?.cancel();
     _inlineCtrl?.dispose();
@@ -322,6 +328,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.pdfAdvanced)) {
+      return ProLockedView(
+        feature: Feature.pdfAdvanced,
+        title: context.t('pro.f.pdfAdvanced'),
+      );
+    }
     final history = _history;
     return PopScope(
       canPop: !_dirty,
@@ -342,21 +354,19 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
           title: Text(p.basename(widget.path),
               overflow: TextOverflow.ellipsis),
           actions: [
+            if (history != null && history.canUndo)
             IconButton(
               key: const ValueKey('pdf-undo'),
               tooltip: context.t('common.undo'),
               icon: const Icon(AppIcons.undo),
-              onPressed: history == null || !history.canUndo || _busy
-                  ? null
-                  : _undoLast,
+              onPressed: _busy ? null : _undoLast,
             ),
+            if (history != null && history.canRedo)
             IconButton(
               key: const ValueKey('pdf-redo'),
               tooltip: context.t('common.redo'),
               icon: const Icon(AppIcons.redo),
-              onPressed: history == null || !history.canRedo || _busy
-                  ? null
-                  : _redoLast,
+              onPressed: _busy ? null : _redoLast,
             ),
             IconButton(
               tooltip: context.t('common.save'),

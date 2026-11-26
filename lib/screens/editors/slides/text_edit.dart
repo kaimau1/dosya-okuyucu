@@ -257,12 +257,15 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
       final k0 = math.max(0.05, (w - 32) / view.widthPt);
       final margin = w * 0.05;
       _focusScaleNow = k1;
+      final animCanvas = SlideCanvas(slide: view);
       return AnimatedBuilder(
         animation: _zoomAnim,
-        builder: (context, _) {
+        child: animCanvas,
+        builder: (context, canvasChild) {
           final t = Motion.enter.transform(_zoomAnim.value);
           if (t < 1) {
-            // Yakınlaşma: slayt listedeki yerinden kutuya doğru büyür.
+            // Yakınlaşma: slayt listedeki yerinden kutuya doğru büyür;
+            // SlideCanvas child olarak taşınır (kare başına yeniden kurulmaz).
             final k = k0 + (k1 - k0) * t;
             final left = 16 + ((margin - shape.x * k1) - 16) * t;
             final top = 8 + ((16 - shape.y * k1) - 8) * t;
@@ -272,7 +275,7 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
                 Positioned.fromRect(
                   rect: Rect.fromLTWH(
                       left, top, view.widthPt * k, view.heightPt * k),
-                  child: SlideCanvas(slide: view),
+                  child: canvasChild!,
                 ),
               ]),
             );
@@ -748,72 +751,184 @@ extension _SlidesEditorScreenTextEditPart on _SlidesEditorScreenState {
 
   // ── Seçili şekil çubuğu ──────────────────────────────────────────────────
 
-  /// Seçili şeklin eylemleri (PowerPoint mobilin bağlam çubuğu).
+  /// Seçili şeklin eylemleri (PowerPoint mobilin bağlam çubuğu):
+  /// en sık kullanılanlar doğrudan, stil ve yerleştirme düzenli alt levhada.
   Widget _shapeBar() {
     final slide = _selSlide!;
     final shape = _selShape!;
     final editor = _editor!;
     final arrange = PptxEditor.canArrange(shape);
+    final isSp = shape.element?.name.qualified == 'p:sp';
+    final hasLine = const {'p:sp', 'p:cxnSp', 'p:pic'}
+        .contains(shape.element?.name.qualified);
+    final hasStyle = isSp || hasLine || _proOn;
     return DocActionBar([
       if (_canEditText(shape))
-        DocAction(AppIcons.edit, context.t('sl.edit_text'),
-            () => _beginEdit(slide, shape)),
-      DocAction(OfficeIcons.cut, context.t('sl.cut'), !arrange
-          ? null
-          : () {
-              _clipShape = editor.shapeXml(shape);
-              _mutate('sl.cut', () => editor.deleteShape(slide, shape));
-              _clearSelection();
-            }),
-      DocAction(OfficeIcons.copy, context.t('common.copy'), !arrange
-          ? null
-          : () {
-              _clipShape = editor.shapeXml(shape);
-              final text = shape.paragraphs.map((p) => p.plainText).join('\n');
-              if (text.trim().isNotEmpty) {
-                Clipboard.setData(ClipboardData(text: text));
-              }
-              _snack(context.t('sl.copied'));
-            }),
-      if (_clipShape != null)
-        DocAction(OfficeIcons.paste, context.t('sl.paste'),
-            () => _mutate('sl.paste', () => editor.pasteShape(slide, _clipShape!))),
-      DocAction(AppIcons.copyAll, context.t('sl.duplicate_shape'), !arrange
-          ? null
-          : () {
-              _mutate('sl.duplicate_shape',
-                  () => editor.duplicateShape(slide, shape));
-              _clearSelection();
-            }),
-      if (shape.element?.name.qualified == 'p:sp')
-        DocAction(AppIcons.formatColorFill, context.t('sl.fill'), _openFill),
-      if (const {'p:sp', 'p:cxnSp', 'p:pic'}.contains(shape.element?.name.qualified))
-        DocAction(AppIcons.borderColor, context.t('sl.line'), _openLine),
-      if (shape.element?.name.qualified == 'p:sp')
-        DocAction(AppIcons.opacity, context.t('sl.transparency'), _openTransparency),
-      DocAction(AppIcons.flipToFront, context.t('sl.bring_front'), !arrange
-          ? null
-          : () {
-              _mutate('sl.bring_front',
-                  () => editor.reorderShape(slide, shape, front: true));
-              _partSetState(() => _selShape = _reselect(slide, shape));
-            }),
-      DocAction(AppIcons.flipToBack, context.t('sl.send_back'), !arrange
-          ? null
-          : () {
-              _mutate('sl.send_back',
-                  () => editor.reorderShape(slide, shape, front: false));
-              _partSetState(() => _selShape = _reselect(slide, shape));
-            }),
-      if (_proOn)
-        DocAction(AppIcons.handyman, context.t('sp.shape_tools'),
-            _proBusy ? null : () => _openShapeTools(slide, shape)),
-      DocAction(AppIcons.delete, context.t('common.delete'), !arrange
-          ? null
-          : () {
-              _mutate('sl.delete_shape', () => editor.deleteShape(slide, shape));
-              _clearSelection();
-            }),
+        DocAction(
+          AppIcons.edit,
+          context.t('sl.edit_text'),
+          () => _beginEdit(slide, shape),
+          primary: true,
+        ),
+      if (hasStyle)
+        DocAction(
+          AppIcons.palette,
+          context.t('sl.quick_style'),
+          () => unawaited(_openShapeStyleSheet(slide, shape,
+              isSp: isSp, hasLine: hasLine)),
+        ),
+      DocAction(
+        AppIcons.layers,
+        context.t('sl.quick_arrange'),
+        () => unawaited(_openShapeArrangeSheet(slide, shape, arrange: arrange)),
+      ),
+      DocAction(
+        AppIcons.copyAll,
+        context.t('sl.duplicate_shape'),
+        !arrange
+            ? null
+            : () {
+                _mutate('sl.duplicate_shape',
+                    () => editor.duplicateShape(slide, shape));
+                _clearSelection();
+              },
+      ),
+      DocAction(
+        AppIcons.delete,
+        context.t('common.delete'),
+        !arrange
+            ? null
+            : () {
+                _mutate(
+                    'sl.delete_shape', () => editor.deleteShape(slide, shape));
+                _clearSelection();
+              },
+      ),
     ]);
+  }
+
+  Future<void> _openShapeStyleSheet(
+    PptxSlide slide,
+    ShapeVM shape, {
+    required bool isSp,
+    required bool hasLine,
+  }) async {
+    final pick = await showAppActionSheet<String>(
+      context,
+      title: context.t('sl.quick_style'),
+      groups: [
+        AppActionGroup<String>(actions: [
+          if (isSp)
+            AppAction(
+              value: 'fill',
+              icon: AppIcons.formatColorFill,
+              label: context.t('sl.fill'),
+            ),
+          if (hasLine)
+            AppAction(
+              value: 'line',
+              icon: AppIcons.borderColor,
+              label: context.t('sl.line'),
+            ),
+          if (isSp)
+            AppAction(
+              value: 'opacity',
+              icon: AppIcons.opacity,
+              label: context.t('sl.transparency'),
+            ),
+          if (_proOn && !_proBusy)
+            AppAction(
+              value: 'tools',
+              icon: AppIcons.handyman,
+              label: context.t('sp.shape_tools'),
+              accent: true,
+            ),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted) return;
+    switch (pick) {
+      case 'fill':
+        await _openFill();
+      case 'line':
+        await _openLine();
+      case 'opacity':
+        await _openTransparency();
+      case 'tools':
+        await _openShapeTools(slide, shape);
+    }
+  }
+
+  Future<void> _openShapeArrangeSheet(
+    PptxSlide slide,
+    ShapeVM shape, {
+    required bool arrange,
+  }) async {
+    final editor = _editor;
+    if (editor == null) return;
+    final pick = await showAppActionSheet<String>(
+      context,
+      title: context.t('sl.quick_arrange'),
+      groups: [
+        AppActionGroup<String>(actions: [
+          if (arrange)
+            AppAction(
+              value: 'cut',
+              icon: OfficeIcons.cut,
+              label: context.t('sl.cut'),
+            ),
+          if (arrange)
+            AppAction(
+              value: 'copy',
+              icon: OfficeIcons.copy,
+              label: context.t('common.copy'),
+            ),
+          if (_clipShape != null)
+            AppAction(
+              value: 'paste',
+              icon: OfficeIcons.paste,
+              label: context.t('sl.paste'),
+            ),
+          if (arrange)
+            AppAction(
+              value: 'front',
+              icon: AppIcons.flipToFront,
+              label: context.t('sl.bring_front'),
+            ),
+          if (arrange)
+            AppAction(
+              value: 'back',
+              icon: AppIcons.flipToBack,
+              label: context.t('sl.send_back'),
+            ),
+        ]),
+      ],
+    );
+    if (pick == null || !mounted) return;
+    switch (pick) {
+      case 'cut':
+        _clipShape = editor.shapeXml(shape);
+        _mutate('sl.cut', () => editor.deleteShape(slide, shape));
+        _clearSelection();
+      case 'copy':
+        _clipShape = editor.shapeXml(shape);
+        final text = shape.paragraphs.map((p) => p.plainText).join('\n');
+        if (text.trim().isNotEmpty) {
+          Clipboard.setData(ClipboardData(text: text));
+        }
+        _snack(context.t('sl.copied'));
+      case 'paste':
+        if (_clipShape != null) {
+          _mutate('sl.paste', () => editor.pasteShape(slide, _clipShape!));
+        }
+      case 'front':
+        _mutate('sl.bring_front',
+            () => editor.reorderShape(slide, shape, front: true));
+        _partSetState(() => _selShape = _reselect(slide, shape));
+      case 'back':
+        _mutate('sl.send_back',
+            () => editor.reorderShape(slide, shape, front: false));
+        _partSetState(() => _selShape = _reselect(slide, shape));
+    }
   }
 }

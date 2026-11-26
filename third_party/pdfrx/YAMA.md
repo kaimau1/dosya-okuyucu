@@ -50,3 +50,10 @@ boy temsilcisi `goToPosition` → `_goTo` → `_stopInteractiveViewerAnimation()
 Ölçüm aynı tek PDFium işçisini tuttuğu için kaydırırken gelen sayfaların çizimi de sırada bekliyordu.
 
 **Yükseltmede:** yukarı akış yeniden demirlemede ataleti koruyorsa iki ek de silinir.
+
+## 3. değişiklik (2026-11-22) — dokununca fırlatma durur
+
+`interactive_viewer.dart` `_onPointerDown`: `widget.scrollPhysics != null` koşulu kalktı; süren
+kaydırma ataleti her parmak değişinde `stopAllAnimations` ile durur. **Neden:** görüntüleyici
+`scrollPhysics` vermiyor (sürtünme `kPdfPanFriction`), bu yüzden kayan sayfaya basmak akışı
+durdurmuyordu (kullanıcı bulgusu). **Yükseltmede:** aynı koşulu yeni sürümde de kaldır.

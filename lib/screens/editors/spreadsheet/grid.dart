@@ -1,16 +1,42 @@
 part of '../spreadsheet_editor_screen.dart';
 
 extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
+  (List<int>, double, double) _colSlice(
+      SheetAxisMetrics cols, (int, int) win) {
+    if (cols.isEmpty) return (const <int>[], 0.0, 0.0);
+    final maxIndex = cols.length - 1;
+    final first = win.$1.clamp(0, maxIndex).toInt();
+    var last = win.$2.clamp(first, maxIndex).toInt();
+    if (first == 0 && last == 0 && cols.length > 1 && _viewportW > 0) {
+      last = math.min(maxIndex, cols.firstAt(_viewportW) + 2);
+    }
+    final window = cols.indices.sublist(first, last + 1);
+    final padLeft = cols.startAt(first);
+    final padRight = cols.total - (cols.startAt(last) + cols.sizeAt(last));
+    return (window, padLeft, padRight);
+  }
+
   Widget _grid(ScrollPhysics? physics) {
     final sheet = _sheet;
     if (sheet == null) return Center(child: Text(context.t('excel.no_sheet')));
 
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final divider = theme.dividerColor;
+    final docSurface = Paper.docSurface(context);
     final engine = _engineFor(sheet);
     final ctx = _RenderContext(
       sheet: sheet,
       engine: engine,
       zoom: _zoom,
       condCache: _condCache,
+      onSurface: scheme.onSurface,
+      surfaceContainerHighest: scheme.surfaceContainerHighest,
+      outlineHalf: scheme.outline.withValues(alpha: 0.5),
+      docSurface: docSurface,
+      dividerColor: divider,
+      gridColor: divider.withValues(alpha: 0.55),
+      filterRange: _filterRange(sheet),
       refs: _formulaRefColors(),
     );
 
@@ -55,15 +81,18 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       _viewportW = math.max(0.0, constraints.maxWidth - leftW);
       _viewportH = math.max(0.0, constraints.maxHeight - topH);
 
-      // Görünen sütun penceresi (yatay sanallaştırma).
-      final maxIndex = math.max(0, cols.length - 1);
-      final first = _firstCol.clamp(0, maxIndex).toInt();
-      final last = _lastCol.clamp(first, maxIndex).toInt();
-      final window = cols.isEmpty ? const <int>[] : cols.indices.sublist(first, last + 1);
-      final padLeft = cols.isEmpty ? 0.0 : cols.startAt(first);
-      final padRight = cols.isEmpty
-          ? 0.0
-          : cols.total - (cols.startAt(last) + cols.sizeAt(last));
+      // Pencere boyutu/zoom değiştiyse sütun penceresini kare sonunda senkronla.
+      if (!cols.isEmpty) {
+        final off = _hBody.hasClients ? _hBody.offset : 0.0;
+        final needFirst = cols.firstAt(off);
+        final needLast = cols.firstAt(off + _viewportW);
+        final (cf, cl) = _colWindow.value;
+        if (needFirst < cf || needLast > cl || cl >= cols.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _updateColWindow(force: true);
+          });
+        }
+      }
       final bottomInset = MediaQuery.paddingOf(context).bottom;
 
       // **Sayfa yönü belgeden gelir, arayüz dilinden DEĞİL** (Excel de böyle:
@@ -91,7 +120,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
             child: Container(
         // Izgaranın zemini BEYAZ: kağıt teması uygulamanın kabuğuna ait,
         // belgenin içine değil (2026-08-07 kullanıcı isteği).
-        color: Paper.docSurface(context),
+        color: docSurface,
         child: Directionality(
         textDirection:
             sheet.rightToLeft ? TextDirection.rtl : TextDirection.ltr,
@@ -115,7 +144,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                           child: Row(
                             children: [
                               _cornerCell(),
-                              for (final c in frozenCols) _colHeader(sheet, c),
+                              for (final c in frozenCols) _colHeader(ctx, c),
                             ],
                           ),
                         ),
@@ -124,7 +153,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                             height: sheet.rowHeight(r) * _zoom,
                             child: Row(
                               children: [
-                                _rowHeader(sheet, r),
+                                _rowHeader(ctx, r),
                                 ..._rowCells(ctx, r, frozenCols),
                               ],
                             ),
@@ -139,26 +168,33 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                       physics: const NeverScrollableScrollPhysics(),
                       child: SizedBox(
                         width: cols.total,
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height: headerH,
-                              child: Row(children: [
-                                SizedBox(width: padLeft),
-                                for (final c in window) _colHeader(sheet, c),
-                                SizedBox(width: padRight),
-                              ]),
-                            ),
-                            for (final r in frozenRows)
-                              SizedBox(
-                                height: sheet.rowHeight(r) * _zoom,
-                                child: Row(children: [
-                                  SizedBox(width: padLeft),
-                                  ..._rowCells(ctx, r, window),
-                                  SizedBox(width: padRight),
-                                ]),
-                              ),
-                          ],
+                        child: ValueListenableBuilder<(int, int)>(
+                          valueListenable: _colWindow,
+                          builder: (context, win, _) {
+                            final (window, padLeft, padRight) =
+                                _colSlice(cols, win);
+                            return Column(
+                              children: [
+                                SizedBox(
+                                  height: headerH,
+                                  child: Row(children: [
+                                    SizedBox(width: padLeft),
+                                    for (final c in window) _colHeader(ctx, c),
+                                    SizedBox(width: padRight),
+                                  ]),
+                                ),
+                                for (final r in frozenRows)
+                                  SizedBox(
+                                    height: sheet.rowHeight(r) * _zoom,
+                                    child: Row(children: [
+                                      SizedBox(width: padLeft),
+                                      ..._rowCells(ctx, r, window),
+                                      SizedBox(width: padRight),
+                                    ]),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -178,6 +214,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                       child: ListView.builder(
                         controller: _vLeft,
                         physics: const NeverScrollableScrollPhysics(),
+                        addAutomaticKeepAlives: false,
                         // Alt boşluk İKİ listede de aynı olmalı; yoksa en altta
                         // satır başlıkları hücrelerden kayıyor.
                         padding: EdgeInsets.only(bottom: bottomInset),
@@ -185,8 +222,9 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                         itemExtentBuilder: (i, _) => rows.sizeAt(i),
                         itemBuilder: (_, i) {
                           final r = rows.indices[i];
+                          if (frozenCols.isEmpty) return _rowHeader(ctx, r);
                           return Row(children: [
-                            _rowHeader(sheet, r),
+                            _rowHeader(ctx, r),
                             ..._rowCells(ctx, r, frozenCols),
                           ]);
                         },
@@ -201,19 +239,28 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
                           width: cols.total,
                           child: _withCharts(
                             _dragSelectArea(
-                              ListView.builder(
-                                controller: _vBody,
-                                physics: physics,
-                                padding: EdgeInsets.only(bottom: bottomInset),
-                                itemCount: rows.length,
-                                itemExtentBuilder: (i, _) => rows.sizeAt(i),
-                                itemBuilder: (_, i) {
-                                  final r = rows.indices[i];
-                                  return Row(children: [
-                                    SizedBox(width: padLeft),
-                                    ..._rowCells(ctx, r, window),
-                                    SizedBox(width: padRight),
-                                  ]);
+                              ValueListenableBuilder<(int, int)>(
+                                valueListenable: _colWindow,
+                                builder: (context, win, _) {
+                                  final (window, padLeft, padRight) =
+                                      _colSlice(cols, win);
+                                  return ListView.builder(
+                                    controller: _vBody,
+                                    physics: physics,
+                                    addAutomaticKeepAlives: false,
+                                    padding:
+                                        EdgeInsets.only(bottom: bottomInset),
+                                    itemCount: rows.length,
+                                    itemExtentBuilder: (i, _) => rows.sizeAt(i),
+                                    itemBuilder: (_, i) {
+                                      final r = rows.indices[i];
+                                      return Row(children: [
+                                        SizedBox(width: padLeft),
+                                        ..._rowCells(ctx, r, window),
+                                        SizedBox(width: padRight),
+                                      ]);
+                                    },
+                                  );
                                 },
                               ),
                             ),
@@ -234,7 +281,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
       )))),
           if (_editing) _floatingEditor(constraints),
           // Kaydırınca sabit başlığın altında ince gölge (Faz 36 madde 7):
-          // yalnız kaydırma konumu değişince boyanır, boşta kare üretmez.
+          // yalnız kaydırma eşiği geçilince boyanır, her pikselde tetiklenmez.
           Positioned(
             top: topH,
             left: 0,
@@ -242,24 +289,49 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
             height: 6,
             child: IgnorePointer(
               child: RepaintBoundary(
-                child: AnimatedBuilder(
-                  animation: _vBody,
-                  builder: (context, _) =>
-                      _vBody.hasClients && _vBody.offset > 0.5
-                          ? const DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [AppColors.shadow, AppColors.none],
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _scrolledDown,
+                  builder: (context, down, _) => down
+                      ? const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [AppColors.shadow, AppColors.none],
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
             ),
           ),
+          if (_resizePreviewSize != null &&
+              (_resizeCol != null || _resizeRow != null))
+            Positioned(
+              top: topH + 8,
+              left: leftW + 8,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.inverseSurface,
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Text(
+                      _resizeCol != null
+                          ? '${XlsxRange.colName(_resizeCol!)}: ${_resizePreviewSize!.toStringAsFixed(1)}'
+                          : '${_resizeRow! + 1}: ${_resizePreviewSize!.toStringAsFixed(1)} pt',
+                      style: context.type.small.copyWith(
+                        color: Theme.of(context).colorScheme.onInverseSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ..._selectionHandles(),
         ],
       );
@@ -391,7 +463,7 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
   /// [_SpreadsheetEditorScreenState._resizeGrip] genişliğindeki tutamak `Positioned` ile başlığın sağ/alt
   /// kenarına yaslanır; `HitTestBehavior.opaque` sayesinde sürükleme jesti
   /// altındaki "sütunu seç" dokunuşunu yutar.
-  Widget _resizeGripFor({int? col, int? row}) {
+  Widget _resizeGripFor({int? col, int? row, Color? idleColor}) {
     final sheet = _sheet;
     if (sheet == null) return const SizedBox.shrink();
     final isCol = col != null;
@@ -405,42 +477,44 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
               _endEdit();
               _resizeCol = col;
               _resizeStart = sheet.layout.colWidthChars(col);
+              _resizePreviewSize = _resizeStart;
+              _partSetState(() {});
             },
       onHorizontalDragUpdate: !isCol
           ? null
           : (d) {
               if (_resizeCol == null) return;
               // Piksel → karakter: Excel'in sütun birimi ~7 px'lik "0" genişliği.
-              _resizeStart =
-                  (_resizeStart + d.delta.dx / (7 * _zoom)).clamp(0.0, 255.0);
-              sheet.setColWidthChars(col, _resizeStart);
-              _session.changed();
-              _gridVersion++;
+              _resizePreviewSize =
+                  ((_resizePreviewSize ?? _resizeStart) +
+                          d.delta.dx / (7 * _zoom))
+                      .clamp(0.0, 255.0);
               _partSetState(() {});
             },
-      onHorizontalDragEnd: !isCol ? null : (_) => _partSetState(() => _resizeCol = null),
-      onHorizontalDragCancel: !isCol ? null : () => _partSetState(() => _resizeCol = null),
+      onHorizontalDragEnd: !isCol ? null : (_) => _endResize(sheet),
+      onHorizontalDragCancel: !isCol ? null : _cancelResize,
       onVerticalDragStart: isCol
           ? null
           : (_) {
               _endEdit();
               _resizeRow = row;
               _resizeStart = sheet.layout.rowHeightPt(row!);
+              _resizePreviewSize = _resizeStart;
+              _partSetState(() {});
             },
       onVerticalDragUpdate: isCol
           ? null
           : (d) {
               if (_resizeRow == null) return;
               // Piksel → punto: 1 pt ≈ 4/3 px.
-              _resizeStart =
-                  (_resizeStart + d.delta.dy * 0.75 / _zoom).clamp(0.0, 409.0);
-              sheet.setRowHeightPt(row!, _resizeStart);
-              _session.changed();
-              _gridVersion++;
+              _resizePreviewSize =
+                  ((_resizePreviewSize ?? _resizeStart) +
+                          d.delta.dy * 0.75 / _zoom)
+                      .clamp(0.0, 409.0);
               _partSetState(() {});
             },
-      onVerticalDragEnd: isCol ? null : (_) => _partSetState(() => _resizeRow = null),
-      onVerticalDragCancel: isCol ? null : () => _partSetState(() => _resizeRow = null),
+      onVerticalDragEnd: isCol ? null : (_) => _endResize(sheet),
+      onVerticalDragCancel: isCol ? null : _cancelResize,
       child: Align(
         alignment: isCol ? Alignment.centerRight : Alignment.bottomCenter,
         child: Container(
@@ -449,9 +523,50 @@ extension _SpreadsheetEditorScreenGridPart on _SpreadsheetEditorScreenState {
           margin: EdgeInsets.only(right: isCol ? 1 : 0, bottom: isCol ? 0 : 1),
           color: (isCol ? _resizeCol == col : _resizeRow == row)
               ? OfficeColors.excel
-              : Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+              : (idleColor ??
+                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),
         ),
       ),
     );
+  }
+
+  void _endResize(XlsxSheet sheet) {
+    final col = _resizeCol;
+    final row = _resizeRow;
+    final next = _resizePreviewSize;
+    final prev = _resizeStart;
+    _resizeCol = null;
+    _resizeRow = null;
+    _resizePreviewSize = null;
+    if (col != null && next != null && (next - prev).abs() > 0.01) {
+      sheet.setColWidthChars(col, next);
+      _recordStep(
+        'excel.column_width',
+        () => sheet.setColWidthChars(col, next),
+        () => sheet.setColWidthChars(col, prev),
+      );
+      _session.changed();
+      _gridVersion++;
+      _autoFitVersion++;
+    } else if (row != null && next != null && (next - prev).abs() > 0.01) {
+      sheet.setRowHeightPt(row, next);
+      _recordStep(
+        'excel.row_height',
+        () => sheet.setRowHeightPt(row, next),
+        () => sheet.setRowHeightPt(row, prev),
+      );
+      _session.changed();
+      _gridVersion++;
+      _autoFitVersion++;
+    }
+    _partSetState(() {});
+  }
+
+  void _cancelResize() {
+    _partSetState(() {
+      _resizeCol = null;
+      _resizeRow = null;
+      _resizePreviewSize = null;
+    });
   }
 }

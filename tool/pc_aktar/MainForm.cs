@@ -148,6 +148,7 @@ namespace DosyaAktar
                     if (receiver.Active <= 1) recvStatus.Text = lastReceived;
                     gallery.Poke();
                 }),
+                TextReceived = (text, from) => Ui(() => ShowIncomingText(text, from)),
                 Progress = (name, got, total) => Ui(() => ShowIncoming(name, got, total)),
                 Done = name => Ui(() =>
                 {
@@ -332,6 +333,55 @@ namespace DosyaAktar
             refresh.Tick += (s, e) => RefreshDevices();
             UpdateInfo();
             RefreshDevices();
+        }
+
+        void ShowIncomingText(string text, string from)
+        {
+            var copied = false;
+            try { Clipboard.SetText(text); copied = true; }
+            catch { /* pano başka uygulamada kilitli olabilir */ }
+            lastReceived = "Son gelen yazı ← " + from + (copied ? " (panoya kopyalandı)" : "");
+            if (receiver.Active <= 1) recvStatus.Text = lastReceived;
+
+            var dlg = new Form
+            {
+                Text = "Gelen Yazı ← " + from,
+                Size = new Size(S(520), S(360)),
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false,
+                Font = Font,
+                BackColor = BackColor,
+            };
+            var box = new TextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Dock = DockStyle.Fill,
+                Text = text.Replace("\r\n", "\n").Replace("\n", Environment.NewLine),
+                Font = new Font("Consolas", 10.5f),
+            };
+            var bar = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                FlowDirection = FlowDirection.RightToLeft,
+                AutoSize = true,
+                Padding = new Padding(S(8)),
+            };
+            var copy = new Button { Text = "Panoya Kopyala", AutoSize = true };
+            copy.Click += (_, __) => { try { Clipboard.SetText(text); copy.Text = "Kopyalandı ✓"; } catch { } };
+            var save = new Button { Text = "Kaydet (.txt)", AutoSize = true };
+            save.Click += (_, __) =>
+            {
+                using (var sfd = new SaveFileDialog { Filter = "Metin (*.txt)|*.txt", FileName = "gelen_yazi.txt" })
+                    if (sfd.ShowDialog(dlg) == DialogResult.OK)
+                        File.WriteAllText(sfd.FileName, text, new System.Text.UTF8Encoding(false));
+            };
+            bar.Controls.Add(save);
+            bar.Controls.Add(copy);
+            dlg.Controls.Add(box);
+            dlg.Controls.Add(bar);
+            dlg.Show(this);
         }
 
         void StartServices()

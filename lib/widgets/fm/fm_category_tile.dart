@@ -416,6 +416,21 @@ class FmCategoryGrid extends StatelessWidget {
     return (width / 110).floor().clamp(4, 8);
   }
 
+  /// Öğe sayısına göre tek satır/öksüz artıkları önleyen sütun sayısı
+  /// (ör. 12 kategori tablette 5+5+2 yerine 4×3, 6 öğe 5+1 yerine 6/3).
+  static int balancedColumns(double width, int count,
+      {double textScale = 1.0}) {
+    final base = columnsFor(width, textScale: textScale);
+    if (count <= 0 || textScale >= 1.25) return base;
+    if (count == 6 && (base == 4 || base == 5)) return width >= 620 ? 6 : 3;
+    if ((count == 7 || count == 8 || count == 12) &&
+        base >= 5 &&
+        base <= 7) {
+      return 4;
+    }
+    return base;
+  }
+
   /// Hücre yüksekliği: en-boy oranından gelen taban yüksekliği, simge + iki
   /// satır metnin gerçek yüksekliğinin altına düşemez (`RenderFlex overflowed`
   /// önlemi).
@@ -435,12 +450,16 @@ class FmCategoryGrid extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
           final scale = MediaQuery.textScalerOf(context).scale(1);
-          final columns =
-              columnsFor(constraints.maxWidth, textScale: scale);
+          final columns = balancedColumns(
+            constraints.maxWidth,
+            tiles.length,
+            textScale: scale,
+          );
           final w =
               (constraints.maxWidth - Gap.xs * (columns - 1)) / columns;
           final withSub = tiles.any((t) => t.subtitle.isNotEmpty);
           return GridView.builder(
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -492,18 +511,26 @@ class FmToolGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visible = [
+      for (final t in tools)
+        if (t.feature == null || ProGate.visible(t.feature!)) t,
+    ];
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     // Alt yazı satırı ızgaranın TAMAMI için ayrılır: yalnız "İşlemler"in alt
     // yazısı varken o hücre uzun, komşusu kısa kalıyor ve satır tırtıklı
     // görünüyordu. Hiçbirinde yoksa satır hiç açılmaz.
-    final withSubtitle = tools.any((t) => t.subtitle.isNotEmpty);
+    final withSubtitle = visible.any((t) => t.subtitle.isNotEmpty);
     return LayoutBuilder(
       builder: (context, constraints) {
         final scale = MediaQuery.textScalerOf(context).scale(1);
-        final columns =
-            FmCategoryGrid.columnsFor(constraints.maxWidth, textScale: scale);
+        final columns = visible.length == 8 &&
+                constraints.maxWidth >= 320 &&
+                scale < 1.3
+            ? 4
+            : FmCategoryGrid.columnsFor(constraints.maxWidth, textScale: scale);
         return GridView.builder(
+          padding: EdgeInsets.zero,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -512,9 +539,9 @@ class FmToolGrid extends StatelessWidget {
             mainAxisSpacing: Gap.xs,
             crossAxisSpacing: Gap.xs,
           ),
-          itemCount: tools.length,
+          itemCount: visible.length,
           itemBuilder: (context, i) {
-            final tool = tools[i];
+            final tool = visible[i];
             final tint =
                 dark ? Color.lerp(tool.color, AppColors.mixLight, 0.3)! : tool.color;
             return PressScale(

@@ -4,7 +4,6 @@ part of '../category_screen.dart';
 extension _CategoryScreenStateParts on _CategoryScreenState {
   PreferredSizeWidget _normalBar() {
     final shown = _sorted;
-    final theme = Theme.of(context);
     final bytes = _bytesOf(shown);
     final count = shown.length == _files.length
         ? context.t('lc.count', {'n': shown.length})
@@ -16,25 +15,9 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
       // Sol üstte her zaman ☰ yan menü (2026-11-15, kullanıcı isteği).
       leading: const SideMenuButton(),
       titleSpacing: 0,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700)),
-          Text(
-            bytes > 0 ? '$count · ${FsPaths.humanSize(bytes)}' : count,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
+      title: FmBarTitle(
+        title: widget.title,
+        subtitle: bytes > 0 ? '$count · ${FsPaths.humanSize(bytes)}' : count,
       ),
       actions: [
         IconButton(
@@ -42,14 +25,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
           icon: const Icon(AppIcons.search),
           onPressed: () => _update(() => _searching = true),
         ),
-        IconButton(
-          tooltip: context.t('ph.layout', {'name': context.t(_layout.labelKey)}),
-          icon: Icon(fmLayoutIcon(_layout)),
-          onPressed: () async {
-            final picked = await showFmLayoutSheet(context, current: _layout);
-            if (picked != null) _setLayout(picked);
-          },
-        ),
+        FmFilterButton(filter: _filter, onPressed: _openFilterSheet),
         // ⋮ (2026-11-20, kullanıcı: "Belgeler sayfasında bir menü olsun"):
         // "Analiz ve diğer" levhasının aynısı + liste/belge eylemleri.
         IconButton(
@@ -88,6 +64,11 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
         title: widget.title,
         visible: _sorted,
         onSelectAll: () => _toggleSelectAll(_sorted),
+        layoutIcon: fmLayoutIcon(_layout),
+        onLayout: () async {
+          final picked = await showFmLayoutSheet(context, current: _layout);
+          if (picked != null && mounted) _setLayout(picked);
+        },
         onChanged: () async {
           if (mounted) _update(() => _sortedCache = null);
         },
@@ -104,7 +85,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
     return counts;
   }
 
-  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür).
+  /// Süzgeç ve sıralama sayfası (tarih aralığı, boyut, kaynak, tür, akıllı kategori).
   Future<void> _openFilterSheet() async {
     _ensureCounts();
     final result = await showFmFilterSheet(
@@ -116,6 +97,7 @@ extension _CategoryScreenStateParts on _CategoryScreenState {
       buckets: _bucketCache ?? const {},
       chatKinds: _chatKindCache ?? const {},
       tags: FileTags.counts(),
+      smartCats: smartCatCountsFor(_files, _filter),
       showDuplicateSwitch: true,
     );
     if (result == null || !mounted) return;

@@ -251,7 +251,7 @@ object SdUnion {
             manager.notify(
                 NOTIFY_ID,
                 builder
-                    .setSmallIcon(ctx.applicationInfo.icon)
+                    .setSmallIcon(ctx.applicationInfo.icon).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
                     .setContentTitle(cfg.doneTitle)
                     .setContentText(body)
                     .setAutoCancel(true)

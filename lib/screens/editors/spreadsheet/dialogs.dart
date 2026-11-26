@@ -53,33 +53,39 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
     final sheet = _sheet;
     if (editor == null || sheet == null) return;
     final ctrl = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(ctx.t('excel.cond_format')),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          keyboardType: type == 'cellIs'
-              ? const TextInputType.numberWithOptions(decimal: true)
-              : TextInputType.text,
-          decoration: InputDecoration(
-              labelText: ctx.t(type == 'cellIs'
-                  ? 'excel.cond_value'
-                  : 'excel.cond_text')),
-          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+    final String? value;
+    try {
+      value = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.t('excel.cond_format')),
+          content: TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: type == 'cellIs'
+                ? const TextInputType.numberWithOptions(decimal: true)
+                : TextInputType.text,
+            decoration: InputDecoration(
+                labelText: ctx.t(type == 'cellIs'
+                    ? 'excel.cond_value'
+                    : 'excel.cond_text')),
+            onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(ctx.t('common.cancel'))),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                child: Text(ctx.t('common.ok'))),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(ctx.t('common.cancel'))),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
-              child: Text(ctx.t('common.ok'))),
-        ],
-      ),
-    );
+      );
+    } finally {
+      ctrl.dispose();
+    }
     if (value == null || value.isEmpty || !mounted) return;
+    final val = value;
 
     await _pickColor(context.t('excel.fill_color'), (color) {
       final range = _range;
@@ -95,8 +101,8 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           range: xr,
           type: type,
           operator: operator,
-          formulas: type == 'cellIs' ? [value] : const [],
-          text: type == 'cellIs' ? null : value,
+          formulas: type == 'cellIs' ? [val] : const [],
+          text: type == 'cellIs' ? null : val,
           fillArgb: fill,
         );
       }
@@ -157,6 +163,16 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
         for (var c = range.left; c <= range.right; c++)
           CellRef(r, c): (sheet.styleAt(r, c) ?? const XlsxCellStyle()).border,
     };
+    final overridesBefore = <CellRef, XlsxCellStyle?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          CellRef(r, c): sheet.overrideAt(r, c),
+    };
+    final editsBefore = <(int, int), XlsxStyleEdit?>{
+      for (var r = range.top; r <= range.bottom; r++)
+        for (var c = range.left; c <= range.right; c++)
+          (r, c): sheet.styleEdits[(r, c)],
+    };
     void applyNow() {
       for (var r = range.top; r <= range.bottom; r++) {
         for (var c = range.left; c <= range.right; c++) {
@@ -178,38 +194,106 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
             'top': b.top.visible ? b.top.style : null,
             'bottom': b.bottom.visible ? b.bottom.style : null,
           }));
+      overridesBefore
+          .forEach((at, style) => sheet.patchStyle(at.row, at.col, style));
+      editsBefore.forEach((k, edit) {
+        if (edit == null) {
+          sheet.styleEdits.remove(k);
+        } else {
+          sheet.styleEdits[k] = edit;
+        }
+      });
     });
     _session.changed();
     _partSetState(() {});
   }
 
-  /// Excel'in durum çubuğu: seçili aralığın ortalaması / sayısı / toplamı.
+  Widget _cellMenuPill(ColorScheme scheme) => Flexible(
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(start: 6),
+          child: Material(
+            color: scheme.primaryContainer.withValues(alpha: 0.72),
+            shape: StadiumBorder(
+              side: BorderSide(
+                color: scheme.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: InkWell(
+              key: const ValueKey('xl-status-menu'),
+              onTap: _showCellMenu,
+              customBorder: const StadiumBorder(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      AppIcons.tune,
+                      size: 13,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        context.t('excel.cell_menu'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.type.caption.copyWith(
+                          color: scheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  /// Excel'in durum çubuğu: seçili aralığın kopyalanabilir istatistikleri
+  /// ve her durumda tek dokunuşla ulaşılabilen hücre menüsü + sayfa konumu.
   Widget _statusBar() {
     final sheet = _sheet;
     if (sheet == null) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
-    String text;
     if (!_hasRange) {
       final fmt = sheet.numFmtCode(_selRow, _selCol);
-      text = context.t('excel.cell_label',
+      final text = context.t('excel.cell_label',
               {'ref': '${XlsxRange.colName(_selCol)}${_selRow + 1}'}) +
           (fmt == 'General' ? '' : '  ·  $fmt');
+      return _statusRow(
+        scheme,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.type.caption.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        trailing: [_cellMenuPill(scheme)],
+      );
+    }
+
+    final engine = _engineFor(sheet);
+    final memoKey = (sheet.name, _anchorRow, _anchorCol, _selRow, _selCol,
+        _calcStamp, context.language);
+    _RangeStatusData? stats;
+    final memo = _statusMemo;
+    if (memo != null && memo.$1 == memoKey) {
+      stats = memo.$2;
     } else {
-      final engine = _engineFor(sheet);
-      // Seçim ve hesap değişmediyse toplam yeniden taranmaz (Faz 26).
-      final memoKey = (sheet.name, _anchorRow, _anchorCol, _selRow, _selCol,
-          _calcStamp, context.language);
-      final memo = _statusMemo;
-      if (memo != null && memo.$1 == memoKey) {
-        return _statusText(memo.$2, scheme);
-      }
       final r1 = math.min(_anchorRow, _selRow);
       final r2 = math.max(_anchorRow, _selRow);
       final c1 = math.min(_anchorCol, _selCol);
       final c2 = math.max(_anchorCol, _selCol);
       final cellCount = (r2 - r1 + 1) * (c2 - c1 + 1);
-      // Çok büyük seçimde (tümünü seç) hücre hücre hesap ekranı dondurur;
-      // Excel de yalnız sayıyı gösterir.
       if (cellCount > 200000) {
         return _statusText(
             context.t('excel.selection_cells', {'n': cellCount}), scheme);
@@ -217,6 +301,8 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
       var sum = 0.0;
       var count = 0;
       var filled = 0;
+      var minVal = double.infinity;
+      var maxVal = -double.infinity;
       for (var r = r1; r <= r2; r++) {
         for (var c = c1; c <= c2; c++) {
           final raw = engine.displayValue(r, c);
@@ -226,46 +312,144 @@ extension _SpreadsheetEditorScreenDialogsPart on _SpreadsheetEditorScreenState {
           if (v == null) continue;
           sum += v;
           count++;
+          if (v < minVal) minVal = v;
+          if (v > maxVal) maxVal = v;
         }
       }
-      text = count == 0
-          ? context.t(
-              'excel.selection_filled', {'n': cellCount, 'filled': filled})
-          : context.t('excel.selection_stats', {
-              'avg': generalNumber(sum / count),
-              'count': count,
-              'sum': generalNumber(sum),
-            });
-      _statusMemo = (memoKey, text);
+      stats = _RangeStatusData(
+        cellCount: cellCount,
+        filled: filled,
+        count: count,
+        sum: sum,
+        avg: count == 0 ? 0 : sum / count,
+        min: count == 0 ? 0 : minVal,
+        max: count == 0 ? 0 : maxVal,
+      );
+      _statusMemo = (memoKey, stats);
     }
-    return _statusText(text, scheme);
+    if (stats.count == 0) {
+      return _statusText(
+        context.t('excel.selection_filled',
+            {'n': stats.cellCount, 'filled': stats.filled}),
+        scheme,
+      );
+    }
+    Widget statChip(String key, String rawValue) {
+      final label = context.t(key, {'v': rawValue});
+      return Padding(
+        padding: const EdgeInsetsDirectional.only(end: 6),
+        child: Material(
+          color: scheme.surfaceContainerLowest,
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.65),
+            ),
+          ),
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: rawValue));
+              if (mounted) {
+                _snack(context.t('excel.copied_stat', {'v': rawValue}));
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+              child: Text(
+                label,
+                style: context.type.caption.copyWith(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _statusRow(
+      scheme,
+      Expanded(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              statChip('excel.stat_sum_short', generalNumber(stats.sum)),
+              statChip('excel.stat_avg_short', generalNumber(stats.avg)),
+              statChip('excel.stat_count_short', '${stats.count}'),
+              statChip('excel.stat_min_short', generalNumber(stats.min)),
+              statChip('excel.stat_max_short', generalNumber(stats.max)),
+            ],
+          ),
+        ),
+      ),
+      trailing: [_cellMenuPill(scheme)],
+    );
   }
 
-  /// Durum çubuğu — solda seçim bilgisi, sağda **kaçıncı sayfadayız**
-  /// (2026-08-01 kullanıcı isteği: toplam sayfa sayısı her belgede görünsün).
-  /// Excel'in "sayfa"sı çalışma sayfasıdır; gizli sayfalar sayılmaz çünkü
-  /// sekmelerde de görünmezler.
-  Widget _statusText(String text, ColorScheme scheme) {
+  Widget _statusText(String text, ColorScheme scheme) => _statusRow(
+        scheme,
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.type.caption.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        trailing: [_cellMenuPill(scheme)],
+      );
+
+  /// Durum çubuğu satırı — solda seçim bilgisi/istatistikler, sağda ek + sayfa konumu.
+  Widget _statusRow(
+    ColorScheme scheme,
+    Widget body, {
+    List<Widget> trailing = const [],
+  }) {
     final sheets =
         _editor?.sheets.where((s) => !s.layout.hidden).toList() ?? const [];
-    final at = _sheet == null ? -1 : sheets.indexWhere((s) => s.name == _sheet!.name);
-    final style = context.type.caption.copyWith(color: scheme.onSurfaceVariant);
+    final at = _sheet == null
+        ? -1
+        : sheets.indexWhere((s) => s.name == _sheet!.name);
     return Container(
       width: double.infinity,
-      color: scheme.surfaceContainerHigh,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        border: Border(
+          top: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       child: Row(
         children: [
-          Expanded(
-            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: style),
-          ),
+          body,
+          ...trailing,
           if (at >= 0) ...[
             const SizedBox(width: 8),
-            Text(
-              context.t('excel.sheet_pos',
-                  {'n': at + 1, 'total': sheets.length}),
-              style: style,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(Radii.pill),
+              ),
+              child: Text(
+                context.t('excel.sheet_pos',
+                    {'n': at + 1, 'total': sheets.length}),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.type.caption.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
             ),
           ],
         ],

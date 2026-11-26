@@ -7,6 +7,8 @@ import '../../core/snack.dart';
 import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/entry_opener.dart';
+import '../../services/fm/fm_env.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/list_memory.dart';
@@ -329,9 +331,11 @@ class _OpenHistoryScreenState extends State<OpenHistoryScreen> {
                   onToggle: _toggle,
                   onSelectRange: (a, b, sel) =>
                       _selectRange(visible, a, b, sel),
-                  subtitle: (e) => '${context.t('oh.last_opened')}'
-                      '${FsPaths.humanDate(_openedOf(e))} · '
-                      '${FsPaths.humanSize(e.sizeBytes)}',
+                  subtitle: (e) => FmLocation.label(e.path, context.t,
+                      volumes: FmEnv.volumes),
+                  dateText: (e) => FmLocation.shortDate(_openedOf(e)),
+                  subtitleEnd: (e) =>
+                      e.isDir ? null : FsPaths.humanSize(e.sizeBytes),
                   onMore: (e) async {
                     await showEntryActions(context, e, allowReveal: false);
                     _load();

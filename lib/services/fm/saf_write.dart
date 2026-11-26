@@ -123,7 +123,7 @@ abstract final class SafWrite {
     final errors = <String>[];
     for (final src in sources) {
       if (isCancelled?.call() ?? false) break;
-      final ok = await _copyInto(parent, src);
+      final ok = await _copyInto(parent, src, isCancelled: isCancelled);
       if (ok) {
         done.add(src);
         if (move) {
@@ -138,6 +138,7 @@ abstract final class SafWrite {
           }
         }
       } else {
+        if (isCancelled?.call() ?? false) break;
         errors.add('${p.basename(src)}: saf');
       }
     }
@@ -151,7 +152,12 @@ abstract final class SafWrite {
     return AppStorageService.safMkdir(parentUri, name);
   }
 
-  static Future<bool> _copyInto(String parentUri, String src) async {
+  static Future<bool> _copyInto(
+    String parentUri,
+    String src, {
+    bool Function()? isCancelled,
+  }) async {
+    if (isCancelled?.call() ?? false) return false;
     final type = await FileSystemEntity.type(src, followLinks: false);
     final name = p.basename(src);
     if (type == FileSystemEntityType.directory) {
@@ -159,7 +165,8 @@ abstract final class SafWrite {
       if (dir == null) return false;
       var ok = true;
       await for (final child in Directory(src).list(followLinks: false)) {
-        ok = await _copyInto(dir, child.path) && ok;
+        if (isCancelled?.call() ?? false) return false;
+        ok = await _copyInto(dir, child.path, isCancelled: isCancelled) && ok;
       }
       return ok;
     }

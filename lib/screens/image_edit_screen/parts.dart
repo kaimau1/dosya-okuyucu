@@ -336,7 +336,10 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
             scrollDirection: Axis.horizontal,
             child: Row(children: [
               for (final (tool, icon, key) in const [
+                // Bulanıklaştır/pikselleştir öne (2026-11-22, kullanıcı: "önde görülsün").
                 (_Tool.pen, AppIcons.edit, 'ied.pen'),
+                (_Tool.blur, AppIcons.blur, 'ied.blur'),
+                (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
                 (_Tool.text, AppIcons.textFields, 'ied.text'),
                 (_Tool.highlighter, AppIcons.highlighter, 'ied.highlighter'),
                 (_Tool.eraser, AppIcons.eraser, 'ied.eraser'),
@@ -344,8 +347,6 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
                 (_Tool.line, AppIcons.lineTool, 'ied.line'),
                 (_Tool.rect, AppIcons.rectTool, 'ied.rect'),
                 (_Tool.ellipse, AppIcons.ellipseTool, 'ied.ellipse'),
-                (_Tool.blur, AppIcons.blur, 'ied.blur'),
-                (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
               ])
                 chip(tool, icon, key),
             ]),

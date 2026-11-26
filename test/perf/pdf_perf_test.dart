@@ -102,9 +102,9 @@ void main() {
     }
     // ignore: avoid_print
     print('PERF pdf_page_change_full_rebuild_sites=$n');
-    // body.dart onPageChanged + pdf_navigation.dart sayfaya atlama.
-    expect(n, lessThanOrEqualTo(2), reason: 'sayfa değişimi dar dinleyiciyle');
-    expect(n, 2, reason: 'azaldı: tavanı düşür (mandal bayatlamasın)');
+    // ValueNotifier (_pdfPageN) ile sayfa değişimi yalnız rozeti günceller.
+    expect(n, lessThanOrEqualTo(0), reason: 'sayfa değişimi dar dinleyiciyle');
+    expect(n, 0, reason: 'azaldı: tavanı düşür (mandal bayatlamasın)');
   });
 
   test('bellek tavanları: çizim bütçesi ≤ 2480 px, görsel fark ≤ 50 sayfa', () {

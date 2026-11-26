@@ -396,8 +396,9 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
     // çoğu 16:9 — üstte altta siyah şerit kalıyor. `cover` görüntüyü ekrana
     // yayıyor (kenarlardan kırparak). Seçim kullanıcıda: iki kip arasında
     // üst çubuktaki düğme geçiş yaptırıyor.
+    final poster = _posterImage;
     if (_zoomFill) {
-      return _heroWrap(SizedBox.expand(
+      final player = SizedBox.expand(
         child: FittedBox(
           fit: BoxFit.cover,
           clipBehavior: Clip.hardEdge,
@@ -410,9 +411,14 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
             ),
           ),
         ),
-      ));
+      );
+      return _heroWrap(poster == null
+          ? player
+          : Stack(fit: StackFit.expand, children: [
+              player,
+              _PosterVeil(controller: c, image: poster),
+            ]));
     }
-    final poster = _posterImage;
     return Center(
       child: _heroWrap(RotatedBox(
         quarterTurns: _quarterTurns,
@@ -439,18 +445,18 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   /// Video hazırlanırken: kapak resmi, en-boy oranında ortalı.
   Widget? _posterView() {
     final poster = _posterImage;
+    if (poster == null || _isAudio) return null;
     final aspect = _posterAspect;
-    if (poster == null || aspect == null || _isAudio) return null;
+    final img = Image(
+      image: poster,
+      fit: aspect != null ? BoxFit.cover : BoxFit.contain,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+    );
     return Center(
-      child: _heroWrap(AspectRatio(
-        aspectRatio: aspect,
-        child: Image(
-          image: poster,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
-      )),
+      child: _heroWrap(
+        aspect != null ? AspectRatio(aspectRatio: aspect, child: img) : img,
+      ),
     );
   }
 
@@ -512,14 +518,16 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
   Widget _controls(VideoPlayerController c, VideoPlayerValue value) {
     return Container(
       padding: EdgeInsets.fromLTRB(
-          Gap.md, Gap.sm, Gap.md, MediaQuery.paddingOf(context).bottom + Gap.sm),
+          Gap.md, Gap.lg, Gap.md, MediaQuery.paddingOf(context).bottom + Gap.sm),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
+          stops: const [0.0, 0.35, 1.0],
           colors: [
-            Colors.transparent,
-            AppColors.mediaSurface.withValues(alpha: 0.75),
+            AppColors.none,
+            AppColors.mediaScrim,
+            AppColors.mediaSurface.withValues(alpha: 0.88),
           ],
         ),
       ),
@@ -636,15 +644,15 @@ class _PosterVeil extends StatefulWidget {
 class _PosterVeilState extends State<_PosterVeil> {
   bool _gone = false;
   Timer? _timer;
+  Timer? _playTimer;
+  late Duration _initialPosition = widget.controller.value.position;
 
   @override
   void initState() {
     super.initState();
-    if (widget.controller.value.position > Duration.zero) {
-      _gone = true;
-      return;
-    }
+    _initialPosition = widget.controller.value.position;
     widget.controller.addListener(_check);
+    _check();
     // Zaman aşımı (animasyon süresi değil): oynatma hiç başlamazsa da kalkar.
     _timer = Timer(const Duration(seconds: 2), _drop);
   }
@@ -654,24 +662,34 @@ class _PosterVeilState extends State<_PosterVeil> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_check);
+      _playTimer?.cancel();
+      _playTimer = null;
+      _initialPosition = widget.controller.value.position;
       if (!_gone) {
-        if (widget.controller.value.position > Duration.zero) {
-          _drop();
-        } else {
-          widget.controller.addListener(_check);
-        }
+        widget.controller.addListener(_check);
+        _check();
       }
     }
   }
 
   void _check() {
-    if (widget.controller.value.position > Duration.zero) _drop();
+    final v = widget.controller.value;
+    if (v.position > _initialPosition) {
+      _drop();
+      return;
+    }
+    // Oynarken 250 ms yedek zamanlayıcı: ilk kare gelmesine rağmen konum
+    // henüz ilerlemediyse siyah parlama olmadan perdeyi düşür.
+    if (v.isPlaying && _playTimer == null) {
+      _playTimer = Timer(const Duration(microseconds: 250000), _drop);
+    }
   }
 
   void _drop() {
     if (_gone) return;
     widget.controller.removeListener(_check);
     _timer?.cancel();
+    _playTimer?.cancel();
     if (mounted) setState(() => _gone = true);
   }
 
@@ -679,6 +697,7 @@ class _PosterVeilState extends State<_PosterVeil> {
   void dispose() {
     widget.controller.removeListener(_check);
     _timer?.cancel();
+    _playTimer?.cancel();
     super.dispose();
   }
 

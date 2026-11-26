@@ -46,9 +46,14 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     if (widget.savePath != null) {
       await SafeWrite.bytes(widget.path, bytes);
     }
+    FsEvents.changed([target]);
     // "Yaptıklarım" defteri: kaydedilen HEDEF yazılır (.xls açıldıysa
     // kullanıcının elindeki dosya .xlsx olan odur).
-    unawaited(ActivityLog.add(ActivityKind.documentEdit, target));
+    unawaited(ActivityLog.add(
+      ActivityKind.documentEdit,
+      target,
+      detail: AppStrings.current.t('excel.act_saved'),
+    ));
   }
 
   /// Taslaktan geri yükleme (Faz 20): model taslağın baytlarından kurulur.
@@ -77,6 +82,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     _partSetState(() {
       _editor = next;
       _gridVersion++;
+      _autoFitVersion++;
     });
     _syncField();
     _session.changed();
@@ -95,13 +101,20 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
       _snack(context.t('excel.truncated_no_save'));
       return;
     }
+    final password = _filePassword;
     // Faz 26b: paket yazımı + zip izolatta (eskiden `save()` UI izleğinde
     // büyük kitapta saniyelerce donduruyordu).
-    await runDownloadAction(context,
-        () async => SaveToDownloads.saveBytes(name, await editor.saveAsync()));
+    await runDownloadAction(context, () async {
+      final plain = await editor.saveAsync();
+      final bytes = password == null || editor.csv != null
+          ? plain
+          : await OfficeCrypto.encryptInBackground(plain, password);
+      return SaveToDownloads.saveBytes(name, bytes);
+    });
   }
 
   Future<void> _export() async {
+    _endEdit();
     final editor = _editor;
     if (editor == null) return;
     if (editor.truncated) {
@@ -153,6 +166,7 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   /// Etkin sayfayı CSV olarak dışa aktarır — hücreler **ekranda göründüğü
   /// gibi** yazılır (tarih seri numarası değil `21.07.2026`, para `₺1.500,00`).
   Future<void> _exportCsv() async {
+    _endEdit();
     final sheet = _sheet;
     if (sheet == null) return;
     // Hata metni await'ten ÖNCE çevrilir (asenkron boşluktan sonra `context`
@@ -232,12 +246,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
   void _toggleFreeze() {
     _partSetState(() {
       _freeze = !_freeze;
-      _firstCol = 0;
-      _lastCol = 0;
     });
+    _resetColWindow();
     if (_hBody.hasClients) _hBody.jumpTo(0);
     if (_vBody.hasClients) _vBody.jumpTo(0);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateColWindow(force: true));
   }
 
   /// Sayfa yönünü (soldan sağa / sağdan sola) değiştirir — Excel'in
@@ -252,12 +266,12 @@ extension _SpreadsheetEditorScreenFileOpsPart on _SpreadsheetEditorScreenState {
     _partSetState(() {
       sheet.setRightToLeft(next);
       _session.changed();
-      // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
-      _firstCol = 0;
-      _lastCol = 0;
     });
+    // Sanallaştırma penceresi ve kaydırma konumu yön değişince anlamsızlaşır.
+    _resetColWindow();
     if (_hBody.hasClients) _hBody.jumpTo(0);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateColWindow());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateColWindow(force: true));
     _snack(context.t(next ? 'excel.sheet_rtl_on' : 'excel.sheet_rtl_off'));
   }
 

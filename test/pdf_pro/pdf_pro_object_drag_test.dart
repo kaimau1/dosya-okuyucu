@@ -114,7 +114,8 @@ void main() {
 
     final bi = blocks.indexWhere((b) => b.lines.length >= 3 && b.editable);
     final b = blocks[bi];
-    await tester.tapAt(
+    // Basılı tut = seç (tek dokunuş doğrudan yazmaya geçer — 2026-11-22).
+    await tester.longPressAt(
         Offset((b.left + b.right) / 2, page.height - (b.top + b.bottom) / 2));
     await tester.pump(const Duration(milliseconds: 400));
     expect(c.selectedBlock, bi);
@@ -135,5 +136,47 @@ void main() {
     await tester.pump();
     await until(() => c.session.steps.length == 1 && !c.busy);
     expect(tester.takeException(), isNull);
+
+    // Kaydırma bekçisi: overlay konumu (left/top) değişirken sayfa boyutu
+    // sabit → ana blok katmanı yeniden boyanmamalı (GPU katmanı kayar).
+    await tester.pump();
+    final paintsBeforePan = PdfProBlockLayer.debugPaints;
+    for (var i = 1; i <= 5; i++) {
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('tr'),
+        supportedLocales: const [Locale('tr')],
+        localizationsDelegates: const [
+          AppStrings.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: Scaffold(
+          body: Stack(children: [
+            Positioned(
+              left: -i * 20.0,
+              top: -i * 15.0,
+              child: PdfProBlockLayer(
+                page: page,
+                pageSize: Size(page.width, page.height),
+                controller: c,
+                events: PdfProLayerEvents(
+                  onEdit: (_, _, {offset, selection}) {},
+                  onLocked: (_, _) {},
+                  onBlockMenu: (_, _) {},
+                  onCommit: () {},
+                  onRefused: (e) => fail('reddedildi: $e'),
+                  onNote: (_, _, _) {},
+                  onAnnotTap: (_, _) {},
+                  onTextBox: (_, _, _) {},
+                ),
+              ),
+            ),
+          ]),
+        ),
+      ));
+    }
+    expect(PdfProBlockLayer.debugPaints, paintsBeforePan,
+        reason: 'sayfa kayarken blok katmanı yeniden boyandı (kasma)');
   });
 }

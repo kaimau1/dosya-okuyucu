@@ -53,9 +53,9 @@ on:
         type: boolean
         default: false
       play_remove:
-        description: 'Play AAB''sinden çıkarılacak izinler (virgüllü kısa adlar)'
+        description: 'Play derlemesinden çıkarılacak izinler (virgüllü kısa adlar)'
         type: string
-        default: 'QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
+        default: 'QUERY_ALL_PACKAGES,REQUEST_INSTALL_PACKAGES,REQUEST_DELETE_PACKAGES,PACKAGE_USAGE_STATS,SYSTEM_ALERT_WINDOW,RECEIVE_BOOT_COMPLETED,RECORD_AUDIO,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED'
 
 # G9.2 (2026-11-12): en az yetki — üst düzey yalnız okuma; yazma yetkisi
 # yalnız sürüm yayımlayan `release` işinde.
@@ -191,6 +191,12 @@ jobs:
       - name: Bağımlılık bütçesi
         if: env.MOD != 'atla' && matrix.shard == 0
         run: python3 tool/bagimlilik_denetimi.py
+
+      # Ön denetim (2026-11-22): Flutter kurulmadan önce, ≈1 sn — çeviri
+      # anahtarı, erişilemeyen dosya, kırık import, testte gerçek G/Ç.
+      - name: Ön denetim
+        if: env.MOD != 'atla' && matrix.shard == 0
+        run: python3 tool/on_denetim.py
 
       # Güvenlik fazı G0: kapatılmış açıkların geri gelmesini ve onaysız yeni
       # saldırı yüzeyini (sunucu, dışa açık bileşen, WebView JS) yakalar.
@@ -328,13 +334,25 @@ jobs:
         if: env.MOD != 'atla' && matrix.shard == 0 && needs.changes.outputs.kotlin == 'true'
         run: bash tool/check_kotlin.sh
 
-  # ── Derleme: imzalı APK (+ istenirse AAB) ───────────────────────────────
+      - name: Sürüm kapısı testleri (Play Lite + Pro)
+        if: env.MOD != 'atla' && matrix.shard == 2
+        run: |
+          flutter test --dart-define=DOSYA_SURUM=lite --dart-define=DOSYA_PLAY=1 \
+            test/edition_test.dart test/pro_security_test.dart test/play_store_test.dart test/fm_tool_grid_test.dart
+          flutter test --dart-define=DOSYA_SURUM=pro --dart-define=DOSYA_PLAY=1 \
+            test/edition_test.dart test/pro_security_test.dart test/play_store_test.dart
+
+  # ── Derleme: 3 sürüm matrisi (Kişisel / Play Pro / Play Lite) ─────────────
   apk:
-    name: Android APK
+    name: Android APK (${{ matrix.edition }})
     needs: changes
     runs-on: ubuntu-latest
     # Takılma koruması: build #53'te bir Gradle/ağ stall'ı 55 dk asılı kaldı.
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [kisisel, pro, lite]
     if: >-
       needs.changes.outputs.app == 'true' && (
         github.event_name == 'workflow_dispatch' ||
@@ -403,11 +421,52 @@ jobs:
           echo "Sürüm: $NAME (build $PATCH), tam derleme: $FULL"
           grep -n "appVersion" "$F"
 
+      - name: Sürüm kimliği ve çıktı adları (${{ matrix.edition }})
+        id: ed
+        run: |
+          set -e
+          ED="${{ matrix.edition }}"
+          echo "DOSYA_SURUM=$ED" >> "$GITHUB_ENV"
+          case "$ED" in
+            kisisel)
+              echo "DOSYA_PLAY=${{ inputs.play && '1' || '0' }}" >> "$GITHUB_ENV"
+              if [ "${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}" = "1" ]; then
+                echo "DOSYA_KISISEL=1" >> "$GITHUB_ENV"
+              else
+                echo "DOSYA_KISISEL=0" >> "$GITHUB_ENV"
+              fi
+              echo "PERM_BASE=ci/izin_tabani.txt" >> "$GITHUB_ENV"
+              echo "APK_NAME=dosya-okuyucu.apk" >> "$GITHUB_ENV"
+              echo "VER_APK_NAME=dosya-okuyucu-v${BUILD_NAME}.apk" >> "$GITHUB_ENV"
+              echo "APK32_NAME=dosya-okuyucu-32bit-armeabi-v7a.apk" >> "$GITHUB_ENV"
+              echo "AAB_NAME=dosya-okuyucu.aab" >> "$GITHUB_ENV"
+              ;;
+            pro)
+              echo "DOSYA_PLAY=1" >> "$GITHUB_ENV"
+              echo "DOSYA_KISISEL=0" >> "$GITHUB_ENV"
+              echo "PERM_BASE=ci/izin_pro.txt" >> "$GITHUB_ENV"
+              echo "APK_NAME=dosya-okuyucu-pro.apk" >> "$GITHUB_ENV"
+              echo "VER_APK_NAME=dosya-okuyucu-pro-v${BUILD_NAME}.apk" >> "$GITHUB_ENV"
+              echo "APK32_NAME=dosya-okuyucu-pro-32bit-armeabi-v7a.apk" >> "$GITHUB_ENV"
+              echo "AAB_NAME=dosya-okuyucu-pro.aab" >> "$GITHUB_ENV"
+              ;;
+            lite)
+              echo "DOSYA_PLAY=1" >> "$GITHUB_ENV"
+              echo "DOSYA_KISISEL=0" >> "$GITHUB_ENV"
+              echo "PERM_BASE=ci/izin_lite.txt" >> "$GITHUB_ENV"
+              echo "APK_NAME=dosya-okuyucu-lite.apk" >> "$GITHUB_ENV"
+              echo "VER_APK_NAME=dosya-okuyucu-lite-v${BUILD_NAME}.apk" >> "$GITHUB_ENV"
+              echo "APK32_NAME=dosya-okuyucu-lite-32bit-armeabi-v7a.apk" >> "$GITHUB_ENV"
+              echo "AAB_NAME=dosya-okuyucu-lite.aab" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "::error::Bilinmeyen sürüm: $ED"; exit 1 ;;
+          esac
+
       # C7: 9 ayrı yama adımı tek betikte — yerelde de koşar.
       - name: Android iskeleti + yamalar (ci/prepare_android.sh)
-        # Kişisel derleme yalnız elle ya da `[kisisel]` ile.
         env:
-          DOSYA_KISISEL: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}
+          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove }}
         run: bash ci/prepare_android.sh
 
       - name: PDFium önbelleği (Android)
@@ -429,12 +488,10 @@ jobs:
       # izlerini çözmek için semboller artifact olarak saklanır
       # (`flutter symbolize -i iz.txt -d app.android-arm64.symbols`).
       - name: APK derle (release, karartılmış)
-        # OpenSubtitles anahtarı (altyazı arama) YALNIZ kişisel derlemeye girer:
-        # genel APK herkese açık sürümde, anahtar oradan sökülebilirdi.
+        # OpenSubtitles anahtarı YALNIZ kişisel derlemeye girer.
         env:
-          OS_KEY: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && secrets.OPENSUBTITLES_API_KEY || '' }}
-          # Oto güncelleme kişisel derlemede `kisisel` sürümünü izler (genelle ezilmesin).
-          DOSYA_KISISEL: ${{ (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]')) && '1' || '0' }}
+          OS_KEY: ${{ (matrix.edition == 'kisisel' && (inputs.kisisel || contains(github.event.head_commit.message, '[kisisel]'))) && secrets.OPENSUBTITLES_API_KEY || '' }}
+          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove }}
         run: |
           set -e
           PLATFORMS=android-arm64
@@ -444,7 +501,13 @@ jobs:
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
             --dart-define=OPENSUBTITLES_API_KEY="$OS_KEY" \
             --dart-define=DOSYA_KISISEL="$DOSYA_KISISEL" \
+            --dart-define=DOSYA_PLAY="$DOSYA_PLAY" \
+            --dart-define=DOSYA_SURUM="$DOSYA_SURUM" \
             --target-platform "$PLATFORMS"
+          if [ "$DOSYA_PLAY" = "1" ]; then
+            python3 ci/play_variant.py verify $(find build/app/intermediates \
+              -path '*merged_manifest*' -path '*release*' -name AndroidManifest.xml)
+          fi
           ls -lh build/app/outputs/flutter-apk/*.apk
 
       - name: İmza anahtarını hazırla (secret varsa kalıcı, yoksa geçici)
@@ -502,13 +565,9 @@ jobs:
         if: steps.version.outputs.full == 'true'
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'DosyaOkuyucuGecici' }}
-          DOSYA_PLAY: ${{ inputs.play && '1' || '0' }}
-          DOSYA_SURUM: ${{ inputs.play && 'pro' || 'kisisel' }}
-          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove || 'QUERY_ALL_PACKAGES,READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,READ_MEDIA_VISUAL_USER_SELECTED' }}
+          DOSYA_PLAY_REMOVE: ${{ inputs.play_remove }}
         run: |
           set -e
-          # Play izin varyantı (A6.4): APK'lar ZATEN derlendi; manifest yalnız
-          # AAB için yamanır, sonra birleşmiş manifestte izin YOK denetlenir.
           if [ "$DOSYA_PLAY" = "1" ]; then
             python3 ci/play_variant.py apply
             # A6.6: Play İçi Değerlendirme + Uygulama İçi Güncelleme (yalnız AAB).
@@ -524,26 +583,47 @@ jobs:
           if [ "$DOSYA_PLAY" = "1" ]; then
             python3 ci/play_variant.py verify $(find build/app/intermediates \
               -path '*merged_manifest*' -path '*release*' -name AndroidManifest.xml)
-            echo "Play izin varyantı: $DOSYA_PLAY_REMOVE çıkarıldı" >> "$GITHUB_STEP_SUMMARY"
+            echo "Play izin varyantı ($DOSYA_SURUM): $DOSYA_PLAY_REMOVE çıkarıldı" >> "$GITHUB_STEP_SUMMARY"
           fi
+          python3 - "$AAB" <<'PY'
+          import struct, sys, zipfile
+          bad = []
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              for n in z.namelist():
+                  if not (n.startswith('base/lib/arm64-v8a/') and n.endswith('.so')):
+                      continue
+                  d = z.read(n)
+                  if d[:4] != b'\x7fELF' or d[4] != 2:
+                      continue
+                  phoff, = struct.unpack_from('<Q', d, 0x20)
+                  phentsize, phnum = struct.unpack_from('<HH', d, 0x36)
+                  aligns = [struct.unpack_from('<Q', d, phoff + i * phentsize + 0x30)[0]
+                            for i in range(phnum)
+                            if struct.unpack_from('<I', d, phoff + i * phentsize)[0] == 1]
+                  low = min(aligns) if aligns else 0
+                  if low < 0x4000:
+                      bad.append(f'{n} (0x{low:x})')
+          if bad:
+              print('::error::AAB 16 KB ELF hizası tutmayan kütüphaneler: ' + ', '.join(bad))
+              raise SystemExit(1)
+          print('AAB 16 KB ELF hizası: ✔')
+          PY
           jarsigner -keystore release.jks -storepass "$KS_PASS" -keypass "$KS_PASS" \
             -sigalg SHA256withRSA -digestalg SHA-256 "$AAB" dosyaokuyucu
           jarsigner -verify "$AAB" > /dev/null && echo "AAB imzası doğrulandı"
           mkdir -p dist-aab
-          cp "$AAB" dist-aab/dosya-okuyucu.aab
+          cp "$AAB" "dist-aab/$AAB_NAME"
 
-      # arm64 SADE adı alır (`dosya-okuyucu.apk`) — kullanıcı her zamanki
-      # dosyayı indirir; `releases/latest/download/dosya-okuyucu.apk` sabit.
+      # Sürüm başına sabit ad (`dosya-okuyucu.apk` / `-pro.apk` / `-lite.apk`).
       - name: APK'ları adlandır
         run: |
           set -e
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/dosya-okuyucu.apk
-          # Sürümlü ad da (2026-11-05): sabit ad bağlantı için, sürümlü ad indirilenler için.
-          cp dist/dosya-okuyucu.apk "dist/dosya-okuyucu-v${BUILD_NAME}.apk"
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "dist/$APK_NAME"
+          cp "dist/$APK_NAME" "dist/$VER_APK_NAME"
           if [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ]; then
             cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-              dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+              "dist/$APK32_NAME"
           fi
           ls -lh dist/
 
@@ -552,28 +632,23 @@ jobs:
         run: |
           set -e
           {
-            echo "## APK boyutları"
+            echo "## APK boyutları (${DOSYA_SURUM})"
             echo '```'; ls -l dist/ | awk 'NR>1 {printf "%6.1f MB  %s\n", $5/1048576, $9}'; echo '```'
             echo "## arm64 APK içindeki en büyük 25 dosya (sıkıştırılmamış)"
             echo '```'
-            unzip -l dist/dosya-okuyucu.apk | awk 'NF==4 && $1 ~ /^[0-9]+$/' \
+            unzip -l "dist/$APK_NAME" | awk 'NF==4 && $1 ~ /^[0-9]+$/' \
               | sort -k1 -n -r | head -25 \
               | awk '{printf "%8.1f MB  %s\n", $1/1048576, $4}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       # C10 + 2026-09-26 denetimleri — derleme yeşil diye VARSAYILMAZ, ölçülür:
-      #   • pdfium.wasm ve gömülü OCR APK'da yok, targetSdk 36;
-      #   • 16 KB sayfa hizası (Play şartı, Kasım 2025'ten beri): zip hizası
-      #     (`zipalign -P 16`) + her .so'nun ELF LOAD hizası ≥ 0x4000;
-      #   • arm64 APK boyut bütçesi. 80 → 100 (2026-11-02): mpv motoru (libmpv
-      #     12 MB, VLC benzeri kodek desteği) + LiteRT (6,5 MB, görsel büyütme).
       - name: APK denetimi (içerik, 16 KB hiza, boyut bütçesi)
         env:
           BUDGET_MB: 100
         run: |
           set -e
-          APK=dist/dosya-okuyucu.apk
+          APK="dist/$APK_NAME"
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
           if unzip -l "$APK" | grep -q 'pdfium.wasm'; then
@@ -661,25 +736,16 @@ jobs:
         run: |
           SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)
-          python3 tool/apk_dogrula.py dist/dosya-okuyucu.apk "$BT"
+          python3 tool/apk_dogrula.py "dist/$APK_NAME" "$BT" --base "$PERM_BASE"
 
       # APK → yayın işi ÖNBELLEKLE aktarılır, artifact'le DEĞİL (2026-11-17 kök):
-      # depo özel olunca artifact deposu 0,5 GB — dolunca "Artifact storage
-      # quota has been hit" ile APK derlenip imzalandığı hâlde yayına
-      # ulaşmıyordu (koşu 976). Önbellek ayrı 10 GB'lık alan, kotadan düşmez.
-      # Sürümlü ad da gider: uygulama içi güncelleme sürümü bu addan okur.
       - name: APK'yı yayın işine aktar (önbellek)
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: apk-dist-${{ github.run_id }}
-          path: |
-            dist/dosya-okuyucu.apk
-            dist/dosya-okuyucu-v*.apk
-            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          key: apk-dist-${{ github.run_id }}-${{ matrix.edition }}
+          path: dist/*.apk
 
       # Artifact yalnız yayın OLMAYAN koşuda (elle tetiklenen dal derlemesi):
-      # main/etiket/kişisel APK zaten Release'te. Kısa saklama, kota dolarsa
-      # derleme düşmez.
       - name: Artifact — APK (64-bit)
         if: >-
           github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') &&
@@ -687,10 +753,8 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dosya-okuyucu-apk
-          path: |
-            dist/dosya-okuyucu.apk
-            dist/dosya-okuyucu-v*.apk
+          name: dosya-okuyucu-apk-${{ matrix.edition }}
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 3
 
@@ -698,15 +762,15 @@ jobs:
         if: steps.version.outputs.full == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dosya-okuyucu-aab
-          path: dist-aab/dosya-okuyucu.aab
+          name: dosya-okuyucu-aab-${{ matrix.edition }}
+          path: dist-aab/*.aab
           retention-days: 7
         continue-on-error: true
 
       - name: Artifact — Dart sembolleri (çökme izi çözmek için)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: dart-symbols-${{ steps.version.outputs.name }}
+          name: dart-symbols-${{ matrix.edition }}-${{ steps.version.outputs.name }}
           path: build/symbols*
           # 90 → 14 gün (artifact kotası 0,5 GB); kota doluysa derleme düşmez.
           retention-days: 14
@@ -739,14 +803,21 @@ jobs:
         with:
           fetch-depth: 200
 
-      # APK işinin önbelleğe koyduğu dist/ (artifact kotası — yukarıya bak).
+      # 3 sürüm APK'sını önbellekten topla (`kisisel`, `pro`, `lite`).
       - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          key: apk-dist-${{ github.run_id }}
-          path: |
-            dist/dosya-okuyucu.apk
-            dist/dosya-okuyucu-v*.apk
-            dist/dosya-okuyucu-32bit-armeabi-v7a.apk
+          key: apk-dist-${{ github.run_id }}-kisisel
+          path: dist/*.apk
+          fail-on-cache-miss: true
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: apk-dist-${{ github.run_id }}-pro
+          path: dist/*.apk
+          fail-on-cache-miss: true
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          key: apk-dist-${{ github.run_id }}-lite
+          path: dist/*.apk
           fail-on-cache-miss: true
 
       - name: Sürüm notunu hazırla
@@ -781,7 +852,10 @@ jobs:
             echo
             echo "<sub>Derleme ${BUILD_NUMBER} · \`$(git rev-parse --short HEAD)\`</sub>"
             echo
-            echo "**Hangi dosyayı indirmeliyim?** → \`dosya-okuyucu.apk\` (64-bit / arm64-v8a)."
+            echo "**Hangi dosyayı indirmeliyim? (64-bit / arm64-v8a)**"
+            echo "- \`dosya-okuyucu.apk\` — Kişisel / Tam sürüm (GitHub)"
+            echo "- \`dosya-okuyucu-pro.apk\` — Play Pro önizleme"
+            echo "- \`dosya-okuyucu-lite.apk\` — Play Lite önizleme"
             if [ -f dist/dosya-okuyucu-32bit-armeabi-v7a.apk ]; then
               echo "Yalnız çok eski 32-bit bir cihazda kurulmuyorsa \`dosya-okuyucu-32bit-armeabi-v7a.apk\`."
             else
@@ -816,7 +890,10 @@ jobs:
           # Üzerine yazılan sürümde (nightly/kisisel) eski sürümlü APK'lar birikmesin.
           eski_sil() {
             gh release view "$1" --json assets --jq '.assets[].name' 2>/dev/null \
-              | grep -E '^dosya-okuyucu-v.*\.apk$' | grep -vxF "dosya-okuyucu-v${BUILD_NAME}.apk" \
+              | grep -E '^dosya-okuyucu(-pro|-lite)?-v.*\.apk$' \
+              | grep -vxF "dosya-okuyucu-v${BUILD_NAME}.apk" \
+              | grep -vxF "dosya-okuyucu-pro-v${BUILD_NAME}.apk" \
+              | grep -vxF "dosya-okuyucu-lite-v${BUILD_NAME}.apk" \
               | while read -r a; do gh release delete-asset "$1" "$a" -y || true; done
           }
           publish() {

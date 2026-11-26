@@ -142,4 +142,38 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('ikinci'), findsOneWidget);
   });
+
+  // KÖK (2026-11-22, kullanıcı: "geri dönüşte animasyonda takılma"): kapanış
+  // eskiden yalnız %14 kayıp son karede birden kayboluyordu.
+  testWidgets('geri tuşuyla kapanışta sayfa tam genişlikte kayarak çıkar',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.light(),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const Scaffold(
+                  body: Align(
+                      alignment: Alignment.topLeft, child: Text('ikinci'))),
+            )),
+            child: const Text('aç'),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('aç'));
+    await tester.pumpAndSettle();
+    final width = tester.getSize(find.byType(MaterialApp)).width;
+    expect(tester.getTopLeft(find.text('ikinci')).dx, 0);
+
+    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 120)); // kapanışın sonları
+    final dx = tester.getTopLeft(find.text('ikinci')).dx;
+    expect(dx, greaterThan(width * 0.2),
+        reason: 'kapanış yalnız %14 kayıp aniden kayboluyordu');
+    await tester.pumpAndSettle();
+    expect(find.text('ikinci'), findsNothing);
+  });
 }

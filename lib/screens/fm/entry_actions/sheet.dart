@@ -21,7 +21,6 @@ enum _EntryAction {
   important,
   sharedFolder,
   externalDrive,
-  imageInsight,
   resize,
   trimVideo,
   tag,
@@ -51,7 +50,6 @@ Feature? _featureOf(_EntryAction a) => switch (a) {
       _EntryAction.library =>
         null,
       _EntryAction.driveUpload => Feature.googleDrive,
-      _EntryAction.imageInsight ||
       _EntryAction.aiAlias ||
       _EntryAction.smartFix =>
         Feature.ai,
@@ -79,6 +77,7 @@ class EntryExtraAction {
 
   /// Aç/kapa ayarı ise durumu (sağda onay işareti); null = düz işlem.
   final bool? checked;
+  final bool proBadge;
   const EntryExtraAction({
     required this.icon,
     required this.label,
@@ -86,6 +85,7 @@ class EntryExtraAction {
     this.hint,
     this.color,
     this.checked,
+    this.proBadge = false,
   });
 }
 
@@ -205,22 +205,31 @@ Future<bool> showEntryActions(
     builder: (ctx) {
       // Levhanın işlemi: dokununca levha işlem adıyla kapanır, iş aşağıda.
       MenuKitAction act(IconData icon, String label, _EntryAction which,
-              {String? hint, MenuTone tone = MenuTone.accent}) =>
+              {String? hint,
+              MenuTone tone = MenuTone.accent,
+              bool proBadge = false}) =>
           MenuKitAction(
             icon: icon,
             label: label,
             hint: hint,
             tone: tone,
+            proBadge: proBadge,
             onTap: () => Navigator.pop(ctx, which),
           );
       // Türe göre işler (Faz 17 / G16): arşivde Çıkar, görselde
       // Boyut/Döndür/Tanı, videoda Boyut/Kes — dosyanın asıl işi aranmasın.
       MenuKitAction own(IconData icon, String label, _EntryAction which,
-              {String? hint}) =>
-          act(icon, label, which, hint: hint, tone: MenuTone.special);
+              {String? hint, bool proBadge = false}) =>
+          act(icon, label, which,
+              hint: hint, tone: MenuTone.special, proBadge: proBadge);
       return SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+          padding: EdgeInsets.fromLTRB(
+            Gap.md,
+            0,
+            Gap.md,
+            Gap.md + MediaQuery.viewInsetsOf(ctx).bottom,
+          ),
           // **Menü görünümü** (2026-11-15): sekmeli (varsayılan) ya da Bento
           // — `MenuSections` ayardan seçer; bu levha yalnız modeli verir.
           child: MenuSections(
@@ -261,10 +270,9 @@ Future<bool> showEntryActions(
             // Görüntüleyicide ekranın kendi işleri seçili açılır.
             preferSpecial: inViewer,
             sections: [
-              // **İkinci ad ve kategori EN ÜSTTE** (2026-11-19, kullanıcı:
-              // *"ikinci ad ver işlemlerini menüde üste taşıyalım; AI ile
-              // ikinci ad ve ikinci ad, bir de kategori ekle olsun"*).
-              if (!entry.isDir)
+              // **İkinci ad ve kategori**: yalnız Akıllı klasörler açıkken üstte
+              // yer alır; Lite'ta dosya menüsü sade tutulur.
+              if (!entry.isDir && Edition.current.has(Feature.smartFolders))
                 MenuKitSection(title: ctx.t('ea.sec_name'), actions: [
                   act(AppIcons.ai, ctx.t('alias.action'), _EntryAction.aiAlias,
                       hint: ctx.t('alias.action_hint')),
@@ -297,6 +305,7 @@ Future<bool> showEntryActions(
                         hint: x.hint,
                         tone: MenuTone.special,
                         checked: x.checked,
+                        proBadge: x.proBadge,
                         onTap: x.onTap == null
                             ? null
                             : () {
@@ -310,7 +319,8 @@ Future<bool> showEntryActions(
                 if (showAudiobook)
                   own(AppIcons.audiobook, ctx.t('ab.make'),
                       _EntryAction.audiobook,
-                      hint: ctx.t('ab.make_hint')),
+                      hint: ctx.t('ab.make_hint'),
+                      proBadge: !Edition.current.has(Feature.audiobook)),
                 if (isArchive)
                   own(AppIcons.archiveView, ctx.t('fm.show_archive'),
                       _EntryAction.openArchive),
@@ -319,7 +329,9 @@ Future<bool> showEntryActions(
                       _EntryAction.extract),
                 if (!entry.isDir && isMedia)
                   own(AppIcons.resize, ctx.t('ea.resize'), _EntryAction.resize,
-                      hint: ctx.t('ea.resize_hint')),
+                      hint: ctx.t('ea.resize_hint'),
+                      proBadge: entry.category == FmCategory.video &&
+                          !Edition.current.has(Feature.videoCompress)),
                 // Videoyu kes (Ferrari H8): oynatıcının ⋮'ı da bu levhayı açar.
                 if (!entry.isDir && entry.category == FmCategory.video)
                   own(AppIcons.cut, ctx.t('vtr.title'), _EntryAction.trimVideo,
@@ -331,10 +343,6 @@ Future<bool> showEntryActions(
                 if (canRotate)
                   own(AppIcons.rotate, ctx.t('ea.rotate'), _EntryAction.rotate,
                       hint: ctx.t('ea.rotate_hint')),
-                if (entry.category == FmCategory.image)
-                  own(AppIcons.ai, ctx.t('ea.image_insight'),
-                      _EntryAction.imageInsight,
-                      hint: ctx.t('ea.image_insight_hint')),
               ]),
               MenuKitSection(title: ctx.t('ea.sec_open'), actions: [
                 // Görüntüleyicide Paylaş üstte yok (alt çubukta duruyor) ama
@@ -554,11 +562,6 @@ Future<bool> showEntryActions(
 
     case _EntryAction.tag:
       return showTagPicker(context, [entry.path]);
-
-    case _EntryAction.imageInsight:
-      await showImageInsight(context, entry);
-      // Sınıflandırma sonucu dosya taşınmış olabilir → liste tazelensin.
-      return true;
 
     case _EntryAction.reveal:
       onReveal?.call(_parentOf(entry.path));
@@ -784,34 +787,53 @@ Future<bool> joinEntry(BuildContext context, FsEntry entry) async {
   }
 }
 
-/// Sayfanın başlığı: dosyanın kendisi (simge, ad, boyut/tarih).
-Widget _sheetHeader(BuildContext ctx, FsEntry entry) => Row(
+/// Sayfanın başlığı: dosyanın kendisi (simge, ad, boyut/tarih/konum).
+Widget _sheetHeader(BuildContext ctx, FsEntry entry) {
+  final theme = Theme.of(ctx);
+  final scheme = theme.colorScheme;
+  final meta = entry.isDir
+      ? '${ctx.t('fm.folder')} · ${FsPaths.humanDate(entry.modifiedMs)}'
+      : '${FsPaths.humanSize(entry.sizeBytes)} · '
+          '${FsPaths.humanDate(entry.modifiedMs)}';
+  return DecoratedBox(
+    decoration: BoxDecoration(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(Radii.card),
+      border: Border.all(color: scheme.outlineVariant),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(Gap.sm + 4),
+      child: Row(
         children: [
-          FmEntryIcon(entry: entry, size: 40),
+          FmEntryIcon(entry: entry, size: 44),
           const SizedBox(width: Gap.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(ctx).textTheme.titleMedium),
                 Text(
-                  entry.isDir
-                      ? '${ctx.t('fm.folder')} · '
-                          '${FsPaths.humanDate(entry.modifiedMs)}'
-                      : '${FsPaths.humanSize(entry.sizeBytes)} · '
-                          '${FsPaths.humanDate(entry.modifiedMs)}',
+                  entry.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  meta,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(ctx).textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
           ),
         ],
-      );
+      ),
+    ),
+  );
+}
 
 /// **Kısayol oluştur** (2026-11-15, kullanıcı: *"depodaki tüm klasörleri
 /// kısayol olarak kendi panomuza ekleme seçeneği olsun; iki seçenekli kart:

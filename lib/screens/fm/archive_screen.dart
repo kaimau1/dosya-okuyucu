@@ -13,6 +13,7 @@ import '../../models/fs_entry.dart';
 import '../../services/fm/archive_ops.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/fm_location.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart' show JobCancelled;
 import '../../widgets/fm/archive_password_dialog.dart';
@@ -375,12 +376,17 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       thumbnails: false,
       selected: false,
       selecting: false,
+      alias: '',
+      showTags: false,
       subtitle: [
-        FsPaths.humanSize(item.size),
         if (item.parent.isNotEmpty) item.parent,
         if (item.compression.isNotEmpty && item.compression != 'stored')
           item.compression,
       ].join(' · '),
+      dateText: item.modifiedMs > 0
+          ? FmLocation.shortDate(item.modifiedMs)
+          : null,
+      subtitleEnd: FsPaths.humanSize(item.size),
       badge: item.isEncrypted
           ? const Icon(AppIcons.lock, size: 18)
           : IconButton(

@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,6 +8,7 @@ import '../core/app_icons.dart';
 import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
+import '../services/play_store.dart';
 import 'app_dialog.dart';
 
 /// **Pro kapısı** (SÜRÜM PLANI S2/S3, 2026-11-12).
@@ -27,8 +30,12 @@ abstract final class ProGate {
       !edition.has(f);
 
   /// [f] bu sürümde varsa [run]'ı çalıştırır, yoksa Pro levhasını açar.
-  static void guard(BuildContext context, Feature f, VoidCallback run,
-      {Edition edition = Edition.current}) {
+  static void guard(
+    BuildContext context,
+    Feature f,
+    VoidCallback run, {
+    Edition edition = Edition.current,
+  }) {
     if (edition.has(f)) {
       run();
     } else if (f.isPro) {
@@ -36,9 +43,27 @@ abstract final class ProGate {
     }
   }
 
+  /// [f] bu sürümde varsa `true` döner; yoksa Lite'ta Pro levhasını açıp
+  /// `false` döner (`await ProGate.check(context, Feature.x)`).
+  static Future<bool> check(
+    BuildContext context,
+    Feature f, {
+    Edition edition = Edition.current,
+  }) async {
+    if (edition.has(f)) return true;
+    if (f.isPro && context.mounted) {
+      await showProSheet(context, f);
+    }
+    return false;
+  }
+
   /// [guard]'ı saran dokunma geri çağrısı (kutu `onTap`'ı için).
-  static VoidCallback wrap(BuildContext context, Feature f, VoidCallback run,
-          {Edition edition = Edition.current}) =>
+  static VoidCallback wrap(
+    BuildContext context,
+    Feature f,
+    VoidCallback run, {
+    Edition edition = Edition.current,
+  }) =>
       () => guard(context, f, run, edition: edition);
 }
 
@@ -46,15 +71,26 @@ abstract final class ProGate {
 /// kapatılınca 30 gün görünmez.
 abstract final class ProPromo {
   static const _key = 'pro_card_hidden_until';
+  static const _firstKey = 'pro_card_first_ms';
   static const hideFor = Duration(days: 30);
+  static const gracePeriod = Duration(days: 3);
 
-  static Future<bool> shouldShow(
-      {Edition edition = Edition.current, DateTime? now}) async {
+  static Future<bool> shouldShow({
+    Edition edition = Edition.current,
+    DateTime? now,
+  }) async {
     if (edition != Edition.lite) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
+      final nowMs = (now ?? DateTime.now()).millisecondsSinceEpoch;
+      var first = prefs.getInt(_firstKey);
+      if (first == null) {
+        first = nowMs;
+        await prefs.setInt(_firstKey, first);
+      }
+      if (nowMs - first < gracePeriod.inMilliseconds) return false;
       final until = prefs.getInt(_key) ?? 0;
-      return (now ?? DateTime.now()).millisecondsSinceEpoch >= until;
+      return nowMs >= until;
     } catch (_) {
       return false; // Bilinçli: tercih okunamazsa kart gösterilmez.
     }
@@ -64,7 +100,9 @@ abstract final class ProPromo {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
-          _key, (now ?? DateTime.now()).add(hideFor).millisecondsSinceEpoch);
+        _key,
+        (now ?? DateTime.now()).add(hideFor).millisecondsSinceEpoch,
+      );
     } catch (_) {
       return; // Bilinçli: yazılamazsa kart yalnız bu oturumda kapanır.
     }
@@ -88,11 +126,11 @@ class ProBadge extends StatelessWidget {
       child: Text(
         'PRO',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: .5,
-              height: 1.1,
-              color: scheme.onTertiaryContainer,
-            ),
+          fontWeight: FontWeight.w700,
+          letterSpacing: .5,
+          height: 1.1,
+          color: scheme.onTertiaryContainer,
+        ),
       ),
     );
   }
@@ -113,7 +151,9 @@ class ProBadged extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!ProGate.locked(feature, edition: edition)) return child;
+    if (!ProGate.locked(feature, edition: edition) || !feature.isPro) {
+      return child;
+    }
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -128,11 +168,14 @@ class ProBadged extends StatelessWidget {
 ///
 /// Olmayacaklar (§3): açılışta tam ekran, geri sayım, iş sonu araya girme.
 Future<void> showProSheet(BuildContext context, [Feature? feature]) {
+  unawaited(PlayStore.noteFriction());
   return showAppSheet<void>(
     context,
     title: feature == null
         ? context.t('pro.title')
-        : context.t('pro.feature_title', {'f': context.t('pro.f.${feature.name}')}),
+        : context.t('pro.feature_title', {
+            'f': context.t('pro.f.${feature.name}'),
+          }),
     builder: (ctx) => _ProSheetBody(feature: feature),
   );
 }
@@ -147,14 +190,19 @@ class _ProSheetBody extends StatelessWidget {
     final nav = Navigator.of(context);
     var ok = false;
     try {
-      ok = await launchUrl(ProListing.marketUri,
-          mode: LaunchMode.externalApplication);
+      ok = await launchUrl(
+        ProListing.marketUri,
+        mode: LaunchMode.externalApplication,
+      );
     } catch (_) {
       ok = false; // Bilinçli: Play yüklü değil → web adresine düş.
     }
     if (!ok) {
       try {
-        await launchUrl(ProListing.webUri, mode: LaunchMode.externalApplication);
+        await launchUrl(
+          ProListing.webUri,
+          mode: LaunchMode.externalApplication,
+        );
       } catch (_) {
         // Bilinçli: tarayıcı da yoksa levha açık kalır, kullanıcı kapatır.
         return;
@@ -166,12 +214,39 @@ class _ProSheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.md),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            key: const ValueKey('pro-one-time'),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 6),
+            decoration: BoxDecoration(
+              color: cs.secondaryContainer,
+              borderRadius: BorderRadius.circular(Radii.control),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(AppIcons.shield, size: 16, color: cs.onSecondaryContainer),
+                const SizedBox(width: Gap.xs),
+                Flexible(
+                  child: Text(
+                    context.t('pro.one_time_badge'),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: cs.onSecondaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
           Text(context.t('pro.lead'), style: theme.textTheme.bodyMedium),
           const SizedBox(height: Gap.sm),
           for (final b in _bullets)
@@ -179,8 +254,11 @@ class _ProSheetBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: Gap.xs),
               child: Row(
                 children: [
-                  Icon(AppIcons.checkCircle,
-                      size: 18, color: theme.colorScheme.primary),
+                  Icon(
+                    AppIcons.checkCircle,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(width: Gap.sm),
                   Expanded(child: Text(context.t(b))),
                 ],
@@ -188,12 +266,40 @@ class _ProSheetBody extends StatelessWidget {
             ),
           if (ProListing.priceLabel.isNotEmpty) ...[
             const SizedBox(height: Gap.sm),
-            Text(
-              context.t('pro.price', {'p': ProListing.priceLabel}),
+            Container(
               key: const ValueKey('pro-price'),
-              style: theme.textTheme.titleMedium,
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(Radii.control),
+              ),
+              child: Text(
+                context.t('pro.price_one_time', {'p': ProListing.priceLabel}),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: cs.onPrimaryContainer,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
+          const SizedBox(height: Gap.sm),
+          Text(
+            context.t('pro.smart_limit_note'),
+            key: const ValueKey('pro-smart-note'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
+          Text(
+            context.t('pro.trust'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: Gap.md),
           FilledButton.icon(
             key: const ValueKey('pro-store'),
@@ -208,6 +314,97 @@ class _ProSheetBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Lite derlemede doğrudan açılan bir Pro ekranının gösterdiği kilitli görünüm.
+class ProLockedView extends StatelessWidget {
+  final Feature feature;
+  final String title;
+  final String? lockedTitle;
+  final String? message;
+  final bool withScaffold;
+
+  const ProLockedView({
+    super.key,
+    required this.feature,
+    required this.title,
+    this.lockedTitle,
+    this.message,
+    this.withScaffold = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final body = Center(
+      key: const ValueKey('pro-locked-view'),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.xl),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(AppIcons.pro, size: 48, color: cs.primary),
+              const SizedBox(height: Gap.md),
+              Text(
+                lockedTitle ??
+                    context.t('pro.locked_title', {
+                      'f': context.t('pro.f.${feature.name}'),
+                    }),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                message ?? context.t('pro.locked_sub'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              if (ProListing.priceLabel.isNotEmpty) ...[
+                const SizedBox(height: Gap.md),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: cs.secondaryContainer,
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.sm, vertical: 5),
+                    child: Text(
+                      context.t(
+                          'pro.price_one_time', {'p': ProListing.priceLabel}),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: cs.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: Gap.lg),
+              FilledButton.icon(
+                key: const ValueKey('pro-locked-btn'),
+                onPressed: () => showProSheet(context, feature),
+                icon: const Icon(AppIcons.pro),
+                label: Text(context.t('ab.pro_unlock')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!withScaffold) return body;
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: body,
     );
   }
 }

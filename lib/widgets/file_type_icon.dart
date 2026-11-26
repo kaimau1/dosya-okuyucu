@@ -38,15 +38,25 @@ class FileTypeIcon extends StatelessWidget {
         child: Icon(icon, color: tint, size: size * 0.92),
       );
     }
+    final radius = (size * 0.31).clamp(9.0, 16.0);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: tint.withValues(alpha: dark ? 0.22 : 0.13),
-        borderRadius: BorderRadius.circular(Radii.control),
-        border: Border.all(color: tint.withValues(alpha: 0.28)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            tint.withValues(alpha: dark ? 0.30 : 0.18),
+            tint.withValues(alpha: dark ? 0.14 : 0.07),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: tint.withValues(alpha: dark ? 0.42 : 0.28),
+        ),
       ),
-      child: Icon(icon, color: tint, size: size * 0.52),
+      child: Icon(icon, color: tint, size: size * 0.54),
     );
   }
 

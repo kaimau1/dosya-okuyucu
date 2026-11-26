@@ -28,6 +28,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../../core/image_decode.dart';
 import 'pdf_fallback_fonts.dart';
 import 'pdf_incremental_trim.dart';
 import 'pdf_object_types.dart';
@@ -54,8 +55,6 @@ class PdfEditBridgeRefused implements Exception {
 }
 
 const _fpdfPageObjText = 1; // FPDF_PAGEOBJ_TEXT
-
-final _rtl = RegExp(r'[֐-ࣿיִ-﷿ﹰ-﻿]');
 
 abstract final class PdfEditBridge {
   /// Sayfanın metin nesneleri (sıra, metin, kutu, font, punto, matris).
@@ -167,7 +166,7 @@ abstract final class PdfEditBridge {
         continue;
       }
       final decoded = await Isolate.run(() {
-        final im = img.decodeImage(bytes);
+        final im = decodeCommonImage(bytes);
         if (im == null) return null;
         final rgba = im.convert(numChannels: 4);
         return (

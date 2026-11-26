@@ -10,6 +10,7 @@ import '../core/theme.dart';
 import '../services/pdf/pdf_form.dart';
 import '../services/pdf_form_pro.dart';
 import '../services/pdf_tools.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/autofill_profile_sheet.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../widgets/signature_pad.dart';
@@ -81,8 +82,13 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
       if (!mounted) return;
       setState(() {
         _fields = fields;
+        for (final c in _controllers.values) {
+          c.dispose();
+        }
+        _controllers.clear();
         for (final f in fields) {
           if (f.kind == PdfFormFieldKind.text) {
+            _controllers.remove(f.name)?.dispose();
             _controllers[f.name] = TextEditingController(text: f.value);
           }
         }
@@ -183,6 +189,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
         originalPath: widget.path,
         bytes: out,
         note: context.t(_flatten ? 'pf.note_flat' : 'pf.note'),
+        activityDetail: context.t('ps.act_form'),
       );
       if (outcome == null || !mounted) return;
       Navigator.of(context).pop(outcome.overwritten);
@@ -193,12 +200,35 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
     }
   }
 
+  bool get _dirty => _values.isNotEmpty || _signs.isNotEmpty;
+
+  Future<void> _handlePop(bool didPop) async {
+    if (didPop) return;
+    if (!_dirty) {
+      Navigator.of(context).pop(false);
+      return;
+    }
+    final leave = await showAppConfirm(
+      context,
+      title: context.t('pdf.discard_title'),
+      message: context.t('pdf.discard_body'),
+      confirmLabel: context.t('pdf.discard_confirm'),
+      destructive: true,
+    );
+    if (leave && mounted) {
+      Navigator.of(context).pop(false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final fields = _fields;
     final fillable =
         fields?.where((f) => !f.readOnly || _signable(f)).length ?? 0;
-    return Scaffold(
+    return PopScope<bool>(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) => _handlePop(didPop),
+      child: Scaffold(
       appBar: AppBar(
         title: Text(context.t('pf.title', {'name': p.basename(widget.path)}),
             maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -263,6 +293,7 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
                 ),
               ),
             ),
+    ),
     );
   }
 
@@ -318,6 +349,16 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
   }
 
   Widget _fieldTile(BuildContext context, PdfFormFieldInfo field) {
+    if (field.readOnly && !_signable(field)) {
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(field.label),
+        subtitle: Text(field.value.isEmpty
+            ? context.t('pf.read_only')
+            : '${field.value} · ${context.t('pf.read_only')}'),
+        leading: const Icon(AppIcons.lock),
+      );
+    }
     if (_signable(field)) {
       final signed = _signs.containsKey(field);
       return ListTile(
@@ -327,16 +368,6 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
         subtitle: Text(context.t(signed ? 'pf.signed' : 'pf.sign_tap')),
         trailing: signed ? const Icon(AppIcons.check) : null,
         onTap: _busy ? null : () => _signField(field),
-      );
-    }
-    if (field.readOnly) {
-      return ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(field.label),
-        subtitle: Text(field.value.isEmpty
-            ? context.t('pf.read_only')
-            : '${field.value} · ${context.t('pf.read_only')}'),
-        leading: const Icon(AppIcons.lock),
       );
     }
     switch (field.kind) {
@@ -353,18 +384,19 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
       case PdfFormFieldKind.radio:
       case PdfFormFieldKind.combo:
       case PdfFormFieldKind.list:
+        final options = field.options.toSet().toList();
         final value = _values[field.name] ?? field.value;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: Gap.xs),
           child: DropdownButtonFormField<String>(
-            initialValue: field.options.contains(value) ? value : null,
+            initialValue: options.contains(value) ? value : null,
             isExpanded: true,
             decoration: InputDecoration(
               labelText: field.label,
               border: const OutlineInputBorder(),
             ),
             items: [
-              for (final option in field.options)
+              for (final option in options)
                 DropdownMenuItem(value: option, child: Text(option)),
             ],
             onChanged: (v) {

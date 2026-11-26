@@ -1,3 +1,4 @@
+import '../core/l10n/app_strings.dart';
 import 'ocr_service.dart' show OcrLine;
 
 /// Taranan belgeye OCR'dan **anlamlı bir ad** çıkarır — "Tarama 2026-08-05
@@ -57,11 +58,14 @@ String? suggestScanTitle(List<OcrLine> firstPageLines) {
 /// Kaydedilecek PDF'in dosya adı. Başlık yoksa eski damgalı ad (saat dahil —
 /// aynı gün art arda adsız taramalar birbirini ezmesin; başlıklı adlarda
 /// çakışmayı `FileOps.uniquePath` çözer, saat gürültüsüne gerek yok).
-String scanFileName(String? title, DateTime now) {
+String scanFileName(String? title, DateTime now, {String? prefix}) {
   String two(int n) => n.toString().padLeft(2, '0');
   final date = '${now.year}-${two(now.month)}-${two(now.day)}';
   if (title == null || title.isEmpty) {
-    return 'Tarama $date ${two(now.hour)}${two(now.minute)}${two(now.second)}.pdf';
+    final p = (prefix != null && prefix.trim().isNotEmpty)
+        ? prefix.trim()
+        : AppStrings.current.t('sf.default_prefix');
+    return '$p $date ${two(now.hour)}${two(now.minute)}${two(now.second)}.pdf';
   }
   return '$title $date.pdf';
 }

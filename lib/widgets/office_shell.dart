@@ -234,6 +234,14 @@ class OfficeShell extends StatefulWidget {
   /// ("Kaydediliyor… / Kaydedildi 14:32 / Kaydedilmedi") ve [dirty] yok sayılır.
   final EditSession? session;
 
+  /// Seçim çubuğu gibi üst katmanlar açıldığında alt dock'u gövde ölçüsünü
+  /// bozmadan geçici olarak gizler.
+  final bool hideBottomBar;
+
+  /// [subtitle] doluyken bilgi satırında tür adını gizler (ör. PDF düzenleme
+  /// kipinde "PDF · Düzenleme kipi" yerine doğrudan "Düzenleme kipi").
+  final bool hideKindPrefix;
+
   const OfficeShell({
     super.key,
     required this.kind,
@@ -250,6 +258,8 @@ class OfficeShell extends StatefulWidget {
     this.tapShowsBars,
     this.hideStatusBar = false,
     this.session,
+    this.hideBottomBar = false,
+    this.hideKindPrefix = false,
   });
 
   @override
@@ -343,19 +353,29 @@ class _OfficeShellState extends State<OfficeShell>
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final brand = OfficeColors.tint(context, widget.kind);
+    final topBg = Color.lerp(scheme.surface, brand, dark ? 0.065 : 0.032)!;
+    final dockBg =
+        Color.lerp(scheme.surface, scheme.surfaceContainerLowest, 0.55)!;
+    final hairline = Color.lerp(
+        scheme.outlineVariant, brand, dark ? 0.16 : 0.10)!;
     final appBar = AppBar(
-      backgroundColor: scheme.surface,
+      backgroundColor: topBg,
       foregroundColor: scheme.onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
       titleSpacing: 0,
+      shape: Border(bottom: BorderSide(color: hairline.withValues(alpha: 0.72))),
       title: widget.session == null
           ? DocTitle(
               kind: widget.kind,
               title: widget.title,
               dirty: widget.dirty,
               subtitle: widget.subtitle,
+              hideKindPrefix: widget.hideKindPrefix,
             )
           : ListenableBuilder(
               listenable: widget.session!,
@@ -365,9 +385,10 @@ class _OfficeShellState extends State<OfficeShell>
                 dirty: widget.session!.isDirty,
                 subtitle: widget.subtitle,
                 status: widget.session!.statusText(AppStrings.of(context)),
+                hideKindPrefix: widget.hideKindPrefix,
               ),
             ),
-      actions: [...widget.actions, const SizedBox(width: 4)],
+      actions: [...widget.actions, const SizedBox(width: 6)],
       bottom: widget.tabBar,
     );
     final bottom = widget.bottomBar == null
@@ -376,8 +397,16 @@ class _OfficeShellState extends State<OfficeShell>
         : ToastAvoider(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: scheme.surface,
-                border: Border(top: BorderSide(color: scheme.outlineVariant)),
+                color: dockBg,
+                border: Border(
+                    top: BorderSide(color: hairline.withValues(alpha: 0.72))),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.studioShadow(dark),
+                    blurRadius: 16,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
               ),
               // Klavye açılınca `padding.bottom` 0'a iner; çubuk kısalınca
               // gövde payı değişip PDF sayfası ~64 px zıplıyordu (PS4).
@@ -394,7 +423,7 @@ class _OfficeShellState extends State<OfficeShell>
         body: widget.session == null
             ? widget.body
             : EditorPerfOverlay(child: widget.body),
-        bottomNavigationBar: bottom,
+        bottomNavigationBar: widget.hideBottomBar ? null : bottom,
         floatingActionButton: widget.fab,
       );
     }
@@ -441,7 +470,7 @@ class _OfficeShellState extends State<OfficeShell>
         child: widget.body,
       ),
     );
-    final surface = scheme.surface;
+    final surface = topBg;
     return Scaffold(
       backgroundColor: OfficeColors.canvas(context),
       resizeToAvoidBottomInset: widget.resizeForKeyboard,
@@ -507,11 +536,22 @@ class _OfficeShellState extends State<OfficeShell>
                   ),
                   builder: (context, child) {
                     final t = _shown.value;
+                    final hidden = t < 0.5 || widget.hideBottomBar;
                     return IgnorePointer(
-                      ignoring: t < 0.5,
-                      child: Transform.translate(
-                        offset: Offset(0, bottomH * (1 - t)),
-                        child: child,
+                      ignoring: hidden,
+                      child: ExcludeSemantics(
+                        excluding: hidden,
+                        child: AnimatedSlide(
+                          offset: widget.hideBottomBar
+                              ? const Offset(0, 1.15)
+                              : Offset.zero,
+                          duration: Motion.of(context, Motion.short),
+                          curve: Motion.standard,
+                          child: Transform.translate(
+                            offset: Offset(0, bottomH * (1 - t)),
+                            child: child,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -579,11 +619,7 @@ class _RenderSizeReporter extends RenderProxyBox {
   }
 }
 
-/// Üst çubuğun başlığı: renkli tür rozeti + dosya adı + bilgi satırı.
-///
-/// Bilgi satırı "PDF · 28 sayfa" gibi okunur; kaydedilmemiş değişiklik varsa
-/// sonuna marka renginde "● Kaydedilmedi" eklenir. Eski " •" işaretini
-/// kullanıcı fark etmiyordu (başlık kısaltılınca "…" arkasında kayboluyordu).
+/// Üst çubuğun başlığı: renkli tür rozeti + dosya adı + bilgi/durum satırı.
 class DocTitle extends StatelessWidget {
   final DocKind kind;
   final String title;
@@ -593,6 +629,7 @@ class DocTitle extends StatelessWidget {
   /// Kaydetme durumu metni ([EditSession.statusText]); verilmezse kirliyken
   /// "Kaydedilmedi".
   final String? status;
+  final bool hideKindPrefix;
 
   const DocTitle({
     super.key,
@@ -601,21 +638,25 @@ class DocTitle extends StatelessWidget {
     this.dirty = false,
     this.subtitle,
     this.status,
+    this.hideKindPrefix = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     final brand = OfficeColors.tint(context, kind);
+    final hasSub = subtitle != null && subtitle!.isNotEmpty;
     final info = [
-      context.t(kind.labelKey),
-      if (subtitle != null && subtitle!.isNotEmpty) subtitle!,
+      if (!hideKindPrefix || !hasSub) context.t(kind.labelKey),
+      if (hasSub) subtitle!,
     ].join(' · ');
+    final statusLabel = status ?? (dirty ? context.t('shell.unsaved') : null);
     return Row(
       children: [
-        FileTypeIcon(kind: kind, size: 36, framed: true),
-        const SizedBox(width: 12),
+        FileTypeIcon(kind: kind, size: hideKindPrefix ? 34 : 36, framed: true),
+        SizedBox(width: hideKindPrefix ? 10 : 12),
         Expanded(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -626,8 +667,9 @@ class DocTitle extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                  height: 1.18,
                   color: scheme.onSurface,
                 ),
               ),
@@ -640,31 +682,70 @@ class DocTitle extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: hideKindPrefix
+                            ? brand
+                            : scheme.onSurfaceVariant,
+                        fontWeight:
+                            hideKindPrefix ? FontWeight.w700 : FontWeight.w500,
                         height: 1.2,
                       ),
                     ),
                   ),
-                  if (dirty || status != null) ...[
-                    const SizedBox(width: 8),
-                    if (dirty)
-                      Container(
-                      width: 6,
-                      height: 6,
-                      decoration:
-                          BoxDecoration(color: brand, shape: BoxShape.circle),
-                    ),
-                    if (dirty) const SizedBox(width: 4),
+                  if (statusLabel != null) ...[
+                    const SizedBox(width: 6),
                     Flexible(
-                      child: Text(
-                        status ?? context.t('shell.unsaved'),
-                        key: const ValueKey('doc-save-status'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: dirty ? brand : scheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
+                      child: AnimatedContainer(
+                        duration: Motion.of(context, Motion.short),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 1.5),
+                        decoration: ShapeDecoration(
+                          color: dirty
+                              ? brand.withValues(alpha: dark ? 0.24 : 0.13)
+                              : scheme.surfaceContainerHigh,
+                          shape: StadiumBorder(
+                            side: BorderSide(
+                              color: dirty
+                                  ? brand.withValues(alpha: 0.36)
+                                  : scheme.outlineVariant
+                                      .withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                        // Nokta Stack'te konumlu, metin düz Text (testler
+                        // `find.text` ile okur): dar alanda Row taşması yerine
+                        // nokta kırpılır, metin kısalır.
+                        child: Stack(
+                          alignment: AlignmentDirectional.centerStart,
+                          children: [
+                            Padding(
+                              padding: EdgeInsetsDirectional.only(
+                                  start: dirty ? 9 : 0),
+                              child: Text(
+                                statusLabel,
+                                key: const ValueKey('doc-save-status'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color:
+                                      dirty ? brand : scheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.15,
+                                ),
+                              ),
+                            ),
+                            if (dirty)
+                              PositionedDirectional(
+                                start: 0,
+                                child: Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: brand,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -681,12 +762,6 @@ class DocTitle extends StatelessWidget {
 
 /// Belgenin üstünde yüzen **hap rozeti** — sayfa numarası ("4 / 28"),
 /// yakınlaştırma yüzdesi, slayt konumu.
-///
-/// Eskiden üç ekranda üç ayrı siyah kutu vardı (`AppColors.mediaScrim`, kağıdın
-/// mürekkep tonu, farklı yarıçaplar). Tek bileşen: ters yüzey rengi (açık
-/// temada koyu, koyu temada açık — her iki temada da belgeden ayrışır),
-/// tam yuvarlak uçlar, yumuşak gölge. [onTap] varsa dokunulabilir olduğunu
-/// sağdaki küçük simge söyler.
 class DocPill extends StatelessWidget {
   final String text;
   final IconData? icon;
@@ -716,13 +791,13 @@ class DocPill extends StatelessWidget {
             text,
             style: context.type.compact.copyWith(
               color: fg,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
           if (icon != null) ...[
             const SizedBox(width: 6),
-            Icon(icon, size: 16, color: fg.withValues(alpha: 0.8)),
+            Icon(icon, size: 16, color: fg.withValues(alpha: 0.85)),
           ],
         ],
       ),
@@ -733,14 +808,16 @@ class DocPill extends StatelessWidget {
         boxShadow: const [
           BoxShadow(
             color: AppColors.shadow,
-            blurRadius: 14,
-            offset: Offset(0, 4),
+            blurRadius: 16,
+            offset: Offset(0, 5),
           ),
         ],
       ),
       child: Material(
-        color: scheme.inverseSurface.withValues(alpha: 0.9),
-        shape: const StadiumBorder(),
+        color: scheme.inverseSurface.withValues(alpha: 0.92),
+        shape: StadiumBorder(
+          side: BorderSide(color: fg.withValues(alpha: 0.14)),
+        ),
         clipBehavior: Clip.antiAlias,
         child: onTap == null
             ? content

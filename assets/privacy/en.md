@@ -1,6 +1,6 @@
 # Privacy Policy — Dosya Okuyucu
 
-**Last updated:** 19 November 2026 · **Version:** 0.3.0
+**Last updated:** 26 November 2026 · **Version:** 1.2.0
 
 ## Summary
 
@@ -40,8 +40,9 @@ error logs; your files are not touched). App data is not included in Android bac
 | **Share / Print** | The app you choose | The file you share |
 | **AI meaning search** | Google — `generativelanguage.googleapis.com` | **Only the search query you type** (with your own key). File names and contents are not sent; matching happens on the device. |
 | **AI tagging / sorting into categories** | Google — `generativelanguage.googleapis.com` | For the files you select: **name, extension, the NAME of the folder they are in** (not the full path), size and month (for a category analysis also a count/size summary). File contents are not sent; the camera folder and locked folders are never sent. Suggestions are not written until you approve them. |
-| **AI voices** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co` | Only while **you download** a voice: the request for the model files. Your text is never sent — speech is generated on the device, offline. |
-| **Subtitle search** (OpenSubtitles) | OpenSubtitles — `api.opensubtitles.com` | Only when you tap **Search subtitles** in the video player: your search query (movie/video title) and the download request for the subtitle you pick. |
+| **AI voices** (Antalia-2 Mini, EMA Lightning) | Hugging Face — `huggingface.co`, `cdn.jsdelivr.net` | Only while **you download** a voice: the request for the model and runtime files. Your text is never sent — speech is generated on the device, offline. |
+| **AI image upscaling (4×)** (optional) | TensorFlow Hub — `tfhub.dev` | Only if you choose **AI enhance** in the gallery and the model is not yet cached: downloads the model file. Your photo is never uploaded; processing runs on your device. |
+| **Subtitle search** (Personal/GitHub build) | OpenSubtitles — `api.opensubtitles.com` | Only in Personal builds when you tap **Search subtitles** in the video player: your search query and the download request for the subtitle you pick. |
 
 **Default text recognition (OCR), smart cleanup analysis, audiobook creation,
 document scanning and translation run on the
@@ -101,13 +102,13 @@ The summary is shown on screen first and leaves the device only if you press
 
 | Permission | Why |
 |---|---|
-| All files access (`MANAGE_EXTERNAL_STORAGE`) | So a file manager can browse the folders on your phone. If you decline, the app still works; only media folders are visible. |
+| All files access (`MANAGE_EXTERNAL_STORAGE`) | So a file manager can browse the folders on your phone. If you decline, the app still works and opens files you choose via the system picker. |
 | Media (images/video/audio) | Gallery, players and thumbnails |
 | Camera | Document scanner only. The app works fully on devices without a camera. |
-| Microphone (`RECORD_AUDIO`) | Only when you record slide narration or use voice typing (dictation). Audio is never sent to our servers. |
+| Microphone (`RECORD_AUDIO`) (Personal/GitHub build) | Only in Personal builds for slide narration or dictation. Stripped from Google Play builds. |
 | Notifications | Progress of long jobs (copy, compress, download) |
-| Usage access (`PACKAGE_USAGE_STATS`) | The **last-opened date** on the "Apps" screen. If you decline, the list still works. |
-| Install unknown apps | To open the system installer when you tap an `.apk` file |
+| Usage access (`PACKAGE_USAGE_STATS`) (Personal/GitHub build) | Only in Personal builds for **last-opened date** on the "Apps" screen. Stripped from Google Play builds. |
+| Install unknown apps (Personal/GitHub build) | Only in Personal builds when tapping an `.apk` file. Stripped from Google Play builds. |
 | Bluetooth, nearby devices, Wi-Fi state | Nearby: finding a nearby phone, invitations and the temporary network (above). If you refuse, QR and same-Wi-Fi transfer still work. |
 | Location (Android 12 and earlier only) | Older Android versions tie Bluetooth scanning and the temporary network to the location permission. Location is never read. |
 | Seeing installed apps | The "Apps" screen: list, size, the system's uninstall dialog. The list never leaves the device. |
@@ -127,5 +128,5 @@ repository.
 
 ## 7. Contact
 
-Questions and reports:
-<https://github.com/kaimau1/dosya-okuyucu/issues>
+For questions, privacy requests and bug reports, use **Settings → About → Report
+a bug / request** inside the app or the developer contact email on Google Play.

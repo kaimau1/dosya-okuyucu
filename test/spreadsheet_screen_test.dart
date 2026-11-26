@@ -256,12 +256,12 @@ void main() {
       (tester) async {
     await pump(tester);
 
-    // Başlangıçta yapacak bir şey yok → düğmeler kapalı.
+    // Başlangıçta yapacak bir şey yok → düğmeler hiç görünmez.
     IconButton buttonFor(IconData icon) => tester.widget<IconButton>(
         find.ancestor(of: find.byIcon(icon), matching: find.byType(IconButton))
             .first);
-    expect(buttonFor(AppIcons.undo).onPressed, isNull);
-    expect(buttonFor(AppIcons.redo).onPressed, isNull);
+    expect(find.byIcon(AppIcons.undo), findsNothing);
+    expect(find.byIcon(AppIcons.redo), findsNothing);
 
     await tapCell(tester, '%15');
     await tester.enterText(find.byType(TextField).first, '42');
@@ -297,14 +297,13 @@ void main() {
   });
 
   /// Geri al düğmesi etkin mi (yani gerçekten bir değişiklik kaydedildi mi)?
-  bool undoEnabled(WidgetTester tester) =>
-      tester
-          .widget<IconButton>(find
-              .ancestor(
-                  of: find.byIcon(AppIcons.undo), matching: find.byType(IconButton))
-              .first)
-          .onPressed !=
-      null;
+  bool undoEnabled(WidgetTester tester) {
+    // Yapılacak bir şey yokken düğme hiç çizilmez (2026-11-22).
+    final f = find.ancestor(
+        of: find.byIcon(AppIcons.undo), matching: find.byType(IconButton));
+    if (f.evaluate().isEmpty) return false;
+    return tester.widget<IconButton>(f.first).onPressed != null;
+  }
 
   /// Formül çubuğundaki ham değer (ızgara HESAPLANMIŞ değeri gösterir,
   /// formülün kendisini değil).

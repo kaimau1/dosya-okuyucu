@@ -120,16 +120,32 @@ abstract final class SafeWrite {
     try {
       await temp.rename(target);
     } catch (_) {
+      File? bak;
       try {
-        // Üstüne `rename` yapılamayan dosya sistemi: önce hedefi kaldır.
+        // Üstüne `rename` yapılamayan dosya sistemi: önce var olan hedefi
+        // geçici yedeğe al, `temp` başarısız olursa geri koy.
         final t = File(target);
-        if (await t.exists()) await t.delete();
+        if (await t.exists()) {
+          final candidate = File(
+              '$target.bak-${DateTime.now().microsecondsSinceEpoch}');
+          await t.rename(candidate.path);
+          bak = candidate;
+        }
         await temp.rename(target);
+        if (bak != null) await _deleteQuietly(bak);
       } catch (e) {
-        // Son çare: içeriği hedefe kopyala (sıfırlayıp yazar ama geçici
-        // dosya duruyor — yarıda kalırsa bile tam kopyası elde).
+        if (bak != null && await bak.exists() && !await File(target).exists()) {
+          try {
+            await bak.rename(target);
+          } catch (_) {
+            // Bilinçli: yedek geri alınamazsa hata yukarı çıkar.
+          }
+        }
+        // Son çare: içeriği hedefe kopyala (geçici dosya duruyor — yarıda
+        // kalırsa bile tam kopyası elde).
         await temp.copy(target);
         await _deleteQuietly(temp);
+        if (bak != null) await _deleteQuietly(bak);
       }
     }
   }

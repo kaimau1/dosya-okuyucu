@@ -1,6 +1,5 @@
 part of '../scan_result_screen.dart';
 
-
 /// Alt araç: büyük simge kapsülü + etiket. Beşi eşit genişlikte.
 class _ToolButton extends StatelessWidget {
   final IconData icon;
@@ -44,6 +43,108 @@ class _ToolButton extends StatelessWidget {
                     borderRadius: BorderRadius.circular(17),
                   ),
                   child: Icon(icon, size: 21, color: fg),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: fg,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Çift yönlü döndürme aracı: kapsülün sol yarısı Sola Döndür (`rotateLeft`),
+/// sağ yarısı ve etiketi Sağa Döndür (`rotate`).
+class _RotateToolButton extends StatelessWidget {
+  final String label;
+  final String leftTooltip;
+  final String rightTooltip;
+  final VoidCallback? onRotateLeft;
+  final VoidCallback? onRotateRight;
+
+  const _RotateToolButton({
+    required this.label,
+    required this.leftTooltip,
+    required this.rightTooltip,
+    required this.onRotateLeft,
+    required this.onRotateRight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = onRotateRight != null || onRotateLeft != null;
+    final fg =
+        !enabled ? scheme.onSurface.withValues(alpha: 0.38) : scheme.onSurface;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onRotateRight,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(17),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Tooltip(
+                          message: leftTooltip,
+                          child: InkWell(
+                            borderRadius: const BorderRadiusDirectional.horizontal(
+                              start: Radius.circular(17),
+                            ).resolve(Directionality.of(context)),
+                            onTap: onRotateLeft,
+                            child: Center(
+                              child: Icon(AppIcons.rotateLeft,
+                                  size: 18, color: fg),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 16,
+                        color: scheme.outlineVariant,
+                      ),
+                      Expanded(
+                        child: Tooltip(
+                          message: rightTooltip,
+                          child: InkWell(
+                            borderRadius: const BorderRadiusDirectional.horizontal(
+                              end: Radius.circular(17),
+                            ).resolve(Directionality.of(context)),
+                            onTap: onRotateRight,
+                            child: Center(
+                              child:
+                                  Icon(AppIcons.rotate, size: 18, color: fg),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 5),
                 Text(
@@ -138,178 +239,6 @@ class _Thumb extends StatelessWidget {
   }
 }
 
-/// Filtre levhasının sonucu.
-class _FilterChoice {
-  final ScanFilter filter;
-  final bool all;
-  final bool straighten;
-  const _FilterChoice(this.filter, {this.all = false, this.straighten = false});
-}
-
-/// **Filtre levhası** — dört görünümün CANLI önizlemesi, "tüm sayfalara"
-/// anahtarı ve "Düzleştir". Önizlemeler küçük kopyada tek izolatta üretilir.
-class _FilterSheet extends StatefulWidget {
-  final String source;
-  final ScanFilter current;
-  final int pageCount;
-
-  const _FilterSheet({
-    required this.source,
-    required this.current,
-    required this.pageCount,
-  });
-
-  @override
-  State<_FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<_FilterSheet> {
-  Map<ScanFilter, Uint8List>? _previews;
-  bool _all = false;
-
-  @override
-  void initState() {
-    super.initState();
-    compute(ScanEnhance.previews, ScanPreviewRequest(widget.source))
-        .then((v) {
-      if (mounted) setState(() => _previews = v);
-    }).catchError((_) {
-      if (mounted) setState(() => _previews = const {});
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(context.t('ss.filter_title'),
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                if (widget.current != ScanFilter.original)
-                  TextButton.icon(
-                    key: const ValueKey('scan-filter-sheet-clear'),
-                    onPressed: () => Navigator.pop(context,
-                        _FilterChoice(ScanFilter.original, all: _all)),
-                    icon: const Icon(AppIcons.close, size: 18),
-                    label: Text(context.t('ss.filter_clear')),
-                  ),
-              ],
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(context.t('ss.filter_note'),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Paper.faint(context))),
-            const SizedBox(height: Gap.md),
-            // 6 filtre: 3'lü iki sıra (tek sırada önizlemeler okunmayacak
-            // kadar küçülüyordu — Faz 35).
-            for (var r = 0; r < ScanFilter.values.length; r += 3)
-              Padding(
-                padding: const EdgeInsets.only(bottom: Gap.sm),
-                child: Row(
-                  children: [
-                    for (final filter in ScanFilter.values.skip(r).take(3))
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: _preview(context, filter),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            if (widget.pageCount > 1) ...[
-              const SizedBox(height: Gap.sm),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _all,
-                onChanged: (v) => setState(() => _all = v),
-                title: Text(context.t('scan.apply_to_all')),
-              ),
-            ],
-            const Divider(height: Gap.lg),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(AppIcons.straighten, color: scheme.primary),
-              title: Text(context.t('sr.straighten')),
-              subtitle: Text(context.t('ss.straighten_sub')),
-              onTap: () => Navigator.pop(context,
-                  _FilterChoice(widget.current, straighten: true)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _preview(BuildContext context, ScanFilter filter) {
-    final scheme = Theme.of(context).colorScheme;
-    final selected = filter == widget.current;
-    final bytes = _previews?[filter];
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => Navigator.pop(context, _FilterChoice(filter, all: _all)),
-      child: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: 0.72,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: selected ? scheme.primary : scheme.outlineVariant,
-                  width: selected ? 2.4 : 1,
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(7),
-                child: bytes == null
-                    ? ColoredBox(
-                        color: scheme.surfaceContainerHigh,
-                        child: _previews == null
-                            ? const Center(
-                                child: SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
-                                ),
-                              )
-                            : null,
-                      )
-                    : Image.memory(bytes,
-                        fit: BoxFit.cover, gaplessPlayback: true),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            context.t(filter.shortLabelKey),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? scheme.primary : null,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Izgaradaki tek sayfa: basılı tut-sürükle ile taşınır, başka sayfanın
 /// üstüne bırakılınca o yere girer.
 class _GridPageTile extends StatelessWidget {
@@ -353,7 +282,6 @@ class _GridPageTile extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(7),
                   child: Image(
-                    // Kademeli kova: hücre genişliği × dpr, 64'e yuvarlanır.
                     image: FmFileImage(path,
                         cacheWidth: (((box.maxWidth * dpr) / 64).ceil() * 64)
                             .clamp(64, 1024)),
@@ -382,15 +310,29 @@ class _GridPageTile extends StatelessWidget {
                 ),
                 if (!lifted)
                   PositionedDirectional(
-                    end: 0,
-                    top: 0,
+                    end: 4,
+                    top: 4,
                     child: PopupMenuButton<String>(
                       enabled: enabled,
                       tooltip: context.t('common.more'),
-                      icon: Icon(AppIcons.moreHoriz,
-                          color: scheme.onSurface, size: 20),
+                      padding: EdgeInsets.zero,
+                      icon: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: scheme.surface.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          child: Icon(AppIcons.moreHoriz,
+                              color: scheme.onSurface, size: 18),
+                        ),
+                      ),
                       onSelected: onAction,
                       itemBuilder: (ctx) => [
+                        PopupMenuItem(
+                            value: 'rotate_left',
+                            child: Text(ctx.t('ss.tool_rotate_left'))),
                         PopupMenuItem(
                             value: 'rotate',
                             child: Text(ctx.t('ss.tool_rotate'))),
@@ -425,7 +367,6 @@ class _GridPageTile extends StatelessWidget {
           elevation: 6,
           child: SizedBox(width: 96, height: 136, child: card(lifted: true)),
         ),
-        // Boş yuva (Opacity/saveLayer liste hücresinde yasak — anayasa k.5).
         childWhenDragging: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
@@ -433,7 +374,8 @@ class _GridPageTile extends StatelessWidget {
             color: scheme.surfaceContainerHigh,
           ),
         ),
-        child: PressScale(child: GestureDetector(
+        child: PressScale(
+            child: GestureDetector(
           onTap: onOpen,
           child: AnimatedScale(
             duration: Motion.of(context, Motion.short),
@@ -477,14 +419,78 @@ class _GridAddTile extends StatelessWidget {
   }
 }
 
-/// Dışa aktarma seçimi: biçim (`pdf`/`docx`/`xlsx`/`txt`) + PDF kalitesi.
+/// Sayfa OCR metnini elle düzenleme levhası.
+class _PageTextEditSheet extends StatefulWidget {
+  final String initial;
+  const _PageTextEditSheet({required this.initial});
+
+  @override
+  State<_PageTextEditSheet> createState() => _PageTextEditSheetState();
+}
+
+class _PageTextEditSheetState extends State<_PageTextEditSheet> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        Gap.md,
+        0,
+        Gap.md,
+        Gap.md + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _controller,
+            minLines: 5,
+            maxLines: 12,
+            autofocus: true,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(context.t('common.cancel')),
+              ),
+              const SizedBox(width: Gap.xs),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, _controller.text),
+                icon: const Icon(AppIcons.check, size: 18),
+                label: Text(context.t('common.save')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dışa aktarma seçimi: biçim (`pdf`/`docx`/`xlsx`/`txt`/`jpg`/`png`) + PDF kalitesi.
 class _ExportChoice {
   final String format;
   final ScanQuality quality;
   const _ExportChoice(this.format, [this.quality = ScanQuality.medium]);
 }
 
-/// Dışa aktarma levhası: PDF kalitesi (tahmini boyutla) + Word/Excel/TXT.
+/// Dışa aktarma levhası: PDF kalitesi (tahmini boyutla) + Word/Excel/TXT +
+/// Görsel olarak kaydet (JPEG / PNG).
 class _ExportSheet extends StatefulWidget {
   final List<String> pages;
   const _ExportSheet({required this.pages});
@@ -500,7 +506,6 @@ class _ExportSheetState extends State<_ExportSheet> {
   @override
   void initState() {
     super.initState();
-    // Boyut önizlemesi izolatta, yalnız ilk sayfadan (hızlı).
     ScanExport.estimateSizes(widget.pages).then((v) {
       if (mounted) setState(() => _sizes = v);
     }, onError: (_) {});
@@ -510,7 +515,9 @@ class _ExportSheetState extends State<_ExportSheet> {
     final b = _sizes?[q];
     if (b == null) return '…';
     final mb = b / (1024 * 1024);
-    return mb >= 1 ? '~${mb.toStringAsFixed(1)} MB' : '~${(b / 1024).round()} KB';
+    return mb >= 1
+        ? '~${mb.toStringAsFixed(1)} MB'
+        : '~${(b / 1024).round()} KB';
   }
 
   @override
@@ -564,6 +571,20 @@ class _ExportSheetState extends State<_ExportSheet> {
             leading: const Icon(AppIcons.newText),
             title: Text(context.t('sx.to_txt')),
             onTap: () => Navigator.pop(context, const _ExportChoice('txt')),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.image),
+            title: Text(context.t('sx.to_jpg')),
+            subtitle: Text(context.t('sx.to_image_sub')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('jpg')),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(AppIcons.photos),
+            title: Text(context.t('sx.to_png')),
+            subtitle: Text(context.t('sx.to_image_sub')),
+            onTap: () => Navigator.pop(context, const _ExportChoice('png')),
           ),
         ],
       ),

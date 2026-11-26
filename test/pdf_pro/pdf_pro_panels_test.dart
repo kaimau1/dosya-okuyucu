@@ -96,19 +96,28 @@ void main() {
     });
   }
 
-  testWidgets('AI önerisi: eski ve yeni metin görünür; kabul true döner',
+  testWidgets('taranmış (görünmez) blok: Yazıyı değiştir + AI seçeneği',
       (tester) async {
-    bool? ok;
-    await _host<bool?>(
+    String? pick;
+    await _host<String?>(
         tester,
-        (c) => showPdfSuggestionSheet(c,
-            before: 'Eski cümle.', after: 'Yeni cümle.'),
-        (v) => ok = v);
-    expect(find.text('Eski cümle.'), findsOneWidget);
-    expect(find.text('Yeni cümle.'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('pse-ai-accept')));
+        (c) => showPdfLockedBlockSheet(c,
+            lock: PdfBlockLock.invisible, ai: true),
+        (v) => pick = v);
+    expect(find.byKey(const ValueKey('pse-locked-replace')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pse-locked-ai')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('pse-locked-replace')));
     await tester.pumpAndSettle();
-    expect(ok, isTrue);
+    expect(pick, 'replace');
+  });
+
+  testWidgets('sağdan sola blokta değiştir seçeneği yok', (tester) async {
+    await _host<String?>(
+        tester,
+        (c) => showPdfLockedBlockSheet(c, lock: PdfBlockLock.rtl, ai: true),
+        (_) {});
+    expect(find.byKey(const ValueKey('pse-locked-replace')), findsNothing);
+    expect(find.byKey(const ValueKey('pse-locked-ai')), findsNothing);
   });
 
   testWidgets('kırpma levhası: değer yokken uygulanamaz; oranları döndürür',

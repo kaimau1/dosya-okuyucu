@@ -23,6 +23,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_icons.dart';
+import '../core/edition.dart';
 import '../core/line_endings.dart';
 import '../core/motion.dart';
 import '../core/device_profile.dart';
@@ -34,6 +35,8 @@ import '../core/doc_fonts.dart';
 import '../core/image_budget.dart';
 import '../widgets/fm/fm_file_image.dart';
 import '../widgets/ocr_text_overlay.dart';
+import '../widgets/pro_gate.dart';
+import '../widgets/pdf_outline_sheet.dart';
 import '../core/edit/editor_shortcuts.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/code_editing.dart';
@@ -43,7 +46,6 @@ import '../core/edit/editor_chrome.dart';
 import '../core/edit/markdown_edit.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/app_state.dart';
-import '../core/state/focused_states.dart';
 import '../core/copy_text.dart';
 import '../core/text_search.dart';
 import '../core/theme.dart';
@@ -57,6 +59,7 @@ import '../services/fm/pdf_bookmarks.dart';
 import '../services/fm/pdf_zoom_memory.dart';
 import '../services/fm/reading_positions.dart';
 import '../services/fm/safe_write.dart';
+import '../services/cloud_ocr.dart';
 import '../services/ocr_service.dart';
 import '../services/pdf/edge_auto_scroll.dart';
 import '../services/fm/save_to_downloads.dart';
@@ -74,6 +77,7 @@ import '../services/pdf_annotator.dart';
 import '../services/pdf_notes.dart';
 import '../services/pdf_reload.dart';
 import '../services/pdf_tools.dart';
+import '../services/audiobook/doc_chapters.dart';
 import '../services/tts_service.dart';
 import '../services/dictation.dart';
 import '../services/voice_note.dart';
@@ -84,6 +88,7 @@ import '../services/pdf/pdf_last_view.dart';
 import '../widgets/pdf_image_zoom.dart';
 import '../widgets/pdf_inset_scroll_thumb.dart';
 import '../widgets/tracked_busy.dart';
+import 'ocr_studio_screen.dart';
 import 'pdf_ink_screen.dart';
 import '../widgets/slides_flow.dart';
 import '../widgets/doc_action_bar.dart';
@@ -94,7 +99,6 @@ import '../widgets/office_shell.dart';
 import 'fm/entry_actions.dart';
 import '../widgets/fm/archive_password_dialog.dart';
 import '../widgets/pdf_action_bars.dart';
-import '../widgets/pdf_edit_modes.dart';
 import '../widgets/pdf_page_frame.dart';
 import '../widgets/large_text_view.dart';
 import '../widgets/legacy_banner.dart';
@@ -106,7 +110,6 @@ import '../widgets/pdf_resume_note.dart';
 import '../widgets/pdf_select_layer.dart';
 import '../widgets/translate_flow.dart';
 import '../widgets/tts_voice_sheet.dart';
-import 'pdf_ai_edit_screen.dart';
 import 'reader_screen.dart';
 import 'pdf_form_screen.dart';
 import 'pdf_sign_screen.dart';
@@ -125,9 +128,7 @@ import 'fm/remote/peer_share_screen.dart' show showShareChoice;
 import '../core/app_colors.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_action_sheet.dart';
-import '../services/pdf/pro/pdf_ai_rewrite.dart';
 import '../services/pdf/pro/pdf_pro_images.dart';
-import '../widgets/ai_key_gate.dart';
 import '../widgets/pdf_pro/pdf_block_layer.dart';
 import '../widgets/pdf_pro/pdf_pro_bars.dart';
 import '../widgets/pdf_pro/pdf_pro_panels.dart';
@@ -139,6 +140,7 @@ import '../services/pdf/pro/pdf_edit_access.dart';
 import '../services/pdf/pro/pdf_edit_bridge.dart';
 import '../services/pdf/pro/pdf_edit_recovery.dart';
 import '../services/pdf/pro/pdf_edit_session.dart';
+import '../services/pdf/pro/pdf_scan_block.dart';
 import '../services/pdf/pro/pdf_object_geometry.dart' show PdfAxisAlign;
 import '../services/pdf/pro/pdf_version_history.dart';
 part 'viewer/pending_save.dart';
@@ -192,8 +194,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   TextEditingController? _textController;
   bool _dirty = false;
 
-  // Görüntüleme durumu (okuma konforu).
-  int _pdfPage = 1;
+  // Görüntüleme durumu (okuma konforu): sayfa değişimi tüm ekranı kurmaz.
+  final ValueNotifier<int> _pdfPageN = ValueNotifier<int>(1);
+  final ValueNotifier<int> _bookmarkRevN = ValueNotifier<int>(0);
+  int get _pdfPage => _pdfPageN.value;
+  set _pdfPage(int v) => _pdfPageN.value = v;
 
   /// Bu oturumda girilen PDF parolası: yeniden okumada (düzenleme dönüşü)
   /// tekrar sorulmasın. Yalnız bellekte.
@@ -216,6 +221,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final TextEditingController _proInput = TextEditingController();
   final FocusNode _proFocus = FocusNode(debugLabel: 'pdf-pro-input');
   int _proCaretSeen = -1;
+
+  /// Son görülen klavye yüksekliği + klavye oturunca imleci gösterme zamanlayıcısı.
+  double _proInsetSeen = 0;
+  Timer? _proInsetTimer;
 
   /// Düzenleme kipinde belge olayları: içeriği değişen sayfanın görüntüsü
   /// yeniden çizdirilir (pdfrx geometri aynıysa çizmiyor — third_party/pdfrx/YAMA.md).
@@ -408,22 +417,32 @@ class _ViewerScreenState extends State<ViewerScreen> {
   final TransformationController _imgTx = TransformationController();
   TapDownDetails? _doubleTapDetails;
 
-  /// Görselin kaç piksel genişlikte çözüleceği (bellek/pil koruması —
-  /// bkz. `core/image_budget.dart`). Yakınlaştırma kademe atlayınca artar.
+  /// Görselin kaç piksel boyunda çözüleceği (bellek/pil koruması —
+  /// bkz. `core/image_budget.dart`). Yakınlaştırma yerleştikten sonra artar.
   int _imgDecodeWidth = ImageBudget.minWidth;
+  Timer? _imgDecodeTimer;
 
-  /// Yakınlaştırma değişince çözme genişliğini kademeye göre günceller.
-  void _onImgTransform() {
+  void _syncImgDecodeWidth() {
     if (!mounted) return;
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
     final want = ImageBudget.forViewport(
       logicalWidth: media.size.width,
+      logicalHeight: media.size.height,
       devicePixelRatio: media.devicePixelRatio,
       scale: _imgTx.value.getMaxScaleOnAxis(),
     );
     if (want == _imgDecodeWidth) return;
     setState(() => _imgDecodeWidth = want);
+  }
+
+  /// Çimdik sırasında her karede tam çözünürlük yeniden çözülmez;
+  /// etkileşim bitiminde / 150 ms yerleşme sonrası güncellenir.
+  void _onImgTransform() {
+    _imgDecodeTimer?.cancel();
+    _imgDecodeTimer = Timer(const Duration(microseconds: 150000), () {
+      _syncImgDecodeWidth();
+    });
   }
 
   // Belge içi arama (metin görüntüleyici).
@@ -481,10 +500,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// PDF'te de açık — çubuklar artık gövdenin boyunu değiştirmiyor.
   final ReadingBars _readingBars = ReadingBars();
 
-  /// Süren jest iki parmaklı mı (yakınlaştırma)? Fırlatma sürtünmesi buna
-  /// göre seçilir (bkz. [kPdfPanFriction]).
-  bool _pdfPinch = false;
-
   /// Okuma konforu (Ferrari H3): çift dokunma / görsel kipinin okuduğu
   /// sayfa nesneleri (PDF Pro köprüsü) — son birkaç sayfa, belgeye bağlı.
   final Map<int, PdfPageContent> _comfortContent = {};
@@ -504,13 +519,32 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Sayfa rozeti (N / toplam) görünür mü (H3.7): yalnız kaydırırken ve
   /// durduktan sonra [Motion.badgeLinger] kadar; sonra solar.
-  bool _pageBadgeOn = true;
+  final ValueNotifier<bool> _pageBadgeOnN = ValueNotifier<bool>(true);
+  bool get _pageBadgeOn => _pageBadgeOnN.value;
+  set _pageBadgeOn(bool v) => _pageBadgeOnN.value = v;
   Timer? _pageBadgeTimer;
+  DateTime? _lastBadgePoke;
+  ({
+    int count,
+    double firstW,
+    int cols,
+    PdfMarginCrop? crop,
+    bool paged,
+    EdgeInsets chrome,
+    double viewW,
+    double viewH,
+  })? _pdfLayoutKey;
+  PdfPageLayout? _pdfLayoutCache;
+  Timer? _captureTimer;
   bool _pagedZoomed = false;
   int _pagedPointers = 0;
   bool _pagedMulti = false;
   Offset? _pagedDownAt;
   DateTime? _pagedDownTime;
+  // Son matris değişimi + bu dokunuş süren bir fırlatmayı mı durdurdu
+  // (durduran dokunuş çubukları açıp kapamaz — 2026-11-22).
+  DateTime? _pdfMatrixAt;
+  bool _pdfTapStoppedFling = false;
 
   /// Önceki matris (PDF kaydırma yönünü çıkarmak için).
   double? _pdfLastTy;
@@ -521,6 +555,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// çubuklara dokunmaz.
   void _onPdfMatrix() {
     if (!_pdfController.isReady) return;
+    _pdfMatrixAt = DateTime.now();
     final m = _pdfController.value;
     final ty = m.getTranslation().y;
     final zoom = m.getMaxScaleOnAxis();
@@ -710,10 +745,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// bilinmesi gerekiyor, sonradan atlamak kullanıcıya bir sıçrama gösterirdi.
   Future<void> _restoreReadingPage() async {
     try {
-      _docSize = File(widget.doc.path).lengthSync();
+      _docSize = await File(widget.doc.path).length();
     } catch (_) {
       // Bilinçli: boyut yalnız okuma konumu anahtarı için; okunamazsa konum hatırlanmaz.
     }
+    if (!mounted) return;
     unawaited(PdfBookmarks.ensureLoaded().then((_) {
       if (mounted) setState(() {});
     }));
@@ -760,6 +796,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Kırpma tercihi de görüntüleyici kurulmadan bilinmeli (düzen ilk karede
     // kırpılmış kurulsun — sonradan değişirse sayfa yerinden oynardı).
     _pdfCrop = PdfMarginCrop.fromList(PdfZoomMemory.cropOf(widget.doc.path));
+    // Kitaplık içindekilerinden bir başlığa dokunulduysa o sayfa (devam
+    // notu gösterilmez: kullanıcı oraya bilerek gitti).
+    final target = PdfOpenTarget.take(widget.doc.path);
+    if (target != null) {
+      _pdfPage = target;
+      return;
+    }
     final page = ReadingPositions.pageOf(widget.doc.path, size: _docSize);
     if (page == null || page <= 1) return;
     _pdfPage = page;
@@ -794,7 +837,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Ekran ölçüsü ilk kez burada bilinir; çözme genişliği ona göre kurulur.
-    if (widget.doc.kind == DocKind.image) _onImgTransform();
+    if (widget.doc.kind == DocKind.image) _syncImgDecodeWidth();
   }
 
   /// [_offerFormFilling]'in gecikme zamanlayıcısı.
@@ -857,15 +900,18 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   /// Kapanırken görünen sayfanın görüntüsü (Ferrari H1.4): yeniden açılışta
-  /// köprü onu gösterir. Belge ancak çıkış geçişinden sonra kapanır; çizim
-  /// pdfium işçisinde, kodlama izolatta. Parolalı belgede saklanmaz.
+  /// köprü onu gösterir. Çıkış geçişi ([Motion.pageReverse]) kadar ertelenir
+  /// ki geri dönüş animasyonu kasmadan aksın. Parolalı belgede saklanmaz.
   void _captureLastView() {
     if (!_isPdf || _pdfPassword != null || !_pdfController.isReady) return;
-    // Ekran genişliğinde: yeniden açılışta köprü onu net gösterir.
-    final view = View.of(context);
-    unawaited(PdfLastView.capture(
-        widget.doc.path, _pdfController.document, _pdfPage,
-        widthPx: view.physicalSize.width.round()));
+    final path = widget.doc.path;
+    final doc = _pdfController.document;
+    final page = _pdfPage;
+    final widthPx = View.of(context).physicalSize.width.round();
+    _captureTimer?.cancel();
+    _captureTimer = Timer(Motion.pageReverse, () {
+      unawaited(PdfLastView.capture(path, doc, page, widthPx: widthPx));
+    });
   }
 
   @override
@@ -878,6 +924,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _ocrSelection.dispose();
     _pageBadgeTimer?.cancel();
     _pdfBridgeTimer?.cancel();
+    _imgDecodeTimer?.cancel();
+    _captureTimer?.cancel();
+    _pdfPageN.dispose();
+    _bookmarkRevN.dispose();
+    _pageBadgeOnN.dispose();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
@@ -885,6 +936,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       ?..removeListener(_onProChanged)
       ..dispose();
     _proDocSub?.cancel();
+    _proInsetTimer?.cancel();
     _proInput.dispose();
     _proFocus.dispose();
     _readingBars.dispose();
@@ -922,7 +974,6 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final doc = widget.doc;
-    final hasApiKey = context.watchAi().hasApiKey;
     // Bekleyen PDF düzenlemesi varken geri tuşu doğrudan çıkmaz: önce
     // "kaydetmek ister misiniz?" sorulur (2026-07-26 kullanıcı isteği).
     final textUnsaved = _dirty && doc.kind == DocKind.text;
@@ -965,9 +1016,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
               undo: _undoCtl.undo,
               redo: _undoCtl.redo,
               find: _toggleFind,
-              child: _buildShell(doc, hasApiKey),
+              child: _buildShell(doc),
             )
-          : _buildShell(doc, hasApiKey),
+          : _buildShell(doc),
     );
   }
 

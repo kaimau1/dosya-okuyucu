@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'video_transcode.dart';
 
 import 'fm_env.dart';
 
@@ -68,13 +68,16 @@ abstract final class MediaDuration {
     return '$hours:${minutes.toString().padLeft(2, '0')}:$ss';
   }
 
+  static const _channel = MethodChannel('dosya_okuyucu/transcode');
+
   /// [path] videosunun süresi; okunamıyorsa null (arayüz rozet çizmez —
-  /// "0:00" yazmak yanlış bilgi olurdu).
-  static Future<Duration?> forVideo(String path) async {
+  /// "0:00" yazmak yanlış bilgi olurdu). [modifiedMs] listeden verilirse
+  /// disk `stat`ı atlanır.
+  static Future<Duration?> forVideo(String path, {int? modifiedMs}) async {
     await _ensureLoaded();
-    final modifiedMs = _modifiedMs(path);
-    if (modifiedMs == null) return null;
-    final key = keyFor(path, modifiedMs);
+    final mtime = modifiedMs ?? await _modifiedMs(path);
+    if (mtime == null) return null;
+    final key = keyFor(path, mtime);
     final cached = _cache[key];
     if (cached != null) {
       _byPath[path] = cached;
@@ -87,8 +90,9 @@ abstract final class MediaDuration {
   static Future<Duration?> _measure(String path, String key) async {
     await _acquire();
     try {
-      // Media3 köprüsü (MediaMetadataRetriever) — video_compress kalktı.
-      final ms = (await VideoTranscoder.probe(path))?.durationMs;
+      // Yalnız MediaMetadataRetriever kullanan hızlı duration yöntemi (MediaExtractor açmaz).
+      final ms = (await _channel.invokeMethod<num>('duration', {'path': path}))
+          ?.toInt();
       if (ms == null || ms <= 0) return null;
       final seconds = (ms / 1000).round();
       _remember(key, seconds);
@@ -152,9 +156,9 @@ abstract final class MediaDuration {
     _saveTimer = Timer(const Duration(seconds: 2), () => unawaited(save()));
   }
 
-  static int? _modifiedMs(String path) {
+  static Future<int?> _modifiedMs(String path) async {
     try {
-      final stat = File(path).statSync();
+      final stat = await File(path).stat();
       if (stat.type == FileSystemEntityType.notFound) return null;
       return stat.modified.millisecondsSinceEpoch;
     } catch (_) {

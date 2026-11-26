@@ -40,7 +40,7 @@ page.on('pageerror', (e) => console.error('sayfa hatası:', e.message));
 page.on('console', (m) => { if (m.type() === 'error') console.error('konsol:', m.text()); });
 await page.goto(`http://127.0.0.1:${port}/engine.html`);
 let failed = false;
-for (const voice of ['antalia', 'ema', 'kokoroTr', 'kokoroEn']) {
+for (const voice of ['antalia', 'ema']) {
   const t0 = Date.now();
   await page.evaluate(([v]) => engine.synth('test-' + v, v, 'Merhaba! Randevunuz 14 Ekim Salı günü saat 15:30\'da.', 1.0), [voice]);
   for (let i = 0; i < 600 && !outputs['test-' + voice]; i++) {

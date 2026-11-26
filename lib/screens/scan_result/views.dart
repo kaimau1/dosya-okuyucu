@@ -8,7 +8,8 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     return Material(
       color: scheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            Gap.md, Gap.xs, Gap.xs, Gap.xs),
         child: Row(
           children: [
             Icon(AppIcons.ai, size: 20, color: scheme.onPrimaryContainer),
@@ -19,7 +20,8 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                   'type': context.t(guess.type.labelKey),
                   'folder': guess.type.folder,
                 }),
-                style: context.type.compact.copyWith(color: scheme.onPrimaryContainer),
+                style: context.type.compact
+                    .copyWith(color: scheme.onPrimaryContainer),
               ),
             ),
             TextButton(
@@ -37,9 +39,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     );
   }
 
-  /// Ad + canlı kayıt durumu. Kullanıcı nereye ve HANGİ ADLA yazıldığını
-  /// görmeden "kaydedildi" demek dosyayı aratmak demekti; ada dokunmak adı
-  /// değiştirir.
+  /// Ad + canlı kayıt durumu.
   Widget _titleBlock(BuildContext context) {
     final theme = Theme.of(context);
     final faint = Paper.faint(context);
@@ -109,67 +109,105 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     );
   }
 
+  void _syncZoomState() {
+    final z = _zoomController.value.getMaxScaleOnAxis() > 1.02;
+    if (z != _zoomed) _partSetState(() => _zoomed = z);
+  }
+
+  void _toggleZoom() {
+    if (_zoomed || _zoomController.value.getMaxScaleOnAxis() > 1.02) {
+      _partSetState(() {
+        _zoomController.value = Matrix4.identity();
+        _zoomed = false;
+      });
+      return;
+    }
+    final pos = _doubleTapPos;
+    final m = Matrix4.identity()
+      ..translateByDouble(-pos.dx, -pos.dy, 0, 1)
+      ..scaleByDouble(2.0, 2.0, 1.0, 1.0);
+    _partSetState(() {
+      _zoomController.value = m;
+      _zoomed = true;
+    });
+  }
+
   Widget _pagesView(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final width = MediaQuery.sizeOf(context).width;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    // Bellek: 2480 px'lik sayfa tam çözülürse ~35 MB; ekranın iki katı
-    // çözünürlük yakınlaştırmada da net ve belleği yarıya indiriyor.
     final cacheWidth = (width * dpr * 2).round().clamp(600, 2480);
     return Stack(
       children: [
         PageView.builder(
           controller: _pager,
+          physics: _zoomed ? const NeverScrollableScrollPhysics() : null,
           itemCount: _pages.length,
           onPageChanged: (i) {
-            _partSetState(() => _index = i);
+            _resetZoom();
+            _partSetState(() {
+              _index = i;
+              _comparingOriginal = false;
+            });
+            _scrollThumbTo(i);
             unawaited(_measureVisible());
+            if (_filterStripOpen && i >= 0 && i < _pages.length) {
+              unawaited(_ensurePreviews(_pages[i].source));
+            }
           },
-          itemBuilder: (_, i) => InteractiveViewer(
-            minScale: 1,
-            maxScale: 5,
-            child: Center(
-              child: Padding(
-                // Alt pay sayaç hapına yer bırakır: hap sayfanın üstüne
-                // binmesin.
-                padding: const EdgeInsets.fromLTRB(
-                    Gap.lg, Gap.md, Gap.lg, Gap.xl + Gap.sm),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: AppColors.page,
-                    borderRadius: BorderRadius.circular(3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.shade.withValues(alpha: 0.16),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
+          itemBuilder: (_, i) {
+            final page = _pages[i];
+            final imgPath =
+                (_comparingOriginal && i == _index) ? page.source : page.display;
+            return GestureDetector(
+              onDoubleTapDown: (d) => _doubleTapPos = d.localPosition,
+              onDoubleTap: _toggleZoom,
+              child: InteractiveViewer(
+                transformationController:
+                    i == _index ? _zoomController : null,
+                minScale: 1,
+                maxScale: 5,
+                onInteractionEnd: (_) => _syncZoomState(),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        Gap.lg, Gap.md, Gap.lg, Gap.xl + Gap.sm),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.page,
+                        borderRadius: BorderRadius.circular(3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.shade.withValues(alpha: 0.16),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: Image(
-                      image: FmFileImage(_pages[i].display,
-                          cacheWidth: cacheWidth),
-                      key: ValueKey(_pages[i].display),
-                      gaplessPlayback: true,
-                      errorBuilder: (_, _, _) => SizedBox(
-                        width: 220,
-                        height: 300,
-                        child: Center(
-                          child: Text(context.t('sr.page_failed'),
-                              textAlign: TextAlign.center),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: Image(
+                          image: FmFileImage(imgPath, cacheWidth: cacheWidth),
+                          key: ValueKey(imgPath),
+                          gaplessPlayback: true,
+                          errorBuilder: (_, _, _) => SizedBox(
+                            width: 220,
+                            height: 300,
+                            child: Center(
+                              child: Text(context.t('sr.page_failed'),
+                                  textAlign: TextAlign.center),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
-        // Sayfa sayacı + filtre adı: hangi sayfaya, hangi görünümle
-        // bakıldığı tek bakışta.
+        // Sayfa sayacı + filtre adı + basılı tutarak özgün karşılaştırma.
         Positioned(
           left: 0,
           right: 0,
@@ -189,7 +227,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                         _pages.isEmpty
                             ? ''
                             : '${_index + 1} / ${_pages.length}'
-                                '${filtered ? ' · ${context.t(_pages[_index].filter.labelKey)}' : ''}',
+                                '${filtered ? ' · ${context.t(_comparingOriginal ? ScanFilter.original.labelKey : _pages[_index].filter.labelKey)}' : ''}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: context.type.small.copyWith(
@@ -206,28 +244,65 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                   ],
                 ),
               );
-              // Filtre yokken gösterge dokunuşu yutmaz (altındaki sayfa
-              // kaydırılabilsin); filtre varken ✕ ile tek dokunuşta kalkar.
-              return IgnorePointer(
-                ignoring: !filtered,
-                child: Material(
-                color: scheme.inverseSurface.withValues(alpha: 0.82),
-                shape: const StadiumBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: filtered
-                    ? Tooltip(
-                        message: context.t('ss.filter_clear'),
-                        child: InkWell(
-                          key: const ValueKey('scan-filter-clear'),
-                          onTap: _busy ? null : _clearFilter,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(minHeight: 36),
-                            child: Center(widthFactor: 1, child: label),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: IgnorePointer(
+                      ignoring: !filtered,
+                      child: Material(
+                        color: scheme.inverseSurface.withValues(alpha: 0.82),
+                        shape: const StadiumBorder(),
+                        clipBehavior: Clip.antiAlias,
+                        child: filtered
+                            ? Tooltip(
+                                message: context.t('ss.filter_clear'),
+                                child: InkWell(
+                                  key: const ValueKey('scan-filter-clear'),
+                                  onTap: _busy ? null : _clearFilter,
+                                  child: ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(minHeight: 36),
+                                    child: Center(widthFactor: 1, child: label),
+                                  ),
+                                ),
+                              )
+                            : label,
+                      ),
+                    ),
+                  ),
+                  if (filtered) ...[
+                    const SizedBox(width: 6),
+                    Listener(
+                      onPointerDown: (_) =>
+                          _partSetState(() => _comparingOriginal = true),
+                      onPointerUp: (_) =>
+                          _partSetState(() => _comparingOriginal = false),
+                      onPointerCancel: (_) =>
+                          _partSetState(() => _comparingOriginal = false),
+                      child: Tooltip(
+                        message: context.t('ss.compare_hold'),
+                        child: Material(
+                          color: _comparingOriginal
+                              ? scheme.primary
+                              : scheme.inverseSurface.withValues(alpha: 0.82),
+                          shape: const CircleBorder(),
+                          child: SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: Icon(
+                              AppIcons.compare,
+                              size: 18,
+                              color: _comparingOriginal
+                                  ? scheme.onPrimary
+                                  : scheme.onInverseSurface,
+                            ),
                           ),
                         ),
-                      )
-                    : label,
-                ),
+                      ),
+                    ),
+                  ],
+                ],
               );
             }),
           ),
@@ -239,37 +314,139 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
             top: Gap.xs,
             child: _qualityBanner(context, _qualityHint!),
           ),
-        if (_work != null)
-          Positioned.fill(
-            child: ColoredBox(
-              color: scheme.surface.withValues(alpha: 0.55),
-              child: Center(
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.lg, vertical: Gap.md),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.4)),
-                        const SizedBox(width: Gap.md),
-                        Text(_work!),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
 
-  /// Küçük resim şeridi: dokun = git, basılı tut + sürükle = sıra, "+" =
-  /// sayfa ekle.
+  /// Yerinde canlı filtre şeridi: tam boy sayfanın üstünü örtmeden altında
+  /// 6 önizleme + "Tüm sayfalara uygula" + "Düzleştir" sunar.
+  Widget _filterStrip(BuildContext context) {
+    if (_pages.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final page = _pages[_index];
+    final previews = _previewCache[page.source];
+    return Material(
+      color: scheme.surfaceContainerLow,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Divider(height: 1, color: scheme.outlineVariant),
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(
+                Gap.sm, Gap.xs, Gap.xs, 0),
+            child: Row(
+              children: [
+                if (_pages.length > 1)
+                  FilterChip(
+                    label: Text(context.t('scan.apply_to_all')),
+                    selected: _applyFilterToAll,
+                    onSelected: _busy
+                        ? null
+                        : (v) => _partSetState(() => _applyFilterToAll = v),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: _busy ? null : _straighten,
+                  icon: const Icon(AppIcons.straighten, size: 18),
+                  label: Text(context.t('sr.straighten')),
+                ),
+                IconButton(
+                  tooltip: context.t('common.close'),
+                  icon: const Icon(AppIcons.close, size: 18),
+                  onPressed: () =>
+                      _partSetState(() => _filterStripOpen = false),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 94,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.sm, vertical: Gap.xs),
+              itemCount: ScanFilter.values.length,
+              itemBuilder: (context, i) {
+                final filter = ScanFilter.values[i];
+                final selected = filter == page.filter;
+                final bytes = previews?[filter];
+                return Padding(
+                  padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: _busy ? null : () => _applyLiveFilter(filter),
+                    child: SizedBox(
+                      width: 60,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: selected
+                                      ? scheme.primary
+                                      : scheme.outlineVariant,
+                                  width: selected ? 2.2 : 1,
+                                ),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: bytes == null
+                                    ? ColoredBox(
+                                        color: scheme.surfaceContainerHigh,
+                                        child: previews == null
+                                            ? const Center(
+                                                child: SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 1.8),
+                                                ),
+                                              )
+                                            : null,
+                                      )
+                                    : Image.memory(
+                                        bytes,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                        cacheWidth: 180,
+                                        gaplessPlayback: true,
+                                      ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            context.t(filter.shortLabelKey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: selected ? scheme.primary : null,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Önerilen eylem şeridi: "Kimlik içeriyor → Kasaya taşı" ya da
   /// "Fiş → Gider satırı ekle".
   Widget _actionBanner(BuildContext context) {
@@ -278,7 +455,8 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     return Material(
       color: scheme.secondaryContainer,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, Gap.xs, Gap.xs, Gap.xs),
+        padding: const EdgeInsetsDirectional.fromSTEB(
+            Gap.md, Gap.xs, Gap.xs, Gap.xs),
         child: Row(
           children: [
             Icon(vault ? AppIcons.vault : AppIcons.receiptLong,
@@ -314,8 +492,6 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     if (_pages.isEmpty || _busy) return null;
     final path = _pages[_index].display;
     if (_qualityDismissed.contains(path)) return null;
-    final ai = _aiQuality[path];
-    if (ai != null && ai.isNotEmpty) return ai;
     return _quality[path]?.hint;
   }
 
@@ -325,10 +501,18 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     final scheme = Theme.of(context).colorScheme;
     final path = _pages[_index].display;
     final (icon, text, actionKey, action) = switch (hint) {
-      'dark' => (AppIcons.lightbulbOutline, 'sq.dark', 'ss.tool_retake', _retake),
-      'skewed' => (AppIcons.straighten, 'sq.skewed', 'sr.straighten', _straighten),
-      'ai_glare' || 'ai_cut' || 'ai_illegible' =>
-        (AppIcons.ai, 'sq.$hint', 'ss.tool_retake', _retake),
+      'dark' => (
+          AppIcons.lightbulbOutline,
+          'sq.dark',
+          'ss.tool_retake',
+          _retake
+        ),
+      'skewed' => (
+          AppIcons.straighten,
+          'sq.skewed',
+          'sr.straighten',
+          _straighten
+        ),
       _ => (AppIcons.warning, 'sq.blurry', 'ss.tool_retake', _retake),
     };
     return Material(
@@ -360,8 +544,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
   }
 
   /// **Belge türü hapları** (Faz 35 / madde 1): Belge · Kimlik · Kitap · Fiş
-  /// · Beyaz tahta · Kartvizit · Fotoğraf. Seçim filtreyi ve sayfa düzenini
-  /// ayarlar; kimlik iki yüzü tek A4'te birleştirir, kitap çift sayfayı böler.
+  /// · Beyaz tahta · Kartvizit · Fotoğraf.
   Widget _kindPills(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
@@ -377,7 +560,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                 padding: const EdgeInsetsDirectional.only(end: Gap.xs),
                 child: ChoiceChip(
                   label: Text(context.t(kind.labelKey)),
-                  selected: kind == _kind,
+                  selected: _kindExplicit && kind == _kind,
                   onSelected: _busy ? null : (_) => _applyKind(kind),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -388,10 +571,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     );
   }
 
-  /// **Toplu inceleme ızgarası** (Faz 35 / madde 2): tüm sayfalar bir arada;
-  /// basılı tutup başka bir sayfanın üstüne bırakmak sırayı değiştirir,
-  /// sayfanın menüsü döndür / filtre / kırp / sil, sondaki kutu sayfa ekler.
-  /// Hücre boyu sabit (`childAspectRatio`), görseller `cacheWidth`'li.
+  /// **Toplu inceleme ızgarası** (Faz 35 / madde 2).
   Widget _gridView(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
       final cols = (box.maxWidth / 132).floor().clamp(2, 6);
@@ -441,6 +621,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
       child: SizedBox(
         height: 92,
         child: ReorderableListView.builder(
+          scrollController: _thumbScroll,
           onReorderStart: (_) => AppHaptics.longPress(),
           onReorderEnd: (_) => AppHaptics.drop(),
           scrollDirection: Axis.horizontal,
@@ -460,10 +641,6 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               ),
             ),
           ),
-          // **Yazılı, vurgulu "Sayfa ekle" kutusu** (2026-10-18, kullanıcı:
-          // *"sayfa ekle daha açıklayıcı olmalı"*). Eskiden yalnız "+" olan
-          // 54 dp'lik çerçeveli bir kareydi; ML Kit'te Sonraki'ye erken basan
-          // kullanıcı buradan sayfa ekleyebileceğini anlamıyordu.
           footer: Padding(
             padding: const EdgeInsetsDirectional.only(start: 4),
             child: Tooltip(
@@ -548,15 +725,18 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
                     onTap: enabled ? _crop : null,
                     highlight: true,
                   ),
-                  _ToolButton(
-                    icon: AppIcons.rotate,
+                  _RotateToolButton(
                     label: context.t('ss.tool_rotate'),
-                    onTap: enabled ? _rotate : null,
+                    leftTooltip: context.t('ss.tool_rotate_left'),
+                    rightTooltip: context.t('ss.tool_rotate_right'),
+                    onRotateLeft: enabled ? _rotateLeft : null,
+                    onRotateRight: enabled ? _rotate : null,
                   ),
                   _ToolButton(
                     icon: AppIcons.ai,
                     label: context.t('ss.tool_filter'),
                     onTap: enabled ? _filter : null,
+                    highlight: _filterStripOpen,
                   ),
                   _ToolButton(
                     icon: AppIcons.cameraAlt,
@@ -572,7 +752,8 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
+              padding:
+                  const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
               child: Row(
                 children: [
                   Expanded(
@@ -605,7 +786,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
     );
   }
 
-  Widget _textView() {
+  Widget _textView(BuildContext context) {
     final text = _text;
     if (text.isEmpty) {
       return Center(
@@ -617,7 +798,7 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               Text(context.t('scr.no_text_yet'), textAlign: TextAlign.center),
               const SizedBox(height: Gap.md),
               FilledButton.icon(
-                onPressed: _busy ? null : _recognize,
+                onPressed: _busy ? null : () => _recognize(force: true),
                 icon: const Icon(AppIcons.ocr),
                 label: Text(context.t('vw.ocr_short')),
               ),
@@ -626,11 +807,28 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
         ),
       );
     }
-    // Sayfa sayfa kart: metin tek yığın değil, sayfa başlıklarıyla ve
-    // seçilebilir.
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.xl),
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: Gap.sm),
+          child: Wrap(
+            spacing: Gap.xs,
+            runSpacing: Gap.xs,
+            children: [
+              ActionChip(
+                avatar: const Icon(AppIcons.spellcheck, size: 18),
+                label: Text(context.t('st.fix_text')),
+                onPressed: _busy ? null : _fixOcrText,
+              ),
+              ActionChip(
+                avatar: const Icon(AppIcons.refresh, size: 18),
+                label: Text(context.t('st.re_recognize')),
+                onPressed: _busy ? null : () => _recognize(force: true),
+              ),
+            ],
+          ),
+        ),
         for (final page in text)
           Card(
             margin: const EdgeInsets.only(bottom: Gap.sm),
@@ -639,11 +837,23 @@ extension _ScanResultScreenViewsPart on _ScanResultScreenState {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_pages.length > 1)
-                    Text(
-                      context.t('tf.page_header', {'n': page.number}),
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          context.t('tf.page_header', {'n': page.number}),
+                          style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _editPageText(page.number - 1, page.text),
+                        icon: const Icon(AppIcons.edit, size: 16),
+                        label: Text(context.t('common.edit')),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: Gap.xs),
                   SelectableText(page.text,
                       style: context.type.body.copyWith(height: 1.45)),

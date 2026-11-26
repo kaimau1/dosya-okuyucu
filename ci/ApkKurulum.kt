@@ -448,7 +448,7 @@ class GuncellemeSonrasi : BroadcastReceiver() {
                 @Suppress("DEPRECATION")
                 Notification.Builder(c)
             }
-            val n = b.setSmallIcon(android.R.drawable.stat_sys_download_done)
+            val n = b.setSmallIcon(android.R.drawable.stat_sys_download_done).setColor(0xFF106561.toInt()) // marka rengi (2026-11-22)
                 .setContentTitle("Güncelleme kuruldu")
                 .setContentText("Uygulamayı açmak için dokunun")
                 .setContentIntent(pi)

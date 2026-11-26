@@ -174,6 +174,62 @@ void main() {
       expect(posts, 2);
     });
 
+    test('kalıcı tur: ağ kopması turu bitirmez, kalınan yerden sürer',
+        () async {
+      // Kullanıcı 2026-11-25: "akıllı düzen sık sık duruyor, sürekli başlata
+      // basmam gerekiyor". Ekrandaki tur (persistent) geçici hatada bekler.
+      SmartQuota.metered = () async => false;
+      final fg = SmartSort.isForeground;
+      SmartSort.isForeground = () => true;
+      addTearDown(() => SmartSort.isForeground = fg);
+      var drops = 2;
+      GeminiService.debugClient = MockClient((req) async {
+        posts++;
+        if (drops > 0) {
+          drops--;
+          throw const SocketException('bağlantı koptu');
+        }
+        return http.Response('{"answers":{}}', 200);
+      });
+      final r = await SmartSort.run(
+          credentials: creds, scope: scope, persistent: true);
+      expect(r.stoppedBy, isNull);
+      expect(r.processed + r.failed, 3);
+      expect(SmartSort.waitingUntilMs.value, isNull);
+    });
+
+    test('kalıcı olmayan tur ağ kopmasında eskisi gibi durur', () async {
+      SmartQuota.metered = () async => false;
+      GeminiService.debugClient = MockClient((req) async {
+        posts++;
+        throw const SocketException('bağlantı koptu');
+      });
+      final r = await SmartSort.run(credentials: creds, scope: scope);
+      expect(r.stoppedBy, isNotNull);
+    });
+
+    test('kalıcı tur: 403 yine durur; günlük kota beklenmez', () async {
+      SmartQuota.metered = () async => false;
+      status = 403;
+      final r = await SmartSort.run(
+          credentials: creds, scope: scope, persistent: true);
+      expect(r.stoppedBy, isNotNull);
+      expect(SmartSort.isTransient(GeminiException('x', statusCode: 429)),
+          isTrue);
+      expect(
+          SmartSort.isTransient(GeminiException(
+              'Quota exceeded: GenerateRequestsPerDayPerProjectPerModel',
+              statusCode: 429)),
+          isFalse);
+      expect(SmartSort.isTransient(GeminiException('x', statusCode: 503)),
+          isTrue);
+      expect(SmartSort.retryAfter('Please retry in 34.5s.'),
+          const Duration(milliseconds: 34500));
+      expect(SmartSort.retryAfter('retry in 2m10s'),
+          const Duration(seconds: 130));
+      expect(SmartSort.isDailyQuota('Please retry in 5h12m3s'), isTrue);
+    });
+
     test('429: bir kez yeniden denenir, ikisi de sayılır, tur durur',
         () async {
       SmartQuota.metered = () async => false;

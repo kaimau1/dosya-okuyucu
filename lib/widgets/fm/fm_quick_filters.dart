@@ -9,16 +9,17 @@ import '../../models/fm_filter.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_bucket.dart';
 import '../../services/fm/file_tags.dart';
+import '../../services/fm/fm_colors_store.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/open_history.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/fm/storage_stats.dart';
 import '../app_dialog.dart';
+import 'fm_filter_widgets.dart';
 import 'pin_dialog.dart';
 import 'smart_cat_style.dart';
-import 'fm_type_chips.dart'
-    show FmChoiceTile, FmSheetFooter, FmSheetSectionTitle;
+import 'fm_type_chips.dart' show FmSheetFooter;
 
 /// Süzgeç satırının **tek ve sabit** yüksekliği (dp).
 ///
@@ -526,9 +527,9 @@ _Counts _computeCounts(
 
 /// AI kategorileri (Akıllı düzen): (kimlik, listede kaç dosya), çoktan aza.
 /// Akıllı düzen kapalıysa boş. Yalnız eşlem bakışı — ucuz.
-List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
+Map<String, int> smartCatCountsFor(List<FsEntry> source, FmFilter f) {
   final smartOf = FmFilter.smartCatOf;
-  if (smartOf == null) return const [];
+  if (smartOf == null) return const {};
   final userCatsOf = FmFilter.smartUserCatsOf;
   final counts = <String, int>{};
   for (final e in source) {
@@ -545,6 +546,11 @@ List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
   for (final c in f.smartCats) {
     counts.putIfAbsent(c, () => 0);
   }
+  return counts;
+}
+
+List<(String, int)> _smartCounts(List<FsEntry> source, FmFilter f) {
+  final counts = smartCatCountsFor(source, f);
   return counts.entries.map((e) => (e.key, e.value)).toList()
     ..sort((a, b) => b.$2.compareTo(a.$2));
 }
@@ -618,44 +624,65 @@ Future<void> showSmartCatSheet(
   var f = filter;
   return showAppSheet<void>(
     context,
-    title: context.t('sm.filter_title'),
+    scrollable: false,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSheet) => Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(Gap.md, 0, Gap.md, Gap.md),
-        child: Wrap(
-          spacing: Gap.xs,
-          runSpacing: Gap.xs,
-          children: [
-            for (final (cat, n) in cats)
-              FilterChip(
-                key: ValueKey('smartcat-$cat'),
-                avatar: Icon(SmartCatStyle.icon(cat),
-                    size: AppIcons.small, color: SmartCatStyle.color(cat)),
-                label: Text('${SmartCatStyle.label(ctx, cat)} ($n)'),
-                selected: f.smartCats.contains(cat),
-                onSelected: (on) async {
-                  // B2: hassas kategori seçilince oturumda bir kez PIN.
-                  if (on &&
-                      SmartTaxonomy.sensitive.contains(cat) &&
-                      !await unlockSensitiveCats(ctx)) {
-                    return;
-                  }
-                  if (!ctx.mounted) return;
-                  f = f.toggleSmartCat(cat);
-                  setSheet(() {});
-                  onChanged(f);
-                },
-              ),
-            if (f.smartCats.isNotEmpty)
-              ActionChip(
-                label: Text(ctx.t('common.clear')),
-                onPressed: () {
+      builder: (ctx, setSheet) => FmFilterSheetScaffold(
+        title: ctx.t('sm.filter_title'),
+        activeCount: f.smartCats.length,
+        trailing: TextButton.icon(
+          onPressed: f.smartCats.isEmpty
+              ? null
+              : () {
                   f = f.withSmartCats(const {});
                   setSheet(() {});
                   onChanged(f);
                 },
-              ),
-          ],
+          icon: const Icon(AppIcons.clearAll, size: 18),
+          label: Text(ctx.t('common.clear')),
+        ),
+        body: FmFilterSectionCard(
+          icon: AppIcons.ai,
+          title: ctx.t('sm.filter_title'),
+          badgeText: f.smartCats.isNotEmpty
+              ? '${f.smartCats.length} / ${cats.length}'
+              : '${cats.length}',
+          badgeActive: f.smartCats.isNotEmpty,
+          child: Wrap(
+            spacing: Gap.sm,
+            runSpacing: Gap.sm,
+            children: [
+              for (final (cat, n) in cats)
+                FmFilterOptionChip(
+                  key: ValueKey('smartcat-$cat'),
+                  icon: SmartCatStyle.icon(cat),
+                  accentColor: SmartCatStyle.color(cat),
+                  label: SmartCatStyle.label(ctx, cat),
+                  count: n,
+                  selected: f.smartCats.contains(cat),
+                  onTap: () async {
+                    final adding = !f.smartCats.contains(cat);
+                    // B2: hassas kategori seçilince oturumda bir kez PIN.
+                    if (adding &&
+                        SmartTaxonomy.sensitive.contains(cat) &&
+                        !await unlockSensitiveCats(ctx)) {
+                      return;
+                    }
+                    if (!ctx.mounted) return;
+                    f = f.toggleSmartCat(cat);
+                    setSheet(() {});
+                    onChanged(f);
+                  },
+                ),
+            ],
+          ),
+        ),
+        footer: FilledButton.icon(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(48),
+          ),
+          onPressed: () => Navigator.of(ctx).pop(),
+          icon: const Icon(AppIcons.check, size: 20),
+          label: Text(ctx.t('common.ok')),
         ),
       ),
     ),
@@ -675,9 +702,11 @@ Future<void> showFmSourceSheet(
   required bool showBuckets,
 }) {
   var f = filter;
+  // Akıllı kategoriler EN ALTTA ve katlanır; seçili olan varsa açık başlar.
+  var smartOpen = filter.smartCats.isNotEmpty;
   return showAppSheet<void>(
     context,
-    title: context.t('src.title'),
+    scrollable: false,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, setSheet) {
         void apply(FmFilter next) {
@@ -686,98 +715,92 @@ Future<void> showFmSourceSheet(
         }
 
         final c = _computeCounts(source, f, untouchedDays, showBuckets);
+        final smartCats = _smartCounts(source, f);
         final months = untouchedDays ~/ 30;
         final scheme = Theme.of(ctx).colorScheme;
-        Widget section(String title, List<Widget Function(double)> tiles) {
-          if (tiles.isEmpty) return const SizedBox.shrink();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              FmSheetSectionTitle(title),
-              LayoutBuilder(builder: (ctx, box) {
-                final scale = MediaQuery.textScalerOf(ctx).scale(1);
-                final effective =
-                    scale > 1.0 ? box.maxWidth / scale : box.maxWidth;
-                final cols = effective < 310 ? 2 : 3;
-                final w = (box.maxWidth - Gap.sm * (cols - 1)) / cols;
-                return Wrap(
-                  spacing: Gap.sm,
-                  runSpacing: Gap.sm,
-                  children: [for (final t in tiles) t(w)],
-                );
-              }),
-            ],
-          );
-        }
 
-        final where = <Widget Function(double)>[
+        final smartTiles = <Widget>[
+          for (final (cat, n) in smartCats)
+            FmFilterOptionChip(
+              key: ValueKey('smartcat-$cat'),
+              icon: SmartCatStyle.icon(cat),
+              accentColor: SmartCatStyle.color(cat),
+              label: SmartCatStyle.label(ctx, cat),
+              count: n,
+              selected: f.smartCats.contains(cat),
+              onTap: () async {
+                final adding = !f.smartCats.contains(cat);
+                if (adding &&
+                    SmartTaxonomy.sensitive.contains(cat) &&
+                    !await unlockSensitiveCats(ctx)) {
+                  return;
+                }
+                if (!ctx.mounted) return;
+                apply(f.toggleSmartCat(cat));
+              },
+            ),
+        ];
+
+        final where = <Widget>[
           for (final (v, n) in c.volumes)
-            (w) => FmChoiceTile(
-                  key: ValueKey('src-vol-${v.path}'),
-                  width: w,
-                  icon: AppIcons.sdCard,
-                  color: scheme.primary,
-                  label: v.displayLabel(ctx.t),
-                  count: n,
-                  selected: f.volumeRoots.contains(v.path),
-                  onTap: () => apply(f.toggleVolumeRoot(v.path)),
-                ),
+            FmFilterOptionChip(
+              key: ValueKey('src-vol-${v.path}'),
+              icon: AppIcons.sdCard,
+              accentColor: scheme.primary,
+              label: v.displayLabel(ctx.t),
+              count: n,
+              selected: f.volumeRoots.contains(v.path),
+              onTap: () => apply(f.toggleVolumeRoot(v.path)),
+            ),
           for (final (b, n) in c.buckets)
-            (w) => FmChoiceTile(
-                  key: ValueKey('src-${b.name}'),
-                  width: w,
-                  icon: _bucketIcon(b),
-                  color: _bucketColor(b, scheme),
-                  label: ctx.t(b.labelKey),
-                  count: n,
-                  selected: f.buckets.contains(b),
-                  onTap: () => apply(f.toggleBucket(b)),
-                ),
+            FmFilterOptionChip(
+              key: ValueKey('src-${b.name}'),
+              icon: _bucketIcon(b),
+              accentColor: _bucketColor(b, scheme),
+              label: ctx.t(b.labelKey),
+              count: n,
+              selected: f.buckets.contains(b),
+              onTap: () => apply(f.toggleBucket(b)),
+            ),
         ];
-        final when = <Widget Function(double)>[
+        final when = <Widget>[
           if (c.openedWithin > 0 || f.openedWithinDays != null)
-            (w) => FmChoiceTile(
-                  key: const ValueKey('src-opened'),
-                  width: w,
-                  icon: AppIcons.history,
-                  color: scheme.primary,
-                  label: ctx.t('fm.quick_opened_within', {'n': months}),
-                  count: c.openedWithin,
-                  selected: f.openedWithinDays != null,
-                  onTap: () => apply(f.withOpenedWithinDays(
-                      f.openedWithinDays == null ? untouchedDays : null)),
-                ),
+            FmFilterOptionChip(
+              key: const ValueKey('src-opened'),
+              icon: AppIcons.history,
+              accentColor: scheme.primary,
+              label: ctx.t('fm.quick_opened_within', {'n': months}),
+              count: c.openedWithin,
+              selected: f.openedWithinDays != null,
+              onTap: () => apply(f.withOpenedWithinDays(
+                  f.openedWithinDays == null ? untouchedDays : null)),
+            ),
           if (c.untouched > 0 || f.untouchedDays != null)
-            (w) => FmChoiceTile(
-                  key: const ValueKey('src-untouched'),
-                  width: w,
-                  icon: AppIcons.historyToggleOff,
-                  color: scheme.tertiary,
-                  label: ctx.t('fm.quick_untouched', {'n': months}),
-                  count: c.untouched,
-                  selected: f.untouchedDays != null,
-                  onTap: () => apply(f.withUntouchedDays(
-                      f.untouchedDays == null ? untouchedDays : null)),
-                ),
+            FmFilterOptionChip(
+              key: const ValueKey('src-untouched'),
+              icon: AppIcons.historyToggleOff,
+              accentColor: scheme.tertiary,
+              label: ctx.t('fm.quick_untouched', {'n': months}),
+              count: c.untouched,
+              selected: f.untouchedDays != null,
+              onTap: () => apply(f.withUntouchedDays(
+                  f.untouchedDays == null ? untouchedDays : null)),
+            ),
           if (c.large > 0 || f.sizeRange == FmSizeRange.large)
-            (w) => FmChoiceTile(
-                  key: const ValueKey('src-large'),
-                  width: w,
-                  icon: AppIcons.storage,
-                  color: scheme.error,
-                  label: ctx.t(FmSizeRange.large.labelKey),
-                  count: c.large,
-                  selected: f.sizeRange == FmSizeRange.large,
-                  onTap: () => apply(f.withSizeRange(
-                      f.sizeRange == FmSizeRange.large
-                          ? FmSizeRange.any
-                          : FmSizeRange.large)),
-                ),
+            FmFilterOptionChip(
+              key: const ValueKey('src-large'),
+              icon: AppIcons.storage,
+              accentColor: scheme.error,
+              label: ctx.t(FmSizeRange.large.labelKey),
+              count: c.large,
+              selected: f.sizeRange == FmSizeRange.large,
+              onTap: () => apply(f.withSizeRange(
+                  f.sizeRange == FmSizeRange.large
+                      ? FmSizeRange.any
+                      : FmSizeRange.large)),
+            ),
         ];
-        // Etiketler (kullanıcı 2026-10-30: *"etiketler oluştuğunda filtrelerde
-        // seçilebilir olmalı, sadece fotoğraflarda değil tüm dosyalar için"*).
-        // Yalnız BU listedeki dosyalarda geçen etiketler; seçili olan sıfıra
-        // düşse de kalır.
+
         final tagsHere = <String, int>{};
         for (final e in source) {
           if (e.isDir) continue;
@@ -790,49 +813,103 @@ Future<void> showFmSourceSheet(
         }
         final tagNames = tagsHere.keys.toList()
           ..sort((a, b) => tagsHere[b]!.compareTo(tagsHere[a]!));
-        final tagTiles = <Widget Function(double)>[
+        final tagTiles = <Widget>[
           for (final t in tagNames)
-            (w) => FmChoiceTile(
-                  key: ValueKey('src-tag-$t'),
-                  width: w,
-                  icon: AppIcons.labelOutline,
-                  color: scheme.secondary,
-                  label: '#$t',
-                  count: _countWith(
-                      source, f.tags.contains(t) ? f : f.toggleTag(t)),
-                  selected: f.tags.contains(t),
-                  onTap: () => apply(f.toggleTag(t)),
-                ),
+            () {
+              final tagColor = FmColorsStore.tagColor(t);
+              return FmFilterOptionChip(
+                key: ValueKey('src-tag-$t'),
+                dotColor: tagColor,
+                icon: tagColor == null ? AppIcons.tag : null,
+                accentColor: tagColor ?? scheme.primary,
+                label: '#$t',
+                count: _countWith(
+                    source, f.tags.contains(t) ? f : f.toggleTag(t)),
+                selected: f.tags.contains(t),
+                onTap: () => apply(f.toggleTag(t)),
+              );
+            }(),
         ];
+
         final shown = _countWith(source, f);
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-                Gap.md, 0, Gap.md, Gap.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: Gap.sm),
-                  child: Text(ctx.t('typ.hint'),
-                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant)),
-                ),
-                section(ctx.t('src.where'), where),
-                section(ctx.t('src.when'), when),
-                section(ctx.t('more.tags'), tagTiles),
-                const SizedBox(height: Gap.md),
-                FmSheetFooter(
-                  doneKey: const ValueKey('src-done'),
-                  shown: shown,
-                  onClear: _sourceActive(f) == 0
-                      ? null
-                      : () => apply(_clearSource(f)),
-                  onDone: () => Navigator.of(ctx).pop(),
-                ),
-              ],
+        final active = _sourceActive(f);
+        final whereActive = f.volumeRoots.length + f.buckets.length;
+        final whenActive = (f.openedWithinDays != null ? 1 : 0) +
+            (f.untouchedDays != null ? 1 : 0) +
+            (f.sizeRange == FmSizeRange.large ? 1 : 0);
+
+        final cards = <Widget>[];
+        void addCard(Widget card) {
+          if (cards.isNotEmpty) cards.add(const SizedBox(height: Gap.sm + 2));
+          cards.add(card);
+        }
+
+        if (where.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.folder,
+              title: ctx.t('src.where'),
+              badgeText: whereActive > 0 ? '$whereActive' : null,
+              badgeActive: whereActive > 0,
+              child: Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: where),
             ),
+          );
+        }
+        if (when.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.schedule,
+              title: ctx.t('src.when'),
+              badgeText: whenActive > 0 ? '$whenActive' : null,
+              badgeActive: whenActive > 0,
+              child: Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: when),
+            ),
+          );
+        }
+        if (tagTiles.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.tag,
+              title: ctx.t('more.tags'),
+              badgeText: f.tags.isNotEmpty ? '${f.tags.length}' : null,
+              badgeActive: f.tags.isNotEmpty,
+              child:
+                  Wrap(spacing: Gap.sm, runSpacing: Gap.sm, children: tagTiles),
+            ),
+          );
+        }
+        if (smartTiles.isNotEmpty) {
+          addCard(
+            FmFilterSectionCard(
+              icon: AppIcons.ai,
+              title: ctx.t('sm.filter_title'),
+              badgeText: f.smartCats.isNotEmpty
+                  ? '${f.smartCats.length} / ${smartTiles.length}'
+                  : '${smartTiles.length}',
+              badgeActive: f.smartCats.isNotEmpty,
+              expanded: smartOpen,
+              toggleKey: const ValueKey('src-smart-toggle'),
+              onToggle: () => setSheet(() => smartOpen = !smartOpen),
+              child: Wrap(
+                  spacing: Gap.sm, runSpacing: Gap.sm, children: smartTiles),
+            ),
+          );
+        }
+
+        return FmFilterSheetScaffold(
+          title: ctx.t('src.title'),
+          hint: ctx.t('typ.hint'),
+          activeCount: active,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: cards,
+          ),
+          footer: FmSheetFooter(
+            doneKey: const ValueKey('src-done'),
+            shown: shown,
+            onClear: active == 0 ? null : () => apply(_clearSource(f)),
+            onDone: () => Navigator.of(ctx).pop(),
           ),
         );
       },
@@ -840,8 +917,9 @@ Future<void> showFmSourceSheet(
   );
 }
 
-/// Kaynak hapının saydığı etkin ölçüt sayısı (birim, kaynak, zaman, büyük, etiket).
+/// Kaynak hapının saydığı etkin ölçüt sayısı (akıllı kategori, birim, kaynak, zaman, büyük, etiket).
 int _sourceActive(FmFilter f) =>
+    f.smartCats.length +
     f.volumeRoots.length +
     f.buckets.length +
     (f.openedWithinDays != null ? 1 : 0) +
@@ -852,6 +930,7 @@ int _sourceActive(FmFilter f) =>
 /// Yalnız kaynak levhasının ölçütlerini bırakır (tür/tarih/sıra korunur).
 FmFilter _clearSource(FmFilter f) {
   var g = f;
+  if (g.smartCats.isNotEmpty) g = g.withSmartCats(const {});
   for (final v in f.volumeRoots.toList()) {
     g = g.toggleVolumeRoot(v);
   }
@@ -926,9 +1005,10 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
       return const SizedBox.shrink();
     }
 
-    // Tüm kaynak/zaman/boyut süzgeçleri TEK hapta; dokununca kart levhası.
+    // Tüm kaynak/akıllı kategori/zaman/boyut süzgeçleri TEK hapta (şeritte
+    // en fazla 3 hap: Tür · Kaynak ve zaman · Analiz ve diğer).
     final active = _sourceActive(f);
-    final hasAny = tagged || active > 0;
+    final hasAny = tagged || counts.smart || active > 0;
     return FmFilterBar(
       children: [
         ...widget.leading,
@@ -950,27 +1030,6 @@ class _FmQuickFiltersState extends State<FmQuickFilters> {
               count: active > 0 ? active : null,
               dropdown: true,
               highlighted: active > 0,
-            ),
-          ),
-        // AI kategorisi (Akıllı düzen): yalnız listede kategorili dosya varsa.
-        if (counts.smart)
-          InkWell(
-            key: const ValueKey('smartcat-pill'),
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => showSmartCatSheet(
-              context,
-              cats: _smartCounts(widget.source, widget.filter),
-              filter: widget.filter,
-              onChanged: widget.onChanged,
-            ),
-            child: FmPill(
-              icon: AppIcons.ai,
-              label: f.smartCats.length == 1
-                  ? SmartCatStyle.label(context, f.smartCats.first)
-                  : context.t('sm.filter_pill'),
-              count: f.smartCats.length > 1 ? f.smartCats.length : null,
-              dropdown: true,
-              highlighted: f.smartCats.isNotEmpty,
             ),
           ),
         ...widget.trailing,

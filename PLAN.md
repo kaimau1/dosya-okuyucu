@@ -60,9 +60,7 @@ Kapsam dışı: başka izin/ayar/hesap ekranı, PIN. Ayrıntı `ab-olcum` skill'
 (`gh workflow run build-apk.yml --ref main` ya da son birleştirmeye `[apk]`), sonra tablete kur.
 
 **KARARLAR (kullanıcı 2026-11-21, "hepsi uygun" — sormadan uygula):**
-- U6 (a): **Kokoro Turkish** (Apache-2.0, ~115 MB) eklenir; telaffuz için **espeak-ng (GPL)** kabul edildi —
-  lisans metni Hakkında/üçüncü taraf lisanslarına eklenir. İngilizce için de en uygun açık ses (Kokoro EN /
-  Kitten — espeak-ng artık engel değil) aynı indir-doğrula düzeniyle.
+- U6 (a, 2026-11-25 güncellendi): **Kokoro/eSpeak (GPL-3.0)** Play lisans temizliği için çıkarıldı; sesli kitapta yalnız Apache-2.0 yapay sesler (Antalia/EMA) ve cihazın kendi Android TTS motoru seçiciyle kullanılır (`LGPL-3.0.txt`/`GPL-3.0.txt` varlıklara gömüldü).
 - B10 m.2: LAMBDA ailesi (MAP/REDUCE/SCAN/BYROW/BYCOL/MAKEARRAY) **Türkçe adlarla** da tanınır/yazılır
   (Excel'in resmî Türkçe adları; İngilizce ad da çalışmaya devam eder).
 - B9b: Word yorum balonu **tablette sağ kenar sütununda** (telefonda paragraf altında kalır).
@@ -90,17 +88,20 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | U4 | **Akıllı klasörler + Analiz + Akıllı ayarlar (beyin fırtınası, nokta atışı):** §1.14 m.7, m.9, m.10 + B15 m.4 kategorizasyonu mükemmelleştirme. **Bitti (dilim 1, 7 madde; HAFIZA 2026-11-20 U4):** durma/başlamama iletileri gerçek neden · hayalet kayıt budama · kayıtlı aramalar Akıllı düzeni arar + "Akıllı aramalar" adı + PIN · "Diğer" klasörü · Yapay zekâ ayar sayfası baştan (Hafıza kalktı) · Analiz "Tümünü seç" 200 sınırı · Analiz Kopyalar/Ayıkla. **Bitti (dilim 2, 3 madde; HAFIZA 2026-11-20 U4 dilim 2):** ağ kopunca tur durur (ortak durma kuralı, tezgâh dahil) · bulanık belge fotoğrafı Ayıkla'ya önerilmez (e) · öğrenilen kategori alt türünü/kurumunu korur. **Kalan adaylar (seçilmedi):** (a) klasör kutusunda "+n yeni" rozeti; (b) kutuda ilk dosyanın küçük resmi (ızgara, ölçümle); (c) klasörü ızgaradan gizle; (d) yeni yerleşik kategoriler (ev/tapu/aidat, çocuk/okul, tarif — önce C2 tezgâh ölçümü); (f) Kategorilerim ızgarada klasör (görünüş, kullanıcı kararı); (h) Analiz'de Akıllı kategoriye göre yer ("Faturalar 1,2 GB"); (j) eski Akıllı dosya asistanı (AiIndex analizi) ile Akıllı düzen ikiliği (budama kullanıcı kararı) | opus (xhigh) | §1.14 | A/B | evet | dilim 1 main'de; dilim 2 main'de (cihaz turu CIHAZ_TESTI U4.2); dilim 3 (g) Analiz silme sonrası yenilenir main'de (cihaz turu CIHAZ_TESTI U4.3); sabah bakılacak: kayıtlı aramaların adı "Akıllı aramalar" (geri alınabilir, yalnız metin) |
 | U3 | **Ana ekran + bildirim bütünlüğü:** §1.14 m.2 (hız çubuğu 0,05), m.3 (son dosyalar tek akıllı liste + varsayılan kip + hız), m.4/m.11 (bildirim/tost/hata tek dil, kullanıcıyı bilgilendir), m.5 (tek düzenle düğmesi), m.6 (Bağlantıdan indir kalk, Kopyalar → Analiz), m.8 (Başarım seçimi görünür) | opus | §1.14 | A/B | evet | main'de (7 madde HAFIZA 2026-11-20 U3; cihaz turu CIHAZ_TESTI U3, ölçüm C2 — ölçülmedi); sabah bakılacak: hız aralığı 0,5–2,0 (güvenli seçim; 0,25–3,0 istenirse `PlaybackSpeed.min/max`) |
 | B3 | **Hız (Ferrari) kod + ölçüm:** P12b Excel/liste A/B artıkları, P29 büyük başlık + kalıcı hata şeridi, P06 PDF kaydırma H2.1–H2.6 | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | sürüyor — dal faz-oto-B3-hiz: P29 kod bitti (main'e birleştirilmedi; büyük başlık H4.2 2026-11-14 kullanıcı kararıyla zaten kalkmıştı — iş yok; hata şeridi kök neden arka plan kapatması, şerit ortak bildirim kartına katıldı; HAFIZA 2026-11-20 B3; cihaz turu CIHAZ_TESTI B3, ölçüm C2 — ölçülmedi); P12b'nin cihazsız kod artığı yok; kalan P12b ölçümü, P06 (plan evresi + cihaz) |
-| B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — P17 işaretleme stüdyosu kodu bitti, dal faz-oto-B4-isaret (CI yeşilse birleştir; cihaz turu CIHAZ_TESTI B4-P17i, kalem karesi A/B C2); P16 metin + P17 nesne main'de (cihaz turu CIHAZ_TESTI B4-P16/B4-P17n, A/B C2); sıradaki §1.4 dilim 4 P18 |
+| B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | bekliyor — P16 metin + P17 nesne + P17 işaretleme stüdyosu main'de (cihaz turu CIHAZ_TESTI B4-P16/B4-P17n/B4-P17i, A/B C2); sıradaki §1.4 dilim 4 P18 |
 | B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | kullanıcı kararı — P23 UDF + P24 bakım main'de (2026-11-21; xml/pointycastle override üst paket yüzünden kalır); kalan P25 (K17 onayı), Dependabot #82–84 (K14) |
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
-| B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
+| B7 | **Sürümler + Play çıkış + Yer aç yenileme + Rakip denetimi:** P30 Lite/Pro/Kişisel (`play_variant` S4–S9, K15/K16), P26 mağaza ekran görüntüleri, Play/Lite/Pro acil P0 düzeltmeleri, **Yer aç** güven+önbellek yenilemesi, CI yeşil + rakip denetimi acilleri (izin koruması, tek seferlik Pro rozeti, BYOK jargonu temizliği, Lite/Pro ad hizası, ilk açılış sadeleştirme) | opus / sonnet | §1.7; arsiv/SURUM_PLANI · docs/play/ | — | evet | **main'de (2026-11-26)** — kalan: **B7b** (aşağıda; sonraki oturum paketi) |
+| B7b | **Sonraki Oturum — Play Çıkış & Rakip Rekabet Paketi:** (1) **Mağaza bağlantısı + akıllı klasör bulut aboneliği entegrasyonu:** Play Console'da `com.dosyaokuyucu.dosya_okuyucu.pro` için `29,99 TL` tek seferlik uygulama ilanı + 500 dosya başlangıç hakkı dolunca ekstra Akıllı Klasör bulut kotası için isteğe bağlı abonelik / kredi paketi satışı (Play Billing); (2) **Lite APK boyut diyeti (K15c):** tüm dosyalara erişim korunarak Lite'tan ağır medya/AI kütüphanelerini (`libmpv`, `LiteRT`) ayırıp ≤ 45 MB hedefi + eklenti açılış testi; (3) **Mağaza ekran görüntülerinde net rekabet mesajı:** "100% Reklamsız · Temel Özellikler Tek Seferlik · Çevrimdışı · Güvenli Yer Aç"; (4) **Üçüncü parti model güvencesi:** Sesli kitap (Antalia/EMA/jsdelivr) ve görsel büyütme (`tfhub.dev`) indirme kaynaklarının kendi kararlı aynana alınması / Play cihaz-ağ uyumu; (5) **Drive kapsamı (K9) & gerçek cihaz testi (`C3`):** Drive `drive.file` kapsamı ve WhatsApp→Düzenle→İndirilenler akış testi; (6) **Eski ekran & link temizliği + tasarım birliği:** PDF/Office görüntüleyici ve eski Yardım ekranı artıkları, K1–K7 + K17 + K19 kararlarının uygulanması; (7) **Özel `Actions` Play AAB tam testi** (`build-play.yml`, 16 KB ELF, `play_variant verify`) | opus / sonnet | Play + Rakip Denetimleri + Kullanıcı Kararları 2026-11-26 | A/B | evet | **sonraki oturum paketi — kullanıcı K15b/K15/K16 kararları işlendi (2026-11-26)** |
 | B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bekliyor — m.8 + m.5 artık main'de (2026-11-21); kalan m.3 giriş iletisi gösterimi; A/B → C2 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | sürüyor — dilim 1+2 main'de (m.1 tablo stilleri, m.4 imleç, m.6 prova, m.7 sadakat bekçisi, m.8 sürükleme/geçiş bütçesi); dilim 3 dal faz-oto-B11-slayt3 (m.3 geçiş türleri + efektli animasyon + Biçim değiştir + önizleme, m.1 dikey metin; A/B C2'de); m.5 AI tasarımcı İPTAL (B15 kararı 2026-11-19, AI budandı); m.2 grafik türleri dal faz-oto-B11-slayt4 (yazıldı, cihazda doğrulanmadı); kalan m.1 piksel altın (kullanıcı izniyle yerelde) + yansıma, m.4 klavye kayması cihazda |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | cihaz bekliyor — dilim 1+2 main'de (2026-11-19): m.4 Excel/Slayt aşamalı açılış + m.7 Word çimdik yapıldı (A/B C2'de); m.1 açılış geçişi (Office/PDF) 2026-11-20 tablette A/B KALDI (satırdan büyüyen kırpma: Slayt/Excel açılışı +%13/+%17, Slayt açılış p99 20→34 ms) → uygulanmadı, sabah bakılacak (bkz. §1.13 m.1 notu) |
 | B8 | **Son kapı:** P27 "10 işlem" son ölçüm + Samsung kıyası, erişilebilirlik, özellik dondurma kalkar | sonnet | arsiv/FERRARI_PLANI H12 | A/B | evet | bekliyor — en sonda, kullanıcıyla |
 | C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | cihaz bekliyor — P08 + P28 main'de (2026-11-21, kullanıcı kararıyla birleşti, 1.3.73 tablette); kalan yalnız A/B ölçümü (kurulum onayı artık Claude'da — CİHAZ KURULUM KURALI) |
-| C2 | **Cihaz: perf A/B artıkları:** B9b Word yorum kenar sütunu (tablette yorumlu belgede yazma/kaydırma karesi — dal faz-oto-B9b-yorum; ölçülmedi), B10 excel4 Excel A/B (süzgeç levhası, chartex çizimi, büyük xlsx ilk pencere — dal faz-oto-B10-excel4; ölçülmedi), B2 Akıllı düzen 2.0 dilim 1–5 (CIHAZ_TESTI B2) — ölçüldü: geçti (2026-11-20), P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış) — ölçüldü: kaldı (2026-11-20; klasor_5000 build p99 20,6→46,1 ve 17,8→26,2; soğuk açılış geçti), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü + galeri açılış geçişi — ölçüldü: geçti (2026-11-20) (A/B bekliyor, main d7e9765e) + U2 ana ekran tek akıllı şerit (yazıldı, cihazda doğrulanmadı; dal faz-oto-U2-tek-serit) + B11 dilim 1–2 slayt düzenleme A/B (tablo stili çizimi, imleç dokunulan yerde, şekil sürükleme katmanları, prova; dal faz-oto-B11-slayt2) + B11 dilim 3 geçiş/animasyon/Biçim değiştir — ölçüldü: kaldı (2026-11-20; slayt_300_acilis_pro0 build p99 30,9→45,5 ve 30,0→47,6) (ölçülmedi; sunumda Biçim değiştir ve efektli tıklama animasyonu kare p99, taban önceki [apk] `.r8test`; dal faz-oto-B11-slayt3) + B4 dilim 1–8 PDF Pro (meta veri/XFDF, R6 kilit açma, sayfa stüdyosu ızgarası ve sayfa ekle/çıkar/böl/kaydır, form alanı algılama metin ve çizgi/kutu, form ekranında imza alanı, OCR aranabilir katman; işlev turu, izolatta; 300 sayfada p99 ≤ 16 ms hedefi; ölçülmedi; sıcak yola dokunmuyor; dal faz-oto-B4-pdfpro) + R6 kilit açma + boş/dosyadan/görselden/taramadan sayfa ekle + çıkar/böl + B15 dilim 1 AI budama + Akıllı adlandırma (ölçülmedi; görüntüleyici/editör alt çubuğundan bir düğme kalktı, ana ekran sekme adı değişti; dal faz-oto-B15-akilli) + U3 ana ekran — ölçüldü: kısmen (2026-11-20; sol menü geçti, ana sekmeler yalnız adayda 24 ms altı, ana ekran kaydırma senaryosu yok) (ölçülmedi; Son dosyalar sekmeleri + karışık sıra + Geçmiş bellek önbelleği, Akıllı düzen şeridi bildirim kartına katıldı, tek Düzenle düğmesi, araçlar 8→5, yan menü şeridi; taban önceki [apk] `.r8test`, ana ekran açılış + şerit sekme geçişi + yan menü açılışı; dal faz-oto-U3-ana-ekran) + U4 Akıllı klasörler/Analiz/ayarlar (ölçülmedi; Akıllı düzen ızgarasına "Diğer" kutusu + altına "Akıllı aramalar" kartı, Analiz araçlarına bir satır; sıcak liste yoluna dokunmuyor; dal faz-oto-U4-akilli-klasor) + B5 P23 UDF açılışı (ölçülmedi; .udf → .docx çevrimi izolatta, Word okuyucusu aynı; 1–5 sayfalık örnekte açılış süresi; dal faz-oto-B5-udf) + B3 P29 çökme uyarısı bildirim kartında (ölçülmedi; ana ekran üstündeki ayrı kırmızı şerit kalktı, kart kaynağına bir sayaç eklendi; taban önceki [apk] `.r8test`, ana ekran açılışı; dal faz-oto-B3-hiz) + U4 dilim 2 Akıllı düzen durma kuralı, Ayıkla yorumu ve öğrenilen alt tür (ölçüm gerekmez: görünür alan yok, liste/ızgara yoluna dokunmuyor; yalnız işlev turu CIHAZ_TESTI U4.2; dal faz-oto-U4-akilli-2) + U4 dilim 3 Bellek Analizi silme sonrası yenilenir (ölçüm gerekmez: görünür alan yok, pano ve liste yoluna dokunmuyor, yenileme izolatta; yalnız işlev turu CIHAZ_TESTI U4.3; dal faz-oto-U4-akilli-3) + B4 P17 işaretleme stüdyosu (ölçülmedi; kalemle çizerken kare p99 — önizleme kendi katmanında, çizim boyunca katman kurulmuyor (test bekçisi); PDF kabuğu sıcak yoluna dokunmuyor; dal faz-oto-B4-isaret) | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor; A/B U3/U4/B15 denendi 2026-11-20: YETERSİZ, ölçülmedi (sürücü boş kareyle çöktü, senaryo eksik; docs/perf/2026-11-20-C2-U3.md) |
+| C2 | **Cihaz: perf A/B artıkları:** B9b Word yorum kenar sütunu (tablette yorumlu belgede yazma/kaydırma karesi — dal faz-oto-B9b-yorum; ölçülmedi), B10 excel4 Excel A/B (süzgeç levhası, chartex çizimi, büyük xlsx ilk pencere — dal faz-oto-B10-excel4; ölçülmedi), B2 Akıllı düzen 2.0 dilim 1–5 (CIHAZ_TESTI B2) — ölçüldü: geçti (2026-11-20), P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış) — ölçüldü: kaldı (2026-11-20; klasor_5000 build p99 20,6→46,1 ve 17,8→26,2; soğuk açılış geçti), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü + galeri açılış geçişi — ölçüldü: geçti (2026-11-20) (A/B bekliyor, main d7e9765e) + U2 ana ekran tek akıllı şerit (yazıldı, cihazda doğrulanmadı; dal faz-oto-U2-tek-serit) + B11 dilim 1–2 slayt düzenleme A/B (tablo stili çizimi, imleç dokunulan yerde, şekil sürükleme katmanları, prova; dal faz-oto-B11-slayt2) + B11 dilim 3 geçiş/animasyon/Biçim değiştir — ölçüldü: kaldı (2026-11-20; slayt_300_acilis_pro0 build p99 30,9→45,5 ve 30,0→47,6) (ölçülmedi; sunumda Biçim değiştir ve efektli tıklama animasyonu kare p99, taban önceki [apk] `.r8test`; dal faz-oto-B11-slayt3) + B4 dilim 1–8 PDF Pro (meta veri/XFDF, R6 kilit açma, sayfa stüdyosu ızgarası ve sayfa ekle/çıkar/böl/kaydır, form alanı algılama metin ve çizgi/kutu, form ekranında imza alanı, OCR aranabilir katman; işlev turu, izolatta; 300 sayfada p99 ≤ 16 ms hedefi; ölçülmedi; sıcak yola dokunmuyor; dal faz-oto-B4-pdfpro) + R6 kilit açma + boş/dosyadan/görselden/taramadan sayfa ekle + çıkar/böl + B15 dilim 1 AI budama + Akıllı adlandırma (ölçülmedi; görüntüleyici/editör alt çubuğundan bir düğme kalktı, ana ekran sekme adı değişti; dal faz-oto-B15-akilli) + U3 ana ekran — ölçüldü: kısmen (2026-11-20; sol menü geçti, ana sekmeler yalnız adayda 24 ms altı, ana ekran kaydırma senaryosu yok) (ölçülmedi; Son dosyalar sekmeleri + karışık sıra + Geçmiş bellek önbelleği, Akıllı düzen şeridi bildirim kartına katıldı, tek Düzenle düğmesi, araçlar 8→5, yan menü şeridi; taban önceki [apk] `.r8test`, ana ekran açılış + şerit sekme geçişi + yan menü açılışı; dal faz-oto-U3-ana-ekran) + U4 Akıllı klasörler/Analiz/ayarlar (ölçülmedi; Akıllı düzen ızgarasına "Diğer" kutusu + altına "Akıllı aramalar" kartı, Analiz araçlarına bir satır; sıcak liste yoluna dokunmuyor; dal faz-oto-U4-akilli-klasor) + B5 P23 UDF açılışı (ölçülmedi; .udf → .docx çevrimi izolatta, Word okuyucusu aynı; 1–5 sayfalık örnekte açılış süresi; dal faz-oto-B5-udf) + B3 P29 çökme uyarısı bildirim kartında (ölçülmedi; ana ekran üstündeki ayrı kırmızı şerit kalktı, kart kaynağına bir sayaç eklendi; taban önceki [apk] `.r8test`, ana ekran açılışı; dal faz-oto-B3-hiz) + U4 dilim 2 Akıllı düzen durma kuralı, Ayıkla yorumu ve öğrenilen alt tür (ölçüm gerekmez: görünür alan yok, liste/ızgara yoluna dokunmuyor; yalnız işlev turu CIHAZ_TESTI U4.2; dal faz-oto-U4-akilli-2) + U4 dilim 3 Bellek Analizi silme sonrası yenilenir (ölçüm gerekmez: görünür alan yok, pano ve liste yoluna dokunmuyor, yenileme izolatta; yalnız işlev turu CIHAZ_TESTI U4.3; dal faz-oto-U4-akilli-3) + B4 P17 işaretleme stüdyosu (ölçülmedi; kalemle çizerken kare p99 — önizleme kendi katmanında, çizim boyunca katman kurulmuyor (test bekçisi); PDF kabuğu sıcak yoluna dokunmuyor; dal faz-oto-B4-isaret) | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor; A/B U3/U4/B15 denendi 2026-11-20: YETERSİZ, ölçülmedi (sürücü boş kareyle çöktü, senaryo eksik; docs/perf/2026-11-20-C2-U3.md); **2026-11-21 Huawei tablette A/B (260d2671 x main 4b2bec29, 1 tur, docs/perf/2026-11-21-ab-260d267-4b2bec2.md): ölçüldü: kaldı (2026-11-21)** — B10 Excel büyük xlsx: xlsx_100k_kaydirma build p90 8,5->24,8, xlsx_10k_x20_acilis build p99 144,6->180,9 (süzgeç levhası/chartex senaryosu yok, ölçülmedi); B9b Word yorum sütunu/tablet: word_300_kaydirma raster p99 15,9->22,4, word_300_menu build p99 16,6->28,6 / raster p99 13,8->18,9; U8/U9 sol_menu_acilis geçti (p99 27,3->18,5), Yer aç/Bento levha senaryosu yok (ölçülmedi). **SIRA önüne: B9b/Word tablet kaydırma+menü gerilemesi ve B10 Excel kaydırma build p90 (kök neden/ikinci tur)** |
 | C3 | **Cihaz: genel tur:** P11 `CIHAZ_TESTI.md` baştan sona (Faz 34–42, Güvenlik, 360×800 + 2× yazı, 2026-11-18 AI maddeleri) + §3 "Telefonda sen bak" (K20–K28); kırmızı → ilgili pakete madde | sonnet | CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
+| B16 | **İnternetsiz Arapça OCR (kullanıcı 2026-11-26):** Arapça/Farsça/Urduca/Osmanlıca/Cavi (Jawi) metin tanıma cihazda, ücretsiz; bugün yalnız Gemini (internet + anahtar + ücret). PaddleOCR Arapça modelleri (Apache 2.0) ilk kullanımda iner, APK +0 MB | opus | §1.15 | evet | evet | bekliyor — sırayı kullanıcı koyacak |
+| B17 | **Endonezya + Malezya pazarı (kullanıcı 2026-11-26, satış hedefi):** Endonezce + Malayca arayüz, mağaza sayfası, yerel fiyat, düşük donanımlı telefon bütçesi, Cavi yazısı, gizlilik metinleri | opus (dil yapısı planı fable) | §1.16 | evet | evet | bekliyor — sırayı kullanıcı koyacak; 👤 maddeler §1.16'da |
 
 ### 1.1) B1 ayrıntısı — Akıllı düzen 2.0 çekirdek
 
@@ -458,60 +459,43 @@ için önce Slayt/Excel'in ilk karelerinde neyin uzadığı zaman çizelgesinden
 
 ---
 
-## 3) Senin işlerin 👤 (ben yapamam — karar, hesap, telefon ayarı)
+## 3) Senin işlerin 👤 — Play'e Çıkış İçin Tek Paket (Sırayla Yapılacaklar)
 
-Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
+Aşağıdaki liste `yayin_rehberi.md`, `SURUM_ADAYI.md`, `SURUM_PLANI.md`, `izin_beyanlari.md` ve eski K-maddelerinin tek yerde birleştirilmiş hâlidir. Biteni bana söylemen yeterli, listeden silerim.
 
-### Kararlar (tek kelime yeter)
-- **K1 Menü kısaltma (H7.2):** PDF ⋮ "Daha fazla" 13–15 madde. Öneri: ilk 5 = Sayfaya git · Sesli oku · Metni tanı · Okuma ayarları · Dosya işlemleri; gerisi "Diğer". → "menü tamam" / "menüler kalsın".
-- **K2 Çöpe atmada onay (H7.4):** artık sorulmuyor, "Geri al" çıkıyor (Ayarlar › Depolama › "Silmeden önce sor" ile açılır). → sorun yoksa bir şey deme / "onay geri gelsin".
-- **K3 Tarama rehberi:** ilk 3 taramada çıkıyor; "bir kez" olsun mu?
-- **K4 "Kopyalandı" bildirimi:** Android 13+ kendi de gösteriyor; çift görünüyorsa söyle, kaldırırım.
-- **K5 Çift bölmede sürükle-bırak = kopya:** taşımak için "Taşı". → "sürükle taşısın" dersen değiştiririm.
-- **K6 Galeri alt çubuğu (H11):** 8 düğme → altta Paylaş · Düzenle · İyileştir · Bilgi · Sil; Boyut · Araçlar · Seç ⋮'ya. → "galeri tamam" / "galeri kalsın".
-- **K7 Editör üst çubuğu (H11.1):** Kaydet yalnız değişiklik varken görünsün mü? → "editör tamam" / "editör kalsın".
-- **K8 Liste hız sınırı (P13):** 24 ms sınırı TalkBack kapalı ölçüme (`_sk`) bağlansın, açık olan yalnız kötüleşmeye bakılsın mı? Silinen satırın kapanma animasyonu yok, yeni satır bir an vurgulanıyor; yeterli mi?
-- **K9 Google Drive kapsamı (G8.5):** "dar" (`drive.file`, Play incelemesi kolay, Drive'da gezme biter) / "tam".
-- **K10 Dış güvenlik taraması (G12.6):** MobSF / drozer, ücretsiz. → "tarama yap" / "gerek yok".
-- **K11 Android 7 kasa parolası (G3):** 600 bin tur ≈ 10 sn+ olabilir. Android 7 telefon varsa süreyi söyle; uzunsa tur düşürülsün mü?
-- **K12 AI tek belgelik maske kapatma:** istersen "ekle" de (şu an yok, en güvenli).
-- **K13 OneDrive / Dropbox eklensin mi?** Uygulamasız alıcıya "tarayıcıda çöz" bağlantısı yapılsın mı?
-- **K14 Dependabot PR'ları** #82 setup-gradle 6, #83 upload-artifact 7, #84 cache 6 → "birleştir"?
-- **K15 Sürümler:** Pro fiyatı, uygulama adları (Lite/Pro), taramanın hangi sürümde olacağı, "Tüm dosyalar" izni reddedilince ne olacağı → P30 açılır.
-- **K16 Play izin varyantı (B5.3):** Play derlemesinden hangi izinler çıksın (QUERY_ALL_PACKAGES, READ_MEDIA_*, APK kurma)?
-- **K17 Levha birliği (P25):** her parti için önce/sonra görüntüye "tamam" demen gerekecek — başlayayım mı?
-- **K19 Ana ekran tasarımı (P31):** Ayarlar › Görünüm'de üç yeni tema var (Sakin, Bento, Koyu başlık). Hangisi varsayılan olsun? Kutu adlarında cümle düzeni ("Önemli dosyalar") tüm ekranlara uygulansın mı? Simgeler renkli mi tek renk mi?
-- **K18 Açık soru:** "tikli öğesi çok notlar kasıyor" (2026-10-29) hâlâ geçerli mi?
+### A. Hukuk, Hesap ve Güvenlik (Yayın Öncesi Zorunlu)
+1. **Syncfusion Community License al:** Yıllık brüt gelirin < 1 Milyon USD ve çalışan ≤ 10 ise ücretsizdir; Syncfusion sitesinden başvurup lisans belgesini indir ve sakla (eski K38).
+2. **Google Play Console hesabı + Ödeme/Satıcı profili aç:** Bireysel geliştirici hesabı (25 USD) + kimlik doğrulaması + ücretli Pro satışları için banka/IBAN/vergi profilini tanımla (eski K37).
+3. **Destek ve güvenlik e-postası belirle:** Uygulama içi hata bildiriminde, Gizlilik Politikası'nda ve Play Console iletişiminde kullanılacak aktif bir e-posta ver (`kSupportEmail` + `SECURITY.md`, eski K32).
+4. **Gizlilik politikasını herkese açık internete koy + depoyu Gizli (Private) yap:** Güncel Türkçe/İngilizce/Arapça gizlilik metinlerini GitHub Pages veya kendi alan adına koy (çünkü kod deposunu ticari çıkış öncesi Private'a alacaksın); GitHub güvenliği için 2 adımlı doğrulama ve `main` dal koruması aç (eski K34).
+5. **İmza anahtarını yedekle ve GitHub'a tanıt:** Yayın imza anahtarını (`release.jks`) + parolasını iki ayrı çevrimdışı yere (şifreli USB + kâğıt) yedekle; SHA-256 parmak izini GitHub Ayarları'na (`SIGN_CERT_SHA256`) ekle; Play Console'da *Play App Signing* aç (eski K33, K35).
 
-### Telefonda sen bak
-- **K20 PDF düzenleme (Düzenle → Metin):** iki parmak yakınlaştırma (seçim yerinde kalmalı) · `ğüşıöçİ` yaz (aynı yazı tipi/boy) ·
-  Gboard önerisi + sesle yazma · hızlı yazınca gecikme yok · dekont satırı değiştir → Kaydet "kopya / üstüne yaz" sorar ·
-  WhatsApp'tan açılan PDF → "kopya Belgeler'e kaydedildi" · Chrome/Acrobat'ta aynı görünüm, karartılan yazı seçilemez ·
-  ⋮ → Yeniden yaz/Çevir · 5 dk boşta ısınma yok. Bozuk olanın görüntüsünü at.
-- **K21 Word mobil editör (B3.2):** Word aç → Düzenle → `ğüşıöçİ`, sil, Enter, uzun basıp seç, öneriye dokun → "mobil editör tamam" dersen eski yolu silerim.
-- **K22 Word kapanışı (B3.3d):** ⋮ aç-kapat, geri ile çık → "akıcı" / "takılıyor".
-- **K23 Tablet turu (H9):** tablet bağla ya da `CIHAZ_TESTI.md` "Ferrari H9"a kendin bak → "H9 tamam".
-- **K24 Samsung ölçümü (H0.1):** `docs/perf/2026-11-H0.md` 10 işlem (özellikle 1, 3, 4, 5, 8, 9) Samsung'da ekran kaydı + kronometre. USB diski telefona takarsan 231 MB PDF ölçümünü (H0.4) ben alırım.
-- **K25 Erişilebilirlik ölçümü (P6):** TalkBack'i aç, "açtım" de, ölçüp söylerim, kapatırsın.
-- **K26 İkinci cihaz:** Xiaomi 13T / GMS'li telefon bağlarsan aynı ölçümler + Drive girişi + ML Kit model indirme orada.
-- **K28 Menü ortak düzeni (P32):** PDF, Word, Excel, slayt, galeri, video ⋮ → Sil en üst sırada mı · türe özel grup ayrı renkte mi · alt çubuk yana kaymıyor mu · Ayarlar başlığı büyük/kalın mı → bozuk olanın görüntüsünü at.
-- **K27 Telefonda temizlik:** `/sdcard/Download/PdfPro/` test kopyaları ve `….r8test` ölçüm uygulaması ölçümler bitince silinebilir.
+### B. Sabitlenen Ürün Kararları (2026-11-26) ve Kalan Arayüz Tercihlerin
+6. **İş modeli (K15b + K15 — KESİNLEŞTİ):**
+   - **Lite** tamamen ücretsiz (reklamsız, tüm dosyalara erişim ve temel okuma/yönetim açık; Pro özellikler `PRO` rozetli/kilitli görünür ve baypas edilemez, tıklanınca `29,99 TL` lansman fiyatlı Pro sayfasına yönlendirir).
+   - **Pro** ayrı tek seferlik ücretli uygulama (`29,99 TL` lansman fiyatı; abonelik **yalnızca** 500 dosyalık başlangıç hakkı üstündeki ekstra Akıllı Klasör bulut kotası içindir).
+   - **Ana ekran & izinler (K15c/K16 — KESİNLEŞTİ):** Mevcut tam pano düzeni korunur (ayrı sade mod yok) ve hem Lite hem Pro dosya görüntüleme/inceleme için tüm dosyalara erişim desteğini korur.
+7. **Akıllı klasörler ekstra kota paketi / abonelik fiyatları:** Pro içindeki 500 dosya başlangıç hakkı sonrasında Play Store'da satılacak ekstra Akıllı Klasör paketinin veya aboneliğinin aylık/paket fiyat kademelerini belirle.
+8. **Google Drive & OpenSubtitles & Notlar (K9, K36):** Play sürümlerinde Drive tamamen kapalı mı kalsın, yoksa ücretsiz onaylı kısıtlı kapsam (`drive.file`) eklensin mi? `Notlar` uygulaması Play'de yayına girdiğinde haber ver, mağaza kartını açalım.
+9. **Arayüz/Tasarım Tercihlerin (tek kelime yeterli — K1–K7, K17, K19, K14):**
+    - PDF *Daha fazla* menüsünü ilk 5 madde + *Diğer* olarak sadeleştirelim mi (`K1`)? Galeri alt çubuğunu 5 ana düğmeye indirelim mi (`K6`)?
+    - Ana ekranda varsayılan görünüm hangisi olsun (Sakin / Bento / Koyu başlık) ve kutu adları cümle düzenine geçsin mi (`K19`)?
+    - Çift bölmede sürükle-bırak kopyalasın mı taşısın mı (`K5`)? Çöp kutusu silme onayı kapalı kalsın mı (`K2`)? Kopyalandı bildirimi Android 13+'da çift görünüyorsa kapatalım mı (`K4`)? Editörde Kaydet düğmesi sadece değişiklik varken görünsün mü (`K7`)?
+    - Levha/pencere birleştirmelerinde görsel onay (`K17`) ve GitHub bağımlılık güncellemeleri (`K14`) onaylı mı?
 
-### Hesap / anahtar / ayar
-- 👤 **Play Console öncesi (2026-11-20, güvenlik denetimi 38ff7343'ten):** (1) kalıcı imzalama anahtarının SHA-256 parmak izini GitHub → Settings → Variables'a `SIGN_CERT_SHA256` olarak ekle; (2) mağaza için `EDITION=play` ile AAB tam derlemesini al (Actions → APK Derle → elle tetik ya da `v*` etiketi).
-- **K30 Drive girişi, OCR/çeviri modeli, SFTP/FTP/NAS** — kendi hesabın/sunucunla dene; liste gelir, aktarım biter mi?
-- **K31 Kalıcı sürüm:** `v1.2.N` etiketi (GitHub → Releases) — ya da "at" de, ben atayım.
-- **K32 Güvenlik e-postası:** `SECURITY.md` için adres.
-- **K33 `SIGN_CERT_SHA256`** repo değişkeni (APK imza doğrulaması).
-- **K34 Depo ayarları (G9.5):** Secret scanning + Push protection; `main` koruması (zorla itme/silme yok); fork PR onayı; 2 adımlı doğrulama; eski erişim belirteçlerini sil.
-- **K35 İmza anahtarı yedeği (G9.7):** 2 çevrimdışı yedek (şifreli USB + parola kâğıtta, ayrı yerde); Play'de "Play App Signing".
-- **K36 OpenSubtitles:** `OPENSUBTITLES_API_KEY` secret'ı (yoksa altyazı araması gizli).
-- **K37 Play Console + yayın:** geliştirici hesabı, `v*` AAB'si iç teste, 48 saat iç test (ANR < %0,47, çökme < %1,09).
-- **K38 Lisans:** depo private + `LICENSE` ("Tüm hakları saklıdır"); Syncfusion Community License belgesi saklandı mı?
-- **K39 Office uyumluluk turu:** düzenlenmiş Word/Excel/PDF çıktılarını Microsoft Office / Acrobat'ta aç, bozulma var mı?
-- **K40 Sesli not → Notlar uygulaması** tarafı (ayrı depo).
-- **K41 PDF maket onayı (Faz 53):** https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW — itiraz varsa söyle.
-- **K42 PDF külliyatına eksik üreticiler:** LibreOffice, Google Docs, LaTeX, macOS Quartz örnek PDF'leri.
+### C. Mağaza Sayfası, Video, Gerçek Telefon Kontrolü ve Lansman
+10. **Ekran görüntüleri ve 2 kısa Play izin videosu çek:**
+    - Telefon & tablette TR/EN/AR ekran görüntüleri al.
+    - Hem Lite hem Pro sürüm `Tüm dosyalara erişim` istediği için Play incelemesinde istenen YouTube *Liste Dışı* 2 kısa ekran kaydı yükle: (1) açılışta izin istemeyip dosya yöneticisinde nasıl izin istendiği (~30 sn), (2) arka planda dosya taşıma/müzik bildirimi (~20 sn).
+11. **Play Console formlarını doldur:** İçerik derecelendirmesi (PEGI 3 / 13+ veya 18+ hedef kitle, reklam yok), `veri_guvenligi.md` tablosuna göre Veri Güvenliği formu ve `izin_beyanlari.md` metinleriyle izin formu.
+12. **Gerçek telefonda hızlı kontrol turu (K20–K28, K30, K39):** PDF Türkçe yazı/kaydetme/WhatsApp kopya açma, Word klavye/çimdik ve kapanış, USB takılıyken büyük PDF, menülerdeki Sil/Kaydet düzeni, Drive/SFTP hesabınla test, ve düzenlenmiş Word/Excel/PDF çıktılarını Microsoft Office/Acrobat'ta açıp bakma; ayrıca Android 7 telefon varsa kasa açılma süresi (`K11`) ve TalkBack açıp ekran okuyucu denemesi (`K25`).
+13. **48 Saat İç Test → 14 Gün Kapalı Test → Kademeli Yayın:**
+    - Üretilen imzalı mağaza paketini önce İç Test'e atıp Play *Ön Lansman Raporu*'nda (Pre-launch) hata olmadığına bak.
+    - Bireysel hesapta 12–20 testçinin **14 gün aralıksız** kapalı testini tamamla (çökme `< %1.09`, yanıt vermeme `< %0.47` altında kalmalı).
+    - Önce **%10–%20** kademeli dağıtımla çık, metrikler temizse **%100**'e aç; ilk 100 mağaza yorumuna aynı gün yanıt ver.
+
+### Eski Referans Detayları (Geliştirici Notları)
+- K8 (liste hız eşiği), K10 (MobSF/drozer dış güvenlik taraması), K12 (AI tek belgelik maske kapatma — kapalı kalması önerilir), K13 (OneDrive/Dropbox), K15a (sunuculu Akıllı Düzen kredi satışı taslağı), K18 ("tikli öğesi çok notlar kasıyor"), K41–K42 (örnek PDF korpusu) — detayları önceki karar kayıtlarında korunur.
 
 ### 1.14) Kullanıcı istekleri 2026-11-19 akşam (limit yenilenince ayrıştırılıp paketlenecek; ekran görüntüleri sohbette)
 1. **ÖNCE:** Fotoğraflarda eski görsellere hızlı inip açınca kasma/donma — cihazda ölç, kök nedeni bul (bulutta çözülemedi).
@@ -525,3 +509,50 @@ Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
 9. Yapay zekâ ayar sayfası yeni duruma göre baştan yazılsın (ana özellik Akıllı klasörler/kategori).
 10. Analiz (Bellek Analizi): beyin fırtınası + nokta atışı öneriler, hata düzeltme, geliştirme.
 11. Her hata/sonuç/bildirimde son kullanıcıya kısa ve doğru bilgi: ne oldu, ne yapmalı (ör. silince sessizce bir şey olmasın); hepsi tek görsel dil.
+
+### 1.15) B16 ayrıntısı — İnternetsiz Arapça OCR (kullanıcı 2026-11-26)
+
+**Neden:** ML Kit'te Arapça yazı modeli yok (`lib/services/cloud_ocr.dart` başı); Arapça tanıma bugün yalnız
+Gemini ile (internet, kullanıcının anahtarı, ücret). Dini kitap/İhya gibi Arapça içerikli belgeler ve B17
+(Malezya/Endonezya: Arapça + Cavi) için cihazda, ücretsiz tanıma gerek. Tesseract APK bütçesi yüzünden
+reddedilmişti (yerel `.so` + dil verisi APK'ya girer; Play dışarıdan yerel kod indirmeyi yasaklar) — bu yol
+ona takılmaz: **indirilen şey kod değil model dosyası**.
+1. **Model:** PaddleOCR PP-OCR Arapça tanıma (`arabic_PP-OCRv*_rec`) + metin bulma (det) modelleri, Apache 2.0.
+   Mevcut `tflite_flutter` (ESRGAN deseni: ilk kullanımda indir, sağlama toplamı denetle) ya da ONNX Runtime
+   (sesli kitap modelleriyle aynı WebView yolu) — plan evresinde ölç: hız, bellek, APK etkisi (hedef +0 MB).
+2. **Bağlantı:** `OcrService` sırası → ML Kit (Latin) · **yeni yerel Arapça motor** · Gemini (yalnız kullanıcı
+   isterse / yerel sonuç zayıfsa). `OcrScript.arabic` ayarı ve `hasNonLatinScript` otomatik yükseltmesi önce yerel
+   motora gider; onaysız buluta gönderim kuralı (HAFIZA 2026-11-25) korunur.
+3. **Çıktı:** satır + kutu (`OcrLine`) → aranabilir PDF, taranmış sayfada seçim, otomatik içindekiler
+   (`PdfAutoOutline` OCR yolu) değişmeden çalışır. Sağdan sola satır sırası (`orderOcrRows`) denetlenir.
+4. **Kalite kapısı:** Arapça örnek sayfalarla (matbu Arapça, harekeli Kur'an metni, Osmanlıca, Cavi) Gemini'ye karşı
+   karakter doğruluğu ölçülür; yerel < kabul eşiği ise varsayılan Gemini kalır, yerel "çevrimdışı" seçenek olur.
+5. **Sonra (isteğe bağlı):** PP-Structure düzen modeli (Apache 2.0) → taranmış kitapta başlık/paragraf/tablo ayrımı;
+   otomatik içindekiler isabeti artar. **Kaçın:** DocLayout-YOLO/ultralytics (AGPL).
+
+### 1.16) B17 ayrıntısı — Endonezya + Malezya pazarı (kullanıcı 2026-11-26)
+
+**Neden:** satış hedefi kalabalık pazarlar (Endonezya ~280 M, Malezya ~35 M); çoğunluk Müslüman, Android payı
+çok yüksek, giriş/orta seviye telefon yaygın, mobil veri pahalı. **Kod:**
+1. **Dil yapısı (önce, fable planı):** bugün her metin 3'lü demet `(tr, en, ar)` — 53 dosya, ~6.200 anahtar
+   (`lib/core/l10n/strings/`), `enum AppLanguage { system, tr, en, ar }`. 5 dile (+`id` Endonezce, `ms` Malayca)
+   genişletmenin yolu seçilecek: demet → dil başı harita ya da dil başı ayrı dosya (APK/RAM bütçesi, `on_denetim`
+   çeviri anahtarı denetimi, eksik çeviride İngilizceye düşme). Sistem dili `id`/`ms` ise otomatik seçilir.
+2. **Çeviri:** ~6.200 anahtar makine destekli çeviri + yer tutucu (`{n}`) bekçisi; Endonezce ile Malayca yakın ama
+   AYRI (ör. "kereta" ≠ "mobil"; Malezya "fail", Endonezya "berkas") — biri ötekine kopyalanmaz. Ana ekran, PDF,
+   Kitaplık, ödeme ve hata metinleri anadili konuşan biriyle gözden geçirilir (👤).
+3. **Mevcut altyapının uyumu (denetle, büyük ölçüde hazır):** ML Kit Latin OCR Endonezce/Malayca okur; ML Kit
+   çeviride `id`/`ms` var; cihaz sesli okumada `id-ID`/`ms-MY` sesleri (`TtsService` dil eşlemesi); tarih/sayı
+   biçimi (`intl`, `id_ID`/`ms_MY`); Arapça/Cavi içerik için B16.
+4. **Düşük donanım + veri:** 2–3 GB RAM / Android Go telefonlarda PDF/Office açılışı, APK boyutu (bütçe yalnız
+   düşer), indirilen modellerin (ses, OCR) yalnız Wi-Fi'de inmesi seçeneği; C-paketinde ucuz bir cihaz ölçümü.
+5. **Yerel alışkanlıklar:** WhatsApp/Telegram belge akışı (Sohbet medyası zaten var — kısayol öne), dini PDF/Kur'an
+   okuma (Kitaplık + içindekiler + Arapça OCR), devlet/okul formları (PDF form doldurma).
+
+**👤 Senin işlerin (mağaza ve hukuk):**
+- Play mağaza sayfası Endonezce + Malayca (başlık, kısa/uzun açıklama, ekran görüntüleri metni); anahtar sözcük
+  araştırması ("pembaca PDF", "baca dokumen", "pembaca fail PDF").
+- Yerel fiyat: Play'de IDR ve MYR fiyat kademesi (satın alma gücüne göre düşük); Play bu ülkelerde GoPay, OVO, DANA,
+  Touch 'n Go gibi cüzdanları ve operatör faturasını kendisi sunar.
+- Gizlilik politikası Endonezce + Malayca; Endonezya UU PDP (2022) ve Malezya PDPA'ya uygunluk gözden geçirmesi.
+- Lansman: B7 kademeli çıkış ve Android Vitals eşikleri bu ülkelerde de geçerli; ilk yorumlara Endonezce/Malayca yanıt.

@@ -96,7 +96,7 @@ void main() {
       final lines = csv.split('\n');
       expect(lines.length, SmartSortInput.maxSheetRows);
       expect(lines.first, 's0,"x,y"');
-      expect(lines.last, 's199,"x,y"');
+      expect(lines.last, 's${SmartSortInput.maxSheetRows - 1},"x,y"');
       expect(SmartSortInput.rowsToCsv([
         ['a'],
         ['b']

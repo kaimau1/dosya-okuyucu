@@ -54,11 +54,6 @@ const Map<String, (String, String, String)> _t6 = {
     'أُلغيت · {detail}',
   ),
   'act.title': ('Üretilenler', 'Made', 'المُنشأة'),
-  'act.subtitle': (
-    'Ürettiğiniz dosyalar',
-    'Files you produced',
-    'الملفات التي أنتجتها',
-  ),
   'act.empty': (
     'Henüz kayıt yok.\nBir videoyu küçültünce, bir PDF düzenleyince ya da belge '
     'tarayınca ürettiğiniz dosyalar burada türlerine göre listelenir.',
@@ -144,43 +139,12 @@ const Map<String, (String, String, String)> _t6 = {
 
   // ── Köşe düzeltme ─────────────────────────────────────────────────────────
   'se.failed': ('Düzeltilemedi: {error}', 'Could not correct it: {error}', 'تعذّر التصحيح: {error}'),
-  'se.title': ('Köşeleri ayarla', 'Adjust the corners', 'ضبط الزوايا'),
-  'se.reset': ('Sıfırla', 'Reset', 'إعادة تعيين'),
   'se.open_failed': (
     'Görsel açılamadı: {error}',
     'Could not open the image: {error}',
     'تعذّر فتح الصورة: {error}',
   ),
-  'se.working': ('Düzeltiliyor…', 'Correcting…', 'جارٍ التصحيح…'),
-  'se.hint': (
-    'Mavi çerçeve sayfanın tamamı — dokunmazsanız hiçbir yer kesilmez. '
-        'Kırpmak için köşeleri sürükleyin; eğik çekilen sayfa da düzleşir.',
-    'The blue frame is the whole page — nothing is cut unless you move it. '
-        'Drag the corners to crop; a skewed shot is straightened too.',
-    'الإطار الأزرق هو الصفحة كاملة — لن يُقصّ شيء ما لم تحرّكه. اسحب الزوايا '
-        'للقصّ؛ وتُقوَّم اللقطة المائلة أيضًا.',
-  ),
-  'se.use_found': (
-    'Bulunan kenarlara oturt',
-    'Snap to the detected edges',
-    'المطابقة مع الحواف المكتشفة',
-  ),
   // ── Otomatik kenar bulma + belge filtreleri (istek 2026-07-30) ────────────
-  'se.auto_detect': (
-    'Kenarları otomatik bul',
-    'Detect the edges automatically',
-    'اكتشاف الحواف تلقائيًا',
-  ),
-  'se.detecting': (
-    'Kâğıdın kenarları aranıyor…',
-    'Looking for the edges of the sheet…',
-    'جارٍ البحث عن حواف الورقة…',
-  ),
-  'se.auto_found': (
-    'Kenarlar otomatik bulundu. Yanlışsa köşeleri sürükleyerek düzeltin.',
-    'The edges were found automatically. If they are off, drag the corners.',
-    'عُثر على الحواف تلقائيًا. إن كانت خاطئة فاسحب الزوايا لتصحيحها.',
-  ),
   'scan.filter_original': ('Özgün', 'Original', 'الأصل'),
   'scan.filter_auto': ('Netleştir (renkli)', 'Sharpen (color)', 'توضيح (ملوّن)'),
   'scan.filter_gray': ('Gri', 'Gray', 'رمادي'),
@@ -190,23 +154,12 @@ const Map<String, (String, String, String)> _t6 = {
     'Apply to all pages',
     'تطبيق على كل الصفحات',
   ),
-  'scan.filter_failed': (
-    'Sayfa netleştirilemedi: {error}',
-    'The page could not be enhanced: {error}',
-    'تعذّر تحسين الصفحة: {error}',
-  ),
 
   // ── Galeri ────────────────────────────────────────────────────────────────
-  'gal.open_in_viewer': (
-    'Görüntüleyicide aç (OCR, çeviri, PDF)',
-    'Open in the viewer (OCR, translation, PDF)',
-    'افتح في العارض (OCR، ترجمة، PDF)',
-  ),
   'gal.slideshow': ('Slayt gösterisi', 'Slideshow', 'عرض الشرائح'),
   'gal.slideshow_every': ('{n} saniyede bir', 'Every {n} seconds', 'كل {n} ثوانٍ'),
   'gal.use_as': ('Farklı kullan…', 'Use as…', 'استخدام كـ…'),
   'gal.use_as_failed': ('Bu fotoğraf için uygulama bulunamadı.', 'No app can use this photo.', 'لا يوجد تطبيق يمكنه استخدام هذه الصورة.'),
-  'gal.other_actions': ('Diğer işlemler', 'Other actions', 'إجراءات أخرى'),
 
   // ── Sıkıştırma ────────────────────────────────────────────────────────────
   'cmp.title': ('Sıkıştır', 'Compress', 'ضغط'),
@@ -243,7 +196,6 @@ const Map<String, (String, String, String)> _t6 = {
 
   // ── SD kartla birleşik depolama (2026-10-17) ─────────────────────────────
   'sdu.title': ('SD kartla birleşik depolama', 'Combined storage with SD card', 'تخزين موحّد مع بطاقة SD'),
-  'sdu.section': ('SD kart', 'SD card', 'بطاقة SD'),
   'sdu.tile_sub': (
     'Şarj olurken eski fotoğraf ve videoları SD karta taşıyıp ana belleği boşaltır',
     'While charging, moves old photos and videos to the SD card to free up internal storage',
@@ -671,21 +623,7 @@ const Map<String, (String, String, String)> _t6 = {
     'Pick from the gallery and set the crop yourself',
     'اختر من المعرض واضبط القصّ بنفسك',
   ),
-  'ss.filter_title': ('Sayfanın görünümü', 'Page look', 'مظهر الصفحة'),
   'ss.filter_clear': ('Filtreyi kaldır', 'Remove filter', 'إزالة الفلتر'),
-  'ss.filter_note': (
-    'Özgün: tarayıcıdan geldiği gibi. Netleştirme gölgeyi alır ve yazıyı '
-        'belirginleştirir; fotoğraflara dokunmaz.',
-    'Original: as it came from the scanner. Sharpen removes shadows and '
-        'darkens the text; photos are left untouched.',
-    'الأصل: كما جاء من الماسح. التوضيح يزيل الظلال ويُبرز النص؛ ولا يمسّ '
-        'الصور.',
-  ),
-  'ss.straighten_sub': (
-    'Eğik ya da kavisli satırları yazıya bakarak düzeltir',
-    'Fixes tilted or curved lines by looking at the text',
-    'يصحّح الأسطر المائلة أو المنحنية بالنظر إلى النص',
-  ),
   'scan.short_original': ('Özgün', 'Original', 'الأصل'),
   'scan.short_auto': ('Netleştir', 'Sharpen', 'توضيح'),
   'scan.short_gray': ('Gri', 'Gray', 'رمادي'),
@@ -754,14 +692,7 @@ const Map<String, (String, String, String)> _t6 = {
   'sf.job_name': ('Belge tarama', 'Document scan', 'مسح المستند'),
 
   // ── Tarama sonucu ekranı ──────────────────────────────────────────────────
-  'scr.title': ('Tarama sonucu', 'Scan result', 'نتيجة المسح'),
-  'scr.tab_document': ('Belge', 'Document', 'المستند'),
   'scr.tab_text': ('Metin', 'Text', 'النص'),
-  'scr.saved_to': (
-    'PDF kaydedildi · {folder}',
-    'PDF saved · {folder}',
-    'حُفظ الـ PDF · {folder}',
-  ),
   'scr.change_location': ('Konumu değiştir', 'Change location', 'تغيير الموقع'),
   'scr.save_here': ('Buraya kaydet', 'Save here', 'احفظ هنا'),
   'scr.moved': (
@@ -791,10 +722,6 @@ const Map<String, (String, String, String)> _t6 = {
     'تعذّرت إعادة التسمية: {error}',
   ),
   'scr.add_pages': ('Sayfa ekle', 'Add pages', 'إضافة صفحات'),
-  'scr.crop_page': ('Kenarları kırp', 'Crop edges', 'قصّ الحواف'),
-  'scr.edit_pages': ('Sayfaları düzenle', 'Edit pages', 'تحرير الصفحات'),
-  'scr.updated': ('Belge güncellendi.', 'The document was updated.', 'تم تحديث المستند.'),
-  'scr.cropped': ('Sayfa düzeltildi.', 'Page adjusted.', 'تم تعديل الصفحة.'),
   'reader.open': ('Okuma görünümü', 'Reading view', 'وضع القراءة'),
   'reader.theme': ('Zemin', 'Background', 'الخلفية'),
   'reader.theme_light': ('Açık', 'Light', 'فاتح'),
@@ -826,11 +753,6 @@ const Map<String, (String, String, String)> _t6 = {
     'Bu yalnızca ilk kullanımda gerekir.',
     'This is only needed the first time.',
     'هذا مطلوب في المرة الأولى فقط.',
-  ),
-  'tf.progress': (
-    'Çevriliyor… ({n} / {total} satır)',
-    'Translating… ({n} / {total} lines)',
-    'جارٍ الترجمة… ({n} / {total} سطر)',
   ),
   'tf.working': ('Çevriliyor…', 'Translating…', 'جارٍ الترجمة…'),
   'tf.failed': (
@@ -939,11 +861,6 @@ const Map<String, (String, String, String)> _t6 = {
   ),
 
   // ── Otomatik düzenleme ekranı ─────────────────────────────────────────────
-  'org.all_placed_full': (
-    'Her şey zaten yerinde görünüyor',
-    'Everything already looks in place',
-    'يبدو أن كل شيء في مكانه',
-  ),
   'org.already_placed': (
     '{n} dosya zaten doğru klasörde.',
     '{n} files are already in the right folder.',
@@ -951,58 +868,6 @@ const Map<String, (String, String, String)> _t6 = {
   ),
 
   // ── AI ile yeniden yaz (metin şeridi) ─────────────────────────────────────
-  'aw.preset_fix': ('Yazımı düzelt', 'Fix the writing', 'صحّح الكتابة'),
-  'aw.preset_fix_prompt': (
-    'Bu metindeki yazım ve dil bilgisi hatalarını düzelt. Anlamı ve üslubu '
-        'koru, uzunluğu mümkün olduğunca aynı tut.',
-    'Fix the spelling and grammar mistakes in this text. Keep the meaning and '
-        'the style, and keep the length as close as possible.',
-    'صحّح الأخطاء الإملائية والنحوية في هذا النص. حافظ على المعنى والأسلوب، '
-        'وأبقِ الطول كما هو قدر الإمكان.',
-  ),
-  'aw.preset_shorten': ('Kısalt', 'Shorten', 'اختصر'),
-  'aw.preset_shorten_prompt': (
-    'Bu metni anlamını kaybetmeden belirgin biçimde kısalt.',
-    'Shorten this text noticeably without losing its meaning.',
-    'اختصر هذا النص بوضوح دون فقدان معناه.',
-  ),
-  'aw.preset_simplify': ('Sadeleştir', 'Simplify', 'بسّط'),
-  'aw.preset_simplify_prompt': (
-    'Bu metni daha anlaşılır ve sade bir dille yeniden yaz.',
-    'Rewrite this text in clearer, plainer language.',
-    'أعِد كتابة هذا النص بلغة أوضح وأبسط.',
-  ),
-  'aw.preset_formal': ('Resmîleştir', 'Make it formal', 'اجعله رسميًا'),
-  'aw.preset_formal_prompt': (
-    'Bu metni resmî yazışma diline uygun hâle getir.',
-    'Rewrite this text in formal correspondence style.',
-    'أعِد كتابة هذا النص بأسلوب المراسلات الرسمية.',
-  ),
-  'aw.prompt': (
-    'Aşağıdaki metni şu yönergeye göre yeniden yaz: "{task}"\n\n{text}\n\n'
-        'ÇOK ÖNEMLİ: yalnızca yeni metni döndür. Açıklama, tırnak, giriş '
-        'cümlesi ya da kod bloğu işareti EKLEME. Metin bir PDF sayfasındaki '
-        'dar bir satıra sığacak; gereksiz uzatma.',
-    'Rewrite the text below according to this instruction: "{task}"\n\n{text}'
-        '\n\nVERY IMPORTANT: return only the new text. Do NOT add explanations, '
-        'quotes, an introductory sentence or code-block markers. The text has '
-        'to fit a narrow line on a PDF page; do not pad it.',
-    'أعِد كتابة النص أدناه وفق هذه التعليمات: "{task}"\n\n{text}\n\n'
-        'مهم جدًا: أعِد النص الجديد فقط. لا تُضِف شروحًا أو علامات اقتباس أو '
-        'جملة تمهيدية أو علامات كتل الشيفرة. سيوضع النص في سطر ضيق داخل صفحة '
-        'PDF؛ فلا تُطِله بلا داعٍ.',
-  ),
-  'aw.hint': (
-    'Örn. “daha kibar bir dille yaz”',
-    'E.g. “write it more politely”',
-    'مثال: «اكتبه بلغة ألطف»',
-  ),
-  'aw.working': ('Çalışıyor…', 'Working…', 'جارٍ العمل…'),
-  'aw.title': (
-    'Akıllı düzelt',
-    'Smart fix',
-    'تصحيح ذكي',
-  ),
 
   // ── Klasör kilidi PIN ─────────────────────────────────────────────────────
   'pin.too_short': (

@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
@@ -13,10 +14,12 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
+import '../../core/user_error.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/home_shortcuts.dart';
 import '../../services/fm/library_store.dart';
 import '../../services/fm/reading_positions.dart';
+import '../../services/pdf_reload.dart';
 import '../../widgets/app_action_sheet.dart';
 import '../../widgets/motion.dart' show PressScale;
 import '../../widgets/section_header.dart';
@@ -24,6 +27,7 @@ import 'pick_file_screen.dart';
 import '../../models/fs_entry.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/pdf_outline_sheet.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import '../../widgets/pro_gate.dart';
 import '../audiobook/audiobook_library_screen.dart';
@@ -198,6 +202,78 @@ class _LibraryScreenState extends State<LibraryScreen> {
     if (mounted) setState(() {});
   }
 
+  static bool _isPdf(String path) => path.toLowerCase().endsWith('.pdf');
+
+  /// Kitabın içindekileri (yalnız PDF): başlığa dokununca kitap o sayfada
+  /// açılır. Yer imi yoksa başlıklar taranıp PDF'e yazılabilir
+  /// ([createPdfOutline]).
+  Future<void> _bookToc(String path) async {
+    if (!await File(path).exists()) {
+      if (mounted) showSnack(context, context.t('lib.missing'));
+      return;
+    }
+    PdfDocument? doc;
+    try {
+      doc = await PdfDocument.openFile(path);
+      var outline = await doc.loadOutline();
+      if (!mounted) return;
+      if (outline.isEmpty) {
+        final changed = await createPdfOutline(context, path: path, doc: doc);
+        if (!changed || !mounted) return;
+        await doc.dispose();
+        doc = null;
+        await PdfReload.reloadFile(path);
+        doc = await PdfDocument.openFile(path);
+        outline = await doc.loadOutline();
+        if (!mounted || outline.isEmpty) return;
+      }
+      final dest = await showPdfOutlineSheet(context,
+          doc: doc,
+          outline: outline,
+          currentPage: ReadingPositions.pageOf(path) ?? 1);
+      if (dest == null || !mounted) return;
+      PdfOpenTarget.set(path, dest.pageNumber);
+    } catch (e) {
+      if (mounted) showSnack(context, userErrorText(e));
+      return;
+    } finally {
+      await doc?.dispose();
+    }
+    await _open(path);
+  }
+
+  /// Kapağın köşesinde içindekiler düğmesi (yalnız PDF) — kullanıcı:
+  /// "kişi nerede diye aramamalı, kolayca erişebilmeli".
+  Widget _withToc(String path, Widget cover) {
+    if (!_isPdf(path)) return cover;
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      children: [
+        cover,
+        PositionedDirectional(
+          top: 4,
+          end: 4,
+          child: Material(
+            color: scheme.surface.withValues(alpha: 0.88),
+            shape: const CircleBorder(),
+            elevation: 1,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => _bookToc(path),
+              child: Tooltip(
+                message: context.t('vw.toc'),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(AppIcons.toc, size: 18, color: scheme.primary),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _bookMenu(String path) async {
     final name = p.basenameWithoutExtension(path);
     final choice = await showAppActionSheet<String>(
@@ -207,6 +283,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
         AppActionGroup(actions: [
           AppAction(
               value: 'open', icon: AppIcons.menuBook, label: context.t('common.open')),
+          if (_isPdf(path))
+            AppAction(
+                value: 'toc', icon: AppIcons.toc, label: context.t('vw.toc')),
           AppAction(
               value: 'folder',
               icon: AppIcons.emptyFolder,
@@ -233,6 +312,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
     switch (choice) {
       case 'open':
         await _open(path);
+      case 'toc':
+        await _bookToc(path);
       case 'folder':
         await Navigator.of(context).push(browserRoute(BrowserScreen(
             path: p.dirname(path), focusPath: path)));
@@ -309,7 +390,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             IconButton(
               key: const ValueKey('lib-audiobooks'),
               tooltip: context.t('ab.library'),
-              icon: const Icon(AppIcons.audiobook),
+              icon: const ProBadged(
+                feature: Feature.audiobook,
+                child: Icon(AppIcons.audiobook),
+              ),
               onPressed: _openAudiobooks,
             ),
           IconButton(
@@ -431,7 +515,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
               const SizedBox(height: Gap.sm),
               TextButton.icon(
                 onPressed: _openAudiobooks,
-                icon: const Icon(AppIcons.audiobook),
+                icon: const ProBadged(
+                  feature: Feature.audiobook,
+                  child: Icon(AppIcons.audiobook),
+                ),
                 label: Text(context.t('ab.library')),
               ),
             ],
@@ -591,6 +678,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ],
               ),
             ),
+            if (_isPdf(path))
+              IconButton(
+                tooltip: context.t('vw.toc'),
+                icon: const Icon(AppIcons.toc),
+                onPressed: () => _bookToc(path),
+              ),
             IconButton(
               tooltip: context.t('common.more'),
               icon: const Icon(AppIcons.more),
@@ -627,7 +720,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 margin: EdgeInsets.zero,
                 child: ListTile(
                   key: const ValueKey('lib-audiobooks-row'),
-                  leading: const Icon(AppIcons.audiobook),
+                  leading: const ProBadged(
+                    feature: Feature.audiobook,
+                    child: Icon(AppIcons.audiobook),
+                  ),
                   title: Text(context.t('ab.library')),
                   subtitle: Text(context.t('lib.audiobooks_sub')),
                   trailing: const Icon(AppIcons.chevron),
@@ -696,7 +792,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           cells((path) => GestureDetector(
                 onTap: () => _open(path),
                 onLongPress: () => _bookMenu(path),
-                child: PressScale(child: _BookCover(path: path)),
+                child: _withToc(path, PressScale(child: _BookCover(path: path))),
               )),
           // Raf tahtası: üst yüz açık, ön yüz koyu, altında gölge.
           Container(

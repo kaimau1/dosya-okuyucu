@@ -23,31 +23,23 @@ import '../core/user_error.dart';
 import '../core/app_colors.dart';
 
 /// Belge tarama akışı: tarayıcı → OCR (hep) → akıllı ad → tek PDF →
-/// Belgeler dizinine **doğrudan kaydet** → tarama stüdyosu.
+/// Belgeler dizinine (ya da [targetDir] klasörüne) **doğrudan kaydet** →
+/// tarama stüdyosu.
 ///
-/// Tek giriş noktası [run]; ana ekrandan ve PDF araçlarından aynı akış çağrılır
-/// ([TranslateFlow] ile aynı kalıp).
-///
-/// **"Aranabilir olsun mu?" penceresi KALDIRILDI (2026-08-05).** Kullanıcı
-/// ilkesi: *"kullanıcıya bir şey bırakma, otomatik olmalı."*
-///
-/// **Önizleme ekranı akıştan ÇIKTI (2026-10-17)**: ML Kit'te "Kaydet"e basan
-/// kullanıcı ikinci bir onay ekranı görmüyor.
-///
-/// **Sayfaya kendiliğinden DOKUNULMAZ (2026-10-18).** Kullanıcı: *"belge
-/// tarandıktan ve onaylandıktan sonra arka planda yapılan iyileştirmeler
-/// resmin patlamasına ve bozulmasına sebep oluyor"*. Önceki tur her sayfayı
-/// onaydan SONRA düzleştirip netleştiriyordu; resimli sayfada ikisi de
-/// fotoğrafı bozuyordu (bkz. `ScanPrepare`). Artık kaydedilen sayfa,
-/// kullanıcının ML Kit ekranında onayladığı sayfanın ta kendisi; netleştirme,
-/// düzleştirme ve kırpma stüdyoda tek dokunuş uzakta.
+/// Tek giriş noktası [run]; ana ekrandan, klasör gezgininden ("Buraya tara")
+/// ve PDF araçlarından aynı akış çağrılır ([TranslateFlow] ile aynı kalıp).
 class ScanFlow {
   /// Taramayı çalıştırır. Üretilen PDF'in yolunu döndürür (iptal edilirse null).
   /// [open] true ise sonunda tarama stüdyosu açılır.
+  /// [targetDir] verilirse PDF doğrudan o klasöre kaydedilir.
   static bool _running = false;
 
   /// Çift dokunuş iki tarayıcı açmasın ("Tarama zaten açık" hatası).
-  static Future<String?> run(BuildContext context, {bool open = true}) async {
+  static Future<String?> run(
+    BuildContext context, {
+    bool open = true,
+    String? targetDir,
+  }) async {
     if (!Edition.current.has(Feature.scan)) {
       await showProSheet(context, Feature.scan); // S2: Lite
       return null;
@@ -55,13 +47,17 @@ class ScanFlow {
     if (_running) return null;
     _running = true;
     try {
-      return await _run(context, open: open);
+      return await _run(context, open: open, targetDir: targetDir);
     } finally {
       _running = false;
     }
   }
 
-  static Future<String?> _run(BuildContext context, {bool open = true}) async {
+  static Future<String?> _run(
+    BuildContext context, {
+    bool open = true,
+    String? targetDir,
+  }) async {
     if (!await showTipsIfNeeded(context) || !context.mounted) return null;
     List<String>? scanned;
     try {
@@ -69,7 +65,9 @@ class ScanFlow {
     } catch (e) {
       if (context.mounted) {
         _snack(
-            context, AppStrings.current.t('sf.scanner_failed', {'error': userErrorText(e)}));
+            context,
+            AppStrings.current
+                .t('sf.scanner_failed', {'error': userErrorText(e)}));
       }
       return null;
     }
@@ -80,7 +78,13 @@ class ScanFlow {
       text: AppStrings.current.t('sf.ocr_progress', {'n': 1, 'total': total}),
       value: 0,
     ));
-    final busy = _showProgress(context, progress);
+    var skipOcr = false;
+    var modelNotReady = false;
+    final busy = _showProgress(
+      context,
+      progress,
+      onSkipOcr: () => skipOcr = true,
+    );
     // Çok sayfalı taramada OCR uzun sürebilir: 1,5 sn'yi geçerse ana ekran
     // şeridinde ve bildirimde "Sayfa 4 / 12 · ~20 sn kaldı" diye görünür.
     final task = TrackedTask(
@@ -99,6 +103,8 @@ class ScanFlow {
       // katmanı, stüdyonun "Metin" sekmesi ve belgenin akıllı adı.
       ocrLines = await DocumentScanner.recognizePages(
         images,
+        isCancelled: () => skipOcr || task.cancelRequested,
+        onModelNotReady: (_) => modelNotReady = true,
         onProgress: (done, total) {
           final text = AppStrings.current.t('sf.ocr_progress',
               {'n': (done + 1).clamp(1, total), 'total': total});
@@ -117,9 +123,13 @@ class ScanFlow {
           await DocumentScanner.renderPdf(images, ocrLinesPerPage: ocrLines);
       final title =
           suggestScanTitle(ocrLines.isNotEmpty ? ocrLines.first : const []);
-      path = await DocumentScanner.savePdf(bytes,
-          fileName: scanFileName(title, DateTime.now()));
-      progress.value = (text: AppStrings.current.t('sf.building_pdf'), value: 1);
+      path = await DocumentScanner.savePdf(
+        bytes,
+        dir: targetDir,
+        fileName: scanFileName(title, DateTime.now()),
+      );
+      progress.value =
+          (text: AppStrings.current.t('sf.building_pdf'), value: 1);
     } catch (e) {
       error = userErrorText(e);
     }
@@ -140,6 +150,10 @@ class ScanFlow {
     if (error != null || path == null) {
       _snack(context, AppStrings.current.t('sf.save_failed', {'error': error}));
       return null;
+    }
+
+    if (modelNotReady) {
+      _snack(context, const OcrModelNotReady().toString());
     }
 
     // Belge üretildi → "Son belgeler"e YAZ (2026-08-06 bulgusu). Stüdyo
@@ -170,19 +184,8 @@ class ScanFlow {
   /// Rehber kaç taramada kendiliğinden çıkar (sonra hiç çıkmaz).
   static const tipsAutoShowLimit = 3;
 
-  /// **Taramadan önce kısa rehber** (2026-10-18, kullanıcı ekran
-  /// görüntüsüyle: *"sayfa ekle daha açıklayıcı olmalı, insanlar sayfa
-  /// eklemek için Sonraki'ye basıyor ve ekleyemiyor"*).
-  ///
-  /// Tarama ekranı Google ML Kit'in KENDİ arayüzü (bkz. `DocumentScanner`):
-  /// düğmelerine, yazılarına, yerleşimine koddan dokunulamıyor — sağ alttaki
-  /// "sayfa ekle" simgesi yazısız, "Sonraki" ise taramayı BİTİRİYOR. Yapılabilen
-  /// tek şey kullanıcıyı o ekrana girmeden önce hazırlamak: hangi düğmenin ne
-  /// yaptığı, ML Kit ekranındaki görünüşüyle çizilir. İlk [tipsAutoShowLimit]
-  /// taramada çıkar; "Bir daha gösterme" ile hemen kapanır. Ayrıca stüdyodaki
-  /// "Sayfa ekle" kutusu, Sonraki'ye erken basanın geri dönüş yolu.
-  ///
-  /// `false` = kullanıcı vazgeçti (taramaya girilmez).
+  /// **Taramadan önce kısa rehber** (2026-10-18).
+  /// `false` = kullanıcı vazgeçti (taramaya girilmez ve sayaç artırılmaz).
   static Future<bool> showTipsIfNeeded(BuildContext context) async {
     var shown = 0;
     try {
@@ -193,6 +196,7 @@ class ScanFlow {
     }
     if (shown >= tipsAutoShowLimit || !context.mounted) return true;
     final result = await _showScanTips(context);
+    if (result == null) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(
@@ -200,7 +204,7 @@ class ScanFlow {
     } catch (_) {
       // Bilinçli: sayaç yazılamazsa ipucu bir dahaki taramada yeniden gösterilir.
     }
-    return result != null;
+    return true;
   }
 
   /// Rehberi her durumda gösterir. `null` = kapatıldı/vazgeçildi.
@@ -215,14 +219,17 @@ class ScanFlow {
 
   /// İlerleme penceresini açar ve **onu kapatacak tutamağı** döner (bkz.
   /// `core/busy_dialog.dart` — `Navigator.pop` arkadaki sayfayı kapatabilir).
-  static BusyDialog _showProgress(BuildContext context,
-      ValueNotifier<({String text, double? value})> progress) {
+  static BusyDialog _showProgress(
+    BuildContext context,
+    ValueNotifier<({String text, double? value})> progress, {
+    VoidCallback? onSkipOcr,
+  }) {
     return showBusyDialog(
       context,
       builder: (ctx) {
         final scheme = Theme.of(ctx).colorScheme;
         return AlertDialog(
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
           content: ValueListenableBuilder<({String text, double? value})>(
             valueListenable: progress,
             builder: (_, v, _) => Column(
@@ -251,6 +258,13 @@ class ScanFlow {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(value: v.value, minHeight: 6),
                 ),
+                if (onSkipOcr != null && (v.value ?? 0) < 0.85) ...[
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: onSkipOcr,
+                    child: Text(ctx.t('sf.skip_ocr')),
+                  ),
+                ],
               ],
             ),
           ),
@@ -303,9 +317,6 @@ class _ScanTipsSheet extends StatelessWidget {
             ],
           ),
         );
-    // **Alt boşluk gezinme çubuğunu aşar** (kullanıcı ekran görüntüsü
-    // 2026-10-18: "Anladım, bir daha gösterme" sistem çubuğunun altında
-    // kalıyordu). `useSafeArea` yalnız ÜST kenarı korur; alt kenar burada.
     return SingleChildScrollView(
       padding: withNavInset(context, const EdgeInsets.fromLTRB(20, 0, 20, 16)),
       child: Column(
@@ -332,8 +343,6 @@ class _ScanTipsSheet extends StatelessWidget {
             context.t('sf.tip1_body'),
           ),
           step(
-            // ML Kit'in "sayfa ekle" düğmesi: koyu mavi yuvarlak kare,
-            // içinde artılı sayfa — yazısız olduğu için gözden kaçıyor.
             Stack(
               clipBehavior: Clip.none,
               children: [

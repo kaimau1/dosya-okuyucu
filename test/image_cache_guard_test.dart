@@ -11,11 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Tavanlı istisnalar (YALNIZ DÜŞER) gerekçeli; yeni dosyada 0.
 void main() {
-  const ceilings = <String, int>{
-    // Süzgeç önizlemeleri izolatta `longEdge`e küçültülmüş bayt
-    // (ScanEnhance.previews) — kaynakta tavanlı.
-    'lib/screens/scan_result/widgets.dart': 1,
-  };
+  const ceilings = <String, int>{};
 
   /// [open] konumundaki `(`'in kapanışına kadar olan argüman metni.
   String argsAt(String s, int open) {
