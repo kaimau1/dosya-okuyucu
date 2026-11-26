@@ -14,7 +14,11 @@ import '../pdf_tools.dart' show pdfToSyncfusionRect, stampTransform;
 class ScannedLine {
   final String text;
   final PdfRect box;
-  const ScannedLine(this.text, this.box);
+
+  /// OCR'ın emin olmadığı sözcüklerin kutuları (P19 m.4) — düzeltme ekranı
+  /// bunları işaretler ki kullanıcı önce onlara baksın.
+  final List<PdfRect> lowBoxes;
+  const ScannedLine(this.text, this.box, {this.lowBoxes = const []});
 }
 
 /// Taranmış (görüntü) PDF sayfasında **satır üstüne yazma** (2026-08-06

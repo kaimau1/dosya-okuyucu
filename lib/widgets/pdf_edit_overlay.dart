@@ -250,6 +250,22 @@ class PdfScannedOverlay extends StatelessWidget {
               ),
             ),
           ),
+        // P19 m.4: OCR'ın emin olmadığı sözcüklerin altı çizili — önce
+        // bunlara bakılsın. Dokunuşu yutmaz (satır kutusu alır).
+        for (final l in lines)
+          for (final b in l.lowBoxes)
+            Positioned.fromRect(
+              rect: b.toRect(page: page, scaledPageSize: pageSize),
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.error.withValues(alpha: 0.08),
+                    border: Border(
+                        bottom: BorderSide(color: scheme.error, width: 2)),
+                  ),
+                ),
+              ),
+            ),
       ],
     );
   }
