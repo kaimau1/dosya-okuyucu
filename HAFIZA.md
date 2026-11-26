@@ -802,3 +802,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-26 — B13 kalanları: telefonsuz iş yok (dal faz-oto-B13-his)
 - **Doğrulama:** m.2–m.9 main'de; PLAN "B13 kalanları" yalnız m.1'di. B13 satırı silindi, m.1 C2 madde 10'da.
 - **Yanlış yol (m.1 kök neden tahmini):** kırpma animasyonu sayfayı her karede yeniden çizdirir sanıldı — değil: ModalRoute sayfayı zaten `RepaintBoundary` (`_subtreeKey`) içine koyar, `ClipRect` yerleşimi değiştirmez. Slayt/Excel +%13/+%17'nin nedeni koddan çıkmıyor → zaman çizelgesi (cihaz) şart; ölçümsüz bayraklı kod yazılmadı.
+
+## 2026-11-26 — B16 dilim 1: internetsiz Arapça OCR (dal faz-oto-B16-ocr; cihazda doğrulanmadı)
+- **Karar (motor):** TFLite Arapça PaddleOCR modeli hiçbir açık depoda yok; yerel ONNX Runtime (.so) APK'yı şişirir → sesli kitabın görünmez WebView'ındaki ONNX Runtime Web (`NeuralVoiceEngine.infer`, genel tek-girdi/tek-çıktı float32; girdi `VoiceServer.provide` → `GET in/<iş>` bellekten bir kez, diske yazılmaz). Çalışma zamanı seslerle ORTAK: ses silinirken `ArabicOcr.installed` ise ORT kalır.
+- **Model:** snowfluke/ppu-paddle-ocr-models (Apache 2.0, sabit commit 3cbb2688 + SHA-256): PP-OCRv5 mobil det (4,7 MB) + arabic_PP-OCRv5_mobile_rec (8 MB, 749 sınıf) + sözlük. monkt/paddleocr-onnx'teki Arapça v3 ve v5 *server* det (88 MB) seçilmedi.
+- **Tuzak (sözlük):** `ppocrv5_arabic_dict.txt` BOŞ satırla başlıyor (748 satır, model 749 sınıf) → sınıf i = satır i, son sınıf ' '. Boş satırı karakter sayınca çıktı anlamsız harf (Python+onnxruntime ile ölçüldü; doğru eşlemede "بسم الله الرحمن الرحيم" birebir).
+- **Tuzak (yön):** model satırı görsel (soldan sağa) sırada verir → `visualToLogical` (Paddle `pred_reverse` + öbeğin baş/son boşluğu yer değiştirir; yoksa "كتب123 ").
+- **Bağlantı:** `OcrScript.arabic` → yerel (kuruluysa) → düşerse/yoksa Gemini → ikisi de yoksa `ArabicOcrMissing` iletisi; `auto`'da zayıf Latin sonucu → yerel (≥8 Arapça harf tutulur) → sonra eski Decisions/Gemini yolu. Yalnız `allowCloud` (kullanıcı başlattı) işlerde; içerik dizini yerel motoru da çağırmaz.
+- **Sabah bakılacak:** indirilen ORT wasm çalışma zamanı kod sayılır (Play "dışarıdan kod" politikası) — sesler zaten aynı yolu kullanıyor; plan "indirilen şey kod değil" diyordu, yalnız modeller için doğru.
