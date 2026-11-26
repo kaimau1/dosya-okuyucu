@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -139,6 +140,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 
+  Future<void> _copy() async {
+    final s = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final body = await _body(s);
+    await Clipboard.setData(ClipboardData(text: body));
+    if (mounted) showSnackOn(messenger, s.t('fb.copied'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -195,21 +204,37 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: Gap.lg),
-          Row(children: [
-            TextButton.icon(
-              key: const ValueKey('fb-preview'),
-              onPressed: _preview,
-              icon: const Icon(AppIcons.hidden),
-              label: Text(context.t('fb.preview')),
-            ),
-            const Spacer(),
-            FilledButton.icon(
-              key: const ValueKey('fb-send'),
-              onPressed: ready ? _send : null,
-              icon: const Icon(AppIcons.send),
-              label: Text(context.t('fb.send')),
-            ),
-          ]),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: Gap.xs,
+            runSpacing: Gap.xs,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton.icon(
+                    key: const ValueKey('fb-preview'),
+                    onPressed: _preview,
+                    icon: const Icon(AppIcons.hidden),
+                    label: Text(context.t('fb.preview')),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('fb-copy'),
+                    onPressed: ready ? _copy : null,
+                    icon: const Icon(AppIcons.clipCopy),
+                    label: Text(context.t('fb.copy')),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                key: const ValueKey('fb-send'),
+                onPressed: ready ? _send : null,
+                icon: const Icon(AppIcons.send),
+                label: Text(context.t('fb.send')),
+              ),
+            ],
+          ),
         ],
       ),
     );

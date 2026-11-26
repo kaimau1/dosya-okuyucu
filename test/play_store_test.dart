@@ -7,18 +7,65 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const day = Duration.millisecondsPerDay;
 
-  tearDown(() => PlayStore.debugBuild = null);
+  tearDown(() {
+    PlayStore.debugBuild = null;
+    PlayStore.debugResetSession();
+  });
 
   group('değerlendirme kuralı', () {
-    test('az açılış ya da yeni kurulumda sorulmaz', () {
+    test('az açılış, tek gün ya da yeni kurulumda sorulmaz', () {
       expect(
           PlayStore.shouldAskReview(
               opens: 3, firstMs: 0, lastAskMs: null, nowMs: 30 * day),
           isFalse);
       expect(
           PlayStore.shouldAskReview(
+              opens: 50,
+              firstMs: 0,
+              lastAskMs: null,
+              nowMs: 10 * day,
+              activeDays: 2),
+          isFalse);
+      expect(
+          PlayStore.shouldAskReview(
               opens: 50, firstMs: 0, lastAskMs: null, nowMs: 2 * day),
           isFalse);
+    });
+
+    test('çökme, sürtünme ve görülmemiş hata soğutma uygular', () {
+      expect(
+          PlayStore.shouldAskReview(
+              opens: 20,
+              firstMs: 0,
+              lastAskMs: null,
+              nowMs: 10 * day,
+              unseenCrashes: 1),
+          isFalse);
+      expect(
+          PlayStore.shouldAskReview(
+              opens: 20,
+              firstMs: 0,
+              lastAskMs: null,
+              nowMs: 10 * day,
+              lastCrashMs: 5 * day),
+          isFalse);
+      expect(
+          PlayStore.shouldAskReview(
+              opens: 20,
+              firstMs: 0,
+              lastAskMs: null,
+              nowMs: 10 * day,
+              lastFrictionMs: 8 * day),
+          isFalse);
+      expect(
+          PlayStore.shouldAskReview(
+              opens: 20,
+              firstMs: 0,
+              lastAskMs: null,
+              nowMs: 10 * day,
+              lastCrashMs: 1 * day,
+              lastFrictionMs: 6 * day),
+          isTrue);
     });
 
     test('eşik geçince sorulur, sonra 120 gün sorulmaz', () {
@@ -40,6 +87,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       PlayStore.debugBuild = false;
       await PlayStore.noteFileOpened();
+      await PlayStore.noteFriction();
+      await PlayStore.noteCrash();
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getKeys(), isEmpty);
     });
@@ -64,8 +113,9 @@ void main() {
           PlayUpdatePlan.flexible);
       expect(PlayStore.updatePlanOf({...base, 'priority': 4}),
           PlayUpdatePlan.immediate);
+      // 14+ günlük eski sürüm bile yalnız düşük öncelikliyse kullanıcıyı tam ekranla kilitlemez.
       expect(PlayStore.updatePlanOf({...base, 'staleDays': 20}),
-          PlayUpdatePlan.immediate);
+          PlayUpdatePlan.flexible);
       expect(
           PlayStore.updatePlanOf(
               {'available': true, 'flexible': false, 'immediate': true}),

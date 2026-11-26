@@ -34,7 +34,9 @@ void main() {
     expect(after, contains('android.intent.category.LAUNCHER'));
     // Özgün izinler yerinde.
     expect(after, contains('android.permission.MANAGE_EXTERNAL_STORAGE'));
-    expect(after.length, greaterThan(before.length));
+    // Kişisel http/https indirme filtreleri Play derlemesinden çıkarılmış.
+    expect(after, isNot(contains('application/vnd.android.package-archive')));
+    expect(after.length, isNot(before.length));
     expect(run(['apply', m.path]).exitCode, 0);
     expect(m.readAsStringSync(), after, reason: 'idempotent');
   }, skip: hasPython ? false : 'python3 yok');
@@ -64,14 +66,18 @@ void main() {
     expect(t, contains('REQUEST_INSTALL_PACKAGES" tools:node="remove"'));
   }, skip: hasPython ? false : 'python3 yok');
 
-  test('verify: izin kalırsa düşer, yoksa geçer; geçersiz ad reddedilir', () {
+  test('verify: izin ya da kişisel indirme filtresi kalırsa düşer, yoksa geçer', () {
     final bad = File(p.join(tmp.path, 'bad.xml'))
       ..writeAsStringSync('<uses-permission '
           'android:name="android.permission.QUERY_ALL_PACKAGES"/>');
+    final badDl = File(p.join(tmp.path, 'bad_dl.xml'))
+      ..writeAsStringSync(
+          '<data android:mimeType="application/vnd.android.package-archive"/>');
     final good = File(p.join(tmp.path, 'good.xml'))
       ..writeAsStringSync('<uses-permission '
           'android:name="android.permission.INTERNET"/>');
     expect(run(['verify', bad.path]).exitCode, isNot(0));
+    expect(run(['verify', badDl.path]).exitCode, isNot(0));
     expect(run(['verify', good.path]).exitCode, 0);
     expect(run(['verify']).exitCode, isNot(0), reason: 'dosya yoksa düşmeli');
     expect(

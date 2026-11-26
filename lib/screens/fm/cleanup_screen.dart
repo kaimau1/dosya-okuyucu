@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/safe_insets.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
+import '../../services/fm/app_footprint.dart';
 import '../../services/fm/cleanup_advisor.dart';
 import '../../services/fm/cleanup_ignore.dart';
 import '../../services/fm/cleanup_walk.dart';
@@ -26,9 +28,12 @@ import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
 import '../../services/fm/sent_original_matcher.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/storage_stats.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
 import '../../services/fm/video_shrink_estimate.dart';
+import '../../services/play_store.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/pro_gate.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_entry_tiles.dart' show fmHero;
 import '../../widgets/motion.dart' show FmEmptyState;
@@ -77,7 +82,15 @@ class CleanupScreen extends StatefulWidget {
 /// tarama baştan başlamasın (kopya taraması dakikalar sürebilir).
 class CleanupScanResult {
   final List<CleanupSuggestion> suggestions;
-  const CleanupScanResult(this.suggestions);
+  final int diskTotalBytes;
+  final int diskFreeBytes;
+  final int protectedImportantCount;
+  const CleanupScanResult(
+    this.suggestions, {
+    this.diskTotalBytes = 0,
+    this.diskFreeBytes = 0,
+    this.protectedImportantCount = 0,
+  });
 }
 
 /// Son "Yer aç" çözümlemesinin bulduğu toplam (bu oturumda çözümleme hiç
@@ -164,6 +177,10 @@ class _CleanupScreenState extends State<CleanupScreen> {
       _watchApply = false;
       final r = job.result;
       if (job.status == JobStatus.done && r is CleanupApplyResult) {
+        _lastDone = r;
+        if (r.bytes >= 50 * 1024 * 1024) {
+          unawaited(PlayStore.maybeAskReviewAtCalmMoment());
+        }
         showSnack(
           context,
           context.t(
@@ -217,16 +234,23 @@ class _CleanupScreenState extends State<CleanupScreen> {
     required Set<String> removed,
     int? trashBytes,
     int? trashCount,
+    bool clearedAppCache = false,
   }) {
     final job = JobQueue.instance.find(_scanJobId);
     final result = job?.result;
     if (job == null || result is! CleanupScanResult) return;
-    job.result = CleanupScanResult(cleanupAfterApply(
-      result.suggestions,
-      removedPaths: removed,
-      trashBytes: trashBytes,
-      trashCount: trashCount,
-    ));
+    job.result = CleanupScanResult(
+      cleanupAfterApply(
+        result.suggestions,
+        removedPaths: removed,
+        trashBytes: trashBytes,
+        trashCount: trashCount,
+        clearedAppCache: clearedAppCache,
+      ),
+      diskTotalBytes: result.diskTotalBytes,
+      diskFreeBytes: result.diskFreeBytes,
+      protectedImportantCount: result.protectedImportantCount,
+    );
   }
 
   FmJob? get _applyJob => JobQueue.instance.find(_applyJobId);
@@ -236,6 +260,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
   /// Bu ekranda başlatılan temizliğin bitişini yakalamak için.
   bool _watchApply = false;
+  CleanupApplyResult? _lastDone;
 
   /// Güvenli öneriler açık gelir. Yalnız sonuç DEĞİŞTİĞİNDE kurulur, yoksa
   /// kullanıcının kaldırdığı işaret her kuyruk bildiriminde geri gelirdi.
@@ -392,6 +417,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
     if (forceRescan) {
       _trashed.clear();
       _seedSignature = null;
+      _lastDone = null;
     }
     final strings = AppStrings.current;
     final useCachedIndex = !forceRescan && widget.index != null;
@@ -406,15 +432,17 @@ class _CleanupScreenState extends State<CleanupScreen> {
         handle.report(detail: step(1, 'clean.reading_index'));
         // HIZ (2026-11-25): disk TEK kez gezilir (İndirilenler + boş
         // klasörler + kopyalar birlikte, izolatta — bkz. `CleanupWalk`);
-        // eskiden üç ayrı yürüyüş art arda koşuyordu. Yürüyüş, indeksi
-        // beklemeden hemen başlar; çöp listesi ve "gönderilen kopyanın aslı"
-        // doğrulaması onunla aynı anda yürür.
+        // çöp listesi, disk doluluğu, uygulama önbellek ölçümü ve "gönderilen
+        // kopyanın aslı" doğrulaması onunla paralel koşar.
         final walk = CleanupWalk.run(FmEnv.volumeRoots,
             primaryRoot: FmEnv.primaryRoot);
         final trashFuture = FmEnv.trash.list();
-        // İptal/hata indeks aşamasında çıkarsa bekleyen liste sahipsiz
-        // kalmasın (yakalanmamış hata); aşağıdaki `await` yine hatayı alır.
+        final usageFuture = StorageStats.usageOf(FmEnv.primaryRoot);
+        final footFuture = FootprintRoots.resolve()
+            .then((r) => r == null ? null : AppFootprint.measure(r));
         trashFuture.ignore();
+        usageFuture.ignore();
+        footFuture.ignore();
         final index = useCachedIndex
             ? widget.index!
             : await FsScan.index(FmEnv.volumeRoots);
@@ -428,8 +456,22 @@ class _CleanupScreenState extends State<CleanupScreen> {
         );
         final found = await walk;
         final trash = await trashFuture;
+        final usage = await usageFuture;
+        final foot = await footFuture;
         handle.throwIfCancelled();
         final trashBytes = trash.fold<int>(0, (sum, i) => sum + i.sizeBytes);
+        final appCacheBytes = foot == null
+            ? 0
+            : foot.of(FootprintBucket.thumbs) +
+                foot.of(FootprintBucket.temp) +
+                foot.of(FootprintBucket.shared) +
+                foot.of(FootprintBucket.picker);
+        var importantCount = 0;
+        for (final c in FmCategory.values) {
+          for (final e in index.files(c)) {
+            if (ImportantFiles.isImportant(e.path)) importantCount++;
+          }
+        }
 
         handle.report(detail: step(3, 'clean.verifying_sent'));
         final verifiedSent = await sentFuture;
@@ -443,8 +485,14 @@ class _CleanupScreenState extends State<CleanupScreen> {
           trashCount: trash.length,
           emptyFolders: found.emptyFolders,
           verifiedSentOriginals: verifiedSent,
+          appCacheBytes: appCacheBytes,
         );
-        handle.result = CleanupScanResult(list);
+        handle.result = CleanupScanResult(
+          list,
+          diskTotalBytes: usage?.$1 ?? 0,
+          diskFreeBytes: usage?.$2 ?? 0,
+          protectedImportantCount: importantCount,
+        );
         // Haftalık temizlik bildirimi bu sayıyı söyler (bkz. NativeExtras).
         unawaited(NativeExtras.rememberRecoverable(cleanupTotal(list)));
         handle.report(
@@ -460,14 +508,19 @@ class _CleanupScreenState extends State<CleanupScreen> {
     setState(() {});
   }
 
-  Future<void> _apply({String? onlyId}) async {
+  Future<void> _apply({String? onlyId, bool onlySafe = false}) async {
     if (_applying) return;
+    final source = onlySafe ? _suggestions : _chosen;
     final chosen = [
-      for (final s in _chosen)
-        if (onlyId == null || s.id == onlyId) s,
+      for (final s in source)
+        if (onlySafe
+            ? s.safeByDefault
+            : (onlyId == null || s.id == onlyId))
+          s,
     ];
     if (chosen.isEmpty) return;
     final total = cleanupTotal(chosen);
+    final allSafe = chosen.every((c) => c.safeByDefault);
     final ok = await showAppConfirm(
       context,
       title: context.t('clean.confirm_title'),
@@ -476,6 +529,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
             'size': FsPaths.humanSize(total),
           })}'
           '${context.t('clean.confirm_tail')}'
+          '${allSafe ? '\n\n${context.t('clean.confirm_safe_only')}' : ''}'
           '${chosen.any((c) => c.originals.isNotEmpty) ? '\n\n${context.t('clean.confirm_copies')}' : ''}',
       confirmLabel: context.t('common.clear'),
       destructive: true,
@@ -497,6 +551,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
         var items = 0;
         final removed = <String>{};
         var trashTouched = false;
+        var appCacheCleared = false;
         // Aslı da aynı temizlikte silinen kopya korunur (bkz. advisor).
         final protectedCopies = cleanupProtectedCopies(chosen);
         // İptal edilse de o ana dek temizlenenler listeden düşmeli.
@@ -512,6 +567,21 @@ class _CleanupScreenState extends State<CleanupScreen> {
             freed += suggestion.bytes;
             final raw = suggestion.detailVars['n'];
             items += raw is int ? raw : 1;
+          } else if (suggestion.id == 'app_cache') {
+            final roots = await FootprintRoots.resolve();
+            if (roots != null) {
+              final cleaned = await AppFootprint.clean(roots, const {
+                FootprintBucket.thumbs,
+                FootprintBucket.temp,
+                FootprintBucket.shared,
+                FootprintBucket.picker,
+              });
+              freed += cleaned > 0 ? cleaned : suggestion.bytes;
+            } else {
+              freed += suggestion.bytes;
+            }
+            appCacheCleared = true;
+            items++;
           } else if (suggestion.id == 'empty_folders') {
             // Boş klasörler çöpe taşınmaz; içten dışa güvenli ve özyinelemesiz
             // silinir (arada dosya gelmiş klasör otomatik atlanır).
@@ -575,7 +645,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
           trashBytes = trash.fold<int>(0, (a, i) => a + i.sizeBytes);
         }
         _rewriteScanResult(
-            removed: removed, trashBytes: trashBytes, trashCount: trashCount);
+          removed: removed,
+          trashBytes: trashBytes,
+          trashCount: trashCount,
+          clearedAppCache: appCacheCleared,
+        );
         FsEvents.changed();
         if (cancelled != null) throw cancelled;
         handle.result = CleanupApplyResult(
@@ -601,6 +675,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
   IconData _iconFor(String id) => switch (id) {
         'trash' => AppIcons.deleteSweep,
+        'app_cache' => AppIcons.autoDelete,
         'duplicates' => AppIcons.copyAll,
         'temp_junk' => AppIcons.autoDelete,
         'apk' => AppIcons.android,
@@ -614,18 +689,39 @@ class _CleanupScreenState extends State<CleanupScreen> {
         _ => AppIcons.cleanEmpty,
       };
 
+  String _whySafeKey(String id) => switch (id) {
+        'trash' => 'clean.why_trash',
+        'app_cache' => 'clean.why_app_cache',
+        'duplicates' => 'clean.why_duplicates',
+        'temp_junk' => 'clean.why_temp_junk',
+        'apk' => 'clean.why_apk',
+        'app_backup' => 'clean.why_app_backup',
+        'empty_folders' => 'clean.why_empty_folders',
+        'chat_sent' => 'clean.why_chat_sent',
+        'big_videos' => 'clean.why_big_videos',
+        'stale_downloads' => 'clean.why_stale_downloads',
+        'old_screenshots' => 'clean.why_old_screenshots',
+        'old_large' => 'clean.why_old_large',
+        _ => 'clean.trust_no_personal',
+      };
+
   @override
   Widget build(BuildContext context) {
     final all = _suggestions;
     final chosen = _chosen;
-    final safeCount = all.where((s) => s.safeByDefault).length;
-    final reviewCount = all.length - safeCount;
+    final scanRes = _scanJob?.result is CleanupScanResult
+        ? _scanJob!.result as CleanupScanResult
+        : null;
+    final safeList = all.where((s) => s.safeByDefault).toList();
+    final reviewList = all.where((s) => !s.safeByDefault).toList();
+    final safeCount = safeList.length;
+    final reviewCount = reviewList.length;
     final effectiveFilter =
         (safeCount == 0 || reviewCount == 0) ? _CleanupFilter.all : _filter;
     final visible = switch (effectiveFilter) {
       _CleanupFilter.all => all,
-      _CleanupFilter.safe => all.where((s) => s.safeByDefault).toList(),
-      _CleanupFilter.review => all.where((s) => !s.safeByDefault).toList(),
+      _CleanupFilter.safe => safeList,
+      _CleanupFilter.review => reviewList,
     };
 
     return Scaffold(
@@ -678,7 +774,14 @@ class _CleanupScreenState extends State<CleanupScreen> {
                     ),
                   ),
                   children: [
-                    _summaryBanner(all, chosen),
+                    if (_lastDone != null) ...[
+                      _doneBanner(context, _lastDone!),
+                      const SizedBox(height: Gap.sm + 2),
+                    ],
+                    _summaryBanner(all, chosen, scanRes),
+                    const SizedBox(height: Gap.xs + 2),
+                    _trustStrip(
+                        context, scanRes?.protectedImportantCount ?? 0),
                     if (safeCount > 0 && reviewCount > 0) ...[
                       const SizedBox(height: Gap.sm),
                       _filterStrip(
@@ -690,7 +793,31 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       _clutterBanner(context),
                       const SizedBox(height: Gap.sm + 2),
                     ],
-                    for (final s in visible) _card(s),
+                    if (effectiveFilter == _CleanupFilter.all &&
+                        safeList.isNotEmpty) ...[
+                      _sectionHeader(
+                        context,
+                        icon: AppIcons.shield,
+                        color: Paper.success(context),
+                        title: context.t('clean.sec_safe_title'),
+                        subtitle: context.t('clean.sec_safe_sub'),
+                      ),
+                      for (final s in safeList) _card(s),
+                    ],
+                    if (effectiveFilter == _CleanupFilter.all &&
+                        reviewList.isNotEmpty) ...[
+                      const SizedBox(height: Gap.xs),
+                      _sectionHeader(
+                        context,
+                        icon: AppIcons.hidden,
+                        color: AppHues.orange,
+                        title: context.t('clean.sec_review_title'),
+                        subtitle: context.t('clean.sec_review_sub'),
+                      ),
+                      for (final s in reviewList) _card(s),
+                    ] else if (effectiveFilter != _CleanupFilter.all) ...[
+                      for (final s in visible) _card(s),
+                    ],
                     // Hızlı taramanın yapamadığı derin taramalar (sohbet
                     // medyası, benzer fotoğraflar, görsel içerik) — bulduklarını
                     // yazarak. Kopyalar kopya kartında, klasör haritası yalnız
@@ -824,8 +951,158 @@ class _CleanupScreenState extends State<CleanupScreen> {
     );
   }
 
+  Widget _doneBanner(BuildContext context, CleanupApplyResult r) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final okColor = Paper.success(context);
+    return Material(
+      key: const ValueKey('clean-done-banner'),
+      color: okColor.withValues(alpha: 0.12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.card),
+        side: BorderSide(color: okColor.withValues(alpha: 0.38)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(AppIcons.checkCircle, color: okColor, size: 22),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: Text(
+                    context.t('clean.done_card_title',
+                        {'size': FsPaths.humanSize(r.bytes)}),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                IconButton(
+                  tooltip: context.t('common.close'),
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(AppIcons.close, size: 18),
+                  onPressed: () => setState(() => _lastDone = null),
+                ),
+              ],
+            ),
+            Text(
+              context.t(
+                r.movedToTrashBytes > 0
+                    ? 'clean.done_card_sub_trash'
+                    : 'clean.done_card_sub_perm',
+                {'n': r.items},
+              ),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: cs.onSurfaceVariant),
+            ),
+            if (r.movedToTrashBytes > 0) ...[
+              const SizedBox(height: Gap.xs),
+              TextButton.icon(
+                onPressed: _openTrash,
+                icon: const Icon(AppIcons.deleteSweep, size: 17),
+                label: Text(context.t('clean.open_trash')),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _trustStrip(BuildContext context, int importantCount) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final okColor = Paper.success(context);
+    Widget chip(IconData icon, String label) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: okColor),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+    return Wrap(
+      key: const ValueKey('clean-trust-strip'),
+      spacing: Gap.xs,
+      runSpacing: Gap.xs,
+      children: [
+        chip(AppIcons.shield, context.t('clean.trust_no_personal')),
+        chip(AppIcons.undo, context.t('clean.trust_trash_undo')),
+        chip(
+          AppIcons.lock,
+          importantCount > 0
+              ? context.t('clean.trust_important_n', {'n': importantCount})
+              : context.t('clean.trust_important'),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionHeader(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+  }) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, Gap.xs, 2, Gap.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: Gap.xs + 2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurface,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _summaryBanner(
-      List<CleanupSuggestion> all, List<CleanupSuggestion> chosen) {
+    List<CleanupSuggestion> all,
+    List<CleanupSuggestion> chosen,
+    CleanupScanResult? scanRes,
+  ) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final total = cleanupTotal(all);
@@ -838,6 +1115,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final hasAnySelected = chosen.isNotEmpty;
     final safeColor = Paper.success(context);
     final reviewColor = AppHues.orange;
+    final diskTotal = scanRes?.diskTotalBytes ?? 0;
+    final diskFree = scanRes?.diskFreeBytes ?? 0;
+    final diskUsed = diskTotal > diskFree ? diskTotal - diskFree : 0;
 
     return Material(
       key: const ValueKey('clean-summary'),
@@ -890,6 +1170,33 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 ),
               ],
             ),
+            if (diskTotal > 0) ...[
+              const SizedBox(height: Gap.sm),
+              Text(
+                context.t('clean.disk_used_line', {
+                  'used': FsPaths.humanSize(diskUsed),
+                  'total': FsPaths.humanSize(diskTotal),
+                  'free': FsPaths.humanSize(diskFree),
+                }),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (selectedBytes > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  context.t('clean.disk_after_line', {
+                    'before': FsPaths.humanSize(diskFree),
+                    'after': FsPaths.humanSize(diskFree + selectedBytes),
+                  }),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: safeColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ],
             if (total > 0) ...[
               const SizedBox(height: Gap.sm + 2),
               ClipRRect(
@@ -932,6 +1239,20 @@ class _CleanupScreenState extends State<CleanupScreen> {
               runSpacing: Gap.xs,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
+                if (safeBytes > 0)
+                  FilledButton.icon(
+                    key: const ValueKey('clean-quick-safe'),
+                    onPressed:
+                        _applying ? null : () => _apply(onlySafe: true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: safeColor,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(AppIcons.shield, size: 16),
+                    label: Text(context.t('clean.quick_clean_safe',
+                        {'size': FsPaths.humanSize(safeBytes)})),
+                  ),
                 if (safeList.isNotEmpty && !allSafeSelected)
                   FilledButton.tonal(
                     key: const ValueKey('clean-select-safe'),
@@ -1078,6 +1399,21 @@ class _CleanupScreenState extends State<CleanupScreen> {
   /// ses korunur). Ölçülen videoların hiçbiri anlamlı küçülmüyorsa düğme
   /// hiç çıkmaz; ölçülemiyorsa tahminsiz düz "Boyut düşür" kalır.
   Widget _shrinkButton(String id, List<FsEntry> videos) {
+    if (ProGate.locked(Feature.videoCompress)) {
+      return ProBadged(
+        feature: Feature.videoCompress,
+        child: FilledButton.tonalIcon(
+          key: ValueKey('clean-shrink-$id'),
+          onPressed: () => showProSheet(context, Feature.videoCompress),
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+          ),
+          icon: const Icon(AppIcons.shrink, size: 17),
+          label: Text(context.t('clean.shrink_this')),
+        ),
+      );
+    }
     final key = '$id|${Object.hashAll([for (final v in videos) v.path])}';
     if (_shrinkEstimates.length > 24) _shrinkEstimates.clear();
     final future = _shrinkEstimates[key] ??= VideoShrinkEstimate.plan(videos);
@@ -1356,6 +1692,33 @@ class _CleanupScreenState extends State<CleanupScreen> {
                                   style: theme.textTheme.bodySmall
                                       ?.copyWith(color: cs.onSurfaceVariant),
                                 ),
+                                const SizedBox(height: 5),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 1),
+                                      child: Icon(
+                                        AppIcons.shield,
+                                        size: 13,
+                                        color: s.safeByDefault
+                                            ? statusColor
+                                            : cs.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        context.t(_whySafeKey(s.id)),
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: s.safeByDefault
+                                              ? statusColor
+                                              : cs.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 const SizedBox(height: Gap.sm),
                                 Wrap(
                                   spacing: Gap.sm,
@@ -1465,6 +1828,28 @@ class _CleanupScreenState extends State<CleanupScreen> {
                                           context.t('clean.dup_groups')),
                                     ),
                                   ),
+                                if (s.id == 'big_videos' &&
+                                    selCount == 0 &&
+                                    s.files.isNotEmpty) ...[
+                                  const SizedBox(height: Gap.sm),
+                                  Wrap(
+                                    spacing: Gap.xs,
+                                    runSpacing: Gap.xs,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      Text(
+                                        context.t('clean.shrink_without_delete'),
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          color: cs.primary,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      _shrinkButton(s.id, s.files),
+                                    ],
+                                  ),
+                                ],
                                 // Yalnız bu bölümü temizle (kullanıcı
                                 // 2026-11-24: "her özelliği tek başına da").
                                 if (selCount > 0) ...[

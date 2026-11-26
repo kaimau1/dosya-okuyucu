@@ -1,17 +1,20 @@
-Dosya Okuyucu, telefonunuzdaki her dosya için tek, hızlı ve reklamsız bir uygulama.
+Dosya Okuyucu, telefonunuzdaki belgeler ve dosyalar için hızlı, sade ve tamamen reklamsız bir yardımcıdır. Temel okuma, dosya yönetimi ve aktarım araçları ücretsizdir; verileriniz cihazdan çıkmaz.
 
-• PDF: oku, işaretle, imzala, form doldur; paragrafı yerinde düzenle, OCR ile metin tanı, parolalı PDF aç
-• Word, Excel, PowerPoint: biçimi bozmadan aç ve düzenle — Word'de mobil yazım görünümü, Excel'de formül ve Türkçe işlevler, slaytta yerinde metin; otomatik kaydetme ve taslak kurtarma
-• Yakındakiler: yakındaki telefona ya da aynı ağdaki tarayıcıya kablosuz dosya gönder — ortak Wi-Fi gerekmez, sunucuya yüklenmez, kaldığı yerden devam eder
-• Sesli kitap: PDF, Word, slayt ya da notu başlıklarına göre bölümlü ses dosyasına çevir, kaydet, dilediğin zaman dinle — doğal Türkçe yapay zekâ sesleri (Antalia, EMA) cihazda, internetsiz
-• Dosya yöneticisi: tür süzgeci, klasör başına sıralama, çöp kutusu ve geri al, USB bellek ve SD kart, şifreli kasa
-• Akıllı temizlik: WhatsApp'taki "günaydın" görselleri, mem'ler, bulanık kareler, kopya indirmeler — görsellerin içine bakarak bulur
-• Kısa notu QR kodla paylaş: karşı tarafın kamerası yeter
-• Görsel boyutlandırma: yüzde, piksel, oran, hedef dosya boyutu, WebP
-• İş sonucu ekranı: taşıma, kopyalama, etiketleme gibi işlerde hangi dosyaya ne olduğu tek tek; geri alınabilenler tek dokunuşla geri
-• Kitaplık: PDF ve e-kitaplar kapaklı rafta, "okumaya devam et"
-• Göz yormayan kırık beyaz ve koyu tema; Türkçe, İngilizce, Arapça
-• Gizlilik: dosyalarınız cihazda kalır; reklam ve takip yok
-• İzinler: uygulama açılışta izin istemez. Gelen dosyayı açmak, düzenlemek ve kaydetmek için hiçbir izin gerekmez. "Tüm dosyalara erişim" yalnız dosya yöneticisini (klasörleri gezmek, yer açmak, taşımak) ilk açtığınızda istenir; kamera, mikrofon ve bildirim de yalnız ilgili özellikte sorulur.
+Lite sürümde neler ücretsiz?
+
+• PDF okuma ve işaretleme: vurgula, yer imi ekle, form doldur, elle imzala, parolalı PDF aç, seçili metni kopyala veya çevrimdışı çevir
+• Belge tarama ve çevrimdışı OCR: kamerayla sayfa tara, cihaz içi metin tanı
+• Word, Excel, PowerPoint: biçimi koruyarak aç ve temel düzenleme yap — mobilde rahat okuma/yazım görünümü, taslak kurtarma ve otomatik kaydetme
+• Dosya yöneticisi: tür süzgeci, klasör sıralama, çöp kutusu ve geri al, arşiv açma/oluşturma (ZIP), USB bellek (salt okunur) ve SD kart, SMB/SFTP/WebDAV, şifreli kasa
+• Yakındakiler: yakındaki telefona ya da aynı ağdaki tarayıcıya kablosuz dosya gönder — sunucuya yüklenmez, ortak Wi-Fi gerekmez
+• Medya ve görsel araçları: dahili galeri, video/ses oynatıcı, görsel boyutlandırma, kırpma, döndürme, WebP dönüşümü ve QR kodla not paylaşımı
+• Göz yormayan kırık beyaz ve koyu tema; Türkçe, İngilizce, Arapça arayüz
+• Gizlilik: reklam yok, izleme analitiği yok, hesap zorunluluğu yok
+
+Pro sürümde neler ayrı?
+
+Uygulamada `PRO` rozetiyle açıkça işaretlenen gelişmiş araçlar ayrı Pro uygulamasındadır: PDF paragraf/sayfa düzenleme, Akıllı Klasörler (çevrimdışı kural motoru + isteğe bağlı kendi Gemini anahtarınız), belgelerden Sesli Kitap oluşturma ve video boyut düşürme.
+
+İzinler: Açılışta izin istenmez. Başka uygulamadan gelen bir belgeyi açmak için ek izin gerekmez. Tüm dosyalara erişim yalnız klasör gezginini ve temizliği kullanmak istediğinizde, kendi onayınızla istenir.
 
 Microsoft Word, Excel ve PowerPoint, Microsoft Corporation'ın ticari markalarıdır; bu uygulama Microsoft ile bağlantılı değildir.

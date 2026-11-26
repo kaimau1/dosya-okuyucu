@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../models/fs_entry.dart';
 import '../../models/media_resize.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/video_shrink_estimate.dart';
+import '../pro_gate.dart';
 
 /// Video satırında **tek dokunuşla boyut düşür** hapı: "⇲ ≈ 320 MB"
 /// (2026-11-25, kullanıcı: *"büyük dosyalarda videolara boyut düşür seçeneği
@@ -13,6 +15,7 @@ import '../../services/fm/video_shrink_estimate.dart';
 ///
 /// Tahmin hazır olana dek yalnız "Küçült" yazar (satır beklemez); ölçülemezse
 /// de öyle kalır. Dokununca [onTap] (ayar sayfası açılır, iş kuyruğa gider).
+/// Lite sürümde tahmin çalıştırılmaz, hapın yanında PRO rozeti gösterilir.
 class VideoShrinkPill extends StatefulWidget {
   final FsEntry entry;
   final VoidCallback onTap;
@@ -24,12 +27,25 @@ class VideoShrinkPill extends StatefulWidget {
 }
 
 class _VideoShrinkPillState extends State<VideoShrinkPill> {
-  late Future<int?> _estimate = VideoShrinkEstimate.of(widget.entry);
+  Future<int?>? _estimate;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!ProGate.locked(Feature.videoCompress)) {
+      _estimate = VideoShrinkEstimate.of(widget.entry);
+    }
+  }
 
   @override
   void didUpdateWidget(VideoShrinkPill old) {
     super.didUpdateWidget(old);
-    if (old.entry.path != widget.entry.path ||
+    if (ProGate.locked(Feature.videoCompress)) {
+      _estimate = null;
+      return;
+    }
+    if (_estimate == null ||
+        old.entry.path != widget.entry.path ||
         old.entry.sizeBytes != widget.entry.sizeBytes) {
       _estimate = VideoShrinkEstimate.of(widget.entry);
     }
@@ -37,14 +53,16 @@ class _VideoShrinkPillState extends State<VideoShrinkPill> {
 
   @override
   Widget build(BuildContext context) {
+    final locked = ProGate.locked(Feature.videoCompress);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return FutureBuilder<int?>(
-      future: _estimate,
+      future: locked ? null : _estimate,
       builder: (context, snap) {
         // Kazanç anlamlıysa (≥ %25) tahmini boyut, yoksa düz "Küçült".
-        final est = MediaResizeOptions.worthShrinking(
-                widget.entry.sizeBytes, snap.data)
+        final est = !locked &&
+                MediaResizeOptions.worthShrinking(
+                    widget.entry.sizeBytes, snap.data)
             ? snap.data
             : null;
         final label = est != null
@@ -83,6 +101,10 @@ class _VideoShrinkPillState extends State<VideoShrinkPill> {
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
+                      if (locked) ...[
+                        const SizedBox(width: 6),
+                        const ProBadge(),
+                      ],
                     ],
                   ),
                 ),

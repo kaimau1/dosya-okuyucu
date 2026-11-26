@@ -220,6 +220,44 @@ void main() {
       expect(out.single.bytes, 20);
       expect(out.single.originals['/a/2.apk']?.path, orig2.path);
     });
+
+    test('50 MB video ve 1+ MB uygulama önbelleği önerilir', () {
+      final copied = file('/s/Download/film.mp4', 75 * mb);
+      expect(
+          adviseCleanup(
+            index: StorageIndex(
+              stats: const {},
+              byCategory: {FmCategory.video: [copied]},
+              largest: const [],
+              recent: const [],
+              totalFiles: 1,
+              totalBytes: 75 * mb,
+              skipped: 0,
+            ),
+            downloads: const [],
+            duplicates: const [],
+            trashBytes: 0,
+            trashCount: 0,
+            appCacheBytes: 12 * mb,
+          ).map((s) => s.id),
+          containsAll(['app_cache', 'big_videos']));
+    });
+
+    test('cleanupAfterApply clearedAppCache true iken app_cache önerisini düşürür',
+        () {
+      const list = [
+        CleanupSuggestion(
+          id: 'app_cache',
+          titleKey: 'cln.app_cache',
+          detailKey: 'cln.app_cache_detail',
+          bytes: 8 * mb,
+          safeByDefault: true,
+        ),
+      ];
+      expect(
+          cleanupAfterApply(list, removedPaths: const {}, clearedAppCache: true),
+          isEmpty);
+    });
   });
 
   group('Temizlik sonrası taramasız güncelleme', () {
@@ -455,14 +493,76 @@ void main() {
       expect(find.byKey(const ValueKey('clean-one-chat_sent')), findsOneWidget);
     });
 
+    testWidgets('güven şeridi, bölümlü düzen ve videolar için silmeden yer aç görünür',
+        (tester) async {
+      final vid = file('/storage/emulated/0/Movies/tatil.mp4', 80 * mb);
+      await tester.runAsync(() => seedSuggestions([
+            const CleanupSuggestion(
+              id: 'app_cache',
+              titleKey: 'cln.app_cache',
+              detailKey: 'cln.app_cache_detail',
+              bytes: 18 * mb,
+              safeByDefault: true,
+            ),
+            CleanupSuggestion(
+              id: 'big_videos',
+              titleKey: 'clean.big_videos',
+              detailKey: 'clean.big_videos_detail',
+              detailVars: const {'n': 1},
+              bytes: 80 * mb,
+              files: [vid],
+              safeByDefault: false,
+            ),
+          ]));
+
+      await tester.pumpWidget(wrap(const CleanupScreen()));
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('clean-trust-strip')), findsOneWidget);
+      expect(find.byKey(const ValueKey('clean-quick-safe')), findsOneWidget);
+      expect(find.text('Güvenle Temizle (Sıfır Risk)'), findsOneWidget);
+      expect(find.text('İnceleyerek Yer Aç (Karar Sizin)'), findsOneWidget);
+      expect(find.byKey(const ValueKey('clean-shrink-big_videos')), findsOneWidget);
+    });
+
     test('yeni Yer aç çeviri anahtarları üç dilde dolu', () {
       for (final lang in AppLanguage.values) {
         final s = AppStrings(lang);
         for (final k in const [
           'cln.temp_junk',
           'cln.temp_junk_detail',
+          'cln.app_cache',
+          'cln.app_cache_detail',
           'cln.chat_sent',
           'cln.chat_sent_detail',
+          'clean.disk_used_line',
+          'clean.disk_after_line',
+          'clean.trust_no_personal',
+          'clean.trust_trash_undo',
+          'clean.trust_important',
+          'clean.trust_important_n',
+          'clean.quick_clean_safe',
+          'clean.sec_safe_title',
+          'clean.sec_safe_sub',
+          'clean.sec_review_title',
+          'clean.sec_review_sub',
+          'clean.done_card_title',
+          'clean.done_card_sub_trash',
+          'clean.done_card_sub_perm',
+          'clean.confirm_safe_only',
+          'clean.shrink_without_delete',
+          'clean.why_trash',
+          'clean.why_duplicates',
+          'clean.why_temp_junk',
+          'clean.why_app_cache',
+          'clean.why_apk',
+          'clean.why_app_backup',
+          'clean.why_empty_folders',
+          'clean.why_chat_sent',
+          'clean.why_big_videos',
+          'clean.why_stale_downloads',
+          'clean.why_old_screenshots',
+          'clean.why_old_large',
           'clean.verifying_sent',
           'clean.original_kept',
           'clean.view_original',
@@ -498,6 +598,10 @@ void main() {
               'total': 3,
               'size': '10 MB',
               'loc': 'Kamera',
+              'used': '20 GB',
+              'free': '10 GB',
+              'before': '10 GB',
+              'after': '11 GB',
             }),
             isNot(k),
             reason: '${lang.name}:$k',

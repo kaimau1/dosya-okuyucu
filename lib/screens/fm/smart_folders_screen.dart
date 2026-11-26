@@ -75,18 +75,52 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   @override
   Widget build(BuildContext context) {
     final scope = context.watchAi().aiScopeRules;
+    final unlocked = Edition.current.has(Feature.smartFolders);
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(context.t('smart.title'))),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _create,
-        icon: const Icon(AppIcons.add),
-        label: Text(context.t('smart.create')),
-      ),
-      body: !Edition.current.has(Feature.smartFolders)
+      floatingActionButton: unlocked
+          ? FloatingActionButton.extended(
+              onPressed: _create,
+              icon: const Icon(AppIcons.add),
+              label: Text(context.t('smart.create')),
+            )
+          : null,
+      body: !unlocked
           ? Center(
-              child: FilledButton(
-                onPressed: () => showProSheet(context, Feature.smartFolders),
-                child: Text(context.t('pro.title')),
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.xl),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(AppIcons.pro,
+                          size: 48, color: theme.colorScheme.primary),
+                      const SizedBox(height: Gap.md),
+                      Text(
+                        context.t('pro.saved_locked_title'),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: Gap.xs),
+                      Text(
+                        context.t('pro.saved_locked_sub'),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: Gap.lg),
+                      FilledButton.icon(
+                        onPressed: () =>
+                            showProSheet(context, Feature.smartFolders),
+                        icon: const Icon(AppIcons.pro),
+                        label: Text(context.t('ab.pro_unlock')),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             )
           : ListenableBuilder(

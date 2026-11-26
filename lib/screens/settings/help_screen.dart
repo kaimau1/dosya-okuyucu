@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../widgets/permission_gate.dart';
 import 'feedback_screen.dart';
@@ -44,7 +45,8 @@ class HelpScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           for (final id in topics)
-            ExpansionTile(
+            if (id != 'ai_key' || Edition.current.has(Feature.ai))
+              ExpansionTile(
               leading: const Icon(AppIcons.help),
               title: Text(context.t('help.${id}_q')),
               childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

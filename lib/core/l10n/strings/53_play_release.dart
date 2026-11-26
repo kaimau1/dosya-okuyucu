@@ -192,4 +192,39 @@ const Map<String, (String, String, String)> _t53 = {
     'Refines chapters for natural speech using your own Gemini key',
     'ينقّح الفصول للقراءة الصوتية بمفتاح Gemini الخاص بك',
   ),
+  'set.rate_app': (
+    'Uygulamayı değerlendir',
+    'Rate the app',
+    'قيّم التطبيق',
+  ),
+  'set.rate_app_sub': (
+    'Görüşünüz küçük bir geliştirici ekibine çok yardımcı olur',
+    'Your rating helps a small developer team grow',
+    'تقييمك يساعد فريق التطوير الصغير كثيرًا',
+  ),
+  'err.report': (
+    'Sorunu bildir',
+    'Report issue',
+    'الإبلاغ عن مشكلة',
+  ),
+  'fb.copy': (
+    'Metni kopyala',
+    'Copy text',
+    'نسخ النص',
+  ),
+  'fb.copied': (
+    'Metin panoya kopyalandı',
+    'Text copied to clipboard',
+    'تم نسخ النص إلى الحافظة',
+  ),
+  'sm.local_ready_title': (
+    'Yerel akıllı düzen hazır (API anahtarı gerekmez)',
+    'Local smart sort is ready (no API key needed)',
+    'التصنيف الذكي المحلي جاهز (لا يحتاج مفتاح API)',
+  ),
+  'sm.local_ready_sub': (
+    'Fatura, dekont, resmi evrak, sağlık, ekran görüntüsü ve APK dosyaları cihazda ücretsiz ve internetsiz sınıflandırılır. İsteğe bağlı Gemini anahtarıyla belirsiz dosyalar da tanınır.',
+    'Invoices, bank receipts, official docs, health records, screenshots and APKs are sorted offline for free. Optional Gemini key classifies ambiguous files too.',
+    'تُصنَّف الفواتير والإيصالات والمستندات الرسمية والصحية ولقطات الشاشة وملفات APK محليًا دون إنترنت. يمكن إضافة مفتاح Gemini اختياريًا للملفات غير الواضحة.',
+  ),
 };

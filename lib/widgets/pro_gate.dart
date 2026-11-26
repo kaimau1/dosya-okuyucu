@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,8 +8,8 @@ import '../core/app_icons.dart';
 import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
+import '../services/play_store.dart';
 import 'app_dialog.dart';
-import 'cross_app_promo_card.dart';
 
 /// **Pro kapısı** (SÜRÜM PLANI S2/S3, 2026-11-12).
 ///
@@ -69,7 +71,9 @@ abstract final class ProGate {
 /// kapatılınca 30 gün görünmez.
 abstract final class ProPromo {
   static const _key = 'pro_card_hidden_until';
+  static const _firstKey = 'pro_card_first_ms';
   static const hideFor = Duration(days: 30);
+  static const gracePeriod = Duration(days: 3);
 
   static Future<bool> shouldShow({
     Edition edition = Edition.current,
@@ -78,8 +82,15 @@ abstract final class ProPromo {
     if (edition != Edition.lite) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
+      final nowMs = (now ?? DateTime.now()).millisecondsSinceEpoch;
+      var first = prefs.getInt(_firstKey);
+      if (first == null) {
+        first = nowMs;
+        await prefs.setInt(_firstKey, first);
+      }
+      if (nowMs - first < gracePeriod.inMilliseconds) return false;
       final until = prefs.getInt(_key) ?? 0;
-      return (now ?? DateTime.now()).millisecondsSinceEpoch >= until;
+      return nowMs >= until;
     } catch (_) {
       return false; // Bilinçli: tercih okunamazsa kart gösterilmez.
     }
@@ -140,7 +151,9 @@ class ProBadged extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!ProGate.locked(feature, edition: edition)) return child;
+    if (!ProGate.locked(feature, edition: edition) || !feature.isPro) {
+      return child;
+    }
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -155,6 +168,7 @@ class ProBadged extends StatelessWidget {
 ///
 /// Olmayacaklar (§3): açılışta tam ekran, geri sayım, iş sonu araya girme.
 Future<void> showProSheet(BuildContext context, [Feature? feature]) {
+  unawaited(PlayStore.noteFriction());
   return showAppSheet<void>(
     context,
     title: feature == null
@@ -231,6 +245,14 @@ class _ProSheetBody extends StatelessWidget {
               style: theme.textTheme.titleMedium,
             ),
           ],
+          const SizedBox(height: Gap.sm),
+          Text(
+            context.t('pro.trust'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: Gap.md),
           FilledButton.icon(
             key: const ValueKey('pro-store'),
@@ -243,8 +265,6 @@ class _ProSheetBody extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
             child: Text(context.t('pro.later')),
           ),
-          const SizedBox(height: Gap.sm),
-          const CrossAppPromoCard(),
         ],
       ),
     );

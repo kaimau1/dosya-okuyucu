@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 /// Kardeş uygulama **Notlar** ile iki yönlü paylaşım, belge aktarımı ve
 /// zorlamasız ekosistem tanıtımı.
 abstract final class EcosystemApps {
+  static const bool notlarPublished =
+      bool.fromEnvironment('DOSYA_NOTLAR_LIVE', defaultValue: false);
   static const String notlarPackage = 'dev.kaimau.notlar';
   static final Uri notlarMarketUri = Uri.parse(
     'market://details?id=$notlarPackage',

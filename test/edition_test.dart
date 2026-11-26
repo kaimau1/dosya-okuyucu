@@ -148,8 +148,16 @@ void main() {
       await tester.pumpWidget(host((_) => const Column(children: [
             ProBadged(feature: Feature.audiobook, edition: Edition.lite, child: Icon(Icons.lock)),
             ProBadged(feature: Feature.audiobook, edition: Edition.pro, child: Icon(Icons.lock)),
+            // Yalnız Kişisel özellik Lite'ta bile sahte PRO rozeti almaz.
+            ProBadged(feature: Feature.ftpServer, edition: Edition.lite, child: Icon(Icons.lock)),
           ])));
       expect(find.byKey(const ValueKey('pro-badge')), findsOneWidget);
+    });
+
+    test('packageId her sürüm için doğru Play paket kimliğini döner', () {
+      expect(Edition.lite.packageId, 'com.dosyaokuyucu.dosya_okuyucu.lite');
+      expect(Edition.pro.packageId, 'com.dosyaokuyucu.dosya_okuyucu.pro');
+      expect(Edition.kisisel.packageId, 'com.dosyaokuyucu.dosya_okuyucu');
     });
 
     test('pano kutusu: kapısız kutu dokunmayı olduğu gibi geçirir', () {
@@ -170,20 +178,27 @@ void main() {
   });
 
   group('ProPromo', () {
-    test('yalnız Lite; kapatılınca 30 gün görünmez', () async {
+    test('yalnız Lite; ilk 3 gün sessiz, kapatılınca 30 gün görünmez', () async {
       SharedPreferences.setMockInitialValues({});
       final t0 = DateTime(2026, 11, 12);
       expect(await ProPromo.shouldShow(edition: Edition.pro, now: t0), isFalse);
       expect(await ProPromo.shouldShow(edition: Edition.kisisel, now: t0), isFalse);
-      expect(await ProPromo.shouldShow(edition: Edition.lite, now: t0), isTrue);
-      await ProPromo.hide(now: t0);
+      // İlk kurulumda (0–2. gün) Lite kartı kullanıcıyı karşılamaz.
+      expect(await ProPromo.shouldShow(edition: Edition.lite, now: t0), isFalse);
       expect(
           await ProPromo.shouldShow(
-              edition: Edition.lite, now: t0.add(const Duration(days: 29))),
+              edition: Edition.lite, now: t0.add(const Duration(days: 2))),
+          isFalse);
+      final t3 = t0.add(const Duration(days: 3));
+      expect(await ProPromo.shouldShow(edition: Edition.lite, now: t3), isTrue);
+      await ProPromo.hide(now: t3);
+      expect(
+          await ProPromo.shouldShow(
+              edition: Edition.lite, now: t3.add(const Duration(days: 29))),
           isFalse);
       expect(
           await ProPromo.shouldShow(
-              edition: Edition.lite, now: t0.add(const Duration(days: 30))),
+              edition: Edition.lite, now: t3.add(const Duration(days: 30))),
           isTrue);
     });
   });

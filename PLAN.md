@@ -91,7 +91,8 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | B4 | **PDF Pro tamamlama:** P16 metin, P17 nesne/işaret, P18 form+imza, P19 OCR Pro, P20 sayfa stüdyosu, P21 parola/meta/optimize/PDF-A, P22 kalite %98 | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68 | A/B | evet | sürüyor (yerel, 2026-11-21) — dal faz-oto-B4-isaret: §1.4 P17 işaretleme stüdyosu; P16 metin + P17 nesne main'de (cihaz turu CIHAZ_TESTI B4-P16/B4-P17n, A/B C2) |
 | B5 | **Biçim + bakım + levha birliği:** P23 UDF (UYAP) okuyucu, P24 bağımlılık bakımı, P25 levha/pencere birliği (onay §3 K17) | opus | §1.5 | A/B | evet | kullanıcı kararı — P23 UDF + P24 bakım main'de (2026-11-21; xml/pointycastle override üst paket yüzünden kalır); kalan P25 (K17 onayı), Dependabot #82–84 (K14) |
 | B6 | **Tasarım tamamlama:** P31 ana ekran aileleri kalanları (D simge takımı, F metinleri, K19), P32 menü ortak düzeni kalanları | opus | §1.6; docs/design/ana_ekran/ | A/B | evet | bekliyor — K19 kararıyla |
-| B7 | **Sürümler + yayın:** P30 Lite/Pro/Kişisel (S4–S9, K15/K16), P26 mağaza ekran görüntüleri | opus / sonnet | §1.7; arsiv/SURUM_PLANI | — | evet | kullanıcı kararı — K15 |
+| B7 | **Sürümler + Play çıkış + Yer aç yenileme:** P30 Lite/Pro/Kişisel (`play_variant` S4–S9, K15/K16), P26 mağaza ekran görüntüleri, Play/Lite/Pro acil P0 düzeltmeleri ve **Yer aç** güven+önbellek yenilemesi | opus / sonnet | §1.7; arsiv/SURUM_PLANI · docs/play/ | — | evet | **P0 + Yer Aç yenilemesi main'e alınıyor (2026-11-26)** — kalan: **B7b** (aşağıda; sonraki oturum paketi) |
+| B7b | **Sonraki Oturum — Play Çıkış & Kalite Tamamlama Paketi:** (1) **Lite/Pro veri geçişi + ya da tek uygulama içi satın alma (Billing) kararı (K15b):** ayrı Pro alınca Şifreli Kasa/etiket/okuma yeri taşınması veya tek paket IAP; (2) **Lite boyut küçültme (K15c):** Lite'tan ağır medya/AI kütüphanelerini (`libmpv`, `LiteRT`) ayırıp ≤ 45 MB hedefi + eklenti açılış testi; (3) **Üçüncü parti model güvencesi:** Sesli kitap (Antalia/EMA/jsdelivr) ve görsel büyütme (`tfhub.dev`) indirme kaynaklarının kendi kararlı aynana alınması / Play cihaz-ağ uyumu; (4) **Kullanıcı adı & izin hizası (K15/K16):** Başlatıcı adının `Dosya Okuyucu` / `Dosya Okuyucu Pro` olarak düzeltilmesi (`Dosyalarım` çakışmasını kaldır), Lite'ın 0-izin `Okuyucu`ya indirgenmesi + Drive `drive.file` kapsamı (K9); (5) **Eski ekran & link temizliği + tasarım birliği:** PDF/Office görüntüleyici ve eski Yardım ekranı artıkları, K1–K7 + K17 + K19 kararlarının uygulanması; (6) **Özel `Actions` Play AAB tam testi** (`build-play.yml`, 16 KB ELF, `play_variant verify`) | opus / sonnet | Play Denetim Turları 1–3 + SURUM_PLANI + yayin_rehberi + Cihaz/Tasarım K1–K19 | A/B | evet | **sonraki oturum paketi — kullanıcı K15/K16 kararlarını verince başlar** |
 | B10 | **Excel 2.0:** grafik türleri (bugün 4), formül kapsamı (189 işlev → dizi/metin işlevleri), veri doğrulama, otomatik/hızlı doldurma, süzgeç 2, sadakat bekçisi, hücre düzenleme hissi, açılış | opus | §1.10 | A/B | evet | bekliyor — m.8 + m.5 artık main'de (2026-11-21); kalan m.3 giriş iletisi gösterimi; A/B → C2 |
 | B11 | **Slayt 2.0:** görsel sadakat (altın görüntü testleri), grafik türleri, geçiş + animasyon + Biçim değiştir, yerinde metin düzenleme, AI tasarımcı, notlar + prova, sadakat bekçisi, sürükleme bütçesi | opus (animasyon planı fable) | §1.11 | A/B | evet | sürüyor — dilim 1+2 main'de (m.1 tablo stilleri, m.4 imleç, m.6 prova, m.7 sadakat bekçisi, m.8 sürükleme/geçiş bütçesi); dilim 3 dal faz-oto-B11-slayt3 (m.3 geçiş türleri + efektli animasyon + Biçim değiştir + önizleme, m.1 dikey metin; A/B C2'de); m.5 AI tasarımcı İPTAL (B15 kararı 2026-11-19, AI budandı); m.2 grafik türleri dal faz-oto-B11-slayt4 (yazıldı, cihazda doğrulanmadı); kalan m.1 piksel altın (kullanıcı izniyle yerelde) + yansıma, m.4 klavye kayması cihazda |
 | B13 | **Deneyim hissi:** açılış geçişi, öngörülü geri, dokunuş haritası, aşamalı açılış, her yerde geri al, otomatik kayıt + kurtarma, hareket eşitliği, klavye, erişilebilirlik | opus | §1.13; arsiv/FERRARI §1 | A/B | evet | cihaz bekliyor — dilim 1+2 main'de (2026-11-19): m.4 Excel/Slayt aşamalı açılış + m.7 Word çimdik yapıldı (A/B C2'de); m.1 açılış geçişi (Office/PDF) 2026-11-20 tablette A/B KALDI (satırdan büyüyen kırpma: Slayt/Excel açılışı +%13/+%17, Slayt açılış p99 20→34 ms) → uygulanmadı, sabah bakılacak (bkz. §1.13 m.1 notu) |
@@ -458,76 +459,41 @@ için önce Slayt/Excel'in ilk karelerinde neyin uzadığı zaman çizelgesinden
 
 ---
 
-## 3) Senin işlerin 👤 (ben yapamam — karar, hesap, telefon ayarı)
+## 3) Senin işlerin 👤 — Play'e Çıkış İçin Tek Paket (Sırayla Yapılacaklar)
 
-Cevap kısa olabilir: "K6 tamam", "K14 birleştir" gibi. Bitenleri silerim.
+Aşağıdaki liste `yayin_rehberi.md`, `SURUM_ADAYI.md`, `SURUM_PLANI.md`, `izin_beyanlari.md` ve eski K-maddelerinin tek yerde birleştirilmiş hâlidir. Biteni bana söylemen yeterli, listeden silerim.
 
-### Kararlar (tek kelime yeter)
-- **K1 Menü kısaltma (H7.2):** PDF ⋮ "Daha fazla" 13–15 madde. Öneri: ilk 5 = Sayfaya git · Sesli oku · Metni tanı · Okuma ayarları · Dosya işlemleri; gerisi "Diğer". → "menü tamam" / "menüler kalsın".
-- **K2 Çöpe atmada onay (H7.4):** artık sorulmuyor, "Geri al" çıkıyor (Ayarlar › Depolama › "Silmeden önce sor" ile açılır). → sorun yoksa bir şey deme / "onay geri gelsin".
-- **K3 Tarama rehberi:** ilk 3 taramada çıkıyor; "bir kez" olsun mu?
-- **K4 "Kopyalandı" bildirimi:** Android 13+ kendi de gösteriyor; çift görünüyorsa söyle, kaldırırım.
-- **K5 Çift bölmede sürükle-bırak = kopya:** taşımak için "Taşı". → "sürükle taşısın" dersen değiştiririm.
-- **K6 Galeri alt çubuğu (H11):** 8 düğme → altta Paylaş · Düzenle · İyileştir · Bilgi · Sil; Boyut · Araçlar · Seç ⋮'ya. → "galeri tamam" / "galeri kalsın".
-- **K7 Editör üst çubuğu (H11.1):** Kaydet yalnız değişiklik varken görünsün mü? → "editör tamam" / "editör kalsın".
-- **K8 Liste hız sınırı (P13):** 24 ms sınırı TalkBack kapalı ölçüme (`_sk`) bağlansın, açık olan yalnız kötüleşmeye bakılsın mı? Silinen satırın kapanma animasyonu yok, yeni satır bir an vurgulanıyor; yeterli mi?
-- **K9 Google Drive kapsamı (G8.5):** "dar" (`drive.file`, Play incelemesi kolay, Drive'da gezme biter) / "tam".
-- **K10 Dış güvenlik taraması (G12.6):** MobSF / drozer, ücretsiz. → "tarama yap" / "gerek yok".
-- **K11 Android 7 kasa parolası (G3):** 600 bin tur ≈ 10 sn+ olabilir. Android 7 telefon varsa süreyi söyle; uzunsa tur düşürülsün mü?
-- **K12 AI tek belgelik maske kapatma:** istersen "ekle" de (şu an yok, en güvenli).
-- **K13 OneDrive / Dropbox eklensin mi?** Uygulamasız alıcıya "tarayıcıda çöz" bağlantısı yapılsın mı?
-- **K14 Dependabot PR'ları** #82 setup-gradle 6, #83 upload-artifact 7, #84 cache 6 → "birleştir"?
-- **K15a Akıllı düzen kredisi (taslak 2026-11-22, kullanıcı önerisi):** yalnız Pro (tek seferlik, öneri 39 TL);
-  kendi Gemini anahtarı = ücretsiz; anahtarsız kullanıcıya tek seferlik paket (1000 dosya 25 TL · 5000 → 100 TL ·
-  10000 → 200 TL). Video yalnız kapak karesi (main'de). Önkoşul: kendi sunucumuz (anahtar uygulamaya GÖMÜLMEZ —
-  çalınır), Play Billing satın alma doğrulaması sunucuda, dosya başı belirteç tavanı (PDF ilk N sayfa), satın
-  almadan önce "≈ N dosya, video kapak karesiyle" bilgilendirmesi, kur değişince fiyat gözden geçirme. Karar sende.
-  **Ücretsiz hak + kapsam (taslak):** Pro'da ilk 500 dosya ücretsiz (hesaba bir kez, sayaç sunucuda); "Neyi
-  düzenleyelim?" ekranı (tür + klasör aç/kapa, sayılar cihazda, canlı "N dosya · 500 ücretsiz · kalan → paket").
-  **GÜVENLİK SÖZLEŞMESİ (kullanıcı 2026-11-22, bağlayıcı):** (1) şirket anahtarı APK'ya, depoya, cihaza ASLA girmez;
-  yalnız sunucuda (Secret Manager). (2) İki ayrı yol: `kendi anahtarı` ↔ `kredi` — kullanıcı AÇIKÇA seçer;
-  kendi anahtarı 401/403/429 verirse tur DURUR ("anahtarının kotası doldu"), krediye OTOMATİK GEÇİŞ YOK; kredi
-  yolu ayrı düğmeyle, onayla başlar. (3) Sunucu her istekte: Play Integrity doğrulaması + satın alma belirteci
-  doğrulaması + sunucudaki hak sayacından düşüm (cihazdaki sayıya güvenilmez) + kişi başı dakika/gün hız sınırı +
-  dosya başı belirteç tavanı. (4) Proje düzeyi: Google Cloud bütçe uyarısı + günlük sert harcama tavanı (aşılınca
-  sunucu kapanır, kullanıcıya "geçici olarak kapalı"), anahtar API kısıtlı (yalnız Generative Language) ve
-  döndürülebilir. (5) Ücretsiz 500 hesap/cihaz başına bir kez; yeniden kurulumda yenilenmez. (6) Testler: kendi
-  anahtarı 429 → kredi çağrısı SIFIR; kredi bitti → istek SIFIR.
-- **K15 Sürümler:** Pro fiyatı, uygulama adları (Lite/Pro), taramanın hangi sürümde olacağı, "Tüm dosyalar" izni reddedilince ne olacağı → P30 açılır.
-- **K16 Play izin varyantı (B5.3):** Play derlemesinden hangi izinler çıksın (QUERY_ALL_PACKAGES, READ_MEDIA_*, APK kurma)?
-- **K17 Levha birliği (P25):** her parti için önce/sonra görüntüye "tamam" demen gerekecek — başlayayım mı?
-- **K19 Ana ekran tasarımı (P31):** Ayarlar › Görünüm'de üç yeni tema var (Sakin, Bento, Koyu başlık). Hangisi varsayılan olsun? Kutu adlarında cümle düzeni ("Önemli dosyalar") tüm ekranlara uygulansın mı? Simgeler renkli mi tek renk mi?
-- **K18 Açık soru:** "tikli öğesi çok notlar kasıyor" (2026-10-29) hâlâ geçerli mi?
+### A. Hukuk, Hesap ve Güvenlik (Yayın Öncesi Zorunlu)
+1. **Syncfusion Community License al:** Yıllık brüt gelirin < 1 Milyon USD ve çalışan ≤ 10 ise ücretsizdir; Syncfusion sitesinden başvurup lisans belgesini indir ve sakla (eski K38).
+2. **Google Play Console hesabı + Ödeme/Satıcı profili aç:** Bireysel geliştirici hesabı (25 USD) + kimlik doğrulaması + ücretli Pro satışları için banka/IBAN/vergi profilini tanımla (eski K37).
+3. **Destek ve güvenlik e-postası belirle:** Uygulama içi hata bildiriminde, Gizlilik Politikası'nda ve Play Console iletişiminde kullanılacak aktif bir e-posta ver (`kSupportEmail` + `SECURITY.md`, eski K32).
+4. **Gizlilik politikasını herkese açık internete koy + depoyu Gizli (Private) yap:** Güncel Türkçe/İngilizce/Arapça gizlilik metinlerini GitHub Pages veya kendi alan adına koy (çünkü kod deposunu ticari çıkış öncesi Private'a alacaksın); GitHub güvenliği için 2 adımlı doğrulama ve `main` dal koruması aç (eski K34).
+5. **İmza anahtarını yedekle ve GitHub'a tanıt:** Yayın imza anahtarını (`release.jks`) + parolasını iki ayrı çevrimdışı yere (şifreli USB + kâğıt) yedekle; SHA-256 parmak izini GitHub Ayarları'na (`SIGN_CERT_SHA256`) ekle; Play Console'da *Play App Signing* aç (eski K33, K35).
 
-### Telefonda sen bak
-- **K20 PDF düzenleme (Düzenle → Metin):** iki parmak yakınlaştırma (seçim yerinde kalmalı) · `ğüşıöçİ` yaz (aynı yazı tipi/boy) ·
-  Gboard önerisi + sesle yazma · hızlı yazınca gecikme yok · dekont satırı değiştir → Kaydet "kopya / üstüne yaz" sorar ·
-  WhatsApp'tan açılan PDF → "kopya Belgeler'e kaydedildi" · Chrome/Acrobat'ta aynı görünüm, karartılan yazı seçilemez ·
-  ⋮ → Yeniden yaz/Çevir · 5 dk boşta ısınma yok. Bozuk olanın görüntüsünü at.
-- **K21 Word mobil editör (B3.2):** Word aç → Düzenle → `ğüşıöçİ`, sil, Enter, uzun basıp seç, öneriye dokun → "mobil editör tamam" dersen eski yolu silerim.
-- **K22 Word kapanışı (B3.3d):** ⋮ aç-kapat, geri ile çık → "akıcı" / "takılıyor".
-- **K23 Tablet turu (H9):** tablet bağla ya da `CIHAZ_TESTI.md` "Ferrari H9"a kendin bak → "H9 tamam".
-- **K24 Samsung ölçümü (H0.1):** `docs/perf/2026-11-H0.md` 10 işlem (özellikle 1, 3, 4, 5, 8, 9) Samsung'da ekran kaydı + kronometre. USB diski telefona takarsan 231 MB PDF ölçümünü (H0.4) ben alırım.
-- **K25 Erişilebilirlik ölçümü (P6):** TalkBack'i aç, "açtım" de, ölçüp söylerim, kapatırsın.
-- **K26 İkinci cihaz:** Xiaomi 13T / GMS'li telefon bağlarsan aynı ölçümler + Drive girişi + ML Kit model indirme orada.
-- **K28 Menü ortak düzeni (P32):** PDF, Word, Excel, slayt, galeri, video ⋮ → Sil en üst sırada mı · türe özel grup ayrı renkte mi · alt çubuk yana kaymıyor mu · Ayarlar başlığı büyük/kalın mı → bozuk olanın görüntüsünü at.
-- **K27 Telefonda temizlik:** `/sdcard/Download/PdfPro/` test kopyaları ve `….r8test` ölçüm uygulaması ölçümler bitince silinebilir.
+### B. Kritik Ürün Kararları (Bir Sonraki Oturumda Kodlanması İçin Tek Cevapla Seç)
+6. **Pro modeli (K15b):** Ayrı ücretli Pro uygulama mı kalsın (Lite verisi elle/yedekle taşınır), yoksa **tek uygulama + Play üzerinden tek seferlik Pro açma** modeline mi geçelim (yorumlar ve indirmeler tek yerde toplanır)?
+7. **Uygulama adları ve fiyat (K15):** Play mağazasında görünen kısa adlar *"Dosya Okuyucu"* / *"Dosya Okuyucu Pro"* olsun mu (Samsung/Xiaomi *"Dosyalarım"* ile karışmasın)? Pro satış fiyatın ne olacak (`DOSYA_PRO_FIYAT`, örn. lansman fiyatı)?
+8. **Lite izin stratejisi (K15c / K16):** Lite sürüm tamamen **0 hassas izinli** (sadece belge okuyucu/imzalayıcı + sistem dosya seçicisi) mı çıksın — ki Play incelemesi çok hızlı geçer ve boyut ~45 MB'a iner — yoksa `Tüm dosyalara erişim` izni Lite'ta da kalsın mı?
+9. **Google Drive & OpenSubtitles & Notlar (K9, K36):** Play sürümlerinde Drive tamamen kapalı mı kalsın, yoksa ücretsiz onaylı kısıtlı kapsam (`drive.file`) eklensin mi? `Notlar` uygulaması Play'de yayına girdiğinde haber ver, mağaza kartını açalım.
+10. **Arayüz/Tasarım Tercihlerin (tek kelime yeterli — K1–K7, K17, K19, K14):**
+    - PDF *Daha fazla* menüsünü ilk 5 madde + *Diğer* olarak sadeleştirelim mi (`K1`)? Galeri alt çubuğunu 5 ana düğmeye indirelim mi (`K6`)?
+    - Ana ekranda varsayılan görünüm hangisi olsun (Sakin / Bento / Koyu başlık) ve kutu adları cümle düzenine geçsin mi (`K19`)?
+    - Çift bölmede sürükle-bırak kopyalasın mı taşısın mı (`K5`)? Çöp kutusu silme onayı kapalı kalsın mı (`K2`)? Kopyalandı bildirimi Android 13+'da çift görünüyorsa kapatalım mı (`K4`)? Editörde Kaydet düğmesi sadece değişiklik varken görünsün mü (`K7`)?
+    - Levha/pencere birleştirmelerinde görsel onay (`K17`) ve GitHub bağımlılık güncellemeleri (`K14`) onaylı mı?
 
-### Hesap / anahtar / ayar
-- 👤 **Play Console öncesi (2026-11-20, güvenlik denetimi 38ff7343'ten):** (1) kalıcı imzalama anahtarının SHA-256 parmak izini GitHub → Settings → Variables'a `SIGN_CERT_SHA256` olarak ekle; (2) mağaza için `EDITION=play` ile AAB tam derlemesini al (Actions → APK Derle → elle tetik ya da `v*` etiketi).
-- **K30 Drive girişi, OCR/çeviri modeli, SFTP/FTP/NAS** — kendi hesabın/sunucunla dene; liste gelir, aktarım biter mi?
-- **K31 Kalıcı sürüm:** `v1.2.N` etiketi (GitHub → Releases) — ya da "at" de, ben atayım.
-- **K32 Güvenlik e-postası:** `SECURITY.md` için adres.
-- **K33 `SIGN_CERT_SHA256`** repo değişkeni (APK imza doğrulaması).
-- **K34 Depo ayarları (G9.5):** Secret scanning + Push protection; `main` koruması (zorla itme/silme yok); fork PR onayı; 2 adımlı doğrulama; eski erişim belirteçlerini sil.
-- **K35 İmza anahtarı yedeği (G9.7):** 2 çevrimdışı yedek (şifreli USB + parola kâğıtta, ayrı yerde); Play'de "Play App Signing".
-- **K36 OpenSubtitles:** `OPENSUBTITLES_API_KEY` secret'ı (yoksa altyazı araması gizli).
-- **K37 Play Console + yayın:** geliştirici hesabı, `v*` AAB'si iç teste, 48 saat iç test (ANR < %0,47, çökme < %1,09).
-- **K38 Lisans:** depo private + `LICENSE` ("Tüm hakları saklıdır"); Syncfusion Community License belgesi saklandı mı?
-- **K39 Office uyumluluk turu:** düzenlenmiş Word/Excel/PDF çıktılarını Microsoft Office / Acrobat'ta aç, bozulma var mı?
-- **K40 Sesli not → Notlar uygulaması** tarafı (ayrı depo).
-- **K41 PDF maket onayı (Faz 53):** https://claude.ai/artifact/PNjvf5wSp5ae2rY56RpNQW — itiraz varsa söyle.
-- **K42 PDF külliyatına eksik üreticiler:** LibreOffice, Google Docs, LaTeX, macOS Quartz örnek PDF'leri.
+### C. Mağaza Sayfası, Video, Gerçek Telefon Kontrolü ve Lansman
+11. **Ekran görüntüleri ve 2 kısa Play izin videosu çek:**
+    - Telefon & tablette TR/EN/AR ekran görüntüleri al.
+    - Yalnız Pro sürüm `Tüm dosyalara erişim` isterse Play incelemesi için YouTube'a *Liste Dışı* 2 kısa ekran kaydı yükle: (1) açılışta izin istemeyip dosya yöneticisinde nasıl izin istendiği (~30 sn), (2) arka planda dosya taşıma/müzik bildirimi (~20 sn).
+12. **Play Console formlarını doldur:** İçerik derecelendirmesi (PEGI 3 / 13+ veya 18+ hedef kitle, reklam yok), `veri_guvenligi.md` tablosuna göre Veri Güvenliği formu ve `izin_beyanlari.md` metinleriyle izin formu.
+13. **Gerçek telefonda hızlı kontrol turu (K20–K28, K30, K39):** PDF Türkçe yazı/kaydetme/WhatsApp kopya açma, Word klavye/çimdik ve kapanış, USB takılıyken büyük PDF, menülerdeki Sil/Kaydet düzeni, Drive/SFTP hesabınla test, ve düzenlenmiş Word/Excel/PDF çıktılarını Microsoft Office/Acrobat'ta açıp bakma; ayrıca Android 7 telefon varsa kasa açılma süresi (`K11`) ve TalkBack açıp ekran okuyucu denemesi (`K25`).
+14. **48 Saat İç Test → 14 Gün Kapalı Test → Kademeli Yayın:**
+    - Üretilen imzalı mağaza paketini önce İç Test'e atıp Play *Ön Lansman Raporu*'nda (Pre-launch) hata olmadığına bak.
+    - Bireysel hesapta 12–20 testçinin **14 gün aralıksız** kapalı testini tamamla (çökme `< %1.09`, yanıt vermeme `< %0.47` altında kalmalı).
+    - Önce **%10–%20** kademeli dağıtımla çık, metrikler temizse **%100**'e aç; ilk 100 mağaza yorumuna aynı gün yanıt ver.
+
+### Eski Referans Detayları (Geliştirici Notları)
+- K8 (liste hız eşiği), K10 (MobSF/drozer dış güvenlik taraması), K12 (AI tek belgelik maske kapatma — kapalı kalması önerilir), K13 (OneDrive/Dropbox), K15a (sunuculu Akıllı Düzen kredi satışı taslağı), K18 ("tikli öğesi çok notlar kasıyor"), K41–K42 (örnek PDF korpusu) — detayları önceki karar kayıtlarında korunur.
 
 ### 1.14) Kullanıcı istekleri 2026-11-19 akşam (limit yenilenince ayrıştırılıp paketlenecek; ekran görüntüleri sohbette)
 1. **ÖNCE:** Fotoğraflarda eski görsellere hızlı inip açınca kasma/donma — cihazda ölç, kök nedeni bul (bulutta çözülemedi).

@@ -37,9 +37,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/motion.dart';
-import '../core/app_colors.dart';
+import 'pro_gate.dart';
 
 /// Ortak kap: tema yüzeyi, katmanlı yumuşak gölge, ince kenarlık.
 class PdfFloatingCard extends StatelessWidget {
@@ -103,6 +104,9 @@ class PdfBarAction extends StatelessWidget {
   /// Simgenin altına küçük renk çizgisi (Vurgula: şu anki vurgu rengi).
   final Color? accent;
 
+  /// Simge üstünde küçük "PRO" rozeti gösterir (sürprize karşı).
+  final bool proBadge;
+
   const PdfBarAction({
     super.key,
     required this.icon,
@@ -110,6 +114,7 @@ class PdfBarAction extends StatelessWidget {
     this.onPressed,
     this.emphasized = false,
     this.accent,
+    this.proBadge = false,
   });
 
   @override
@@ -149,6 +154,12 @@ class PdfBarAction extends StatelessWidget {
                       clipBehavior: Clip.none,
                       children: [
                         Icon(icon, size: 20, color: iconColor),
+                        if (proBadge)
+                          const PositionedDirectional(
+                            top: -5,
+                            end: -16,
+                            child: ProBadge(),
+                          ),
                         if (accent != null)
                           Positioned(
                             left: 1,
@@ -270,6 +281,9 @@ class PdfSelectionBar extends StatelessWidget {
   final String expandTooltip;
   final String collapseTooltip;
 
+  /// Düzenle düğmesinde PRO rozeti gösterilsin mi (Lite sürüm).
+  final bool editProBadge;
+
   const PdfSelectionBar({
     super.key,
     required this.preview,
@@ -301,6 +315,7 @@ class PdfSelectionBar extends StatelessWidget {
     this.onToggleExpanded,
     this.expandTooltip = '',
     this.collapseTooltip = '',
+    this.editProBadge = false,
   });
 
   bool get _canExpand =>
@@ -447,7 +462,8 @@ class PdfSelectionBar extends StatelessWidget {
                       icon: AppIcons.edit,
                       label: editLabel,
                       onPressed: onEdit,
-                      emphasized: true),
+                      emphasized: true,
+                      proBadge: editProBadge),
                   PdfBarAction(
                       icon: AppIcons.translate,
                       label: translateLabel,

@@ -5,6 +5,7 @@ import '../core/app_icons.dart';
 import '../core/app_navigator.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/theme.dart';
+import '../screens/settings/feedback_screen.dart';
 
 /// Bir widget çizilirken hata olduğunda ekrana konan **kurtarma kartı**.
 ///
@@ -84,17 +85,24 @@ class AppErrorScreen extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 20),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   _button(str.t('err.go_back'), () {
                     final nav = navigatorKey.currentState;
                     if (nav != null && nav.canPop()) nav.pop();
                   }),
-                  const SizedBox(width: 12),
                   _button(str.t('err.go_home'), () {
                     navigatorKey.currentState
                         ?.popUntil((route) => route.isFirst);
+                  }),
+                  _button(str.t('err.report'), () {
+                    navigatorKey.currentState?.push(MaterialPageRoute<void>(
+                      builder: (_) =>
+                          const FeedbackScreen(initialKind: FeedbackKind.bug),
+                    ));
                   }),
                 ],
               ),

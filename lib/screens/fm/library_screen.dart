@@ -309,7 +309,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
             IconButton(
               key: const ValueKey('lib-audiobooks'),
               tooltip: context.t('ab.library'),
-              icon: const Icon(AppIcons.audiobook),
+              icon: const ProBadged(
+                feature: Feature.audiobook,
+                child: Icon(AppIcons.audiobook),
+              ),
               onPressed: _openAudiobooks,
             ),
           IconButton(
@@ -431,7 +434,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
               const SizedBox(height: Gap.sm),
               TextButton.icon(
                 onPressed: _openAudiobooks,
-                icon: const Icon(AppIcons.audiobook),
+                icon: const ProBadged(
+                  feature: Feature.audiobook,
+                  child: Icon(AppIcons.audiobook),
+                ),
                 label: Text(context.t('ab.library')),
               ),
             ],
@@ -627,7 +633,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 margin: EdgeInsets.zero,
                 child: ListTile(
                   key: const ValueKey('lib-audiobooks-row'),
-                  leading: const Icon(AppIcons.audiobook),
+                  leading: const ProBadged(
+                    feature: Feature.audiobook,
+                    child: Icon(AppIcons.audiobook),
+                  ),
                   title: Text(context.t('ab.library')),
                   subtitle: Text(context.t('lib.audiobooks_sub')),
                   trailing: const Icon(AppIcons.chevron),

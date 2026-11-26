@@ -53,6 +53,11 @@ def apply(text, names):
         text = re.sub(
             rf'\s*<uses-permission\s+android:name="android\.permission\.{n}"[^>]*/>',
             '', text)
+    # Kişisel sürüme özel http/https indirme yöneticisi niyet süzgeçleri Play
+    # derlemelerinden çıkarılır (Feature.downloadManager yalnız Edition.kisisel).
+    text = re.sub(
+        r'\s*<!--\s*personal_download_filters\s*-->.*?<!--\s*/personal_download_filters\s*-->',
+        '', text, flags=re.DOTALL)
     lines = ''.join(
         f'    <uses-permission android:name="android.permission.{n}" tools:node="remove"/>\n'
         for n in names)
@@ -77,6 +82,8 @@ def verify(paths, names):
         for n in names:
             if re.search(rf'android:name="android\.permission\.{n}"', t):
                 bad.append(f'{p}: {n}')
+        if 'application/vnd.android.package-archive' in t:
+            bad.append(f'{p}: personal_download_filters (package-archive)')
     if bad:
         raise SystemExit('play_variant verify: Play derlemesinde kalan izin:\n' + '\n'.join(bad))
     print('play_variant verify: ' + ', '.join(names) + ' birleşmiş manifestte YOK (doğru).')

@@ -866,3 +866,16 @@ class _OcrScriptTileState extends State<OcrScriptTile> {
     );
   }
 }
+
+/// Play derlemesinde mağaza değerlendirme sayfasını açar.
+class RateAppTile extends StatelessWidget {
+  const RateAppTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => SettingTile(
+        icon: AppIcons.star,
+        title: context.t('set.rate_app'),
+        subtitle: context.t('set.rate_app_sub'),
+        onTap: () => unawaited(PlayStore.openStoreListing()),
+      );
+}

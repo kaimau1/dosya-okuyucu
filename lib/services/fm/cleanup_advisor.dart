@@ -61,6 +61,7 @@ List<CleanupSuggestion> adviseCleanup({
   DateTime? now,
   List<String> emptyFolders = const [],
   Map<String, FsEntry> verifiedSentOriginals = const {},
+  int appCacheBytes = 0,
 }) {
   final today = (now ?? DateTime.now()).millisecondsSinceEpoch;
   final out = <CleanupSuggestion>[];
@@ -75,6 +76,18 @@ List<CleanupSuggestion> adviseCleanup({
       detailKey: 'clean.trash_detail',
       detailVars: {'n': trashCount},
       bytes: trashBytes,
+      safeByDefault: true,
+    ));
+  }
+
+  // Uygulama önbelleği (küçük resim/önizleme/paylaşım/seçici artıkları ≥ 1 MB):
+  // hiçbir kişisel dosyaya dokunmaz, gerektiğinde yeniden üretilir.
+  if (appCacheBytes >= 1024 * 1024) {
+    out.add(CleanupSuggestion(
+      id: 'app_cache',
+      titleKey: 'cln.app_cache',
+      detailKey: 'cln.app_cache_detail',
+      bytes: appCacheBytes,
       safeByDefault: true,
     ));
   }
@@ -221,13 +234,14 @@ List<CleanupSuggestion> adviseCleanup({
     }
   }
 
-  // En büyük videolar — kazanç burada, ama ASLA varsayılan seçili değil.
+  // Büyük videolar — kazanç burada, ama ASLA varsayılan seçili değil.
+  // 50 MB eşiği: WhatsApp/kamera videolarını da kapsar, küçültme adayı sunar.
   final bigVideos = [
     for (final e in index.files(FmCategory.video))
-      if (e.sizeBytes >= 100 * 1024 * 1024 && !claimed.contains(e.path)) e,
+      if (e.sizeBytes >= 50 * 1024 * 1024 && !claimed.contains(e.path)) e,
   ]..sort((a, b) => b.sizeBytes.compareTo(a.sizeBytes));
   if (bigVideos.isNotEmpty) {
-    final top = bigVideos.take(30).toList();
+    final top = bigVideos.take(50).toList();
     for (final e in top) {
       claimed.add(e.path);
     }
@@ -485,10 +499,12 @@ List<CleanupSuggestion> cleanupAfterApply(
   required Set<String> removedPaths,
   int? trashBytes,
   int? trashCount,
+  bool clearedAppCache = false,
 }) {
   final out = <CleanupSuggestion>[];
   for (final s in list) {
     if (s.id == 'trash' && trashCount != null) continue;
+    if (s.id == 'app_cache' && clearedAppCache) continue;
     if (s.files.isEmpty) {
       out.add(s);
       continue;

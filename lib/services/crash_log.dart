@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/app_version.dart';
 import 'log_scrub.dart';
+import 'play_store.dart';
 
 /// **Çökme/hata günlüğü — cihazda, gönderimsiz.**
 ///
@@ -232,6 +233,9 @@ abstract final class CrashLog {
       await file.writeAsString(
           jsonEncode(kept.map((r) => r.toJson()).toList()),
           flush: true);
+      if (kind != 'handled' && !entry.error.contains(_bgTag)) {
+        await PlayStore.noteCrash(now: at == null ? null : entry.time);
+      }
     } catch (_) {
       // Bilinçli: Bilerek yutuluyor (yukarıdaki gerekçe).
     }

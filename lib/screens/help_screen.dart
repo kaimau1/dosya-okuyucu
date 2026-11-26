@@ -6,10 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_icons.dart';
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/safe_insets.dart';
 import '../core/snack.dart';
 import '../services/feature_help.dart';
+import 'settings/feedback_screen.dart';
 
 /// **Yardım** (2026-11-14): tüm özellikler grup grup, her biri "nerede /
 /// nasıl" açılır kartı. Üstte arama; en altta "Özellik iste".
@@ -65,7 +67,9 @@ class _HelpScreenState extends State<HelpScreen> {
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: FilledButton.tonalIcon(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => FeatureRequestScreen(initial: q))),
+            builder: (_) => Edition.current.isPlay
+                ? const FeedbackScreen(initialKind: FeedbackKind.idea)
+                : FeatureRequestScreen(initial: q))),
         icon: const Icon(AppIcons.send),
         label: Text(context.t('help.request')),
       ),
@@ -249,6 +253,11 @@ class _FeatureRequestScreenState extends State<FeatureRequestScreen> {
   }
 
   Future<void> _send() async {
+    if (Edition.current.isPlay) {
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => const FeedbackScreen(initialKind: FeedbackKind.idea)));
+      return;
+    }
     final text = _controller.text.trim();
     if (text.length < 3) return;
     await _save(text);

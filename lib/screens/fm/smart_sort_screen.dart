@@ -139,17 +139,30 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   }
 
   Future<void> _enable() async {
-    if (!await ensureAiKey(context) || !mounted) return;
     await SmartSort.setSettings(enabled: true);
     if (mounted) await _run();
   }
 
   Future<void> _run() async {
-    // Anahtar yoksa önce anahtar kapısı (girişi olan yere götürür).
-    if (!await ensureAiKey(context) || !mounted) return;
     final state = context.read<AppState>();
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    // API anahtarı olmadan da yerel kurallar (0 kredi, çevrimdışı) çalışır;
+    // belirsiz dosyalar için kullanıcı dilerse AI anahtarını ekleyebilir.
+    if (state.aiCredentials.normalized.keys.isEmpty) {
+      final r = await SmartSort.runLocalOnly(scope: state.aiScopeRules);
+      if (!mounted) return;
+      final msg = switch (r.hold) {
+        SmartHold.noScope => s.t('sm.hold_scope'),
+        _ => r.processed > 0
+            ? s.t('sm.local_saved', {'n': r.processed})
+            : s.t('sm.nothing_new'),
+      };
+      showSnackOn(messenger, msg);
+      if (mounted && SmartFolderPrefs.rules.isNotEmpty) await _applyRules();
+      return;
+    }
+    if (!await ensureAiKey(context) || !mounted) return;
     // Sınırsızda bir turda daha çok dosya (havuz zaten TÜM dosyalar — bkz.
     // SmartSort.scanAll).
     final limit = SmartQuota.isUnlimited ? 2000 : 300;
@@ -736,12 +749,43 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   Widget build(BuildContext context) {
     if (!Edition.current.has(Feature.smartFolders)) {
+      final theme = Theme.of(context);
       return Scaffold(
         appBar: AppBar(title: Text(context.t('sm.title'))),
         body: Center(
-          child: FilledButton(
-            onPressed: () => showProSheet(context, Feature.smartFolders),
-            child: Text(context.t('pro.title')),
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.xl),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(AppIcons.pro,
+                      size: 48, color: theme.colorScheme.primary),
+                  const SizedBox(height: Gap.md),
+                  Text(
+                    context.t('pro.smart_locked_title'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    context.t('pro.smart_locked_sub'),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.lg),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        showProSheet(context, Feature.smartFolders),
+                    icon: const Icon(AppIcons.pro),
+                    label: Text(context.t('ab.pro_unlock')),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -815,6 +859,10 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
         Text(context.t('sm.privacy'),
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        if (!context.select<AppState, bool>((s) => s.hasApiKey)) ...[
+          const SizedBox(height: Gap.md),
+          _localReadyBanner(context),
+        ],
         const SizedBox(height: Gap.lg),
         FilledButton.icon(
           key: const ValueKey('ss-enable'),
@@ -823,6 +871,44 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
           label: Text(context.t('sm.enable')),
         ),
       ],
+    );
+  }
+
+  Widget _localReadyBanner(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Card(
+      key: const ValueKey('ss-local-ready'),
+      margin: EdgeInsets.zero,
+      color: cs.secondaryContainer.withValues(alpha: 0.45),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(AppIcons.offlineBolt, color: cs.primary, size: 20),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.t('sm.local_ready_title'),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    context.t('sm.local_ready_sub'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -864,6 +950,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
       children: [
         // En üstte tek net özet + eylem kartı.
         _statusCard(context, allCats.length, prog, usage),
+        if (!context.select<AppState, bool>((s) => s.hasApiKey) &&
+            SmartSort.records.isEmpty) ...[
+          const SizedBox(height: Gap.sm),
+          _localReadyBanner(context),
+        ],
         if (SmartSort.records.isNotEmpty) ...[
           const SizedBox(height: Gap.sm),
           _searchBar(context),

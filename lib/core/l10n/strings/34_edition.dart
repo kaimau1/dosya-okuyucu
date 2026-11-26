@@ -34,6 +34,31 @@ const Map<String, (String, String, String)> _t34 = {
   'pro.price': ('Fiyat: {p}', 'Price: {p}', 'السعر: {p}'),
   'pro.store': ("Play'de gör", 'View on Play', 'عرض في Play'),
   'pro.later': ('Şimdi değil', 'Not now', 'ليس الآن'),
+  'pro.trust': (
+    'Lite sürümde tüm temel özellikler sonsuza dek ücretsiz ve reklamsızdır.',
+    'All core features in Lite stay free and ad-free forever.',
+    'تبقى جميع الميزات الأساسية في Lite مجانية وبلا إعلانات للأبد.',
+  ),
+  'pro.smart_locked_title': (
+    'Akıllı Klasörler Pro Sürümde',
+    'Smart Folders in Pro',
+    'المجلدات الذكية في الإصدار الاحترافي',
+  ),
+  'pro.smart_locked_sub': (
+    'Dosyalarınızı otomatik kategorilere ve akıllı sorgu klasörlerine ayırmak için Pro sürüme geçin.',
+    'Upgrade to Pro to organize your files into smart categories and saved queries.',
+    'قم بالترقية إلى Pro لتنظيم ملفاتك تلقائيًا في فئات ومجلدات ذكية.',
+  ),
+  'pro.saved_locked_title': (
+    'Kaydedilen Arama Klasörleri Pro Sürümde',
+    'Saved Smart Folders in Pro',
+    'مجلدات البحث الذكية المحفوظة في Pro',
+  ),
+  'pro.saved_locked_sub': (
+    'Özel arama kriterleriyle kendiliğinden güncellenen klasörler oluşturmak için Pro sürüme geçin.',
+    'Upgrade to Pro to create auto-updating folders powered by your saved queries.',
+    'قم بالترقية إلى Pro لإنشاء مجلدات تتحدّث تلقائيًا حسب استعلاماتك.',
+  ),
   // Özellik adları (Feature.name) — levha başlığında.
   'pro.f.officeEdit': ('Belge düzenleme', 'Document editing', 'تحرير المستندات'),
   'pro.f.smartFolders': ('Akıllı klasörler', 'Smart folders', 'المجلدات الذكية'),

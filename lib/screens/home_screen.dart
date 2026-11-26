@@ -12,6 +12,7 @@ import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
 import 'app_links.dart';
 import '../core/snack.dart';
+import 'onboarding/onboarding_screen.dart';
 import '../models/download_task.dart';
 import '../models/fs_entry.dart';
 import '../services/fm/app_storage_service.dart';
@@ -178,7 +179,10 @@ class _HomeScreenState extends State<HomeScreen> {
   /// uygulama kapalıyken açıldıysa (initial) ve açıkken paylaşıldıysa (stream).
   void _initShareIntake() {
     ReceiveSharingIntent.instance.getInitialMedia().then((files) {
-      if (files.isNotEmpty) _openShared(files);
+      if (files.isNotEmpty) {
+        OnboardingGate.openedFromIntent = true;
+        _openShared(files);
+      }
       ReceiveSharingIntent.instance.reset();
     }).catchError((_) {});
 

@@ -2331,6 +2331,83 @@ abstract final class SmartSort {
     );
   }
 
+  /// **Anahtarsız yerel kural turu** (Pro sürümde API anahtarı olmadan
+  /// doğrudan çalışır; 0 kredi, 0 ağ isteği).
+  ///
+  /// [SmartLocalRules.classify] ile tanınan fatura, dekont, resmi evrak,
+  /// sağlık, ekran görüntüsü, APK ve öğrenilen düzeltmeleri kaydeder;
+  /// belirsiz dosyalar dokunulmadan bırakılır.
+  static Future<SmartRunResult> runLocalOnly({
+    required AiScope scope,
+    int scan = scanAll,
+    int limit = 2000,
+  }) async {
+    if (!Edition.current.has(Feature.smartFolders)) {
+      return const SmartRunResult(0, 0, hold: SmartHold.noKey);
+    }
+    if (isRunning) return const SmartRunResult(0, 0);
+    await ensureLoaded();
+    final roots = scopeRoots();
+    if (roots.isEmpty) {
+      return const SmartRunResult(0, 0, hold: SmartHold.noScope);
+    }
+    _cancelRequested = false;
+    progress.value = const SmartProgress(0, 0);
+    var processed = 0;
+    var reused = 0;
+    final done = <String>[];
+    try {
+      final fresh = await FsScan.freshFiles(roots, limit: scan);
+      await SmartScopePick.read();
+      final todo = SmartScopePick.ordered([
+        for (final e in fresh)
+          if (supports(e) &&
+              needs(e) &&
+              scope.allowsFile(e) &&
+              SmartScopePick.allows(e.path))
+            e,
+      ]).take(limit).toList();
+      progress.value = SmartProgress(0, todo.length);
+      for (var i = 0; i < todo.length; i++) {
+        if (_cancelRequested) break;
+        final e = todo[i];
+        final old = _records[e.path];
+        if (!(old?.user ?? false)) {
+          final local = SmartLocalRules.classify(e);
+          if (local != null) {
+            final kept = _keepManual(old, local);
+            final savedLocal = (old?.hidden ?? false)
+                ? kept.copyWith(hidden: true)
+                : kept;
+            _records[e.path] = savedLocal;
+            processed++;
+            reused++;
+            done.add(e.path);
+          }
+        }
+        progress.value = SmartProgress(i + 1, todo.length);
+        if ((i + 1) % 25 == 0) {
+          _changed();
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+      if (done.isNotEmpty) await _save();
+    } finally {
+      progress.value = null;
+      waitingUntilMs.value = null;
+      _changed();
+    }
+    final usage =
+        reused == 0 ? null : SmartUsage(0, 0, 0, reused: reused);
+    if (usage != null) lastUsage.value = usage;
+    return SmartRunResult(
+      processed,
+      0,
+      reused: reused,
+      usage: usage,
+    );
+  }
+
   /// Turu durduran hatanın kullanıcı dilindeki açıklaması: ne oldu + ne
   /// yapmalı (U4 kökü: 401/403 de "günlük kota doldu" diye yazılıyordu, ham
   /// API iletisi de "Durdu: …" diye gösteriliyordu). Akıllı düzen, Kategorilerim

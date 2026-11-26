@@ -348,6 +348,7 @@ abstract final class EntryOpener {
         _snack(context,
             AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));
       }
+      unawaited(PlayStore.noteFriction());
       return;
     } finally {
       _loadingDoc = false;
@@ -361,6 +362,7 @@ abstract final class EntryOpener {
     final page = SmoothOpenRoute<void>(
         builder: (_) => screenFor(doc, startInk: startInk));
     final closed = navigator.push(page);
+    unawaited(closed.whenComplete(PlayStore.maybeAskReviewAtCalmMoment));
     // Geçmiş + "Son belgeler" kaydı (tercih yazımı, yerel çağrı, ana ekranın
     // yeniden kurulması) geçiş BİTİNCE: eskiden itmeden hemen önce yapılıyor,
     // açılışın ilk karelerine karışıp geçişi takıltıyordu (2026-11-15).
@@ -549,6 +551,7 @@ abstract final class EntryOpener {
                 {'error': result?.replaceFirst('error:', '') ?? '-'}),
       );
     } catch (e) {
+      unawaited(PlayStore.noteFriction());
       if (context.mounted) {
         _snack(context,
             AppStrings.current.t('common.open_failed', {'error': userErrorText(e)}));

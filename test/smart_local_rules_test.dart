@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:dosya_okuyucu/models/fs_entry.dart';
+import 'package:dosya_okuyucu/services/fm/ai_scope.dart';
+import 'package:dosya_okuyucu/services/fm/fm_env.dart';
 import 'package:dosya_okuyucu/services/fm/smart_learn.dart';
 import 'package:dosya_okuyucu/services/fm/smart_local_rules.dart';
 import 'package:dosya_okuyucu/services/fm/smart_sort.dart';
@@ -92,6 +96,31 @@ void main() {
       expect(adapted, isNotNull);
       expect(adapted!.cat, 'work');
       expect(adapted.conf, greaterThanOrEqualTo(0.90));
+    });
+
+    test('runLocalOnly API anahtarı olmadan yerel kuralları kaydeder', () async {
+      final dir = Directory.systemTemp.createTempSync('smart_local_only');
+      final downloadDir = Directory('${dir.path}/Download')
+        ..createSync(recursive: true);
+      final root0 = FmEnv.primaryRoot;
+      FmEnv.primaryRoot = dir.path;
+      SmartSort.debugReset();
+      try {
+        final invFile = File('${downloadDir.path}/Fatura_IGDAS_2026.pdf')
+          ..writeAsStringSync('pdf');
+        final unkFile = File('${downloadDir.path}/rastgele_belge_999.pdf')
+          ..writeAsStringSync('pdf');
+
+        final res = await SmartSort.runLocalOnly(scope: const AiScope.all());
+        expect(res.processed, 1);
+        expect(res.reused, 1);
+        expect(SmartSort.of(invFile.path)?.cat, 'invoice');
+        expect(SmartSort.of(unkFile.path), isNull);
+      } finally {
+        FmEnv.primaryRoot = root0;
+        SmartSort.debugReset();
+        dir.deleteSync(recursive: true);
+      }
     });
   });
 }

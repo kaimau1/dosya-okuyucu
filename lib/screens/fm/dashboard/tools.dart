@@ -156,16 +156,17 @@ extension _DashboardScreenToolsPart on _DashboardScreenState {
       ),
       // (Kopyalar 2026-11-20'de araçlardan çıktı — U3, kullanıcı: "ana
       // ekranda gereksiz"; Bellek Analizi'nde duruyor.)
-      FmTileData(
-        icon: FtpService.instance.running ? AppIcons.hotspot : AppIcons.computer,
-        color: AppHues.blue,
-        id: 'ftp',
-        feature: Feature.ftpServer,
-        label: context.t('ui.tool_ftp'),
-        subtitle:
-            FtpService.instance.running ? context.t('ftpd.running') : '',
-        onTap: () => _push(const FtpServerScreen()),
-      ),
+      if (ProGate.visible(Feature.ftpServer))
+        FmTileData(
+          icon: FtpService.instance.running ? AppIcons.hotspot : AppIcons.computer,
+          color: AppHues.blue,
+          id: 'ftp',
+          feature: Feature.ftpServer,
+          label: context.t('ui.tool_ftp'),
+          subtitle:
+              FtpService.instance.running ? context.t('ftpd.running') : '',
+          onTap: () => _push(const FtpServerScreen()),
+        ),
       // (Bağlantıdan indir 2026-11-20'de araçlardan kalktı — U3 kullanıcı
       // isteği; paylaşılan bağlantı ve Yakındaki cihazlar yine açar.)
       // Şifreli kasa (2026-10-18): PIN/parmak iziyle açılan, içeriği

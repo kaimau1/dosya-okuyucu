@@ -511,16 +511,20 @@ class FmToolGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visible = [
+      for (final t in tools)
+        if (t.feature == null || ProGate.visible(t.feature!)) t,
+    ];
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
     // Alt yazı satırı ızgaranın TAMAMI için ayrılır: yalnız "İşlemler"in alt
     // yazısı varken o hücre uzun, komşusu kısa kalıyor ve satır tırtıklı
     // görünüyordu. Hiçbirinde yoksa satır hiç açılmaz.
-    final withSubtitle = tools.any((t) => t.subtitle.isNotEmpty);
+    final withSubtitle = visible.any((t) => t.subtitle.isNotEmpty);
     return LayoutBuilder(
       builder: (context, constraints) {
         final scale = MediaQuery.textScalerOf(context).scale(1);
-        final columns = tools.length == 8 &&
+        final columns = visible.length == 8 &&
                 constraints.maxWidth >= 320 &&
                 scale < 1.3
             ? 4
@@ -535,9 +539,9 @@ class FmToolGrid extends StatelessWidget {
             mainAxisSpacing: Gap.xs,
             crossAxisSpacing: Gap.xs,
           ),
-          itemCount: tools.length,
+          itemCount: visible.length,
           itemBuilder: (context, i) {
-            final tool = tools[i];
+            final tool = visible[i];
             final tint =
                 dark ? Color.lerp(tool.color, AppColors.mixLight, 0.3)! : tool.color;
             return PressScale(

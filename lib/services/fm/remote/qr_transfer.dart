@@ -10,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../archive_ops.dart';
 import '../file_ops.dart';
+import '../../../core/edition.dart';
 import '../../offline_mode.dart';
 import 'lan_guard.dart';
 import 'transfer_keeper.dart';
@@ -409,6 +410,9 @@ class QrShareServer implements KeepableServer {
     final sharedText = text?.trim() ?? '';
     final hasText = sharedText.isNotEmpty;
     final single = _items.length == 1 && !hasText;
+    final appUrl = Edition.current.isPlay
+        ? 'https://play.google.com/store/apps/details?id=${Edition.current.packageId}'
+        : 'https://github.com/kaimau1/dosya-okuyucu/releases/latest';
     final countLabel = hasText && _items.isEmpty
         ? _human(utf8.encode(sharedText).length)
         : '${_items.length} · ${_human(total)}';
@@ -460,7 +464,7 @@ $textBox
 ${_items.length <= 1 ? '' : '<a class="all" href="all.zip" download>⬇ <span data-t="a"></span></a>'}
 $cards
 <div class="note" data-t="n"></div>
-<footer><span data-t="p"></span><br><a href="https://github.com/kaimau1/dosya-okuyucu/releases/latest" data-t="g"></a></footer>
+<footer><span data-t="p"></span><br><a href="$appUrl" data-t="g"></a></footer>
 </main><div id="toast" data-t="s"></div>
 <script>
 var tr=(navigator.language||'tr').toLowerCase().indexOf('tr')===0;

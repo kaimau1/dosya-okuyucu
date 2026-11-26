@@ -1076,6 +1076,73 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
+                    "saveToDownloads" -> {
+                        val name = call.argument<String>("name")
+                        val sourcePath = call.argument<String>("sourcePath")
+                        val bytes = call.argument<ByteArray>("bytes")
+                        if (name.isNullOrBlank() || (sourcePath == null && bytes == null) ||
+                            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+                        ) {
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
+                        val appCtx = applicationContext
+                        Thread {
+                            try {
+                                val ext = name.substringAfterLast('.', "").lowercase()
+                                val mime = if (ext.isEmpty()) "application/octet-stream"
+                                else android.webkit.MimeTypeMap.getSingleton()
+                                    .getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+                                val values = android.content.ContentValues().apply {
+                                    put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name)
+                                    put(android.provider.MediaStore.MediaColumns.MIME_TYPE, mime)
+                                    put(
+                                        android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                                        android.os.Environment.DIRECTORY_DOWNLOADS,
+                                    )
+                                    put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                                }
+                                val resolver = appCtx.contentResolver
+                                val uri = resolver.insert(
+                                    android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                                    values,
+                                ) ?: throw java.io.IOException("MediaStore insert returned null")
+                                try {
+                                    resolver.openOutputStream(uri)?.use { out ->
+                                        if (sourcePath != null) {
+                                            java.io.FileInputStream(java.io.File(sourcePath)).use { input ->
+                                                input.copyTo(out, 64 * 1024)
+                                            }
+                                        } else {
+                                            out.write(bytes!!)
+                                        }
+                                        out.flush()
+                                    } ?: throw java.io.IOException("openOutputStream returned null")
+                                    values.clear()
+                                    values.put(android.provider.MediaStore.MediaColumns.IS_PENDING, 0)
+                                    resolver.update(uri, values, null, null)
+                                } catch (e: Exception) {
+                                    try { resolver.delete(uri, null, null) } catch (_: Exception) {}
+                                    throw e
+                                }
+                                var savedName = name
+                                resolver.query(
+                                    uri,
+                                    arrayOf(android.provider.MediaStore.MediaColumns.DISPLAY_NAME),
+                                    null, null, null,
+                                )?.use { c ->
+                                    if (c.moveToFirst()) {
+                                        val v = c.getString(0)
+                                        if (!v.isNullOrBlank()) savedName = v
+                                    }
+                                }
+                                runOnUiThread { result.success("Download/$savedName") }
+                            } catch (e: Exception) {
+                                runOnUiThread { result.error("save_failed", e.message, null) }
+                            }
+                        }.start()
+                    }
+
                     "openAppStorageSettings" -> {
                         val pkg = call.argument<String>("package")
                         result.success(openAppStorageSettings(pkg))

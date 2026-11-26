@@ -23,6 +23,9 @@ import 'tiles_smart.dart';
 import 'tiles_system.dart';
 import 'tiles_trash.dart';
 import '../../core/app_version.dart';
+import '../../core/ecosystem_apps.dart';
+import '../../core/theme.dart';
+import '../../widgets/cross_app_promo_card.dart';
 import '../audiobook/voices_screen.dart';
 import '../fm/smart_bench_screen.dart';
 import '../audiobook/audiobook_library_screen.dart';
@@ -816,6 +819,13 @@ List<SettingsCategory> settingsCategories({
           titleKey: 'settings.about',
           builder: _aboutTile,
         ),
+        if (edition.isPlay)
+          const SettingRow(
+            id: 'rate_app',
+            titleKey: 'set.rate_app',
+            subtitleKey: 'set.rate_app_sub',
+            builder: _rateAppTile,
+          ),
         if (edition.has(Feature.selfUpdate))
           const SettingRow(
             id: 'app_update',
@@ -849,6 +859,15 @@ List<SettingsCategory> settingsCategories({
           builder: _crashLogTile,
         ),
       ]),
+      if (!edition.isPlay || EcosystemApps.notlarPublished)
+        const SettingsSection('eco.notlar_title', [
+          SettingRow(
+            id: 'eco_notlar',
+            titleKey: 'eco.notlar_title',
+            subtitleKey: 'eco.notlar_sub',
+            builder: _ecoNotlarTile,
+          ),
+        ]),
     ],
   ),
 
@@ -1027,6 +1046,11 @@ Widget _formulaEnTile(BuildContext _) => const FormulaEnglishTile();
 Widget _editorPerfTile(BuildContext _) => const EditorPerfTile();
 Widget _labWordTile(BuildContext _) => const LabWordEditorTile();
 Widget _aboutTile(BuildContext _) => const AboutTile();
+Widget _rateAppTile(BuildContext _) => const RateAppTile();
+Widget _ecoNotlarTile(BuildContext _) => const Padding(
+      padding: EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+      child: CrossAppPromoCard(),
+    );
 Widget _proTile(BuildContext context) => SettingTile(
   icon: AppIcons.pro,
   title: context.t('pro.title'),

@@ -133,6 +133,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
       onEdit: () => _openPdfEditor(
           page: _pdfSelPage,
           selection: PdfEditSelection(_pdfSelection, _pdfSelRects)),
+      editProBadge: ProGate.locked(Feature.pdfAdvanced),
       onTranslate: _translateSelection,
       moreItems: [
         PdfBarMenuItem(

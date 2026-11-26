@@ -13,7 +13,8 @@ Kaynak: `assets/privacy/tr.md` (uygulama içi politika — tek kaynak).
 | Kimlik bilgileri | Gemini anahtarı cihazda Android Keystore ile şifreli, isteklerde başlıkta (URL'de değil); Drive girişi Google Sign-In. |
 | Kişisel veri maskesi | AI'ya giden metinde TC/IBAN/kart/telefon/e-posta yer tutucuyla gider (varsayılan açık, G10.2). |
 | Çevrimdışı kip | Açıkken uygulama internete hiç bağlanmaz (AI, Drive, model/ses indirme, güncelleme); yerel ağ serbest (G10.4). |
-| Sesli kitap / yapay zekâ sesleri | Model dosyaları Hugging Face'ten indirilir; metin gönderilmez. |
+| Sesli kitap / yapay zekâ sesleri | Model dosyaları Hugging Face ve `cdn.jsdelivr.net`'ten yalnız siz indirirken alınır; metin gönderilmez. |
+| Görsel netleştirme (4× AI büyütme) | Yalnız ilk kullanımda model `tfhub.dev`'den indirilir; görsel cihazdan çıkmaz, işlem cihazda yapılır. |
 | Metni QR'da gösterme | Ağ kullanmaz (yazı QR'ın içinde). |
 | Yakındakiler | Üçüncü taraf sunucu yok. BLE yalnız bulma/davet (görünen ad + kuruluma özgü rastgele kimlik yayınlanır); dosya iki cihaz arasında yerel Wi-Fi'den ya da gönderenin internetsiz geçici ağından gider; tarayıcı yolu yerel ağda 8080'de 6 harflik kodla korunan sayfa. Formda "toplanmaz / paylaşılmaz" (veri geliştiriciye ulaşmıyor). |
 | AI anlamla arama | Yalnız sorgu metni, kullanıcının kendi anahtarıyla Gemini'ye; dosya adı/içerik gitmez. |

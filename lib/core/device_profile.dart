@@ -23,11 +23,15 @@ class DeviceInfo {
   /// `Build.VERSION.MEDIA_PERFORMANCE_CLASS` (Android 12+; yoksa 0).
   final int perfClass;
 
+  /// `Build.VERSION.SDK_INT` (bilinmiyorsa 0).
+  final int androidSdk;
+
   const DeviceInfo({
     this.totalRamMb = 0,
     this.lowRam = false,
     this.cores = 0,
     this.perfClass = 0,
+    this.androidSdk = 0,
   });
 
   bool get isKnown => totalRamMb > 0 || cores > 0;
@@ -40,6 +44,7 @@ class DeviceInfo {
       lowRam: map['lowRam'] == true,
       cores: asInt(map['cores']),
       perfClass: asInt(map['perfClass']),
+      androidSdk: asInt(map['sdk']),
     );
   }
 }

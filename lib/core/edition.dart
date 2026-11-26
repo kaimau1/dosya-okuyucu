@@ -49,6 +49,14 @@ enum Edition {
   /// Bu sürümde [f] var mı?
   bool has(Feature f) => index >= f.minEdition.index;
 
+  /// Bu sürümün Play / Android paket kimliği (`ci/prepare_android.sh` ve
+  /// `build-apk.yml` ile birebir aynı).
+  String get packageId => switch (this) {
+        lite => 'com.dosyaokuyucu.dosya_okuyucu.lite',
+        pro => 'com.dosyaokuyucu.dosya_okuyucu.pro',
+        kisisel => 'com.dosyaokuyucu.dosya_okuyucu',
+      };
+
   /// Play'e giden sürüm mü (mağaza dışı güncelleme, APK kurma vb. yasak).
   bool get isPlay => this != Edition.kisisel;
 }

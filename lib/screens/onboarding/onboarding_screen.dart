@@ -387,9 +387,14 @@ class _Page extends StatelessWidget {
   }
 }
 
-/// Ana ekranı sarar: rehber bitirilmediyse ilk karede üstüne açar.
+/// Ana ekrana sarmalanır: rehber bitirilmediyse ilk karede üstüne açar.
+/// Başka bir uygulamadan dosya niyetiyle açılışta ([openedFromIntent])
+/// kullanıcının belgesinin üstünü örtmez; tanıtım bir sonraki normal açılışa
+/// bırakılır.
 class OnboardingGate extends StatefulWidget {
   final Widget child;
+  static bool openedFromIntent = false;
+
   const OnboardingGate({super.key, required this.child});
 
   @override
@@ -406,13 +411,15 @@ class _OnboardingGateState extends State<OnboardingGate> {
   Future<void> _check() async {
     if (await OnboardingScreen.isDone()) {
       // Güncelleyen kullanıcı: büyük değişiklikte bir kez "Neler yeni".
-      if (mounted) await WhatsNew.maybeShow(context);
+      if (mounted && !OnboardingGate.openedFromIntent) {
+        await WhatsNew.maybeShow(context);
+      }
       return;
     }
-    if (!mounted) return;
+    if (!mounted || OnboardingGate.openedFromIntent) return;
     // Yeni kurulum rehberi görür; bu sürümün yenilikleri ona "yeni" değil.
     await WhatsNew.markSeen();
-    if (!mounted) return;
+    if (!mounted || OnboardingGate.openedFromIntent) return;
     await Navigator.of(context).push(MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) => const OnboardingScreen(),
