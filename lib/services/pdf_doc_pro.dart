@@ -581,9 +581,14 @@ abstract final class PdfDocPro {
     List<int>? fontBytes,
     String? password,
   }) async {
+    // Önceki katman AYRI geçişte silinir: aynı oturumda sil + yeni katman
+    // çiz Syncfusion'da sayfa içeriğini bozdu (CI 2026-11-27: 2. sayfa ve
+    // yeni yazı kayboldu).
+    if (hasHeaderFooter(bytes, password: password)) {
+      bytes = await removeHeaderFooter(bytes, password: password);
+    }
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
-      _dropHeaderFooter(doc);
       final font = fontBytes == null
           ? PdfStandardFont(PdfFontFamily.helvetica, fontSize)
           : PdfTrueTypeFont(fontBytes, fontSize);

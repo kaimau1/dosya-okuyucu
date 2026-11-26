@@ -18,6 +18,7 @@ import '../../services/conversion_service.dart';
 import '../../services/document_scanner.dart';
 import '../../services/pdf_tools.dart';
 import '../../services/scan_prepare.dart';
+import '../../widgets/app_action_sheet.dart';
 import '../../widgets/app_dialog.dart';
 import '../fm/pick_file_screen.dart' show AppFilePicker, PickedFile;
 
@@ -388,18 +389,18 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
       showSnack(context, context.t('pt.split_too_short'));
       return;
     }
-    final size = await showDialog<int>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(ctx.t('pt.split_every')),
-        children: [
+    final size = await showAppActionSheet<int>(
+      context,
+      title: context.t('pt.split_every'),
+      groups: [
+        AppActionGroup(actions: [
           for (final n in const [1, 2, 5, 10])
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, n),
-              child: Text(ctx.t('pt.split_size', {'n': '$n'})),
-            ),
-        ],
-      ),
+            AppAction(
+                value: n,
+                icon: AppIcons.split,
+                label: context.t('pt.split_size', {'n': '$n'})),
+        ]),
+      ],
     );
     if (size == null || !mounted) return;
     final parts = PdfTools.studioSplit(

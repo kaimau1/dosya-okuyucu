@@ -108,21 +108,27 @@ void main() {
         isEmpty);
   });
 
-  test('üst/alt bilgi ekle → düzenle → kaldır (katman, B4/P20)', () async {
+  test('üst/alt bilgi ekle → kaldır: gövde kalır (katman, B4/P20)', () async {
     final src = await _doc(2);
     final a = await PdfDocPro.addNumbering(src,
         header: 'BASLIKA', footer: 'ALTA', style: PageNumberStyle.bates,
         prefix: 'NO');
     expect(PdfDocPro.hasHeaderFooter(a), isTrue);
     expect(_text(a), allOf(contains('BASLIKA'), contains('ALTA'), contains('NO')));
-    // Yeniden eklemek eskisinin yerine geçer (düzenle).
+    final c = await PdfDocPro.removeHeaderFooter(a);
+    expect(PdfDocPro.hasHeaderFooter(c), isFalse);
+    expect(_text(c), allOf(isNot(contains('BASLIK')), isNot(contains('ALTA')),
+        contains('Bolum 1'), contains('Bolum 2')));
+    expect(() => PdfDocPro.removeHeaderFooter(src), throwsStateError);
+  });
+
+  test('üst/alt bilgiyi yeniden eklemek eskisinin yerine geçer (B4/P20)',
+      () async {
+    final a = await PdfDocPro.addNumbering(await _doc(2),
+        header: 'BASLIKA', footer: 'ALTA');
     final b = await PdfDocPro.addNumbering(a, numbers: false, header: 'BASLIKB');
     expect(_text(b), allOf(contains('BASLIKB'), isNot(contains('BASLIKA')),
-        isNot(contains('ALTA'))));
-    final c = await PdfDocPro.removeHeaderFooter(b);
-    expect(PdfDocPro.hasHeaderFooter(c), isFalse);
-    expect(_text(c), allOf(isNot(contains('BASLIK')), contains('Bolum 2')));
-    expect(() => PdfDocPro.removeHeaderFooter(src), throwsStateError);
+        isNot(contains('ALTA')), contains('Bolum 2')));
   });
 
   test('her sayfaya paraf + tarih, seçili sayfa sınırı', () async {
