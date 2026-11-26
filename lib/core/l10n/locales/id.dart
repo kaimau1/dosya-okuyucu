@@ -707,4 +707,349 @@ const Map<String, String> _id = {
   'vw.pdf_error_broken': 'Berkas mungkin rusak atau belum terunduh lengkap.',
   'vw.pdf_error_restore': 'Pulihkan yang asli',
   'uix.no_text': 'Tidak ada yang bisa dibaca',
+  // ── Kitaplık, temizlik, Pro, PDF araçları (m.3) ──
+  'lib.add':
+      'Tambah buku',
+  'lib.already':
+      'Sudah ada di perpustakaan Anda',
+  'lib.remove':
+      'Hapus dari perpustakaan',
+  'lib.missing':
+      'Berkas tidak ditemukan (dipindahkan atau dihapus)',
+  'lib.search':
+      'Cari di perpustakaan',
+  'lib.continue':
+      'Lanjutkan membaca',
+  'lib.shelf':
+      'Rak',
+  'lib.no_match':
+      'Tidak ada buku yang cocok',
+  'lib.pin_home':
+      'Tambah ke layar utama',
+  'lib.empty_title':
+      'Perpustakaan Anda kosong',
+  'lib.find':
+      'Cari buku di ponsel ini',
+  'lib.find_none':
+      'Tidak ada buku baru ditemukan',
+  'lib.find_title':
+      '{n} buku ditemukan',
+  'lib.add_selected':
+      'Tambah yang dipilih ({n})',
+  'lib.stats':
+      '{r} dibaca · {d} selesai · {u} belum dimulai',
+  'lib.show_folder':
+      'Tampilkan di folder',
+  'lib.share':
+      'Bagikan',
+  'lib.clean_missing':
+      'Hapus yang hilang ({n})',
+  'lib.page_of':
+      '{p}% dibaca',
+  'lib.audiobooks_sub':
+      'Dengarkan buku audio dari dokumen Anda',
+  'clean.shrink_this':
+      'Perkecil ukuran',
+  'clean.shrink_this_est':
+      'Perkecil ukuran · ≈ {to}',
+  'clean.dup_groups':
+      'Tinjau per kelompok',
+  'clean.deep_title':
+      'CARI RUANG LEBIH BANYAK',
+  'clean.deep_note':
+      'Pemindaian ini memeriksa isi berkas; bisa memakan beberapa menit dan berjalan di latar belakang.',
+  'clean.deep_running':
+      'Memindai…',
+  'clean.deep_found':
+      '{n} berkas · {size} dapat dibebaskan',
+  'clean.deep_none':
+      'Selesai dipindai · tidak ada yang perlu dibersihkan',
+  'clean.deep_similar':
+      'Foto serupa',
+  'clean.deep_content':
+      'Pemindaian isi gambar',
+  'clean.deep_content_note':
+      'Gambar ucapan, meme, poster, serta foto buram dan gelap',
+  'clean.confirm_title':
+      'Bersihkan?',
+  'clean.title':
+      'Bebaskan ruang',
+  'clean.analyzing':
+      'Bebaskan ruang: menganalisis penyimpanan',
+  'clean.analyzing_name':
+      'Bebaskan ruang: analisis penyimpanan',
+  'clean.reading_index':
+      'Membaca penyimpanan…',
+  'clean.nothing':
+      'Tidak ada yang jelas perlu dibersihkan',
+  'clean.nothing_body':
+      'Tidak ada yang jelas perlu dibersihkan 🎉\nPenyimpanan Anda tampak rapi.',
+  'clean.recoverable':
+      '{size} dapat dibebaskan',
+  'clean.suggestions':
+      '{n} saran',
+  'clean.pick_one':
+      'Pilih satu saran',
+  'clean.personal_warning':
+      'Hati-hati: ini mungkin berkas pribadi',
+  'clean.cleaning':
+      'Bebaskan ruang: membersihkan {size}',
+  'clean.cleaning_name':
+      'Bebaskan ruang: pembersihan {size}',
+  'clean.cleaned_detail':
+      '{size} dibebaskan · {n} saran diterapkan',
+  'clean.reanalyze':
+      'Analisis ulang',
+  'clean.open_trash':
+      'Buka tempat sampah',
+  'clean.show_hidden':
+      'Tampilkan {n} saran tersembunyi',
+  'clean.dupes_note':
+      'Pemindaian duplikat membandingkan berkas byte demi byte; mungkin butuh waktu.',
+  'clean.badge_safe':
+      'Aman',
+  'clean.badge_review':
+      'Tinjau',
+  'clean.inspect_files':
+      'Periksa {n} berkas',
+  'clean.hide_files':
+      'Sembunyikan',
+  'clean.show_all_more':
+      'Tampilkan semua (+{n})',
+  'clean.summary_line':
+      'Hingga {total} dapat dibebaskan · Dipilih: {selected}',
+  'clean.select_safe':
+      'Pilih yang aman',
+  'clean.deselect_all':
+      'Hapus pilihan',
+  'clean.original_kept':
+      'Aslinya tetap ada: {loc} · {size}',
+  'clean.view_original':
+      'Lihat aslinya',
+  'clean.copy_will_go':
+      'Dihapus: hanya salinan ini',
+  'clean.clean_this':
+      'Bersihkan ini · {size}',
+  'clean.clean_this_dirs':
+      'Bersihkan {n} folder',
+  'clean.confirm_copies':
+      'Untuk salinan, hanya salinannya yang dihapus; setiap berkas asli tetap ada di perangkat.',
+  'clean.empty_trash_now':
+      'Kosongkan sekarang',
+  'clean.done_failed':
+      'Pembersihan tidak dapat diselesaikan',
+  'clean.filter_all':
+      'Semua',
+  'clean.filter_safe':
+      'Aman',
+  'clean.filter_review':
+      'Tinjau',
+  'clean.selected_partial':
+      '{sel}/{total} dipilih',
+  'clean.select_all_in':
+      'Pilih semua',
+  'clean.clear_in':
+      'Tidak ada',
+  'clean.free_items':
+      'Bebaskan {size} · {n} item',
+  'clean.empty_folders_only':
+      'Bersihkan {n} folder kosong',
+  'clean.chat_tool':
+      'Pembersihan media obrolan',
+  'clean.chat_tool_sub':
+      'Stiker, GIF, dan media lama WhatsApp & Telegram',
+  'clean.disk_used_line':
+      '{used} / {total} terpakai · Kosong: {free}',
+  'clean.disk_after_line':
+      'Ruang kosong setelah pembersihan: {before} → {after}',
+  'clean.trust_no_personal':
+      'Foto & dokumen tidak disentuh',
+  'clean.trust_trash_undo':
+      'Dipindah ke tempat sampah, dapat dipulihkan',
+  'clean.trust_important':
+      'Berkas penting tetap terlindungi',
+  'clean.trust_important_n':
+      '{n} berkas penting dilindungi',
+  'clean.quick_clean_safe':
+      'Bersihkan yang aman · {size}',
+  'clean.sec_safe_title':
+      'Bersihkan dengan Aman (Tanpa Risiko)',
+  'clean.sec_safe_sub':
+      'Hanya sampah, duplikat persis, cache, dan sisa penginstal. Berkas pribadi tidak disentuh.',
+  'clean.sec_review_title':
+      'Tinjau untuk Ruang Lebih Banyak (Keputusan Anda)',
+  'clean.sec_review_sub':
+      'Tidak ada yang dipilih sebelumnya. Periksa item atau perkecil video besar tanpa menghapusnya.',
+  'clean.done_card_title':
+      '{size} dibebaskan!',
+  'clean.confirm_safe_only':
+      'Foto, dokumen, dan berkas penting Anda tidak akan disentuh.',
+  'clean.shrink_without_delete':
+      'Bebaskan ruang tanpa menghapus',
+  'clean.need_permission_title':
+      'Perlu akses folder untuk memindai',
+  'clean.need_permission_body':
+      'Beri izin untuk menemukan sampah, duplikat, dan berkas besar. Foto dan dokumen Anda tidak pernah dihapus otomatis.',
+  'clean.need_permission_btn':
+      'Beri izin & pindai',
+  'clean.confirm_lead':
+      '{n} saran · {size} akan dibebaskan.\n\n',
+  'clean.confirm_tail':
+      'Berkas dipindahkan ke tempat sampah; Anda dapat memulihkannya dari sana.',
+  'pro.title':
+      'Versi Pro',
+  'pro.row_sub':
+      'Folder pintar, editor PDF, buku audio & pengecil video · Sekali bayar',
+  'pro.one_time_badge':
+      'Pembelian sekali · Tanpa iklan',
+  'pro.price_one_time':
+      '{p} · Sekali bayar',
+  'pro.smart_limit_note':
+      'Pro menyertakan jatah awal 500 berkas untuk Folder Pintar; analisis cloud tambahan bersifat opsional lewat langganan atau kunci Anda sendiri.',
+  'pro.locked_title':
+      '{f} ada di Pro',
+  'pro.locked_sub':
+      'Alat ini terbuka di versi Pro sekali bayar. Semua pengelolaan berkas dan pembacaan dasar tetap gratis di Lite.',
+  'pro.feature_title':
+      '{f} ada di versi Pro',
+  'pro.lead':
+      'Lite mencakup membaca gratis, pengelola berkas, penyuntingan dasar, pengisian formulir, dan tanda tangan. Pro membuka:',
+  'pro.later':
+      'Nanti saja',
+  'pro.trust':
+      'Semua fitur inti di Lite tetap gratis dan bebas iklan selamanya.',
+  'pro.smart_locked_title':
+      'Folder Pintar ada di Pro',
+  'pro.smart_locked_sub':
+      'Tingkatkan ke Pro untuk menata berkas Anda ke kategori pintar dan kueri tersimpan.',
+  'pro.saved_locked_title':
+      'Folder Pintar Tersimpan ada di Pro',
+  'pro.saved_locked_sub':
+      'Tingkatkan ke Pro untuk membuat folder yang diperbarui otomatis dari kueri tersimpan Anda.',
+  'pro.f.pdfAdvanced':
+      'Pengeditan & alat PDF',
+  'pt.page_numbers':
+      'Tambah nomor halaman',
+  'pt.pn_skip_first':
+      'Lewati halaman sampul',
+  'pt.pn_skip_first_sub':
+      'Halaman pertama tidak diberi nomor; penomoran mulai dari 2',
+  'pt.pn_with_total':
+      'Gunakan format "3 / 12"',
+  'pt.pn_right':
+      'Rata ke kanan bawah',
+  'pt.op_page_numbers':
+      'Menambahkan nomor halaman',
+  'pt.export_images':
+      'Ekspor halaman sebagai gambar (PNG)',
+  'pt.op_export_images':
+      'Membuat gambar',
+  'pt.export_images_count':
+      '{n} gambar halaman',
+  'pt.export_images_limit':
+      'Paling banyak {n} halaman sekaligus: pilih halaman terlebih dahulu.',
+  'pt.export_images_failed':
+      'Gagal membuat gambar halaman',
+  'pt.watermark':
+      'Tambah watermark',
+  'pt.watermark_hint':
+      'mis. DRAF, SALINAN',
+  'pt.op_watermark':
+      'Menambahkan watermark',
+  'pt.move_to':
+      'Pindahkan halaman ke…',
+  'pt.move_to_hint':
+      'Nomor halaman tujuan (1-{n})',
+  'pt.op_duplicate':
+      'Gandakan halaman',
+  'pt.op_insert_blank':
+      'Sisipkan halaman kosong',
+  'pt.op_reverse':
+      'Balik urutan halaman',
+  'pt.op_split':
+      'Memecah',
+  'pt.split_every':
+      'Pecah menjadi beberapa bagian…',
+  'pt.split_size':
+      'Bagian berisi {n} halaman',
+  'pt.split_done':
+      '{n} berkas ditulis di samping dokumen.',
+  'pt.split_too_short':
+      'Pemecahan butuh minimal dua halaman.',
+  'pt.select_all':
+      'Pilih semua',
+  'pt.job_name':
+      'Operasi PDF ({label})',
+  'pt.op_failed':
+      '{label} gagal: {error}',
+  'pt.op_stopped':
+      '{label} dihentikan',
+  'pt.op_rotate':
+      'Memutar',
+  'pt.op_delete':
+      'Menghapus',
+  'pt.op_move':
+      'Memindahkan',
+  'pt.op_move_page':
+      'Memindahkan halaman',
+  'pt.op_merge':
+      'Menggabungkan',
+  'pt.op_scan_append':
+      'Menambahkan pindaian',
+  'pt.op_compress':
+      'Mengompresi',
+  'pt.op_set_password':
+      'Mengatur kata sandi',
+  'pt.op_remove_password':
+      'Menghapus kata sandi',
+  'pt.cannot_delete_all':
+      'Anda tidak dapat menghapus semua halaman',
+  'pt.annot_title':
+      'Sorotan akan hilang',
+  'pt.continue':
+      'Lanjutkan',
+  'pt.extracting':
+      'Mengekstrak halaman…',
+  'pt.extracted':
+      'Halaman yang dipilih diekstrak sebagai PDF terpisah',
+  'pt.extract_failed':
+      'Ekstraksi gagal: {error}',
+  'pt.merged':
+      '{n} PDF ditambahkan',
+  'pt.compress_title':
+      'Kompres dokumen',
+  'pt.compress':
+      'Kompres',
+  'pt.size_change':
+      'Ukuran {before} → {after}',
+  'pt.already_compact':
+      'Dokumen ini sudah ringkas ({size}) — tidak ada yang bisa dihemat',
+  'pt.set_password':
+      'Atur kata sandi',
+  'pt.new_password':
+      'Kata sandi baru',
+  'pt.remove_password':
+      'Hapus kata sandi',
+  'pt.unsaved_title':
+      'Perubahan belum disimpan',
+  'pt.unsaved_body':
+      'Jika Anda keluar, suntingan Anda akan hilang.',
+  'pt.stay':
+      'Tetap di sini',
+  'pt.leave':
+      'Keluar',
+  'pt.scan_append':
+      'Pindai dan tambahkan halaman',
+  'pt.merge_other':
+      'Tambah PDF lain (gabungkan)',
+  'pt.compress_menu':
+      'Kompres (perkecil ukuran)',
+  'pt.open_failed':
+      'Tidak dapat dibuka: {error}',
+  'pt.extract':
+      'Ekstrak',
+  'pt.forward':
+      'Maju',
+  'pt.backward':
+      'Mundur',
 };
