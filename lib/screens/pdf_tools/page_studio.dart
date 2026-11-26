@@ -186,10 +186,15 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   Future<void> _insertFile() async {
     if (_loading || _scanning) return;
     final res = await AppFilePicker.pickFiles(
-        type: FileType.custom, allowedExtensions: ['pdf']);
-    final path = res?.files.firstOrNull?.path;
-    if (path == null || !mounted) return;
-    await _insertPdf(() => File(path).readAsBytes());
+        type: FileType.custom, allowedExtensions: ['pdf'], allowMultiple: true);
+    // Araçlardaki eski "PDF birleştir" çoklu dosya alıyordu: seçim sırasıyla,
+    // her dosya bir öncekinin ardına.
+    int? at;
+    for (final f in res?.files ?? const <PickedFile>[]) {
+      final path = f.path;
+      if (path == null || !mounted) continue;
+      at = await _insertPdf(() => File(path).readAsBytes(), at: at) ?? at;
+    }
   }
 
   /// Görseller A4 sayfalara (Pro "Görsellerden PDF" ile aynı yol).
@@ -227,9 +232,10 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
         uniformPage: PdfPageFormat.a4));
   }
 
-  /// [load]'un verdiği PDF'in tüm sayfalarını son seçilenin ardına (yoksa
-  /// sona) koyar.
-  Future<void> _insertPdf(Future<Uint8List> Function() load) async {
+  /// [load]'un verdiği PDF'in tüm sayfalarını [at] konumuna (verilmezse son
+  /// seçilenin ardına, yoksa sona) koyar; eklenenlerin bittiği konumu döner
+  /// (eklenemediyse `null`).
+  Future<int?> _insertPdf(Future<Uint8List> Function() load, {int? at}) async {
     setState(() => _loading = true);
     (Uint8List, PdfDocument)? opened;
     try {
@@ -241,11 +247,11 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
     if (mounted) setState(() => _loading = false);
     if (!mounted) {
       await opened?.$2.dispose();
-      return;
+      return null;
     }
     if (opened == null) {
       showSnack(context, context.t('pp.studio_file_failed'));
-      return;
+      return null;
     }
     final (bytes, other) = opened;
     final doc = _doc!;
@@ -255,20 +261,23 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
     }
     _extraDocs.add(other);
     _extraBytes.add(bytes);
-    var at = _items.length;
-    for (var i = _items.length - 1; i >= 0; i--) {
-      if (_selected.contains(_items[i].id)) {
-        at = i + 1;
-        break;
+    var pos = at ?? _items.length;
+    if (at == null) {
+      for (var i = _items.length - 1; i >= 0; i--) {
+        if (_selected.contains(_items[i].id)) {
+          pos = i + 1;
+          break;
+        }
       }
     }
     AppHaptics.step();
     _commit([
-      ..._items.take(at),
+      ..._items.take(pos),
       for (var i = 0; i < other.pages.length; i++)
         (id: _nextId++, page: start + i, turns: 0),
-      ..._items.skip(at),
+      ..._items.skip(pos),
     ]);
+    return pos + other.pages.length;
   }
 
   void _delete() {
@@ -349,6 +358,59 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   void _stopEdge() {
     _edgeTimer?.cancel();
     _edgeTimer = null;
+  }
+
+  /// Tek seçili sayfayı numarayla konuma taşır (uzun belgede sürüklemek
+  /// yerine; araçlardaki "Sayfayı taşı…", kullanıcı isteği 2026-09-03).
+  Future<void> _moveTo() async {
+    final from = _items.indexWhere((e) => _selected.contains(e.id));
+    if (from < 0) return;
+    final total = _items.length;
+    final text = await showAppPrompt(context,
+        title: context.t('pt.move_to'),
+        label: context.t('pt.move_to_hint', {'n': '$total'}),
+        initial: '${from + 1}');
+    final to = int.tryParse(text ?? '');
+    if (to == null || to < 1 || to > total || !mounted) return;
+    AppHaptics.step();
+    _move(from, to - 1);
+  }
+
+  /// Tüm sırayı ters çevirir (ters taranmış belge).
+  void _reverse() {
+    AppHaptics.step();
+    _commit(_items.reversed.toList());
+  }
+
+  /// Belgeyi N sayfalık parçalara böler; her parça ayrı yeni PDF.
+  Future<void> _splitEvery() async {
+    if (_items.length < 2) {
+      showSnack(context, context.t('pt.split_too_short'));
+      return;
+    }
+    final size = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.t('pt.split_every')),
+        children: [
+          for (final n in const [1, 2, 5, 10])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, n),
+              child: Text(ctx.t('pt.split_size', {'n': '$n'})),
+            ),
+        ],
+      ),
+    );
+    if (size == null || !mounted) return;
+    final parts = PdfTools.studioSplit(
+      [for (final e in _items) (e.page, e.turns)],
+      {for (var k = size; k < _items.length; k += size) k},
+    );
+    if (parts.length < 2) {
+      showSnack(context, context.t('pt.split_too_short'));
+      return;
+    }
+    _finish(parts);
   }
 
   void _move(int from, int to) {
@@ -433,6 +495,27 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
             tooltip: context.t('pt.select_all'),
             icon: const Icon(AppIcons.selectAll),
             onPressed: doc == null ? null : _toggleAll,
+          ),
+          PopupMenuButton<Future<void> Function()>(
+            tooltip: context.t('common.more'),
+            icon: const Icon(AppIcons.more),
+            enabled: doc != null && !_loading,
+            onSelected: (f) => unawaited(f()),
+            itemBuilder: (ctx) => [
+              PopupMenuItem(
+                value: _moveTo,
+                enabled: _selected.length == 1,
+                child: Text(ctx.t('pt.move_to')),
+              ),
+              PopupMenuItem(
+                value: () async => _reverse(),
+                child: Text(ctx.t('pt.op_reverse')),
+              ),
+              PopupMenuItem(
+                value: _splitEvery,
+                child: Text(ctx.t('pt.split_every')),
+              ),
+            ],
           ),
           TextButton(
             onPressed: _history.isEmpty
