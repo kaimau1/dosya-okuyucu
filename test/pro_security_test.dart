@@ -101,7 +101,7 @@ void main() {
       SmartSort.debugReset();
       dir.deleteSync(recursive: true);
     }
-  });
+  }, skip: Edition.current == Edition.lite);
 
   group('Lite derlemede derin Pro güvenliği (bypass kapalı)', () {
     Widget wrap(Widget child) => ChangeNotifierProvider<AppState>(
