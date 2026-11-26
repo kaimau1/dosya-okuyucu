@@ -403,6 +403,97 @@ class PdfTools {
     });
   }
 
+  /// Sayfanın verilen kutusuna metin (yazılı imza veya tarih damgası) basar.
+  /// [fontBytes] Türkçe glifli TrueType (ör. Tinos-Italic veya Carlito-Regular).
+  static Future<List<int>> stampText(
+    List<int> bytes, {
+    required int pageIndex,
+    required String text,
+    required Rect rect,
+    List<int>? fontBytes,
+    int colorArgb = 0xFF000000,
+    String? password,
+    bool rawSpace = false,
+  }) async {
+    final clean = text.trim();
+    if (clean.isEmpty) throw ArgumentError('Damga metni boş');
+    return Isolate.run(() async {
+      final doc = PdfDocument(inputBytes: bytes, password: password);
+      try {
+        final page = doc.pages[pageIndex];
+        final t = stampTransform(page.size, page.rotation.index);
+        final g = page.graphics;
+        final state = g.save();
+        try {
+          if (t.angle != 0 && !rawSpace) {
+            g.translateTransform(t.translate.dx, t.translate.dy);
+            g.rotateTransform(t.angle);
+          }
+          // Kutuya sığan en büyük punto (genişlik + yükseklik sınırı).
+          final byHeight = rect.height * 0.72;
+          final byWidth = rect.width / math.max(1, clean.length * 0.56);
+          final size = math.min(byHeight, byWidth).clamp(7.0, 42.0);
+          final PdfFont font = fontBytes != null && fontBytes.isNotEmpty
+              ? PdfTrueTypeFont(fontBytes, size)
+              : PdfStandardFont(PdfFontFamily.helvetica, size);
+          final brush = PdfSolidBrush(PdfColor(
+            (colorArgb >> 16) & 0xFF,
+            (colorArgb >> 8) & 0xFF,
+            colorArgb & 0xFF,
+          ));
+          g.drawString(
+            clean,
+            font,
+            brush: brush,
+            bounds: rect,
+            format: PdfStringFormat(
+              alignment: PdfTextAlignment.center,
+              lineAlignment: PdfVerticalAlignment.middle,
+            ),
+          );
+        } finally {
+          g.restore(state);
+        }
+        return await doc.save();
+      } finally {
+        doc.dispose();
+      }
+    });
+  }
+
+  /// Sayfanın verilen kutusuna görsel (ör. görsel imza PNG/JPEG) basar.
+  static Future<List<int>> stampImage(
+    List<int> bytes, {
+    required int pageIndex,
+    required List<int> imageBytes,
+    required Rect rect,
+    String? password,
+    bool rawSpace = false,
+  }) async {
+    if (imageBytes.isEmpty) throw ArgumentError('İmza görseli boş');
+    return Isolate.run(() async {
+      final doc = PdfDocument(inputBytes: bytes, password: password);
+      try {
+        final page = doc.pages[pageIndex];
+        final t = stampTransform(page.size, page.rotation.index);
+        final g = page.graphics;
+        final state = g.save();
+        try {
+          if (t.angle != 0 && !rawSpace) {
+            g.translateTransform(t.translate.dx, t.translate.dy);
+            g.rotateTransform(t.angle);
+          }
+          g.drawImage(PdfBitmap(imageBytes), rect);
+        } finally {
+          g.restore(state);
+        }
+        return await doc.save();
+      } finally {
+        doc.dispose();
+      }
+    });
+  }
+
   /// **P19 — aranabilir PDF:** OCR satırlarını sayfaya GÖRÜNMEZ (saydamlık 0)
   /// metin olarak yazar; görüntü aynı kalır, metin aranır/seçilir/kopyalanır.
   /// [lines] sayfa indeksi → satırlar; `rect` görünen sayfa koordinatında
