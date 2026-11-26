@@ -1368,7 +1368,7 @@ const Map<String, String> _ms = {
       'Eksport anotasi (XFDF)',
   'pp.xfdf_in':
       'Import anotasi (XFDF)',
-  // ── PDF yerinde düzenleme pse (m.3) ──
+  // ── PDF yerinde düzenleme (pse, m.3) ──
   'pse.editing':
       'Menyunting',
   'pse.unsaved_n':

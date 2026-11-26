@@ -1363,7 +1363,7 @@ const Map<String, String> _id = {
       'Ekspor anotasi (XFDF)',
   'pp.xfdf_in':
       'Impor anotasi (XFDF)',
-  // ── PDF yerinde düzenleme pse (m.3) ──
+  // ── PDF yerinde düzenleme (pse, m.3) ──
   'pse.editing':
       'Mengedit',
   'pse.unsaved_n':
