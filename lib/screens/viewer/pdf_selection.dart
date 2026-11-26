@@ -304,6 +304,26 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
   }
 
+  /// Yer imi hedefini biraz yukarı alır. PDF'teki y noktası çoğu zaman
+  /// başlığın altına (ilk satıra) düşer; pdfrx o noktayı ekranın tam üstüne
+  /// koyunca başlık görünmüyordu (kullanıcı ekran görüntüsü, "SUNUŞ").
+  /// Hedef sayfanın üst çeyreğindeyse sayfa başına, değilse sayfa boyunun
+  /// %6'sı kadar yukarı gidilir.
+  PdfDest _roomyDest(PdfDest dest, PdfDocument doc) {
+    final p = dest.params;
+    final yAt = switch (dest.command) {
+      PdfDestCommand.xyz => 1,
+      PdfDestCommand.fitH || PdfDestCommand.fitBH => 0,
+      _ => -1,
+    };
+    if (p == null || yAt < 0 || p.length <= yAt || p[yAt] == null) return dest;
+    final h = doc.pages[dest.pageNumber - 1].height;
+    final y = p[yAt]!;
+    final raised = y + h * 0.06;
+    final up = (y >= h * 0.75 || raised > h) ? h : raised;
+    return PdfDest(dest.pageNumber, dest.command, [...p]..[yAt] = up);
+  }
+
   /// Belge ana hattı (içindekiler). PDF'te yoksa kullanıcıya söylenir.
   ///
   /// Açılınca okunan başlık vurgulu ve görünürdedir (kullanıcı "neredeydim"
@@ -348,7 +368,8 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     int? vol = chips && current >= 0 ? flat[current].$5 : null;
     var query = '';
     var jumped = false;
-    const rowH = 60.0;
+    // Sık satır: tek satır başlık + sayfa no (kullanıcı: "satır satır olmalı").
+    const rowH = 40.0;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -382,8 +403,9 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
                   if (at > 2) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (scroll.hasClients) {
-                        scroll.jumpTo(((at - 2) * rowH)
-                            .clamp(0.0, scroll.position.maxScrollExtent));
+                        final max = scroll.position.maxScrollExtent;
+                        final to = (at - 2) * rowH;
+                        scroll.jumpTo(to > max ? max : to);
                       }
                     });
                   }
@@ -457,13 +479,21 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
                                 final dest = node.dest;
                                 return ListTile(
                                   dense: true,
+                                  visualDensity: VisualDensity.compact,
+                                  minVerticalPadding: 0,
+                                  minTileHeight: 0,
                                   selected: idx == current,
                                   contentPadding: EdgeInsetsDirectional.only(
-                                      start: searching ? 16 : 16.0 + depth * 16,
+                                      start: searching ? 16 : 16.0 + depth * 14,
                                       end: 16),
                                   title: Text(node.title,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: depth == 0
+                                              ? FontWeight.w700
+                                              : FontWeight.w400)),
                                   subtitle: searching && path.isNotEmpty
                                       ? Text(path,
                                           maxLines: 1,
@@ -471,13 +501,17 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
                                       : null,
                                   trailing: dest == null
                                       ? null
-                                      : Text('${dest.pageNumber}'),
+                                      : Text('${dest.pageNumber}',
+                                          style: Theme.of(ctx)
+                                              .textTheme
+                                              .labelMedium),
                                   onTap: dest == null
                                       ? null
                                       : () {
                                           Navigator.pop(ctx);
                                           _pdfJumpTarget = dest.pageNumber;
-                                          _pdfController.goToDest(dest);
+                                          _pdfController
+                                              .goToDest(_roomyDest(dest, doc));
                                         },
                                 );
                               },
