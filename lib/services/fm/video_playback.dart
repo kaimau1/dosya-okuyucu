@@ -153,7 +153,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
   bool needsTransitionWait(String path) {
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
     final mpv =
-        _mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext);
+        PlayerEngine.available &&
+            (_mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext));
     return mpv || mpv != PlayerEngine.isMpv;
   }
 
@@ -190,7 +191,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Dosyayı öbür motorla, aynı konumdan yeniden açar.
   Future<void> reopenWithMpv(bool on) async {
-    if (current.isEmpty) return;
+    if (current.isEmpty || (on && !PlayerEngine.available)) return;
     final at = position;
     if (on) {
       _mpvPaths.add(current);
@@ -241,7 +242,8 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     }
     final ext = p.extension(path).replaceFirst('.', '').toLowerCase();
     final mpv =
-        _mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext);
+        PlayerEngine.available &&
+            (_mpvPaths.contains(path) || PlayerEngine.mpvFirst.contains(ext));
     if (mpv != PlayerEngine.isMpv) {
       // Motor değişiyor: açık denetleyiciler ESKİ motorda kapanmalı (yeni
       // motor seçilince `video_player` eskisine bir daha ulaşamıyor).
@@ -299,7 +301,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       await controller.dispose();
       // ExoPlayer açamadı ya da sessiz/görüntüsüz açtı → mpv (VLC gibi her
       // kodek). Bir kez: mpv de açamazsa hata gösterilir.
-      if (!mpv && fallback && path == current) {
+      if (!mpv && fallback && PlayerEngine.available && path == current) {
         _mpvPaths.add(path);
         return _load(startAt: startAt, fallback: false);
       }
@@ -391,7 +393,10 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     // A-B tekrar: B'ye gelince A'ya dön. Konum dinleyicisi saniyede birkaç
     // kez geldiği için sıçrama gözle "kesintisiz" görünüyor.
     // Oynarken kod çözücü çöktü (ExoPlayer hatası) → aynı yerden mpv.
-    if (v.hasError && !PlayerEngine.isMpv && !_mpvPaths.contains(current)) {
+    if (v.hasError &&
+        PlayerEngine.available &&
+        !PlayerEngine.isMpv &&
+        !_mpvPaths.contains(current)) {
       unawaited(reopenWithMpv(true));
       return;
     }

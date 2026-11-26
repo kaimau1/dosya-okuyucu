@@ -3,6 +3,8 @@ import 'package:video_player_media_kit/video_player_media_kit.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart'
     show VideoPlayerPlatform;
 
+import '../../core/edition.dart';
+
 /// **Oynatma motoru** — ExoPlayer (varsayılan) ↔ mpv (VLC benzeri).
 ///
 /// Kullanıcı isteği 2026-11-02: *"vlc gibi … açılamayan kodekleri çözme"*.
@@ -27,6 +29,10 @@ abstract final class PlayerEngine {
   static VideoPlayerPlatform? _exo;
   static VideoPlayerPlatform? _mpv;
 
+  /// Bu derlemede mpv var mı? Lite'ta `libmpv.so` APK'ya girmez (K15c boyut
+  /// diyeti, `ci/prepare_android.sh` §11b) — orada yalnız ExoPlayer çalışır.
+  static const available = Edition.current != Edition.lite;
+
   /// Şu an mpv mi kullanılıyor?
   static bool get isMpv =>
       _mpv != null && identical(VideoPlayerPlatform.instance, _mpv);
@@ -34,7 +40,7 @@ abstract final class PlayerEngine {
   /// Motoru seçer. mpv ilk istendiğinde yüklenir (libmpv ~20 MB: açılışta
   /// yüklemek her kullanıcının açılışını yavaşlatırdı).
   static void switchTo({required bool mpv}) {
-    if (mpv == isMpv) return;
+    if (mpv == isMpv || (mpv && !available)) return;
     _exo ??= VideoPlayerPlatform.instance;
     if (mpv) {
       if (_mpv == null) {
