@@ -712,4 +712,1003 @@ const Map<String, String> _ms = {
       'Fail mungkin rosak atau tidak dimuat turun sepenuhnya.',
   'vw.pdf_error_restore': 'Pulihkan asal',
   'uix.no_text': 'Tiada apa untuk dibaca',
+  // ── Kitaplık, temizlik, Pro, PDF araçları (m.3) ──
+  'lib.add':
+      'Tambah buku',
+  'lib.already':
+      'Sudah ada dalam perpustakaan anda',
+  'lib.remove':
+      'Alih keluar daripada perpustakaan',
+  'lib.missing':
+      'Fail tidak ditemui (dialih atau dipadam)',
+  'lib.search':
+      'Cari dalam perpustakaan',
+  'lib.continue':
+      'Sambung membaca',
+  'lib.shelf':
+      'Rak',
+  'lib.no_match':
+      'Tiada buku yang sepadan',
+  'lib.pin_home':
+      'Tambah ke skrin utama',
+  'lib.empty_title':
+      'Perpustakaan anda kosong',
+  'lib.find':
+      'Cari buku dalam telefon ini',
+  'lib.find_none':
+      'Tiada buku baharu ditemui',
+  'lib.find_title':
+      '{n} buku ditemui',
+  'lib.add_selected':
+      'Tambah yang dipilih ({n})',
+  'lib.stats':
+      '{r} sedang dibaca · {d} selesai · {u} belum dimulakan',
+  'lib.show_folder':
+      'Tunjukkan dalam folder',
+  'lib.share':
+      'Kongsi',
+  'lib.clean_missing':
+      'Alih keluar yang hilang ({n})',
+  'lib.page_of':
+      '{p}% dibaca',
+  'lib.audiobooks_sub':
+      'Dengar buku audio daripada dokumen anda',
+  'clean.shrink_this':
+      'Kecilkan saiz',
+  'clean.shrink_this_est':
+      'Kecilkan saiz · ≈ {to}',
+  'clean.dup_groups':
+      'Semak mengikut kumpulan',
+  'clean.deep_title':
+      'CARI LEBIH BANYAK RUANG',
+  'clean.deep_note':
+      'Imbasan ini memeriksa kandungan fail; mungkin mengambil beberapa minit dan berjalan di latar belakang.',
+  'clean.deep_running':
+      'Mengimbas…',
+  'clean.deep_found':
+      '{n} fail · {size} boleh dibebaskan',
+  'clean.deep_none':
+      'Siap diimbas · tiada apa untuk dibersihkan',
+  'clean.deep_similar':
+      'Foto serupa',
+  'clean.deep_content':
+      'Imbasan kandungan imej',
+  'clean.deep_content_note':
+      'Gambar ucapan, meme, poster, serta foto kabur dan gelap',
+  'clean.confirm_title':
+      'Bersihkan?',
+  'clean.title':
+      'Bebaskan ruang',
+  'clean.analyzing':
+      'Bebaskan ruang: menganalisis storan',
+  'clean.analyzing_name':
+      'Bebaskan ruang: analisis storan',
+  'clean.reading_index':
+      'Membaca storan…',
+  'clean.nothing':
+      'Tiada apa yang jelas perlu dibersihkan',
+  'clean.nothing_body':
+      'Tiada apa yang jelas perlu dibersihkan 🎉\nStoran anda nampak kemas.',
+  'clean.recoverable':
+      '{size} boleh dibebaskan',
+  'clean.suggestions':
+      '{n} cadangan',
+  'clean.pick_one':
+      'Pilih satu cadangan',
+  'clean.personal_warning':
+      'Berhati-hati: ini mungkin fail peribadi',
+  'clean.cleaning':
+      'Bebaskan ruang: membersihkan {size}',
+  'clean.cleaning_name':
+      'Bebaskan ruang: pembersihan {size}',
+  'clean.cleaned_detail':
+      '{size} dibebaskan · {n} cadangan digunakan',
+  'clean.reanalyze':
+      'Analisis semula',
+  'clean.open_trash':
+      'Buka tong sampah',
+  'clean.show_hidden':
+      'Pulihkan {n} cadangan tersembunyi',
+  'clean.dupes_note':
+      'Imbasan pendua membandingkan fail bait demi bait; mungkin mengambil sedikit masa.',
+  'clean.badge_safe':
+      'Selamat',
+  'clean.badge_review':
+      'Semak',
+  'clean.inspect_files':
+      'Periksa {n} fail',
+  'clean.hide_files':
+      'Sembunyikan',
+  'clean.show_all_more':
+      'Tunjukkan semua (+{n})',
+  'clean.summary_line':
+      'Sehingga {total} boleh dibebaskan · Dipilih: {selected}',
+  'clean.select_safe':
+      'Pilih yang selamat',
+  'clean.deselect_all':
+      'Kosongkan pilihan',
+  'clean.original_kept':
+      'Asalnya kekal: {loc} · {size}',
+  'clean.view_original':
+      'Lihat asal',
+  'clean.copy_will_go':
+      'Dibuang: salinan ini sahaja',
+  'clean.clean_this':
+      'Bersihkan ini · {size}',
+  'clean.clean_this_dirs':
+      'Bersihkan {n} folder',
+  'clean.confirm_copies':
+      'Untuk salinan, hanya salinan dibuang; setiap fail asal kekal pada peranti.',
+  'clean.empty_trash_now':
+      'Kosongkan sekarang',
+  'clean.done_failed':
+      'Pembersihan tidak dapat diselesaikan',
+  'clean.filter_all':
+      'Semua',
+  'clean.filter_safe':
+      'Selamat',
+  'clean.filter_review':
+      'Semak',
+  'clean.selected_partial':
+      '{sel}/{total} dipilih',
+  'clean.select_all_in':
+      'Pilih semua',
+  'clean.clear_in':
+      'Tiada',
+  'clean.free_items':
+      'Bebaskan {size} · {n} item',
+  'clean.empty_folders_only':
+      'Bersihkan {n} folder kosong',
+  'clean.chat_tool':
+      'Pembersihan media sembang',
+  'clean.chat_tool_sub':
+      'Pelekat, GIF dan media lama WhatsApp & Telegram',
+  'clean.disk_used_line':
+      '{used} / {total} digunakan · Kosong: {free}',
+  'clean.disk_after_line':
+      'Ruang kosong selepas pembersihan: {before} → {after}',
+  'clean.trust_no_personal':
+      'Foto & dokumen tidak disentuh',
+  'clean.trust_trash_undo':
+      'Dialih ke tong sampah, boleh dipulihkan',
+  'clean.trust_important':
+      'Fail penting kekal dilindungi',
+  'clean.trust_important_n':
+      '{n} fail penting dilindungi',
+  'clean.quick_clean_safe':
+      'Bersihkan yang selamat · {size}',
+  'clean.sec_safe_title':
+      'Bersihkan dengan Selamat (Tanpa Risiko)',
+  'clean.sec_safe_sub':
+      'Hanya sampah, pendua tepat, cache dan sisa pemasang. Fail peribadi tidak disentuh.',
+  'clean.sec_review_title':
+      'Semak untuk Lebih Banyak Ruang (Keputusan Anda)',
+  'clean.sec_review_sub':
+      'Tiada apa dipilih terlebih dahulu. Periksa item atau kecilkan video besar tanpa memadamnya.',
+  'clean.done_card_title':
+      '{size} dibebaskan!',
+  'clean.confirm_safe_only':
+      'Foto, dokumen dan fail penting anda tidak akan disentuh.',
+  'clean.shrink_without_delete':
+      'Bebaskan ruang tanpa memadam',
+  'clean.need_permission_title':
+      'Akses folder diperlukan untuk mengimbas',
+  'clean.need_permission_body':
+      'Beri kebenaran untuk mencari sampah, pendua dan fail besar. Foto dan dokumen anda tidak pernah dipadam secara automatik.',
+  'clean.need_permission_btn':
+      'Beri kebenaran & imbas',
+  'clean.confirm_lead':
+      '{n} cadangan · {size} akan dibebaskan.\n\n',
+  'clean.confirm_tail':
+      'Fail dialihkan ke tong sampah; anda boleh memulihkannya dari sana.',
+  'pro.title':
+      'Versi Pro',
+  'pro.row_sub':
+      'Folder pintar, editor PDF, buku audio & pengecil video · Sekali bayar',
+  'pro.one_time_badge':
+      'Pembelian sekali · Tanpa iklan',
+  'pro.price_one_time':
+      '{p} · Sekali bayar',
+  'pro.smart_limit_note':
+      'Pro termasuk kuota permulaan 500 fail untuk Folder Pintar; analisis awan tambahan adalah pilihan melalui langganan atau kunci anda sendiri.',
+  'pro.locked_title':
+      '{f} ada dalam Pro',
+  'pro.locked_sub':
+      'Alat ini dibuka dalam versi Pro sekali bayar. Semua pengurusan fail dan bacaan asas kekal percuma dalam Lite.',
+  'pro.feature_title':
+      '{f} ada dalam versi Pro',
+  'pro.lead':
+      'Lite merangkumi bacaan percuma, pengurus fail, penyuntingan asas, pengisian borang dan tandatangan. Pro membuka:',
+  'pro.later':
+      'Bukan sekarang',
+  'pro.trust':
+      'Semua ciri teras dalam Lite kekal percuma dan bebas iklan selama-lamanya.',
+  'pro.smart_locked_title':
+      'Folder Pintar ada dalam Pro',
+  'pro.smart_locked_sub':
+      'Naik taraf ke Pro untuk menyusun fail anda ke dalam kategori pintar dan pertanyaan tersimpan.',
+  'pro.saved_locked_title':
+      'Folder Pintar Tersimpan ada dalam Pro',
+  'pro.saved_locked_sub':
+      'Naik taraf ke Pro untuk mencipta folder yang dikemas kini secara automatik daripada pertanyaan tersimpan anda.',
+  'pro.f.pdfAdvanced':
+      'Penyuntingan & alat PDF',
+  'pt.page_numbers':
+      'Tambah nombor halaman',
+  'pt.pn_skip_first':
+      'Langkau halaman muka depan',
+  'pt.pn_skip_first_sub':
+      'Halaman pertama tidak bernombor; penomboran bermula dari 2',
+  'pt.pn_with_total':
+      'Guna format "3 / 12"',
+  'pt.pn_right':
+      'Jajarkan ke kanan bawah',
+  'pt.op_page_numbers':
+      'Menambah nombor halaman',
+  'pt.export_images':
+      'Eksport halaman sebagai imej (PNG)',
+  'pt.op_export_images':
+      'Mencipta imej',
+  'pt.export_images_count':
+      '{n} imej halaman',
+  'pt.export_images_limit':
+      'Paling banyak {n} halaman sekali gus: pilih halaman dahulu.',
+  'pt.export_images_failed':
+      'Gagal mencipta imej halaman',
+  'pt.watermark':
+      'Tambah tera air',
+  'pt.watermark_hint':
+      'cth. DRAF, SALINAN',
+  'pt.op_watermark':
+      'Menambah tera air',
+  'pt.move_to':
+      'Alihkan halaman ke…',
+  'pt.move_to_hint':
+      'Nombor halaman sasaran (1-{n})',
+  'pt.op_duplicate':
+      'Gandakan halaman',
+  'pt.op_insert_blank':
+      'Sisipkan halaman kosong',
+  'pt.op_reverse':
+      'Terbalikkan susunan halaman',
+  'pt.op_split':
+      'Memisahkan',
+  'pt.split_every':
+      'Pisahkan kepada beberapa bahagian…',
+  'pt.split_size':
+      'Bahagian setiap {n} halaman',
+  'pt.split_done':
+      '{n} fail ditulis di sebelah dokumen.',
+  'pt.split_too_short':
+      'Pemisahan memerlukan sekurang-kurangnya dua halaman.',
+  'pt.select_all':
+      'Pilih semua',
+  'pt.job_name':
+      'Operasi PDF ({label})',
+  'pt.op_failed':
+      '{label} gagal: {error}',
+  'pt.op_stopped':
+      '{label} dihentikan',
+  'pt.op_rotate':
+      'Memutar',
+  'pt.op_delete':
+      'Memadam',
+  'pt.op_move':
+      'Mengalihkan',
+  'pt.op_move_page':
+      'Mengalihkan halaman',
+  'pt.op_merge':
+      'Menggabungkan',
+  'pt.op_scan_append':
+      'Menambah imbasan',
+  'pt.op_compress':
+      'Memampatkan',
+  'pt.op_set_password':
+      'Menetapkan kata laluan',
+  'pt.op_remove_password':
+      'Mengalih keluar kata laluan',
+  'pt.cannot_delete_all':
+      'Anda tidak boleh memadam semua halaman',
+  'pt.annot_title':
+      'Penyerlahan akan hilang',
+  'pt.continue':
+      'Teruskan',
+  'pt.extracting':
+      'Mengekstrak halaman…',
+  'pt.extracted':
+      'Halaman yang dipilih diekstrak sebagai PDF berasingan',
+  'pt.extract_failed':
+      'Pengekstrakan gagal: {error}',
+  'pt.merged':
+      '{n} PDF ditambah',
+  'pt.compress_title':
+      'Mampatkan dokumen',
+  'pt.compress':
+      'Mampat',
+  'pt.size_change':
+      'Saiz {before} → {after}',
+  'pt.already_compact':
+      'Dokumen ini sudah padat ({size}) — tiada apa yang boleh dijimatkan',
+  'pt.set_password':
+      'Tetapkan kata laluan',
+  'pt.new_password':
+      'Kata laluan baharu',
+  'pt.remove_password':
+      'Alih keluar kata laluan',
+  'pt.unsaved_title':
+      'Perubahan belum disimpan',
+  'pt.unsaved_body':
+      'Jika anda keluar, suntingan anda akan hilang.',
+  'pt.stay':
+      'Kekal di sini',
+  'pt.leave':
+      'Keluar',
+  'pt.scan_append':
+      'Imbas dan tambah halaman',
+  'pt.merge_other':
+      'Tambah PDF lain (gabung)',
+  'pt.compress_menu':
+      'Mampat (kecilkan saiz)',
+  'pt.open_failed':
+      'Tidak dapat dibuka: {error}',
+  'pt.extract':
+      'Ekstrak',
+  'pt.forward':
+      'Ke hadapan',
+  'pt.backward':
+      'Ke belakang',
+  // ── PDF pro araçları pp (m.3) ──
+  'pp.menu':
+      'Alat Pro…',
+  'pp.title':
+      'Alat pro PDF',
+  'pp.dsign':
+      'Tandatangan digital (sijil)',
+  'pp.dsign_source':
+      'Sijil',
+  'pp.dsign_self':
+      'Identiti aplikasi (ditandatangani sendiri)',
+  'pp.dsign_pfx':
+      'Fail sijil (.pfx/.p12)',
+  'pp.dsign_name':
+      'Nama penandatangan',
+  'pp.dsign_reason':
+      'Sebab (pilihan)',
+  'pp.dsign_location':
+      'Lokasi (pilihan)',
+  'pp.dsign_visible':
+      'Kotak tandatangan kelihatan',
+  'pp.dsign_last_page':
+      'Letakkan di halaman terakhir',
+  'pp.dsign_go':
+      'Tandatangani',
+  'pp.dsign_working':
+      'Tandatangan digital',
+  'pp.dsign_creating':
+      'Mencipta kunci tandatangan',
+  'pp.dsign_pfx_password':
+      'Kata laluan sijil',
+  'pp.dsign_done':
+      'Sudah ditandatangani. Jangan ubah apa-apa sebelum menyimpan — itu akan membatalkan tandatangan.',
+  'pp.dsign_list':
+      'Tandatangan',
+  'pp.dsign_none':
+      'Dokumen tiada tandatangan',
+  'pp.dsign_empty_field':
+      'Medan tandatangan kosong',
+  'pp.dsign_export_cert':
+      'Kongsi sijil saya (.cer)',
+  'pp.dsign_name_needed':
+      'Nama penandatangan diperlukan',
+  'pp.region_title':
+      'Pilih kawasan',
+  'pp.region_status':
+      'Halaman {page}/{count} · {n} kotak',
+  'pp.prev_page':
+      'Halaman sebelumnya',
+  'pp.next_page':
+      'Halaman seterusnya',
+  'pp.redact':
+      'Penyuntingan hitam kekal',
+  'pp.redact_terms_hint':
+      'Istilah untuk dicari (asingkan dengan koma) — kosong: tandakan secara manual',
+  'pp.redact_find':
+      'Cari',
+  'pp.redact_searching':
+      'Mencari',
+  'pp.redact_no_match':
+      'Tiada padanan — anda boleh menandakan secara manual',
+  'pp.redact_confirm':
+      '{n} kawasan pada {pages} halaman akan dibuang secara kekal. Halaman ini menjadi imej (teks di luar kotak kekal boleh dicari); anotasi, borang dan kata laluan dibuang. Buat asal hanya berfungsi sebelum menyimpan.',
+  'pp.redact_apply':
+      'Hitamkan',
+  'pp.redact_done':
+      'Dihitamkan dan disahkan: tiada teks tersisa di dalam kotak.',
+  'pp.saved_as':
+      'Disimpan: {name}',
+  'pp.sheet_prefix':
+      'Halaman',
+  'pp.to_xlsx':
+      'Eksport jadual ke Excel',
+  'pp.to_docx':
+      'Eksport ke Word (kekalkan susun atur)',
+  'pp.pdfa':
+      'Simpan sebagai PDF/A',
+  'pp.pdfa_image_sub':
+      'Setiap halaman menjadi imej + teks boleh dicari (PDF/A-2b); fail mungkin membesar, pautan dan borang tidak dikekalkan.',
+  'pp.too_many_pages':
+      'Paling banyak {n} halaman — pilih halaman atau pisahkan dahulu',
+  'pp.compare':
+      'Bandingkan dua PDF',
+  'pp.compare_text':
+      'Teks',
+  'pp.compare_visual':
+      'Visual',
+  'pp.compare_names':
+      '{a} → {b}',
+  'pp.compare_summary':
+      '{pages} halaman berubah · +{added} / −{removed} perkataan',
+  'pp.compare_only_changed':
+      'Perubahan sahaja',
+  'pp.compare_same':
+      'Tiada perbezaan teks',
+  'pp.compare_page':
+      'Halaman {n}',
+  'pp.compare_visual_page':
+      'Halaman {n} · {pct}% berbeza',
+  'pp.compare_progress':
+      '{done}/{total} halaman dibandingkan',
+  'pp.compare_visual_note':
+      'Perbandingan visual meliputi paling banyak {n} halaman',
+  'pp.permissions':
+      'Kebenaran dan kata laluan',
+  'pp.owner_password':
+      'Kata laluan pemilik (mengubah kebenaran)',
+  'pp.user_password':
+      'Kata laluan buka (pilihan)',
+  'pp.user_password_hint':
+      'Biarkan kosong untuk membuka tanpa kata laluan',
+  'pp.owner_needed':
+      'Kata laluan pemilik diperlukan',
+  'pp.permissions_done':
+      'Kebenaran digunakan',
+  'pp.outline':
+      'Penanda buku (kerangka)',
+  'pp.outline_add':
+      'Tambah penanda buku',
+  'pp.outline_title':
+      'Tajuk',
+  'pp.outline_page':
+      'Halaman (1–{count})',
+  'pp.outline_empty':
+      'Tiada penanda buku — tambah dengan +',
+  'pp.outline_indent':
+      'Inden',
+  'pp.outline_outdent':
+      'Kurangkan inden',
+  'pp.stamp':
+      'Templat setem / tera air',
+  'pp.stamp_text':
+      'Teks setem',
+  'pp.stamp_as_watermark':
+      'Sebagai tera air (pepenjuru, pudar)',
+  'pp.stamp_date':
+      'Tambah tarikh ({date})',
+  'pp.stamp_apply':
+      'Guna',
+  'pp.selected_pages_only':
+      'Halaman dipilih sahaja',
+  'pp.place':
+      'Kedudukan',
+  'pp.numbering':
+      'Penomboran lanjutan',
+  'pp.number_style':
+      'Gaya',
+  'pp.number_start':
+      'Nombor mula',
+  'pp.number_prefix':
+      'Awalan',
+  'pp.number_digits':
+      'Digit',
+  'pp.page_word':
+      'Halaman',
+  'pp.preview':
+      'Pratonton: {text}',
+  'pp.notes_empty':
+      'Dokumen tiada penyerlahan atau nota',
+  'pp.notes_count':
+      '{n} markah',
+  'pp.find_results':
+      '{n} hasil',
+  'pp.find_ocr_hit':
+      'Padanan pada halaman imbasan (OCR)',
+  'pp.compress_hard':
+      'Pemampatan agresif',
+  'pp.compress_hard_warn':
+      'Halaman ditukar menjadi imej: ketajaman vektor, pautan, borang dan anotasi hilang. Teks boleh kekal boleh dicari dalam lapisan tidak kelihatan.',
+  'pp.resolution':
+      'Resolusi',
+  'pp.quality':
+      'Kualiti',
+  'pp.quality_low':
+      'Rendah',
+  'pp.quality_mid':
+      'Sederhana',
+  'pp.quality_high':
+      'Tinggi',
+  'pp.grayscale':
+      'Skala kelabu',
+  'pp.keep_text':
+      'Kekalkan teks (boleh dicari)',
+  'pp.keep_text_sub':
+      'Lapisan teks tidak kelihatan ditulis',
+  'pp.compress_hard_bigger':
+      'Tidak lebih kecil ({size}) — guna Buat asal untuk kembali',
+  'pp.studio':
+      'Studio halaman',
+  'pp.studio_insert':
+      'Sisipkan halaman',
+  'pp.studio_extract':
+      'Ekstrak yang dipilih ke PDF baharu',
+  'pp.studio_split':
+      'Pisahkan pada halaman dipilih',
+  'pp.studio_split_hint':
+      'Untuk memisahkan, pilih sekurang-kurangnya satu halaman selain halaman pertama',
+  'pp.studio_need_page':
+      'Pilihan memerlukan sekurang-kurangnya satu halaman yang tidak kosong',
+  'pp.studio_file_failed':
+      'Tidak dapat membuka PDF ini (mungkin disulitkan atau rosak)',
+  'pp.studio_hint':
+      'Ketik untuk memilih · tekan lama dan seret untuk mengalih',
+  'pp.studio_selected':
+      '{n} dipilih',
+  'pp.rotate_left':
+      'Putar ke kiri',
+  'pp.rotate_right':
+      'Putar ke kanan',
+  'pp.blank':
+      'Cari dan padam halaman kosong',
+  'pp.blank_finding':
+      'Mencari halaman kosong',
+  'pp.blank_none':
+      'Tiada halaman kosong ditemui',
+  'pp.blank_all':
+      'Semua halaman kelihatan kosong — tiada yang dipadam',
+  'pp.blank_found':
+      '{n} halaman kosong dipilih: {pages}. Padam?',
+  'pp.crop':
+      'Pangkas halaman',
+  'pp.fit_a4':
+      'Muatkan ke A4',
+  'pp.autofill':
+      'Isi daripada profil',
+  'pp.autofill_none':
+      'Tiada medan kosong yang sepadan dengan profil',
+  'pp.autofill_done':
+      '{n} medan diisi — semak dan simpan',
+  'pp.profile':
+      'Profil isian automatik',
+  'pp.profile_privacy':
+      'Disimpan hanya pada peranti ini, tidak pernah dihantar ke mana-mana.',
+  'pp.form_create':
+      'Tambah medan borang',
+  'pp.field_text':
+      'Medan teks',
+  'pp.ocr_layer':
+      'Jadikan boleh dicari (OCR)',
+  'pp.ocr_layer_none':
+      'Tiada halaman imbasan dengan teks yang boleh dikenali ditemui',
+  'pp.ocr_layer_done':
+      '{n} halaman kini boleh dicari',
+  'pp.field_detect':
+      'Cari tempat isian',
+  'pp.field_detect_sub':
+      'Menukar ruang kosong, titik dan kotak menjadi medan',
+  'pp.field_detect_none':
+      'Tiada tempat isian ditemui',
+  'pp.images_to_pdf':
+      'PDF daripada imej',
+  'pp.images_a4_q':
+      '{n} imej. Jadikan setiap halaman A4? (Tidak: setiap halaman mengikut imejnya)',
+  'pp.images_a4':
+      'Guna A4',
+  'pp.pdf_to_images':
+      'PDF ke imej (kelompok)',
+  'pp.images_saved':
+      '{n} imej disimpan: {dir}',
+  'pp.web_to_pdf':
+      'PDF daripada laman web',
+  'pp.web_url':
+      'Alamat halaman',
+  'pp.web_bad_url':
+      'Masukkan alamat http(s) yang sah',
+  'pp.office_to_pdf':
+      'Word/Excel/PowerPoint → PDF',
+  'pp.signatures':
+      'Tandatangan dan parap',
+  'pp.my_signature':
+      'Tandatangan saya',
+  'pp.my_initials':
+      'Parap saya',
+  'pp.none':
+      'Tiada',
+  'pp.initial_all':
+      'Parap setiap halaman',
+  'pp.initial_with_date':
+      'Tarikh di bawah parap',
+  'pp.initials_missing':
+      'Lukis parap anda dahulu',
+  'pp.date_stamp':
+      'Setem tarikh',
+  'pp.sign_here':
+      'Letakkan tandatangan pada halaman',
+  'pp.save_first':
+      'Simpan perubahan anda dahulu',
+  'pp.image_zoom_failed':
+      'Tidak dapat membuka imej',
+  'pp.meta':
+      'Sifat dokumen',
+  'pp.meta_strip':
+      'Buang semua metadata',
+  'pp.meta_strip_body':
+      'Tajuk, pengarang, aplikasi pencipta, tarikh ubah suai dan butiran yang tertinggal dalam semakan lama dibuang. Halaman kekal sama; anda boleh buat asal sebelum menyimpan.',
+  'pp.meta_strip_ok':
+      'Buang',
+  'pp.layers':
+      'Lapisan',
+  'pp.layers_none':
+      'Dokumen ini tiada lapisan',
+  'pp.layers_failed':
+      'Tidak dapat membaca lapisan',
+  'pp.layers_unnamed':
+      'Lapisan {n}',
+  'pp.meta_failed':
+      'Tidak dapat membaca sifat dokumen',
+  'pp.xfdf_out':
+      'Eksport anotasi (XFDF)',
+  'pp.xfdf_in':
+      'Import anotasi (XFDF)',
+  // ── PDF yerinde düzenleme (pse, m.3) ──
+  'pse.editing':
+      'Menyunting',
+  'pse.unsaved_n':
+      'Belum disimpan · {n} perubahan',
+  'pse.saved':
+      'Disimpan',
+  'pse.undo_named':
+      'Buat asal: {name}',
+  'pse.redo_named':
+      'Buat semula: {name}',
+  'pse.step_detail':
+      '{name}: “{detail}”',
+  'pse.hint_tap':
+      'Ketik teks untuk menaip; tekan lama untuk mengalih atau menggayakannya.',
+  'pse.hint_scanned':
+      'Halaman ini ialah imej imbasan tanpa teks yang boleh dipilih. Ketik “Kotak teks” untuk menambah teks atau “Kenali teks (OCR)” untuk mengesannya.',
+  'pse.open_elsewhere':
+      'PDF ini sedang disunting di tetingkap lain — perubahan yang belum disimpan ada di sana.',
+  'pse.edit_title':
+      'Sunting perenggan',
+  'pse.edit_hint':
+      'Teks perenggan',
+  'pse.busy_wait':
+      'Memproses halaman, sila tunggu beberapa saat…',
+  'pse.save_how':
+      'Bagaimanakah ia hendak disimpan?',
+  'pse.save_keep_original':
+      'Simpan sebagai salinan (asal dikekalkan)',
+  'pse.save_overwrite':
+      'Tulis ganti fail asal',
+  'pse.save_as':
+      'Simpan sebagai',
+  'pse.save_as_same':
+      'Salinan dalam folder yang sama',
+  'pse.saved_copy':
+      'Salinan disimpan: {name}',
+  'pse.finish':
+      'Selesai menyunting',
+  'pse.versions':
+      'Sejarah versi',
+  'pse.versions_empty':
+      'Belum ada versi disimpan. Setiap kali anda menyimpan, versi sebelumnya disimpan di sini selama 14 hari.',
+  'pse.versions_note':
+      'Versi sebelumnya disimpan selama 14 hari.',
+  'pse.version_restore':
+      'Pulihkan versi ini',
+  'pse.version_restore_q':
+      'Pulihkan versi dari {when}? Keadaan semasa juga ditambah ke sejarah.',
+  'pse.version_restore_unsaved':
+      'Perubahan yang belum disimpan akan dibuang.',
+  'pse.version_restored':
+      'Versi sebelumnya dipulihkan',
+  'pse.recover_title':
+      'Suntingan belum disimpan ditemui',
+  'pse.recover_body':
+      'Dokumen ini mempunyai {n} perubahan yang belum disimpan semasa aplikasi ditutup.',
+  'pse.recover_body_copy':
+      'Dokumen ini mempunyai perubahan yang belum disimpan semasa aplikasi ditutup. Fail telah berubah sejak itu, jadi keadaan yang disunting boleh dipulihkan sebagai salinan.',
+  'pse.recover_restore':
+      'Pulihkan suntingan yang belum disimpan',
+  'pse.recover_copy':
+      'Simpan salinan yang dipulihkan',
+  'pse.recover_discard':
+      'Buang',
+  'pse.recover_done':
+      '{n} perubahan dipulihkan (belum disimpan)',
+  'pse.recover_partial':
+      '{n} daripada {total} perubahan dipulihkan',
+  'pse.locked_title':
+      'Dokumen ini dilindungi daripada penyuntingan',
+  'pse.locked_open':
+      'Buka dengan kata laluan pemilik',
+  'pse.owner_title':
+      'Kata laluan pemilik',
+  'pse.owner_body':
+      'Masukkan kata laluan yang menanggalkan sekatan penyuntingan.',
+  'pse.al_center':
+      'Tengah',
+  'pse.al_justify':
+      'Rata kiri dan kanan',
+  'pse.al_left':
+      'Jajar kiri',
+  'pse.al_right':
+      'Jajar kanan',
+  'pse.comment_edit':
+      'Sunting nota',
+  'pse.comment_page':
+      'Halaman {n}',
+  'pse.comment_reply':
+      'Balas',
+  'pse.comments':
+      'Komen',
+  'pse.comments_all':
+      'Semua',
+  'pse.comments_none':
+      'Tiada anotasi dalam dokumen ini.',
+  'pse.comments_open':
+      'Terbuka',
+  'pse.comments_resolved':
+      'Diselesaikan',
+  'pse.context_bar':
+      'Pilihan alat',
+  'pse.copied':
+      'Disalin',
+  'pse.copy':
+      'Salin',
+  'pse.cut':
+      'Potong',
+  'pse.delete_pull':
+      'Padam dan tarik ke atas yang di bawah',
+  'pse.done':
+      'Selesai',
+  'pse.duplicate':
+      'Gandakan',
+  'pse.find_case':
+      'Padankan huruf besar/kecil',
+  'pse.find_count':
+      '{n} padanan · memaparkan {i}',
+  'pse.find_hint':
+      'Mencari dalam seluruh dokumen; teks itu sendiri yang diubah.',
+  'pse.find_next':
+      'Seterusnya',
+  'pse.find_none':
+      'Tiada padanan.',
+  'pse.find_replace_all':
+      'Ganti semua',
+  'pse.find_replace_one':
+      'Ganti',
+  'pse.find_replaced':
+      '{n} padanan diganti.',
+  'pse.find_replaced_partial':
+      '{n} padanan diganti; {m} blok tidak dapat diubah.',
+  'pse.find_title':
+      'Cari dan ganti',
+  'pse.find_what':
+      'Cari',
+  'pse.find_with':
+      'Ganti dengan',
+  'pse.find_word':
+      'Perkataan penuh',
+  'pse.flatten':
+      'Ratakan anotasi',
+  'pse.flatten_q':
+      'Anotasi dan medan borang pada halaman ini menjadi sebahagian daripada halaman dan tidak boleh lagi disunting secara berasingan.',
+  'pse.fmt_align':
+      'Penjajaran',
+  'pse.fmt_bold':
+      'Tebal',
+  'pse.fmt_color':
+      'Warna',
+  'pse.fmt_highlight':
+      'Warna penyerlahan',
+  'pse.fmt_italic':
+      'Condong',
+  'pse.fmt_larger':
+      'Teks lebih besar',
+  'pse.fmt_size':
+      'Saiz fon',
+  'pse.fmt_smaller':
+      'Teks lebih kecil',
+  'pse.fmt_strike':
+      'Garis lorek',
+  'pse.fmt_underline':
+      'Garis bawah',
+  'pse.font_doc':
+      'dokumen',
+  'pse.font_fallback':
+      'sandaran',
+  'pse.overflow':
+      'Teks bertindih dengan teks di bawahnya.',
+  'pse.overflow_shrink':
+      'Kecilkan',
+  'pse.overflow_push':
+      'Tolak ke bawah',
+  'pse.overflow_widen':
+      'Lebarkan',
+  'pse.link':
+      'Pautan',
+  'pse.link_web':
+      'Pautkan ke alamat web',
+  'pse.link_web_hint':
+      'Alamat atau e-mel',
+  'pse.link_page':
+      'Pautkan ke halaman dalam dokumen ini',
+  'pse.link_page_hint':
+      'Nombor halaman (1–{n})',
+  'pse.link_to_page':
+      'Kini menuju ke halaman {n}',
+  'pse.link_remove':
+      'Buang pautan',
+  'pse.link_bad':
+      'Alamat atau halaman ini tidak boleh digunakan.',
+  'pse.font_pick':
+      'Fon',
+  'pse.image_exported':
+      'Imej disimpan ke Dokumen: {name}',
+  'pse.img_add':
+      'Tambah imej',
+  'pse.img_from_files':
+      'Daripada galeri atau fail',
+  'pse.img_from_camera':
+      'Ambil dengan kamera',
+  'pse.obj_lasso':
+      'Pilih dengan lasso',
+  'pse.img_back':
+      'Hantar ke belakang',
+  'pse.img_crop':
+      'Pangkas',
+  'pse.img_export':
+      'Eksport',
+  'pse.img_front':
+      'Bawa ke hadapan',
+  'pse.img_replace':
+      'Ganti',
+  'pse.img_rotate':
+      'Putar',
+  'pse.list_bullets':
+      'Senarai berbulet',
+  'pse.list_numbers':
+      'Senarai bernombor',
+  'pse.locked_box':
+      'Tambah kotak teks di atasnya',
+  'pse.locked_line':
+      'Tukar ke mod garis',
+  'pse.locked_replace':
+      'Ganti tulisan',
+  'pse.locked_ai':
+      'Baca dengan AI dan ganti',
+  'pse.ocr_ai_reading':
+      'AI sedang membaca tulisan…',
+  'pse.locked_why':
+      'Mengapa ini tidak boleh disunting?',
+  'pse.mk_stamp':
+      'Setem',
+  'pse.mk_freetext':
+      'Teks bebas',
+  'pse.stamp_approved':
+      'DILULUSKAN',
+  'pse.stamp_rejected':
+      'DITOLAK',
+  'pse.stamp_confidential':
+      'SULIT',
+  'pse.stamp_custom':
+      'Setem tersuai…',
+  'pse.mk_note':
+      'Nota',
+  'pse.page_rotate':
+      'Putar halaman ini',
+  'pse.page_studio':
+      'Studio halaman',
+  'pse.page_studio_hint':
+      'Susun semula, sisip, padam, pisah, gabung',
+  'pse.paste':
+      'Tampal',
+  'pse.select_all':
+      'Pilih semua',
+  'pse.style_copy':
+      'Salin gaya',
+  'pse.style_paste':
+      'Tampal gaya',
+  'pse.tool_all':
+      'Semua alat PDF',
+  'pse.tool_all_hint':
+      'Penyuntingan hitam, kata laluan, mampat, tukar…',
+  'pse.tool_form':
+      'Borang',
+  'pse.tool_pages':
+      'Halaman',
+  'pse.tool_sign':
+      'Tandatangan',
+  'pse.kvkk_apply':
+      'Hitamkan {n} item',
+  'pse.kvkk_custom_hint':
+      'Perkataan tambahan (asingkan dengan koma)',
+  'pse.kvkk_done':
+      '{n} item dihitamkan. Dokumen ditulis semula apabila anda menyimpan.',
+  'pse.kvkk_none':
+      'Tiada corak data peribadi ditemui.',
+  'pse.kvkk_title':
+      'Cari data peribadi',
+  'pse.mk_redact':
+      'Hitamkan',
+  'pse.redact_q':
+      'Teks yang dihitamkan dibuang secara kekal daripada dokumen; selepas disimpan ia tidak boleh dipulihkan dan versi lama turut dipadam.',
+  'pse.ocr_run':
+      'Kenali teks (OCR)',
+  'pse.tool_legacy':
+      'Penyunting klasik',
+  'pse.tool_legacy_hint':
+      'Tera air, pembetulan garis imbasan',
+  'pse.edit_text':
+      'Sunting teks',
+  'pse.style':
+      'Gaya',
+  'pse.add_text':
+      'Tambah teks',
+  'pse.textbox_guide':
+      'Ketik di tempat anda mahu menambah teks',
+  'pse.lasso_guide':
+      'Lukis mengelilingi item yang hendak dipilih',
+  'pse.draw_guide':
+      '{tool} aktif · Cubit dengan 2 jari untuk zum',
+  'pse.stroke_title':
+      'Warna & ketebalan',
+  'pse.stroke_width':
+      'Ketebalan garis',
+  'pse.align_group':
+      'Jajar & agihkan',
+  'pse.order':
+      'Susunan',
+  'pse.block_more':
+      'Tindakan blok',
+  'pse.style_sheet_title':
+      'Pemformatan teks',
+  'pse.font_size_pt':
+      '{n} pt',
+  'pse.obj_guide':
+      'Imej & bentuk yang boleh dipilih diserlahkan · ketik untuk menyunting',
+  'pse.obj_count':
+      '{n} item boleh dipilih',
+  'pse.obj_none_hint':
+      'Tiada imej yang boleh dipilih pada halaman ini · tambah imej baharu di bawah',
+  'pse.obj_badge_image':
+      'Imej',
+  'pse.obj_badge_shape':
+      'Bentuk',
+  'pse.resize':
+      'Ubah saiz',
+  'pse.resize_title':
+      'Saiz & skala imej',
+  'pse.scale_pct':
+      'Skala: {n}%',
+  'pse.size_small':
+      'Kecil',
+  'pse.size_fit':
+      'Muat halaman',
+  'pse.size_large':
+      'Besar',
+  'pse.apply_size':
+      'Guna saiz',
+  'pse.text_guide_rich':
+      'Ketik mana-mana kotak teks untuk menyunting · seret pemegang untuk mengalih atau melebarkan',
 };
