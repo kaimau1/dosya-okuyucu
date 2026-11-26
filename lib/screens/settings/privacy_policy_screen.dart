@@ -38,8 +38,11 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   Future<void> _load(AppLanguage language) async {
     // `system` çözümlenmiş dille gelir; yine de bilinmeyen bir kod gelirse
     // Türkçe'ye düşülür — boş ekran göstermektense ana dili göstermek doğru.
+    // Endonezce/Malayca metin henüz yok (hukuk gözden geçirmesi 👤, PLAN §3
+    // m.14): İngilizce gösterilir; `assets/privacy/id.md`/`ms.md` eklenince
+    // buradaki eşleme açılır.
     final code = switch (language) {
-      AppLanguage.en => 'en',
+      AppLanguage.en || AppLanguage.id || AppLanguage.ms => 'en',
       AppLanguage.ar => 'ar',
       _ => 'tr',
     };

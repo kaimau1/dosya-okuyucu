@@ -36,6 +36,33 @@ void main() {
       }
     });
 
+    test('Endonezce/Malayca ek tablosu: anahtar ana tabloda, yer tutucu aynı',
+        () {
+      final all = AppStrings.keys.toSet();
+      for (final lang in const [AppLanguage.id, AppLanguage.ms]) {
+        final table = AppStrings.overlay(lang);
+        expect(table, isNotEmpty, reason: '${lang.code} tablosu boş');
+        for (final e in table.entries) {
+          expect(all, contains(e.key),
+              reason: '${lang.code}: ana tabloda olmayan anahtar ${e.key}');
+          expect(e.value.trim(), isNotEmpty, reason: '${lang.code} · ${e.key}');
+          expect(_vars(e.value),
+              _vars(const AppStrings(AppLanguage.tr).t(e.key)),
+              reason: '${lang.code} · ${e.key} yer tutucuları farklı');
+        }
+      }
+    });
+
+    test('Endonezce/Malayca: çevrilmemiş anahtar İngilizceye düşer', () {
+      final missing = AppStrings.keys.firstWhere(
+          (k) => !AppStrings.overlay(AppLanguage.id).containsKey(k));
+      expect(const AppStrings(AppLanguage.id).t(missing),
+          const AppStrings(AppLanguage.en).t(missing));
+      // Biri ötekine kopyalanmadı: ortak "Dosyalar" ayrı sözcük.
+      expect(const AppStrings(AppLanguage.id).t('home.tab_files'), 'Berkas');
+      expect(const AppStrings(AppLanguage.ms).t('home.tab_files'), 'Fail');
+    });
+
     test('yer tutucu doldurma çalışır', () {
       expect(
         const AppStrings(AppLanguage.en).t('home.time_minutes', {'n': 5}),
@@ -78,6 +105,19 @@ void main() {
         AppLanguageInfo.resolve(AppLanguage.system, const Locale('ar')),
         AppLanguage.ar,
       );
+      expect(
+        AppLanguageInfo.resolve(AppLanguage.system, const Locale('id')),
+        AppLanguage.id,
+      );
+      // Eski Android Endonezce'yi "in" diye bildirir; `Locale` "id"ye çevirir.
+      expect(
+        AppLanguageInfo.resolve(AppLanguage.system, const Locale('in')),
+        AppLanguage.id,
+      );
+      expect(
+        AppLanguageInfo.resolve(AppLanguage.system, const Locale('ms')),
+        AppLanguage.ms,
+      );
       // Açık seçim cihaz dilini EZER.
       expect(
         AppLanguageInfo.resolve(AppLanguage.en, const Locale('ar')),
@@ -97,6 +137,8 @@ void main() {
       expect(AppLanguage.ar.direction, TextDirection.rtl);
       expect(AppLanguage.tr.direction, TextDirection.ltr);
       expect(AppLanguage.en.direction, TextDirection.ltr);
+      expect(AppLanguage.id.direction, TextDirection.ltr);
+      expect(AppLanguage.ms.direction, TextDirection.ltr);
     });
   });
 
@@ -128,6 +170,17 @@ void main() {
       final dir = Directionality.of(
           tester.element(find.byType(Text).first));
       expect(dir, TextDirection.rtl);
+    });
+
+    testWidgets('Endonezce ve Malayca seçilince kendi metni, soldan sağa',
+        (tester) async {
+      await tester.pumpWidget(app(AppLanguage.id));
+      expect(find.text('Berkas'), findsOneWidget);
+      expect(Directionality.of(tester.element(find.byType(Text).first)),
+          TextDirection.ltr);
+      await tester.pumpWidget(app(AppLanguage.ms));
+      await tester.pump();
+      expect(find.text('Fail'), findsOneWidget);
     });
 
     testWidgets('sistem dili desteklenmiyorsa Türkçe çizilir', (tester) async {

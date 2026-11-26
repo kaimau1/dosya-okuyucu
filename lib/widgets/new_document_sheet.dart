@@ -124,7 +124,7 @@ Future<void> showWordTemplateSheet(BuildContext context) async {
   final navigator = Navigator.of(context);
   try {
     final bytes = DocxTemplates.build(id,
-        turkish: s.language != AppLanguage.en && s.language != AppLanguage.ar);
+        turkish: s.language == AppLanguage.tr);
     final path = await BlankDocs.createFrom(s.t('wt.$id'), 'docx', bytes);
     if (!navigator.mounted) return;
     await EntryOpener.open(navigator.context, path);
