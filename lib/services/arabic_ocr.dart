@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -191,8 +190,9 @@ abstract final class ArabicOcr {
           best = k;
         }
       }
-      if (best != prev && best != 0 && best < chars.length)
+      if (best != prev && best != 0 && best < chars.length) {
         sb.write(chars[best]);
+      }
       prev = best;
     }
     return sb.toString();
