@@ -148,16 +148,55 @@ class NeuralVoiceEngine {
     double speed = 1.0,
     void Function(int done, int total)? onProgress,
   }) async {
+    return _serial(() =>
+        _synthesizeNow(voice, text, speed: speed, onProgress: onProgress));
+  }
+
+  Future<T> _serial<T>(Future<T> Function() work) async {
     final previous = _queue;
     final turn = Completer<void>();
     _queue = turn.future;
     try {
       await previous;
-      return await _synthesizeNow(voice, text,
-          speed: speed, onProgress: onProgress);
+      return await work();
     } finally {
       turn.complete();
     }
+  }
+
+  /// **Genel ONNX çıkarımı** (B16, cihazda Arapça metin tanıma): [model]
+  /// sunucu köküne göreli `.onnx` yolu; tek float32 girdi → tek float32
+  /// çıktı. Ses işleriyle aynı sırada (motor tek iş bilir).
+  Future<(Float32List, List<int>)> infer(
+      String model, Float32List input, List<int> dims) {
+    return _serial(() async {
+      await _pageReady.future.timeout(const Duration(seconds: 30));
+      final job = 'j${_seq++}';
+      _server.provide(job,
+          input.buffer.asUint8List(input.offsetInBytes, input.lengthInBytes));
+      final out = _server.expect(job);
+      try {
+        await controller.runJavaScript('engine.infer(${jsonEncode(job)}, '
+            '${jsonEncode(model)}, ${jsonEncode(dims)})');
+        // İlk çağrı modeli de yükler (birkaç saniye); düşük cihazda tam
+        // sayfa algılama onlarca saniye sürebilir.
+        return decodeTensor(await out.timeout(const Duration(minutes: 3)));
+      } finally {
+        _server.fail(job, StateError('bitti'));
+      }
+    });
+  }
+
+  /// `engine.infer` çıktısı: int32 [n, d1..dn] + float32 veri. Saf → testli.
+  static (Float32List, List<int>) decodeTensor(Uint8List bytes) {
+    final head = ByteData.sublistView(bytes);
+    final n = head.getInt32(0, Endian.little);
+    final dims = [
+      for (var i = 0; i < n; i++) head.getInt32(4 + 4 * i, Endian.little),
+    ];
+    // sublist yeni (hizalı) tampon verir; görünüm 4'e hizasız olabilir.
+    final data = bytes.sublist(4 * (n + 1)).buffer.asFloat32List();
+    return (data, dims);
   }
 
   Future<Uint8List> _synthesizeNow(

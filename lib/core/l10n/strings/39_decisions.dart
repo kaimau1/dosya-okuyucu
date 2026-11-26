@@ -24,9 +24,9 @@ const Map<String, (String, String, String)> _t39 = {
   'ocr.script_auto': ('Otomatik', 'Automatic', 'تلقائي'),
   'ocr.script_latin': ('Yalnız Latin (cihazda)', 'Latin only (on device)', 'اللاتينية فقط (على الجهاز)'),
   'ocr.script_arabic': (
-    'Arapça ve diğer alfabeler · akıllı okuma',
-    'Arabic and other scripts · smart reading',
-    'العربية والأبجديات الأخرى · قراءة ذكية',
+    'Arapça (cihazda ya da akıllı okumayla)',
+    'Arabic (on device or smart reading)',
+    'العربية (على الجهاز أو بالقراءة الذكية)',
   ),
   'ocr.cloud_need_key': (
     'Arapça metin tanıma akıllı okumayla yapılır: Ayarlar → Yapay zekâ bölümünden Gemini API anahtarı ekle.',

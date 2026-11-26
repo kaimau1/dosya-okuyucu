@@ -15,6 +15,7 @@ import '../../services/fm/native_extras.dart';
 import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/crash_log.dart';
+import '../../services/arabic_ocr.dart';
 import '../../services/cloud_ocr.dart';
 import '../../widgets/app_dialog.dart';
 import '../../services/app_update.dart';
@@ -806,8 +807,8 @@ class _ContentIndexTileState extends State<ContentIndexTile> {
 }
 
 /// **Metin tanıma dili** (2026-11-18, kullanıcı: *"metin tanımada arapça
-/// desteği yok"*): cihaz içi model yalnız Latin; Arapça vb. AI ile
-/// ([CloudOcr]).
+/// desteği yok"*): ML Kit yalnız Latin; Arapça cihazda indirilebilir
+/// modelle ([ArabicOcr], B16 — internetsiz) ya da AI ile ([CloudOcr]).
 class OcrScriptTile extends StatefulWidget {
   const OcrScriptTile({super.key});
 
@@ -847,22 +848,68 @@ class _OcrScriptTileState extends State<OcrScriptTile> {
               subtitle: Text(ctx.t('${_key(v)}_sub')),
               onTap: () => Navigator.pop(ctx, v),
             ),
+          const Divider(),
+          ListTile(
+            key: const ValueKey('ocr-ar-model'),
+            leading: Icon(
+                ArabicOcr.installed ? AppIcons.delete : AppIcons.download),
+            title: Text(ctx.t(ArabicOcr.installed
+                ? 'ocr.ar_model_remove'
+                : 'ocr.ar_model_get')),
+            subtitle: Text(ctx.t('ocr.ar_model_sub').replaceAll(
+                '{size}', '${(ArabicOcr.downloadBytes / 1e6).round()} MB')),
+            onTap: () {
+              Navigator.pop(ctx);
+              unawaited(_toggleModel());
+            },
+          ),
         ],
       ),
     );
     if (picked == null || !mounted) return;
     setState(() => _value = picked);
     await CloudOcr.setScript(picked);
+    if (picked == OcrScript.arabic && !ArabicOcr.installed) {
+      unawaited(_toggleModel());
+    }
+  }
+
+  /// Cihazdaki Arapça modelini indirir ya da siler. İndirilemezse neden +
+  /// AI ile tanımanın hâlâ seçenek olduğu söylenir.
+  Future<void> _toggleModel() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final t = AppStrings.current;
+    if (ArabicOcr.installed) {
+      await ArabicOcr.remove();
+      if (mounted) setState(() {});
+      return;
+    }
+    try {
+      await ArabicOcr.install();
+      showSnackOn(messenger, t.t('ocr.ar_model_ready'));
+    } catch (_) {
+      showSnackOn(messenger, t.t('ocr.ar_model_failed'));
+    }
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final v = _value;
-    return SettingTile(
-      icon: AppIcons.ocr,
-      title: context.t('ocr.script'),
-      subtitle: v == null ? null : context.t(_key(v)),
-      onTap: v == null ? null : _pick,
+    return ValueListenableBuilder<double?>(
+      valueListenable: ArabicOcr.progress,
+      builder: (context, progress, _) => SettingTile(
+        icon: AppIcons.ocr,
+        title: context.t('ocr.script'),
+        subtitle: v == null
+            ? null
+            : progress != null
+                ? context
+                    .t('ocr.ar_model_loading')
+                    .replaceAll('{p}', '${(progress * 100).round()}')
+                : context.t(_key(v)),
+        onTap: v == null ? null : _pick,
+      ),
     );
   }
 }

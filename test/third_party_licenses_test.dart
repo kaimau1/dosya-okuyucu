@@ -34,6 +34,7 @@ void main() {
       'Antalia-2 Mini',
       'EMA Lightning',
       'ONNX Runtime Web',
+      'PaddleOCR (PP-OCRv5)',
     ]) {
       expect(packages, contains(want));
     }

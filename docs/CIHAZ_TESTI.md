@@ -1727,3 +1727,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Beyaz kâğıtta davranış eskisiyle aynı (beyaz kapak, koyu yazı).
 - [ ] 90° döndürülmüş taranmış sayfa: PDF Pro → "Aranabilir yap (OCR)" → aramada sözcük bulunur, vurgu doğru yerde.
 - [ ] 90° döndürülmüş taranmış sayfada satır düzeltme: yeni metin özgün satırın üstüne, doğru yönde yazılır.
+## B16 dilim 1 — internetsiz Arapça metin tanıma (2026-11-26, dal faz-oto-B16-ocr) — yazıldı, cihazda doğrulanmadı
+- [ ] Ayarlar → Belgeler → Metin tanıma dili → "İnternetsiz Arapça tanımayı indir" (≈27 MB; ses kuruluysa ≈13 MB): ayar satırında "%N" ilerler, bitince "hazır" bildirimi. İnternet kapalıyken dene → anlaşılır "indirilemedi … akıllı okuma" iletisi, uygulama donmaz.
+- [ ] "Arapça" seçiliyken (Gemini anahtarı YOKKEN) matbu Arapça sayfa fotoğrafı → Metni tanı: metin sağdan sola doğru sırada, harfler birleşik; uçak kipinde de çalışır. Model silinip anahtar da yoksa → "modeli indir ya da Gemini anahtarı ekle" iletisi.
+- [ ] Aynı sayfadan aranabilir PDF + taranmış sayfada seçim + içindekiler oluştur: Arapça satırlar seçilebilir/aranabilir, kutular satırın üstünde.
+- [ ] Kalite (B16 m.4): matbu Arapça, harekeli Kur'an sayfası, Osmanlıca, Cavi örneğiyle Gemini'ye karşı karakter doğruluğu; tam taranmış sayfada küçük yazı kaçıyor mu (algılama uzun kenarı 1280 px). Süre: tek sayfa kaç sn (ilk çağrı modeli yükler), bellek.
+- [ ] "Otomatik" kipte Arapça sayfa: Latin sonucu zayıfsa yerel Arapça motor devreye girer (anahtar yokken de).
+- [ ] Sesli kitap sesi kuruluyken bir sesi silmek Arapça tanımayı bozmaz (ortak ONNX çalışma zamanı kalır).
