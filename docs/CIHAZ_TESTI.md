@@ -1739,3 +1739,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kalite (B16 m.4): matbu Arapça, harekeli Kur'an sayfası, Osmanlıca, Cavi örneğiyle Gemini'ye karşı karakter doğruluğu; tam taranmış sayfada küçük yazı kaçıyor mu (algılama uzun kenarı 1280 px). Süre: tek sayfa kaç sn (ilk çağrı modeli yükler), bellek.
 - [ ] "Otomatik" kipte Arapça sayfa: Latin sonucu zayıfsa yerel Arapça motor devreye girer (anahtar yokken de).
 - [ ] Sesli kitap sesi kuruluyken bir sesi silmek Arapça tanımayı bozmaz (ortak ONNX çalışma zamanı kalır).
+## B4-P21 güvenlik + çıktı (2026-11-27, dal faz-oto-B4-p21) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → PDF Pro → Belge bilgileri → "Tüm meta veriyi temizle" → onay → kaydet (kopya): başka bir okuyucuda (ör. Adobe/Chrome özellikler) başlık/yazar/oluşturan boş; sayfalar aynı; geri al çalışır.
+- [ ] Parolalı belgede meta temizle: kaydedilen dosya yine aynı parolayla açılır.
+- [ ] Araçlar ⋮ Sıkıştır (metin ağırlıklı belge): boyut öncekinden küçük ya da eşit; çıktı uygulamada, Chrome'da açılır; sonra yerinde metin düzenleme (Pro düzenleyici) çalışır.
+- [ ] PDF Pro → Agresif sıkıştırma (50+ sayfa): kartta "… n/N" ilerler; Durdur → "durduruldu" iletisi, belge değişmez; yeniden başlatınca sonuna dek gider. Ana ekran şeridi/bildirimdeki Durdur da işi keser.
+- [ ] PDF Pro → PDF/A (30+ sayfa): ilerleme + Durdur aynı; tamamlanınca "-PDFA" kopyası kaydedilir.
+- [ ] Araçlar ⋮ Yazdır: sistem yazdırma penceresi açılır, düzenlenmiş (kaydedilmemiş) sayfalar önizlemede; PDF olarak kaydet çalışır. Parolalı belgede hata olursa ileti çıkar, uygulama çökmez.
