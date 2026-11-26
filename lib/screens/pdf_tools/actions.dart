@@ -64,6 +64,7 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
       name: _str.t('pt.job_name', {'label': label}),
     );
     task.report(detail: p.basename(widget.path));
+    _task = task;
     bool watched() => TrackedTask.userWatching;
     try {
       final out = Uint8List.fromList(await op(current));
@@ -77,6 +78,9 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
         _rev++;
       });
       _selection.value = <int>{};
+    } on JobCancelled {
+      await task.stopped(quiet: watched());
+      if (mounted) _snack(_str.t('pt.op_stopped', {'label': label}));
     } catch (e) {
       await task.fail(e, quiet: watched());
       if (mounted) {
@@ -85,7 +89,32 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
         _snackError(_str.t('pt.op_failed', {'label': label, 'error': userErrorText(e)}));
       }
     } finally {
-      if (mounted) _partSetState(() => _busyLabel = '');
+      _endTask();
+    }
+  }
+
+  /// İş bitti: bekleme kartı kalkar, ilerleme/durdurma durumu sıfırlanır.
+  void _endTask() {
+    _task = null;
+    _stop = false;
+    _cancellable = false;
+    if (mounted) _partSetState(() => _busyLabel = '');
+  }
+
+  /// Sayfa sayfa ilerleyen ağır iş başlarken çağrılır: kartta Durdur görünür.
+  void _beginCancellable() {
+    _cancellable = true;
+    if (mounted) _partSetState(() {});
+  }
+
+  /// Durdur istendi mi (kart düğmesi ya da şerit/bildirim "Durdur").
+  bool _stopAsked() => _stop || (_task?.cancelRequested ?? false);
+
+  /// Ağır işte "Etiket… 12/80" ilerlemesi (kart + iş kaydı).
+  void _progress(String label, int done, int total) {
+    _task?.report(done: done, total: total);
+    if (mounted && _busy) {
+      _partSetState(() => _busyLabel = '$label… $done/$total');
     }
   }
 
@@ -558,6 +587,19 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
     final path = await _conversion.writeToTemp(
         p.basename(widget.path), _bytes!);
     await SharePlus.instance.share(ShareParams(files: [XFile(path)], text: 'PDF'));
+  }
+
+  /// Ekrandaki (düzenlenmiş, kaydedilmemiş olabilir) belgeyi sistem
+  /// yazdırma penceresine verir (B4/P21).
+  Future<void> _print() async {
+    final bytes = _bytes;
+    if (bytes == null) return;
+    try {
+      await Printing.layoutPdf(
+          onLayout: (_) async => bytes, name: p.basename(widget.path));
+    } catch (e) {
+      if (mounted) _snackError(userErrorText(e));
+    }
   }
 
   void _undoLast() {

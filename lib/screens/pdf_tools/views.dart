@@ -93,6 +93,15 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
                       child: CircularProgressIndicator(strokeWidth: 2.5)),
                   const SizedBox(width: 16),
                   Text(_busyLabel),
+                  if (_cancellable) ...[
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: _stop
+                          ? null
+                          : () => _partSetState(() => _stop = true),
+                      child: Text(context.t('common.stop')),
+                    ),
+                  ],
                 ],
               ),
             ),

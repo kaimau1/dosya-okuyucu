@@ -992,6 +992,7 @@ const Map<String, (String, String, String)> _t4 = {
     '{label} failed: {error}',
     'فشل {label}: {error}',
   ),
+  'pt.op_stopped': ('{label} durduruldu', '{label} stopped', 'تم إيقاف {label}'),
   'pt.op_rotate': ('Döndürme', 'Rotating', 'التدوير'),
   'pt.op_delete': ('Silme', 'Deleting', 'الحذف'),
   'pt.op_move': ('Taşıma', 'Moving', 'النقل'),
