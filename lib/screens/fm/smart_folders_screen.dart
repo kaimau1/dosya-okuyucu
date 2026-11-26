@@ -44,6 +44,7 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.smartFolders)) return;
     SmartFolders.instance.ensureLoaded();
     Future.wait([AiIndex.ensureLoaded(), SmartSort.ensureLoaded()]).then((_) {
       if (mounted) setState(() {});
@@ -76,7 +77,6 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
   Widget build(BuildContext context) {
     final scope = context.watchAi().aiScopeRules;
     final unlocked = Edition.current.has(Feature.smartFolders);
-    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(context.t('smart.title'))),
       floatingActionButton: unlocked
@@ -87,41 +87,12 @@ class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
             )
           : null,
       body: !unlocked
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(Gap.xl),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 360),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(AppIcons.pro,
-                          size: 48, color: theme.colorScheme.primary),
-                      const SizedBox(height: Gap.md),
-                      Text(
-                        context.t('pro.saved_locked_title'),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: Gap.xs),
-                      Text(
-                        context.t('pro.saved_locked_sub'),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: Gap.lg),
-                      FilledButton.icon(
-                        onPressed: () =>
-                            showProSheet(context, Feature.smartFolders),
-                        icon: const Icon(AppIcons.pro),
-                        label: Text(context.t('ab.pro_unlock')),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+          ? ProLockedView(
+              feature: Feature.smartFolders,
+              title: context.t('smart.title'),
+              lockedTitle: context.t('pro.saved_locked_title'),
+              message: context.t('pro.saved_locked_sub'),
+              withScaffold: false,
             )
           : ListenableBuilder(
         listenable: Listenable.merge(

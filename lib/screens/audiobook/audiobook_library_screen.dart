@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/audiobook/audiobook_maker.dart';
 import '../../services/fm/fs_scan.dart' show FsPaths;
 import '../../widgets/app_dialog.dart';
 import '../../widgets/motion.dart';
+import '../../widgets/pro_gate.dart';
 import '../fm/media_player_screen.dart';
 import 'voices_screen.dart';
 
@@ -31,6 +33,7 @@ class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.audiobook)) return;
     _load();
   }
 
@@ -71,6 +74,12 @@ class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.audiobook)) {
+      return ProLockedView(
+        feature: Feature.audiobook,
+        title: context.t('ab.library'),
+      );
+    }
     final books = _books;
     return Scaffold(
       appBar: AppBar(

@@ -338,9 +338,9 @@ jobs:
         if: env.MOD != 'atla' && matrix.shard == 2
         run: |
           flutter test --dart-define=DOSYA_SURUM=lite --dart-define=DOSYA_PLAY=1 \
-            test/edition_test.dart test/play_store_test.dart test/fm_tool_grid_test.dart
+            test/edition_test.dart test/pro_security_test.dart test/play_store_test.dart test/fm_tool_grid_test.dart
           flutter test --dart-define=DOSYA_SURUM=pro --dart-define=DOSYA_PLAY=1 \
-            test/edition_test.dart test/play_store_test.dart
+            test/edition_test.dart test/pro_security_test.dart test/play_store_test.dart
 
   # ── Derleme: 3 sürüm matrisi (Kişisel / Play Pro / Play Lite) ─────────────
   apk:

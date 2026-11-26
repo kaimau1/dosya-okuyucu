@@ -221,7 +221,11 @@ void registerResizeJobRunner() {
       final entry = FsEntry.ofPath(path);
       // Aradan silinmiş/taşınmış dosya sessizce atlanır: iş "bulunamadı"
       // diye tamamen düşmemeli, kalanlar yine küçültülmeli.
-      if (entry != null) media.add(entry);
+      if (entry != null &&
+          (entry.category != FmCategory.video ||
+              Edition.current.has(Feature.videoCompress))) {
+        media.add(entry);
+      }
     }
     if (media.isEmpty) {
       // Kalan dosya kalmadıysa iş BİTMİŞTİR; sessiz çıkmak kartı "0/0" ile

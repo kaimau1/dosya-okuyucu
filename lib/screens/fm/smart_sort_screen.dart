@@ -120,9 +120,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.smartFolders)) return;
     unawaited(Future.wait([
       SmartSort.ensureLoaded(),
       SmartQuota.read(),
+      SmartScopePick.read(),
       SmartFolders.instance.ensureLoaded(),
     ])
         .then((_) async {
@@ -147,6 +149,12 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
     final state = context.read<AppState>();
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    await SmartScopePick.read();
+    if (!SmartScopePick.hasAnySelected) {
+      showSnackOn(messenger, s.t('sm.pick_one'));
+      return;
+    }
+    if (!mounted) return;
     // API anahtarı olmadan da yerel kurallar (0 kredi, çevrimdışı) çalışır;
     // belirsiz dosyalar için kullanıcı dilerse AI anahtarını ekleyebilir.
     if (state.aiCredentials.normalized.keys.isEmpty) {
@@ -154,6 +162,10 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
       if (!mounted) return;
       final msg = switch (r.hold) {
         SmartHold.noScope => s.t('sm.hold_scope'),
+        SmartHold.cap => s.t('sm.starter_cap_hit', {
+            'n': r.processed,
+            'max': SmartQuota.proStarterLimit,
+          }),
         _ => r.processed > 0
             ? s.t('sm.local_saved', {'n': r.processed})
             : s.t('sm.nothing_new'),
@@ -578,6 +590,41 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 ],
               ],
             ),
+            if (prog == null) ...[
+              const SizedBox(height: Gap.xs),
+              Wrap(
+                spacing: Gap.xs,
+                runSpacing: Gap.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  ActionChip(
+                    key: const ValueKey('ss-status-scope'),
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(AppIcons.tune, size: 15),
+                    label: Text(context.t('scp.title')),
+                    onPressed: () async {
+                      await SmartScopePick.read();
+                      if (!context.mounted) return;
+                      await Navigator.of(context).push(MaterialPageRoute<void>(
+                          builder: (_) => const SmartScopeScreen()));
+                    },
+                  ),
+                  if (Edition.current == Edition.pro &&
+                      !context.select<AppState, bool>((s) => s.hasApiKey))
+                    Text(
+                      context.t('sm.starter_usage', {
+                        'n': SmartSort.records.length,
+                        'max': SmartQuota.proStarterLimit,
+                      }),
+                      key: const ValueKey('ss-starter-quota'),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+            ],
             if (prog != null) ...[
               const SizedBox(height: Gap.sm),
               ClipRRect(
@@ -749,45 +796,11 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   @override
   Widget build(BuildContext context) {
     if (!Edition.current.has(Feature.smartFolders)) {
-      final theme = Theme.of(context);
-      return Scaffold(
-        appBar: AppBar(title: Text(context.t('sm.title'))),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(Gap.xl),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(AppIcons.pro,
-                      size: 48, color: theme.colorScheme.primary),
-                  const SizedBox(height: Gap.md),
-                  Text(
-                    context.t('pro.smart_locked_title'),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: Gap.xs),
-                  Text(
-                    context.t('pro.smart_locked_sub'),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: Gap.lg),
-                  FilledButton.icon(
-                    onPressed: () =>
-                        showProSheet(context, Feature.smartFolders),
-                    icon: const Icon(AppIcons.pro),
-                    label: Text(context.t('ab.pro_unlock')),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      return ProLockedView(
+        feature: Feature.smartFolders,
+        title: context.t('sm.title'),
+        lockedTitle: context.t('pro.smart_locked_title'),
+        message: context.t('pro.smart_locked_sub'),
       );
     }
     return Scaffold(
@@ -813,6 +826,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                 SmartLearn.revision,
                 SmartUserCats.revision,
                 SmartQuota.revision,
+                SmartScopePick.revision,
                 SmartFolders.instance,
               ]),
               builder: (context, _) => SmartSort.enabled
@@ -830,13 +844,22 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
 
   Widget _intro(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final w = MediaQuery.sizeOf(context).width;
     final hPad = w > 960 ? (w - 960) / 2 + Gap.lg : Gap.lg;
+    final allOn = SmartGroup.values.every(SmartScopePick.groupOn) &&
+        SmartSource.values.every(SmartScopePick.sourceOn);
+    final docsOnly = SmartScopePick.groupOn(SmartGroup.docs) &&
+        SmartGroup.values.where((g) => g != SmartGroup.docs).every((g) => !SmartScopePick.groupOn(g));
+    final downloadsOnly = SmartScopePick.sourceOn(SmartSource.download) &&
+        SmartSource.values
+            .where((s) => s != SmartSource.download)
+            .every((s) => !SmartScopePick.sourceOn(s));
     return ListView(
       padding: withNavInset(
           context, EdgeInsets.symmetric(horizontal: hPad, vertical: Gap.lg)),
       children: [
-        Icon(AppIcons.ai, size: 48, color: theme.colorScheme.primary),
+        Icon(AppIcons.ai, size: 48, color: cs.primary),
         const SizedBox(height: Gap.md),
         Text(context.t('sm.intro_title'),
             style: theme.textTheme.headlineSmall),
@@ -848,17 +871,135 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
             padding: const EdgeInsets.only(bottom: Gap.xs),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Icon(AppIcons.check,
-                  size: AppIcons.small, color: theme.colorScheme.primary),
+                  size: AppIcons.small, color: cs.primary),
               const SizedBox(width: Gap.sm),
               Expanded(child: Text(context.t(k))),
             ]),
           ),
         const SizedBox(height: Gap.md),
+        Card(
+          key: const ValueKey('ss-intro-picker'),
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(Gap.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.t('sm.intro_pick_title'),
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  context.t('sm.intro_pick_sub',
+                      {'max': SmartQuota.proStarterLimit}),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  spacing: Gap.xs,
+                  runSpacing: Gap.xs,
+                  children: [
+                    ChoiceChip(
+                      key: const ValueKey('ss-preset-all'),
+                      label: Text(context.t('sm.preset_all')),
+                      selected: allOn,
+                      onSelected: (_) =>
+                          unawaited(SmartScopePick.setAll(on: true)),
+                    ),
+                    ChoiceChip(
+                      key: const ValueKey('ss-preset-docs'),
+                      label: Text(context.t('sm.preset_docs')),
+                      selected: docsOnly,
+                      onSelected: (_) =>
+                          unawaited(SmartScopePick.selectOnlyDocs()),
+                    ),
+                    ChoiceChip(
+                      key: const ValueKey('ss-preset-downloads'),
+                      label: Text(context.t('sm.preset_downloads')),
+                      selected: downloadsOnly,
+                      onSelected: (_) =>
+                          unawaited(SmartScopePick.selectOnlyDownloads()),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Gap.xs),
+                CheckboxListTile(
+                  key: const ValueKey('ss-pick-docs'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(context.t('scp.g_docs')),
+                  value: SmartScopePick.groupOn(SmartGroup.docs),
+                  onChanged: (v) =>
+                      unawaited(SmartScopePick.setGroup(SmartGroup.docs, v ?? true)),
+                ),
+                CheckboxListTile(
+                  key: const ValueKey('ss-pick-images'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(context.t('scp.g_images')),
+                  value: SmartScopePick.groupOn(SmartGroup.images),
+                  onChanged: (v) =>
+                      unawaited(SmartScopePick.setGroup(SmartGroup.images, v ?? true)),
+                ),
+                CheckboxListTile(
+                  key: const ValueKey('ss-pick-screenshots'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(context.t('scp.g_screenshots')),
+                  value: SmartScopePick.groupOn(SmartGroup.screenshots),
+                  onChanged: (v) => unawaited(
+                      SmartScopePick.setGroup(SmartGroup.screenshots, v ?? true)),
+                ),
+                CheckboxListTile(
+                  key: const ValueKey('ss-pick-videos'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(context.t('scp.g_videos')),
+                  value: SmartScopePick.groupOn(SmartGroup.videos),
+                  onChanged: (v) =>
+                      unawaited(SmartScopePick.setGroup(SmartGroup.videos, v ?? true)),
+                ),
+                CheckboxListTile(
+                  key: const ValueKey('ss-pick-download'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(context.t('sm.pick_download_folder')),
+                  value: SmartScopePick.sourceOn(SmartSource.download),
+                  onChanged: (v) => unawaited(
+                      SmartScopePick.setSource(SmartSource.download, v ?? true)),
+                ),
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton.icon(
+                    key: const ValueKey('ss-intro-more-scope'),
+                    onPressed: () async {
+                      await SmartScopePick.read();
+                      if (!context.mounted) return;
+                      await Navigator.of(context).push(MaterialPageRoute<void>(
+                          builder: (_) => const SmartScopeScreen()));
+                    },
+                    icon: const Icon(AppIcons.tune, size: 17),
+                    label: Text(context.t('sm.pick_more_sources')),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
         const Card(margin: EdgeInsets.zero, child: SmartSortSettings()),
         const SizedBox(height: Gap.md),
         Text(context.t('sm.privacy'),
             style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                ?.copyWith(color: cs.onSurfaceVariant)),
         if (!context.select<AppState, bool>((s) => s.hasApiKey)) ...[
           const SizedBox(height: Gap.md),
           _localReadyBanner(context),

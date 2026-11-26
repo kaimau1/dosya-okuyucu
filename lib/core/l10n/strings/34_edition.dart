@@ -10,9 +10,29 @@ const Map<String, (String, String, String)> _t34 = {
     'المجلدات الذكية وتحرير PDF والكتب الصوتية وضغط الفيديو · دفعة واحدة',
   ),
   'pro.one_time_badge': (
-    'Tek seferlik · Abonelik yok · Reklam yok',
-    'One-time purchase · No subscription · No ads',
-    'شراء لمرة واحدة · بلا اشتراك · بلا إعلانات',
+    'Tek seferlik ödeme · Reklam yok',
+    'One-time purchase · No ads',
+    'شراء لمرة واحدة · بلا إعلانات',
+  ),
+  'pro.price_one_time': (
+    '{p} · Tek seferlik',
+    '{p} · One-time',
+    '{p} · لمرة واحدة',
+  ),
+  'pro.smart_limit_note': (
+    'Pro sürüme 500 dosyaya kadar Akıllı Klasör başlangıç hakkı dahildir; ekstra bulut analizi isteğe bağlı abonelik veya kendi anahtarınızladır.',
+    'Pro includes a 500-file Smart Folders starter allowance; extra cloud analysis is optional via subscription or your own key.',
+    'يشمل Pro رصيدًا ابتدائيًا لـ 500 ملف في المجلدات الذكية؛ التحليل السحابي الإضافي اختياري بالاشتراك أو بمفتاحك.',
+  ),
+  'pro.locked_title': (
+    '{f} Pro sürümde',
+    '{f} is in Pro',
+    '{f} في الإصدار الاحترافي',
+  ),
+  'pro.locked_sub': (
+    'Bu araç tek seferlik Pro sürümde açılır. Tüm temel dosya yönetimi ve okuma Lite’ta ücretsiz kalır.',
+    'This tool unlocks in the one-time Pro version. All core file management and reading stay free in Lite.',
+    'تُفتح هذه الأداة في الإصدار الاحترافي لمرة واحدة. تبقى القراءة وإدارة الملفات الأساسية مجانية في Lite.',
   ),
   'pro.feature_title': ('{f} Pro sürümde', '{f} is in the Pro version', '{f} في الإصدار الاحترافي'),
   'pro.lead': (

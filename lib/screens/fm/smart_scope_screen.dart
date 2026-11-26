@@ -5,10 +5,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_icons.dart';
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../services/fm/smart_scope_pick.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../widgets/pro_gate.dart';
 import '../../widgets/section_header.dart';
 
 /// **"Neyi düzenleyelim?"** — Akıllı düzen kapsamı (Aşama 1, 2026-11-22).
@@ -31,6 +33,7 @@ class _SmartScopeScreenState extends State<SmartScopeScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.smartFolders)) return;
     SmartScopePick.revision.addListener(_changed);
     SmartSort.revision.addListener(_changed);
     unawaited(_load());
@@ -38,8 +41,10 @@ class _SmartScopeScreenState extends State<SmartScopeScreen> {
 
   @override
   void dispose() {
-    SmartScopePick.revision.removeListener(_changed);
-    SmartSort.revision.removeListener(_changed);
+    if (Edition.current.has(Feature.smartFolders)) {
+      SmartScopePick.revision.removeListener(_changed);
+      SmartSort.revision.removeListener(_changed);
+    }
     super.dispose();
   }
 
@@ -82,6 +87,12 @@ class _SmartScopeScreenState extends State<SmartScopeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.smartFolders)) {
+      return ProLockedView(
+        feature: Feature.smartFolders,
+        title: context.t('scp.title'),
+      );
+    }
     final c = _counts;
     final theme = Theme.of(context);
     final sel = c?.sum(

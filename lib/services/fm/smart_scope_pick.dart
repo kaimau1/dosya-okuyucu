@@ -135,6 +135,49 @@ abstract final class SmartScopePick {
       ? SmartSort.includeCamera
       : !_skipSources.contains(s);
 
+  /// En az bir tür ve en az bir klasör kaynağı seçili mi?
+  static bool get hasAnySelected =>
+      SmartGroup.values.any(groupOn) && SmartSource.values.any(sourceOn);
+
+  /// Tüm türleri ve kaynakları (kamera dahil) tek seferde açar ya da kapatır.
+  static Future<void> setAll({required bool on}) async {
+    await read();
+    _skipGroups.clear();
+    _skipSources.clear();
+    if (!on) {
+      _skipGroups.addAll(SmartGroup.values);
+      _skipSources.addAll(
+          [for (final s in SmartSource.values) if (s != SmartSource.camera) s]);
+    }
+    await SmartSort.setSettings(camera: on);
+    await _save();
+  }
+
+  /// Hızlı seçim: yalnız Belgeler türünü (diğer türler kapalı) taramaya alır.
+  static Future<void> selectOnlyDocs() async {
+    await read();
+    _skipGroups
+      ..clear()
+      ..addAll([for (final g in SmartGroup.values) if (g != SmartGroup.docs) g]);
+    _skipSources.clear();
+    await SmartSort.setSettings(camera: false);
+    await _save();
+  }
+
+  /// Hızlı seçim: yalnız İndirilenler klasörünü taramaya alır.
+  static Future<void> selectOnlyDownloads() async {
+    await read();
+    _skipGroups.clear();
+    _skipSources
+      ..clear()
+      ..addAll([
+        for (final s in SmartSource.values)
+          if (s != SmartSource.download && s != SmartSource.camera) s,
+      ]);
+    await SmartSort.setSettings(camera: false);
+    await _save();
+  }
+
   static Future<void> setGroup(SmartGroup g, bool on) async {
     await read();
     on ? _skipGroups.remove(g) : _skipGroups.add(g);

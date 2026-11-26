@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/safe_insets.dart';
 import '../../core/snack.dart';
@@ -13,6 +14,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_sort.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../widgets/app_dialog.dart';
+import '../../widgets/pro_gate.dart';
 import '../../widgets/fm/fm_entry_icon.dart';
 import '../../widgets/fm/fm_file_image.dart';
 import 'entry_actions.dart';
@@ -32,9 +34,12 @@ class SmartClutterScreen extends StatefulWidget {
 
   const SmartClutterScreen({super.key, this.startHidden = false});
 
-  static Future<void> open(BuildContext context, {bool hidden = false}) =>
-      Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => SmartClutterScreen(startHidden: hidden)));
+  static Future<void> open(BuildContext context, {bool hidden = false}) async {
+    if (!await ProGate.check(context, Feature.smartFolders)) return;
+    if (!context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => SmartClutterScreen(startHidden: hidden)));
+  }
 
   @override
   State<SmartClutterScreen> createState() => _SmartClutterScreenState();
@@ -60,13 +65,16 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
   @override
   void initState() {
     super.initState();
+    if (!Edition.current.has(Feature.smartFolders)) return;
     SmartSort.revision.addListener(_onChange);
     unawaited(_checkAlive());
   }
 
   @override
   void dispose() {
-    SmartSort.revision.removeListener(_onChange);
+    if (Edition.current.has(Feature.smartFolders)) {
+      SmartSort.revision.removeListener(_onChange);
+    }
     super.dispose();
   }
 
@@ -197,6 +205,12 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.smartFolders)) {
+      return ProLockedView(
+        feature: Feature.smartFolders,
+        title: context.t('sm.clutter'),
+      );
+    }
     final clutterAll = _allClutter;
     final hiddenAll = _allHidden;
     final reasonCounts = _reasonCounts;

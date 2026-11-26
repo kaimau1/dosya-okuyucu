@@ -266,13 +266,33 @@ class _ProSheetBody extends StatelessWidget {
             ),
           if (ProListing.priceLabel.isNotEmpty) ...[
             const SizedBox(height: Gap.sm),
-            Text(
-              context.t('pro.price', {'p': ProListing.priceLabel}),
+            Container(
               key: const ValueKey('pro-price'),
-              style: theme.textTheme.titleMedium,
+              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+              decoration: BoxDecoration(
+                color: cs.primaryContainer.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(Radii.control),
+              ),
+              child: Text(
+                context.t('pro.price_one_time', {'p': ProListing.priceLabel}),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: cs.onPrimaryContainer,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
           const SizedBox(height: Gap.sm),
+          Text(
+            context.t('pro.smart_limit_note'),
+            key: const ValueKey('pro-smart-note'),
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
           Text(
             context.t('pro.trust'),
             textAlign: TextAlign.center,
@@ -294,6 +314,97 @@ class _ProSheetBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Lite derlemede doğrudan açılan bir Pro ekranının gösterdiği kilitli görünüm.
+class ProLockedView extends StatelessWidget {
+  final Feature feature;
+  final String title;
+  final String? lockedTitle;
+  final String? message;
+  final bool withScaffold;
+
+  const ProLockedView({
+    super.key,
+    required this.feature,
+    required this.title,
+    this.lockedTitle,
+    this.message,
+    this.withScaffold = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final body = Center(
+      key: const ValueKey('pro-locked-view'),
+      child: Padding(
+        padding: const EdgeInsets.all(Gap.xl),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(AppIcons.pro, size: 48, color: cs.primary),
+              const SizedBox(height: Gap.md),
+              Text(
+                lockedTitle ??
+                    context.t('pro.locked_title', {
+                      'f': context.t('pro.f.${feature.name}'),
+                    }),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: Gap.xs),
+              Text(
+                message ?? context.t('pro.locked_sub'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              if (ProListing.priceLabel.isNotEmpty) ...[
+                const SizedBox(height: Gap.md),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: cs.secondaryContainer,
+                    borderRadius: BorderRadius.circular(Radii.control),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Gap.sm, vertical: 5),
+                    child: Text(
+                      context.t(
+                          'pro.price_one_time', {'p': ProListing.priceLabel}),
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: cs.onSecondaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: Gap.lg),
+              FilledButton.icon(
+                key: const ValueKey('pro-locked-btn'),
+                onPressed: () => showProSheet(context, feature),
+                icon: const Icon(AppIcons.pro),
+                label: Text(context.t('ab.pro_unlock')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!withScaffold) return body;
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: body,
     );
   }
 }

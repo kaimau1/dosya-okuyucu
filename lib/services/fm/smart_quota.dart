@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/edition.dart';
 import 'native_extras.dart';
 
 /// Akıllı düzen turunun neden başlamadığı ya da yarıda durduğu (hata değil).
@@ -69,6 +70,15 @@ abstract final class SmartQuota {
   static bool get isUnlimited => _cap >= unlimited;
   static const defaultCap = 200;
   static const historyDays = 7;
+
+  /// Pro sürümün kendi anahtarı olmadan sunduğu Akıllı Klasör başlangıç
+  /// hakkı (toplam dosya sınırı). Ekstra bulut analizi kendi anahtarı ya da
+  /// isteğe bağlı abonelikle sınırsızdır.
+  static const int proStarterLimit = 500;
+
+  /// Bu derlemede Akıllı Klasör için toplam dosya üst sınırı (sınırsızsa null).
+  static int? starterCapFor(Edition edition, {required bool hasOwnKey}) =>
+      edition == Edition.pro && !hasOwnKey ? proStarterLimit : null;
 
   static int _cap = defaultCap;
   static bool _wifiOnly = true;

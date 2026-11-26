@@ -443,4 +443,46 @@ const Map<String, (String, String, String)> _t40 = {
   'sm.m7': ('Temmuz', 'July', 'يوليو'),
   'sm.m8': ('Ağustos', 'August', 'أغسطس'),
   'sm.m9': ('Eylül', 'September', 'سبتمبر'),
+  'sm.intro_pick_title': (
+    'Hangi dosyaları tarayalım?',
+    'Which files should we scan?',
+    'ما الملفات التي نفحصها؟',
+  ),
+  'sm.intro_pick_sub': (
+    'Başlangıçta {max} dosya hakkınız var; hepsini taramak yerine istediğinizi tikleyin.',
+    'You start with a {max}-file allowance; tick only what you want instead of scanning everything.',
+    'تبدأ برصيد {max} ملف؛ حدّد ما تريد فقط بدل فحص كل شيء عشوائيًا.',
+  ),
+  'sm.preset_all': ('Hepsi', 'All', 'الكل'),
+  'sm.preset_docs': ('Yalnız Belgeler', 'Documents only', 'المستندات فقط'),
+  'sm.preset_downloads': (
+    'Yalnız İndirilenler',
+    'Downloads only',
+    'التنزيلات فقط',
+  ),
+  'sm.pick_download_folder': (
+    'İndirilenler klasörü',
+    'Downloads folder',
+    'مجلد التنزيلات',
+  ),
+  'sm.pick_more_sources': (
+    'Diğer tür ve klasör seçenekleri',
+    'More types & folder sources',
+    'المزيد من الأنواع والمصادر',
+  ),
+  'sm.pick_one': (
+    'Taramak için en az bir tür ve kaynak seçin.',
+    'Select at least one type and source to scan.',
+    'اختر نوعًا ومصدرًا واحدًا على الأقل للفحص.',
+  ),
+  'sm.starter_usage': (
+    '{n} / {max} başlangıç hakkı kullanıldı',
+    '{n} / {max} starter allowance used',
+    'تم استخدام {n} / {max} من الرصيد الابتدائي',
+  ),
+  'sm.starter_cap_hit': (
+    '{n} dosya düzenlendi · {max} dosyalık başlangıç hakkına ulaşıldı. Ekstra tarama için isteğe bağlı abonelik veya kendi anahtarınızı kullanabilirsiniz.',
+    '{n} files organized · Reached {max}-file starter allowance. Use optional subscription or your own key for more.',
+    'تم تنظيم {n} ملف · تم بلوغ الحد الابتدائي {max} ملف. يمكنك الترقية اختياريًا أو استخدام مفتاحك.',
+  ),
 };

@@ -26,6 +26,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   /// Düzenleme kipine girer. false = bayrak kapalı (çağıran eski yola gider);
   /// true = bu yol üstlendi (kipe girildi ya da kullanıcı vazgeçti).
   Future<bool> _enterProEdit({int? page, PdfEditSelection? selection}) async {
+    if (!Edition.current.has(Feature.pdfAdvanced)) return true;
     if (_pro != null) return true;
     if (!await _proEnabled()) return false;
     final doc = _pdfDoc;

@@ -4,6 +4,7 @@ import 'dart:ui' show DartPluginRegistrant;
 import 'package:flutter/widgets.dart';
 
 import '../../core/app_state.dart';
+import '../../core/edition.dart';
 import 'fm_env.dart';
 import 'native_extras.dart';
 import 'smart_quota.dart';
@@ -28,6 +29,7 @@ abstract final class SmartSortBg {
   static const limit = 300;
 
   static Future<void> run() async {
+    if (!Edition.current.has(Feature.smartFolders)) return;
     await FmEnv.ensureInit();
     await SmartSort.readSettings();
     if (!SmartSort.wantsBackgroundJob) {

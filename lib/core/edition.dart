@@ -173,9 +173,10 @@ abstract final class ProListing {
   /// Pro paket kimliği (S5).
   static const packageId = 'com.dosyaokuyucu.dosya_okuyucu.pro';
 
-  /// Fiyat metni — kullanıcı kararı (👤). Boşken levhada fiyat satırı
-  /// gizlenir: yanlış fiyat göstermektense hiç gösterme.
-  static const priceLabel = String.fromEnvironment('DOSYA_PRO_FIYAT');
+  /// Fiyat metni — lansman fiyatı varsayılanı (`29,99 TL`), derlemede
+  /// `DOSYA_PRO_FIYAT` ile değişebilir.
+  static const priceLabel =
+      String.fromEnvironment('DOSYA_PRO_FIYAT', defaultValue: '29,99 TL');
 
   static Uri get marketUri => Uri.parse('market://details?id=$packageId');
   static Uri get webUri =>

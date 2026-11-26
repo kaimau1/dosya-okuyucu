@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/user_error.dart';
 import '../fm/job_queue.dart' show FmJobTarget, FmJobTargetKind;
@@ -95,6 +96,9 @@ class AudiobookJob extends ChangeNotifier {
     bool aiTidy = false,
     GeminiService? aiGemini,
   }) {
+    if (!Edition.current.has(Feature.audiobook)) {
+      throw StateError('Pro required');
+    }
     final existing = _jobs[path];
     if (existing != null && existing.running) return existing;
     final job = AudiobookJob._(

@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
+import '../../core/edition.dart';
 import '../../services/fm/entry_opener.dart';
 import '../../services/fm/job_queue.dart';
+import '../../widgets/pro_gate.dart';
 import '../audiobook/audiobook_screen.dart';
 import 'smart_sort_screen.dart';
 import 'browser_screen.dart';
@@ -119,6 +121,8 @@ Future<bool> _openTarget(BuildContext context, FmJobTarget target) async {
       return _openFiles(context, target.paths);
     case FmJobTargetKind.audiobook:
       if (target.paths.isEmpty) return false;
+      if (!await ProGate.check(context, Feature.audiobook)) return false;
+      if (!context.mounted) return false;
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => AudiobookScreen(path: target.paths.first),
       ));

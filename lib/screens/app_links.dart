@@ -3,10 +3,12 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../core/app_state.dart';
+import '../core/edition.dart';
 import '../models/fs_entry.dart';
 import '../services/fm/media_library.dart';
 import 'fm/photos_screen.dart';
 
+import '../widgets/pro_gate.dart';
 import '../widgets/scan_flow.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/fm_env.dart';
@@ -115,6 +117,8 @@ Future<void> openAppLink(BuildContext context, String link) async {
     case 'app:clean':
       await push(const CleanupScreen());
     case 'app:bills':
+      if (!await ProGate.check(context, Feature.smartFolders)) return;
+      if (!context.mounted) return;
       await push(const BillsScreen());
     // Başlatıcı kısayolları (Faz 19).
     case 'app:downloads':

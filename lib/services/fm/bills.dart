@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/edition.dart';
 import '../../core/text_search.dart';
 import '../../models/fs_entry.dart';
 import 'ai_extract.dart';
@@ -213,6 +214,7 @@ class Bills extends ChangeNotifier {
     void Function(int done, int total)? onProgress,
     int? nowMs,
   }) async {
+    if (!Edition.current.has(Feature.smartFolders)) return 0;
     await ensureLoaded();
     await AiIndex.ensureLoaded();
     if (_busy) return 0;

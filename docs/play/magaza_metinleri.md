@@ -125,20 +125,20 @@ this app is not affiliated with Microsoft.
 
 **Başlık:** Dosya Okuyucu Pro: PDF ve AI
 
-**Kısa açıklama:** PDF düzenle, akıllı klasörler, sesli kitap ve video sıkıştırma. Tek seferlik.
+**Kısa açıklama:** Tek seferlik Pro. Abonelik yok (yalnız ekstra Akıllı Klasör için).
 
 **Uzun açıklama:**
 
 Dosya Okuyucu Pro; Lite sürümdeki tüm ücretsiz okuyucu ve dosya yöneticisi
 araçlarına ek olarak gelişmiş üretkenlik paketini tek seferlik lisansla sunar.
-Reklam yok, abonelik yok, veri toplama yok.
+Reklam yok, temel özelliklerde abonelik yok, veri toplama yok.
 
 • Gelişmiş PDF stüdyosu: paragrafları yerinde düzenle, sayfa ekle/çıkar/döndür,
   birleştir, böl, filigran ekle ve gelişmiş tarama araçları
 • Akıllı Klasörler: fatura, banka dekontu, resmi evrak, sağlık ve ekran
-  görüntülerini cihaz içinde internet ve API anahtarı olmadan otomatik
-  kategorilere ayır (dilersen kendi Gemini anahtarınla belirsiz dosyaları da
-  ekle)
+  görüntülerini baştan tür/klasör seçerek cihaz içinde internet gerekmeden
+  otomatik kategorilere ayır (500 dosyaya kadar başlangıç hakkı dahil;
+  daha fazla bulut analizi isteğe bağlı abonelik veya kendi Gemini anahtarınla)
 • Sesli Kitap Stüdyosu: PDF, Word veya metinlerini doğal Türkçe AI sesleriyle
   bölümlü sesli kitaba çevir ve çevrimdışı dinle
 • Video boyut düşürme: yer açma ve paylaşım için tahmini boyut görerek sıkıştır
@@ -153,12 +153,14 @@ Reklam yok, abonelik yok, veri toplama yok.
 **Full description:**
 
 Dosya Okuyucu Pro includes everything in Lite plus the complete power-user suite
-with a one-time purchase — no ads, no subscriptions, no tracking.
+with a one-time purchase — no ads, no core subscriptions, no tracking.
 
 • Full PDF Editor: edit paragraphs in place, merge/split, reorder/rotate pages
   and add watermarks
-• Smart Folders: organize invoices, bank receipts, official records and screenshots
-  offline with zero API keys required (plus optional Gemini with your own API key)
+• Smart Folders: choose which file types and folders to scan, organize
+  invoices, bank receipts, official records and screenshots offline (500-file
+  starter allowance included; extra cloud quota is optional via subscription
+  or your own Gemini key)
 • Audiobook Studio: convert documents into chaptered offline audiobooks
 • Video Shrink: preview estimated output size and compress large videos locally
 • Pro Word & Slides tools for richer document workflows
@@ -175,8 +177,8 @@ with a one-time purchase — no ads, no subscriptions, no tracking.
 واحدة دون إعلانات أو اشتراكات:
 
 • محرر PDF متكامل: تعديل الفقرات في مكانها، الدمج والتقسيم وإدارة الصفحات
-• المجلدات الذكية: تصنيف الفواتير والإيصالات والمستندات الرسمية محليًا دون الحاجة
-  لمفتاح API (مع خيار Gemini اختياري)
+• المجلدات الذكية: اختر الأنواع والمجلدات قبل الفحص وصنّف الفواتير والإيصالات
+  والمستندات الرسمية محليًا دون إنترنت (تشمل 500 ملف مجانًا؛ الزيادة اختيارية)
 • استوديو الكتب الصوتية لتحويل المستندات إلى ملفات صوتية مقسّمة إلى فصول
 • ضغط الفيديو محليًا مع تقدير الحجم قبل البدء
 • أدوات متقدمة لمستندات Word والعروض التقديمية

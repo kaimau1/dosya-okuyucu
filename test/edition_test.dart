@@ -128,8 +128,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(ran, 0);
       expect(find.byKey(const ValueKey('pro-store')), findsOneWidget);
-      // Fiyat tanımsız → fiyat satırı yok (yanlış fiyat göstermektense hiç).
-      expect(find.byKey(const ValueKey('pro-price')), findsNothing);
+      expect(find.byKey(const ValueKey('pro-one-time')), findsOneWidget);
+      expect(ProListing.priceLabel, '29,99 TL');
+      expect(find.byKey(const ValueKey('pro-price')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('pro-later')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('pro-store')), findsNothing);

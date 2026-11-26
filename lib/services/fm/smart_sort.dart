@@ -2341,12 +2341,19 @@ abstract final class SmartSort {
     required AiScope scope,
     int scan = scanAll,
     int limit = 2000,
+    int? maxTotal,
   }) async {
     if (!Edition.current.has(Feature.smartFolders)) {
       return const SmartRunResult(0, 0, hold: SmartHold.noKey);
     }
     if (isRunning) return const SmartRunResult(0, 0);
     await ensureLoaded();
+    final cap = maxTotal ??
+        SmartQuota.starterCapFor(Edition.current, hasOwnKey: false);
+    var remainingSlots = cap == null ? null : (cap - _records.length);
+    if (remainingSlots != null && remainingSlots <= 0) {
+      return const SmartRunResult(0, 0, hold: SmartHold.cap);
+    }
     final roots = scopeRoots();
     if (roots.isEmpty) {
       return const SmartRunResult(0, 0, hold: SmartHold.noScope);
@@ -2356,20 +2363,29 @@ abstract final class SmartSort {
     var processed = 0;
     var reused = 0;
     final done = <String>[];
+    var hitStarterCap = false;
     try {
       final fresh = await FsScan.freshFiles(roots, limit: scan);
       await SmartScopePick.read();
-      final todo = SmartScopePick.ordered([
+      final todoAll = SmartScopePick.ordered([
         for (final e in fresh)
           if (supports(e) &&
               needs(e) &&
               scope.allowsFile(e) &&
               SmartScopePick.allows(e.path))
             e,
-      ]).take(limit).toList();
+      ]);
+      final takeN = remainingSlots == null || remainingSlots >= limit
+          ? limit
+          : remainingSlots;
+      final todo = todoAll.take(takeN).toList();
       progress.value = SmartProgress(0, todo.length);
       for (var i = 0; i < todo.length; i++) {
         if (_cancelRequested) break;
+        if (remainingSlots != null && processed >= remainingSlots) {
+          hitStarterCap = true;
+          break;
+        }
         final e = todo[i];
         final old = _records[e.path];
         if (!(old?.user ?? false)) {
@@ -2391,6 +2407,11 @@ abstract final class SmartSort {
           await Future<void>.delayed(Duration.zero);
         }
       }
+      if (remainingSlots != null &&
+          processed >= remainingSlots &&
+          todoAll.length > processed) {
+        hitStarterCap = true;
+      }
       if (done.isNotEmpty) await _save();
     } finally {
       progress.value = null;
@@ -2403,6 +2424,7 @@ abstract final class SmartSort {
     return SmartRunResult(
       processed,
       0,
+      hold: hitStarterCap ? SmartHold.cap : null,
       reused: reused,
       usage: usage,
     );

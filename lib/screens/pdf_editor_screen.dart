@@ -276,6 +276,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
     super.initState();
     _page = widget.initialPage;
     PdfEditorScreen.lastPage = _page;
+    if (!Edition.current.has(Feature.pdfAdvanced)) return;
     WidgetsBinding.instance.addObserver(this);
     _prepare();
   }
@@ -295,7 +296,9 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    if (Edition.current.has(Feature.pdfAdvanced)) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
     _revealTimer?.cancel();
     _inlineTimer?.cancel();
     _inlineCtrl?.dispose();
@@ -325,6 +328,12 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!Edition.current.has(Feature.pdfAdvanced)) {
+      return ProLockedView(
+        feature: Feature.pdfAdvanced,
+        title: context.t('pro.f.pdfAdvanced'),
+      );
+    }
     final history = _history;
     return PopScope(
       canPop: !_dirty,
