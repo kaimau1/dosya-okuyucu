@@ -857,7 +857,7 @@ class _OcrScriptTileState extends State<OcrScriptTile> {
                 ? 'ocr.ar_model_remove'
                 : 'ocr.ar_model_get')),
             subtitle: Text(ctx.t('ocr.ar_model_sub').replaceAll(
-                '{size}', FsScan.humanSize(ArabicOcr.downloadBytes))),
+                '{size}', '${(ArabicOcr.downloadBytes / 1e6).round()} MB')),
             onTap: () {
               Navigator.pop(ctx);
               unawaited(_toggleModel());
