@@ -46,6 +46,7 @@ import '../services/pdf_tools.dart';
 import '../services/scan_prepare.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/snack.dart';
+import '../services/fm/job_queue.dart' show JobCancelled;
 import '../services/fm/tracked_task.dart';
 import '../core/user_error.dart';
 import '../core/theme.dart';
@@ -145,6 +146,15 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
 
   bool get _busy => _busyLabel.isNotEmpty;
 
+  /// Süren işin iş kaydı (ilerleme/durdurma için; iş yoksa null).
+  TrackedTask? _task;
+
+  /// Süren iş sayfa sayfa ilerleyen ağır iş mi (Durdur düğmesi görünür).
+  bool _cancellable = false;
+
+  /// Kullanıcı bekleme kartındaki Durdur'a bastı.
+  bool _stop = false;
+
   /// pdfrx `PdfDocumentRefData`'yı YALNIZ `sourceName` ile eşit sayar; bayt
   /// değişince aynı ad verilirse önizleme tazelenmez → her işlemde artar.
   int _rev = 0;
@@ -232,6 +242,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                 'lock' => _setPassword(),
                 'unlock' => _removePassword(),
                 'share' => _share(),
+                'print' => _print(),
                 'pro' => _openProTools(),
                 _ => null,
               },
@@ -281,6 +292,8 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
                       child: Text(context.t('pt.remove_password'))),
                 PopupMenuItem(
                     value: 'share', child: Text(context.t('common.share'))),
+                PopupMenuItem(
+                    value: 'print', child: Text(context.t('vw.print'))),
                 if (_proEnabled) ...[
                   const PopupMenuDivider(),
                   PopupMenuItem(

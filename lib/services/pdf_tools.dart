@@ -324,7 +324,12 @@ class PdfTools {
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
       doc.compressionLevel = PdfCompressionLevel.best;
-      doc.fileStructure.incrementalUpdate = false;
+      // Baştan yaz + nesne akışları (B4/P21): sözlükler sıkıştırılmış
+      // `/ObjStm` içine girer, xref de akış olur — metin ağırlıklı belgede
+      // ek kazanç. Kendi ayrıştırıcımız (`PdfFile`) ObjStm okur.
+      doc.fileStructure
+        ..incrementalUpdate = false
+        ..crossReferenceType = PdfCrossReferenceType.crossReferenceStream;
       return await doc.save();
     } finally {
       doc.dispose();

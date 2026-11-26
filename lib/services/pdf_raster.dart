@@ -17,6 +17,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../core/app_colors.dart';
 import '../core/device_profile.dart';
+import 'fm/job_queue.dart' show JobCancelled;
 
 /// Çizilmiş bir sayfa: JPEG + piksel ve punto ölçüleri (görünen yönde).
 class RasterPage {
@@ -73,6 +74,8 @@ abstract final class PdfRaster {
     bool grayscale = false,
     Map<int, List<ui.Rect>> blackout = const {},
     void Function(int done, int total)? onProgress,
+    // Sayfa arasında yoklanır; true ise [JobCancelled] atılır (B4/P21).
+    bool Function()? isCancelled,
   }) async {
     final doc = await PdfDocument.openData(
       Uint8List.fromList(bytes),
@@ -82,6 +85,7 @@ abstract final class PdfRaster {
     final out = <RasterPage>[];
     try {
       for (var n = 0; n < pages.length; n++) {
+        if (isCancelled?.call() ?? false) throw const JobCancelled();
         final index = pages[n];
         final page = doc.pages[index];
         var scale = dpi / 72;

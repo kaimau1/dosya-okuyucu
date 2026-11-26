@@ -141,6 +141,34 @@ void main() {
     expect(PdfDocPro.readMeta(out2, password: 'ac').title, meta.title);
   });
 
+  test('B4/P21: meta temizle eski sürümler dahil iz bırakmaz', () async {
+    const meta = (
+      title: 'GizliBaslik',
+      author: 'GizliYazar',
+      subject: 'GizliKonu',
+      keywords: 'GizliAnahtar',
+    );
+    // writeMeta artımlı yazar: eski bilgi sözlüğü de dosyada kalır.
+    final src = await PdfDocPro.writeMeta(
+        await PdfDocPro.writeMeta(await _doc(2), meta),
+        (title: 'Yeni', author: 'GizliYazar', subject: '', keywords: ''));
+    expect(latin1.decode(src).contains('GizliBaslik'), isTrue); // ön koşul
+    final out = await PdfDocPro.stripMetaInBackground(src);
+    final raw = latin1.decode(out);
+    for (final s in ['GizliBaslik', 'GizliYazar', 'GizliKonu', 'GizliAnahtar']) {
+      expect(raw.contains(s), isFalse, reason: s);
+    }
+    expect(PdfDocPro.readMeta(out),
+        (title: '', author: '', subject: '', keywords: ''));
+    expect(_text(out), contains('Bolum 2'));
+    // Parolalı belgede parola kalır.
+    final locked = await PdfDocPro.setPermissions(await _doc(1),
+        ownerPassword: 'sahip', userPassword: 'ac', allow: {PdfAllow.print});
+    final out2 = await PdfDocPro.stripMeta(locked, password: 'ac');
+    expect(() => PdfDocument(inputBytes: out2).dispose(), throwsA(anything));
+    expect(PdfDocPro.readMeta(out2, password: 'ac').author, '');
+  });
+
   test('B4/P17: XFDF dışa/içe aktarma açıklamayı taşır', () async {
     final src = PdfDocument(inputBytes: await _doc(2));
     src.pages[1].annotations

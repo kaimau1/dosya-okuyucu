@@ -289,10 +289,14 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       title: '$label…',
       name: _str.t('pt.job_name', {'label': label}),
     )..report(detail: p.basename(widget.path));
+    _task = task;
     bool watched() => TrackedTask.userWatching;
     try {
       await job();
       await task.complete(quiet: watched());
+    } on JobCancelled {
+      await task.stopped(quiet: watched());
+      if (mounted) _snack(_str.t('pt.op_stopped', {'label': label}));
     } catch (e) {
       await task.fail(e, quiet: watched());
       if (mounted) {
@@ -300,7 +304,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
             _str.t('pt.op_failed', {'label': label, 'error': userErrorText(e)}));
       }
     } finally {
-      if (mounted) _partSetState(() => _busyLabel = '');
+      _endTask();
     }
   }
 
@@ -350,10 +354,17 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final bytes = _bytes!;
     final pw = _password;
     final font = await _unicodeFont();
-    await _produce(_str.t('pp.pdfa'), () async {
+    final label = _str.t('pp.pdfa');
+    await _produce(label, () async {
+      _beginCancellable();
       final rasters = await PdfRaster.renderJpegs(
           bytes, List<int>.generate(total, (i) => i),
-          password: pw, dpi: 150, quality: 82);
+          password: pw,
+          dpi: 150,
+          quality: 82,
+          onProgress: (d, t) => _progress(label, d, t),
+          isCancelled: _stopAsked);
+      if (_stopAsked()) throw const JobCancelled();
       final out = await PdfRedact.applyInBackground(
         bytes,
         rects: const {},
@@ -461,6 +472,18 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       builder: (_) => _MetaSheet(initial: current),
     );
     if (edited == null || edited == current || !mounted) return;
+    if (edited == _metaStrip) {
+      final ok = await showAppConfirm(
+        context,
+        title: context.t('pp.meta_strip'),
+        message: context.t('pp.meta_strip_body'),
+        confirmLabel: context.t('pp.meta_strip_ok'),
+      );
+      if (!ok || !mounted) return;
+      await _apply(_str.t('pp.meta_strip'),
+          (b) => PdfDocPro.stripMetaInBackground(b, password: pw));
+      return;
+    }
     await _apply(_str.t('pp.meta'),
         (b) => PdfDocPro.writeMetaInBackground(b, edited, password: pw));
   }
@@ -616,7 +639,9 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     final total = await _pageCount();
     final font = opts.keepText ? await _unicodeFont() : null;
     final prev = _bytes;
-    await _apply(_str.t('pp.compress_hard'), (b) async {
+    final label = _str.t('pp.compress_hard');
+    await _apply(label, (b) async {
+      _beginCancellable();
       // Parça parça: bellekte aynı anda en çok [_hardChunk] sayfanın JPEG'i.
       final parts = <List<int>>[];
       for (var start = 0; start < total; start += _hardChunk) {
@@ -627,7 +652,9 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
             password: pw,
             dpi: opts.dpi.toDouble(),
             quality: opts.quality,
-            grayscale: opts.grayscale);
+            grayscale: opts.grayscale,
+            onProgress: (d, _) => _progress(label, start + d, total),
+            isCancelled: _stopAsked);
         parts.add(await PdfRedact.applyInBackground(
           b,
           rects: const {},
@@ -638,6 +665,7 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
           onlyPages: pages,
         ));
       }
+      if (_stopAsked()) throw const JobCancelled();
       if (parts.length == 1) return parts.single;
       return PdfTools.mergeInBackground(parts);
     });
