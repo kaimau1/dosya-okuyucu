@@ -167,6 +167,15 @@ Uint8List _linePptx() {
    </p:spPr>
    <p:txBody><a:bodyPr/><a:p><a:r><a:rPr sz="1800"/><a:t>Golge</a:t></a:r></a:p></p:txBody>
   </p:sp>
+  <p:sp>
+   <p:nvSpPr><p:cNvPr id="7" name="Yansimali"/><p:nvPr/></p:nvSpPr>
+   <p:spPr>
+    <a:xfrm><a:off x="3000000" y="500000"/><a:ext cx="1000000" cy="1000000"/></a:xfrm>
+    <a:prstGeom prst="rect"/>
+    <a:solidFill><a:srgbClr val="0000FF"/></a:solidFill>
+    <a:effectLst><a:reflection blurRad="6350" stA="50000" endA="300" endPos="55000" dist="12700" dir="5400000" sy="-100000" algn="bl" rotWithShape="0"/></a:effectLst>
+   </p:spPr>
+  </p:sp>
  </p:spTree></p:cSld>
 </p:sld>
 ''');
@@ -761,6 +770,15 @@ void main() {
     final shadowed = view.shapes.firstWhere((s) => s.shadow != null);
     expect(shadowed.shadow!.blurRadius, closeTo(4, 0.01)); // 50800 / 12700
     expect(shadowed.shadow!.offset.distance, greaterThan(0));
+
+    // B11 m.1: yansıma okunur; gölgeli şekilde yansıma yok.
+    expect(shadowed.reflection, isNull);
+    final refl =
+        view.shapes.firstWhere((s) => s.reflection != null).reflection!;
+    expect(refl.startAlpha, closeTo(0.5, 1e-9));
+    expect(refl.endAlpha, closeTo(0.003, 1e-9));
+    expect(refl.endPos, closeTo(0.55, 1e-9));
+    expect(refl.dist, closeTo(1, 1e-9)); // 12700 EMU
   });
 
   testWidgets('bağlayıcı ve gölgeli şekil hatasız çizilir', (t) async {
@@ -774,6 +792,8 @@ void main() {
     // Pump hatasız geçtiyse çizim başarılı; şekil metni de görünür.
     expect(find.text('Golge'), findsOneWidget);
     expect(find.byType(CustomPaint), findsWidgets); // çizgi painter'ı var
+    // Yansımalı şeklin aynalı kopyası tek kez çizilir.
+    expect(find.byKey(const ValueKey('slide-reflection')), findsOneWidget);
   });
 
   test('ön tanımlı geometri ve avLst ayarları çözülür', () {
