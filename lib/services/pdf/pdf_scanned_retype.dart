@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:pdfrx/pdfrx.dart' show PdfRect;
+import 'package:pdfrx/pdfrx.dart' show PdfPage, PdfRect;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../pdf_tools.dart' show pdfToSyncfusionRect;
@@ -26,9 +26,11 @@ class ScannedLine {
 /// gömülü fontla (Carlito — Türkçe glifler tam) YAZILIR. Görüntünün geri
 /// kalanı hiç bozulmaz; işlem çalışma kopyasında yapılır, geri alınabilir.
 ///
-/// Sınırı dürüstçe söylüyoruz: kapak düz BEYAZdır — renkli/desenli zeminde
-/// yama görünebilir. Taranmış belgelerin ezici çoğunluğu beyaz kâğıt olduğu
-/// için v1 kararı bu; zemin renk örnekleme HAFIZA'da açık iş.
+/// P19 m.2 (2026-11-26): kapak artık düz beyaz değil — [sampleColors] satırın
+/// çevresinden kâğıt rengini, içinden mürekkep rengini örnekler (sararmış /
+/// renkli kâğıtta yama görünmesin). Örnek alınamazsa (sayfa çizilemedi)
+/// eski beyaz kapak + koyu gri metin. Sınır: desenli/dokulu zeminde düz renk
+/// kapak yine seçilebilir (inpainting yok).
 abstract final class PdfScannedRetype {
   static Uint8List? _fontCache;
 
@@ -44,11 +46,15 @@ abstract final class PdfScannedRetype {
     required int pageIndex,
     required PdfRect box,
     required String newText,
+    ({int background, int ink})? colors,
   }) =>
       applyMany(
         bytes: bytes,
         pageIndex: pageIndex,
-        edits: [ScannedEdit(box, newText)],
+        edits: [
+          ScannedEdit(box, newText,
+              background: colors?.background, ink: colors?.ink)
+        ],
       );
 
   /// Birden çok satırı **tek belge açılışında** düzeltir.
@@ -79,7 +85,9 @@ abstract final class PdfScannedRetype {
         // noktalama) kıl payı kaçırabiliyor; artık görünmesin.
         final cover = Rect.fromLTRB(
             rect.left - 2, rect.top - 2, rect.right + 2, rect.bottom + 2);
-        page.graphics.drawRectangle(brush: PdfBrushes.white, bounds: cover);
+        page.graphics.drawRectangle(
+            brush: PdfSolidBrush(_pdfColor(edit.background ?? 0xFFFFFFFF)),
+            bounds: cover);
 
         final text = edit.text.trim();
         if (text.isEmpty) continue;
@@ -96,7 +104,7 @@ abstract final class PdfScannedRetype {
         page.graphics.drawString(
           text,
           PdfTrueTypeFont(font, size),
-          brush: PdfSolidBrush(PdfColor(25, 25, 25)),
+          brush: PdfSolidBrush(_pdfColor(edit.ink ?? 0xFF191919)),
           bounds: drawBounds,
           format: PdfStringFormat(
             lineAlignment: PdfVerticalAlignment.middle,
@@ -108,11 +116,105 @@ abstract final class PdfScannedRetype {
       doc.dispose();
     }
   }
+
+  static PdfColor _pdfColor(int argb) =>
+      PdfColor((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
+
+  /// [box] satırının kâğıt ve mürekkep rengini canlı pdfrx sayfasından
+  /// örnekler (yalnız satır çevresi küçük bir bölge çizilir — düzenleme
+  /// anında bir kez, sıcak yolda değil). Çizilemezse null → beyaz/koyu gri.
+  static Future<({int background, int ink})?> sampleFromPage(
+      PdfPage page, PdfRect box) async {
+    try {
+      const scale = 2.0, pad = 3.0;
+      final x = ((box.left - pad) * scale).floor();
+      final y = ((page.height - box.top - pad) * scale).floor();
+      final w = ((box.width + pad * 2) * scale).ceil();
+      final h = ((box.height + pad * 2) * scale).ceil();
+      if (w <= 2 || h <= 2) return null;
+      final img = await page.render(
+        x: math.max(0, x),
+        y: math.max(0, y),
+        width: w,
+        height: h,
+        fullWidth: page.width * scale,
+        fullHeight: page.height * scale,
+      );
+      if (img == null) return null;
+      try {
+        return sampleColors(img.pixels, img.width, img.height);
+      } finally {
+        img.dispose();
+      }
+    } catch (_) {
+      return null; // Bilinçli: örnek yoksa eski beyaz kapak.
+    }
+  }
+
+  /// Saf hesap (test edilebilir): BGRA [bgra] bölgesinde **kenar halkası**
+  /// piksellerinin kanal medyanı = kâğıt rengi; kâğıttan en uzak %10'luk
+  /// piksellerin ortalaması = mürekkep. Bölgede yazı seçilemiyorsa (karşıtlık
+  /// düşük) mürekkep koyu gri kalır. Dönüş ARGB32.
+  static ({int background, int ink})? sampleColors(
+      Uint8List bgra, int w, int h) {
+    if (w < 3 || h < 3 || bgra.length < w * h * 4) return null;
+    final rs = <int>[], gs = <int>[], bs = <int>[];
+    void ring(int i) {
+      bs.add(bgra[i]);
+      gs.add(bgra[i + 1]);
+      rs.add(bgra[i + 2]);
+    }
+
+    for (var x = 0; x < w; x++) {
+      ring(x * 4);
+      ring(((h - 1) * w + x) * 4);
+    }
+    for (var y = 1; y < h - 1; y++) {
+      ring(y * w * 4);
+      ring((y * w + w - 1) * 4);
+    }
+    int median(List<int> v) => (v..sort())[v.length ~/ 2];
+    final br = median(rs), bgc = median(gs), bb = median(bs);
+
+    final n = w * h;
+    final dist = List<int>.filled(n, 0);
+    for (var p = 0; p < n; p++) {
+      final i = p * 4;
+      dist[p] = (bgra[i + 2] - br).abs() +
+          (bgra[i + 1] - bgc).abs() +
+          (bgra[i] - bb).abs();
+    }
+    final sorted = List<int>.of(dist)..sort();
+    final cut = sorted[(n * 0.9).floor().clamp(0, n - 1)];
+    var ink = 0xFF191919;
+    // ponytail: sabit eşik (kanal toplamı 90) — belgeye göre ayar gerekirse
+    // burası; ΔE ≤ 3 ölçümü cihaz turunda (CIHAZ_TESTI B4-P19).
+    if (cut >= 90) {
+      var r = 0, g = 0, b = 0, c = 0;
+      for (var p = 0; p < n; p++) {
+        if (dist[p] < cut) continue;
+        final i = p * 4;
+        b += bgra[i];
+        g += bgra[i + 1];
+        r += bgra[i + 2];
+        c++;
+      }
+      ink = 0xFF000000 | ((r ~/ c) << 16) | ((g ~/ c) << 8) | (b ~/ c);
+    }
+    return (
+      background: 0xFF000000 | (br << 16) | (bgc << 8) | bb,
+      ink: ink,
+    );
+  }
 }
 
 /// Tek satırlık düzeltme isteği: hangi kutu, yerine ne yazılacak.
 class ScannedEdit {
   final PdfRect box;
   final String text;
-  const ScannedEdit(this.box, this.text);
+
+  /// Örneklenen kâğıt / mürekkep rengi (ARGB32); null → beyaz / koyu gri.
+  final int? background;
+  final int? ink;
+  const ScannedEdit(this.box, this.text, {this.background, this.ink});
 }

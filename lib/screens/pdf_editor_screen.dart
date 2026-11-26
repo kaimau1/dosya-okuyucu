@@ -208,6 +208,10 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
   /// Açık sayfanın OCR satırları (yalnız taranmış sayfada dolu).
   List<ScannedLine> _scannedLines = const [];
 
+  /// [_scannedLines]'ın geldiği canlı pdfrx sayfası — üstüne yazarken kâğıt /
+  /// mürekkep rengi buradan örneklenir (P19 m.2).
+  PdfPage? _scannedPage;
+
   /// [_scannedLines] hangi (belge sürümü, sayfa) için yüklendi.
   String _scannedKey = '';
   bool _scannedLoading = false;

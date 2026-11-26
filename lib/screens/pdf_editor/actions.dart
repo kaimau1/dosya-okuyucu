@@ -255,6 +255,7 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       _partSetState(() {
         _scannedKey = key;
         _scannedLines = _withoutParagraphOverlaps(lines);
+        _scannedPage = page;
         _scannedLoading = false;
         if (natural) _naturalTextPages.add(page.pageNumber);
       });
@@ -388,9 +389,15 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
           ? await ScanAiFix.polish(gemini!, originals)
           : ScanTextFix.lines(originals);
       final edits = <ScannedEdit>[];
+      final page = _scannedPage;
       for (var i = 0; i < originals.length && i < fixed.length; i++) {
         if (fixed[i].trim() == originals[i].trim()) continue;
-        edits.add(ScannedEdit(_scannedLines[i].box, fixed[i]));
+        final box = _scannedLines[i].box;
+        final c = page == null
+            ? null
+            : await PdfScannedRetype.sampleFromPage(page, box);
+        edits.add(ScannedEdit(box, fixed[i],
+            background: c?.background, ink: c?.ink));
       }
       if (edits.isEmpty) {
         _snack(_str.t('pe.fix_nothing'));
