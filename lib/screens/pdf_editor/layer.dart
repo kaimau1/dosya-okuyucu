@@ -675,9 +675,18 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
       final line = _scannedLines[scanned];
       final text = ctrl.text;
       if (text.trim() == line.text.trim()) return _cancelInline();
+      final page = _scannedPage;
+      final colors = page == null
+          ? null
+          : await PdfScannedRetype.sampleFromPage(page, line.box);
+      if (!mounted) return;
       await _applyInline(_str.t('pe.scanned_updated'), (b) async {
         final out = await PdfScannedRetype.apply(
-            bytes: b, pageIndex: pageIndex, box: line.box, newText: text);
+            bytes: b,
+            pageIndex: pageIndex,
+            box: line.box,
+            newText: text,
+            colors: colors);
         // Sayfa değişti: OCR bellek önbelleği bayat.
         PdfOcrText.invalidateMemory();
         return out;

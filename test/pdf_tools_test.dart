@@ -149,6 +149,24 @@ void main() {
           isNot(contains('Merhaba')));
       doc.dispose();
     });
+
+    test('döndürülmüş sayfa atlanmaz, katman yazılır', () async {
+      final src0 = await _makePdf([300]);
+      final d = PdfDocument(inputBytes: src0);
+      d.pages[0].rotation = PdfPageRotateAngle.rotateAngle90;
+      final src = await d.save();
+      d.dispose();
+      final out = await PdfTools.addTextLayer(src, {
+        0: [(text: 'Yan sayfa', rect: const Rect.fromLTWH(20, 30, 100, 12))],
+      });
+      final doc = PdfDocument(inputBytes: out);
+      // Döndürülmüş metinde çıkarıcı harfleri satır satır / ters verebilir.
+      final flat = PdfTextExtractor(doc)
+          .extractText(startPageIndex: 0)
+          .replaceAll(RegExp(r'\s'), '');
+      expect(flat, anyOf(contains('Yansayfa'), contains('afyasnaY')));
+      doc.dispose();
+    });
   });
 
   group('movePageOrder — sayfa taşıma sırası', () {

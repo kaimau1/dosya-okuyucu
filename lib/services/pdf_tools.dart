@@ -497,7 +497,7 @@ class PdfTools {
   /// **P19 — aranabilir PDF:** OCR satırlarını sayfaya GÖRÜNMEZ (saydamlık 0)
   /// metin olarak yazar; görüntü aynı kalır, metin aranır/seçilir/kopyalanır.
   /// [lines] sayfa indeksi → satırlar; `rect` görünen sayfa koordinatında
-  /// (sol-üst, pt). Döndürülmüş sayfa atlanır (redaksiyon katmanıyla aynı sınır).
+  /// (sol-üst, pt); döndürülmüş sayfada da görünen hâline göre yazılır.
   /// [fontBytes] Türkçe glifli TrueType; yoksa standart font.
   static Future<List<int>> addTextLayer(
     List<int> bytes,
@@ -510,9 +510,15 @@ class PdfTools {
       for (final MapEntry(key: i, value: rows) in lines.entries) {
         if (i < 0 || i >= doc.pages.count) continue;
         final page = doc.pages[i];
-        if (page.rotation.index % 4 != 0) continue;
         final g = page.graphics;
         final state = g.save();
+        // Döndürülmüş sayfa: satırlar görünen sayfada, grafik uzayı ham
+        // (imza damgasıyla aynı köprü). Eskiden bu sayfalar atlanıyordu.
+        final t = stampTransform(page.size, page.rotation.index);
+        if (t.angle != 0) {
+          g.translateTransform(t.translate.dx, t.translate.dy);
+          g.rotateTransform(t.angle);
+        }
         g.setTransparency(0);
         for (final row in rows) {
           final text = row.text.trim();
