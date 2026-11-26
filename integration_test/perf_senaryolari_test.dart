@@ -333,8 +333,15 @@ void main() {
       // ⋮ menüsü 5 kez aç/kapat: WebView üstüne açılan katman. Kaydırmadan
       // ÖNCE (okuma kipi kaydırınca üst çubuğu gizler); yalnız menü açıldıysa
       // pop — yoksa Word ekranı kapanırdı.
+      // R2 (2026-11-21): Word ⋮ artık açılır menü değil ortak dosya levhası
+      // (`word/shell.dart` filePath → `showViewerMenu`, modal BottomSheet).
+      // Yalnız PopupMenuItem aranınca döngü ilk açılışta kırılıyor, levha
+      // AÇIK kalıyordu: word_300_kaydirma levhayı kaydırıyor, kapanis yalnız
+      // levhayı kapatıp Word ekranını yığında bırakıyordu (Bento varsayılanı
+      // levhayı değiştirince "Word gerilemesi" göründü).
       final more = find.byKey(const ValueKey('editor-more'));
-      final menu = find.byWidgetPredicate((w) => w is PopupMenuItem);
+      final menu = find.byWidgetPredicate(
+          (w) => w is PopupMenuItem || w is BottomSheet);
       await binding.traceAction(() async {
         for (var i = 0; i < 5 && more.evaluate().isNotEmpty; i++) {
           await tester.tap(more);
