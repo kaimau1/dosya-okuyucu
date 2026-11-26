@@ -564,8 +564,9 @@ ona takılmaz: **indirilen şey kod değil model dosyası**.
 - m.2 (11c49908 + a006d2bb): 590 anahtar × 2 dil — ortak, ana ekran, ayarlar, hata, tanıtım, yan menü, dosya
   yöneticisi, dosya işlemleri, USB/SD, PDF/belge görüntüleyici kabuğu.
 #### Kalan
-- Çeviri dilimleri: PDF araçları/düzenleme (`pse`, `pt`, kalan `pp`), Kitaplık, tarama, ödeme/sürüm (`pro`, `ed`),
-  temizlik (`clean`), editörler. Seçim: ekran dosyalarında kullanılan anahtarlardan `locales/id.dart`'ta olmayanlar.
+- m.3 yapıldı (`faz-oto-B17-ceviri2`): `lib`, `clean`, `pro`, `pt`, `pp`, `pse` (kullanılan anahtarlar). Kalan çeviri
+  (kullanılıp id'de olmayan ≈3.200): `excel` 207, `sp` 129, `xp` 105, `word` 99, `near` 88, `sm` 87, `sl` 78, `pe` 77,
+  `mp` 52, `ss` 49, `nas` 47, `drive` 45, `vault` 43, `ab` 43, `dl` 36; tarama (`scan`), `ed`; B4 P20 yeni anahtarları.
 - Wi-Fi'de model indirme seçeneği (§1.16 m.4) — yapılmadı (2026-09-26 kararı mobil veride indirmeyi açtı).
 - Ucuz cihaz ölçümü → C2; cihaz turu `docs/CIHAZ_TESTI.md` B17.
 #### Doğrulama
