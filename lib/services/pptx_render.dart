@@ -206,6 +206,12 @@ class ShapeVM {
   /// Dış gölge (`a:effectLst > a:outerShdw`) — kutu şekillere uygulanır.
   final BoxShadow? shadow;
 
+  /// Yansıma (`a:effectLst > a:reflection`, B11 m.1): şeklin altında aynalı
+  /// kopya; saydamlık [startAlpha] → [endAlpha] (0–1), yansımanın
+  /// [endPos] kesrinde biter; [dist] şekille arası (pt).
+  final ({double startAlpha, double endAlpha, double endPos, double dist})?
+      reflection;
+
   /// Tablo hücresi için kenar-başına (sol/sağ/üst/alt) kenarlık. Tek `stroke`
   /// (tüm kenar) yerine kullanılır: PowerPoint tablo hücreleri yalnız tanımlı
   /// kenarları çizer (`a:tcPr > a:lnL/lnR/lnT/lnB`). null = tekil stroke kuralı.
@@ -277,6 +283,7 @@ class ShapeVM {
     this.arrowEnd = false,
     this.dashed = false,
     this.shadow,
+    this.reflection,
     this.cellBorder,
     this.chart,
     this.image,
@@ -1125,8 +1132,9 @@ class PptxRender {
       if (strokeW <= 0) strokeW = 1;
     }
 
-    final shadow = _outerShadow(
-        spPr == null ? null : _first(spPr, 'a:effectLst'), theme, clrMap);
+    final effectLst = spPr == null ? null : _first(spPr, 'a:effectLst');
+    final shadow = _outerShadow(effectLst, theme, clrMap);
+    final reflection = _reflection(effectLst);
 
     Uint8List? image;
     Rect? crop;
@@ -1188,6 +1196,7 @@ class PptxRender {
       arrowEnd: arrowEnd,
       dashed: dashed,
       shadow: shadow,
+      reflection: reflection,
       image: image,
       paragraphs: paras,
       vAnchor: bodyPr?.getAttribute('anchor') ?? 't',
@@ -1596,6 +1605,25 @@ class PptxRender {
       color: color,
       blurRadius: blur,
       offset: Offset(dist * math.cos(rad), dist * math.sin(rad)),
+    );
+  }
+
+  /// `a:reflection` → yansıma. Yüzdeler 1/1000 (100000 = %100); varsayılanlar
+  /// OOXML'inkiler (stA %100, endA %0, endPos %100).
+  // ponytail: yalnız aşağı doğru, bulanıklıksız yansıma (dir/sy/blurRad
+  // okunmaz); PowerPoint hazır yansımalarının hepsi aşağı doğru.
+  ({double startAlpha, double endAlpha, double endPos, double dist})?
+      _reflection(XmlElement? effectLst) {
+    final r = effectLst == null ? null : _first(effectLst, 'a:reflection');
+    if (r == null) return null;
+    double pct(String name, double def) =>
+        ((double.tryParse(r.getAttribute(name) ?? '') ?? def) / 100000)
+            .clamp(0.0, 1.0);
+    return (
+      startAlpha: pct('stA', 100000),
+      endAlpha: pct('endA', 0),
+      endPos: pct('endPos', 100000),
+      dist: _pt(r.getAttribute('dist')) ?? 0,
     );
   }
 

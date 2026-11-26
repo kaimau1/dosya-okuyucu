@@ -331,6 +331,42 @@ class SlideCanvas extends StatelessWidget {
       final (fx, spins) = slide.effectAt(s.id, -1, step!);
       child = _Reveal(visible: shapeVisible, fx: fx, spins: spins, child: child);
     }
+    final refl = s.reflection;
+    if (refl != null && !editing && refl.endPos > 0) {
+      // B11 m.1: şeklin aynalı kopyası altta, aşağı doğru solarak; dokunuş
+      // ve ekran okuyucu yalnız asıl şekli görür.
+      child = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: child),
+          Positioned(
+            key: const ValueKey('slide-reflection'),
+            left: 0,
+            right: 0,
+            top: s.h + refl.dist,
+            height: s.h,
+            child: IgnorePointer(
+              child: ExcludeSemantics(
+                child: ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (r) => LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.fromRGBO(255, 255, 255, refl.startAlpha),
+                      Color.fromRGBO(255, 255, 255, refl.endAlpha),
+                      const Color.fromRGBO(255, 255, 255, 0),
+                    ],
+                    stops: [0, refl.endPos, refl.endPos],
+                  ).createShader(r),
+                  child: Transform.flip(flipY: true, child: child),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     // Grup içindeki şekil de çerçeveyle taşınır (Faz 29 kalanı; düzenleyici
     // grup dönüşümünü tersine çevirir).
     final parentName = (s.element?.parent as XmlElement?)?.name.qualified;
