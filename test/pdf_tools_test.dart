@@ -376,6 +376,16 @@ void main() {
     expect(await PdfTools.pageCount(out), 3);
   });
 
+  test('compress: nesne akışı yazar, parolalı belge parolasıyla açılır', () async {
+    final src = await _makePdf([100, 110, 120]);
+    final out = await PdfTools.compress(src);
+    expect(String.fromCharCodes(out).contains('/ObjStm'), isTrue);
+    final locked = await PdfTools.setPassword(src, password: 'ac');
+    final out2 = await PdfTools.compress(locked, password: 'ac');
+    expect(await PdfTools.pageCount(out2, password: 'ac'), 3);
+    expect(() => PdfTools.pageCount(out2), throwsA(anything));
+  });
+
   /// Arka plan sürümleri ("sıkıştır denince donma" düzeltmesi, 2026-07-26).
   ///
   /// Bunlar DERLEME zamanında doğrulanamaz: `Isolate.run`'a verilen kapanış
