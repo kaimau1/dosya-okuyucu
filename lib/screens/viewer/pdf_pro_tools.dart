@@ -993,7 +993,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     );
     if (pick == null || !mounted || _pro != pro) return;
     if (pick == 'studio') {
-      await _openPdfTools();
+      await _openPdfTools(studio: true);
       return;
     }
     final page = (_livePdfPage() ?? _pdfPage) - 1;

@@ -239,13 +239,15 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
   }
 
-  /// PDF araçları ekranı; kaydedilerek dönülürse dosya değişmiştir → pdfrx
-  /// aynı yolu "eşit" saydığı için remount ile yeniden okutulur.
-  Future<void> _openPdfTools() async {
+  /// PDF araçları ekranı ([studio]: doğrudan sayfa stüdyosuyla açılır);
+  /// kaydedilerek dönülürse dosya değişmiştir → pdfrx aynı yolu "eşit"
+  /// saydığı için remount ile yeniden okutulur.
+  Future<void> _openPdfTools({bool studio = false}) async {
     // Bu araçlar ÖZGÜN dosya üzerinde çalışır; bekleyen düzenlemeler önce
     // kaydedilmezse sessizce kaybolurdu.
     if (!await _confirmLeavePending() || !mounted) return;
-    final saved = await PdfToolsScreen.open(context, path: widget.doc.path);
+    final saved = await PdfToolsScreen.open(context,
+        path: widget.doc.path, openStudio: studio);
     if (saved == true && mounted) {
       _partSetState(() => _pdfText = '');
       await _reloadPdf();

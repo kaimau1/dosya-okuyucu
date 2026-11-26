@@ -232,54 +232,13 @@ extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
     );
   }
 
-  Widget _actionBar() {
-    return ValueListenableBuilder<Set<int>>(
-      valueListenable: _selection,
-      builder: (context, selection, _) {
-        final has = selection.isNotEmpty;
-        final single = selection.length == 1;
-        return BottomAppBar(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _barButton(
-                  AppIcons.rotateRight,
-                  context.t(has ? 'vw.rotate' : 'pt.rotate_all'),
-                  _busy ? null : _rotate),
-              _barButton(AppIcons.delete, context.t('common.delete'),
-                  has && !_busy ? _deleteSelected : null),
-              _barButton(AppIcons.split, context.t('pt.extract'),
-                  has && !_busy ? _extractSelected : null),
-              _barButton(AppIcons.arrowUp, context.t('pt.forward'),
-                  single && !_busy ? () => _move(-1) : null),
-              _barButton(AppIcons.arrowDown, context.t('pt.backward'),
-                  single && !_busy ? () => _move(1) : null),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _barButton(IconData icon, String label, VoidCallback? onTap) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 22, color: onTap == null ? Theme.of(context)
-                  .disabledColor : null),
-              Text(label,
-                  style: context.type.caption.copyWith(
-                    color: onTap == null ? Theme.of(context).disabledColor : null,
-                  )),
-            ],
-          ),
+  /// Alt çubuk: sayfa düzeni işlerinin tek kapısı (B4/P20) — sırala/döndür/
+  /// sil/çıkar/böl/birleştir sayfa stüdyosunda.
+  Widget _actionBar() => BottomAppBar(
+        child: FilledButton.tonalIcon(
+          onPressed: _busy ? null : () => unawaited(_reorderPages()),
+          icon: const Icon(AppIcons.gridOn),
+          label: Text(context.t('pp.studio')),
         ),
-      ),
-    );
-  }
+      );
 }
