@@ -530,11 +530,16 @@ void main() {
       expect(find.byKey(const ValueKey('clean-quick-safe')), findsOneWidget);
       expect(find.text('Güvenle Temizle (Sıfır Risk)'), findsOneWidget);
       await tester.dragUntilVisible(
-          find.byKey(const ValueKey('clean-shrink-big_videos')),
+          find.text('İnceleyerek Yer Aç (Karar Sizin)'),
           find.byType(ListView).first,
           const Offset(0, -180));
       await tester.pump();
       expect(find.text('İnceleyerek Yer Aç (Karar Sizin)'), findsOneWidget);
+      await tester.dragUntilVisible(
+          find.byKey(const ValueKey('clean-shrink-big_videos')),
+          find.byType(ListView).first,
+          const Offset(0, -180));
+      await tester.pump();
       expect(find.byKey(const ValueKey('clean-shrink-big_videos')), findsOneWidget);
     });
 
