@@ -9,7 +9,9 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../core/edition.dart';
 import '../core/image_decode.dart';
+import '../core/model_mirror.dart';
 import 'fm/fm_env.dart';
 
 /// **Görsel iyileştirme** — bulanık/karanlık/kumlu fotoğrafı düzeltip yanına
@@ -44,6 +46,10 @@ abstract final class ImageEnhance {
   /// fotoğrafta ayrıntı zaten bu ölçekte kaybolmuş durumda.
   static const upscaleMaxSide = 800;
 
+  /// Lite'ta LiteRT yerel kütüphanesi APK'ya girmez (K15c boyut diyeti,
+  /// `ci/prepare_android.sh` §11b) → yapay zekâ büyütmesi yalnız Pro/Kişisel.
+  static const upscaleAvailable = Edition.current != Edition.lite;
+
   static String get _modelPath =>
       p.join(FmEnv.appSupportDir, 'models', 'esrgan.tflite');
 
@@ -54,12 +60,28 @@ abstract final class ImageEnhance {
     final file = File(_modelPath);
     if (file.existsSync()) return;
     // G8.6: model indirme asılı kalmasın.
-    final resp = await http
-        .get(Uri.parse(modelUrl))
-        .timeout(const Duration(minutes: 10));
-    if (resp.statusCode != 200) {
-      throw HttpException('HTTP ${resp.statusCode}');
+    // B7b/4: önce ayna (yapılandırıldıysa), olmazsa özgün kaynak.
+    http.Response? resp;
+    Object? last;
+    for (final u in ModelMirror.candidates(modelUrl)) {
+      try {
+        final r = await http
+            .get(Uri.parse(u))
+            .timeout(const Duration(minutes: 10));
+        if (r.statusCode == 200) {
+          resp = r;
+          break;
+        }
+        last = HttpException('HTTP ${r.statusCode}', uri: Uri.parse(u));
+      } on IOException catch (e) {
+        last = e;
+      } on TimeoutException catch (e) {
+        last = e;
+      } on http.ClientException catch (e) {
+        last = e;
+      }
     }
+    if (resp == null) throw last!;
     if (sha256.convert(resp.bodyBytes).toString() != modelSha256) {
       throw const FormatException('model checksum mismatch');
     }
@@ -85,7 +107,10 @@ abstract final class ImageEnhance {
   }) async {
     var cancelled = false;
     unawaited(cancelSignal?.then((_) => cancelled = true));
-    if (kind == EnhanceKind.upscale) await ensureModel();
+    if (kind == EnhanceKind.upscale) {
+      if (!upscaleAvailable) throw UnsupportedError('upscale');
+      await ensureModel();
+    }
     await Future<void>.delayed(Duration.zero); // hazır sinyal işlensin
     if (cancelled) throw const EnhanceCancelled();
     final bytes = await _runIsolated(

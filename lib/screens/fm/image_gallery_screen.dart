@@ -486,15 +486,16 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen>
             icon: AppIcons.blur,
             label: str.t('gal.enh_denoise'),
           ),
-          AppAction(
-            value: EnhanceKind.upscale,
-            icon: AppIcons.photoFilter,
-            label: str.t('gal.enh_ai'),
-            hint: str.t(ImageEnhance.modelReady
-                ? 'gal.enh_ai_hint'
-                : 'gal.enh_ai_download'),
-            accent: true,
-          ),
+          if (ImageEnhance.upscaleAvailable)
+            AppAction(
+              value: EnhanceKind.upscale,
+              icon: AppIcons.photoFilter,
+              label: str.t('gal.enh_ai'),
+              hint: str.t(ImageEnhance.modelReady
+                  ? 'gal.enh_ai_hint'
+                  : 'gal.enh_ai_download'),
+              accent: true,
+            ),
         ]),
       ],
     );

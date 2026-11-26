@@ -125,11 +125,12 @@ extension _MediaPlayerScreenViewsPart on _MediaPlayerScreenState {
               value: '_audio:${t.id}',
               child: Text('${_trackLabel(i, t)}${t.isSelected ? '  ✓' : ''}'),
             ),
-          PopupMenuItem(
-            value: '_mpv',
-            child: Text(context
-                .t(_p.usingMpv ? 'mp.engine_exo' : 'mp.engine_mpv')),
-          ),
+          if (PlayerEngine.available)
+            PopupMenuItem(
+              value: '_mpv',
+              child: Text(context
+                  .t(_p.usingMpv ? 'mp.engine_exo' : 'mp.engine_mpv')),
+            ),
           PopupMenuItem(
             value: '_pick',
             child: Text(context.t('mp.sub_pick')),

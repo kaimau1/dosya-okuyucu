@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../../core/edition.dart';
+import '../../core/model_mirror.dart';
 import '../fm/fm_env.dart';
 import 'azure_tts.dart';
 import 'kokoro_worker.dart';
@@ -303,10 +304,7 @@ class NeuralVoiceStore extends ChangeNotifier {
         }
         await target.parent.create(recursive: true);
         final part = File('${target.path}.part');
-        final res = await c.send(http.Request('GET', Uri.parse(f.url)));
-        if (res.statusCode != 200) {
-          throw HttpException('HTTP ${res.statusCode}', uri: Uri.parse(f.url));
-        }
+        final res = await _open(c, f.url);
         Digest? digest;
         final hasher = sha256.startChunkedConversion(
             ChunkedConversionSink<Digest>.withCallback((d) => digest = d.single));
@@ -342,6 +340,25 @@ class NeuralVoiceStore extends ChangeNotifier {
       _progress.remove(v);
       notifyListeners();
     }
+  }
+
+  /// Aynadan (yapılandırıldıysa) sonra özgün kaynaktan açar; ikisi de
+  /// olmazsa son hata atılır.
+  static Future<http.StreamedResponse> _open(http.Client c, String url) async {
+    Object? last;
+    for (final u in ModelMirror.candidates(url)) {
+      try {
+        final res = await c.send(http.Request('GET', Uri.parse(u)));
+        if (res.statusCode == 200) return res;
+        await res.stream.drain<void>();
+        last = HttpException('HTTP ${res.statusCode}', uri: Uri.parse(u));
+      } on IOException catch (e) {
+        last = e;
+      } on http.ClientException catch (e) {
+        last = e;
+      }
+    }
+    throw last!;
   }
 
   /// Sesi siler; başka kurulu ses yoksa çalışma zamanını da. Başka kurulu

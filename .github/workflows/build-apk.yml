@@ -74,6 +74,9 @@ concurrency:
 # kırmadan ölçmek için). Push'ta `inputs` boştur → 3.47.9 (Faz 44, 2026-11-07; yerel C:/src/flutter-3479 ile aynı).
 env:
   FLUTTER_VERSION: ${{ inputs.flutter_version || '3.47.9' }}
+  # B7b/4: model indirme aynası (lib/core/model_mirror.dart). Depo değişkeni
+  # DOSYA_MODEL_AYNA boşsa uygulama özgün kaynaklardan indirir.
+  MODEL_AYNA: ${{ vars.DOSYA_MODEL_AYNA }}
 
 jobs:
   # ── Ne değişti? (C8/C11) ─────────────────────────────────────────────────
@@ -503,6 +506,7 @@ jobs:
             --dart-define=DOSYA_KISISEL="$DOSYA_KISISEL" \
             --dart-define=DOSYA_PLAY="$DOSYA_PLAY" \
             --dart-define=DOSYA_SURUM="$DOSYA_SURUM" \
+            --dart-define=DOSYA_MODEL_AYNA="$MODEL_AYNA" \
             --target-platform "$PLATFORMS"
           if [ "$DOSYA_PLAY" = "1" ]; then
             python3 ci/play_variant.py verify $(find build/app/intermediates \
@@ -577,6 +581,7 @@ jobs:
             --obfuscate --split-debug-info=build/symbols-aab \
             --dart-define=DOSYA_PLAY="$DOSYA_PLAY" \
             --dart-define=DOSYA_SURUM="$DOSYA_SURUM" \
+            --dart-define=DOSYA_MODEL_AYNA="$MODEL_AYNA" \
             --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER" \
             --target-platform android-arm,android-arm64,android-x64
           AAB=build/app/outputs/bundle/release/app-release.aab
@@ -585,12 +590,16 @@ jobs:
               -path '*merged_manifest*' -path '*release*' -name AndroidManifest.xml)
             echo "Play izin varyantı ($DOSYA_SURUM): $DOSYA_PLAY_REMOVE çıkarıldı" >> "$GITHUB_STEP_SUMMARY"
           fi
-          python3 - "$AAB" <<'PY'
+          # Play 16 KB kuralı 64-bit'in İKİSİ için (arm64 + x86_64); Kişisel AAB yalnız arm64.
+          python3 - "$AAB" "$DOSYA_PLAY" <<'PY'
           import struct, sys, zipfile
           bad = []
+          abis = ('arm64-v8a', 'x86_64') if sys.argv[2] == '1' else ('arm64-v8a',)
           with zipfile.ZipFile(sys.argv[1]) as z:
               for n in z.namelist():
-                  if not (n.startswith('base/lib/arm64-v8a/') and n.endswith('.so')):
+                  parts = n.split('/')
+                  if not (len(parts) == 4 and parts[:2] == ['base', 'lib']
+                          and parts[2] in abis and n.endswith('.so')):
                       continue
                   d = z.read(n)
                   if d[:4] != b'\x7fELF' or d[4] != 2:
@@ -645,7 +654,11 @@ jobs:
       # C10 + 2026-09-26 denetimleri — derleme yeşil diye VARSAYILMAZ, ölçülür:
       - name: APK denetimi (içerik, 16 KB hiza, boyut bütçesi)
         env:
-          BUDGET_MB: 100
+          # Lite (K15c, B7b 2026-11-26): libmpv + LiteRT çıktı (87,3 MB → ≈ 71
+          # MB beklenen). Mandal yalnız düşer: ilk ölçümden sonra ölçülen + %3'e
+          # indir; hedef 45 MB (aşılırsa yalnız uyarı).
+          BUDGET_MB: ${{ matrix.edition == 'lite' && 75 || 100 }}
+          LITE_TARGET_MB: 45
         run: |
           set -e
           APK="dist/$APK_NAME"
@@ -656,6 +669,16 @@ jobs:
           fi
           if unzip -l "$APK" | grep -q 'libmlkit_google_ocr_pipeline.so'; then
             echo "::error::Gömülü OCR kütüphanesi hâlâ APK'da (ikame çalışmadı)"; exit 1
+          fi
+          if [ "$DOSYA_SURUM" = "lite" ]; then
+            for so in libmpv.so libtensorflowlite_jni.so; do
+              if unzip -l "$APK" | grep -q "lib/arm64-v8a/$so"; then
+                echo "::error::Lite APK'da $so var (ci/prepare_android.sh §11b diyeti çalışmadı)"; exit 1
+              fi
+            done
+            if [ "$(stat -c %s "$APK")" -gt $((LITE_TARGET_MB * 1048576)) ]; then
+              echo "::warning::Lite APK hedef $LITE_TARGET_MB MB'ın üstünde (K15c sürüyor; Boyut raporu'na bak)"
+            fi
           fi
           # Faz 19: başlatıcı kısayolları, uygulama başına dil ve açılış ekranı
           # kaynakları APK'da olmalı (ci/res kopyalaması sessizce düşerse).

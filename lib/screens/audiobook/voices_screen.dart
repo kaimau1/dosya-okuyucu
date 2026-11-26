@@ -82,8 +82,15 @@ class VoiceCard extends StatelessWidget {
       showSnackOn(
           messenger, strings.t('voice.installed', {'name': voice.label}));
     } catch (e) {
+      // Yarım kalan dosyalar korunur: yeniden deneme kaldığı yerden sürer.
       showSnackOn(messenger,
-          strings.t('voice.install_failed', {'error': userErrorText(e)}));
+          strings.t('voice.install_failed', {'error': userErrorText(e)}),
+          action: SnackBarAction(
+            label: strings.t('uerr.retry'),
+            onPressed: () {
+              if (context.mounted) _install(context);
+            },
+          ));
     }
   }
 
