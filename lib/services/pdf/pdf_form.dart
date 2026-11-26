@@ -388,10 +388,15 @@ abstract final class PdfFormFiller {
       for (var i = 0; i < field.items.count; i++) {
         options.add(field.items[i].value);
       }
+      // Syncfusion tuzağı: seçili öğe yokken (`selectedIndex == -1`)
+      // `field.selectedValue` doğrudan `items[-1]` okuyup RangeError fırlatır.
+      final idx = field.selectedIndex;
+      final selected =
+          idx >= 0 && idx < options.length ? options[idx] : '';
       return PdfFormFieldInfo(
         name: name,
         kind: PdfFormFieldKind.radio,
-        value: field.selectedValue,
+        value: selected,
         options: options,
         page: page,
         bounds: bounds,
@@ -406,7 +411,8 @@ abstract final class PdfFormFiller {
       }
       var selected = '';
       if (field is PdfComboBoxField) {
-        selected = field.selectedValue;
+        final idx = field.selectedIndex;
+        selected = idx >= 0 && idx < options.length ? options[idx] : '';
       } else if (field is PdfListBoxField) {
         final idxs = field.selectedIndexes;
         if (idxs.isNotEmpty && idxs.first >= 0 && idxs.first < options.length) {

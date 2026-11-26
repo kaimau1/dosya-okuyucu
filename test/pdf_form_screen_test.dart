@@ -64,6 +64,9 @@ void main() {
   /// tuzak daha önce yarım saat kaybettirmişti (bkz. HAFIZA 2026-07-25 §F).
   Future<void> pump(WidgetTester tester, String path,
       {PdfFormTab initialTab = PdfFormTab.form}) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.runAsync(() async {
       await tester.pumpWidget(
         MaterialApp(home: PdfFormScreen(path: path, initialTab: initialTab)),
