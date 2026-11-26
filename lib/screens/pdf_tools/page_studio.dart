@@ -377,7 +377,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
   }
 
   /// Tüm sırayı ters çevirir (ters taranmış belge).
-  void _reverse() {
+  Future<void> _reverse() async {
     AppHaptics.step();
     _commit(_items.reversed.toList());
   }
@@ -508,7 +508,7 @@ class _PdfPageStudioScreenState extends State<PdfPageStudioScreen> {
                 child: Text(ctx.t('pt.move_to')),
               ),
               PopupMenuItem(
-                value: () async => _reverse(),
+                value: _reverse,
                 child: Text(ctx.t('pt.op_reverse')),
               ),
               PopupMenuItem(
