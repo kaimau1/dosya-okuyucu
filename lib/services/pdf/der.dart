@@ -134,4 +134,110 @@ abstract final class Der {
 
   /// `[n]` açık (explicit) bağlam etiketi.
   static Uint8List explicit(int n, List<int> inner) => tlv(0xa0 | n, inner);
+
+  /// BER/DER akışından tek bir düğüm okur (belirli ve belirsiz uzunluk destekli).
+  static DerNode? parse(Uint8List buf, [int offset = 0]) {
+    if (offset < 0 || offset + 2 > buf.length) return null;
+    final tag = buf[offset];
+    final lenByte = buf[offset + 1];
+    if (lenByte == 0x80) {
+      // Belirsiz uzunluk (BER): 0x00 0x00 bitiricisine kadar alt düğümleri tara.
+      final valueStart = offset + 2;
+      var pos = valueStart;
+      while (pos + 1 < buf.length) {
+        if (buf[pos] == 0 && buf[pos + 1] == 0) {
+          return DerNode(tag, offset, valueStart, pos, pos + 2,
+              indefinite: true);
+        }
+        final child = parse(buf, pos);
+        if (child == null || child.end <= pos) return null;
+        pos = child.end;
+      }
+      return null;
+    }
+    int len;
+    int valueStart;
+    if (lenByte < 0x80) {
+      len = lenByte;
+      valueStart = offset + 2;
+    } else {
+      final count = lenByte & 0x7f;
+      if (count == 0 || count > 4 || offset + 2 + count > buf.length) {
+        return null;
+      }
+      len = 0;
+      for (var i = 0; i < count; i++) {
+        len = (len << 8) | buf[offset + 2 + i];
+      }
+      valueStart = offset + 2 + count;
+    }
+    final valueEnd = valueStart + len;
+    if (valueEnd > buf.length) return null;
+    return DerNode(tag, offset, valueStart, valueEnd, valueEnd);
+  }
+
+  /// Düğümün içindeki tüm alt düğümleri okur.
+  static List<DerNode> children(Uint8List buf, DerNode parent) {
+    final out = <DerNode>[];
+    var pos = parent.valueStart;
+    while (pos < parent.valueEnd) {
+      final child = parse(buf, pos);
+      if (child == null || child.end <= pos || child.end > parent.valueEnd) {
+        break;
+      }
+      out.add(child);
+      pos = child.end;
+    }
+    return out;
+  }
+
+  /// OID düğümünü noktalı dizeye çevirir (`1.2.840.113549.1.1.11`).
+  static String? decodeOid(Uint8List buf, DerNode node) {
+    if (node.tag != tagOid || node.valueStart >= node.valueEnd) return null;
+    final first = buf[node.valueStart];
+    final parts = <int>[first ~/ 40, first % 40];
+    var v = 0;
+    for (var i = node.valueStart + 1; i < node.valueEnd; i++) {
+      final b = buf[i];
+      v = (v << 7) | (b & 0x7f);
+      if ((b & 0x80) == 0) {
+        parts.add(v);
+        v = 0;
+      }
+    }
+    return parts.join('.');
+  }
+
+  /// Pozitif INTEGER düğümünü [BigInt]'e çevirir.
+  static BigInt decodeBigInt(Uint8List buf, DerNode node) {
+    var v = BigInt.zero;
+    for (var i = node.valueStart; i < node.valueEnd; i++) {
+      v = (v << 8) | BigInt.from(buf[i]);
+    }
+    return v;
+  }
+}
+
+/// Ayrıştırılmış tek bir BER/DER TLV düğümü.
+class DerNode {
+  const DerNode(
+    this.tag,
+    this.start,
+    this.valueStart,
+    this.valueEnd,
+    this.end, {
+    this.indefinite = false,
+  });
+
+  final int tag;
+  final int start;
+  final int valueStart;
+  final int valueEnd;
+  final int end;
+  final bool indefinite;
+
+  bool get constructed => (tag & 0x20) != 0;
+
+  Uint8List valueBytes(Uint8List buf) => buf.sublist(valueStart, valueEnd);
+  Uint8List rawBytes(Uint8List buf) => buf.sublist(start, end);
 }
