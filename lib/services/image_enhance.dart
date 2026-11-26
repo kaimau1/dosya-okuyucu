@@ -11,6 +11,7 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../core/edition.dart';
 import '../core/image_decode.dart';
+import '../core/model_mirror.dart';
 import 'fm/fm_env.dart';
 
 /// **Görsel iyileştirme** — bulanık/karanlık/kumlu fotoğrafı düzeltip yanına
@@ -59,12 +60,28 @@ abstract final class ImageEnhance {
     final file = File(_modelPath);
     if (file.existsSync()) return;
     // G8.6: model indirme asılı kalmasın.
-    final resp = await http
-        .get(Uri.parse(modelUrl))
-        .timeout(const Duration(minutes: 10));
-    if (resp.statusCode != 200) {
-      throw HttpException('HTTP ${resp.statusCode}');
+    // B7b/4: önce ayna (yapılandırıldıysa), olmazsa özgün kaynak.
+    http.Response? resp;
+    Object? last;
+    for (final u in ModelMirror.candidates(modelUrl)) {
+      try {
+        final r = await http
+            .get(Uri.parse(u))
+            .timeout(const Duration(minutes: 10));
+        if (r.statusCode == 200) {
+          resp = r;
+          break;
+        }
+        last = HttpException('HTTP ${r.statusCode}', uri: Uri.parse(u));
+      } on IOException catch (e) {
+        last = e;
+      } on TimeoutException catch (e) {
+        last = e;
+      } on http.ClientException catch (e) {
+        last = e;
+      }
     }
+    if (resp == null) throw last!;
     if (sha256.convert(resp.bodyBytes).toString() != modelSha256) {
       throw const FormatException('model checksum mismatch');
     }
