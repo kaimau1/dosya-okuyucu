@@ -111,7 +111,8 @@ void main() {
         final unkFile = File('${downloadDir.path}/rastgele_belge_999.pdf')
           ..writeAsStringSync('pdf');
 
-        final res = await SmartSort.runLocalOnly(scope: const AiScope.all());
+        final res =
+            await SmartSort.runLocalOnly(scope: const AiScope(settings: AiScopeSettings()));
         expect(res.processed, 1);
         expect(res.reused, 1);
         expect(SmartSort.of(invFile.path)?.cat, 'invoice');

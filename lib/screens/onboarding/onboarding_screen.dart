@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/app_icons.dart';
+import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../core/theme.dart';
@@ -184,7 +185,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           title: context.t('onb.choice_manage'),
                           body: _allFiles == GateStatus.granted
                               ? context.t('perm.granted')
-                              : context.t('fm.permission_body'),
+                              : context.t('onb.choice_manage_sub'),
                           onTap: _manageAll,
                         ),
                         ],
@@ -210,7 +211,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _SamplesButton(),
                         const SizedBox(height: Gap.md),
                         Text(
-                          context.t('onb.privacy_note'),
+                          context.t(Edition.current.has(Feature.ai)
+                              ? 'onb.privacy_note'
+                              : 'onb.privacy_note_lite'),
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),

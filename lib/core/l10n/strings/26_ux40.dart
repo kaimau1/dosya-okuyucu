@@ -28,6 +28,11 @@ const Map<String, (String, String, String)> _t26 = {
     'Your files stay on the phone; no ads, no tracking. AI is optional and runs only when you start it, with your own key.',
     'تبقى ملفاتك على الهاتف؛ لا إعلانات ولا تتبّع. الذكاء الاصطناعي اختياري ولا يعمل إلا عندما تبدأه وبمفتاحك الخاص.',
   ),
+  'onb.privacy_note_lite': (
+    'Dosyaların telefonunda kalır; hesap zorunluluğu, reklam ve takip yok.',
+    'Your files stay on your phone; no account required, no ads, no tracking.',
+    'تبقى ملفاتك على هاتفك؛ بلا حساب إجباري ولا إعلانات ولا تتبّع.',
+  ),
   'onb.samples': ('Örnek belgeleri ekle', 'Add sample documents', 'إضافة مستندات نموذجية'),
   'onb.samples_done': ('Eklendi: {folder} klasörü', 'Added: {folder} folder', 'تمت الإضافة: مجلد {folder}'),
   'onb.samples_failed': ('Örnek belgeler yazılamadı', 'Could not write sample documents', 'تعذّرت كتابة المستندات النموذجية'),

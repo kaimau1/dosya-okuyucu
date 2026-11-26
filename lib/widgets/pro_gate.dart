@@ -214,12 +214,39 @@ class _ProSheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(Gap.lg, 0, Gap.lg, Gap.md),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Container(
+            key: const ValueKey('pro-one-time'),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: 6),
+            decoration: BoxDecoration(
+              color: cs.secondaryContainer,
+              borderRadius: BorderRadius.circular(Radii.control),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(AppIcons.shield, size: 16, color: cs.onSecondaryContainer),
+                const SizedBox(width: Gap.xs),
+                Flexible(
+                  child: Text(
+                    context.t('pro.one_time_badge'),
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: cs.onSecondaryContainer,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
           Text(context.t('pro.lead'), style: theme.textTheme.bodyMedium),
           const SizedBox(height: Gap.sm),
           for (final b in _bullets)

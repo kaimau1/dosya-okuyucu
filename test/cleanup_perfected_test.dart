@@ -393,9 +393,13 @@ void main() {
       expect(find.byKey(const ValueKey('clean-card-apk')), findsOneWidget);
 
       // APK kartını açıp bir dosyanın işaretini kaldır → kısmi seçim (1/2 seçili).
+      await tester.ensureVisible(find.text('Kurulum dosyaları (APK)'));
       await tester.tap(find.text('Kurulum dosyaları (APK)'));
       await tester.pump();
-      await tester.tap(find.byKey(ValueKey('clean-file-cb-${apks.first.path}')));
+      final cbFinder = find.byKey(ValueKey('clean-file-cb-${apks.first.path}'));
+      await tester.dragUntilVisible(cbFinder, find.byType(ListView), const Offset(0, -160));
+      await tester.pump();
+      await tester.tap(cbFinder);
       await tester.pump();
 
       expect(find.text('1/2 seçili'), findsOneWidget);
@@ -484,11 +488,15 @@ void main() {
       // Seçim yokken kart başına düğme görünmez.
       expect(find.byKey(const ValueKey('clean-one-chat_sent')), findsNothing);
 
+      await tester.ensureVisible(find.text('Sohbetten gönderilen kopyalar'));
       await tester.tap(find.text('Sohbetten gönderilen kopyalar'));
       await tester.pump();
       expect(find.text('Silinecek: yalnız bu kopya'), findsOneWidget);
 
-      await tester.tap(find.byKey(ValueKey('clean-file-cb-${sentImg.path}')));
+      final chatCb = find.byKey(ValueKey('clean-file-cb-${sentImg.path}'));
+      await tester.dragUntilVisible(chatCb, find.byType(ListView), const Offset(0, -160));
+      await tester.pump();
+      await tester.tap(chatCb);
       await tester.pump();
       expect(find.byKey(const ValueKey('clean-one-chat_sent')), findsOneWidget);
     });
@@ -521,6 +529,11 @@ void main() {
       expect(find.byKey(const ValueKey('clean-trust-strip')), findsOneWidget);
       expect(find.byKey(const ValueKey('clean-quick-safe')), findsOneWidget);
       expect(find.text('Güvenle Temizle (Sıfır Risk)'), findsOneWidget);
+      await tester.dragUntilVisible(
+          find.byKey(const ValueKey('clean-shrink-big_videos')),
+          find.byType(ListView),
+          const Offset(0, -180));
+      await tester.pump();
       expect(find.text('İnceleyerek Yer Aç (Karar Sizin)'), findsOneWidget);
       expect(find.byKey(const ValueKey('clean-shrink-big_videos')), findsOneWidget);
     });
@@ -590,6 +603,9 @@ void main() {
           'clean.done_trash',
           'clean.done_failed',
           'clean.confirm_copies',
+          'clean.need_permission_title',
+          'clean.need_permission_body',
+          'clean.need_permission_btn',
         ]) {
           expect(
             s.t(k, {

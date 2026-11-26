@@ -28,6 +28,7 @@ import '../../services/fm/job_queue.dart';
 import '../../services/fm/native_extras.dart';
 import '../../services/fm/sent_original_matcher.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/storage_permission.dart';
 import '../../services/fm/storage_stats.dart';
 import '../../services/fm/tracked_task.dart' show jobChangesOf;
 import '../../services/fm/video_shrink_estimate.dart';
@@ -142,11 +143,13 @@ class _CleanupScreenState extends State<CleanupScreen> {
 
   /// Kullanıcı seçimi bir kez kurulur; sonuç tazelenince yeniden kurulmalı.
   String? _seedSignature;
+  bool _needsStorageAccess = false;
 
   @override
   void initState() {
     super.initState();
     JobQueue.instance.addListener(_onQueue);
+    unawaited(_checkStorageAccess());
     // Gizlenenler yüklenince liste süzülür (bir kerelik, küçük okuma).
     unawaited(CleanupIgnore.instance.load().then((_) {
       if (mounted) setState(() {});
@@ -409,6 +412,21 @@ class _CleanupScreenState extends State<CleanupScreen> {
     return n;
   }
 
+  Future<void> _checkStorageAccess() async {
+    if (StoragePermission.readerBuild) return;
+    final ok = await StoragePermission.hasFullAccess();
+    if (mounted && _needsStorageAccess != !ok) {
+      setState(() => _needsStorageAccess = !ok);
+    }
+  }
+
+  Future<void> _grantAccessAndScan() async {
+    final ok = await StoragePermission.request();
+    if (!mounted) return;
+    setState(() => _needsStorageAccess = !ok);
+    if (ok) _analyze(forceRescan: true);
+  }
+
   /// Çözümlemeyi **arka plan kuyruğuna** verir.
   ///
   /// [forceRescan] true iken (Yenile düğmesi ya da temizlik sonrası) `widget.index`
@@ -439,7 +457,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
         final trashFuture = FmEnv.trash.list();
         final usageFuture = StorageStats.usageOf(FmEnv.primaryRoot);
         final footFuture = FootprintRoots.resolve()
-            .then((r) => r == null ? null : AppFootprint.measure(r));
+            .then<FootprintReport?>((r) => r == null ? null : AppFootprint.measure(r));
         trashFuture.ignore();
         usageFuture.ignore();
         footFuture.ignore();
@@ -743,18 +761,32 @@ class _CleanupScreenState extends State<CleanupScreen> {
                       context, const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.lg)),
                   children: [
                     SizedBox(
-                      height: 300,
-                      child: FmEmptyState(
-                        icon: AppIcons.cleanEmpty,
-                        title: context.t('clean.nothing_body'),
-                        action: FilledButton.tonalIcon(
-                          onPressed: _loading
-                              ? null
-                              : () => _analyze(forceRescan: true),
-                          icon: const Icon(AppIcons.refresh, size: 18),
-                          label: Text(context.t('clean.reanalyze')),
-                        ),
-                      ),
+                      height: 320,
+                      child: _needsStorageAccess
+                          ? FmEmptyState(
+                              key: const ValueKey('clean-need-permission'),
+                              icon: AppIcons.folderSpecial,
+                              title: context.t('clean.need_permission_title'),
+                              hint: context.t('clean.need_permission_body'),
+                              action: FilledButton.icon(
+                                key: const ValueKey('clean-grant-permission'),
+                                onPressed: _grantAccessAndScan,
+                                icon: const Icon(AppIcons.unlock, size: 18),
+                                label:
+                                    Text(context.t('clean.need_permission_btn')),
+                              ),
+                            )
+                          : FmEmptyState(
+                              icon: AppIcons.cleanEmpty,
+                              title: context.t('clean.nothing_body'),
+                              action: FilledButton.tonalIcon(
+                                onPressed: _loading
+                                    ? null
+                                    : () => _analyze(forceRescan: true),
+                                icon: const Icon(AppIcons.refresh, size: 18),
+                                label: Text(context.t('clean.reanalyze')),
+                              ),
+                            ),
                     ),
                     DeepScanCard(index: widget.index, onReturn: _pruneGone),
                   ],
@@ -1037,20 +1069,23 @@ class _CleanupScreenState extends State<CleanupScreen> {
             ],
           ),
         );
-    return Wrap(
+    return SingleChildScrollView(
       key: const ValueKey('clean-trust-strip'),
-      spacing: Gap.xs,
-      runSpacing: Gap.xs,
-      children: [
-        chip(AppIcons.shield, context.t('clean.trust_no_personal')),
-        chip(AppIcons.undo, context.t('clean.trust_trash_undo')),
-        chip(
-          AppIcons.lock,
-          importantCount > 0
-              ? context.t('clean.trust_important_n', {'n': importantCount})
-              : context.t('clean.trust_important'),
-        ),
-      ],
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          chip(AppIcons.shield, context.t('clean.trust_no_personal')),
+          const SizedBox(width: Gap.xs),
+          chip(AppIcons.undo, context.t('clean.trust_trash_undo')),
+          const SizedBox(width: Gap.xs),
+          chip(
+            AppIcons.lock,
+            importantCount > 0
+                ? context.t('clean.trust_important_n', {'n': importantCount})
+                : context.t('clean.trust_important'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1064,7 +1099,7 @@ class _CleanupScreenState extends State<CleanupScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, Gap.xs, 2, Gap.sm),
+      padding: const EdgeInsets.fromLTRB(2, Gap.xs, 2, Gap.xs + 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1086,6 +1121,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
                 ),
                 Text(
                   subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),
@@ -1127,21 +1164,21 @@ class _CleanupScreenState extends State<CleanupScreen> {
         side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(Gap.md),
+        padding: const EdgeInsets.all(Gap.sm + 4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: cs.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(11),
                   ),
                   child: Icon(AppIcons.cleanEmpty,
-                      color: cs.onPrimaryContainer, size: 24),
+                      color: cs.onPrimaryContainer, size: 22),
                 ),
                 const SizedBox(width: Gap.sm + 2),
                 Expanded(
@@ -1246,7 +1283,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
                         _applying ? null : () => _apply(onlySafe: true),
                     style: FilledButton.styleFrom(
                       backgroundColor: safeColor,
-                      foregroundColor: Colors.white,
+                      foregroundColor: theme.brightness == Brightness.dark
+                          ? cs.surface
+                          : AppColors.onBrand,
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(AppIcons.shield, size: 16),

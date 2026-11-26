@@ -302,4 +302,19 @@ const Map<String, (String, String, String)> _t48 = {
     'Large files unopened for 1 year; only items you tick move to trash.',
     'ملفات كبيرة لم تُفتح منذ عام؛ ما تحدده فقط يُنقل إلى المهملات.',
   ),
+  'clean.need_permission_title': (
+    'Tarama için klasör erişimi gerekiyor',
+    'Folder access needed to scan',
+    'يلزم إذن الوصول إلى المجلدات للفحص',
+  ),
+  'clean.need_permission_body': (
+    'Telefondaki çöp, kopya ve büyük dosyaları bulabilmek için izin verin. Fotoğraf ve belgeleriniz asla kendiliğinden silinmez.',
+    'Grant permission to find junk, duplicates and large files. Your photos and documents are never deleted automatically.',
+    'امنح الإذن للعثور على الملفات المؤقتة والمكررة والكبيرة. لن تُحذف صورك ومستنداتك تلقائيًا أبدًا.',
+  ),
+  'clean.need_permission_btn': (
+    'İzin ver ve tara',
+    'Grant permission & scan',
+    'منح الإذن والفحص',
+  ),
 };

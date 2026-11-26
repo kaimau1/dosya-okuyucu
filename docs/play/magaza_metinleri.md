@@ -77,7 +77,7 @@ Included free in Lite:
 Separated in the paid Pro app (clearly badged `PRO` inside Lite):
 
 In-place PDF paragraph and page editing, Smart Folders (offline rules + optional
-BYOK Gemini), on-device Audiobook studio and video compression.
+Gemini with your own API key), on-device Audiobook studio and video compression.
 
 Permissions: Nothing is requested at launch. Opening incoming documents needs no
 storage permission; "All files access" is asked only if you choose to browse
@@ -158,7 +158,7 @@ with a one-time purchase — no ads, no subscriptions, no tracking.
 • Full PDF Editor: edit paragraphs in place, merge/split, reorder/rotate pages
   and add watermarks
 • Smart Folders: organize invoices, bank receipts, official records and screenshots
-  offline with zero API keys required (plus optional BYOK Gemini classification)
+  offline with zero API keys required (plus optional Gemini with your own API key)
 • Audiobook Studio: convert documents into chaptered offline audiobooks
 • Video Shrink: preview estimated output size and compress large videos locally
 • Pro Word & Slides tools for richer document workflows

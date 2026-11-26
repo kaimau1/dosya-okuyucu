@@ -11,10 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Sürüm kapısı (SÜRÜM PLANI S1–S3).
 void main() {
   group('Edition tablosu', () {
-    test('varsayılan derleme Kişisel (bugünkü nightly = her şey açık)', () {
-      expect(Edition.current, Edition.kisisel);
+    test('aktif derleme sürümü tablo ile uyumlu', () {
+      final expected =
+          Edition.parse(const String.fromEnvironment('DOSYA_SURUM')) ??
+              Edition.kisisel;
+      expect(Edition.current, expected);
       for (final f in Feature.values) {
-        expect(Edition.current.has(f), isTrue, reason: f.name);
+        expect(Edition.current.has(f), expected.has(f), reason: f.name);
       }
     });
 
@@ -135,7 +138,9 @@ void main() {
     testWidgets('Pro/Kişisel\'de guard doğrudan çalıştırır', (tester) async {
       var ran = 0;
       await tester.pumpWidget(host((context) => TextButton(
-            onPressed: () => ProGate.guard(context, Feature.audiobook, () => ran++),
+            onPressed: () => ProGate.guard(
+                context, Feature.audiobook, () => ran++,
+                edition: Edition.pro),
             child: const Text('x'),
           )));
       await tester.tap(find.text('x'));

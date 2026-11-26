@@ -566,10 +566,10 @@ SUFFIX=''
 [ "${DOSYA_R8TEST:-0}" = "1" ] && SUFFIX=r8test
 [ "${DOSYA_OKUYUCU:-0}" = "1" ] && SUFFIX=okuyucu
 if [ "${DOSYA_SURUM:-}" = "pro" ]; then
-  sed -i 's/android:label="Dosyalarım"/android:label="Dosyalarım Pro"/' \
+  sed -i 's/android:label="Dosyalarım"/android:label="Dosya Okuyucu Pro"/' \
     android/app/src/main/AndroidManifest.xml
 elif [ "${DOSYA_SURUM:-}" = "lite" ]; then
-  sed -i 's/android:label="Dosyalarım"/android:label="Dosyalarım Lite"/' \
+  sed -i 's/android:label="Dosyalarım"/android:label="Dosya Okuyucu"/' \
     android/app/src/main/AndroidManifest.xml
 fi
 if [ -n "$SUFFIX" ]; then

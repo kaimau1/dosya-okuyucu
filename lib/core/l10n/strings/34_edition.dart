@@ -5,9 +5,14 @@ part of '../app_strings.dart';
 const Map<String, (String, String, String)> _t34 = {
   'pro.title': ('Pro sürüm', 'Pro version', 'الإصدار الاحترافي'),
   'pro.row_sub': (
-    'Akıllı klasörler, PDF araçları, sesli kitap, video sıkıştırma ve BYOK Gemini',
-    'Smart folders, PDF tools, audiobooks, video compression and BYOK Gemini',
-    'المجلدات الذكية وأدوات PDF والكتب الصوتية وضغط الفيديو وBYOK Gemini',
+    'Akıllı klasörler, PDF düzenleme, sesli kitap ve video küçültme · Tek seferlik',
+    'Smart folders, PDF editor, audiobooks & video shrink · One-time',
+    'المجلدات الذكية وتحرير PDF والكتب الصوتية وضغط الفيديو · دفعة واحدة',
+  ),
+  'pro.one_time_badge': (
+    'Tek seferlik · Abonelik yok · Reklam yok',
+    'One-time purchase · No subscription · No ads',
+    'شراء لمرة واحدة · بلا اشتراك · بلا إعلانات',
   ),
   'pro.feature_title': ('{f} Pro sürümde', '{f} is in the Pro version', '{f} في الإصدار الاحترافي'),
   'pro.lead': (
@@ -26,9 +31,9 @@ const Map<String, (String, String, String)> _t34 = {
     'المجلدات الذكية وإنشاء الكتب الصوتية وضغط الفيديو',
   ),
   'pro.b3': (
-    'Kendi Gemini anahtarınızla (BYOK) Akıllı klasör, taranmış OCR ve sesli kitap metni',
-    'Use your own Gemini key (BYOK) for Smart Folders, scanned OCR and audiobook cleanup',
-    'استخدم مفتاح Gemini الخاص بك للمجلدات الذكية والتعرف الضوئي وتنظيف الكتب الصوتية',
+    'İsteğe bağlı kendi Gemini anahtarınla gelişmiş akıllı düzen, taranmış OCR ve sesli kitap temizliği',
+    'Optional Gemini AI with your own key for smart folders, scanned OCR and audiobook cleanup',
+    'ذكاء اصطناعي اختياري بمفتاح Gemini الخاص بك للمجلدات الذكية والتعرف الضوئي والكتب الصوتية',
   ),
   'pro.card_title': ("Pro'da neler var?", "What's in Pro?", 'ما الجديد في الإصدار الاحترافي؟'),
   'pro.price': ('Fiyat: {p}', 'Price: {p}', 'السعر: {p}'),

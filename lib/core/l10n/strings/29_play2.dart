@@ -58,6 +58,11 @@ const Map<String, (String, String, String)> _t29 = {
     'لا حاجة لأي إذن: اختر الملف من منتقي Android ليُفتح فورًا.',
   ),
   'onb.choice_manage': ('Telefonumdaki tüm dosyaları yönet', 'Manage all files on my phone', 'إدارة كل الملفات على هاتفي'),
+  'onb.choice_manage_sub': (
+    'Klasörleri gez, yer aç ve dosyalarını düzenle — reklam ve takip yok.',
+    'Browse folders, free up space and organize files — no ads, no tracking.',
+    'تصفّح المجلدات ووفّر المساحة ونظّم ملفاتك — بلا إعلانات ولا تتبّع.',
+  ),
   'whatsnew.title': ('Neler yeni — {v}', 'What’s new — {v}', 'ما الجديد — {v}'),
   'whatsnew.privacy': ('Ayarlar › Gizlilik ve izinler: her izin neden istenir, durumu ne, tek dokunuşla geri al.', 'Settings › Privacy & permissions: why each permission is asked, its status, revoke in one tap.', 'الإعدادات › الخصوصية والأذونات: سبب كل إذن وحالته وإلغاؤه بلمسة.'),
   'whatsnew.offline': ('Çevrimdışı kip: açınca uygulama internete hiç çıkmaz.', 'Offline mode: when on, the app never goes online.', 'وضع عدم الاتصال: عند تشغيله لا يتصل التطبيق بالإنترنت أبدًا.'),

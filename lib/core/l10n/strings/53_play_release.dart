@@ -183,9 +183,9 @@ const Map<String, (String, String, String)> _t53 = {
     'توسيع الاختصارات الشائعة',
   ),
   'ab.ai_tidy': (
-    'AI ile akıcılaştır (BYOK)',
-    'Smooth text with AI (BYOK)',
-    'تحسين السلاسة بالذكاء الاصطناعي (BYOK)',
+    'AI ile akıcılaştır (kendi anahtarınla)',
+    'Smooth text with AI (your own key)',
+    'تحسين السلاسة بالذكاء الاصطناعي (بمفتاحك)',
   ),
   'ab.ai_tidy_sub': (
     'Bölüm metnini kendi Gemini anahtarınızla sesli okumaya göre düzenler',
