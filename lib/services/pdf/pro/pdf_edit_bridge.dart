@@ -34,6 +34,7 @@ import 'pdf_incremental_trim.dart';
 import 'pdf_object_types.dart';
 import 'pdf_text_blocks.dart';
 import 'pdf_typeset_types.dart';
+import 'ttf_subset.dart';
 
 export 'pdf_fallback_fonts.dart' show PdfFallbackFonts, PdfTypesetFonts;
 export 'pdf_object_types.dart';
@@ -202,9 +203,28 @@ abstract final class PdfEditBridge {
   /// Açıklama ekler/siler/günceller (gerçek PDF nesnesi — başka okuyucularda
   /// da görünür ve düzenlenir).
   static Future<void> annotate(PdfDocument doc, PdfAnnotChange change) async {
+    if (change.hasText && change.font == null) {
+      change = change.withFont(await _stampFont(change));
+    }
     final err = await doc.computeOnIdleDocument(_annotate, change);
     if (err != null) throw PdfEditBridgeRefused(err);
     await doc.reloadPages(pageNumbersToReload: [change.pageIndex + 1]);
+  }
+
+  /// Damga/serbest metin yazısının alt küme fontu (Carlito; damga kalın).
+  /// Fontta olmayan harf (ör. Arapça) açık glif reddi — boş kutu yazılmaz.
+  static Future<Uint8List> _stampFont(PdfAnnotChange change) async {
+    final codes = {
+      for (final r in (change.contents ?? '').runes)
+        if (r != 0x0A && r != 0x20) r
+    };
+    const refused =
+        PdfEditBridgeRefused('Bu yazı tipinde olmayan harf var.', glyph: true);
+    final sub = await PdfFallbackFonts.subset(
+        'Carlito', change.boxed ? 1 : 0, {...codes, 0x20});
+    if (sub == null) throw refused;
+    if (TtfSubset.glyphsOf(sub.$1, codes).length < codes.length) throw refused;
+    return sub.$1;
   }
 
   /// Sayfayı döndürür ([quarterTurns] 0–3; negatif = yalnız oku); önceki

@@ -5,9 +5,19 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   int? selPageOrNull(PdfEditSelection? s) =>
       s == null || _pdfSelPage <= 0 ? null : _pdfSelPage;
 
-  /// Kalem ekranı; özgün dosyanın üzerine yazıldıysa görüntüleyici tazelenir.
+  /// Kalem: düzenleme kipinin **işaretleme stüdyosu** kalem kurulu açılır
+  /// (Faz 60 m.5 — tek yol; izler gerçek PDF açıklaması, geri al/yinele ve
+  /// kayıt düzenleme kipinin). Eski motor seçiliyse (bayrak kapalı) eski
+  /// kalem ekranı; özgün dosyanın üzerine yazıldıysa görüntüleyici tazelenir.
   Future<void> _openInk() async {
+    final live = _pro;
+    if (live != null) return live.armMarkup(PdfMarkupKind.ink);
     if (!await _confirmLeavePending() || !mounted) return;
+    if (Edition.current.has(Feature.pdfAdvanced) && await _enterProEdit()) {
+      if (mounted) _pro?.armMarkup(PdfMarkupKind.ink);
+      return;
+    }
+    if (!mounted) return;
     final overwritten = await PdfInkScreen.open(
       context,
       widget.doc.path,

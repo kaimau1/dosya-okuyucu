@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -32,6 +33,61 @@ int? hitPdfBlock(List<Rect> rects, Offset point, {double slop = 6}) {
   return best;
 }
 
+/// Kalem basıncı 0–1; basınç bilgisi yoksa (parmak, fare, basınçsız kalem:
+/// `pressureMin == pressureMax`) -1.
+double pdfPressureOf(PointerEvent e) {
+  final stylus = e.kind == PointerDeviceKind.stylus ||
+      e.kind == PointerDeviceKind.invertedStylus;
+  final span = e.pressureMax - e.pressureMin;
+  if (!stylus || span <= 0) return -1;
+  return ((e.pressure - e.pressureMin) / span).clamp(0.0, 1.0);
+}
+
+/// **Basınçlı kalem** (Faz 60 m.2): vuruşun ortalama basıncından kalınlık
+/// çarpanı (0,4–1,6×; hafif basış ince, sert basış kalın). Basınç bilgisi
+/// yoksa 1.
+// ponytail: PDF mürekkep açıklamasının kalınlığı tek; vuruş içinde değişen
+// kalınlık gerekirse vuruşu basınç dilimlerine bölüp ayrı yollar yaz.
+double pdfPressureFactor(Iterable<double> pressures) {
+  var sum = 0.0, n = 0;
+  for (final p in pressures) {
+    if (p < 0) continue;
+    sum += p;
+    n++;
+  }
+  return n == 0 ? 1 : 0.4 + 1.2 * (sum / n);
+}
+
+/// **Bulut** (Faz 60 m.2): dikdörtgenin çevresinde dışa taşan yaylar —
+/// tek kapalı mürekkep yolu (x,y,x,y…; sayfa uzayı, saat yönü tersine).
+/// Yay çapı kısa kenarın ¼'ü, 6–20 pt.
+List<double> pdfCloudPath(double l, double b, double r, double t) {
+  final d = (math.min(r - l, t - b) / 4).clamp(6.0, 20.0);
+  final corners = [(l, b), (r, b), (r, t), (l, t)];
+  final out = <double>[l, b];
+  for (var e = 0; e < 4; e++) {
+    final (x0, y0) = corners[e];
+    final (x1, y1) = corners[(e + 1) % 4];
+    final len = math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+    if (len <= 0) continue;
+    final ux = (x1 - x0) / len, uy = (y1 - y0) / len;
+    // Saat yönü tersine yürürken dış normal (uy, -ux).
+    final nx = uy, ny = -ux;
+    final n = math.max(1, (len / d).round());
+    final seg = len / n, rad = seg / 2;
+    for (var k = 0; k < n; k++) {
+      final cx = x0 + ux * seg * (k + 0.5), cy = y0 + uy * seg * (k + 0.5);
+      for (var j = 1; j <= 6; j++) {
+        final th = math.pi - math.pi * j / 6;
+        out
+          ..add(cx + ux * math.cos(th) * rad + nx * math.sin(th) * rad)
+          ..add(cy + uy * math.cos(th) * rad + ny * math.sin(th) * rad);
+      }
+    }
+  }
+  return out;
+}
+
 /// Sayfa katmanının ekrana (görüntüleyici) bildirdiği olaylar.
 class PdfProLayerEvents {
   const PdfProLayerEvents({
@@ -43,8 +99,13 @@ class PdfProLayerEvents {
     required this.onNote,
     required this.onAnnotTap,
     required this.onTextBox,
+    this.onPlace,
     this.onSwitch,
   });
+
+  /// Damga / serbest metin konacak nokta (sayfa uzayı, sol üst köşe).
+  final void Function(int pageIndex, double x, double y, PdfMarkupKind kind)?
+      onPlace;
 
   /// Bloğu yazmaya aç (imleç [offset]'te; çift dokunuşta sözcük seçili).
   final void Function(int pageIndex, PdfTextBlock block,
@@ -163,11 +224,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   final _preview = _DragPreview();
   bool _dragging = false;
 
-  // İşaretleme önizlemesi: sürüklerken yalnız kendi RepaintBoundary katmanı boyanır.
-  final List<Offset> _stroke = [];
-  Offset? _markFrom, _markTo;
-  final ValueNotifier<_ActiveStroke> _activeStroke =
-      ValueNotifier(_ActiveStroke.empty);
+  // İşaretleme önizlemesi — kendi boyayıcısında (çizerken katman kurulmaz).
+  final _mark = _MarkPreview();
 
   Timer? _blink;
   final ValueNotifier<bool> _caretOn = ValueNotifier(true);
@@ -210,8 +268,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     c.removeListener(_onController);
     _blink?.cancel();
     _caretOn.dispose();
-    _activeStroke.dispose();
     _preview.dispose();
+    _mark.dispose();
     super.dispose();
   }
 
@@ -240,60 +298,43 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   /// verir): tutamaç ve çizgi kalınlığı yakınlaştırmadan bağımsız sabittir.
   double get _px => 1;
 
-  // Çizim (İşaretle) ve seçim uzatma: ham işaretçi izleme.
-  int _drawPointers = 0;
+  // Çizim (İşaretle) ve seçim uzatma: ham işaretçi izleme. Avuç reddinde
+  // sayılmayan dokunuşlar kümeye girmez.
+  final Set<int> _drawPointers = {};
   int? _drawPointer;
   bool _extending = false;
 
-  void _notifyStroke() {
-    final from = _markFrom, to = _markTo;
-    _activeStroke.value = _ActiveStroke(
-      from: from,
-      to: to,
-      points: List<Offset>.of(_stroke),
-      markRects: from != null && to != null && _textMarkup
-          ? [
-              for (final q in _quadsBetween(from, to))
-                Rect.fromPoints(_w(q[0], q[1]), _w(q[6], q[7]))
-            ]
-          : const [],
-    );
-  }
-
+  // **Kasma kuralı:** çizim önizlemesi [_mark]'ta — işaretçi olayında
+  // `setState` YOK; yalnız [_MarkPainter] (kendi RepaintBoundary'si)
+  // yeniden boyanır, katman kurulmaz, kılavuzlar boyanmaz.
   void _drawReset() {
     _drawPointer = null;
-    if (_markFrom == null && _stroke.isEmpty) return;
-    _markFrom = null;
-    _markTo = null;
-    _stroke.clear();
-    _activeStroke.value = _ActiveStroke.empty;
+    _mark.clear();
   }
 
   void _drawDown(PointerDownEvent e) {
-    _drawPointers++;
+    final stylus = e.kind == PointerDeviceKind.stylus ||
+        e.kind == PointerDeviceKind.invertedStylus;
+    if (stylus) c.stylusSeen = true;
+    // Avuç reddi: kalem kipinde parmak/avuç hiç sayılmaz.
+    if (c.stylusSeen && !stylus) return;
+    _drawPointers.add(e.pointer);
     // İkinci parmak = yakınlaştırma: başlamış çizgi bırakılır.
-    if (_drawPointers > 1) {
+    if (_drawPointers.length > 1) {
       _drawReset();
       return;
     }
     _drawPointer = e.pointer;
-    _markFrom = e.localPosition;
-    _markTo = e.localPosition;
-    _stroke
-      ..clear()
-      ..add(e.localPosition);
-    _notifyStroke();
+    _mark.begin(e.localPosition, pdfPressureOf(e));
   }
 
   void _drawMove(PointerMoveEvent e) {
     if (e.pointer != _drawPointer) return;
-    _markTo = e.localPosition;
-    if (c.markup == PdfMarkupKind.ink) _stroke.add(e.localPosition);
-    _notifyStroke();
+    _mark.extend(e.localPosition, pdfPressureOf(e), keep: _freehand);
   }
 
   void _drawUp(PointerEvent e, {bool cancel = false}) {
-    _drawPointers = math.max(0, _drawPointers - 1);
+    _drawPointers.remove(e.pointer);
     if (e.pointer != _drawPointer) return;
     _drawPointer = null;
     if (cancel) {
@@ -306,11 +347,8 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   /// Kement bitti: merkezi dikdörtgende kalan nesneler seçilir; kement
   /// bir kez çalışır (görüntüleyici tek parmakla yine kayar).
   void _finishLasso() {
-    final from = _markFrom, to = _markTo;
-    _markFrom = null;
-    _markTo = null;
-    _stroke.clear();
-    _activeStroke.value = _ActiveStroke.empty;
+    final from = _mark.from, to = _mark.to;
+    _mark.clear();
     c.armLasso = false;
     if (from == null || to == null) return;
     final items = _selectable().toList();
@@ -432,6 +470,17 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   }
 
   // ── işaretleme ─────────────────────────────────────────────────────────
+  bool get _freehand =>
+      c.markup == PdfMarkupKind.ink || c.markup == PdfMarkupKind.marker;
+
+  /// Fosforlu kalem: geniş, yarı saydam (alttaki yazı okunur — eski kalem
+  /// ekranının fosforlusu gibi: A4'te ≈ 12 pt).
+  double _inkWidth(PdfMarkupKind kind) =>
+      kind == PdfMarkupKind.marker ? 12 : c.markupWidth;
+  int _inkColor(PdfMarkupKind kind) => kind == PdfMarkupKind.marker
+      ? (c.markupColor & 0xFFFFFF) | 0x66000000
+      : c.markupColor | 0xFF000000;
+
   bool get _textMarkup => const {
         PdfMarkupKind.highlight,
         PdfMarkupKind.underline,
@@ -476,15 +525,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
   }
 
   Future<void> _finishMarkup() async {
-    final from = _markFrom, to = _markTo;
+    final from = _mark.from, to = _mark.to;
     final kind = c.markup;
-    final stroke = List<Offset>.of(_stroke);
-    _markFrom = null;
-    _markTo = null;
-    _stroke.clear();
-    _activeStroke.value = _ActiveStroke.empty;
+    final stroke = List<Offset>.of(_mark.points);
+    final pressure = _mark.factor;
+    _mark.clear();
     try {
-      if (kind == PdfMarkupKind.ink) {
+      if (kind == PdfMarkupKind.ink || kind == PdfMarkupKind.marker) {
         if (stroke.length < 2) return;
         final pts = <double>[];
         var l = double.infinity, b = double.infinity;
@@ -499,13 +546,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           b = math.min(b, p.y);
           t = math.max(t, p.y);
         }
-        final pad = c.markupWidth;
+        final width = _inkWidth(kind) * pressure;
         await c.annotate(
             PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
-                rect: [l - pad, b - pad, r + pad, t + pad],
+                rect: [l - width, b - width, r + width, t + width],
                 ink: [pts],
-                color: c.markupColor | 0xFF000000,
-                width: c.markupWidth),
+                color: _inkColor(kind),
+                width: width),
             label: 'pse.step_ink');
         return;
       }
@@ -557,6 +604,23 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               ? [a.x, a.y, z.x, z.y]
               : [for (final q in quads) ...box(q)]),
         ], label: 'pse.step_redact');
+        return;
+      }
+      if (kind == PdfMarkupKind.cloud && (to - from).distance > 6 * _px) {
+        // Bulut: tırtıklı kenar mürekkep açıklaması (PDFium görünüşünü
+        // kendisi üretir; her okuyucuda aynı görünür, Silgi/Yorumlar bulur).
+        final a = _p(from), z = _p(to);
+        final l = math.min(a.x, z.x), r = math.max(a.x, z.x);
+        final b = math.min(a.y, z.y), t = math.max(a.y, z.y);
+        final path = pdfCloudPath(l, b, r, t);
+        final pad = 12 + c.markupWidth;
+        await c.annotate(
+            PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
+                rect: [l - pad, b - pad, r + pad, t + pad],
+                ink: [path],
+                color: c.markupColor | 0xFF000000,
+                width: c.markupWidth),
+            label: 'pse.step_cloud');
         return;
       }
       if (_shapeMarkup && (to - from).distance > 6 * _px) {
@@ -839,24 +903,31 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
               child: CustomPaint(size: widget.pageSize, painter: painter),
             ),
           ),
-          // Aktif çizim vuruşu katmanı: sürüklerken yalnız bu boyanır.
+          // Çizim önizlemesi kendi katmanında: çizerken yalnız bu boyanır.
           IgnorePointer(
             child: RepaintBoundary(
               child: CustomPaint(
                 size: widget.pageSize,
-                painter: _StrokePainter(
-                  _activeStroke,
-                  strokeColor: c.armLasso
+                painter: _MarkPainter(
+                  _mark,
+                  color: c.armLasso
                       ? accent
                       : c.markup == PdfMarkupKind.redact
                           ? scheme.onSurface
-                          : Color(c.markupColor | 0xFF000000),
-                  strokeWidth: c.armLasso ? 1.5 * px : c.markupWidth * _unit,
-                  shape: _shapeMarkup
+                          : Color(_inkColor(c.markup)),
+                  width:
+                      c.armLasso ? 1.5 * px : _inkWidth(c.markup) * _unit,
+                  shape: _shapeMarkup || c.markup == PdfMarkupKind.cloud
                       ? c.markup
                       : c.armLasso
                           ? PdfMarkupKind.rect
                           : null,
+                  textRects: _textMarkup
+                      ? (a, b) => [
+                            for (final q in _quadsBetween(a, b))
+                              Rect.fromPoints(_w(q[0], q[1]), _w(q[6], q[7]))
+                          ]
+                      : null,
                 ),
               ),
             ),
@@ -1124,9 +1195,14 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         }
       case PdfProTool.markup:
         final a = _annotAt(local);
+        final place = c.markup == PdfMarkupKind.stamp ||
+            c.markup == PdfMarkupKind.freeText;
         if (c.markup == PdfMarkupKind.note && a == null) {
           final p = _p(local);
           widget.events.onNote(pageIndex, p.x, p.y);
+        } else if (place && a == null) {
+          final p = _p(local);
+          widget.events.onPlace?.call(pageIndex, p.x, p.y, c.markup);
         } else if (a != null) {
           AppHaptics.selection();
           if (c.markup == PdfMarkupKind.eraser) {

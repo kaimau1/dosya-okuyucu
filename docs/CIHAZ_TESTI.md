@@ -1701,3 +1701,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Yer aç → kopya kartında "Grupları tek tek incele" → kopya ekranı BEKLEMEDEN gruplarla açılır; orada sil → Yer aç'a dön → silinenler kartlardan düşmüş, çöp kartı büyümüş.
 - [ ] Yer aç en altı "DAHA FAZLA YER BUL": yalnız Sohbet medyası, Benzer fotoğraflar, Görsel içerik taraması. Kopyalar ve Klasör haritası satırı YOK (harita Bellek Analizi'nde). Bir taramayı bitir → satırda "N dosya · X temizlenebilir" yazar.
 - [ ] Yer aç "Yenile" süresi öncekinden kısa (aynı telefonda kronometreyle; önceki sürümde 5 adım, şimdi 3 adım). Tarama sürerken ekran takılmıyor.
+
+## B4-P17i PDF işaretleme stüdyosu (2026-11-26, dal faz-oto-B4-isaret) — yazıldı, cihazda doğrulanmadı
+- [ ] Kalem düğmesi (Pro/Kişisel): PDF görüntüleyicide Kalem / dışarıdan "işaretle" (ANNOTATE) → ayrı ekran AÇILMAZ, düzenleme kipi "İşaretle" aracı Kalem seçili gelir; tek parmakla çiz, iki parmakla yakınlaş. Lite sürümde ve eski motorda (`pdf_pro_engine` kapalı) eski kalem ekranı açılır.
+- [ ] Kalemle çizerken akıcı mı (kare p99 ≤ 24 ms, kalabalık sayfada da); A/B C2'de.
+- [ ] Fosforlu: yarı saydam geniş çizgi, alttaki yazı okunur; kaydedip Chrome/Acrobat'ta aç → aynı görünür.
+- [ ] Bulut (`Şekiller` levhasından): parmakla dikdörtgen sürükle → tırtıklı çerçeve; Silgi dokununca siler; Yorumlar listesinde görünür.
+- [ ] Serbest metin: dokun → yaz (çok satır, Türkçe harfler) → dokunulan yerde yazı; Damga: dokun → Onaylandı / Reddedildi / Gizli / Tarih ve saat / Kendi damgam → çerçeveli renkli damga. Kaydedip başka okuyucuda aç → aynı görünür. Arapça yazınca açık "harf yok" uyarısı.
+- [ ] Kalem (stylus) olan tablette: kalemle çizerken avucunu ekrana koy → çizgi bozulmaz; kalemle bir kez dokunduktan sonra parmak çizmez. Sert basınca çizgi kalın, hafif basınca ince.

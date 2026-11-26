@@ -13,6 +13,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onNote: _proAddNote,
         onAnnotTap: _proAnnotTap,
         onTextBox: _proTextBox,
+        onPlace: _proPlace,
         onSwitch: _proSwitch,
       );
 
@@ -695,6 +696,84 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     }
   }
 
+  /// Damga ya da serbest metin (Faz 60 m.2): gerçek Stamp açıklaması,
+  /// dokunulan nokta sol üst köşesi.
+  Future<void> _proPlace(
+      int pageIndex, double x, double y, PdfMarkupKind kind) async {
+    final pro = _pro;
+    if (pro == null || pro.busy) return;
+    String? text;
+    var color = pro.markupColor | 0xFF000000;
+    final stamp = kind == PdfMarkupKind.stamp;
+    if (stamp) {
+      final pick = await showAppActionSheet<String>(
+        context,
+        title: context.t('pse.mk_stamp'),
+        groups: [
+          AppActionGroup(actions: [
+            for (final k in const [
+              'approved',
+              'rejected',
+              'confidential',
+              'date',
+              'custom'
+            ])
+              AppAction(
+                  value: k,
+                  icon: k == 'date'
+                      ? AppIcons.schedule
+                      : k == 'custom'
+                          ? AppIcons.editNote
+                          : AppIcons.stamp,
+                  label: context.t('pse.stamp_$k')),
+          ]),
+        ],
+      );
+      if (pick == null || !mounted || _pro != pro) return;
+      final now = DateTime.now();
+      String two(int v) => v.toString().padLeft(2, '0');
+      // Hazır damga yazısı Carlito ile çizilir (Arapça glif yok); Arapça
+      // arayüzde seçenek Arapça gösterilir, belgeye uluslararası İngilizce basılır.
+      final latin = context.language == AppLanguage.ar;
+      switch (pick) {
+        case 'approved':
+          text = latin ? 'APPROVED' : context.t('pse.stamp_approved');
+          color = 0xFF2E7D32;
+        case 'rejected':
+          text = latin ? 'REJECTED' : context.t('pse.stamp_rejected');
+          color = 0xFFC62828;
+        case 'confidential':
+          text = latin ? 'CONFIDENTIAL' : context.t('pse.stamp_confidential');
+          color = 0xFFC62828;
+        case 'date':
+          text = '${two(now.day)}.${two(now.month)}.${now.year} '
+              '${two(now.hour)}:${two(now.minute)}';
+          color = 0xFF1565C0;
+        default:
+          text = await showAppPrompt(context,
+              title: context.t('pse.stamp_custom'));
+      }
+    } else {
+      text = await showAppPrompt(context,
+          title: context.t('pse.mk_freetext'), multiline: true);
+    }
+    if (text == null || text.trim().isEmpty || !mounted || _pro != pro) return;
+    try {
+      await pro.annotate(
+          PdfAnnotChange.stamp(pageIndex,
+              x: x,
+              y: y,
+              text: stamp ? text.trim() : text.trimRight(),
+              color: color,
+              size: stamp ? 18 : 14,
+              boxed: stamp),
+          label: stamp ? 'pse.step_stamp' : 'pse.step_freetext',
+          detail: text.trim());
+    } catch (e) {
+      _proRefused(e);
+    }
+  }
+
   Future<void> _proAnnotTap(int pageIndex, PdfAnnotInfo annot) async {
     final pro = _pro;
     if (pro == null || pro.busy) return;
@@ -753,8 +832,10 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   Future<void> _proMarkupColor() async {
     final pro = _pro;
     if (pro == null) return;
+    // Kalem ve şekiller yazı renkleri; vurgu ve fosforlu işaretleyici renkleri.
     final ink = pro.markup == PdfMarkupKind.ink ||
-        pro.markup.index >= PdfMarkupKind.rect.index;
+        (pro.markup.index >= PdfMarkupKind.rect.index &&
+            pro.markup != PdfMarkupKind.marker);
     await showPdfStrokeSheet(
       context,
       color: pro.markupColor,
@@ -1076,6 +1157,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           (PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
           (PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
           (PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
+          (PdfMarkupKind.cloud, AppIcons.cloud, 'pse.mk_cloud'),
         ];
         const textLines = <(PdfMarkupKind, IconData, String)>[
           (PdfMarkupKind.underline, AppIcons.formatUnderlined, 'pse.mk_underline'),
@@ -1095,6 +1177,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
           ),
           kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
+          kind(PdfMarkupKind.marker, AppIcons.brush, 'pse.mk_marker'),
           kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
           PdfProChip(
             activeShape?.$2 ?? AppIcons.rectTool,
@@ -1112,6 +1195,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             tapKey: const ValueKey('pse-chip-lines'),
           ),
           kind(PdfMarkupKind.note, AppIcons.addComment, 'pse.mk_note'),
+          kind(PdfMarkupKind.freeText, AppIcons.textFields, 'pse.mk_freetext'),
+          kind(PdfMarkupKind.stamp, AppIcons.stamp, 'pse.mk_stamp'),
           kind(PdfMarkupKind.redact, AppIcons.pdfRedact, 'pse.mk_redact'),
           PdfProChip(AppIcons.shield, t('pse.kvkk_title'), _proSensitive,
               tapKey: const ValueKey('pse-chip-kvkk')),

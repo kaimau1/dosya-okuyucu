@@ -16,8 +16,10 @@ import '../../services/pdf/pro/pdf_sensitive.dart';
 /// Alt araç çubuğunun araçları (etkileşim sözleşmesi §5).
 enum PdfProTool { text, image, markup, sign, form, pages, more }
 
-/// İşaretleme aracının kipi (Faz 60).
-enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact }
+/// İşaretleme aracının kipi (Faz 60). [marker] = serbest fosforlu kalem
+/// (eski kalem ekranının fosforlusu, yarı saydam mürekkep); [cloud] tırtıklı
+/// çerçeve; [stamp] damga ve [freeText] serbest metin dokunulan yere konur.
+enum PdfMarkupKind { none, highlight, underline, strikeout, squiggly, note, ink, eraser, rect, ellipse, line, arrow, redact, marker, cloud, stamp, freeText }
 
 /// Belge geneli aramada bir eşleşme.
 class PdfFindHit {
@@ -481,6 +483,16 @@ class PdfProEditController extends ChangeNotifier {
     _notify();
   }
 
+  /// İşaretleme stüdyosunu [kind] kurulu açar (çip gibi aç/kapa DEĞİL).
+  /// Görüntüleyicinin "Kalem" düğmesi ve dışarıdan "işaretle" isteği
+  /// (ANNOTATE) buradan gelir — ayrı kalem ekranı yok (Faz 60 m.5).
+  void armMarkup(PdfMarkupKind kind) {
+    tool = PdfProTool.markup;
+    if (_markup == kind) return;
+    _markup = kind;
+    _notify();
+  }
+
   /// Tek parmak sürükleme şu an sayfaya çiziyor mu (vurgu, kalem, şekil,
   /// karartma). Açıkken görüntüleyici tek parmakla kaymaz; iki parmak
   /// yakınlaştırır.
@@ -490,7 +502,15 @@ class PdfProEditController extends ChangeNotifier {
           (_tool == PdfProTool.markup &&
               _markup != PdfMarkupKind.none &&
               _markup != PdfMarkupKind.note &&
+              _markup != PdfMarkupKind.stamp &&
+              _markup != PdfMarkupKind.freeText &&
               _markup != PdfMarkupKind.eraser));
+
+  /// **Kalem kipi / avuç reddi** (Faz 60 m.2; eski kalem ekranının H9.3
+  /// kuralı): bir kez kalem (stylus) dokunduysa bu oturumda YALNIZ kalem
+  /// çizer; parmak ve avuç çizmez, kalem çizerken gelen dokunuş çizgiyi
+  /// bozmaz. Kalemsiz cihazda hiç açılmaz.
+  bool stylusSeen = false;
 
   /// İşaretleme rengi (ARGB) ve çizgi kalınlığı.
   int markupColor = 0xFFFFD54F;

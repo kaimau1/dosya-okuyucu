@@ -690,51 +690,84 @@ class _DragPainter extends CustomPainter {
       old.px != px;
 }
 
-/// Aktif çizim / işaretleme vuruşu durumu. Sürükleme boyunca `ValueNotifier`
-/// üzerinden güncellenir ve yalnız [_StrokePainter] boyanır.
-class _ActiveStroke {
-  final Offset? from, to;
-  final List<Offset> points;
-  final List<Rect> markRects;
+/// Çizim önizlemesi (vurgu sürüklemesi, kalem, şekil, kement). **Kasma
+/// kuralı:** çizerken yalnız [_MarkPainter] yeniden boyanır — katman
+/// kurulmaz, sayfanın öteki kılavuzları boyanmaz.
+class _MarkPreview extends ChangeNotifier {
+  Offset? from, to;
 
-  const _ActiveStroke({
-    this.from,
-    this.to,
-    this.points = const [],
-    this.markRects = const [],
-  });
+  /// Serbest çizimin noktaları (katman pikseli).
+  final List<Offset> points = [];
 
-  static const empty = _ActiveStroke();
+  /// Noktaların kalem basıncı ([pdfPressureOf]; -1 = bilgi yok).
+  final List<double> pressures = [];
+  double get factor => pdfPressureFactor(pressures);
+
+  void begin(Offset at, double pressure) {
+    from = at;
+    to = at;
+    points
+      ..clear()
+      ..add(at);
+    pressures
+      ..clear()
+      ..add(pressure);
+    notifyListeners();
+  }
+
+  void extend(Offset at, double pressure, {required bool keep}) {
+    to = at;
+    if (keep) {
+      points.add(at);
+      pressures.add(pressure);
+    }
+    notifyListeners();
+  }
+
+  void clear() {
+    if (from == null && points.isEmpty) return;
+    from = null;
+    to = null;
+    points.clear();
+    pressures.clear();
+    notifyListeners();
+  }
 }
 
-class _StrokePainter extends CustomPainter {
-  _StrokePainter(
-    this.active, {
-    required this.strokeColor,
-    required this.strokeWidth,
-    required this.shape,
-  }) : super(repaint: active);
+class _MarkPainter extends CustomPainter {
+  _MarkPainter(this.preview,
+      {required this.color,
+      required this.width,
+      required this.shape,
+      required this.textRects})
+      : super(repaint: preview);
 
-  final ValueNotifier<_ActiveStroke> active;
-  final Color strokeColor;
-  final double strokeWidth;
+  final _MarkPreview preview;
+  final Color color;
+  final double width;
   final PdfMarkupKind? shape;
+
+  /// Metin üstü işaretlemede sürüklenen aralığın satır kutuları.
+  final List<Rect> Function(Offset from, Offset to)? textRects;
 
   @override
   bool hitTest(Offset position) => false;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final s = active.value;
-    if (s.markRects.isNotEmpty) {
-      final p = Paint()..color = strokeColor.withValues(alpha: 0.35);
-      for (final r in s.markRects) {
+    final a = preview.from, b = preview.to;
+    if (a == null || b == null) return;
+    final rects = textRects;
+    if (rects != null) {
+      final p = Paint()..color = color.withValues(alpha: 0.35);
+      for (final r in rects(a, b)) {
         canvas.drawRect(r, p);
       }
     }
-    if (s.points.length > 1) {
-      final path = Path()..moveTo(s.points.first.dx, s.points.first.dy);
-      for (final o in s.points.skip(1)) {
+    final pts = preview.points;
+    if (pts.length > 1) {
+      final path = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (final o in pts.skip(1)) {
         path.lineTo(o.dx, o.dy);
       }
       canvas.drawPath(
@@ -743,33 +776,33 @@ class _StrokePainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeCap = StrokeCap.round
             ..strokeJoin = StrokeJoin.round
-            ..strokeWidth = strokeWidth
-            ..color = strokeColor);
+            ..strokeWidth = width * preview.factor
+            ..color = color);
     }
-    final a = s.from, b = s.to;
-    if (shape != null && a != null && b != null) {
-      final p = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..color = strokeColor;
-      switch (shape!) {
-        case PdfMarkupKind.ellipse:
-          canvas.drawOval(Rect.fromPoints(a, b), p);
-        case PdfMarkupKind.line || PdfMarkupKind.arrow:
-          canvas.drawLine(a, b, p);
-        case PdfMarkupKind.redact:
-          canvas.drawRect(Rect.fromPoints(a, b),
-              Paint()..color = strokeColor.withValues(alpha: 0.6));
-        default:
-          canvas.drawRect(Rect.fromPoints(a, b), p);
-      }
+    final s = shape;
+    if (s == null) return;
+    final p = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..color = color;
+    switch (s) {
+      case PdfMarkupKind.ellipse:
+        canvas.drawOval(Rect.fromPoints(a, b), p);
+      case PdfMarkupKind.line || PdfMarkupKind.arrow:
+        canvas.drawLine(a, b, p);
+      case PdfMarkupKind.redact:
+        canvas.drawRect(
+            Rect.fromPoints(a, b), Paint()..color = color.withValues(alpha: 0.6));
+      default:
+        canvas.drawRect(Rect.fromPoints(a, b), p);
     }
   }
 
   @override
-  bool shouldRepaint(_StrokePainter old) =>
-      old.active != active ||
-      old.strokeColor != strokeColor ||
-      old.strokeWidth != strokeWidth ||
-      old.shape != shape;
+  bool shouldRepaint(_MarkPainter old) =>
+      old.preview != preview ||
+      old.color != color ||
+      old.width != width ||
+      old.shape != shape ||
+      (old.textRects == null) != (textRects == null);
 }

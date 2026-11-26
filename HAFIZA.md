@@ -652,6 +652,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **OCG:** syncfusion `PdfLayer.visible` `/D /ON /OFF`'u yazar (PDFium buna bakar); alt katmanlar üst listede de olabilir → kimlikle tekilleştir. Tuzak: syncfusion yüklerken /OFF'taki katmana `visible=false` atar → dizide yineleme olabilir (zararsız, `_removeContent` hepsini siler).
 - **Kamera (en güvenli):** yeni izin/eklenti yok — `DocumentScanner.scanPages(maxPages: 1)` (ML Kit, kamera izni istemez; yoksa galeri). Sabah bakılacak: kırpmasız düz fotoğraf istenirse `ACTION_IMAGE_CAPTURE` köprüsü gerekir.
 - **Yapılmadı:** ızgara (Faz 59 m.4 sonu), filigran/arka planı ayrı katman olarak seçme (m.6 ikinci yarısı).
+
 ## 2026-11-22 — Kapsamlı UX/UI Yenileme, PDF/Excel Hata Giderme, Performans & Belge Tarama (dal faz-ux-perf-yenileme)
 - **UX & Filtre/Menü Kökleri:**
   - `Yer aç`: kartlar tıklamayla anında genişler (`_card`), ölü boşluk yaratan `EmbeddedToolbar` ve ayrı satırlar kaldırıldı; üst özet şeridi toplam/seçili farkını açıklar. `İşlemler` 2× yazı taşması için `AppIcons.history` ikonu kullanıldı.
@@ -779,3 +780,10 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (Kitaplık):** PDF kapağının köşesinde içindekiler düğmesi + liste satırında simge + uzun basma menüsünde "İçindekiler"; başlığa dokununca `PdfOpenTarget.set` → görüntüleyici `_applyResumePage` önce onu tüketir (devam notu yok).
 - **Karar (otomatik içindekiler):** yer imi yoksa "İçindekiler oluştur": `PdfAutoOutline` (gövde boyu = karakter ağırlıklı en sık boy; ≥1,2× = düzey 0/1, gövde boyunda TÜMÜ BÜYÜK kısa satır = alt başlık; üst/alt şeritte ≥%15 sayfada yinelenen atılır; ardışık eş boy satırlar birleşir; aday > sayfa×4 ise eşik yükselir). Önizlemeden sonra `PdfDocPro.writeOutline` ile PDF'in İÇİNE yazılır (geçici dosya + rename). Taranmış = örneklenen ≤12 sayfanın ≥%60'ı metinsiz → yalnız o zaman OCR uyarısı ve `renderPageForOcr`+`recognizeImageLines(fast)` satır kutularıyla aynı sezgi (kullanıcı: "gereksiz uyarı olmasın").
 - **Tuzak:** `0fdb819` `pdf_selection.dart`'a `fontSize:` ekleyip tavanı aşmıştı (design_tokens_test); bu turda kalktı.
+
+## 2026-11-26 — B4 P17 işaretleme stüdyosu (dal faz-oto-B4-isaret; yazıldı, cihazda doğrulanmadı)
+- **Tek yol:** görüntüleyicinin Kalem düğmesi + ANNOTATE (`startInk`) → `_openInk` → `Edition.current.has(Feature.pdfAdvanced)` varsa `_enterProEdit` + `armMarkup(ink)` (çip gibi aç/kapa değil); Lite sürümde ve `pdf_pro_engine` kapalıyken `PdfInkScreen` çalışmaya devam eder (Lite'ta sessizce dönme tuzağı önlendi). `PdfInkScreen` SİLİNMEDİ: eski düzenleyicinin Çiz sekmesinde (`pickMarks`) ve Lite/eski motorda sürer.
+- **Belge Stüdyosu uyumu:** `showPdfStrokeSheet` (renk + kalınlık tek levha) ve kompakt çip şeridi korundu: `Bulut` `Şekiller` levhasına, `Fosforlu`, `Serbest metin` ve `Damga` yongaları şeride eklendi.
+- **Kasma kökü:** kalem/vurgu/şekil önizlemesi `_MarkPreview` + kendi `RepaintBoundary`'li `_MarkPainter`'da; ana katman da `RepaintBoundary`'li. Bekçi: `pdf_pro_markup_studio_test` (`debugBuilds` çizim boyunca sabit).
+- **Avuç reddi & basınç:** `stylusSeen` (oturum) — kalem görüldükten sonra dokunuşlar çizime hiç sayılmaz. PDF mürekkep kalınlığı tek → ortalama basınç 0,4–1,6× (`pdfPressureFactor`).
+- **Damga/serbest metin:** PDFium FreeText için görünüş ÜRETMEZ → Stamp açıklaması + `FPDFAnnot_AppendObject` ile metin/çerçeve nesneleri; görünüş akışı PDFium'dan. Font Carlito alt kümesi, `PdfAnnotChange.font` günlüğe YAZILMAZ (`PdfEditBridge.annotate` uygularken kurar). Arapça glif yok → açık ret. Bulut = tırtıklı yol tek Ink açıklaması (`pdfCloudPath`). `PdfAnnotChange.stamp` `rect: [x, y, x, y]` çalışma zamanı listesi kurduğu için `const` OLAMAZ.
