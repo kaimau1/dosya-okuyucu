@@ -374,7 +374,7 @@ class _MetaSheetState extends State<_MetaSheet> {
 /// [_MetaSheet]'in "tümünü temizle" yanıtı (alanlar boş belge bilgisinden
 /// ayırt edilsin diye özel işaret değer).
 const PdfMeta _metaStrip =
-    (title: ' ', author: '', subject: '', keywords: '');
+    (title: '\u0000', author: '', subject: '', keywords: '');
 
 // ── Katmanlar (OCG) ───────────────────────────────────────────────────────
 
