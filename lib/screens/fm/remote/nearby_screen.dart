@@ -300,6 +300,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
   int _hotspotStep = 0;
   int _served = 0;
 
+  /// Seçim kutusundaki gönderim sonucu: giden yol işaretli (QR/PC bağlantısı
+  /// indirildi), gidemeyen yol nedeniyle. Wi-Fi'de giden yol kutudan çıkar.
+  final Set<String> _sentDone = {};
+  final Map<String, String> _sendFailed = {};
+
   /// Kısa ömürlü bağlantı (Faz 41 / 4): süre ve tek seferlik indirme.
   Duration? _linkTtl;
   bool _linkOnce = false;
@@ -651,7 +656,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
   }
 
   void _remove(String path) {
-    setState(() => _selection.remove(path));
+    setState(() {
+      _selection.remove(path);
+      _sentDone.remove(path);
+      _sendFailed.remove(path);
+    });
     _scheduleWeb();
   }
 
@@ -829,7 +838,12 @@ class _NearbyScreenState extends State<NearbyScreen> {
     final appState = context.read<AppState>();
     final payload = [..._selection];
     final out = _Outgoing(peer.name);
-    setState(() => _out = out);
+    setState(() {
+      _out = out;
+      for (final path in payload) {
+        _sendFailed.remove(path);
+      }
+    });
     // Görünür yüzde değişmedikçe yeniden çizilmez (yığın başına değil).
     var shown = -1;
     void tick() {
@@ -880,8 +894,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
     // giden yüzde, süre. Kalem adı tek dosyada dosyanın adıdır; küçük
     // dosyalar pakete girdiyse dosyanın kendi satırı yoktur → genel yüzde.
     final elapsed = DateTime.now().difference(out.startedAt);
-    final allOk = result.sent > 0 && !result.hasError && !result.cancelled &&
-        !result.declined && !result.wrongCode;
+    final done = result.sentPaths.toSet();
+    final allOk = payload.every(done.contains);
     final overall = out.totalBytes > 0
         ? (out.sentBytes * 100 ~/ out.totalBytes).clamp(0, 100).toInt()
         : (allOk ? 100 : 0);
@@ -902,7 +916,7 @@ class _NearbyScreenState extends State<NearbyScreen> {
             size: sizes[path] ?? 0,
             peer: peer.name,
             at: DateTime.now(),
-            ok: allOk || pct >= 100,
+            ok: done.contains(path),
             percent: pct,
             duration: elapsed,
           );
@@ -910,21 +924,51 @@ class _NearbyScreenState extends State<NearbyScreen> {
     ]);
     if (allOk) await appState.rememberPeer(peer.name, peer.host, peer.port);
     if (!mounted) return;
-    setState(() => _historyIncoming = false);
+    // Giden kutudan çıkar; gidemeyen nedeniyle işaretli kalır (yeniden
+    // dokununca kaldığı yerden sürer). Durdurulan iş işaretlenmez.
+    final failed = [for (final path in payload) if (!done.contains(path)) path];
+    final why =
+        failed.isEmpty || result.cancelled ? null : _failReason(result, strings);
+    setState(() {
+      _historyIncoming = false;
+      _selection.removeWhere(done.contains);
+      if (why != null) {
+        for (final path in failed) {
+          _sendFailed[path] = why;
+        }
+      }
+    });
+    if (done.isNotEmpty) _scheduleWeb();
+    final bad = failed.length;
     showSnackBarReplacing(
       messenger,
       SnackBar(
         content: Text(
-          result.declined
-              ? strings.t('peer.declined_by_peer')
-              : result.hasError
-                  ? '${strings.t('peer.send_failed', {'error': result.errors.first})} · ${strings.t('g5.resume_hint')}'
-                  : result.cancelled
-                      ? strings.t('peer.send_stopped', {'n': result.sent})
-                      : strings.t('peer.sent', {'n': result.sent, 'name': peer.name}),
+          why == null
+              ? (result.cancelled
+                  ? strings.t('peer.send_stopped', {'n': result.sent})
+                  : strings.t('peer.sent', {'n': result.sent, 'name': peer.name}))
+              : done.isEmpty
+                  ? '${strings.t('peer.send_failed', {'error': why})} · ${strings.t('g5.resume_hint')}'
+                  : strings.t('near.sent_partial',
+                      {'ok': payload.length - bad, 'bad': bad, 'why': why}),
         ),
       ),
     );
+  }
+
+  /// Gönderim neden olmadı — kullanıcı diliyle (iç hata kodu gösterilmez).
+  static String _failReason(PeerSendResult r, AppStrings strings) {
+    if (r.declined) return strings.t('peer.declined_by_peer');
+    if (r.wrongCode) return strings.t('near.fail_code');
+    if (r.identityMismatch) return strings.t('near.fail_identity');
+    final e = r.errors.isEmpty ? '' : r.errors.first;
+    if (e == 'handshake') return strings.t('near.fail_secure');
+    if (e.endsWith(': fatal')) return strings.t('near.fail_receiver');
+    if (e.isEmpty || e.endsWith(': network') || e.endsWith(': rekey')) {
+      return strings.t('near.fail_network');
+    }
+    return e; // userErrorText'ten gelen hazır cümle
   }
 
   // ── Ayarlar ────────────────────────────────────────────────────────────
@@ -980,6 +1024,8 @@ class _NearbyScreenState extends State<NearbyScreen> {
     if (_selection.isEmpty && _text == null) return;
     setState(() {
       _selection.clear();
+      _sentDone.clear();
+      _sendFailed.clear();
       _text = null;
     });
     _textCtrl.clear();

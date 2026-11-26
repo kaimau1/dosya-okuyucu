@@ -190,6 +190,8 @@ extension _NearbySections on _NearbyScreenState {
                   itemBuilder: (_, i) => _SelectedTile(
                     key: ValueKey(_selection[i]),
                     path: _selection[i],
+                    sent: _sentDone.contains(_selection[i]),
+                    failed: _sendFailed[_selection[i]],
                     onRemove: () => _remove(_selection[i]),
                   ),
                 ),

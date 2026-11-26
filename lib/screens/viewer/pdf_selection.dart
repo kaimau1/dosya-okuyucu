@@ -305,58 +305,27 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
   }
 
-  /// Belge ana hattı (içindekiler). PDF'te yoksa kullanıcıya söylenir.
+  /// Belge ana hattı (içindekiler) — ortak sayfa [showPdfOutlineSheet].
+  /// PDF'te yer imi yoksa başlıkları tarayıp çıkarmayı önerir
+  /// ([createPdfOutline]); yazılırsa belge yeniden yüklenir.
   Future<void> _showOutline() async {
     final doc = _pdfDoc;
     if (doc == null) return;
     final outline = await doc.loadOutline();
     if (!mounted) return;
     if (outline.isEmpty) {
-      _snack(context.t('vw.no_toc'));
+      // Dosyaya yazılacak: bekleyen düzenlemeler önce kaydedilmeli.
+      if (!await _confirmLeavePending() || !mounted) return;
+      final changed =
+          await createPdfOutline(context, path: widget.doc.path, doc: doc);
+      if (changed && mounted) await _reloadPdf();
       return;
     }
-    // ponytail: ağaç yerine girintili düz liste — açılır/kapanır düğüm yönetimi
-    // olmadan aynı işi görür; şikayet gelirse ExpansionTile'a geçilir.
-    final flat = <(PdfOutlineNode, int)>[];
-    void walk(List<PdfOutlineNode> nodes, int depth) {
-      for (final n in nodes) {
-        flat.add((n, depth));
-        walk(n.children, depth + 1);
-      }
-    }
-
-    walk(outline, 0);
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        builder: (ctx, scroll) => ListView.builder(
-          controller: scroll,
-          itemCount: flat.length,
-          itemBuilder: (ctx, i) {
-            final (node, depth) = flat[i];
-            return ListTile(
-              dense: true,
-              contentPadding:
-                  EdgeInsetsDirectional.only(start: 16.0 + depth * 16, end: 16),
-              title: Text(node.title,
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              onTap: node.dest == null
-                  ? null
-                  : () {
-                      Navigator.pop(ctx);
-                      _pdfJumpTarget = node.dest!.pageNumber;
-                      _pdfController.goToDest(node.dest);
-                    },
-            );
-          },
-        ),
-      ),
-    );
+    final dest = await showPdfOutlineSheet(context,
+        doc: doc, outline: outline, currentPage: _pdfPage);
+    if (dest == null || !mounted) return;
+    _pdfJumpTarget = dest.pageNumber;
+    await _pdfController.goToDest(dest);
   }
 
   /// **Sesli not** (KALANLAR A10, yalnız kişisel derleme): dikte hemen
