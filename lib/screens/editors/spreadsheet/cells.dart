@@ -96,7 +96,7 @@ extension _SpreadsheetEditorScreenCellsPart on _SpreadsheetEditorScreenState {
       // harflerin ortasından geçen bir kıl çizgi kalırdı (Excel de gizler).
       showGridLines: sheet.showGridLines && !spill.isCovered(c),
       controller: _cellField,
-      onSubmitted: () => _commitAndMoveDown(_rowCount(sheet)),
+      onSubmitted: _commitAndMoveDown,
       onEditingComplete: _endEdit,
     );
     // Hücre notu (Excel'in "Açıklama"sı): sağ ÜST köşede küçük kırmızı üçgen,

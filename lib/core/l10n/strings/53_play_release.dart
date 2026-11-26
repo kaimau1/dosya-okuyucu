@@ -3,11 +3,6 @@ part of '../app_strings.dart';
 /// Çeviri tablosunun 53. bölümü: Play çıkışı, PC metin aktarımı, USB/SAF
 /// güvenliği, OCR stüdyosu ve sesli kitap motor/konuşma iyileştirmeleri.
 const Map<String, (String, String, String)> _t53 = {
-  'play.usb_read_only': (
-    'Play sürümünde USB bellekler veri güvenliği için salt okunur açılır; yazmak için sistem dosya seçicisini (SAF) kullanın.',
-    'In the Play edition USB drives open read-only for data safety; use the system file picker (SAF) to write.',
-    'في إصدار Play تُفتح محركات USB للقراءة فقط لحماية البيانات؛ استخدم منتقي ملفات النظام (SAF) للكتابة.',
-  ),
 
   // OCR Stüdyosu (Paket 6)
   'ocr_studio.title': (

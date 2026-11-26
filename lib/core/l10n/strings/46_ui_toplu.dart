@@ -46,12 +46,6 @@ const Map<String, (String, String, String)> _t46 = {
   'ui.tool_new_doc': ('Yeni belge', 'New document', 'مستند جديد'),
   'ui.tool_ftp': ('Bilgisayardan eriş', 'Access from PC', 'الوصول من الحاسوب'),
   'ui.ct_docs': ('Belgeler', 'Documents', 'المستندات'),
-  'ui.ct_ask': ('Dosyalarıma sor', 'Ask my files', 'اسأل ملفاتي'),
-  'ui.ct_ask_hint': (
-    'AI ile belgelerinde ara, özetlet',
-    'Search and summarize your documents with AI',
-    'ابحث في مستنداتك ولخصها بالذكاء الاصطناعي'
-  ),
   'ui.ct_smart_hint': (
     'Belgeleri kategorilere ayır, ikinci ad ver',
     'Sort documents into categories, give second names',

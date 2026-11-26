@@ -180,6 +180,10 @@ class FmFileListView extends StatelessWidget {
     context.dependOnBrowse();
     final thumbsOn = context.select<AppState, bool>((s) => s.fmThumbnails);
     final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 3.0;
+    final minRowHeight = MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0;
+    final largeText = MediaQuery.textScalerOf(context).scale(12) > 17.5;
+    final iconScale = context.fmIconScale;
+    final reducedMotion = Motion.reduced(context);
     // Etiketler ve renkleri başka ekranlarda da anında görünsün (eşzamanlı
     // çağrılar aynı Future'ı paylaşır).
     unawaited(FileTags.ensureLoaded());
@@ -190,8 +194,25 @@ class FmFileListView extends StatelessWidget {
       builder: (context, _) => _FreshRows(
         entries: entries,
         builder: (fresh) => layout.isGrid
-            ? _grid(context, items, fresh, thumbsOn: thumbsOn, dpr: dpr)
-            : _list(context, items, fresh, thumbsOn: thumbsOn, dpr: dpr),
+            ? _grid(
+                context,
+                items,
+                fresh,
+                thumbsOn: thumbsOn,
+                dpr: dpr,
+                reducedMotion: reducedMotion,
+              )
+            : _list(
+                context,
+                items,
+                fresh,
+                thumbsOn: thumbsOn,
+                dpr: dpr,
+                minRowHeight: minRowHeight,
+                largeText: largeText,
+                iconScale: iconScale,
+                reducedMotion: reducedMotion,
+              ),
       ),
     );
     if (onSelectRange != null) {
@@ -242,6 +263,10 @@ class FmFileListView extends StatelessWidget {
     Set<String> fresh, {
     required bool thumbsOn,
     required double dpr,
+    required double minRowHeight,
+    required bool largeText,
+    required double iconScale,
+    required bool reducedMotion,
   }) {
     // 2026-11-23 satır yenilemesi: satırlar artık değişken yükseklikli (2
     // satıra kadar dosya adı + ayrı ikinci ad satırı + renkli etiket hapları
@@ -263,6 +288,10 @@ class FmFileListView extends StatelessWidget {
               thumbsOn: thumbsOn,
               dpr: dpr,
               showDivider: i < items.length - 1,
+              minRowHeight: minRowHeight,
+              largeText: largeText,
+              iconScale: iconScale,
+              reducedMotion: reducedMotion,
             ),
             fresh),
       );
@@ -306,6 +335,10 @@ class FmFileListView extends StatelessWidget {
                         thumbsOn: thumbsOn,
                         dpr: dpr,
                         showDivider: i < cells.length - 1,
+                        minRowHeight: minRowHeight,
+                        largeText: largeText,
+                        iconScale: iconScale,
+                        reducedMotion: reducedMotion,
                       ),
                       fresh),
                 ),
@@ -384,6 +417,10 @@ class FmFileListView extends StatelessWidget {
     required bool thumbsOn,
     required double dpr,
     required bool showDivider,
+    required double minRowHeight,
+    required bool largeText,
+    required double iconScale,
+    required bool reducedMotion,
   }) {
     final entry = item.entry;
     return DragSelectItem(
@@ -410,6 +447,10 @@ class FmFileListView extends StatelessWidget {
         alias: AiIndex.aliasOf(entry.path),
         tags: FileTags.forPath(entry.path),
         showDivider: showDivider,
+        minRowHeight: minRowHeight,
+        largeText: largeText,
+        iconScale: iconScale,
+        reducedMotion: reducedMotion,
       ),
     );
   }
@@ -434,6 +475,7 @@ class FmFileListView extends StatelessWidget {
     Set<String> fresh, {
     required bool thumbsOn,
     required double dpr,
+    required bool reducedMotion,
   }) {
     // Izgarada başlıklar için gruplar ayrı `SliverGrid`lere bölünür;
     // başlık listede olduğu gibi yapışkan (H4.5).
@@ -482,6 +524,7 @@ class FmFileListView extends StatelessWidget {
                           heroTag: _heroTag(c.entry),
                           thumbsOn: thumbsOn,
                           dpr: dpr,
+                          reducedMotion: reducedMotion,
                           alias: AiIndex.aliasOf(c.entry.path),
                           tags: FileTags.forPath(c.entry.path),
                         ),

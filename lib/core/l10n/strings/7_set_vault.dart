@@ -4,35 +4,10 @@ part of '../app_strings.dart';
 /// Yinelenen anahtar `_table`ın sabit birleşiminde DERLEME hatası verir.
 const Map<String, (String, String, String)> _t7 = {
   'simf.none': ('Benzer dosya bulunamadı', 'No similar files found', 'لم يُعثر على ملفات متشابهة'),
-  'simf.found': (
-    '{n} grup · {size} kazanılabilir',
-    '{n} groups · {size} can be freed',
-    '{n} مجموعة · يمكن تحرير {size}',
-  ),
 
   // ── AI eylemleri (dosyaya uzun basış) ─────────────────────────────────────
-  'aia.need_key': (
-    'Önce Ayarlar > Gemini API anahtarı bölümünden anahtarınızı girin.',
-    'First enter your key under Settings > Gemini API key.',
-    'أدخل مفتاحك أولًا من الإعدادات > مفتاح Gemini API.',
-  ),
 
   // AI özet akışı (AiSummaryFlow) — kısa / detaylı.
-  'aia.reading_image': (
-    'Görseldeki metin okunuyor…',
-    'Reading the text in the image…',
-    'جارٍ قراءة النص في الصورة…',
-  ),
-  'aia.ocr_failed': (
-    'Metin tanınamadı: {error}',
-    'Text recognition failed: {error}',
-    'فشل التعرّف على النص: {error}',
-  ),
-  'aia.image_no_text': (
-    'Bu görselde okunabilir metin bulunamadı.',
-    'No readable text was found in this image.',
-    'لم يُعثر على نص قابل للقراءة في هذه الصورة.',
-  ),
   'aia.move_failed': ('Taşınamadı: {error}', 'Could not move it: {error}', 'تعذّر النقل: {error}'),
   'aia.moved': (
     '“{name}” → Önemli Dosyalar/{folder}',
@@ -47,13 +22,11 @@ const Map<String, (String, String, String)> _t7 = {
 
   // ── İndirilenler ekranı ───────────────────────────────────────────────────
   'dls.selected': ('{n} dosya seçildi · ', '{n} files selected · ', 'تم تحديد {n} ملف · '),
-  'dls.count_size': ('{n} dosya · {size}', '{n} files · {size}', '{n} ملف · {size}'),
   'dls.untouched': (
     '{n} dosya 6 aydır dokunulmamış · ',
     '{n} files untouched for 6 months · ',
     '{n} ملف لم يُلمس منذ 6 أشهر · ',
   ),
-  'dls.last_opened': ('son açılma: {when}', 'last opened: {when}', 'آخر فتح: {when}'),
 
   // ── Klasör seçici ─────────────────────────────────────────────────────────
   'fp.create_failed': (
@@ -71,7 +44,6 @@ const Map<String, (String, String, String)> _t7 = {
     'لا توجد مجلدات فرعية داخل هذا المجلد.\n'
         'استخدم الزر بالأسفل لوضعه هنا، أو أنشئ مجلدًا عبر «مجلد جديد» بالأعلى.',
   ),
-  'fp.new_folder_default': ('Yeni klasör', 'New folder', 'مجلد جديد'),
 
   // ── Etiket seçici ─────────────────────────────────────────────────────────
   'tp.new_tag': (
@@ -254,11 +226,6 @@ const Map<String, (String, String, String)> _t7 = {
   ),
   'an.other_used': ('Sistem ve diğer', 'System & other', 'النظام وغيره'),
   'an.tools': ('Araçlar', 'Tools', 'الأدوات'),
-  'an.volume_usage': (
-    '{used} / {total} kullanıldı (%{percent}) · {free} boş',
-    '{used} / {total} used ({percent}%) · {free} free',
-    '{used} / {total} مستخدَم (%{percent}) · {free} حر',
-  ),
 
   // ── İmza kutusu ───────────────────────────────────────────────────────────
   'sp.draw': ('İmzanızı çizin', 'Draw your signature', 'ارسم توقيعك'),
@@ -445,15 +412,11 @@ const Map<String, (String, String, String)> _t7 = {
   'arc.opening_name': ('Arşivi açma', 'Opening the archive', 'فتح الأرشيف'),
   'apk.extracting_name': ('APK hazırlama', 'APK preparation', 'تحضير APK'),
   'dl.verify_name': ('Dosya özeti denetimi', 'Checksum check', 'فحص المجموع الاختباري'),
-  'fm.compare_name': ('Karşılaştırma', 'Comparison', 'المقارنة'),
-  'split.name': ('Parçalara bölme', 'Splitting', 'التقسيم'),
   'join.name': ('Parçaları birleştirme', 'Joining', 'الدمج'),
   'fm.deleting_name': ('Silme', 'Deletion', 'الحذف'),
   'fm.trashing_name': ('Çöp kutusuna taşıma', 'Moving to trash', 'النقل إلى المهملات'),
   'fm.copying_important_name': ('Önemli dosyalara kopyalama', 'Copy to important files', 'النسخ إلى الملفات المهمة'),
   'fm.copying_shared_name': ("Paylaşılan'a kopyalama", "Copy to Shared", "النسخ إلى المشترك"),
-  'peer.sending_name': ('Yakındaki cihaza gönderme', 'Sending to a nearby device', 'الإرسال إلى جهاز قريب'),
-  'fm.empty_scanning_name': ('Boş klasör araması', 'Empty folder search', 'البحث عن المجلدات الفارغة'),
   'org.working_name': ('Otomatik düzenleme', 'Auto-organizing', 'التنظيم التلقائي'),
   'fm.copying_name': ('Kopyalama', 'Copy', 'النسخ'),
   'fm.moving_name': ('Taşıma', 'Move', 'النقل'),
@@ -580,12 +543,6 @@ const Map<String, (String, String, String)> _t7 = {
     'ابحث في كل الملفات',
   ),
   'fm.free_bytes': ('{v} boş', '{v} free', '{v} متاح'),
-  'fm.storage_free': ('Boş', 'Free', 'متاح'),
-  'recent.group_today': ('Bugün', 'Today', 'اليوم'),
-  'recent.group_week': ('Bu hafta', 'This week', 'هذا الأسبوع'),
-  'recent.group_older': ('Daha önce', 'Earlier', 'قبل ذلك'),
-  'recent.show_path': ('Yolu göster', 'Show path', 'إظهار المسار'),
-  'recent.remove': ('Listeden kaldır', 'Remove from list', 'إزالة من القائمة'),
   'cat.summary': (
     '{n} / {total} dosya · {sort}',
     '{n} / {total} files · {sort}',
@@ -612,11 +569,6 @@ const Map<String, (String, String, String)> _t7 = {
     '{done}/{total} files',
     '{done}/{total} ملف',
   ),
-  'jobs.outputs': (
-    'Oluşan dosyalar ({n})',
-    'Files created ({n})',
-    'الملفات الناتجة ({n})',
-  ),
   'set.key_valid': (
     'Anahtar geçerli · {n} model bulundu',
     'Key is valid · {n} models found',
@@ -627,7 +579,6 @@ const Map<String, (String, String, String)> _t7 = {
     'Key could not be verified',
     'تعذّر التحقق من المفتاح',
   ),
-  'set.search_hint': ('Ayarlarda ara', 'Search settings', 'ابحث في الإعدادات'),
   'set.no_match': (
     'Eşleşen ayar yok',
     'No matching setting',
@@ -642,11 +593,6 @@ const Map<String, (String, String, String)> _t7 = {
     'Tüm ayarlarda ara',
     'Search all settings',
     'ابحث في كل الإعدادات',
-  ),
-  'set.key_missing': (
-    'Anahtar girilmedi',
-    'No key entered',
-    'لم يتم إدخال مفتاح',
   ),
   'set.cat_appearance': ('Görünüm ve dil', 'Appearance & language', 'المظهر واللغة'),
   'set.cat_appearance_sub': (
@@ -708,18 +654,6 @@ const Map<String, (String, String, String)> _t7 = {
     'Klasör kilidi ve uygulamanın aldığı izinler',
     'Folder lock and the permissions the app holds',
     'قفل المجلدات وأذونات التطبيق',
-  ),
-  'set.cat_trash': ('Silme ve çöp kutusu', 'Deleting & trash', 'الحذف وسلة المهملات'),
-  'set.cat_trash_sub': (
-    'Silinen dosyaya ne olacağı ve çöp kutusu bakımı',
-    'What happens to deleted files, and trash upkeep',
-    'ما يحدث للملفات المحذوفة وصيانة السلة',
-  ),
-  'set.cat_perf': ('Pil, hız ve bakım', 'Battery, speed & upkeep', 'البطارية والسرعة والصيانة'),
-  'set.cat_perf_sub': (
-    'Tazeleme hızı, otomatik tarama, arama dizini, önbellek',
-    'Refresh rate, auto scan, search index, cache',
-    'معدل التحديث والفحص التلقائي وفهرس البحث والذاكرة المؤقتة',
   ),
   // ── Ayarların 2026-08-29 yeniden tasarımı ───────────────────────────────
   'set.cat_reading': ('Okuma ve sesli okuma', 'Reading & speech', 'القراءة والنطق'),
@@ -794,24 +728,6 @@ const Map<String, (String, String, String)> _t7 = {
     'من الحاسوب إلى الهاتف: تصل الملفات المرسلة عبر "Telefona gönder" إلى Download/Bilgisayardan.',
   ),
   // ── anılar (2026-10-18) ─────────────────────────────────────────────────
-  'mem.title': ('Anılar', 'Memories', 'الذكريات'),
-  'mem.tab_day': ('Bu gün', 'On this day', 'في مثل هذا اليوم'),
-  'mem.tab_places': ('Yerler', 'Places', 'الأماكن'),
-  'mem.scanning': ('Fotoğraflar okunuyor… {n}/{total}', 'Reading photos… {n}/{total}', 'جارٍ قراءة الصور… {n}/{total}'),
-  'mem.loading': ('Fotoğraflar inceleniyor…', 'Looking through photos…', 'جارٍ فحص الصور…'),
-  'mem.day_empty': (
-    'Geçmiş yıllarda bugün çekilmiş fotoğraf yok. Yarın yeniden bak!',
-    'No photos from this day in past years. Check again tomorrow!',
-    'لا صور من هذا اليوم في السنوات الماضية. عد غداً!',
-  ),
-  'mem.years_ago': ('{n} yıl önce bugün · {year} · {count} fotoğraf', '{n} years ago today · {year} · {count} photos', 'قبل {n} سنوات اليوم · {year} · {count} صورة'),
-  'mem.places_empty': (
-    'Konum bilgisi taşıyan fotoğraf bulunamadı (kameranın konum etiketi kapalı olabilir).',
-    'No photos with location found (the camera\'s location tag may be off).',
-    'لم يُعثر على صور بموقع (قد يكون وسم الموقع في الكاميرا معطلاً).',
-  ),
-  'mem.place_unknown': ('Yer {n}', 'Place {n}', 'مكان {n}'),
-  'mem.n_photos': ('{n} fotoğraf', '{n} photos', '{n} صورة'),
   // ── şifreli kasa (2026-10-18) ───────────────────────────────────────────
   'vault.title': ('Şifreli kasa', 'Encrypted vault', 'الخزنة المشفرة'),
   'vault.pin_use_lock': ('Klasör kilidinin PIN\'ini girin — kasa aynı PIN\'i kullanır', 'Enter your folder lock PIN — the vault uses the same PIN', 'أدخل رمز قفل المجلدات — الخزنة تستخدم الرمز نفسه'),
@@ -821,7 +737,6 @@ const Map<String, (String, String, String)> _t7 = {
   'vault.legacy_body': ('Eski "Gizli dosyalar" yalnız saklıyordu; telefon bilgisayara bağlanınca görünürler. Kasaya taşıyınca şifrelenirler — her dosya önce şifrelenip doğrulanır, sonra aslı silinir.', 'Old "Hidden files" were only tucked away; they show up when the phone is connected to a computer. Moving them into the vault encrypts them — each file is encrypted and verified before the original is deleted.', 'كانت "الملفات المخفية" القديمة مخفية فقط وتظهر عند توصيل الهاتف بحاسوب. نقلها إلى الخزنة يشفّرها — يُشفَّر كل ملف ويُتحقق منه قبل حذف الأصل.'),
   'vault.legacy_move': ('Kasaya taşı', 'Move into vault', 'انقل إلى الخزنة'),
   'vault.legacy_show': ('Listeyi gör', 'See the list', 'اعرض القائمة'),
-  'vault.move': ('Şifreli kasaya taşı', 'Move to encrypted vault', 'انقل إلى الخزنة المشفرة'),
   'vault.move_hint': (
     'İçerik şifrelenir; PIN ya da parmak izi olmadan açılmaz',
     'Content is encrypted; opens only with PIN or fingerprint',
@@ -871,7 +786,6 @@ const Map<String, (String, String, String)> _t7 = {
   'vault.add': ('Kasaya ekle', 'Add to vault', 'أضف إلى الخزنة'),
   'vault.adding': ('Şifreleniyor…', 'Encrypting…', 'جارٍ التشفير…'),
   'vault.added_n': ('{n} dosya şifrelenip kasaya taşındı', '{n} files encrypted into the vault', 'تم تشفير {n} ملفات ونقلها إلى الخزنة'),
-  'vault.summary': ('{n} şifreli dosya', '{n} encrypted files', '{n} ملفات مشفرة'),
   'vault.encrypted_note': (
     'AES-256 · ekrandan çıkınca ve uygulama arka plana geçince kilitlenir',
     'AES-256 · locks when you leave or the app goes to background',
@@ -889,20 +803,7 @@ const Map<String, (String, String, String)> _t7 = {
   'vault.delete_body': ('"{name}" kasadan kalıcı olarak silinsin mi? Geri alınamaz.', 'Permanently delete "{name}" from the vault? This cannot be undone.', 'حذف "{name}" نهائياً؟ لا يمكن التراجع.'),
   'vault.open_failed': ('Açılamadı: {error}', 'Could not open: {error}', 'تعذر الفتح: {error}'),
   // ── faturalar ve giderler (2026-10-18) ────────────────────────────────
-  'bills.month_1': ('Ocak', 'January', 'يناير'),
-  'bills.month_2': ('Şubat', 'February', 'فبراير'),
-  'bills.month_3': ('Mart', 'March', 'مارس'),
-  'bills.month_4': ('Nisan', 'April', 'أبريل'),
-  'bills.month_5': ('Mayıs', 'May', 'مايو'),
-  'bills.month_6': ('Haziran', 'June', 'يونيو'),
-  'bills.month_7': ('Temmuz', 'July', 'يوليو'),
-  'bills.month_8': ('Ağustos', 'August', 'أغسطس'),
-  'bills.month_9': ('Eylül', 'September', 'سبتمبر'),
-  'bills.month_10': ('Ekim', 'October', 'أكتوبر'),
-  'bills.month_11': ('Kasım', 'November', 'نوفمبر'),
-  'bills.month_12': ('Aralık', 'December', 'ديسمبر'),
   'bills.title': ('Faturalar ve giderler', 'Bills and expenses', 'الفواتير والمصاريف'),
-  'bills.tile_sub': ('Aylık özet, son ödeme', 'Monthly summary, due dates', 'ملخص شهري ومواعيد'),
   'bills.refresh': ('Faturaları yeniden oku', 'Re-read bills', 'أعد قراءة الفواتير'),
   'bills.reading': ('Faturalar okunuyor… {n}/{total}', 'Reading bills… {n}/{total}', 'جارٍ قراءة الفواتير… {n}/{total}'),
   'bills.read_n': ('{n} fatura okundu', '{n} bills read', 'تمت قراءة {n} فاتورة'),
@@ -993,41 +894,20 @@ const Map<String, (String, String, String)> _t7 = {
     'يُحذف البحث المحفوظ فقط؛ لا تُمس ملفاتك.',
   ),
   // ── alt çubuk kısayolları (2026-10-18) ─────────────────────────────────
-  'nav.edit_title': ('Alt çubuk kısayolları', 'Bottom bar shortcuts', 'اختصارات الشريط السفلي'),
-  'nav.edit_sub': (
-    '{n}/{max} kısayol · basılı tutup sürükleyerek sırala. Çubuğa basılı tutarak da bu sayfayı açabilirsin.',
-    '{n}/{max} shortcuts · press and drag to reorder. You can also open this page by long-pressing the bar.',
-    '{n}/{max} اختصارات · اضغط مطولاً واسحب لإعادة الترتيب. يمكنك أيضاً فتح هذه الصفحة بالضغط المطول على الشريط.',
-  ),
-  'nav.home_locked': (
-    'Dosyalar her zaman ilk sırada kalır',
-    'Files always stays first',
-    'تبقى الملفات دائماً في المقدمة',
-  ),
   'nav.section': ('Gezinme', 'Navigation', 'التنقل'),
-  'nav.addable': ('Eklenebilecekler', 'Available', 'المتاح للإضافة'),
-  'nav.full': (
-    'Çubuk dolu (en fazla {max}) — eklemek için önce birini çıkar',
-    'Bar is full (max {max}) — remove one to add another',
-    'الشريط ممتلئ (الحد {max}) — أزل واحداً لإضافة آخر',
-  ),
-  'nav.add': ('Çubuğa ekle', 'Add to bar', 'أضف إلى الشريط'),
-  'nav.remove': ('Çubuktan çıkar', 'Remove from bar', 'أزل من الشريط'),
-  'nav.reset': ('Varsayılana dön', 'Reset to default', 'استعادة الافتراضي'),
-  'nav.important': ('Önemli', 'Important', 'مهم'),
-  'nav.ai': (
-    'Akıllı',
-    'Smart',
-    'ذكي',
-  ),
-  'nav.bills': ('Faturalar', 'Bills', 'الفواتير'),
-  'nav.vault': ('Kasa', 'Vault', 'الخزنة'),
-  'nav.settings_sub': (
-    'Alttaki hızlı erişim düğmelerini seç ve sırala (en fazla 6)',
-    'Choose and order the bottom shortcuts (up to 6)',
-    'اختر ورتب الاختصارات السفلية (حتى 6)',
-  ),
 
   // ── tema aileleri (2026-08-25) ──────────────────────────────────────────
   'skin.title': ('Tema ailesi', 'Theme style', 'نمط السمة'),
+  'bills.month_1': ('Ocak', 'January', 'يناير'),
+  'bills.month_10': ('Ekim', 'October', 'أكتوبر'),
+  'bills.month_11': ('Kasım', 'November', 'نوفمبر'),
+  'bills.month_12': ('Aralık', 'December', 'ديسمبر'),
+  'bills.month_2': ('Şubat', 'February', 'فبراير'),
+  'bills.month_3': ('Mart', 'March', 'مارس'),
+  'bills.month_4': ('Nisan', 'April', 'أبريل'),
+  'bills.month_5': ('Mayıs', 'May', 'مايو'),
+  'bills.month_6': ('Haziran', 'June', 'يونيو'),
+  'bills.month_7': ('Temmuz', 'July', 'يوليو'),
+  'bills.month_8': ('Ağustos', 'August', 'أغسطس'),
+  'bills.month_9': ('Eylül', 'September', 'سبتمبر'),
 };

@@ -271,6 +271,18 @@ abstract final class ThumbnailCache {
     _running--;
   }
 
+  /// Bellek baskısında veya arka plana geçince oturum içi yol haritalarını
+  /// bırakır (diskteki küçük resimler silinmez).
+  static void trimMemory({required bool critical}) {
+    _knownImages.clear();
+    _anyImages.clear();
+    _knownVideos.clear();
+    _anyVideos.clear();
+    if (critical) {
+      _failed.clear();
+    }
+  }
+
   /// Test kancası: sıranın durumu.
   @visibleForTesting
   static ({int running, int pending}) get debugQueue =>

@@ -308,6 +308,7 @@ class FmEntryIcon extends StatelessWidget {
           size: size,
           radius: radius,
           fallback: icon,
+          dpr: dpr,
         );
       }
       // Slayt / Excel / Word: dosyanın içindeki hazır önizleme resmi
@@ -320,6 +321,7 @@ class FmEntryIcon extends StatelessWidget {
           radius: radius,
           fallback: icon,
           loader: (path, _) => OfficeThumbnail.forOffice(path),
+          dpr: dpr,
         );
       }
       return icon;
@@ -334,6 +336,7 @@ class FmEntryIcon extends StatelessWidget {
         size: size,
         radius: radius,
         fallback: _badge(context, category),
+        dpr: dpr,
       );
     }
 
@@ -345,6 +348,7 @@ class FmEntryIcon extends StatelessWidget {
         size: size,
         radius: radius,
         fallback: _badge(context, category),
+        dpr: dpr,
       );
     }
 
@@ -408,6 +412,7 @@ class FmEntryIcon extends StatelessWidget {
         size: size,
         radius: radius,
         fallback: _badge(context, category),
+        dpr: dpr,
       );
     }
 

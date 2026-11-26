@@ -416,6 +416,15 @@ abstract final class InstalledAppsService {
   static DateTime? _summaryAt;
   static const _summaryTtl = Duration(minutes: 5);
 
+  /// Bellek baskısında tam simgeli uygulama listesi önbelleğini bırakır.
+  static void trimMemory({bool keepSummary = true}) {
+    _listCache.clear();
+    if (!keepSummary) {
+      _summaryCache = null;
+      _summaryAt = null;
+    }
+  }
+
   static Future<AppStorageSummary> summary(
       {int top = 3, bool force = false}) async {
     final cached = _summaryCache;
@@ -425,6 +434,23 @@ abstract final class InstalledAppsService {
         at != null &&
         DateTime.now().difference(at) < _summaryTtl) {
       return cached;
+    }
+    if (!await AppStorageService.hasUsageAccess()) {
+      return const AppStorageSummary(totalBytes: 0, cacheBytes: 0, top: []);
+    }
+    final fast = await AppStorageService.sizesSummary(top: top);
+    if (fast != null) {
+      if (fast.totalBytes <= 0) {
+        return const AppStorageSummary(totalBytes: 0, cacheBytes: 0, top: []);
+      }
+      final summary = AppStorageSummary(
+        totalBytes: fast.totalBytes,
+        cacheBytes: fast.cacheBytes,
+        top: fast.top,
+      );
+      _summaryCache = summary;
+      _summaryAt = DateTime.now();
+      return summary;
     }
     List<AppInfo> apps;
     try {

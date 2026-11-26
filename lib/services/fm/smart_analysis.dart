@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../core/image_decode.dart';
 import '../../models/fs_entry.dart';
 import 'chat_junk.dart' show isChatMediaPath;
 
@@ -191,7 +192,7 @@ abstract final class SmartAnalysis {
   /// Görseli 64 px'e indirip parlaklık + Laplace varyansı (netlik) ölçer.
   /// Çözülemezse null. (İzolatta çağrılır.)
   static (double sharpness, double brightness)? measure(Uint8List bytes) {
-    final decoded = img.decodeImage(bytes);
+    final decoded = decodeCommonImage(bytes);
     if (decoded == null) return null;
     final small = img.copyResize(decoded,
         width: decoded.width >= decoded.height ? 64 : null,

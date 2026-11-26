@@ -7,11 +7,34 @@ class _ParaPainter extends CustomPainter {
   final GlobalKey key;
   final List<SuggestionSpan>? spell;
   final ValueNotifier<bool>? caretOn;
+  final int _len;
+  final bool _collapsed;
+  final bool _attached;
+  final DocPos _start;
+  final DocPos _end;
+  final bool _inSelection;
+
   _ParaPainter(this.c, this.i, this.key, this.spell, this.caretOn)
-      : super(repaint: caretOn);
+      : _len = i < c.paras.length ? c.paras[i].length : -1,
+        _collapsed = c.collapsed,
+        _attached = c.attached,
+        _start = c.start,
+        _end = c.end,
+        _inSelection = c.collapsed
+            ? (i == c.extent.para && c.attached)
+            : (i >= c.start.para && i <= c.end.para),
+        super(repaint: caretOn);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final s = c.start, e = c.end;
+    final hasWork = (spell != null && spell!.isNotEmpty) ||
+        (c.collapsed
+            ? (i == c.extent.para &&
+                c.attached &&
+                (caretOn == null || caretOn!.value))
+            : (i >= s.para && i <= e.para));
+    if (!hasWork) return;
     final ro = key.currentContext?.findRenderObject();
     if (ro is! RenderParagraph || !ro.hasSize) return;
     if (i >= c.paras.length) return;
@@ -35,7 +58,6 @@ class _ParaPainter extends CustomPainter {
         }
       }
     }
-    final s = c.start, e = c.end;
     if (c.collapsed) {
       if (i != c.extent.para || !c.attached) return;
       if (caretOn != null && !caretOn!.value) return;
@@ -62,7 +84,16 @@ class _ParaPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ParaPainter old) => true;
+  bool shouldRepaint(_ParaPainter old) =>
+      old.i != i ||
+      old.key != key ||
+      old.caretOn != caretOn ||
+      !identical(old.spell, spell) ||
+      old._len != _len ||
+      old._collapsed != _collapsed ||
+      old._attached != _attached ||
+      old._inSelection != _inSelection ||
+      (_inSelection && (old._start != _start || old._end != _end));
 }
 
 

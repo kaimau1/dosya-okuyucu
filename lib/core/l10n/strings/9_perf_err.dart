@@ -161,34 +161,11 @@ const Map<String, (String, String, String)> _t9 = {
     'يُرسَل فقط النص أو الملف الذي تختاره، وفقط عندما تطلب ذلك.',
   ),
   'aikey.add': ('Anahtar ekle', 'Add key', 'إضافة مفتاح'),
-  'aikey.button_off': (
-    'Akıllı (kapalı)',
-    'Smart (off)',
-    'ذكي (متوقف)',
-  ),
   // ── Yardım / SSS (Faz 5 iskeleti) ─────────────────────────────────────────
   // ── İlk açılış rehberi (Faz 11a) ─────────────────────────────────────────
   'onb.skip': ('Atla', 'Skip', 'تخطٍّ'),
   'onb.next': ('İleri', 'Next', 'التالي'),
   'onb.start': ('Başla', 'Get started', 'ابدأ'),
-  'onb.p1_title': ('Tüm dosyaların tek yerde', 'All your files in one place', 'كل ملفاتك في مكان واحد'),
-  'onb.p1_body': (
-    'PDF, Word, Excel, slayt, fotoğraf, video ve arşivleri açar, düzenler ve dönüştürür. Telefondaki dosyaları gezer, temizler, taşır — internet gerekmez.',
-    'Opens, edits and converts PDF, Word, Excel, slides, photos, videos and archives. Browses, cleans up and moves the files on your phone — no internet needed.',
-    'يفتح ملفات PDF وWord وExcel والعروض والصور والفيديو والأرشيفات ويحررها ويحوّلها. يتصفح ملفات هاتفك وينظّفها وينقلها — دون الحاجة إلى الإنترنت.',
-  ),
-  'onb.p2_title': ('İzinler — neden ve ne zaman', 'Permissions — why and when', 'الأذونات — لماذا ومتى'),
-  'onb.p2_body': (
-    'Her izin tek bir iş için, o işi ilk kullandığınızda istenir. Dosyalara erişim gezgin ve temizlik için; bildirim uzun işlerin ilerlemesi için; kamera belge tarama için. Vermezseniz yalnız o özellik kısıtlanır.',
-    'Each permission serves one feature and is asked the first time you use it. File access is for browsing and cleanup; notifications show progress of long tasks; the camera is for scanning documents. If you decline, only that feature is limited.',
-    'كل إذن يخدم ميزة واحدة ويُطلب عند أول استخدام لها. الوصول إلى الملفات للتصفح والتنظيف؛ والإشعارات لعرض تقدم المهام الطويلة؛ والكاميرا لمسح المستندات. إذا رفضت تُقيَّد تلك الميزة فقط.',
-  ),
-  'onb.p3_title': ('Gizlilik ve AI', 'Privacy and AI', 'الخصوصية والذكاء الاصطناعي'),
-  'onb.p3_body': (
-    'Dosyalarınız telefonda kalır; reklam ve takip yok. AI özellikleri isteğe bağlıdır: yalnız siz bir AI işi başlattığınızda, seçtiğiniz içerik kendi Gemini anahtarınızla Google\'a gönderilir. Anahtarınız bu telefonda şifreli saklanır.',
-    'Your files stay on the phone; no ads and no tracking. AI features are optional: only when you start an AI task is the content you chose sent to Google with your own Gemini key. Your key is stored encrypted on this phone.',
-    'تبقى ملفاتك على الهاتف؛ لا إعلانات ولا تتبّع. ميزات الذكاء الاصطناعي اختيارية: فقط عندما تبدأ مهمة ذكاء اصطناعي يُرسَل المحتوى الذي اخترته إلى Google بمفتاح Gemini الخاص بك. ويُحفظ مفتاحك مشفّرًا على هذا الهاتف.',
-  ),
   'help.report': ('Sorun bildir', 'Report a problem', 'الإبلاغ عن مشكلة'),
   'fb.title': ('Hata / istek bildir', 'Report a bug / request', 'الإبلاغ عن خطأ / طلب'),
   'fb.tile_sub': (
@@ -414,43 +391,10 @@ const Map<String, (String, String, String)> _t9 = {
   'qr.text_choice': ('Metni QR kodda göster', 'Show text as QR code', 'عرض النص كرمز QR'),
   'qr.text_choice_sub': ('Yazı QR\'ın içinde — ağ ve uygulama gerekmez', 'The text is inside the QR — no network or app needed', 'النص داخل رمز QR — دون شبكة أو تطبيق'),
   // ── QR ile dosya paylaş (2026-10-22) ──────────────────────────────────────
-  'qrf.title': ('QR ile paylaş', 'Share with QR', 'المشاركة عبر QR'),
-  'qrf.choice_sub': ('Karşı taraf kamerasıyla okutur — uygulama gerekmez', 'They scan it with their camera — no app needed', 'يمسحه الطرف الآخر بكاميرته — دون تطبيق'),
   'qrf.preparing': ('Hazırlanıyor…', 'Preparing…', 'جارٍ التحضير…'),
-  'qrf.n_files': ('{n} dosya', '{n} files', '{n} ملفات'),
-  'qrf.hint_same': (
-    'Aynı Wi-Fi\'deki telefonun kamerasıyla okutun; açılan sayfadan indirilir.',
-    'Scan with the camera of a phone on the same Wi-Fi; download from the page that opens.',
-    'امسحه بكاميرا هاتف على شبكة Wi-Fi نفسها؛ ونزّله من الصفحة التي تُفتح.',
-  ),
-  'qrf.hint_wifi': (
-    '1. adım: kamerayla okutun — telefon bu telefonun ağına bağlanır.',
-    'Step 1: scan with the camera — their phone joins this phone\'s network.',
-    'الخطوة 1: امسحه بالكاميرا — يتصل الهاتف بشبكة هذا الهاتف.',
-  ),
-  'qrf.hint_file': (
-    '2. adım: kamerayla okutun; açılan sayfadan indirilir.',
-    'Step 2: scan with the camera; download from the page that opens.',
-    'الخطوة 2: امسحه بالكاميرا؛ ونزّله من الصفحة التي تُفتح.',
-  ),
-  'qrf.step_wifi': ('1 · Ağa bağlan', '1 · Join network', '1 · الاتصال بالشبكة'),
-  'qrf.step_file': ('2 · Dosyayı al', '2 · Get the file', '2 · استلام الملف'),
   'qrf.connected_next': ('Bağlandı → 2. adım', 'Connected → step 2', 'تم الاتصال ← الخطوة 2'),
-  'qrf.app_hint': (
-    'Karşıda Dosyalarım varsa: Aktar → Telefonla → Al → "QR kodu tara" (hotspot\'ta 2. kodu) — doğrudan iner.',
-    'If they have Dosyalarım: Transfer → Phone → Receive → "Scan QR code" (the 2nd code on hotspot) — it downloads directly.',
-    'إن كان لديه Dosyalarım: نقل ← الهاتف ← استقبال ← "مسح رمز QR" (الرمز الثاني مع نقطة الاتصال) — يُنزَّل مباشرة.',
-  ),
   'qrf.served': ('İndirildi: {n}', 'Downloaded: {n}', 'تم التنزيل: {n}'),
   'qrf.no_common_wifi': ('Ortak Wi-Fi yok mu?', 'No shared Wi-Fi?', 'لا توجد شبكة Wi-Fi مشتركة؟'),
-  'qrf.no_common_wifi_sub': ('Bu telefon geçici bir ağ kursun (internet gerekmez)', 'Let this phone create a temporary network (no internet needed)', 'دع هذا الهاتف ينشئ شبكة مؤقتة (دون إنترنت)'),
-  'qrf.text_in_qr': ('Metni QR\'ın içine koy', 'Put the text inside the QR', 'ضع النص داخل رمز QR'),
-  'qrf.text_in_qr_sub': ('Hiç ağ gerekmez — kamera metni gösterir', 'No network at all — the camera shows the text', 'دون أي شبكة — تعرض الكاميرا النص'),
-  'qrf.privacy': (
-    'Dosya doğrudan bu telefondan gider, internete yüklenmez. Ekran kapanınca paylaşım biter.',
-    'The file goes straight from this phone and is never uploaded. Sharing ends when you close this screen.',
-    'يُرسل الملف مباشرة من هذا الهاتف ولا يُرفع إلى الإنترنت. تنتهي المشاركة عند إغلاق الشاشة.',
-  ),
   'qrf.no_address': ('Ağ adresi bulunamadı; ekranı kapatıp yeniden deneyin.', 'No network address found; close and try again.', 'لم يُعثر على عنوان شبكة؛ أغلق الشاشة وحاول مجددًا.'),
   'qrf.err_perm': ('Geçici ağ için "Yakındaki cihazlar"/konum izni gerekiyor.', 'The temporary network needs the "Nearby devices"/location permission.', 'تحتاج الشبكة المؤقتة إلى إذن "الأجهزة المجاورة"/الموقع.'),
   'qrf.err_location': ('Geçici ağ için Konum\'u açın.', 'Turn on Location for the temporary network.', 'شغّل الموقع لإنشاء الشبكة المؤقتة.'),

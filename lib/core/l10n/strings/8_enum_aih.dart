@@ -273,7 +273,6 @@ const Map<String, (String, String, String)> _t8 = {
 
   // ── Seçici kipi (başka uygulama bizden dosya istedi) ──────────────────────
   'pick.title': ('Dosya seç', 'Pick a file', 'اختر ملفًا'),
-  'fm.categories': ('Kategoriler', 'Categories', 'الفئات'),
   'pick.search_hint': (
     'Tüm dosyalarda ara…',
     'Search all files…',
@@ -325,164 +324,11 @@ const Map<String, (String, String, String)> _t8 = {
   ),
 
   // ── AI analiz kuyruğu (arka planda, bağlamsız — AppStrings.current) ───────
-  'aiq.job_title': (
-    'Akıllı dosya analizi',
-    'Smart file analysis',
-    'تحليل ذكي للملفات',
-  ),
-  'aiq.collecting': ('Dosyalar toplanıyor…', 'Collecting files…', 'جارٍ جمع الملفات…'),
-  'aiq.all_fresh': (
-    'Kapsamdaki her dosya zaten analiz edilmiş.',
-    'Every file in scope is already analyzed.',
-    'كل ملف ضمن النطاق مُحلَّل بالفعل.',
-  ),
-  'aiq.budget_done': (
-    'Bugünlük dosya bütçesi doldu. Yarın devam edilebilir.',
-    'Today\'s file budget is used up. You can continue tomorrow.',
-    'انتهت حصة اليوم من الملفات. يمكنك المتابعة غدًا.',
-  ),
-  'aiq.budget_split': (
-    'Günlük bütçe: bugün {n} dosya işlenecek, {rest} dosya yarına kaldı.',
-    'Daily budget: {n} files today, {rest} left for tomorrow.',
-    'الحصة اليومية: {n} ملف اليوم و{rest} متبقٍ للغد.',
-  ),
-  'aiq.waiting': (
-    'Kota sınırı — {sec} sn bekleniyor…',
-    'Quota limit — waiting {sec} s…',
-    'حد الحصة — الانتظار {sec} ثانية…',
-  ),
-  'aiq.quota_stuck': ('Kota açılmadı: {error}', 'Quota did not recover: {error}', 'لم تُستعد الحصة: {error}'),
-  'aiq.finished': ('{n} dosya analiz edildi.', '{n} files analyzed.', 'تم تحليل {n} ملف.'),
-  'aiq.stopped': (
-    'Durduruldu — {n} dosya işlendi, sonuçlar kaydedildi.',
-    'Stopped — {n} files processed, results saved.',
-    'أُوقف — تمت معالجة {n} ملف وحُفظت النتائج.',
-  ),
 
   // ── AI Merkezi (toplu dosya analizi) ──────────────────────────────────────
   // 2026-11-14 kullanıcı: "iyi bir isim ver, adı da ne iş yaptığını söylesin".
-  'aih.title': (
-    'Akıllı dosya asistanı',
-    'Smart file assistant',
-    'مساعد الملفات الذكي',
-  ),
-  'aih.tab_analysis': ('Analiz', 'Analysis', 'التحليل'),
-  'aih.analysis_what': (
-    'Dosya analizi ne yapar?',
-    'What does file analysis do?',
-    'ماذا يفعل تحليل الملفات؟',
-  ),
-  'aih.analysis_scope': ('Kapsamı ayarla', 'Set the scope', 'اضبط النطاق'),
-  'aih.analysis_running': (
-    'Analiz sürüyor',
-    'Analysis is running',
-    'التحليل قيد التشغيل',
-  ),
-  'aih.tab_tags': ('Türler', 'Types', 'الأنواع'),
-  'aih.tab_suggestions': ('Öneriler', 'Suggestions', 'اقتراحات'),
-  'aih.tab_report': ('Rapor', 'Report', 'تقرير'),
-  'aih.scope_settings': ('Kapsam ayarları', 'Scope settings', 'إعدادات النطاق'),
-  'aih.start': ('Analizi başlat', 'Start analysis', 'ابدأ التحليل'),
-  'aih.reanalyze': ('Hepsini yeniden analiz et', 'Re-analyze everything', 'أعد تحليل كل شيء'),
-  'aih.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
-  'aih.resume': ('Sürdür', 'Resume', 'استئناف'),
-  'aih.stop': ('Durdur', 'Stop', 'إيقاف'),
-  'aih.analyzed': (
-    '{n} dosya analiz edildi',
-    '{n} files analyzed',
-    'تم تحليل {n} ملف',
-  ),
-  'aih.scope_summary': (
-    '{n} klasör kapsam dışı · kapsamı ayarlardan değiştir',
-    '{n} folders excluded · change the scope in settings',
-    '{n} مجلد خارج النطاق · غيّر النطاق من الإعدادات',
-  ),
-  'aih.tags_empty': (
-    'Henüz analiz yok',
-    'No analysis yet',
-    'لا يوجد تحليل بعد',
-  ),
-  'aih.tags_empty_sub': (
-    'Analiz sekmesindeki "Analizi başlat" dosyaları okuyup türlerine ayırır.',
-    'Use "Start analysis" on the Analysis tab to read and sort your files.',
-    'استخدم «ابدأ التحليل» في تبويب التحليل لقراءة ملفاتك وتصنيفها.',
-  ),
-  'aih.filter_important': ('Yalnız önemli', 'Important only', 'المهم فقط'),
-  'aih.sug_empty': (
-    'Bekleyen öneri yok',
-    'No pending suggestions',
-    'لا اقتراحات معلّقة',
-  ),
-  'aih.sug_empty_sub': (
-    'Analiz, anlamsız adlandırılmış ya da yanlış klasördeki dosyalar için '
-        'öneri üretir.',
-    'Analysis suggests fixes for badly named or misplaced files.',
-    'يقترح التحليل إصلاحات للملفات ذات الأسماء غير المفيدة أو في مجلد خاطئ.',
-  ),
-  'aih.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
-  'aih.apply_one': ('Yalnız bunu uygula', 'Apply only this', 'طبّق هذا فقط'),
-  'aih.ignore_one': ('Öneriyi yok say', 'Dismiss suggestion', 'تجاهل الاقتراح'),
-  'fm.actions': ('Dosya işlemleri', 'File actions', 'إجراءات الملف'),
-  'aih.report_empty': ('Rapor için önce analiz gerekir', 'Analyze first to see a report', 'حلّل أولًا لعرض التقرير'),
-  'aih.report_empty_sub': (
-    'Analiz bittiğinde burada tür dağılımı, önemli evrak ve çöp adayları çıkar.',
-    'After analysis you get type breakdown, important documents and junk candidates.',
-    'بعد التحليل يظهر توزيع الأنواع والمستندات المهمة والمرشّحة للحذف.',
-  ),
-  'aih.report_analyzed': ('Analiz edilen dosya', 'Files analyzed', 'ملفات محلَّلة'),
-  'aih.report_important': ('Önemli evrak', 'Important documents', 'مستندات مهمة'),
-  'aih.report_junk': ('Silinebilir aday', 'Deletion candidates', 'مرشّحة للحذف'),
-  'aih.report_suggestions': ('Bekleyen öneri', 'Pending suggestions', 'اقتراحات معلّقة'),
-  'aih.report_types': ('Türlere göre', 'By type', 'حسب النوع'),
 
   // ── AI kovaları, toplu işlem ve öneri uygulama ────────────────────────────
-  'aif.empty': (
-    'Bu listede dosya yok.',
-    'No files in this list.',
-    'لا ملفات في هذه القائمة.',
-  ),
-  'aif.selected_n': ('{n} seçili · {size}', '{n} selected · {size}', '{n} محدد · {size}'),
-  'aif.apply': ('Öneriyi uygula', 'Apply suggestion', 'طبّق الاقتراح'),
-  'aif.share': ('Paylaş', 'Share', 'مشاركة'),
-  'aif.move': ('Taşı', 'Move', 'نقل'),
-  'aih.report_low': (
-    'Düşük önemli (gözden geçir)',
-    'Low value (review)',
-    'أهمية منخفضة (راجعها)',
-  ),
-  'aih.card_junk_title': (
-    '{n} harcanabilir dosya · {size}',
-    '{n} disposable files · {size}',
-    '{n} ملف قابل للحذف · {size}',
-  ),
-  'aih.card_junk_body': (
-    'Ekran görüntüsü, geçici dosya ve önbellek gibi güvenle silinebilecekler. '
-        'Fotoğraf ve videolar bu listeye ALINMAZ.',
-    'Screenshots, temporary files and caches. Photos and videos are never '
-        'included.',
-    'لقطات الشاشة والملفات المؤقتة والذاكرة المؤقتة. لا تُدرج الصور والفيديو.',
-  ),
-  'aih.card_junk_action': ('Listeyi aç', 'Open list', 'افتح القائمة'),
-  'aiap.job_title': (
-    'Akıllı öneriler uygulanıyor',
-    'Applying smart suggestions',
-    'جارٍ تطبيق الاقتراحات الذكية',
-  ),
-  'aiap.job_name': (
-    'Akıllı önerilerin uygulanması',
-    'Applying smart suggestions',
-    'تطبيق الاقتراحات الذكية',
-  ),
-  'aiap.started': (
-    '{n} dosya arka planda düzenleniyor',
-    'Updating {n} files in the background',
-    'يجري تحديث {n} ملف في الخلفية',
-  ),
-  'aiap.result': (
-    'Son uygulama: {ok} dosya düzenlendi, {fail} atlandı',
-    'Last run: {ok} files updated, {fail} skipped',
-    'آخر تشغيل: تم تحديث {ok} ملف وتخطّي {fail}',
-  ),
 
   // ── AI kapsam ayarları ────────────────────────────────────────────────────
   'aiset.excluded': ('Kapsam dışı klasörler', 'Excluded folders', 'مجلدات مستثناة'),
@@ -502,16 +348,6 @@ const Map<String, (String, String, String)> _t8 = {
     'Kapalı tür hiç okunmaz.',
     'Types left off are never read.',
     'الأنواع المغلقة لا تُقرأ إطلاقًا.',
-  ),
-  'aiset.auto_new': (
-    'Yeni dosyaları otomatik analiz et',
-    'Analyse new files automatically',
-    'تحليل الملفات الجديدة تلقائيًا',
-  ),
-  'aiset.auto_new_sub': (
-    'Açtıktan sonra gelen dosyalar arka planda AI ile etiketlenir ve özetlenir',
-    'Files arriving after you turn this on are tagged and summarised in the background',
-    'تُوسَم الملفات الواردة بعد التفعيل وتُلخَّص في الخلفية',
   ),
   'aiset.send_text': ('Metin özünü gönder', 'Send text excerpt', 'أرسل مقتطف النص'),
   'aiset.send_text_sub': (
@@ -562,7 +398,6 @@ const Map<String, (String, String, String)> _t8 = {
   ),
   'set.sec_ai_scope': ('Analiz kapsamı', 'Analysis scope', 'نطاق التحليل'),
   'set.sec_ai_privacy': ('Buluta ne gidiyor', 'What leaves the device', 'ما يغادر الجهاز'),
-  'set.sec_ai_budget': ('Bütçe ve bellek', 'Budget and memory', 'الحصة والذاكرة'),
 
   'enum.op_move': ('Taşıma', 'Move', 'نقل'),
   'enum.op_copy': ('Kopyalama', 'Copy', 'نسخ'),
@@ -600,25 +435,10 @@ const Map<String, (String, String, String)> _t8 = {
   'apps.copy_package': ('Paket adını kopyala', 'Copy package name', 'نسخ اسم الحزمة'),
   'apps.uninstalled': ('{name} kaldırıldı', '{name} uninstalled', 'تمت إزالة {name}'),
   'apps.package_copied': ('Paket adı kopyalandı', 'Package name copied', 'تم نسخ اسم الحزمة'),
-  'aih.mode_cloud': (
-    'Akıllı analiz: tür, önem ve kısa özet çıkarılır.',
-    'Smart analysis: type, importance and a short summary.',
-    'التحليل الذكي: النوع والأهمية وملخص قصير.',
-  ),
-  'aih.mode_local': (
-    'Yerel kip (anahtar yok): yalnız tür ve önem tahmini, özet yok.',
-    'Local mode (no key): type and importance only, no summaries.',
-    'الوضع المحلي (بلا مفتاح): النوع والأهمية فقط، دون ملخصات.',
-  ),
   'vw.saving_wait': (
     'Kaydediliyor, bir saniye…',
     'Saving, one moment…',
     'جارٍ الحفظ، لحظة…',
-  ),
-  'vw.ask_ai_selection': (
-    'Akıllı sor',
-    'Smart ask',
-    'سؤال ذكي',
   ),
   'vw.find_selection': (
     'Belgede ara',
@@ -645,70 +465,10 @@ const Map<String, (String, String, String)> _t8 = {
     'Detect language',
     'اكتشاف اللغة',
   ),
-  'tf.detected': (
-    'Algılanan: {lang}',
-    'Detected: {lang}',
-    'اللغة المكتشفة: {lang}',
-  ),
   'ai.answer_language': (
     'Türkçe',
     'English',
     'العربية',
-  ),
-  'ai.reply_in': (
-    'Yanıtı {lang} ver.',
-    'Reply in {lang}.',
-    'أجب باللغة {lang}.',
-  ),
-  'ai.thinking': (
-    'Düşünüyor…',
-    'Thinking…',
-    'يفكر…',
-  ),
-  'ai.ask_about_hint': (
-    'Bu kısım hakkında sor…',
-    'Ask about this part…',
-    'اسأل عن هذا الجزء…',
-  ),
-  'ai.q_explain': (
-    'Açıkla',
-    'Explain',
-    'اشرح',
-  ),
-  'ai.q_explain_prompt': (
-    'Aşağıdaki bölümü açıkla: ne anlatıyor, bağlamı ne, neden önemli? Kısa ve anlaşılır ol.',
-    'Explain the passage below: what it says, its context and why it matters. Be brief and clear.',
-    'اشرح المقطع التالي: ماذا يقول، وما سياقه، ولماذا هو مهم؟ كن موجزًا وواضحًا.',
-  ),
-  'ai.q_simplify': (
-    'Basitçe anlat',
-    'Simplify',
-    'بسّط',
-  ),
-  'ai.q_simplify_prompt': (
-    'Aşağıdaki bölümü, konuyu bilmeyen birine anlatır gibi sade bir dille yeniden anlat.',
-    'Rewrite the passage below in plain language, as if explaining to someone new to the topic.',
-    'أعد صياغة المقطع التالي بلغة بسيطة كأنك تشرحه لشخص جديد على الموضوع.',
-  ),
-  'ai.q_summary': (
-    'Özetle',
-    'Summarize',
-    'لخّص',
-  ),
-  'ai.q_summary_prompt': (
-    'Aşağıdaki bölümü 2-3 maddede özetle.',
-    'Summarize the passage below in 2-3 bullet points.',
-    'لخّص المقطع التالي في 2-3 نقاط.',
-  ),
-  'ai.q_terms': (
-    'Terimler',
-    'Key terms',
-    'المصطلحات',
-  ),
-  'ai.q_terms_prompt': (
-    'Aşağıdaki bölümdeki önemli terimleri, eski/yabancı kelimeleri ve özel adları kısa anlamlarıyla listele.',
-    'List the important terms, archaic/foreign words and proper names in the passage below with short meanings.',
-    'اذكر المصطلحات المهمة والكلمات القديمة أو الأجنبية وأسماء الأعلام في المقطع التالي مع معانٍ مختصرة.',
   ),
   'vw.pdf_error_title': (
     'Bu PDF açılamadı',
@@ -842,20 +602,10 @@ const Map<String, (String, String, String)> _t8 = {
     'Hide',
     'إخفاء',
   ),
-  'ea.hide_hint': (
-    'galeride ve listelerde görünmez',
-    'hidden from gallery and lists',
-    'لا يظهر في المعرض والقوائم',
-  ),
   'hv.title': (
     'Gizli dosyalar',
     'Hidden files',
     'الملفات المخفية',
-  ),
-  'hv.hidden_n': (
-    '{n} öğe gizlendi',
-    '{n} item(s) hidden',
-    'تم إخفاء {n} عنصر',
   ),
   'hv.restored_n': (
     '{n} öğe geri yüklendi',
@@ -877,13 +627,6 @@ const Map<String, (String, String, String)> _t8 = {
     'Hidden files are moved to a hidden folder; they don\'t appear in the gallery or in this app\'s lists. This is not encryption.',
     'تُنقل الملفات المخفية إلى مجلد مخفي؛ لا تظهر في المعرض أو في قوائم هذا التطبيق. هذا ليس تشفيرًا.',
   ),
-  'hv.from': (
-    'Geldiği yer: {path}',
-    'From: {path}',
-    'المصدر: {path}',
-  ),
-  'hv.hiding': ('Gizleniyor', 'Hiding', 'جارٍ الإخفاء'),
-  'hv.hide_name': ('Gizleme', 'Hiding', 'الإخفاء'),
   'hv.restoring': ('Geri getiriliyor', 'Restoring', 'جارٍ الاستعادة'),
   'hv.restore_name': ('Gizlenenleri geri getirme', 'Restoring hidden files', 'استعادة الملفات المخفية'),
   'hv.confirm_title': (
@@ -926,11 +669,6 @@ const Map<String, (String, String, String)> _t8 = {
     'History',
     'السجل',
   ),
-  'dash.recent_all': (
-    'Tümü →',
-    'All →',
-    'الكل ←',
-  ),
   'dash.strip_title': (
     'Son dosyalar',
     'Recent files',
@@ -966,133 +704,4 @@ const Map<String, (String, String, String)> _t8 = {
     'تخصيص الشاشة الرئيسية',
   ),
   // ── AI Merkezi yeniden yazımı (2026-11-07) ──
-  'aih2.auto_running': ('Yeni dosyalar analiz ediliyor', 'Analyzing new files', 'جارٍ تحليل الملفات الجديدة'),
-  'aih2.auto_running_sub': (
-    'Otomatik analiz açık olduğu için başladı. Dosyalara dokunmaz; istemiyorsan aşağıdan kapat.',
-    'Started because automatic analysis is on. It does not touch your files; turn it off below if you prefer.',
-    'بدأ لأن التحليل التلقائي مُفعَّل. لا يغيّر ملفاتك؛ يمكنك إيقافه من الأسفل.',
-  ),
-  'aih2.paused': ('Analiz duraklatıldı', 'Analysis paused', 'التحليل متوقف مؤقتًا'),
-  'aih2.none_title': ('Henüz analiz yapılmadı', 'No analysis yet', 'لم يُجرَ أي تحليل بعد'),
-  'aih2.none_sub': (
-    'Başlatınca dosyaların okunur ve her birine tür ile önem verilir. Hiçbir dosya taşınmaz, silinmez.',
-    'When you start, your files are read and each gets a type and an importance. Nothing is moved or deleted.',
-    'عند البدء تُقرأ ملفاتك ويُعطى كل منها نوعًا وأهمية. لا يُنقل أي ملف ولا يُحذف.',
-  ),
-  'aih2.done_sub': (
-    'Yalnız henüz bakılmamış ya da değişmiş dosyalar okunur.',
-    'Only files not yet analyzed or changed since are read.',
-    'تُقرأ فقط الملفات التي لم تُحلَّل بعد أو تغيّرت.',
-  ),
-  'aih2.analyze_new': ('Yeni dosyaları analiz et', 'Analyze new files', 'حلّل الملفات الجديدة'),
-  'aih2.reanalyze_sub': (
-    'Eski sonuçlar atılır, her şey baştan okunur',
-    'Old results are discarded and everything is read again',
-    'تُتجاهل النتائج القديمة ويُقرأ كل شيء من جديد',
-  ),
-  'aih2.reanalyze_confirm': (
-    '{n} dosya baştan okunacak. Bu uzun sürebilir ve AI anahtarın varsa kota harcar.',
-    '{n} files will be read again. This can take a while and uses quota if you have an AI key.',
-    'ستُقرأ {n} ملفات من جديد. قد يستغرق ذلك وقتًا ويستهلك الحصة إن كان لديك مفتاح.',
-  ),
-  'aih2.how1_title': ('Okur', 'Reads', 'يقرأ'),
-  'aih2.how1_body': (
-    'Dosya adına, tarihine ve izin verdiğin türlerde içeriğin kısa bir bölümüne bakar.',
-    'Looks at the name, date and, for types you allow, a short part of the content.',
-    'ينظر إلى الاسم والتاريخ، وإلى جزء قصير من المحتوى للأنواع التي تسمح بها.',
-  ),
-  'aih2.how2_title': ('Sınıflandırır', 'Classifies', 'يصنّف'),
-  'aih2.how2_body': (
-    'Her dosyaya tür (fatura, kimlik…) ve önem verir. Sonra Türler sekmesinde süzer, Sohbet\'te sorarsın.',
-    'Gives each file a type (invoice, ID…) and an importance. Then filter on Types or ask in Chat.',
-    'يمنح كل ملف نوعًا (فاتورة، هوية…) وأهمية. ثم صفِّ في الأنواع أو اسأل في المحادثة.',
-  ),
-  'aih2.how3_title': ('Kendi kendine hiçbir şey yapmaz', 'Never acts on its own', 'لا يفعل شيئًا من تلقاء نفسه'),
-  'aih2.how3_body': (
-    'Ad ve klasör önerileri yalnız öneridir. Sen Öneriler\'de onaylamadan hiçbir dosya taşınmaz, yeniden adlandırılmaz, silinmez.',
-    'Name and folder ideas are only suggestions. Nothing is moved, renamed or deleted until you confirm it in Suggestions.',
-    'اقتراحات الأسماء والمجلدات مجرد اقتراحات. لا يُنقل أي ملف أو يُعاد تسميته أو يُحذف حتى تؤكد في الاقتراحات.',
-  ),
-  'aih2.all': ('Tümü', 'All', 'الكل'),
-  'aih2.types_intro': (
-    'Akıllı analizin dosyalara verdiği türler. Bu yalnız bir görünüm — dosyalar yerinde durur.',
-    'The types smart analysis gave your files. This is only a view — files stay where they are.',
-    'الأنواع التي منحها التحليل الذكي لملفاتك. هذا عرض فقط — تبقى الملفات في مكانها.',
-  ),
-  'aih2.sug_intro': (
-    'Yalnız öneri: sen onaylamadan hiçbir dosya değişmez. Satırdaki ⋮ ile tek tek uygula ya da yok say.',
-    'Suggestions only: nothing changes until you confirm. Use ⋮ on a row to apply or dismiss one.',
-    'اقتراحات فقط: لا يتغير شيء حتى تؤكد. استخدم ⋮ في الصف للتطبيق أو التجاهل.',
-  ),
-  'aih2.review_all': ('Gözden geçir ve uygula ({n})', 'Review and apply ({n})', 'راجِع وطبّق ({n})'),
-  'aih2.sug_name': ('Yeni ad: {name}', 'New name: {name}', 'اسم جديد: {name}'),
-  'aih2.sug_folder': ('Taşınacak: {folder}', 'Move to: {folder}', 'نقل إلى: {folder}'),
-  'aih2.apply_title': ('{n} öneri', '{n} suggestions', '{n} اقتراحات'),
-  'aih2.apply_body': (
-    'Ne yapılacağını seç. Dosyalar Önemli Dosyalar\'a taşınmaz.',
-    'Choose what to do. Files are not moved to Important files.',
-    'اختر ما تريد فعله. لا تُنقل الملفات إلى الملفات المهمة.',
-  ),
-  'aih2.apply_rename': ('{n} dosyanın adını düzelt', 'Rename {n} files', 'أعد تسمية {n} ملفات'),
-  'aih2.apply_rename_sub': (
-    'Dosya aynı klasörde kalır, yalnız adı değişir',
-    'The file stays in its folder; only the name changes',
-    'يبقى الملف في مجلده؛ يتغير الاسم فقط',
-  ),
-  'aih2.apply_move': ('{n} dosyayı klasöre taşı', 'Move {n} files into folders', 'انقل {n} ملفات إلى مجلدات'),
-  'aih2.apply_move_sub': (
-    '{folder}/<önerilen klasör> altına',
-    'Into {folder}/<suggested folder>',
-    'إلى {folder}/<المجلد المقترح>',
-  ),
-  'aih2.apply_undo': (
-    'İşlem arka planda yürür; bildirimden istediğin an durdurabilirsin.',
-    'Runs in the background; you can stop it any time from the notification.',
-    'يعمل في الخلفية؛ يمكنك إيقافه في أي وقت من الإشعار.',
-  ),
-  'aih2.apply_go': ('Uygula', 'Apply', 'تطبيق'),
-  'aih2.apply_busy': (
-    'Öneriler zaten uygulanıyor; bitince yeniden dene.',
-    'Suggestions are already being applied; try again when done.',
-    'يجري تطبيق الاقتراحات بالفعل؛ أعد المحاولة عند الانتهاء.',
-  ),
-  'aih2.gone': (
-    'Bu dosya artık yok; listeden kaldırıldı.',
-    'This file no longer exists; removed from the list.',
-    'لم يعد هذا الملف موجودًا؛ أُزيل من القائمة.',
-  ),
-  'aih2.important_tag': ('Önemli', 'Important', 'مهم'),
-  'aih2.report_summary': ('Özet', 'Summary', 'ملخص'),
-  'aih2.seg_pending': ('Bekleyen ({n})', 'Pending ({n})', 'معلّقة ({n})'),
-  'aih2.seg_done': ('Yapılanlar ({n})', 'Done ({n})', 'المنجزة ({n})'),
-  'aih2.pending_none': ('Bekleyen öneri kalmadı', 'No pending suggestions left', 'لم تبقَ اقتراحات معلّقة'),
-  'aih2.pending_none_sub': (
-    'Uygulananları "Yapılanlar"da görebilirsin.',
-    'You can see the applied ones under "Done".',
-    'يمكنك رؤية المطبَّقة في «المنجزة».',
-  ),
-  'aih2.done_none': ('Henüz hiçbir öneri uygulanmadı', 'No suggestion applied yet', 'لم يُطبَّق أي اقتراح بعد'),
-  'aih2.done_none_sub': (
-    'Bir öneriyi onayladığında burada eski ve yeni hâliyle görünür.',
-    'When you confirm a suggestion it shows up here with its old and new state.',
-    'عند تأكيد اقتراح يظهر هنا بحالته القديمة والجديدة.',
-  ),
-  'aih2.done_intro': (
-    'Onayınla değiştirilen dosyalar. Bunlar bir daha önerilmez.',
-    'Files changed with your approval. They will not be suggested again.',
-    'ملفات غُيّرت بموافقتك. لن تُقترح مرة أخرى.',
-  ),
-  'aih2.done_was': ('Önceki ad: {name}', 'Was: {name}', 'الاسم السابق: {name}'),
-  'aih2.done_moved': ('{folder} klasörüne taşındı', 'Moved to {folder}', 'نُقل إلى {folder}'),
-  'aih2.done_clear': ('Listeyi temizle', 'Clear list', 'مسح القائمة'),
-  'aih2.done_clear_confirm': (
-    'Yapılanlar listesi silinsin mi? Dosyalar değişmez, yalnız bu kayıt temizlenir.',
-    'Clear the Done list? Files are not changed; only this record is cleared.',
-    'مسح قائمة المنجزة؟ لا تتغير الملفات؛ يُمسح هذا السجل فقط.',
-  ),
-  'aih2.gone_done': (
-    'Bu dosya artık burada değil (sonradan taşınmış ya da silinmiş).',
-    'This file is no longer here (moved or deleted later).',
-    'لم يعد هذا الملف هنا (نُقل أو حُذف لاحقًا).',
-  ),
 };

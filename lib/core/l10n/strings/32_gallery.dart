@@ -10,7 +10,6 @@ const Map<String, (String, String, String)> _t32 = {
   'ig.tile_empty': ('Henüz dosya yok', 'No files yet', 'لا ملفات بعد'),
   'ig.empty': ('Önemli Dosyalar klasöründe henüz dosya yok. Herhangi bir dosyada ⋮ › Önemliye ekle ile buraya toplayabilirsiniz.', 'There are no files in Important Files yet. Use ⋮ › Add to important on any file to collect it here.', 'لا توجد ملفات في الملفات المهمة بعد. استخدم ⋮ › إضافة إلى المهمة على أي ملف لجمعه هنا.'),
   'ig.no_match': ('Bu süzgeçlere uyan dosya yok.', 'No files match these filters.', 'لا توجد ملفات تطابق هذه المرشحات.'),
-  'ig.open_gallery': ('Galeriyi aç ({n})', 'Open gallery ({n})', 'افتح المعرض ({n})'),
   'ig.search_hint': ('Önemli dosyalarda ara…', 'Search important files…', 'ابحث في الملفات المهمة…'),
   'ig.type': ('Tür', 'Type', 'النوع'),
   'ig.topic': ('Konu ve klasör', 'Topic & folder', 'الموضوع والمجلد'),

@@ -9,6 +9,7 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/image_decode.dart';
 import 'apk_resources.dart';
 import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
@@ -488,7 +489,7 @@ abstract final class ApkIcon {
 
   static img.Image? _decode(Uint8List bytes) {
     try {
-      return img.decodeImage(bytes);
+      return decodeCommonImage(bytes);
     } catch (_) {
       return null;
     }

@@ -31,7 +31,13 @@ class NameSpoof {
     'webp',
   };
 
-  static bool hasBidiControls(String name) => _bidiControls.hasMatch(name);
+  static bool hasBidiControls(String name) {
+    final units = name.codeUnits;
+    for (var i = 0; i < units.length; i++) {
+      if (units[i] >= 0x061C) return _bidiControls.hasMatch(name);
+    }
+    return false;
+  }
 
   /// Ad gösterim için: yön karakterleri [marker] olur, gerisi aynen.
   static String visible(String name) =>
@@ -43,9 +49,12 @@ class NameSpoof {
   static String? deceptiveExtension(String name) {
     final dot = name.lastIndexOf('.');
     if (dot < 0) return null;
-    final rawLast = name.substring(dot + 1).replaceAll(_bidiControls, '').toLowerCase().trim();
+    final hasBidi = hasBidiControls(name);
+    if (!hasBidi && name.indexOf('.') == dot) return null;
+    final rawLast =
+        name.substring(dot + 1).replaceAll(_bidiControls, '').toLowerCase().trim();
     if (!riskyExtensions.contains(rawLast)) return null;
-    if (hasBidiControls(name)) return rawLast;
+    if (hasBidi) return rawLast;
     final clean = name.replaceAll(_bidiControls, '').toLowerCase().trim();
     final parts = clean.split('.');
     if (parts.length < 3) return null;

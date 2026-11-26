@@ -236,8 +236,36 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
     if n1 != 1 or n2 != 1:
         raise SystemExit(f'{name}: targetSdk/compileSdk satırı bulunamadı ({n1}, {n2})')
     if kts:
+        # Yalnız desteklenen 3 dilin Android kaynakları (resources.arsc küçültme)
+        # ve kullanılmayan LiteRT GPU + gereksiz META-INF meta verilerini dışla.
+        text, _ = re.subn(
+            r'(defaultConfig\s*\{)',
+            r'\1\n        resourceConfigurations += listOf("tr", "en", "ar")',
+            text,
+            count=1,
+        )
+        pkg_block = (
+            '\n    packaging {\n'
+            '        jniLibs {\n'
+            '            excludes += "**/libtensorflowlite_gpu_jni.so"\n'
+            '        }\n'
+            '        resources {\n'
+            '            excludes += setOf(\n'
+            '                "DebugProbesKt.bin",\n'
+            '                "META-INF/*.version",\n'
+            '                "META-INF/com.android.tools/**",\n'
+            '                "META-INF/proguard/**",\n'
+            '                "META-INF/LICENSE*",\n'
+            '                "META-INF/NOTICE*",\n'
+            '                "META-INF/DEPENDENCIES",\n'
+            '            )\n'
+            '        }\n'
+            '    }\n'
+        )
+        text, _ = re.subn(r'(\n\s*defaultConfig\s*\{)', pkg_block + r'\1', text, count=1)
         block = (
             '\nconfigurations.all {\n'
+            '    exclude(group = "com.google.ai.edge.litert", module = "litert-gpu")\n'
             '    resolutionStrategy.dependencySubstitution {\n'
             f'        substitute(module("{OCR_FROM}"))\n'
             f'            .using(module("{OCR_TO}"))\n'
@@ -439,6 +467,58 @@ if wasm.exists():
     print(f'silindi: {wasm} ({size / 1048576:.1f} MB)')
 else:
     print(f'zaten yok: {wasm}')
+# media_kit web-only HLS JS (Android exoplayer/libmpv tarafında kullanılmaz)
+mk_roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'media_kit']
+if mk_roots:
+    mk_root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(mk_roots[0]).path))
+    if not mk_root.is_absolute():
+        mk_root = (pathlib.Path('.dart_tool') / mk_root).resolve()
+    hls = mk_root / 'assets' / 'web' / 'hls1.4.10.js'
+    if hls.exists():
+        hsz = hls.stat().st_size
+        hls.unlink()
+        print(f'silindi: {hls} ({hsz / 1024:.1f} KB)')
+PY
+# smb_connect 0.0.9: pointycastle/export.dart + String Mac(...) kayıt defteri
+# (~700 KB kullanılmayan Whirlpool/Tiger/EC eğri algoritmalarını AOT'a çekiyordu).
+# Doğrudan HMac/CMac kurucularıyla ağaç sarsımı açılır.
+python3 - <<'PY'
+import json, pathlib, urllib.parse, urllib.request
+cfg = json.loads(pathlib.Path('.dart_tool/package_config.json').read_text())
+roots = [p['rootUri'] for p in cfg['packages'] if p['name'] == 'smb_connect']
+if roots:
+    root = pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(roots[0]).path))
+    if not root.is_absolute():
+        root = (pathlib.Path('.dart_tool') / root).resolve()
+    p1 = root / 'lib' / 'src' / 'connect' / 'impl' / 'smb2' / 'smb2_signing_digest.dart'
+    if p1.exists():
+        t = p1.read_text(encoding='utf-8')
+        if "import 'package:pointycastle/export.dart';" in t:
+            t = t.replace(
+                "import 'package:pointycastle/export.dart';",
+                "import 'package:pointycastle/api.dart';\n"
+                "import 'package:pointycastle/block/aes.dart';\n"
+                "import 'package:pointycastle/digests/sha256.dart';\n"
+                "import 'package:pointycastle/macs/cmac.dart';\n"
+                "import 'package:pointycastle/macs/hmac.dart';",
+            )
+            t = t.replace('Mac("SHA-256/HMAC")', 'HMac(SHA256Digest(), 64)')
+            t = t.replace('Mac("AES/CMAC")', 'CMac(AESEngine(), 128)')
+            p1.write_text(t, encoding='utf-8')
+            print('yamalandı (pointycastle direct):', p1)
+    p2 = root / 'lib' / 'src' / 'connect' / 'impl' / 'smb2' / 'smb3_key_derivation.dart'
+    if p2.exists():
+        t = p2.read_text(encoding='utf-8')
+        if "import 'package:pointycastle/export.dart';" in t:
+            t = t.replace(
+                "import 'package:pointycastle/export.dart';",
+                "import 'package:pointycastle/api.dart';\n"
+                "import 'package:pointycastle/digests/sha256.dart';\n"
+                "import 'package:pointycastle/macs/hmac.dart';",
+            )
+            t = t.replace('Mac("SHA-256/HMAC")', 'HMac(SHA256Digest(), 64)')
+            p2.write_text(t, encoding='utf-8')
+            print('yamalandı (pointycastle direct):', p2)
 PY
 # G1 artığı (2026-11-12): receive_sharing_intent 1.9.0 paylaşılan content://
 # belgesini `File(context.cacheDir, _display_name)` adına kopyalıyor; ad

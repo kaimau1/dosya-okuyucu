@@ -93,7 +93,6 @@ const Map<String, (String, String, String)> _t22 = {
   ),
   'pp.pdfa': ('PDF/A olarak kaydet', 'Save as PDF/A', 'حفظ كـ PDF/A'),
   'pp.pdfa_sub': ('Uzun süreli arşiv (PDF/A-2b)', 'Long-term archive (PDF/A-2b)', 'أرشيف طويل الأمد (PDF/A-2b)'),
-  'pp.pdfa_image': ('Görüntü + aranabilir metin', 'Image + searchable text', 'صورة + نص قابل للبحث'),
   'pp.pdfa_image_sub': (
     'Her sayfa görüntü + aranabilir metin olur (PDF/A-2b); dosya büyüyebilir, bağlantı ve formlar taşınmaz.',
     'Each page becomes an image + searchable text (PDF/A-2b); the file may grow, links and forms are not kept.',

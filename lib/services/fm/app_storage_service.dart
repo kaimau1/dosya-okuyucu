@@ -102,6 +102,36 @@ abstract final class AppStorageService {
     }
   }
 
+  /// Sistem dışı başlatılabilir uygulamaların toplam boyut özeti ve en büyük
+  /// [top] uygulama (etiketi yalnız kazananlar için yükler). Kanal desteklemiyorsa
+  /// veya izin yoksa `null`.
+  static Future<({int totalBytes, int cacheBytes, List<(String, int)> top})?>
+      sizesSummary({int top = 3}) async {
+    if (_available == false) return null;
+    try {
+      final raw = await _channel
+          .invokeMapMethod<String, dynamic>('appSizesSummary', {'top': top});
+      if (raw == null) return null;
+      final totalBytes = (raw['totalBytes'] as num?)?.toInt() ?? 0;
+      final cacheBytes = (raw['cacheBytes'] as num?)?.toInt() ?? 0;
+      final rawTop = raw['top'];
+      final topList = <(String, int)>[];
+      if (rawTop is List) {
+        for (final item in rawTop) {
+          if (item is List && item.length >= 2) {
+            final name = item[0]?.toString() ?? '';
+            final bytes = (item[1] as num?)?.toInt() ?? 0;
+            if (name.isNotEmpty) topList.add((name, bytes));
+          }
+        }
+      }
+      _available = true;
+      return (totalBytes: totalBytes, cacheBytes: cacheBytes, top: topList);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Paket → **son açılma zamanı** (epoch ms). Hiç açılmamış paket sonuçta
   /// YER ALMAZ; kanal yoksa/izin yoksa boş harita döner.
   ///

@@ -7,9 +7,7 @@ const Map<String, (String, String, String)> _t49 = {
   'ps.act_form': ('Form dolduruldu', 'Form filled', 'تم ملء النموذج'),
   'ps.act_signed': ('İmzalandı', 'Signed', 'تم التوقيع'),
   'ps.act_ink': ('Çizim eklendi', 'Drawing added', 'تمت إضافة رسم'),
-  'ps.act_ai': ('AI ile düzenlendi', 'Edited with AI', 'تم التعديل بالذكاء الاصطناعي'),
   'ps.act_translated': ('Çevrildi', 'Translated', 'تمت الترجمة'),
-  'ps.act_pages': ('Sayfalar düzenlendi', 'Pages edited', 'تم تعديل الصفحات'),
 
   // ── PDF çıkış onayı (Form / Sayfa Stüdyosu) ──
   'pdf.discard_title': ('Değişikliklerden çıkılsın mı?', 'Discard changes?', 'هل تريد تجاهل التغييرات؟'),

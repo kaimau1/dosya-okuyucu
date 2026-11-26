@@ -153,7 +153,7 @@ extension _SpreadsheetEditorScreenFormulaBarPart on _SpreadsheetEditorScreenStat
                     _applyCell(_cellField.text);
                     return;
                   }
-                  _commitAndMoveDown(_rowCount(sheet));
+                  _commitAndMoveDown();
                 },
                 onChanged: (_) => _partSetState(() {}),
                 textInputAction: TextInputAction.done,

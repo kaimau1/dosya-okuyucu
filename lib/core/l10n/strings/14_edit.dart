@@ -42,11 +42,6 @@ const Map<String, (String, String, String)> _t14 = {
     'Changes are written to the file within seconds. A draft is always kept.',
     'تُكتب التغييرات في الملف خلال ثوانٍ. تُحفظ مسودة دائماً.',
   ),
-  'edit.autosave_doc': (
-    'Bu belgede otomatik kaydet',
-    'AutoSave this document',
-    'حفظ هذا المستند تلقائياً',
-  ),
   'edit.typing': ('Yazma', 'Typing', 'كتابة'),
   'edit.format_panel': ('Biçim', 'Format', 'تنسيق'),
   'edit.show_keyboard': ('Klavye', 'Keyboard', 'لوحة المفاتيح'),
@@ -66,7 +61,6 @@ const Map<String, (String, String, String)> _t14 = {
   ),
   'set.sec_documents': ('Belgeler', 'Documents', 'المستندات'),
   'common.strike': ('Üstü çizili', 'Strikethrough', 'يتوسطه خط'),
-  'common.redo_short': ('Yinele', 'Redo', 'إعادة'),
   // ── Word (Faz 21) ─────────────────────────────────────────────────────────
   'word.spellcheck': (
     'Word: yazım denetimi ve otomatik düzeltme',
@@ -219,11 +213,6 @@ const Map<String, (String, String, String)> _t14 = {
   'sl.undo_notes': ('Not düzenleme', 'Notes edit', 'تحرير الملاحظات'),
   // ── Faz 22: Word Mobil görünüm editörü ───────────────────────────────────
   'word.page_break': ('Sayfa sonu', 'Page break', 'فاصل صفحات'),
-  'word.ai_fix': (
-    'Akıllı düzelt',
-    'Smart fix',
-    'تصحيح ذكي',
-  ),
   'word.mobile_view': ('Mobil görünüm', 'Mobile view', 'عرض الجوال'),
   'word.paste': ('Yapıştır', 'Paste', 'لصق'),
   'word.edit_page': (
@@ -262,7 +251,6 @@ const Map<String, (String, String, String)> _t14 = {
   'word.track_on': ('Değişiklikleri izle açık: yazdıklarınız ve sildikleriniz işaretlenecek', 'Track changes on: your insertions and deletions will be marked', 'تعقب التغييرات مُفعّل: سيتم تمييز ما تكتبه وتحذفه'),
   'word.track_off': ('Değişiklikleri izle kapalı', 'Track changes off', 'تعقب التغييرات متوقف'),
   'word.track_reject': ('Tüm değişiklikleri reddet', 'Reject all changes', 'رفض كل التغييرات'),
-  'word.track_count': ('{n} izlenen değişiklik', '{n} tracked changes', '{n} تغييرات متتبعة'),
   'word.track_confirm_accept': (
       'Belgedeki {n} izlenen değişiklik kabul edilecek. Bu işlem geri alınamaz.',
       '{n} tracked changes will be accepted. This cannot be undone.',

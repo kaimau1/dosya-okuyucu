@@ -47,6 +47,7 @@ class _PressScaleState extends State<PressScale>
   static const _delay = Duration(milliseconds: 70);
   static const _slop = 10.0;
 
+  final _childKey = GlobalKey();
   bool _pressed = false;
   Timer? _timer;
   Offset? _down;
@@ -129,6 +130,8 @@ class _PressScaleState extends State<PressScale>
     _set(false);
   }
 
+  void _onCancel(PointerCancelEvent e) => _release();
+
   /// Gecikme dolmadan kalkan parmakta da (hızlı dokunuş) his kaybolmasın:
   /// kutu bir an çöküp geri gelir.
   void _onUp(PointerUpEvent e) {
@@ -141,32 +144,26 @@ class _PressScaleState extends State<PressScale>
 
   @override
   Widget build(BuildContext context) {
+    final child = KeyedSubtree(key: _childKey, child: widget.child);
+    final anim = _scaleAnim;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _onDown,
       onPointerMove: _onMove,
       onPointerUp: _onUp,
-      onPointerCancel: (e) => _release(),
-      child: AnimatedBuilder(
-        animation: _scaleAnim ?? _idle,
-        builder: (context, child) => Transform.scale(
-          scale: _scaleAnim?.value ?? 1.0,
-          child: child,
-        ),
-        child: widget.child,
-      ),
+      onPointerCancel: _onCancel,
+      child: anim == null
+          ? child
+          : AnimatedBuilder(
+              animation: anim,
+              builder: (context, inner) => Transform.scale(
+                scale: anim.value,
+                child: inner,
+              ),
+              child: child,
+            ),
     );
   }
-}
-
-const _idle = _IdleListenable();
-
-class _IdleListenable implements Listenable {
-  const _IdleListenable();
-  @override
-  void addListener(VoidCallback listener) {}
-  @override
-  void removeListener(VoidCallback listener) {}
 }
 
 /// **Yumuşak giriş** — yeni beliren parça hafifçe büyüyüp yukarı süzülerek

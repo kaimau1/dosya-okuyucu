@@ -114,7 +114,8 @@ class DocxEditorViewState extends State<DocxEditorView>
   // Çizici (imleç/seçim) her kurulumda yenilenir — çizim davranışı aynı.
   // Satır içi öğeli paragraf (resim, bağlantı …) seçime/eylemlere bağlı →
   // önbelleğe girmez.
-  final _textMemo = <int, (DocxPara, double, TextAlign, TextDirection, Widget)>{};
+  final _textMemo =
+      <int, (DocxPara, double, TextAlign, TextDirection, bool, Widget)>{};
   int _textMemoAt = -1;
 
   // Çoklu dokunuş sayacı.
@@ -235,7 +236,12 @@ class DocxEditorViewState extends State<DocxEditorView>
     return _blocks;
   }
 
-  GlobalKey _key(int i) => _keys.putIfAbsent(i, GlobalKey.new);
+  GlobalKey _key(int i) {
+    if (_keys.length > 256) {
+      _keys.removeWhere((k, v) => k != i && v.currentContext == null);
+    }
+    return _keys.putIfAbsent(i, GlobalKey.new);
+  }
 
   RenderParagraph? _render(int i) {
     final ro = _keys[i]?.currentContext?.findRenderObject();
@@ -502,9 +508,11 @@ class DocxEditorViewState extends State<DocxEditorView>
 
   // ── çizim ────────────────────────────────────────────────────────────────
 
-  TextStyle _style(DocxRunLook look) {
+  TextStyle _style(DocxRunLook look, {bool dimmed = false}) {
     final b = look.bold, i = look.italic, u = look.underline;
     final sup = look.vertAlign != null;
+    final baseColor = look.color == null ? AppColors.pageInk : Color(look.color!);
+    final bg = look.highlight == null ? null : Color(look.highlight!);
     return TextStyle(
       fontFamily: look.renderFamily,
       fontSize: look.sizePt * widget.scale * (sup ? 0.65 : 1),
@@ -514,8 +522,10 @@ class DocxEditorViewState extends State<DocxEditorView>
         if (u) TextDecoration.underline,
         if (look.strike) TextDecoration.lineThrough,
       ]),
-      color: look.color == null ? AppColors.pageInk : Color(look.color!),
-      backgroundColor: look.highlight == null ? null : Color(look.highlight!),
+      color: dimmed ? baseColor.withValues(alpha: baseColor.a * 0.7) : baseColor,
+      backgroundColor: bg == null
+          ? null
+          : (dimmed ? bg.withValues(alpha: bg.a * 0.7) : bg),
       height: 1.3,
     );
   }
@@ -663,7 +673,7 @@ class DocxEditorViewState extends State<DocxEditorView>
     return out;
   }
 
-  TextSpan _span(DocxPara p, double maxW, int i) {
+  TextSpan _span(DocxPara p, double maxW, int i, {bool dimmed = false}) {
     final kids = <InlineSpan>[];
     final ranges = p.anchors.isEmpty ? const <(int, int)>[] : _commentRanges(p);
     bool inComment(int k) => ranges.any((r) => k >= r.$1 && k < r.$2);
@@ -671,7 +681,8 @@ class DocxEditorViewState extends State<DocxEditorView>
     while (k < p.length) {
       final atom = p.atoms[k];
       if (atom != null) {
-        kids.add(_atomSpan(atom, _style(p.styles[k].effective), maxW, i, k));
+        kids.add(_atomSpan(
+            atom, _style(p.styles[k].effective, dimmed: dimmed), maxW, i, k));
         k++;
         continue;
       }
@@ -684,23 +695,26 @@ class DocxEditorViewState extends State<DocxEditorView>
           inComment(j) == mark) {
         j++;
       }
-      var style = _style(st.effective);
+      var style = _style(st.effective, dimmed: dimmed);
       if (st.rev != null) {
         // İzlenen ekleme (Word gibi renkli alt çizgi).
+        final revColor =
+            dimmed ? AppHues.red.withValues(alpha: 0.7) : AppHues.red;
         style = style.copyWith(
             decoration: TextDecoration.combine(
                 [style.decoration ?? TextDecoration.none, TextDecoration.underline]),
-            decorationColor: AppHues.red,
-            color: AppHues.red);
+            decorationColor: revColor,
+            color: revColor);
       }
       if (mark && style.backgroundColor == null) {
         style = style.copyWith(
-            backgroundColor: AppHues.amber.withValues(alpha: 0.18));
+            backgroundColor: AppHues.amber.withValues(alpha: dimmed ? 0.126 : 0.18));
       }
       kids.add(TextSpan(text: p.text.substring(k, j), style: style));
       k = j;
     }
-    return TextSpan(style: _style(p.mark.effective), children: kids);
+    return TextSpan(
+        style: _style(p.mark.effective, dimmed: dimmed), children: kids);
   }
 
   /// [rail] > 0 (B9b, tablet + yorumlu belge): balonlar paragrafın yanında
@@ -721,12 +735,14 @@ class DocxEditorViewState extends State<DocxEditorView>
       _ => TextAlign.start,
     };
     final textW = math.max(40.0, maxW - indent - (label.isEmpty ? 0 : 28));
+    final hasAtoms = p.atoms.any((a) => a != null);
+    final textOnlyOpaque = p.opaque && !hasAtoms;
     Widget body = CustomPaint(
       foregroundPainter: _ParaPainter(c, i, _key(i), _spell[p],
           i == c.extent.para ? _caretOn : null),
-      child: _text(i, p, textW, align, dir),
+      child: _text(i, p, textW, align, dir, dimmed: textOnlyOpaque),
     );
-    if (p.opaque) {
+    if (p.opaque && !textOnlyOpaque) {
       body = Opacity(opacity: 0.7, child: body);
     }
     if (look.borderBottom) {
@@ -866,7 +882,8 @@ class DocxEditorViewState extends State<DocxEditorView>
   }
 
   Widget _text(int i, DocxPara p, double textW, TextAlign align,
-      TextDirection dir) {
+      TextDirection dir,
+      {bool dimmed = false}) {
     if (_textMemoAt != c.structure) {
       _textMemo.clear();
       _textMemoAt = c.structure;
@@ -876,18 +893,21 @@ class DocxEditorViewState extends State<DocxEditorView>
         identical(m.$1, p) &&
         m.$2 == widget.scale &&
         m.$3 == align &&
-        m.$4 == dir) {
-      return m.$5;
+        m.$4 == dir &&
+        m.$5 == dimmed) {
+      return m.$6;
     }
     final w = RichText(
       key: _key(i),
-      text: _span(p, textW, i),
+      text: _span(p, textW, i, dimmed: dimmed),
       textAlign: align,
       textDirection: dir,
     );
     if (!p.atoms.any((a) => a != null)) {
-      if (_textMemo.length > 512) _textMemo.clear();
-      _textMemo[i] = (p, widget.scale, align, dir, w);
+      if (_textMemo.length > 512) {
+        _textMemo.keys.take(128).toList().forEach(_textMemo.remove);
+      }
+      _textMemo[i] = (p, widget.scale, align, dir, dimmed, w);
     }
     return w;
   }
@@ -906,33 +926,67 @@ class DocxEditorViewState extends State<DocxEditorView>
     final colW = math.max(110.0, (maxW - 2) / math.max(1, cols));
     final tableW = colW * cols;
     final line = BorderSide(color: AppColors.pageInk.withValues(alpha: 0.35));
-    final table = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final r in (rows.keys.toList()..sort()))
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    final hasSpan = spans.values.any((m) => m.values.any((v) => v > 1));
+    final sortedRows = rows.keys.toList()..sort();
+    final Widget table;
+    if (!hasSpan && cols > 0) {
+      table = Table(
+        columnWidths: {for (var col = 0; col < cols; col++) col: FixedColumnWidth(colW)},
+        border: TableBorder.all(color: line.color, width: line.width),
+        defaultVerticalAlignment: TableCellVerticalAlignment.top,
+        children: [
+          for (final r in sortedRows)
+            TableRow(
               children: [
-                for (final col in (rows[r]!.keys.toList()..sort()))
-                  Container(
-                    width: colW * (spans[r]![col] ?? 1),
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                        border: Border(right: line, bottom: line, left: col == 0 ? line : BorderSide.none, top: r == 0 ? line : BorderSide.none)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final i in rows[r]![col]!)
-                          _para(i, colW * (spans[r]![col] ?? 1) - 12),
-                      ],
-                    ),
-                  ),
+                for (var col = 0; col < cols; col++)
+                  rows[r]![col] == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final i in rows[r]![col]!) _para(i, colW - 12),
+                            ],
+                          ),
+                        ),
               ],
             ),
-          ),
-      ],
-    );
+        ],
+      );
+    } else {
+      table = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final r in sortedRows)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final col in (rows[r]!.keys.toList()..sort()))
+                    Container(
+                      width: colW * (spans[r]![col] ?? 1),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                          border: Border(
+                              right: line,
+                              bottom: line,
+                              left: col == 0 ? line : BorderSide.none,
+                              top: r == 0 ? line : BorderSide.none)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final i in rows[r]![col]!)
+                            _para(i, colW * (spans[r]![col] ?? 1) - 12),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: tableW <= maxW

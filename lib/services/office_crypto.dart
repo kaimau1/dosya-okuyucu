@@ -12,7 +12,12 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:pointycastle/export.dart';
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/block/aes.dart';
+import 'package:pointycastle/block/modes/cbc.dart';
+import 'package:pointycastle/digests/sha512.dart';
+import 'package:pointycastle/macs/hmac.dart';
+import 'package:pointycastle/random/fortuna_random.dart';
 
 import 'ole_cfb.dart';
 import 'ole_cfb_writer.dart';

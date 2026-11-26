@@ -56,7 +56,6 @@ const Map<String, (String, String, String)> _t1 = {
   'shell.pages': ('{n} sayfa', '{n} pages', '{n} صفحة'),
   'shell.slides': ('{n} slayt', '{n} slides', '{n} شريحة'),
   'shell.sheets': ('{n} sayfa', '{n} sheets', '{n} أوراق'),
-  'dm.view': ('Görünüm', 'View', 'العرض'),
   'dm.page': ('Sayfa', 'Page', 'الصفحة'),
   'dm.text': ('Metin', 'Text', 'النص'),
   'dm.convert': ('Dönüştür ve yazdır', 'Convert & print', 'التحويل والطباعة'),
@@ -65,22 +64,18 @@ const Map<String, (String, String, String)> _t1 = {
   'dm.sheet': ('Tablo', 'Spreadsheet', 'جدول البيانات'),
   'dm.slides': ('Sunum', 'Presentation', 'العرض التقديمي'),
   'dm.image': ('Görsel', 'Image', 'الصورة'),
-  'dm.selection': ('Seçili metin', 'Selected text', 'النص المحدد'),
-  'dm.file': ('Dosya', 'File', 'الملف'),
   'vw.reading_settings': ('Okuma ayarları', 'Reading settings', 'إعدادات القراءة'),
   'vw.text_size': ('Yazı boyutu', 'Text size', 'حجم الخط'),
   'vw.font_default': ('Varsayılan', 'Default', 'الافتراضي'),
   'vw.layout': ('Düzen', 'Layout', 'التخطيط'),
   'vw.speak_part': ('Bölüm {n} / {total}', 'Part {n} of {total}', 'الجزء {n} من {total}'),
   'find.none': ('Sonuç yok', 'No results', 'لا نتائج'),
-  'gal.info': ('Bilgi', 'Info', 'معلومات'),
   'gal.tools': ('Metin ve PDF', 'Text & PDF', 'النص و PDF'),
   'gal.multi_select': ('Birkaç fotoğraf seç', 'Select several photos', 'تحديد عدة صور'),
   'common.stop': ('Durdur', 'Stop', 'إيقاف'),
   'common.add': ('Ekle', 'Add', 'إضافة'),
   'common.pause': ('Duraklat', 'Pause', 'إيقاف مؤقت'),
   'common.resume': ('Devam et', 'Resume', 'متابعة'),
-  'common.location': ('Konum', 'Location', 'الموقع'),
   // Dili belirtilmemiş kod bloğunun rozeti (```…```).
   'md.code': ('kod', 'code', 'شيفرة'),
   'common.password': ('Parola', 'Password', 'كلمة المرور'),
@@ -95,11 +90,6 @@ const Map<String, (String, String, String)> _t1 = {
   ),
   'common.translate': ('Çevir', 'Translate', 'ترجمة'),
   // B15 (2026-11-19): akıllı işlerin tek hata kalıbı.
-  'common.smart_failed': (
-    'Akıllı işlem yapılamadı: {error}',
-    'The smart action failed: {error}',
-    'تعذّر تنفيذ الإجراء الذكي: {error}',
-  ),
   'common.bold': ('Kalın', 'Bold', 'عريض'),
   'common.italic': ('İtalik', 'Italic', 'مائل'),
   'common.underline': ('Altı çizili', 'Underline', 'تسطير'),
@@ -116,7 +106,6 @@ const Map<String, (String, String, String)> _t1 = {
   'common.rescan': ('Yeniden tara', 'Rescan', 'إعادة الفحص'),
   'common.clear': ('Temizle', 'Clear', 'مسح'),
   'common.clear_selection': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
-  'common.send': ('Gönder', 'Send', 'إرسال'),
   'common.remove_bookmark': (
     'Yer imini kaldır',
     'Remove bookmark',
@@ -139,14 +128,6 @@ const Map<String, (String, String, String)> _t1 = {
 
   // ── Ana ekran / gezinme ───────────────────────────────────────────────────
   'home.tab_files': ('Dosyalar', 'Files', 'الملفات'),
-  'home.tab_recent': ('Son belgeler', 'Recent', 'المستندات الأخيرة'),
-  'home.tab_ai': (
-    'Akıllı',
-    'Smart',
-    'ذكي',
-  ),
-  'home.pdf_tools': ('PDF araçları', 'PDF tools', 'أدوات PDF'),
-  'home.new_document': ('Yeni belge', 'New document', 'مستند جديد'),
   'home.new_document_title': (
     'Yeni belge oluştur',
     'Create a new document',
@@ -155,60 +136,18 @@ const Map<String, (String, String, String)> _t1 = {
   'home.new_word': ('Word belgesi', 'Word document', 'مستند Word'),
   'home.new_excel': ('Excel tablosu', 'Excel spreadsheet', 'جدول Excel'),
   'home.new_text': ('Metin dosyası', 'Text file', 'ملف نصي'),
-  'home.theme_system': ('Tema: Sistem', 'Theme: System', 'السمة: النظام'),
-  'home.theme_light': ('Tema: Açık', 'Theme: Light', 'السمة: فاتح'),
-  'home.theme_dark': ('Tema: Koyu', 'Theme: Dark', 'السمة: داكن'),
-  'home.scan': ('Belge Tara', 'Scan document', 'مسح مستند'),
   'home.open_file': ('Dosya Aç', 'Open file', 'فتح ملف'),
-  'home.search_recent': (
-    'Son dosyalarda ara…',
-    'Search recent files…',
-    'ابحث في الملفات الأخيرة…',
-  ),
-  'home.no_match': ('Eşleşen dosya yok', 'No matching file', 'لا يوجد ملف مطابق'),
-  'home.empty_title': (
-    'Henüz belge açmadınız',
-    'You haven’t opened a document yet',
-    'لم تفتح أي مستند بعد',
-  ),
-  'home.empty_body': (
-    'PDF, Word, Excel, Slayt, görsel ve metin dosyalarını açıp inceleyebilir, '
-        'düzenleyebilir ve yapay zeka ile üzerinde çalışabilirsiniz. '
-        'Telefonundaki tüm dosyalar için alttaki “Dosyalar” sekmesini kullanın.',
-    'Open, view and edit PDF, Word, Excel, slide, image and text files, and '
-        'work on them with AI. Use the “Files” tab below for everything on '
-        'your phone.',
-    'افتح واعرض وحرّر ملفات PDF وWord وExcel والشرائح والصور والنصوص، واعمل '
-        'عليها بالذكاء الاصطناعي. استخدم تبويب «الملفات» بالأسفل لكل ما على هاتفك.',
-  ),
-  'home.empty_cta': ('İlk dosyanı aç', 'Open your first file', 'افتح أول ملف لك'),
-  'home.empty_ai_hint': (
-    'Akıllı özellikler için Ayarlar’dan Gemini API anahtarı ekleyin.',
-    'Add a Gemini API key in Settings to enable smart features.',
-    'أضف مفتاح Gemini API من الإعدادات لتفعيل الميزات الذكية.',
-  ),
   'home.open_error': (
     'Dosya açılamadı: {error}',
     'Could not open file: {error}',
     'تعذّر فتح الملف: {error}',
-  ),
-  'home.open_error_moved': (
-    'Dosya açılamadı (taşınmış olabilir): {name}',
-    'Could not open file (it may have been moved): {name}',
-    'تعذّر فتح الملف (ربما تم نقله): {name}',
   ),
   'home.create_error': (
     'Yeni belge oluşturulamadı: {error}',
     'Could not create the document: {error}',
     'تعذّر إنشاء المستند: {error}',
   ),
-  'home.time_now': ('az önce', 'just now', 'الآن'),
   'home.time_minutes': ('{n} dk önce', '{n} min ago', 'قبل {n} دقيقة'),
-  'home.time_hours': ('{n} saat önce', '{n} h ago', 'قبل {n} ساعة'),
-  'home.time_days': ('{n} gün önce', '{n} d ago', 'قبل {n} يوم'),
-  'home.time_weeks': ('{n} hafta önce', '{n} w ago', 'قبل {n} أسبوع'),
-  'home.time_months': ('{n} ay önce', '{n} mo ago', 'قبل {n} شهر'),
-  'home.time_years': ('{n} yıl önce', '{n} y ago', 'قبل {n} سنة'),
 
   // ── Ayarlar ───────────────────────────────────────────────────────────────
   'settings.title': ('Ayarlar', 'Settings', 'الإعدادات'),
@@ -222,11 +161,6 @@ const Map<String, (String, String, String)> _t1 = {
         'اللغة. يؤدي اختيار العربية إلى عرض الواجهة من اليمين إلى اليسار.',
   ),
   'settings.language_system': ('Sistem', 'System', 'النظام'),
-  'settings.ai_section': (
-    'Yapay Zeka (Gemini)',
-    'Artificial intelligence (Gemini)',
-    'الذكاء الاصطناعي (Gemini)',
-  ),
   'settings.api_key': ('Gemini API anahtarı', 'Gemini API key', 'مفتاح Gemini API'),
   'settings.api_key_note': (
     'Anahtar cihazınızda saklanır. aistudio.google.com adresinden ücretsiz '
@@ -260,17 +194,6 @@ const Map<String, (String, String, String)> _t1 = {
     '{error} Showing the default list.',
     '{error} يتم عرض القائمة الافتراضية.',
   ),
-  'settings.model_found': (
-    '{n} model bulundu.',
-    '{n} models found.',
-    'تم العثور على {n} نموذج.',
-  ),
-  'settings.appearance': ('Görünüm ve dil', 'Appearance & language', 'المظهر واللغة'),
-  'settings.appearance_sub': (
-    'Tema ve arayüz dili',
-    'Theme and interface language',
-    'السمة ولغة الواجهة',
-  ),
   'settings.theme': ('Tema', 'Theme', 'السمة'),
   'settings.ui_font': ('Yazı tipi', 'Font', 'نوع الخط'),
   'settings.ui_text_size': ('Yazı boyutu', 'Text size', 'حجم النص'),
@@ -290,21 +213,6 @@ const Map<String, (String, String, String)> _t1 = {
     'does not affect the app — change it only here.',
     'الخط والحجم متطابقان على كل الهواتف؛ إعداد حجم خط النظام لا يؤثر على '
     'التطبيق — يُغيَّر من هنا فقط.',
-  ),
-  'settings.ai_sub': (
-    'Gemini anahtarı ve model seçimi',
-    'Gemini key and model choice',
-    'مفتاح Gemini واختيار النموذج',
-  ),
-  'settings.perf_section': (
-    'Pil ve başarım',
-    'Battery & performance',
-    'البطارية والأداء',
-  ),
-  'settings.perf_sub': (
-    'Tazeleme hızı ve arka plan taraması',
-    'Refresh rate and background scanning',
-    'معدل التحديث والفحص في الخلفية',
   ),
   'settings.perf_high_refresh': (
     'Yüksek tazeleme hızı',
@@ -344,17 +252,6 @@ const Map<String, (String, String, String)> _t1 = {
         'the app show up. Turn off and refresh lists yourself by pulling down.',
     'تعيد اللوحة فحص وحدة التخزين كل 12 ساعة لتظهر الملفات المضافة خارج '
         'التطبيق. أوقفه وحدّث القوائم بالسحب للأسفل.',
-  ),
-  'settings.fm_section': ('Dosya yöneticisi', 'File manager', 'مدير الملفات'),
-  'settings.fm_sub': (
-    'Küçük resimler, gizli dosyalar, çöp kutusu',
-    'Thumbnails, hidden files, trash',
-    'الصور المصغّرة والملفات المخفية وسلة المهملات',
-  ),
-  'settings.fm_open': (
-    'Dosya yöneticisi ayarlarını aç',
-    'Open file manager settings',
-    'فتح إعدادات مدير الملفات',
   ),
   'settings.about_sub': (
     'Sürüm bilgisi ve lisanslar',
@@ -428,14 +325,6 @@ const Map<String, (String, String, String)> _t1 = {
   'fm.tools': ('Araçlar', 'Tools', 'الأدوات'),
   'fm.all_tools': ('Tümü ({n})', 'All ({n})', 'الكل ({n})'),
   'fm.recent_opened': ('Geçmiş', 'History', 'السجل'),
-  'fm.recent_opened_note': (
-    'Her tür dosya',
-    'Files of every type',
-    'ملفات من كل نوع',
-  ),
-  'fm.recent_ops': ('Son işlemler', 'Recent operations', 'العمليات الأخيرة'),
-  'hist.title': ('Geçmiş', 'History', 'السجل'),
-  'hist.tile_sub': ('Açılanlar · üretilenler · işlemler', 'Opened · made · tasks', 'المفتوحة · المُنشأة · العمليات'),
   'hist.opened': ('Geçmiş', 'History', 'السجل'),
   'hist.produced': ('Üretilenler', 'Made', 'المُنشأة'),
   'hist.jobs': ('İşlemler', 'Tasks', 'العمليات'),
@@ -443,7 +332,6 @@ const Map<String, (String, String, String)> _t1 = {
   'fm.jobs': ('İşlemler', 'Jobs', 'المهام'),
   'fm.jobs_running': ('{n} sürüyor', '{n} running', '{n} قيد التنفيذ'),
   'fm.jobs_finished': ('{n} biten', '{n} finished', '{n} منتهية'),
-  'fm.download': ('İndir', 'Download', 'تنزيل'),
   'fm.downloads': ('İndirilenler', 'Downloads', 'التنزيلات'),
   'fm.downloads_missing': (
     'İndirilenler klasörü bulunamadı.',
@@ -459,9 +347,7 @@ const Map<String, (String, String, String)> _t1 = {
   'fm.hero_browse': ('Göz at', 'Browse', 'تصفح'),
   'fm.hero_analysis': ('Analiz', 'Analysis', 'تحليل'),
   'fm.free_space': ('Yer aç', 'Free up space', 'تحرير مساحة'),
-  'fm.similar_images': ('Benzer görsel', 'Similar images', 'صور متشابهة'),
   'ana.similar_note': ('Seri çekimler, neredeyse aynı kareler', 'Bursts and near-identical shots', 'اللقطات المتتالية والصور شبه المتطابقة'),
-  'ana.chat_note': ('WhatsApp ve Telegram medyası', 'WhatsApp and Telegram media', 'وسائط واتساب وتيليجرام'),
   'fm.apk_files': ('APK dosyaları', 'APK files', 'ملفات APK'),
   'fm.apk_archives': ('APK ve Arşivler', 'APKs & archives', 'APK والأرشيفات'),
   'fm.apk_tab': ('APK', 'APK', 'ملفات APK'),
@@ -469,8 +355,6 @@ const Map<String, (String, String, String)> _t1 = {
   'xfer.title': ('Aktar', 'Transfer', 'نقل'),
   'xfer.computer': ('Bilgisayarla', 'With a computer', 'مع حاسوب'),
   'xfer.computer_note': ('Tarayıcıdan ya da FTP ile, QR kodla bağlan', 'From a browser or FTP, connect with a QR code', 'من المتصفح أو FTP، اتصل برمز QR'),
-  'xfer.phone': ('Telefonla', 'With a phone', 'مع هاتف'),
-  'xfer.phone_note': ('Aynı ağdaki başka bir telefona gönder', 'Send to another phone on the same network', 'أرسل إلى هاتف آخر على نفس الشبكة'),
   'xfer.nas_note': ('FTP, SFTP, SMB, WebDAV bağlantıları', 'FTP, SFTP, SMB, WebDAV connections', 'اتصالات FTP وSFTP وSMB وWebDAV'),
   'xfer.downloads': ('İndirmeler', 'Downloads', 'التنزيلات'),
   'xfer.downloads_note': ('Bağlantıdan dosya indir', 'Download a file from a link', 'نزّل ملفًا من رابط'),
@@ -478,22 +362,11 @@ const Map<String, (String, String, String)> _t1 = {
   // heceli "Çöp" neyi kastettiğini anlatmıyordu.
   'fm.trash': ('Çöp kutusu', 'Trash', 'المهملات'),
   'fm.trash_count': ('{n} öğe', '{n} items', '{n} عنصر'),
-  'fm.trash_empty': ('Boş', 'Empty', 'فارغة'),
-  'fm.fm_settings': (
-    'Dosya yöneticisi ayarları',
-    'File manager settings',
-    'إعدادات مدير الملفات',
-  ),
   'fm.scanning': ('Taranıyor…', 'Scanning…', 'جارٍ الفحص…'),
   'fm.scanning_storage': (
     'Depolama taranıyor…',
     'Scanning storage…',
     'جارٍ فحص وحدة التخزين…',
-  ),
-  'fm.no_standard_folders': (
-    'Standart klasörler bulunamadı.',
-    'Standard folders not found.',
-    'لم يُعثر على المجلدات القياسية.',
   ),
   'fm.new_folder': ('Yeni klasör', 'New folder', 'مجلد جديد'),
   'fm.folder_name': ('Klasör adı', 'Folder name', 'اسم المجلد'),
@@ -553,25 +426,17 @@ const Map<String, (String, String, String)> _t1 = {
     'هذا المجلد مقفل.\nأدخل رمز PIN لعرضه.',
   ),
   'fm.lock_folder': ('Klasörü kilitle (PIN)', 'Lock folder (PIN)', 'قفل المجلد (PIN)'),
-  'fm.unlock_folder': ('Klasör kilidini kaldır', 'Unlock folder', 'إلغاء قفل المجلد'),
   'fm.unfavorite': ('Favorilerden çıkar', 'Remove from favourites', 'إزالة من المفضلة'),
   'fm.favorite': ('Favorilere ekle', 'Add to favourites', 'إضافة إلى المفضلة'),
   'fm.show_hidden': ('Gizli dosyaları göster', 'Show hidden files', 'إظهار الملفات المخفية'),
-  'fm.hide_hidden': ('Gizli dosyaları gizle', 'Hide hidden files', 'إخفاء الملفات المخفية'),
   'fm.layout': ('Görünüm: {name}', 'Layout: {name}', 'العرض: {name}'),
   'fm.sort_name': ('Ada göre sırala', 'Sort by name', 'ترتيب حسب الاسم'),
   'fm.sort_date': ('Tarihe göre sırala', 'Sort by date', 'ترتيب حسب التاريخ'),
   'fm.sort_size': ('Boyuta göre sırala', 'Sort by size', 'ترتيب حسب الحجم'),
-  'fm.sort_type': ('Türe göre sırala', 'Sort by type', 'ترتيب حسب النوع'),
-  'fm.sort_asc': ('Artan sırala', 'Ascending', 'تصاعدي'),
-  'fm.sort_desc': ('Azalan sırala', 'Descending', 'تنازلي'),
   'fm.select_all': ('Tümünü seç', 'Select all', 'تحديد الكل'),
   'a11y.select': ('Seç', 'Select', 'تحديد'),
   'a11y.deselect': ('Seçimden çıkar', 'Deselect', 'إلغاء تحديد'),
   'fm.select_none': ('Seçimi kaldır', 'Clear selection', 'إلغاء التحديد'),
-  'fm.select_invert': ('Seçimi tersine çevir', 'Invert selection', 'عكس التحديد'),
-  'fm.select_above': ('Üstündekileri de seç', 'Also select above', 'حدّد ما فوقه أيضًا'),
-  'fm.select_below': ('Altındakileri de seç', 'Also select below', 'حدّد ما تحته أيضًا'),
   'fm.selected_count': ('{n} / {total} seçildi', '{n} / {total} selected', 'تم تحديد {n} / {total}'),
   'fm.new_name': ('Yeni ad', 'New name', 'الاسم الجديد'),
   'fm.irreversible': (
@@ -652,7 +517,6 @@ const Map<String, (String, String, String)> _t1 = {
   'fm.ext_changed_keep': ('Uzantıyı koru', 'Keep the extension', 'الاحتفاظ بالامتداد'),
   'fm.ext_changed_go': ('Yine de değiştir', 'Change anyway', 'التغيير على أي حال'),
 
-  'clean.free_amount': ('{size} yer aç', 'Free up {size}', 'توفير {size}'),
   'prop.contents': ('İçerik', 'Contents', 'المحتويات'),
   'prop.contents_value': (
     '{files} dosya, {dirs} klasör',
@@ -705,23 +569,11 @@ const Map<String, (String, String, String)> _t1 = {
     'تعذّر تحليل هذا الملف — لم يتم تغيير النص',
   ),
   'vw.wrap_on': ('Satırları kaydır', 'Wrap lines', 'التفاف الأسطر'),
-  'vw.wrap_off': ('Satırları kaydırma', "Don't wrap lines", 'عدم التفاف الأسطر'),
 
   'srch.scope_here': ('Bu klasörde', 'In this folder', 'في هذا المجلد'),
   'srch.scope_everywhere': ('Her yerde', 'Everywhere', 'في كل مكان'),
   'srch.in_content': ('Dosya içinde ara', 'Search inside files', 'البحث داخل الملفات'),
-  'srch.content_running': ('Dosyaların içine bakılıyor…', 'Looking inside files…', 'جارٍ البحث داخل الملفات…'),
   'srch.content_hits': ('{n} eşleşme · {line}. satır', '{n} matches · line {line}', '{n} تطابق · السطر {line}'),
-  'srch.content_none': (
-    'İçinde bu metin geçen dosya bulunamadı (yalnız metin biçimlerine bakılır).',
-    'No file contains that text (only text formats are searched).',
-    'لا يوجد ملف يحتوي على هذا النص (يتم البحث في الصيغ النصية فقط).',
-  ),
-  'srch.content_hint': (
-    'Yalnız metin biçimleri (.txt .csv .log .json .md …), dosya başına 2 MB',
-    'Text formats only (.txt .csv .log .json .md …), 2 MB per file',
-    'الصيغ النصية فقط (.txt .csv .log .json .md …)، 2 ميغابايت لكل ملف',
-  ),
 
   'report.folder': ('Klasör', 'Folder', 'مجلد'),
   'report.header': (
@@ -749,38 +601,7 @@ const Map<String, (String, String, String)> _t1 = {
     'لا توجد ملفات قابلة للتشغيل في القائمة',
   ),
   'mp.playlist_name': ('Liste adı', 'Playlist name', 'اسم القائمة'),
-  'mp.sub_delay_saved': (
-    'Altyazı gecikmesi bu dosya için hatırlanacak',
-    'Subtitle delay will be remembered for this file',
-    'سيتم تذكّر تأخير الترجمة لهذا الملف',
-  ),
 
-  'peer.code_label': ('Eşleştirme kodu', 'Pairing code', 'رمز الاقتران'),
-  'peer.code_ask': (
-    'Karşı cihazda yazan 4 haneli kodu girin',
-    'Enter the 4-digit code shown on the other device',
-    'أدخل الرمز المكوّن من 4 أرقام الظاهر على الجهاز الآخر',
-  ),
-  'peer.code_wrong': (
-    'Kod yanlış — dosya gönderilmedi',
-    'Wrong code — nothing was sent',
-    'الرمز غير صحيح — لم يتم الإرسال',
-  ),
-  'peer.code_on': (
-    'Kod istensin (aynı ağdaki herkes gönderemesin)',
-    'Require a code (so not everyone on the network can send)',
-    'اطلب رمزًا (حتى لا يتمكن الجميع على الشبكة من الإرسال)',
-  ),
-  'peer.folder_zipping': (
-    'Klasör sıkıştırılıyor',
-    'Compressing folder',
-    'جارٍ ضغط المجلد',
-  ),
-  'peer.folders_zipped': (
-    '{n} klasör ZIP olarak gönderiliyor',
-    'Sending {n} folder(s) as ZIP',
-    'يتم إرسال {n} مجلد كملف ZIP',
-  ),
   'peer.notify_title': ('Dosya alındı', 'File received', 'تم استلام ملف'),
   'peer.channel_name': ('Yakındaki cihaz', 'Nearby device', 'جهاز قريب'),
   'peer.channel_desc': (
@@ -788,7 +609,6 @@ const Map<String, (String, String, String)> _t1 = {
     'When a file is received from a nearby device.',
     'عند استلام ملف من جهاز قريب.',
   ),
-  'peer.recent_devices': ('Son cihazlar', 'Recent devices', 'الأجهزة الأخيرة'),
 
   'backup.title': ('Ayarları yedekle', 'Back up settings', 'نسخ الإعدادات احتياطيًا'),
   'backup.sub': (
@@ -853,7 +673,6 @@ const Map<String, (String, String, String)> _t1 = {
   'ea.split_hint': ('FAT32 / e-posta sınırı', 'FAT32 / email limit', 'حد FAT32 / البريد'),
   'ea.join': ('Parçaları birleştir', 'Join parts', 'دمج الأجزاء'),
   'ea.join_hint': ('.001 .002 …', '.001 .002 …', '.001 .002 …'),
-  'split.title': ('Parçalara böl', 'Split into parts', 'تقسيم إلى أجزاء'),
   'split.pick_size': ('Parça boyutu', 'Part size', 'حجم الجزء'),
   'split.working': ('Bölünüyor', 'Splitting', 'جارٍ التقسيم'),
   'split.done': ('{n} parça oluştu', '{n} parts created', 'تم إنشاء {n} جزء'),
@@ -883,11 +702,9 @@ const Map<String, (String, String, String)> _t1 = {
   'fm.export_csv': ('Tablo (.csv)', 'Spreadsheet (.csv)', 'جدول (.csv)'),
   'fm.export_done': ('{name} kaydedildi', 'Saved {name}', 'تم حفظ {name}'),
 
-  'prop.name': ('Ad', 'Name', 'الاسم'),
   'prop.size': ('Boyut', 'Size', 'الحجم'),
   'prop.location': ('Konum', 'Location', 'الموقع'),
   'prop.digest': ('Özet (SHA-256)', 'Checksum (SHA-256)', 'البصمة (SHA-256)'),
-  'prop.digest_md5': ('Özet (MD5)', 'Checksum (MD5)', 'البصمة (MD5)'),
   'prop.compute_digest': ('Özeti hesapla', 'Compute checksum', 'حساب البصمة'),
   'prop.computing_digest': ('Hesaplanıyor…', 'Computing…', 'جارٍ الحساب…'),
   'prop.digest_copied': ('Özet panoya kopyalandı', 'Checksum copied', 'تم نسخ البصمة'),
@@ -923,35 +740,6 @@ const Map<String, (String, String, String)> _t1 = {
   'err.go_home': ('Ana ekran', 'Home', 'الشاشة الرئيسية'),
 
   // ── Yakındaki cihaza gönder (iki Dosyalarım arası) ─────────────────────
-  'peer.title': ('Yakındaki cihaz', 'Nearby device', 'جهاز قريب'),
-  'peer.send_action': (
-    'Yakındaki cihaza gönder',
-    'Send to nearby device',
-    'إرسال إلى جهاز قريب',
-  ),
-  'peer.send_hint': (
-    'Aynı Wi-Fi\'deki Dosyalarım\'a doğrudan',
-    'Straight to Dosyalarım on the same Wi-Fi',
-    'مباشرة إلى Dosyalarım على نفس شبكة Wi-Fi',
-  ),
-  'peer.tab_send': ('Gönder', 'Send', 'إرسال'),
-  'peer.tab_receive': ('Al', 'Receive', 'استقبال'),
-  'peer.searching': ('Cihazlar aranıyor…', 'Looking for devices…', 'جارٍ البحث عن الأجهزة…'),
-  'peer.search_again': ('Yeniden ara', 'Search again', 'إعادة البحث'),
-  'peer.none_found': (
-    'Cihaz bulunamadı. Karşı telefonda Dosyalarım > Yakındaki cihaz > Al '
-    'ekranı açık olmalı ve iki cihaz aynı Wi-Fi ağında olmalı.',
-    'No device found. On the other phone open Dosyalarım > Nearby device > '
-    'Receive, and make sure both are on the same Wi-Fi network.',
-    'لم يتم العثور على جهاز. افتح في الهاتف الآخر Dosyalarım > جهاز قريب > '
-    'استقبال، وتأكد من أن الجهازين على نفس شبكة Wi-Fi.',
-  ),
-  'peer.files_to_send': (
-    '{n} dosya gönderilecek',
-    '{n} file(s) to send',
-    'سيتم إرسال {n} ملف',
-  ),
-  'peer.sending': ('Gönderiliyor', 'Sending', 'جارٍ الإرسال'),
   'peer.sent': (
     '{n} dosya {name} cihazına gönderildi',
     'Sent {n} file(s) to {name}',
@@ -967,48 +755,9 @@ const Map<String, (String, String, String)> _t1 = {
     'Stopped ({n} file(s) sent)',
     'تم الإيقاف (تم إرسال {n} ملف)',
   ),
-  'peer.receiving_on': (
-    'Alınmaya hazır',
-    'Ready to receive',
-    'جاهز للاستقبال',
-  ),
-  'peer.receiving_off': ('Kapalı', 'Off', 'مغلق'),
-  'peer.receive_explain': (
-    'Bu ekran açıkken aynı Wi-Fi ağındaki Dosyalarım uygulamaları bu cihaza dosya '
-    'gönderebilir. Ekranı kapatınca kapanır.',
-    'While this screen is open, Dosyalarım apps on the same Wi-Fi can send '
-    'files here. It closes when you leave the screen.',
-    'أثناء فتح هذه الشاشة، يمكن لتطبيقات Dosyalarım على نفس شبكة Wi-Fi '
-    'إرسال ملفات إلى هنا. يتوقف عند مغادرة الشاشة.',
-  ),
-  'peer.receive_warning': (
-    'Aktarım şifrelenmez — halka açık ağlarda kullanmayın.',
-    'Transfers are not encrypted — avoid public networks.',
-    'النقل غير مشفر — تجنب الشبكات العامة.',
-  ),
   'peer.save_to': ('Kayıt yeri: {path}', 'Saved to: {path}', 'مكان الحفظ: {path}'),
   'peer.change_folder': ('Klasörü değiştir', 'Change folder', 'تغيير المجلد'),
   'peer.device_name': ('Bu cihazın adı', 'This device\'s name', 'اسم هذا الجهاز'),
-  'peer.received': ('{name} alındı', 'Received {name}', 'تم استلام {name}'),
-  'peer.received_from': ('{name} · {from} cihazından', '{name} · from {from}', '{name} · من {from}'),
-  'peer.nothing_received': (
-    'Henüz dosya gelmedi.',
-    'No files yet.',
-    'لا توجد ملفات بعد.',
-  ),
-  'peer.address_hint': (
-    'Cihaz görünmüyorsa karşı taraftaki adresi elle yazın',
-    'If the device does not appear, type its address manually',
-    'إذا لم يظهر الجهاز، اكتب عنوانه يدويًا',
-  ),
-  'peer.address': ('Adres (192.168.1.42)', 'Address (192.168.1.42)', 'العنوان (192.168.1.42)'),
-  'peer.connect': ('Bağlan', 'Connect', 'اتصال'),
-  'peer.not_found_at': (
-    'Bu adreste Dosyalarım bulunamadı',
-    'No Dosyalarım found at that address',
-    'لم يتم العثور على Dosyalarım على هذا العنوان',
-  ),
-  'peer.this_device': ('Bu cihaz: {name}', 'This device: {name}', 'هذا الجهاز: {name}'),
   'peer.other_apps': (
     'WhatsApp, Bluetooth, e-posta…',
     'WhatsApp, Bluetooth, email…',

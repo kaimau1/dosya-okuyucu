@@ -162,115 +162,118 @@ class SheetCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = style;
     final background = cond?.background ?? s?.background;
-    final fgDefault = onSurface ?? Theme.of(context).colorScheme.onSurface;
-    final surfaceBg = docSurface ?? Paper.docSurface(context);
+    final emptyNonEdit = !editing && view.text.isEmpty;
 
-    // Okunurluk hesabı hücrenin GERÇEK zeminine göre: ızgara artık kağıt
-    // değil beyaz (bkz. Paper.docSurface).
-    final color = readableOn(
-      cond?.foreground ?? view.formatColor ?? s?.fontColor ?? fgDefault,
-      background ?? surfaceBg,
-    );
-
-    final textStyle = metricsStyle(
-      s,
-      numeric: view.numeric,
-      zoom: zoom,
-      bold: cond?.bold ?? false,
-      italic: cond?.italic ?? false,
-    ).copyWith(color: color, decoration: _decoration(s));
-
-    // Sayfanın yönü ızgarayı saran `Directionality`den gelir (bkz.
-    // spreadsheet_editor_screen `_grid`). Hücrenin kendi parametresi
-    // OLMAMALI: yön sayfanın özelliği, hücrenin değil — parametre olsaydı
-    // her çağrı yerinde tekrar geçirilmesi gerekir, biri unutulunca o hücre
-    // ters hizalanırdı.
-    final rtl = isRtl ?? (Directionality.of(context) == TextDirection.rtl);
-    final align = s?.alignFor(view.numeric, rightToLeft: rtl) ??
-        (rtl ? TextAlign.right : TextAlign.left);
-    final vAlign = s?.vAlign ?? XlsxVAlign.bottom;
-
-    Widget content;
-    if (editing) {
-      content = TextField(
-        controller: controller,
-        autofocus: true,
-        // Kaydırılan (wrap) hücrede düzenleme de satır kaydırır — tek satırda
-        // uzun metnin başı sola kayıp görünmüyordu (kullanıcı 2026-10-22).
-        maxLines: (s?.wrap ?? false) ? null : 1,
-        onSubmitted: (_) => onSubmitted(),
-        onTapOutside: (_) => onEditingComplete(),
-        textInputAction: TextInputAction.done,
-        textAlign: align,
-        style: textStyle,
-        decoration: const InputDecoration(
-          isDense: true,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          filled: false,
-          contentPadding: EdgeInsets.zero,
-        ),
-      );
-    } else if (view.text.isEmpty) {
-      content = const SizedBox.shrink();
+    Widget body;
+    if (emptyNonEdit) {
+      body = const SizedBox.shrink();
     } else {
-      content = Text(
-        view.text,
-        textAlign: align,
-        softWrap: s?.wrap ?? false,
-        maxLines: (s?.wrap ?? false) ? null : 1,
-        overflow:
-            (s?.wrap ?? false) ? TextOverflow.clip : TextOverflow.ellipsis,
-        style: textStyle,
+      final fgDefault = onSurface ?? Theme.of(context).colorScheme.onSurface;
+      final surfaceBg = docSurface ?? Paper.docSurface(context);
+
+      // Okunurluk hesabı hücrenin GERÇEK zeminine göre: ızgara artık kağıt
+      // değil beyaz (bkz. Paper.docSurface).
+      final color = readableOn(
+        cond?.foreground ?? view.formatColor ?? s?.fontColor ?? fgDefault,
+        background ?? surfaceBg,
       );
-    }
 
-    final indent = (s?.indent ?? 0) * 8.0 * zoom;
-    final padding = EdgeInsets.only(
-      left: 3 * zoom + (align == TextAlign.right ? 0 : indent),
-      right: 3 * zoom + (align == TextAlign.right ? indent : 0),
-      top: 1 * zoom,
-      bottom: 1 * zoom,
-    );
+      final textStyle = metricsStyle(
+        s,
+        numeric: view.numeric,
+        zoom: zoom,
+        bold: cond?.bold ?? false,
+        italic: cond?.italic ?? false,
+      ).copyWith(color: color, decoration: _decoration(s));
 
-    Widget body = Align(
-      alignment: switch (vAlign) {
-        XlsxVAlign.top => _alignFor(align, -1),
-        XlsxVAlign.center => _alignFor(align, 0),
-        XlsxVAlign.bottom => _alignFor(align, 1),
-      },
-      child: Padding(padding: padding, child: content),
-    );
+      // Sayfanın yönü ızgarayı saran `Directionality`den gelir (bkz.
+      // spreadsheet_editor_screen `_grid`). Hücrenin kendi parametresi
+      // OLMAMALI: yön sayfanın özelliği, hücrenin değil — parametre olsaydı
+      // her çağrı yerinde tekrar geçirilmesi gerekir, biri unutulunca o hücre
+      // ters hizalanırdı.
+      final rtl = isRtl ?? (Directionality.of(context) == TextDirection.rtl);
+      final align = s?.alignFor(view.numeric, rightToLeft: rtl) ??
+          (rtl ? TextAlign.right : TextAlign.left);
+      final vAlign = s?.vAlign ?? XlsxVAlign.bottom;
 
-    // **Komşuya taşma** (Excel'in en görünür davranışlarından biri): başlık
-    // satırı ya da uzun bir açıklama, sağındaki hücreler boşsa kırpılmaz,
-    // üstlerine sarkar. Kutu büyümez — yalnız çizim taşar, yerleşim aynı
-    // kalır; hücrenin dokunma alanı da kendi sınırında durur.
-    if (!editing && (spillLeft > 0 || spillRight > 0)) {
-      body = OverflowBox(
-        alignment: spillLeft > 0 && spillRight > 0
-            ? Alignment.center
-            : (spillLeft > 0 ? Alignment.centerRight : Alignment.centerLeft),
-        minWidth: 0,
-        maxWidth: width + spillLeft + spillRight,
-        minHeight: 0,
-        maxHeight: height,
-        child: body,
+      final Widget content = editing
+          ? TextField(
+              controller: controller,
+              autofocus: true,
+              // Kaydırılan (wrap) hücrede düzenleme de satır kaydırır — tek satırda
+              // uzun metnin başı sola kayıp görünmüyordu (kullanıcı 2026-10-22).
+              maxLines: (s?.wrap ?? false) ? null : 1,
+              onSubmitted: (_) => onSubmitted(),
+              onTapOutside: (_) => onEditingComplete(),
+              textInputAction: TextInputAction.done,
+              textAlign: align,
+              style: textStyle,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
+              ),
+            )
+          : Text(
+              view.text,
+              textAlign: align,
+              softWrap: s?.wrap ?? false,
+              maxLines: (s?.wrap ?? false) ? null : 1,
+              overflow: (s?.wrap ?? false)
+                  ? TextOverflow.clip
+                  : TextOverflow.ellipsis,
+              style: textStyle,
+            );
+
+      final indent = (s?.indent ?? 0) * 8.0 * zoom;
+      final padding = EdgeInsets.only(
+        left: 3 * zoom + (align == TextAlign.right ? 0 : indent),
+        right: 3 * zoom + (align == TextAlign.right ? indent : 0),
+        top: 1 * zoom,
+        bottom: 1 * zoom,
       );
-    }
 
-    // Metin döndürme (Excel'de başlık sütunlarında sık kullanılır).
-    final rotation = s?.rotation ?? 0;
-    if (rotation != 0 && rotation != 255 && !editing) {
-      final degrees = rotation > 90 ? 90 - rotation : rotation;
-      body = Center(
-        child: RotatedBox(
-          quarterTurns: degrees >= 45 ? 3 : (degrees <= -45 ? 1 : 0),
+      body = Align(
+        alignment: switch (vAlign) {
+          XlsxVAlign.top => _alignFor(align, -1),
+          XlsxVAlign.center => _alignFor(align, 0),
+          XlsxVAlign.bottom => _alignFor(align, 1),
+        },
+        child: Padding(padding: padding, child: content),
+      );
+
+      // **Komşuya taşma** (Excel'in en görünür davranışlarından biri): başlık
+      // satırı ya da uzun bir açıklama, sağındaki hücreler boşsa kırpılmaz,
+      // üstlerine sarkar. Kutu büyümez — yalnız çizim taşar, yerleşim aynı
+      // kalır; hücrenin dokunma alanı da kendi sınırında durur.
+      if (!editing && (spillLeft > 0 || spillRight > 0)) {
+        body = OverflowBox(
+          alignment: spillLeft > 0 && spillRight > 0
+              ? Alignment.center
+              : (spillLeft > 0 ? Alignment.centerRight : Alignment.centerLeft),
+          minWidth: 0,
+          maxWidth: width + spillLeft + spillRight,
+          minHeight: 0,
+          maxHeight: height,
           child: body,
-        ),
-      );
+        );
+      }
+
+      // Metin döndürme (Excel'de başlık sütunlarında sık kullanılır).
+      final rotation = s?.rotation ?? 0;
+      if (rotation != 0 && rotation != 255 && !editing) {
+        final degrees = rotation > 90 ? 90 - rotation : rotation;
+        body = Center(
+          child: RotatedBox(
+            quarterTurns: degrees >= 45 ? 3 : (degrees <= -45 ? 1 : 0),
+            child: body,
+          ),
+        );
+      }
     }
 
     // TalkBack (Faz 33 / madde 3): "B2, Armut" — hücre adresi + değer;
@@ -322,6 +325,14 @@ class SheetCell extends StatelessWidget {
   static Widget _tappable(VoidCallback? onTap, Widget child) =>
       onTap == null ? child : GestureDetector(onTap: onTap, child: child);
 
+  static final Map<Object, TextStyle> _styleCache = {};
+
+  /// Bellek baskısında hücre renk ve yazı tipi önbelleklerini boşaltır.
+  static void clearReadableCache() {
+    _readableCache.clear();
+    _styleCache.clear();
+  }
+
   /// Hücre metninin **ÖLÇÜ taşıyan** stili (renk/altçizgi dışında her şey).
   ///
   /// Ayrı bir fonksiyon çünkü ekran aynı metni **ölçmek** zorunda: taşma
@@ -334,22 +345,36 @@ class SheetCell extends StatelessWidget {
     double zoom = 1,
     bool bold = false,
     bool italic = false,
-  }) =>
-      TextStyle(
-        fontSize: ((s?.fontSize ?? 11) * zoom).clamp(4.0, 96.0),
-        fontWeight:
-            bold || (s?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
-        fontStyle: italic || (s?.italic ?? false)
-            ? FontStyle.italic
-            : FontStyle.normal,
-        // Sayı hücreleri monospace: rakamlar sabit genişlikte olunca sütun
-        // içinde hizalanıyor (2026-08-04 tasarım turu, 2. not). Dosya hücreye
-        // AÇIKÇA bir yazı tipi verdiyse ona dokunulmaz — sadakat önce gelir.
-        fontFamily: numeric && s?.fontFamily == null
-            ? AppTheme.fontMono
-            : _mapFont(s?.fontFamily),
-        height: 1.15,
-      );
+  }) {
+    final key = (
+      s?.fontSize,
+      bold || (s?.bold ?? false),
+      italic || (s?.italic ?? false),
+      numeric && s?.fontFamily == null,
+      s?.fontFamily,
+      zoom,
+    );
+    final hit = _styleCache[key];
+    if (hit != null) return hit;
+    if (_styleCache.length >= 256) {
+      _styleCache.keys.take(64).toList().forEach(_styleCache.remove);
+    }
+    return _styleCache[key] = TextStyle(
+      fontSize: ((s?.fontSize ?? 11) * zoom).clamp(4.0, 96.0),
+      fontWeight:
+          bold || (s?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
+      fontStyle: italic || (s?.italic ?? false)
+          ? FontStyle.italic
+          : FontStyle.normal,
+      // Sayı hücreleri monospace: rakamlar sabit genişlikte olunca sütun
+      // içinde hizalanıyor (2026-08-04 tasarım turu, 2. not). Dosya hücreye
+      // AÇIKÇA bir yazı tipi verdiyse ona dokunulmaz — sadakat önce gelir.
+      fontFamily: numeric && s?.fontFamily == null
+          ? AppTheme.fontMono
+          : _mapFont(s?.fontFamily),
+      height: 1.15,
+    );
+  }
 
   /// Hücrenin metin kutusundaki **yatay boşluk** (her iki yandaki dolgu +
   /// girinti). Ölçüm bunu düşmeli, yoksa metin bir tık erken taşmış sayılır.
@@ -432,16 +457,39 @@ class _CellBorderPainter extends CustomPainter {
     this.sparkColor,
   });
 
+  static final Paint _fillPaint = Paint();
+  static final Paint _strokePaint = Paint()..style = PaintingStyle.stroke;
+  static final Paint _gridPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 0.5;
+
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
+    final b = border;
+    final grid = gridColor;
+    if (background == null &&
+        barRatio == null &&
+        sparkValues == null &&
+        iconColor == null &&
+        selectionFill == null &&
+        b == null &&
+        selection == null &&
+        rangeEdges == 0 &&
+        refColor == null) {
+      if (grid != null) {
+        canvas.drawRect(rect, _gridPaint..color = grid);
+      }
+      return;
+    }
+
     if (background != null) {
-      canvas.drawRect(rect, Paint()..color = background!);
+      canvas.drawRect(rect, _fillPaint..color = background!);
     }
     if (barRatio != null && barColor != null) {
       canvas.drawRect(
         Rect.fromLTWH(0, 1, size.width * barRatio!, size.height - 2),
-        Paint()..color = barColor!.withValues(alpha: 0.45),
+        _fillPaint..color = barColor!.withValues(alpha: 0.45),
       );
     }
     if (sparkValues != null && sparkColor != null) {
@@ -450,53 +498,43 @@ class _CellBorderPainter extends CustomPainter {
     }
     if (iconColor != null) {
       final r = math.min(size.height * 0.22, 5.0);
-      canvas.drawCircle(Offset(r + 3, size.height / 2), r, Paint()..color = iconColor!);
+      canvas.drawCircle(
+          Offset(r + 3, size.height / 2), r, _fillPaint..color = iconColor!);
     }
     if (selectionFill != null) {
-      canvas.drawRect(rect, Paint()..color = selectionFill!);
+      canvas.drawRect(rect, _fillPaint..color = selectionFill!);
     }
 
     // Izgara çizgileri (Excel'in soluk ızgarası) — kenarlık tanımlıysa onun
     // yerine gerçek kenarlık çizilir.
-    final b = border;
-    final grid = gridColor;
     if (b == null) {
       if (grid != null) {
-        canvas.drawRect(
-            rect,
-            Paint()
-              ..color = grid
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 0.5);
+        canvas.drawRect(rect, _gridPaint..color = grid);
       }
     } else {
-      Paint? gridPaint;
       void side(XlsxBorderSide? s, Offset p1, Offset p2) {
         if (s != null && s.visible) {
-          final paint = Paint()
+          _strokePaint
             ..color = Color(s.colorArgb ?? 0xFF000000)
-            ..strokeWidth = s.width
-            ..style = PaintingStyle.stroke;
+            ..strokeWidth = s.width;
           if (s.style == 'double') {
             final d =
                 (p1.dy == p2.dy) ? const Offset(0, 1.5) : const Offset(1.5, 0);
-            canvas.drawLine(p1 - d, p2 - d, paint..strokeWidth = 1);
-            canvas.drawLine(p1 + d, p2 + d, paint..strokeWidth = 1);
+            _strokePaint.strokeWidth = 1;
+            canvas.drawLine(p1 - d, p2 - d, _strokePaint);
+            canvas.drawLine(p1 + d, p2 + d, _strokePaint);
             return;
           }
           if (s.style.toLowerCase().contains('dash') ||
               s.style.toLowerCase().contains('dot')) {
-            _dashed(canvas, p1, p2, paint);
+            _dashed(canvas, p1, p2, _strokePaint);
             return;
           }
-          canvas.drawLine(p1, p2, paint);
+          canvas.drawLine(p1, p2, _strokePaint);
           return;
         }
         if (grid == null) return;
-        final gp = gridPaint ??= Paint()
-          ..color = grid
-          ..strokeWidth = 0.5;
-        canvas.drawLine(p1, p2, gp);
+        canvas.drawLine(p1, p2, _gridPaint..color = grid);
       }
 
       side(b.top, Offset.zero, Offset(size.width, 0));
@@ -508,9 +546,8 @@ class _CellBorderPainter extends CustomPainter {
     if (selection != null) {
       canvas.drawRect(
         rect.deflate(1),
-        Paint()
+        _strokePaint
           ..color = selection!
-          ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
     }
@@ -522,7 +559,7 @@ class _CellBorderPainter extends CustomPainter {
   static void _edges(
       Canvas canvas, Size size, int edges, Color color, double w) {
     if (edges == 0) return;
-    final p = Paint()
+    final p = _strokePaint
       ..color = color
       ..strokeWidth = w;
     final h = w / 2;

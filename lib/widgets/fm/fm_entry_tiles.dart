@@ -1,5 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
+import 'package:flutter/rendering.dart';
 
 import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
@@ -28,8 +30,14 @@ import '../motion.dart';
 
 /// [tag] varsa [child]'ı Hero'ya sarar (Ferrari H6.3). "Animasyonları
 /// kaldır" açıkken uçuş yok — galeri düz açılır.
-Widget fmHero(String? tag, Widget child) {
+Widget fmHero(String? tag, Widget child, {bool? reducedMotion}) {
   if (tag == null) return child;
+  if (reducedMotion != null) {
+    return HeroMode(
+      enabled: !reducedMotion,
+      child: Hero(tag: tag, child: child),
+    );
+  }
   return Builder(
     builder: (context) => HeroMode(
       enabled: !Motion.reduced(context),
@@ -225,6 +233,10 @@ class FmEntryRow extends StatelessWidget {
   final bool showDivider;
   final bool? thumbsOn;
   final double? dpr;
+  final double? minRowHeight;
+  final bool? largeText;
+  final double? iconScale;
+  final bool? reducedMotion;
 
   const FmEntryRow({
     super.key,
@@ -251,6 +263,10 @@ class FmEntryRow extends StatelessWidget {
     this.showDivider = false,
     this.thumbsOn,
     this.dpr,
+    this.minRowHeight,
+    this.largeText,
+    this.iconScale,
+    this.reducedMotion,
   });
 
   static final Listenable _metaListenable = Listenable.merge([
@@ -264,9 +280,10 @@ class FmEntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final iconSize = layout.iconSizeFor(0) * context.fmIconScale;
+    final iconSize = layout.iconSizeFor(0) * (iconScale ?? context.fmIconScale);
     final vPad = layout == FmLayout.detail ? 12.0 : 10.0;
-    final minRow = MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0;
+    final minRow = minRowHeight ??
+        (MediaQuery.sizeOf(context).width >= 840 ? 72.0 : 64.0);
     final more = _trailing(context, scheme);
     final visibleName = NameSpoof.visible(entry.name);
     final deceptiveExt = NameSpoof.deceptiveExtension(entry.name);
@@ -291,7 +308,8 @@ class FmEntryRow extends StatelessWidget {
           ? baseStyle
           : baseStyle?.copyWith(
               color: dateColor, fontWeight: FontWeight.w600);
-      final largeText = MediaQuery.textScalerOf(context).scale(12) > 17.5;
+      final largeText =
+          this.largeText ?? (MediaQuery.textScalerOf(context).scale(12) > 17.5);
 
       Widget leftText() => Text(
             bidiParts(context, left),
@@ -354,16 +372,10 @@ class FmEntryRow extends StatelessWidget {
       if (date.isEmpty && size.isEmpty) return leftText();
       // Tarih/boyut bloğu satır genişliğiyle SINIRLI (dar ekranda 5 px
       // taşma a11y testinde yakalandı); kaynak kalan yeri alır.
-      return LayoutBuilder(
-        builder: (context, c) => Row(
-          children: [
-            Flexible(child: leftText()),
-            ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: c.maxWidth),
-              child: trailingDateAndSize(lead: ' · '),
-            ),
-          ],
-        ),
+      return _MetaBarRow(
+        left: leftText(),
+        trailing: trailingDateAndSize(lead: ' · '),
+        textDirection: Directionality.of(context),
       );
     }
 
@@ -500,6 +512,7 @@ class FmEntryRow extends StatelessWidget {
                                 thumbsOn: thumbsOn,
                                 dpr: dpr,
                               ),
+                              reducedMotion: reducedMotion,
                             ),
                             iconSize,
                           ),
@@ -654,6 +667,7 @@ class FmEntryCard extends StatelessWidget {
   final Iterable<String>? tags;
   final bool? thumbsOn;
   final double? dpr;
+  final bool? reducedMotion;
 
   /// Ad şeridinin yüksekliği (iki satır `bodySmall`).
   static const _labelHeight = 34.0;
@@ -670,6 +684,7 @@ class FmEntryCard extends StatelessWidget {
     this.tags,
     this.thumbsOn,
     this.dpr,
+    this.reducedMotion,
   });
 
   @override
@@ -744,7 +759,8 @@ class FmEntryCard extends StatelessWidget {
                               radius: (iconSize * 0.12).clamp(6.0, 20.0),
                               thumbsOn: thumbsOn,
                               dpr: dpr,
-                            )),
+                            ),
+                            reducedMotion: reducedMotion),
                         SizedBox(
                           height: labelH,
                           child: Padding(
@@ -914,4 +930,114 @@ class FmEntryName extends StatelessWidget {
       style: style,
     );
   }
+}
+
+class _MetaBarParentData extends ContainerBoxParentData<RenderBox> {}
+
+/// Tek geçişli alt bilgi şeridi: soldaki kaynak metni sıkışırken sağdaki
+/// tarih/boyut bloğu asla kesilmeden sığdığı genişliğe oturur.
+class _MetaBarRow extends MultiChildRenderObjectWidget {
+  final TextDirection textDirection;
+
+  _MetaBarRow({
+    required Widget left,
+    required Widget trailing,
+    required this.textDirection,
+  }) : super(children: [left, trailing]);
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMetaBarRow(textDirection);
+
+  @override
+  void updateRenderObject(
+      BuildContext context, _RenderMetaBarRow renderObject) {
+    renderObject.textDirection = textDirection;
+  }
+}
+
+class _RenderMetaBarRow extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _MetaBarParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _MetaBarParentData> {
+  TextDirection _textDirection;
+
+  _RenderMetaBarRow(this._textDirection);
+
+  set textDirection(TextDirection value) {
+    if (_textDirection == value) return;
+    _textDirection = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _MetaBarParentData) {
+      child.parentData = _MetaBarParentData();
+    }
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final leftChild = firstChild;
+    final trailingChild = leftChild == null ? null : childAfter(leftChild);
+    if (leftChild == null || trailingChild == null) {
+      return constraints.constrain(Size.zero);
+    }
+    final maxW = constraints.maxWidth;
+    final trailingSize =
+        trailingChild.getDryLayout(BoxConstraints(maxWidth: maxW));
+    final remW = maxW.isFinite ? math.max(0.0, maxW - trailingSize.width) : maxW;
+    final leftSize = leftChild.getDryLayout(BoxConstraints(maxWidth: remW));
+    final w = maxW.isFinite
+        ? constraints.constrainWidth(maxW)
+        : constraints.constrainWidth(leftSize.width + trailingSize.width);
+    final h = constraints
+        .constrainHeight(math.max(leftSize.height, trailingSize.height));
+    return Size(w, h);
+  }
+
+  @override
+  void performLayout() {
+    final leftChild = firstChild;
+    final trailingChild = leftChild == null ? null : childAfter(leftChild);
+    if (leftChild == null || trailingChild == null) {
+      size = constraints.constrain(Size.zero);
+      return;
+    }
+    final maxW = constraints.maxWidth;
+    trailingChild.layout(BoxConstraints(maxWidth: maxW), parentUsesSize: true);
+    final remW = maxW.isFinite
+        ? math.max(0.0, maxW - trailingChild.size.width)
+        : maxW;
+    leftChild.layout(BoxConstraints(maxWidth: remW), parentUsesSize: true);
+    final w = maxW.isFinite
+        ? constraints.constrainWidth(maxW)
+        : constraints.constrainWidth(
+            leftChild.size.width + trailingChild.size.width);
+    final h = constraints.constrainHeight(
+        math.max(leftChild.size.height, trailingChild.size.height));
+    size = Size(w, h);
+
+    final leftDy = (h - leftChild.size.height) / 2;
+    final trailingDy = (h - trailingChild.size.height) / 2;
+    final leftPd = leftChild.parentData! as _MetaBarParentData;
+    final trailingPd = trailingChild.parentData! as _MetaBarParentData;
+    if (_textDirection == TextDirection.ltr) {
+      leftPd.offset = Offset(0, leftDy);
+      trailingPd.offset = Offset(leftChild.size.width, trailingDy);
+    } else {
+      leftPd.offset = Offset(w - leftChild.size.width, leftDy);
+      trailingPd.offset =
+          Offset(w - leftChild.size.width - trailingChild.size.width, trailingDy);
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
 }

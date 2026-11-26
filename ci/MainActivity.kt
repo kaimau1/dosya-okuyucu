@@ -1093,6 +1093,15 @@ class MainActivity : FlutterActivity() {
                             }
                         }.start()
                     }
+                    "appSizesSummary" -> {
+                        val top = call.argument<Int>("top") ?: 3
+                        Thread {
+                            val summary = appSizesSummary(top)
+                            Handler(Looper.getMainLooper()).post {
+                                result.success(summary)
+                            }
+                        }.start()
+                    }
 
                     // Son AÇILMA zamanı. Ağır olabilir (yüzlerce paket) →
                     // arka izlek.
@@ -1655,6 +1664,65 @@ class MainActivity : FlutterActivity() {
             }
         }
         return out
+    }
+
+    /**
+     * Depolama özeti kartı için sistem-dışı ve başlatılabilir uygulamaların
+     * toplam boyutunu doğrudan Android `PackageManager` + `StorageStatsManager`
+     * üzerinden hesaplar; uygulama etiketini (`getApplicationLabel`, APK
+     * kaynaklarını açtığı için pahalı) YALNIZ en büyük [topCount] paket için
+     * okur.
+     */
+    private fun appSizesSummary(topCount: Int): Map<String, Any>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        if (!hasUsageAccess()) return null
+        val stats = try {
+            getSystemService(Context.STORAGE_STATS_SERVICE) as StorageStatsManager
+        } catch (e: Exception) {
+            return null
+        }
+        val pm = packageManager
+        val user = Process.myUserHandle()
+        var total = 0L
+        var cache = 0L
+        val ranked = ArrayList<Pair<android.content.pm.ApplicationInfo, Long>>()
+        val apps = try {
+            pm.getInstalledApplications(0)
+        } catch (e: Exception) {
+            return null
+        }
+        for (app in apps) {
+            if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0) continue
+            if (pm.getLaunchIntentForPackage(app.packageName) == null) continue
+            try {
+                val s = stats.queryStatsForPackage(
+                    StorageManager.UUID_DEFAULT, app.packageName, user
+                )
+                val appTotal = s.appBytes + s.dataBytes
+                total += appTotal
+                cache += s.cacheBytes
+                ranked.add(Pair(app, appTotal))
+            } catch (e: Exception) {
+                // Kaldırılmış / okunamayan paket: atla.
+            }
+        }
+        ranked.sortByDescending { it.second }
+        val limit = topCount.coerceAtLeast(0).coerceAtMost(ranked.size)
+        val topList = ArrayList<List<Any>>(limit)
+        for (i in 0 until limit) {
+            val (info, bytes) = ranked[i]
+            val label = try {
+                pm.getApplicationLabel(info).toString()
+            } catch (e: Exception) {
+                info.packageName
+            }
+            topList.add(listOf(label, bytes))
+        }
+        return hashMapOf(
+            "totalBytes" to total,
+            "cacheBytes" to cache,
+            "top" to topList,
+        )
     }
 
     /**

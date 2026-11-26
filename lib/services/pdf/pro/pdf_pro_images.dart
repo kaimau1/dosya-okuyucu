@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
+import '../../../core/image_decode.dart';
 import '../../document_scanner.dart';
 import 'pdf_edit_bridge.dart';
 
@@ -44,7 +45,7 @@ abstract final class PdfProImages {
   /// yazar. Çözülemezse null.
   static Future<PdfPreparedImage?> prepare(Uint8List bytes) async {
     final out = await Isolate.run(() {
-      final im = img.decodeImage(bytes);
+      final im = decodeCommonImage(bytes);
       if (im == null) return null;
       var pic = img.bakeOrientation(im);
       final long = pic.width > pic.height ? pic.width : pic.height;

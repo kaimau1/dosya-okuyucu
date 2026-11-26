@@ -145,11 +145,6 @@ const Map<String, (String, String, String)> _t3 = {
     'Start the service to reach the files over the network.',
     'ابدأ الخدمة للوصول إلى الملفات عبر الشبكة.',
   ),
-  'ftpd.hint': (
-    'Yukarıdaki adresi PC\'de bir dosya gezginine yazın.',
-    'Type the address above into a file explorer on your PC.',
-    'اكتب العنوان أعلاه في مستكشف الملفات على حاسوبك.',
-  ),
   // İki kapı, tek paylaşım: tarayıcı (her cihaz, dosyayı AÇAR) ve FTP
   // (Gezgin, sürükle-bırak yazma). Bkz. HttpShareServer — kullanıcı hatası
   // 2026-08-29: "Edge açılıyor ama dosya açılmıyor".
@@ -215,8 +210,6 @@ const Map<String, (String, String, String)> _t3 = {
   'ftpd.start': ('BAŞLAT', 'START', 'ابدأ'),
   'ftpd.stop': ('HİZMETİ DURDUR', 'STOP THE SERVICE', 'أوقف الخدمة'),
   'ftpd.running': ('Çalışıyor', 'Running', 'قيد التشغيل'),
-  'ftpd.stopped': ('Durdu', 'Stopped', 'متوقف'),
-  'ftpd.address': ('Adres', 'Address', 'العنوان'),
   'ftpd.no_address': (
     'Wi-Fi bağlantısı bulunamadı. Telefonu bir Wi-Fi ağına bağlayın.',
     'No Wi-Fi connection found. Connect the phone to a Wi-Fi network.',
@@ -230,11 +223,6 @@ const Map<String, (String, String, String)> _t3 = {
         'DELETE files on the phone.',
     'عند الإيقاف، يمكن للحاسوب القراءة فقط. عند التفعيل، يمكنه تعديل وحذف ملفات '
         'الهاتف.',
-  ),
-  'ftpd.anonymous_warning': (
-    'Kullanıcı adı boş: AYNI AĞDAKİ HERKES parolasız bağlanabilir.',
-    'Username is empty: ANYONE ON THE SAME NETWORK can connect without a password.',
-    'اسم المستخدم فارغ: يمكن لأي شخص على نفس الشبكة الاتصال بدون كلمة مرور.',
   ),
 
   // ── Paylaşılacak klasör seçimi (kullanıcı isteği 2026-08-31) ─────────────
@@ -562,11 +550,6 @@ const Map<String, (String, String, String)> _t3 = {
   'word.highlight': ('Vurgu rengi', 'Highlight', 'لون التمييز'),
   'word.bullets': ('Madde işareti', 'Bullets', 'تعداد نقطي'),
   'word.numbering': ('Numaralandırma', 'Numbering', 'تعداد رقمي'),
-  'word.rewrite_selection': (
-    'Seçimi akıllı düzelt',
-    'Smart-fix selection',
-    'تصحيح ذكي للتحديد',
-  ),
   'word.translate_selection': (
     'Seçimi çevir',
     'Translate selection',
@@ -598,11 +581,6 @@ const Map<String, (String, String, String)> _t3 = {
     'Kaydedilemedi: {error}',
     'Could not save: {error}',
     'تعذّر الحفظ: {error}',
-  ),
-  'word.rtl_document': (
-    'Sağdan sola belge',
-    'Right-to-left document',
-    'مستند من اليمين إلى اليسار',
   ),
 
   // ── Excel ─────────────────────────────────────────────────────────────────
@@ -641,11 +619,6 @@ const Map<String, (String, String, String)> _t3 = {
     'Varsayılan ({value})',
     'Default ({value})',
     'الافتراضي ({value})',
-  ),
-  'excel.freeze_panes': (
-    'Bölmeleri dondur (dosyadaki gibi)',
-    'Freeze panes (as in the file)',
-    'تجميد الأجزاء (كما في الملف)',
   ),
   'excel.unfreeze_panes': (
     'Bölmeleri çöz (sabit satır/sütun)',
@@ -699,11 +672,6 @@ const Map<String, (String, String, String)> _t3 = {
     'Seçili: {n} hücre  ·  Dolu: {filled}',
     'Selected: {n} cells  ·  Filled: {filled}',
     'المحدد: {n} خلية  ·  المملوءة: {filled}',
-  ),
-  'excel.selection_stats': (
-    'Ortalama: {avg}  ·  Sayı: {count}  ·  Toplam: {sum}',
-    'Average: {avg}  ·  Count: {count}  ·  Sum: {sum}',
-    'المتوسط: {avg}  ·  العدد: {count}  ·  المجموع: {sum}',
   ),
   'excel.csv_encoding': ('CSV kodlaması', 'CSV encoding', 'ترميز CSV'),
   'excel.save_csv': ('CSV olarak dışa aktar', 'Export as CSV', 'التصدير بصيغة CSV'),
@@ -821,7 +789,6 @@ const Map<String, (String, String, String)> _t3 = {
         'الاستعادة من هذه النسخة.',
   ),
   'fm.apps': ('Uygulamalar', 'Apps', 'التطبيقات'),
-  'fm.files': ('Dosyalar', 'Files', 'الملفات'),
   'fm.calc_size': ('Boyutu hesapla', 'Calculate size', 'حساب الحجم'),
   'fm.copy_path': ('Yolu kopyala', 'Copy path', 'نسخ المسار'),
   'fm.new_xlsx': (

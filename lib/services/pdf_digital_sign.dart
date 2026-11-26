@@ -25,7 +25,13 @@ import 'dart:ui' show Rect;
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:pointycastle/export.dart';
+import 'package:pointycastle/api.dart';
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/digests/sha256.dart';
+import 'package:pointycastle/key_generators/api.dart';
+import 'package:pointycastle/key_generators/rsa_key_generator.dart';
+import 'package:pointycastle/random/fortuna_random.dart';
+import 'package:pointycastle/signers/rsa_signer.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import 'pdf/der.dart';

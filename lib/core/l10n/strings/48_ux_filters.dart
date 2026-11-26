@@ -28,11 +28,6 @@ const Map<String, (String, String, String)> _t48 = {
     'Clean up & organise',
     'التنظيف والتنظيم',
   ),
-  'an.tools_explore': (
-    'Keşif ve akıllı analiz',
-    'Explore & smart insights',
-    'الاستكشاف والتحليل الذكي',
-  ),
   'ct.group_quick_create': ('Hızlı oluştur', 'Quick create', 'إنشاء سريع'),
   'cln.temp_junk': (
     'Geçici ve yarım dosyalar',

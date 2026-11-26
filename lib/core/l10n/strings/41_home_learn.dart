@@ -13,44 +13,6 @@ const Map<String, (String, String, String)> _t41 = {
   ),
 
   // Görselde ne var?
-  'iin.ai_title': (
-    'Akıllı kısa özet',
-    'Smart summary',
-    'ملخص ذكي',
-  ),
-  'iin.ai_working': (
-    'Akıllı özet hazırlanıyor…',
-    'Preparing the smart summary…',
-    'جارٍ إعداد الملخص الذكي…',
-  ),
-  'iin.ai_offer': (
-    'Görselde ne olduğunu iki cümleyle anlatsın mı?',
-    'Get a two-sentence description of the image?',
-    'هل تريد وصفًا للصورة في جملتين؟',
-  ),
-  'iin.ai_run': (
-    'Akıllı özetle',
-    'Smart summary',
-    'تلخيص ذكي',
-  ),
-  'iin.ai_blocked': (
-    'Bu klasör akıllı özelliklerin kapsamı dışında; görsel gönderilmedi.',
-    'This folder is outside the scope of smart features; the image was not sent.',
-    'هذا المجلد خارج نطاق الميزات الذكية؛ لم تُرسل الصورة.',
-  ),
-  'iin.ai_offline': (
-    'Çevrimdışı kip açık; akıllı özet yapılmadı.',
-    'Offline mode is on; no smart summary.',
-    'وضع عدم الاتصال مفعّل؛ لم يُنشأ ملخص ذكي.',
-  ),
-  'iin.ai_empty': (
-    'Bu görsel için açıklama çıkarılamadı.',
-    'No description could be made for this image.',
-    'تعذّر إنشاء وصف لهذه الصورة.',
-  ),
-  'iin.lines': ('{n} satır yazı', '{n} lines of text', '{n} سطر نص'),
-  'iin.text_title': ('Görseldeki yazı', 'Text in the image', 'النص في الصورة'),
-  'iin.copied': ('Kopyalandı', 'Copied', 'تم النسخ'),
 
   // Akıllı klasör düzeni.
   'smo.hint': (

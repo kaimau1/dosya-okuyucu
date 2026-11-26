@@ -4,76 +4,6 @@ part of '../app_strings.dart';
 /// yazma, biçim çubuğu, bul-değiştir, nesne/işaretleme araçları, yorum paneli,
 /// AI ile yerinde yeniden yazım.
 const Map<String, (String, String, String)> _t35 = {
-  'pse.ai_accept': (
-    'Kabul et',
-    'Accept',
-    'قبول',
-  ),
-  'pse.ai_after': (
-    'Öneri',
-    'Suggestion',
-    'الاقتراح',
-  ),
-  'pse.ai_before': (
-    'Şimdiki metin',
-    'Current text',
-    'النص الحالي',
-  ),
-  'pse.ai_failed': (
-    'Akıllı işlem yapılamadı: {error}',
-    'The smart action failed: {error}',
-    'تعذّر تنفيذ الإجراء الذكي: {error}',
-  ),
-  'pse.ai_formal': (
-    'Resmileştir',
-    'Make formal',
-    'صياغة رسمية',
-  ),
-  'pse.ai_grammar': (
-    'Yazım ve dilbilgisini düzelt',
-    'Fix spelling and grammar',
-    'تصحيح الإملاء والقواعد',
-  ),
-  'pse.ai_pick_block': (
-    'Yerinde yeniden yazmak için önce bir paragraf seçin. İsterseniz belgenin tamamını "Akıllı düzenle" ile düzenleyebilirsiniz.',
-    'Select a paragraph first to rewrite it in place. You can also edit the whole document with "Smart edit".',
-    'حدّد فقرة أولًا لإعادة كتابتها في مكانها. ويمكنك أيضًا تحرير المستند كله عبر "تحرير ذكي".',
-  ),
-  'pse.ai_rewrite': (
-    'Yeniden yaz',
-    'Rewrite',
-    'إعادة الصياغة',
-  ),
-  'pse.ai_same': (
-    'Değiştirilecek bir şey bulunamadı.',
-    'Nothing to change was found.',
-    'لم يُعثر على شيء لتغييره.',
-  ),
-  'pse.ai_shorten': (
-    'Kısalt',
-    'Shorten',
-    'اختصار',
-  ),
-  'pse.ai_suggestion': (
-    'Akıllı öneri',
-    'Smart suggestion',
-    'اقتراح ذكي',
-  ),
-  'pse.ai_translate': (
-    'Çevir',
-    'Translate',
-    'ترجمة',
-  ),
-  'pse.ai_whole': (
-    'Belgenin tamamı',
-    'Whole document',
-    'المستند كله',
-  ),
-  'pse.ai_working': (
-    'Akıllı işlem sürüyor…',
-    'Smart action in progress…',
-    'الإجراء الذكي قيد التنفيذ…',
-  ),
   'pse.al_center': (
     'Ortala',
     'Center',
@@ -93,16 +23,6 @@ const Map<String, (String, String, String)> _t35 = {
     'Sağa yasla',
     'Align right',
     'محاذاة لليمين',
-  ),
-  'pse.block_merge': (
-    'Alttakiyle birleştir',
-    'Merge with next',
-    'دمج مع التالي',
-  ),
-  'pse.block_split': (
-    'Bloğu böl',
-    'Split block',
-    'تقسيم الكتلة',
   ),
   'pse.comment_edit': (
     'Notu düzenle',
@@ -641,11 +561,6 @@ const Map<String, (String, String, String)> _t35 = {
     'Select all',
     'تحديد الكل',
   ),
-  'pse.step_ai': (
-    'Akıllı düzenlemeyle yeniden yazıldı',
-    'Rewritten with smart edit',
-    'أُعيدت الكتابة بالتحرير الذكي',
-  ),
   'pse.step_crop': (
     'Görsel kırpıldı',
     'Image cropped',
@@ -756,16 +671,6 @@ const Map<String, (String, String, String)> _t35 = {
     'Paste style',
     'لصق النمط',
   ),
-  'pse.textbox_add': (
-    'Metin kutusu',
-    'Text box',
-    'مربع نص',
-  ),
-  'pse.tool_ai': (
-    'Akıllı düzenle',
-    'Smart edit',
-    'تحرير ذكي',
-  ),
   'pse.tool_all': (
     'Tüm PDF araçları',
     'All PDF tools',
@@ -790,11 +695,6 @@ const Map<String, (String, String, String)> _t35 = {
     'İşaretle',
     'Markup',
     'تمييز',
-  ),
-  'pse.tool_more': (
-    'Daha fazla',
-    'More',
-    'المزيد',
   ),
   'pse.tool_pages': (
     'Sayfalar',

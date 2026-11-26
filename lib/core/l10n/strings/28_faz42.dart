@@ -26,11 +26,6 @@ const Map<String, (String, String, String)> _t28 = {
   'alias.manual': ('İkinci ad ver', 'Give a second name', 'إعطاء اسم ثانٍ'),
   'alias.label': ('İkinci ad (dosyanın adı değişmez)', 'Second name (file name stays)', 'الاسم الثاني (يبقى اسم الملف)'),
   'alias.saved': ('İkinci ad: {name}', 'Second name: {name}', 'الاسم الثاني: {name}'),
-  'alias.busy': (
-    'Akıllı analiz zaten sürüyor; bitince yeniden deneyin.',
-    'Smart analysis is already running; try again when it finishes.',
-    'التحليل الذكي قيد التشغيل؛ أعد المحاولة عند انتهائه.',
-  ),
   'skin.classic': ('Klasik', 'Classic', 'كلاسيكي'),
   'skin.classic_sub': ('Sarı klasörler, sade sayfa simgeleri — eski tip dosya yöneticisi', 'Yellow folders, plain page icons — old-school file manager', 'مجلدات صفراء وأيقونات صفحات بسيطة — مدير ملفات كلاسيكي'),
   'skin.ledger': ('Defter', 'Ledger', 'دفتر'),

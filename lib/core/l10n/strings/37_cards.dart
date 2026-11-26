@@ -53,7 +53,6 @@ const Map<String, (String, String, String)> _t37 = {
   ),
   'card.section': ('Kartlarım', 'My cards', 'بطاقاتي'),
   'card.tile_sub_empty': ('Boş', 'Empty', 'فارغة'),
-  'card.new_tile_sub': ('Kendi kartını oluştur', 'Create your own card', 'أنشئ بطاقتك'),
   // ── Kısayol oluştur / Hızlı klasörler (2026-11-15) ──
   'dash.backup': ('Düzeni kaydet · yeni cihaza aktar', 'Save layout · move to a new device', 'حفظ التخطيط · النقل إلى جهاز جديد'),
   'qf.make_shortcut': ('Kısayol oluştur', 'Create shortcut', 'إنشاء اختصار'),

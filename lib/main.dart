@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/memory_pressure.dart';
 import 'core/route_guard.dart';
 import 'core/third_party_licenses.dart';
 import 'core/app_navigator.dart';
@@ -15,6 +16,11 @@ import 'core/navigator_guard.dart';
 import 'core/app_state.dart';
 import 'core/device_profile.dart';
 import 'core/startup_queue.dart';
+import 'services/fm/installed_apps_service.dart';
+import 'services/fm/thumbnail_cache.dart';
+import 'services/pdf/pdf_pending_objects.dart';
+import 'services/pdf/pro/pdf_fallback_fonts.dart';
+import 'widgets/sheet_cell.dart';
 import 'widgets/permission_gate.dart';
 import 'core/state/appearance_state.dart';
 import 'core/state/focused_states.dart';
@@ -120,6 +126,16 @@ Future<void> _main() async {
   // orta profil; cihaz bilgisi okununca [_applyPerfBudget] günceller.
   _applyPerfBudget();
   DeviceProfile.tier.addListener(_applyPerfBudget);
+  MemoryPressure.register((critical) {
+    InstalledAppsService.trimMemory(keepSummary: !critical);
+    ThumbnailCache.trimMemory(critical: critical);
+    SheetCell.clearReadableCache();
+    PdfFallbackFonts.clear();
+    PdfPendingWriter.clearFontCache();
+    if (critical) {
+      PaintingBinding.instance.imageCache.clearLiveImages();
+    }
+  });
   // Kenardan kenara çizim: içerik sistem çubuklarının altına uzanır,
   // çakışmaları ekranlardaki SafeArea/padding çözer.
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -615,9 +631,36 @@ class DosyaOkuyucuApp extends StatefulWidget {
 /// `build` içinde yaratmak onu her seferinde SIFIRDAN yaratmak, yani rota
 /// sayacını sıfırlamak demekti (sonra gelen ilk `pop` sayacı eksiye düşürüp
 /// kurtarmayı boş yere tetiklerdi). Tek örnek burada, `State`te yaşıyor.
-class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp> {
+class _DosyaOkuyucuAppState extends State<DosyaOkuyucuApp>
+    with WidgetsBindingObserver {
   late final _stackGuard = NavigatorStackGuard((_) =>
       widget.picker ? const PickFileScreen() : const HomeScreen());
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.hidden) {
+      MemoryPressure.dispatch(critical: false);
+    }
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    super.didHaveMemoryPressure();
+    MemoryPressure.dispatch(critical: true);
+  }
 
   @override
   Widget build(BuildContext context) {

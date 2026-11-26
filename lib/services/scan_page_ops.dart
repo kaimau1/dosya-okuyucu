@@ -10,6 +10,7 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/image_decode.dart';
 import 'perspective.dart' show solveHomography;
 import 'scan_enhance.dart' show ScanEnhance;
 
@@ -99,7 +100,7 @@ abstract final class ScanPageOps {
     final bytes = File(req.source).readAsBytesSync();
     img.Image? raw;
     try {
-      raw = img.decodeImage(bytes);
+      raw = decodeCommonImage(bytes);
     } catch (_) {
       raw = null;
     }
@@ -217,7 +218,7 @@ abstract final class ScanPageOps {
   static img.Image? decode(Uint8List bytes) {
     img.Image? image;
     try {
-      image = img.decodeImage(bytes);
+      image = decodeCommonImage(bytes);
     } catch (_) {
       return null;
     }

@@ -30,8 +30,16 @@ class CellRef {
   @override
   String toString() => '${colName(col)}${row + 1}';
 
+  static final List<String> _colNames =
+      List<String>.generate(256, _computeColName, growable: false);
+
   /// 0 tabanlı sütun indeksi → "A", "B", … "AA".
   static String colName(int index) {
+    if (index >= 0 && index < _colNames.length) return _colNames[index];
+    return _computeColName(index);
+  }
+
+  static String _computeColName(int index) {
     var n = index + 1;
     final out = <int>[];
     while (n > 0) {

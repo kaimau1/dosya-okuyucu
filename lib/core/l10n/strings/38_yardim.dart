@@ -91,9 +91,4 @@ const Map<String, (String, String, String)> _t38 = {
   'atr.result': ('Sonuç {t}', 'Result {t}', 'النتيجة {t}'),
   'atr.failed': ('Bu ses dosyası açılamadı.', 'This audio file could not be opened.', 'تعذر فتح ملف الصوت هذا.'),
   'atr.job': ('Ses kesiliyor: {name}', 'Trimming audio: {name}', 'جارٍ قص الصوت: {name}'),
-  'aif.check_hint': (
-    'Kutuları işaretle, alttan toplu uygula',
-    'Tick the boxes, apply together below',
-    'حدد المربعات وطبّق معًا بالأسفل',
-  ),
 };

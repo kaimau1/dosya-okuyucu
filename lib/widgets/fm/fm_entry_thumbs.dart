@@ -7,12 +7,14 @@ class _SniffedImage extends StatefulWidget {
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   const _SniffedImage({
     required this.path,
     required this.size,
     required this.fallback,
     this.radius = Radii.control,
+    this.dpr,
   });
 
   @override
@@ -54,7 +56,7 @@ class _SniffedImageState extends State<_SniffedImage> {
         image: FmFileImage(widget.path,
             cover: true,
             cacheWidth: fmThumbWidth(widget.size,
-                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+                widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
         height: widget.size,
         fit: BoxFit.cover,
@@ -75,12 +77,14 @@ class _ApkIconImage extends StatefulWidget {
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   const _ApkIconImage({
     required this.path,
     required this.size,
     required this.fallback,
     this.radius = Radii.control,
+    this.dpr,
   });
 
   @override
@@ -120,7 +124,7 @@ class _ApkIconImageState extends State<_ApkIconImage> {
       borderRadius: BorderRadius.circular(widget.radius),
       child: Image(
         image: FmFileImage(icon, cacheWidth: fmThumbWidth(widget.size,
-                MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+                widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
         width: widget.size,
         height: widget.size,
         // `contain`: uygulama simgeleri kare ama kenar boşluklu olabiliyor;
@@ -144,6 +148,7 @@ class _PdfThumb extends StatefulWidget {
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   /// Kapak üreticisi (yol, piksel boyu); verilmezse PDF'in ilk sayfası.
   /// Office belgeleri aynı "kâğıt" çerçevesini kullanır.
@@ -156,6 +161,7 @@ class _PdfThumb extends StatefulWidget {
     this.ext = 'pdf',
     this.radius = Radii.control,
     this.loader,
+    this.dpr,
   });
 
   @override
@@ -237,7 +243,7 @@ class _PdfThumbState extends State<_PdfThumb> {
         thumb,
         cacheWidth: fmThumbWidth(
           widget.size,
-          MediaQuery.maybeDevicePixelRatioOf(context) ?? 3,
+          widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3,
         ),
       ),
       width: widget.size,
@@ -463,6 +469,7 @@ class _VideoThumb extends StatefulWidget {
   final double size;
   final double radius;
   final Widget fallback;
+  final double? dpr;
 
   const _VideoThumb({
     required this.path,
@@ -470,6 +477,7 @@ class _VideoThumb extends StatefulWidget {
     required this.fallback,
     this.modifiedMs = 0,
     this.radius = Radii.control,
+    this.dpr,
   });
 
   @override
@@ -610,7 +618,7 @@ class _VideoThumbState extends State<_VideoThumb> {
             image: FmFileImage(thumb,
                 cover: true,
                 cacheWidth: fmThumbWidth(widget.size,
-                    MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
+                    widget.dpr ?? MediaQuery.maybeDevicePixelRatioOf(context) ?? 3)),
             width: widget.size,
             height: widget.size,
             fit: BoxFit.cover,

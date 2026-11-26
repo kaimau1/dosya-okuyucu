@@ -654,7 +654,7 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
   /// klavye her satırda kapanıp açılıyordu. Bir sütuna arka arkaya veri girmek
   /// (kullanıcı 2026-08-17: *"karelere veri girişi çok zor"*) bu yüzden her
   /// satırda iki fazladan dokunuş istiyordu. Excel'de Enter zinciri kesmez.
-  void _commitAndMoveDown(int rowCount) {
+  void _commitAndMoveDown() {
     final wasEditing = _editing;
     _endEdit();
     _growTo(_selRow + 1, _selCol);
