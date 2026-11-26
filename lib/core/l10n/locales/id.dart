@@ -1052,4 +1052,315 @@ const Map<String, String> _id = {
       'Maju',
   'pt.backward':
       'Mundur',
+  // ── PDF pro araçları pp (m.3) ──
+  'pp.menu':
+      'Alat Pro…',
+  'pp.title':
+      'Alat pro PDF',
+  'pp.dsign':
+      'Tanda tangan digital (sertifikat)',
+  'pp.dsign_source':
+      'Sertifikat',
+  'pp.dsign_self':
+      'Identitas aplikasi (ditandatangani sendiri)',
+  'pp.dsign_pfx':
+      'Berkas sertifikat (.pfx/.p12)',
+  'pp.dsign_name':
+      'Nama penandatangan',
+  'pp.dsign_reason':
+      'Alasan (opsional)',
+  'pp.dsign_location':
+      'Lokasi (opsional)',
+  'pp.dsign_visible':
+      'Kotak tanda tangan terlihat',
+  'pp.dsign_last_page':
+      'Tempatkan di halaman terakhir',
+  'pp.dsign_go':
+      'Tandatangani',
+  'pp.dsign_working':
+      'Tanda tangan digital',
+  'pp.dsign_creating':
+      'Membuat kunci tanda tangan',
+  'pp.dsign_pfx_password':
+      'Kata sandi sertifikat',
+  'pp.dsign_done':
+      'Sudah ditandatangani. Jangan ubah apa pun sebelum menyimpan — itu akan membatalkan tanda tangan.',
+  'pp.dsign_list':
+      'Tanda tangan',
+  'pp.dsign_none':
+      'Dokumen tidak memiliki tanda tangan',
+  'pp.dsign_empty_field':
+      'Kolom tanda tangan kosong',
+  'pp.dsign_export_cert':
+      'Bagikan sertifikat saya (.cer)',
+  'pp.dsign_name_needed':
+      'Nama penandatangan wajib diisi',
+  'pp.region_title':
+      'Pilih area',
+  'pp.region_status':
+      'Halaman {page}/{count} · {n} kotak',
+  'pp.prev_page':
+      'Halaman sebelumnya',
+  'pp.next_page':
+      'Halaman berikutnya',
+  'pp.redact':
+      'Penyensoran permanen',
+  'pp.redact_terms_hint':
+      'Istilah yang dicari (pisahkan dengan koma) — kosong: tandai manual',
+  'pp.redact_find':
+      'Cari',
+  'pp.redact_searching':
+      'Mencari',
+  'pp.redact_no_match':
+      'Tidak ada yang cocok — Anda bisa menandai manual',
+  'pp.redact_confirm':
+      '{n} area di {pages} halaman akan dihapus permanen. Halaman ini menjadi gambar (teks di luar kotak tetap bisa dicari); anotasi, formulir, dan kata sandi dihapus. Urungkan hanya berlaku sebelum menyimpan.',
+  'pp.redact_apply':
+      'Sensor',
+  'pp.redact_done':
+      'Disensor dan diverifikasi: tidak ada teks tersisa di dalam kotak.',
+  'pp.saved_as':
+      'Disimpan: {name}',
+  'pp.sheet_prefix':
+      'Halaman',
+  'pp.to_xlsx':
+      'Ekspor tabel ke Excel',
+  'pp.to_docx':
+      'Ekspor ke Word (pertahankan tata letak)',
+  'pp.pdfa':
+      'Simpan sebagai PDF/A',
+  'pp.pdfa_image_sub':
+      'Setiap halaman menjadi gambar + teks yang bisa dicari (PDF/A-2b); ukuran berkas bisa membesar, tautan dan formulir tidak dipertahankan.',
+  'pp.too_many_pages':
+      'Paling banyak {n} halaman — pilih halaman atau pecah dulu',
+  'pp.compare':
+      'Bandingkan dua PDF',
+  'pp.compare_text':
+      'Teks',
+  'pp.compare_visual':
+      'Visual',
+  'pp.compare_names':
+      '{a} → {b}',
+  'pp.compare_summary':
+      '{pages} halaman berubah · +{added} / −{removed} kata',
+  'pp.compare_only_changed':
+      'Hanya perubahan',
+  'pp.compare_same':
+      'Tidak ada perbedaan teks',
+  'pp.compare_page':
+      'Halaman {n}',
+  'pp.compare_visual_page':
+      'Halaman {n} · {pct}% berbeda',
+  'pp.compare_progress':
+      '{done}/{total} halaman dibandingkan',
+  'pp.compare_visual_note':
+      'Perbandingan visual mencakup paling banyak {n} halaman',
+  'pp.permissions':
+      'Izin dan kata sandi',
+  'pp.owner_password':
+      'Kata sandi pemilik (mengubah izin)',
+  'pp.user_password':
+      'Kata sandi buka (opsional)',
+  'pp.user_password_hint':
+      'Kosongkan untuk membuka tanpa kata sandi',
+  'pp.owner_needed':
+      'Kata sandi pemilik wajib diisi',
+  'pp.permissions_done':
+      'Izin diterapkan',
+  'pp.outline':
+      'Markah (daftar isi)',
+  'pp.outline_add':
+      'Tambah markah',
+  'pp.outline_title':
+      'Judul',
+  'pp.outline_page':
+      'Halaman (1–{count})',
+  'pp.outline_empty':
+      'Belum ada markah — tambahkan dengan +',
+  'pp.outline_indent':
+      'Menjorok',
+  'pp.outline_outdent':
+      'Kurangi menjorok',
+  'pp.stamp':
+      'Templat stempel / watermark',
+  'pp.stamp_text':
+      'Teks stempel',
+  'pp.stamp_as_watermark':
+      'Sebagai watermark (diagonal, samar)',
+  'pp.stamp_date':
+      'Tambah tanggal ({date})',
+  'pp.stamp_apply':
+      'Terapkan',
+  'pp.selected_pages_only':
+      'Hanya halaman terpilih',
+  'pp.place':
+      'Posisi',
+  'pp.numbering':
+      'Penomoran lanjutan',
+  'pp.number_style':
+      'Gaya',
+  'pp.number_start':
+      'Nomor awal',
+  'pp.number_prefix':
+      'Awalan',
+  'pp.number_digits':
+      'Digit',
+  'pp.page_word':
+      'Halaman',
+  'pp.preview':
+      'Pratinjau: {text}',
+  'pp.notes_empty':
+      'Dokumen tidak memiliki sorotan atau catatan',
+  'pp.notes_count':
+      '{n} markah',
+  'pp.find_results':
+      '{n} hasil',
+  'pp.find_ocr_hit':
+      'Cocok di halaman hasil pindai (OCR)',
+  'pp.compress_hard':
+      'Kompresi agresif',
+  'pp.compress_hard_warn':
+      'Halaman diubah menjadi gambar: ketajaman vektor, tautan, formulir, dan anotasi hilang. Teks dapat tetap bisa dicari di lapisan tak terlihat.',
+  'pp.resolution':
+      'Resolusi',
+  'pp.quality':
+      'Kualitas',
+  'pp.quality_low':
+      'Rendah',
+  'pp.quality_mid':
+      'Sedang',
+  'pp.quality_high':
+      'Tinggi',
+  'pp.grayscale':
+      'Skala abu-abu',
+  'pp.keep_text':
+      'Pertahankan teks (bisa dicari)',
+  'pp.keep_text_sub':
+      'Lapisan teks tak terlihat ditulis',
+  'pp.compress_hard_bigger':
+      'Tidak lebih kecil ({size}) — gunakan Urungkan untuk kembali',
+  'pp.studio':
+      'Studio halaman',
+  'pp.studio_insert':
+      'Sisipkan halaman',
+  'pp.studio_extract':
+      'Ekstrak yang dipilih ke PDF baru',
+  'pp.studio_split':
+      'Pecah di halaman terpilih',
+  'pp.studio_split_hint':
+      'Untuk memecah, pilih setidaknya satu halaman selain halaman pertama',
+  'pp.studio_need_page':
+      'Pilihan harus berisi setidaknya satu halaman tidak kosong',
+  'pp.studio_file_failed':
+      'Tidak dapat membuka PDF ini (mungkin terenkripsi atau rusak)',
+  'pp.studio_hint':
+      'Ketuk untuk memilih · tekan lama dan seret untuk memindahkan',
+  'pp.studio_selected':
+      '{n} dipilih',
+  'pp.rotate_left':
+      'Putar ke kiri',
+  'pp.rotate_right':
+      'Putar ke kanan',
+  'pp.blank':
+      'Cari dan hapus halaman kosong',
+  'pp.blank_finding':
+      'Mencari halaman kosong',
+  'pp.blank_none':
+      'Tidak ada halaman kosong',
+  'pp.blank_all':
+      'Semua halaman tampak kosong — tidak ada yang dihapus',
+  'pp.blank_found':
+      '{n} halaman kosong dipilih: {pages}. Hapus?',
+  'pp.crop':
+      'Pangkas halaman',
+  'pp.fit_a4':
+      'Sesuaikan ke A4',
+  'pp.autofill':
+      'Isi dari profil',
+  'pp.autofill_none':
+      'Tidak ada kolom kosong yang cocok dengan profil',
+  'pp.autofill_done':
+      '{n} kolom terisi — periksa dan simpan',
+  'pp.profile':
+      'Profil isi otomatis',
+  'pp.profile_privacy':
+      'Disimpan hanya di perangkat ini, tidak pernah dikirim ke mana pun.',
+  'pp.form_create':
+      'Tambah kolom formulir',
+  'pp.field_text':
+      'Kolom teks',
+  'pp.ocr_layer':
+      'Buat bisa dicari (OCR)',
+  'pp.ocr_layer_none':
+      'Tidak ditemukan halaman pindaian dengan teks yang dapat dikenali',
+  'pp.ocr_layer_done':
+      '{n} halaman kini bisa dicari',
+  'pp.field_detect':
+      'Temukan tempat pengisian',
+  'pp.field_detect_sub':
+      'Mengubah ruang kosong, titik-titik, dan kotak menjadi kolom',
+  'pp.field_detect_none':
+      'Tidak ada tempat pengisian ditemukan',
+  'pp.images_to_pdf':
+      'PDF dari gambar',
+  'pp.images_a4_q':
+      '{n} gambar. Jadikan setiap halaman A4? (Tidak: setiap halaman mengikuti gambarnya)',
+  'pp.images_a4':
+      'Gunakan A4',
+  'pp.pdf_to_images':
+      'PDF ke gambar (massal)',
+  'pp.images_saved':
+      '{n} gambar disimpan: {dir}',
+  'pp.web_to_pdf':
+      'PDF dari halaman web',
+  'pp.web_url':
+      'Alamat halaman',
+  'pp.web_bad_url':
+      'Masukkan alamat http(s) yang valid',
+  'pp.office_to_pdf':
+      'Word/Excel/PowerPoint → PDF',
+  'pp.signatures':
+      'Tanda tangan dan paraf',
+  'pp.my_signature':
+      'Tanda tangan saya',
+  'pp.my_initials':
+      'Paraf saya',
+  'pp.none':
+      'Tidak ada',
+  'pp.initial_all':
+      'Paraf setiap halaman',
+  'pp.initial_with_date':
+      'Tanggal di bawah paraf',
+  'pp.initials_missing':
+      'Gambar paraf Anda terlebih dahulu',
+  'pp.date_stamp':
+      'Stempel tanggal',
+  'pp.sign_here':
+      'Tempatkan tanda tangan di halaman',
+  'pp.save_first':
+      'Simpan perubahan Anda terlebih dahulu',
+  'pp.image_zoom_failed':
+      'Tidak dapat membuka gambar',
+  'pp.meta':
+      'Properti dokumen',
+  'pp.meta_strip':
+      'Hapus semua metadata',
+  'pp.meta_strip_body':
+      'Judul, penulis, aplikasi pembuat, tanggal modifikasi, dan detail yang tersisa di revisi lama dihapus. Halaman tetap sama; Anda bisa mengurungkan sebelum menyimpan.',
+  'pp.meta_strip_ok':
+      'Hapus',
+  'pp.layers':
+      'Lapisan',
+  'pp.layers_none':
+      'Dokumen ini tidak memiliki lapisan',
+  'pp.layers_failed':
+      'Tidak dapat membaca lapisan',
+  'pp.layers_unnamed':
+      'Lapisan {n}',
+  'pp.meta_failed':
+      'Tidak dapat membaca properti dokumen',
+  'pp.xfdf_out':
+      'Ekspor anotasi (XFDF)',
+  'pp.xfdf_in':
+      'Impor anotasi (XFDF)',
 };
