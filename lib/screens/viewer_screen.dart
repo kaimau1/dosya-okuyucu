@@ -36,6 +36,7 @@ import '../core/image_budget.dart';
 import '../widgets/fm/fm_file_image.dart';
 import '../widgets/ocr_text_overlay.dart';
 import '../widgets/pro_gate.dart';
+import '../widgets/pdf_outline_sheet.dart';
 import '../core/edit/editor_shortcuts.dart';
 import '../core/edit/edit_session.dart';
 import '../core/edit/code_editing.dart';
@@ -795,6 +796,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
     // Kırpma tercihi de görüntüleyici kurulmadan bilinmeli (düzen ilk karede
     // kırpılmış kurulsun — sonradan değişirse sayfa yerinden oynardı).
     _pdfCrop = PdfMarginCrop.fromList(PdfZoomMemory.cropOf(widget.doc.path));
+    // Kitaplık içindekilerinden bir başlığa dokunulduysa o sayfa (devam
+    // notu gösterilmez: kullanıcı oraya bilerek gitti).
+    final target = PdfOpenTarget.take(widget.doc.path);
+    if (target != null) {
+      _pdfPage = target;
+      return;
+    }
     final page = ReadingPositions.pageOf(widget.doc.path, size: _docSize);
     if (page == null || page <= 1) return;
     _pdfPage = page;

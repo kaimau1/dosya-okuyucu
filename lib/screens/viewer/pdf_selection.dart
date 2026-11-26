@@ -304,227 +304,27 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
   }
 
-  /// Yer imi hedefini biraz yukarı alır. PDF'teki y noktası çoğu zaman
-  /// başlığın altına (ilk satıra) düşer; pdfrx o noktayı ekranın tam üstüne
-  /// koyunca başlık görünmüyordu (kullanıcı ekran görüntüsü, "SUNUŞ").
-  /// Hedef sayfanın üst çeyreğindeyse sayfa başına, değilse sayfa boyunun
-  /// %6'sı kadar yukarı gidilir.
-  PdfDest _roomyDest(PdfDest dest, PdfDocument doc) {
-    final p = dest.params;
-    final yAt = switch (dest.command) {
-      PdfDestCommand.xyz => 1,
-      PdfDestCommand.fitH || PdfDestCommand.fitBH => 0,
-      _ => -1,
-    };
-    if (p == null || yAt < 0 || p.length <= yAt || p[yAt] == null) return dest;
-    final h = doc.pages[dest.pageNumber - 1].height;
-    final y = p[yAt]!;
-    final raised = y + h * 0.06;
-    final up = (y >= h * 0.75 || raised > h) ? h : raised;
-    return PdfDest(dest.pageNumber, dest.command, [...p]..[yAt] = up);
-  }
-
-  /// Belge ana hattı (içindekiler). PDF'te yoksa kullanıcıya söylenir.
-  ///
-  /// Açılınca okunan başlık vurgulu ve görünürdedir (kullanıcı "neredeydim"
-  /// diye aramaz); üst düzey bölümler (ör. ciltler) çip şeridinden tek
-  /// dokunuşla seçilir; arama kutusu bütün başlıklarda süzer.
+  /// Belge ana hattı (içindekiler) — ortak sayfa [showPdfOutlineSheet].
+  /// PDF'te yer imi yoksa başlıkları tarayıp çıkarmayı önerir
+  /// ([createPdfOutline]); yazılırsa belge yeniden yüklenir.
   Future<void> _showOutline() async {
     final doc = _pdfDoc;
     if (doc == null) return;
     final outline = await doc.loadOutline();
     if (!mounted) return;
     if (outline.isEmpty) {
-      _snack(context.t('vw.no_toc'));
+      // Dosyaya yazılacak: bekleyen düzenlemeler önce kaydedilmeli.
+      if (!await _confirmLeavePending() || !mounted) return;
+      final changed =
+          await createPdfOutline(context, path: widget.doc.path, doc: doc);
+      if (changed && mounted) await _reloadPdf();
       return;
     }
-    // ponytail: ağaç yerine girintili düz liste — açılır/kapanır düğüm yönetimi
-    // olmadan aynı işi görür; şikayet gelirse ExpansionTile'a geçilir.
-    // (düğüm, derinlik, üst başlık yolu, arama anahtarı, üst düzey sırası)
-    final flat = <(PdfOutlineNode, int, String, String, int)>[];
-    void walk(List<PdfOutlineNode> nodes, int depth, String path, int top) {
-      for (var i = 0; i < nodes.length; i++) {
-        final n = nodes[i];
-        final t = depth == 0 ? i : top;
-        flat.add((n, depth, path, asciiFold(n.title), t));
-        walk(n.children, depth + 1,
-            path.isEmpty ? n.title : '$path › ${n.title}', t);
-      }
-    }
-
-    walk(outline, 0, '', 0);
-
-    // Okunan başlık: sayfası geçerli sayfayı aşmayan son başlık (ana hat
-    // sayfa sırasında varsayılır; değilse yalnız vurgu yanlış yere düşer).
-    final page = _pdfPage;
-    var current = -1;
-    for (var i = 0; i < flat.length; i++) {
-      final p = flat[i].$1.dest?.pageNumber;
-      if (p != null && p <= page) current = i;
-    }
-    final chips = outline.length >= 2 &&
-        outline.length <= 60 &&
-        outline.any((n) => n.children.isNotEmpty);
-    int? vol = chips && current >= 0 ? flat[current].$5 : null;
-    var query = '';
-    var jumped = false;
-    // Sık satır: tek satır başlık + sayfa no (kullanıcı: "satır satır olmalı").
-    const rowH = 40.0;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) {
-          final words = asciiFold(query.trim())
-              .split(RegExp(r'\s+'))
-              .where((w) => w.isNotEmpty)
-              .toList();
-          final searching = words.isNotEmpty;
-          // Arama bütün belgede; aramasız liste seçili bölümle sınırlı.
-          final shown = <int>[
-            for (var i = 0; i < flat.length; i++)
-              if (searching
-                  ? words.every(flat[i].$4.contains)
-                  : (vol == null || flat[i].$5 == vol))
-                i,
-          ];
-          return Padding(
-            padding:
-                EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-            child: DraggableScrollableSheet(
-              expand: false,
-              initialChildSize: 0.85,
-              builder: (ctx, scroll) {
-                if (!jumped && !searching && current >= 0) {
-                  jumped = true;
-                  final at = shown.indexOf(current);
-                  if (at > 2) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (scroll.hasClients) {
-                        final max = scroll.position.maxScrollExtent;
-                        final to = (at - 2) * rowH;
-                        scroll.jumpTo(to > max ? max : to);
-                      }
-                    });
-                  }
-                }
-                void pickVol(int? v) {
-                  if (scroll.hasClients) scroll.jumpTo(0);
-                  setSheet(() => vol = v);
-                }
-
-                return Column(
-                  children: [
-                    if (flat.length > 12)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: TextField(
-                          textInputAction: TextInputAction.search,
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(AppIcons.search),
-                            hintText: ctx.t('vw.toc_search'),
-                            isDense: true,
-                            border: const OutlineInputBorder(),
-                          ),
-                          onChanged: (v) => setSheet(() => query = v),
-                        ),
-                      ),
-                    if (chips && !searching)
-                      SizedBox(
-                        height: 44,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          children: [
-                            for (final v in <int?>[
-                              null,
-                              for (var i = 0; i < outline.length; i++) i,
-                            ])
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 4),
-                                child: ChoiceChip(
-                                  label: ConstrainedBox(
-                                    constraints:
-                                        const BoxConstraints(maxWidth: 180),
-                                    child: Text(
-                                      v == null
-                                          ? ctx.t('vw.toc_all')
-                                          : outline[v].title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  selected: vol == v,
-                                  onSelected: (_) => pickVol(v),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    Expanded(
-                      child: shown.isEmpty
-                          ? Center(child: Text(ctx.t('vw.toc_no_match')))
-                          : ListView.builder(
-                              controller: scroll,
-                              itemCount: shown.length,
-                              // Sabit satır: açılışta okunan başlığa atlamak
-                              // için konum hesaplanabilsin.
-                              itemExtent: searching ? null : rowH,
-                              itemBuilder: (ctx, i) {
-                                final idx = shown[i];
-                                final (node, depth, path, _, _) = flat[idx];
-                                final dest = node.dest;
-                                return ListTile(
-                                  dense: true,
-                                  visualDensity: VisualDensity.compact,
-                                  minVerticalPadding: 0,
-                                  minTileHeight: 0,
-                                  selected: idx == current,
-                                  contentPadding: EdgeInsetsDirectional.only(
-                                      start: searching ? 16 : 16.0 + depth * 14,
-                                      end: 16),
-                                  title: Text(node.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontSize: 13.5,
-                                          fontWeight: depth == 0
-                                              ? FontWeight.w700
-                                              : FontWeight.w400)),
-                                  subtitle: searching && path.isNotEmpty
-                                      ? Text(path,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis)
-                                      : null,
-                                  trailing: dest == null
-                                      ? null
-                                      : Text('${dest.pageNumber}',
-                                          style: Theme.of(ctx)
-                                              .textTheme
-                                              .labelMedium),
-                                  onTap: dest == null
-                                      ? null
-                                      : () {
-                                          Navigator.pop(ctx);
-                                          _pdfJumpTarget = dest.pageNumber;
-                                          _pdfController
-                                              .goToDest(_roomyDest(dest, doc));
-                                        },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          );
-        },
-      ),
-    );
+    final dest = await showPdfOutlineSheet(context,
+        doc: doc, outline: outline, currentPage: _pdfPage);
+    if (dest == null || !mounted) return;
+    _pdfJumpTarget = dest.pageNumber;
+    await _pdfController.goToDest(dest);
   }
 
   /// **Sesli not** (KALANLAR A10, yalnız kişisel derleme): dikte hemen
