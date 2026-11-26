@@ -485,6 +485,7 @@ abstract final class StorageStats {
 
   /// (toplam, boş) bayt. Okunamazsa null.
   static Future<(int, int)?> usageOf(String path) async {
+    if (!await Directory(path).exists()) return null;
     for (final exe in const ['df', '/system/bin/df']) {
       try {
         final r = await Process.run(exe, ['-k', path]);

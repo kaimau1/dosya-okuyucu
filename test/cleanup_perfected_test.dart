@@ -397,7 +397,7 @@ void main() {
       await tester.tap(find.text('Kurulum dosyaları (APK)'));
       await tester.pump();
       final cbFinder = find.byKey(ValueKey('clean-file-cb-${apks.first.path}'));
-      await tester.dragUntilVisible(cbFinder, find.byType(ListView), const Offset(0, -160));
+      await tester.dragUntilVisible(cbFinder, find.byType(ListView).first, const Offset(0, -160));
       await tester.pump();
       await tester.tap(cbFinder);
       await tester.pump();
@@ -494,7 +494,7 @@ void main() {
       expect(find.text('Silinecek: yalnız bu kopya'), findsOneWidget);
 
       final chatCb = find.byKey(ValueKey('clean-file-cb-${sentImg.path}'));
-      await tester.dragUntilVisible(chatCb, find.byType(ListView), const Offset(0, -160));
+      await tester.dragUntilVisible(chatCb, find.byType(ListView).first, const Offset(0, -160));
       await tester.pump();
       await tester.tap(chatCb);
       await tester.pump();
@@ -531,7 +531,7 @@ void main() {
       expect(find.text('Güvenle Temizle (Sıfır Risk)'), findsOneWidget);
       await tester.dragUntilVisible(
           find.byKey(const ValueKey('clean-shrink-big_videos')),
-          find.byType(ListView),
+          find.byType(ListView).first,
           const Offset(0, -180));
       await tester.pump();
       expect(find.text('İnceleyerek Yer Aç (Karar Sizin)'), findsOneWidget);
