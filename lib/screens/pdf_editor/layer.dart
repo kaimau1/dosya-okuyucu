@@ -41,6 +41,14 @@ extension _PdfEditorScreenLayerPart on _PdfEditorScreenState {
               tooltip: context.t('pe.fix_page_ai'),
               onTap: busy ? null : () => _fixScannedPage(withAi: true),
             ),
+            RibbonChip(
+              icon: AppIcons.editNote,
+              label: context.t('pe.make_editable'),
+              tooltip: context.t('pe.make_editable'),
+              onTap: busy
+                  ? null
+                  : () => _fixScannedPage(withAi: false, keepText: true),
+            ),
           ],
         ]),
         RibbonTab(context.t('pe.mode_image'), [

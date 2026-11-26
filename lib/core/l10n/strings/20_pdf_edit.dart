@@ -33,6 +33,9 @@ const Map<String, (String, String, String)> _t20 = {
   'pe.busy_saving': ('Kaydediliyor — eklenen yazı, imza ve görseller sayfaya yazılıyor…', 'Saving — writing added text, signatures and images…', 'جارٍ الحفظ…'),
   'pe.busy_working': ('İşleniyor…', 'Working…', 'جارٍ العمل…'),
   'pe.busy_fix': ('Satırlar düzeltiliyor…', 'Fixing lines…', 'جارٍ تصحيح الأسطر…'),
+  'pe.make_editable': ('Bu sayfayı düzenlenebilir yap', 'Make this page editable', 'اجعل هذه الصفحة قابلة للتحرير'),
+  'pe.busy_make_editable': ('Sayfa metne çevriliyor…', 'Converting page to text…', 'جارٍ تحويل الصفحة إلى نص…'),
+  'pe.make_editable_done': ('{n} satır düzenlenebilir metne çevrildi.', '{n} lines converted to editable text.', 'تم تحويل {n} سطرًا إلى نص قابل للتحرير.'),
   'pe.busy_fix_ai': (
     'Satırlar akıllı düzeltiliyor — internet hızına göre birkaç saniye…',
     'Smart-fixing lines — a few seconds…',

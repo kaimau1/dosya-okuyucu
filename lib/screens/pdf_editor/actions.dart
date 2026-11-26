@@ -375,7 +375,13 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
   /// **Yalnız DEĞİŞEN satırlar yeniden yazılır.** Bütün satırları basmak,
   /// hiç hatası olmayan satırların görüntüsünü de gömülü fontla değiştirirdi;
   /// sayfa "tarama" olmaktan çıkar, kutu hataları her satırda görünür olurdu.
-  Future<void> _fixScannedPage({required bool withAi}) async {
+  ///
+  /// [keepText] true → **Bu sayfayı düzenlenebilir yap** (P19 m.3): metin
+  /// DEĞİŞMEDEN tüm satırlar örneklenen kâğıt/mürekkep rengiyle gerçek metne
+  /// çevrilir. Sonra satırlar paragraf yolundan (gerçek metin bloğu) açılır;
+  /// OCR kutuları paragrafla örtüştüğü için elenir.
+  Future<void> _fixScannedPage(
+      {required bool withAi, bool keepText = false}) async {
     if (_scannedLines.isEmpty) return;
     final originals = [for (final l in _scannedLines) l.text];
     GeminiService? gemini;
@@ -385,14 +391,19 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
       gemini = state.gemini;
     }
 
-    await _run(note: _str.t(withAi ? 'pe.busy_fix_ai' : 'pe.busy_fix'), () async {
-      final fixed = withAi
-          ? await ScanAiFix.polish(gemini!, originals)
-          : ScanTextFix.lines(originals);
+    final busyKey = keepText
+        ? 'pe.busy_make_editable'
+        : (withAi ? 'pe.busy_fix_ai' : 'pe.busy_fix');
+    await _run(note: _str.t(busyKey), () async {
+      final fixed = keepText
+          ? originals
+          : withAi
+              ? await ScanAiFix.polish(gemini!, originals)
+              : ScanTextFix.lines(originals);
       final edits = <ScannedEdit>[];
       final page = _scannedPage;
       for (var i = 0; i < originals.length && i < fixed.length; i++) {
-        if (fixed[i].trim() == originals[i].trim()) continue;
+        if (!keepText && fixed[i].trim() == originals[i].trim()) continue;
         final box = _scannedLines[i].box;
         final c = page == null
             ? null
@@ -411,7 +422,8 @@ extension _PdfEditorScreenActionsPart on _PdfEditorScreenState {
                 pageIndex: pageIndex,
                 edits: edits,
               ),
-          _str.t('pe.fix_done', {'n': edits.length}));
+          _str.t(keepText ? 'pe.make_editable_done' : 'pe.fix_done',
+              {'n': edits.length}));
       // Sayfa değişti: OCR bellek önbelleği bayat, kutular yeniden yüklensin.
       PdfOcrText.invalidateMemory();
     });
