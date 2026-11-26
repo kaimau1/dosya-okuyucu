@@ -100,6 +100,8 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | C1 | **Cihaz: hazır dalların ölçümü:** P08 PDF Pro bellek (`faz-oto-P08-bellek`), P28 PDF kabuğu (`faz-oto-P28-pdf-kabuk`), P07 son sayfa + döndür (`faz-oto-P07-artik`) → A/B → yeşilse birleştir | opus | §1.8; DEVIR.md | A/B | evet | cihaz bekliyor — P08 + P28 main'de (2026-11-21, kullanıcı kararıyla birleşti, 1.3.73 tablette); kalan yalnız A/B ölçümü (kurulum onayı artık Claude'da — CİHAZ KURULUM KURALI) |
 | C2 | **Cihaz: perf A/B artıkları:** B9b Word yorum kenar sütunu (tablette yorumlu belgede yazma/kaydırma karesi — dal faz-oto-B9b-yorum; ölçülmedi), B10 excel4 Excel A/B (süzgeç levhası, chartex çizimi, büyük xlsx ilk pencere — dal faz-oto-B10-excel4; ölçülmedi), B2 Akıllı düzen 2.0 dilim 1–5 (CIHAZ_TESTI B2) — ölçüldü: geçti (2026-11-20), P13 liste/ızgara (klasor_5000 p99 23,5→38,9, B3.3c, soğuk açılış) — ölçüldü: kaldı (2026-11-20; klasor_5000 build p99 20,6→46,1 ve 17,8→26,2; soğuk açılış geçti), P12 Excel 10k×20, P14 Word kapanış/menü (K21–K22), P04 boş/hata durumları (K6–K7) + 2026-11-18 AI/ana ekran işlerinin ölçümü + galeri açılış geçişi — ölçüldü: geçti (2026-11-20) (A/B bekliyor, main d7e9765e) + U2 ana ekran tek akıllı şerit (yazıldı, cihazda doğrulanmadı; dal faz-oto-U2-tek-serit) + B11 dilim 1–2 slayt düzenleme A/B (tablo stili çizimi, imleç dokunulan yerde, şekil sürükleme katmanları, prova; dal faz-oto-B11-slayt2) + B11 dilim 3 geçiş/animasyon/Biçim değiştir — ölçüldü: kaldı (2026-11-20; slayt_300_acilis_pro0 build p99 30,9→45,5 ve 30,0→47,6) (ölçülmedi; sunumda Biçim değiştir ve efektli tıklama animasyonu kare p99, taban önceki [apk] `.r8test`; dal faz-oto-B11-slayt3) + B4 dilim 1–8 PDF Pro (meta veri/XFDF, R6 kilit açma, sayfa stüdyosu ızgarası ve sayfa ekle/çıkar/böl/kaydır, form alanı algılama metin ve çizgi/kutu, form ekranında imza alanı, OCR aranabilir katman; işlev turu, izolatta; 300 sayfada p99 ≤ 16 ms hedefi; ölçülmedi; sıcak yola dokunmuyor; dal faz-oto-B4-pdfpro) + R6 kilit açma + boş/dosyadan/görselden/taramadan sayfa ekle + çıkar/böl + B15 dilim 1 AI budama + Akıllı adlandırma (ölçülmedi; görüntüleyici/editör alt çubuğundan bir düğme kalktı, ana ekran sekme adı değişti; dal faz-oto-B15-akilli) + U3 ana ekran — ölçüldü: kısmen (2026-11-20; sol menü geçti, ana sekmeler yalnız adayda 24 ms altı, ana ekran kaydırma senaryosu yok) (ölçülmedi; Son dosyalar sekmeleri + karışık sıra + Geçmiş bellek önbelleği, Akıllı düzen şeridi bildirim kartına katıldı, tek Düzenle düğmesi, araçlar 8→5, yan menü şeridi; taban önceki [apk] `.r8test`, ana ekran açılış + şerit sekme geçişi + yan menü açılışı; dal faz-oto-U3-ana-ekran) + U4 Akıllı klasörler/Analiz/ayarlar (ölçülmedi; Akıllı düzen ızgarasına "Diğer" kutusu + altına "Akıllı aramalar" kartı, Analiz araçlarına bir satır; sıcak liste yoluna dokunmuyor; dal faz-oto-U4-akilli-klasor) + B5 P23 UDF açılışı (ölçülmedi; .udf → .docx çevrimi izolatta, Word okuyucusu aynı; 1–5 sayfalık örnekte açılış süresi; dal faz-oto-B5-udf) + B3 P29 çökme uyarısı bildirim kartında (ölçülmedi; ana ekran üstündeki ayrı kırmızı şerit kalktı, kart kaynağına bir sayaç eklendi; taban önceki [apk] `.r8test`, ana ekran açılışı; dal faz-oto-B3-hiz) + U4 dilim 2 Akıllı düzen durma kuralı, Ayıkla yorumu ve öğrenilen alt tür (ölçüm gerekmez: görünür alan yok, liste/ızgara yoluna dokunmuyor; yalnız işlev turu CIHAZ_TESTI U4.2; dal faz-oto-U4-akilli-2) + U4 dilim 3 Bellek Analizi silme sonrası yenilenir (ölçüm gerekmez: görünür alan yok, pano ve liste yoluna dokunmuyor, yenileme izolatta; yalnız işlev turu CIHAZ_TESTI U4.3; dal faz-oto-U4-akilli-3) | opus | §1.8; docs/perf/ | A/B | evet | cihaz bekliyor; A/B U3/U4/B15 denendi 2026-11-20: YETERSİZ, ölçülmedi (sürücü boş kareyle çöktü, senaryo eksik; docs/perf/2026-11-20-C2-U3.md); **2026-11-21 Huawei tablette A/B (260d2671 x main 4b2bec29, 1 tur, docs/perf/2026-11-21-ab-260d267-4b2bec2.md): ölçüldü: kaldı (2026-11-21)** — B10 Excel büyük xlsx: xlsx_100k_kaydirma build p90 8,5->24,8, xlsx_10k_x20_acilis build p99 144,6->180,9 (süzgeç levhası/chartex senaryosu yok, ölçülmedi); B9b Word yorum sütunu/tablet: word_300_kaydirma raster p99 15,9->22,4, word_300_menu build p99 16,6->28,6 / raster p99 13,8->18,9; U8/U9 sol_menu_acilis geçti (p99 27,3->18,5), Yer aç/Bento levha senaryosu yok (ölçülmedi). **SIRA önüne: B9b/Word tablet kaydırma+menü gerilemesi ve B10 Excel kaydırma build p90 (kök neden/ikinci tur)** |
 | C3 | **Cihaz: genel tur:** P11 `CIHAZ_TESTI.md` baştan sona (Faz 34–42, Güvenlik, 360×800 + 2× yazı, 2026-11-18 AI maddeleri) + §3 "Telefonda sen bak" (K20–K28); kırmızı → ilgili pakete madde | sonnet | CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
+| B16 | **İnternetsiz Arapça OCR (kullanıcı 2026-11-26):** Arapça/Farsça/Urduca/Osmanlıca/Cavi (Jawi) metin tanıma cihazda, ücretsiz; bugün yalnız Gemini (internet + anahtar + ücret). PaddleOCR Arapça modelleri (Apache 2.0) ilk kullanımda iner, APK +0 MB | opus | §1.15 | evet | evet | bekliyor — sırayı kullanıcı koyacak |
+| B17 | **Endonezya + Malezya pazarı (kullanıcı 2026-11-26, satış hedefi):** Endonezce + Malayca arayüz, mağaza sayfası, yerel fiyat, düşük donanımlı telefon bütçesi, Cavi yazısı, gizlilik metinleri | opus (dil yapısı planı fable) | §1.16 | evet | evet | bekliyor — sırayı kullanıcı koyacak; 👤 maddeler §1.16'da |
 
 ### 1.1) B1 ayrıntısı — Akıllı düzen 2.0 çekirdek
 
@@ -507,3 +509,50 @@ Aşağıdaki liste `yayin_rehberi.md`, `SURUM_ADAYI.md`, `SURUM_PLANI.md`, `izin
 9. Yapay zekâ ayar sayfası yeni duruma göre baştan yazılsın (ana özellik Akıllı klasörler/kategori).
 10. Analiz (Bellek Analizi): beyin fırtınası + nokta atışı öneriler, hata düzeltme, geliştirme.
 11. Her hata/sonuç/bildirimde son kullanıcıya kısa ve doğru bilgi: ne oldu, ne yapmalı (ör. silince sessizce bir şey olmasın); hepsi tek görsel dil.
+
+### 1.15) B16 ayrıntısı — İnternetsiz Arapça OCR (kullanıcı 2026-11-26)
+
+**Neden:** ML Kit'te Arapça yazı modeli yok (`lib/services/cloud_ocr.dart` başı); Arapça tanıma bugün yalnız
+Gemini ile (internet, kullanıcının anahtarı, ücret). Dini kitap/İhya gibi Arapça içerikli belgeler ve B17
+(Malezya/Endonezya: Arapça + Cavi) için cihazda, ücretsiz tanıma gerek. Tesseract APK bütçesi yüzünden
+reddedilmişti (yerel `.so` + dil verisi APK'ya girer; Play dışarıdan yerel kod indirmeyi yasaklar) — bu yol
+ona takılmaz: **indirilen şey kod değil model dosyası**.
+1. **Model:** PaddleOCR PP-OCR Arapça tanıma (`arabic_PP-OCRv*_rec`) + metin bulma (det) modelleri, Apache 2.0.
+   Mevcut `tflite_flutter` (ESRGAN deseni: ilk kullanımda indir, sağlama toplamı denetle) ya da ONNX Runtime
+   (sesli kitap modelleriyle aynı WebView yolu) — plan evresinde ölç: hız, bellek, APK etkisi (hedef +0 MB).
+2. **Bağlantı:** `OcrService` sırası → ML Kit (Latin) · **yeni yerel Arapça motor** · Gemini (yalnız kullanıcı
+   isterse / yerel sonuç zayıfsa). `OcrScript.arabic` ayarı ve `hasNonLatinScript` otomatik yükseltmesi önce yerel
+   motora gider; onaysız buluta gönderim kuralı (HAFIZA 2026-11-25) korunur.
+3. **Çıktı:** satır + kutu (`OcrLine`) → aranabilir PDF, taranmış sayfada seçim, otomatik içindekiler
+   (`PdfAutoOutline` OCR yolu) değişmeden çalışır. Sağdan sola satır sırası (`orderOcrRows`) denetlenir.
+4. **Kalite kapısı:** Arapça örnek sayfalarla (matbu Arapça, harekeli Kur'an metni, Osmanlıca, Cavi) Gemini'ye karşı
+   karakter doğruluğu ölçülür; yerel < kabul eşiği ise varsayılan Gemini kalır, yerel "çevrimdışı" seçenek olur.
+5. **Sonra (isteğe bağlı):** PP-Structure düzen modeli (Apache 2.0) → taranmış kitapta başlık/paragraf/tablo ayrımı;
+   otomatik içindekiler isabeti artar. **Kaçın:** DocLayout-YOLO/ultralytics (AGPL).
+
+### 1.16) B17 ayrıntısı — Endonezya + Malezya pazarı (kullanıcı 2026-11-26)
+
+**Neden:** satış hedefi kalabalık pazarlar (Endonezya ~280 M, Malezya ~35 M); çoğunluk Müslüman, Android payı
+çok yüksek, giriş/orta seviye telefon yaygın, mobil veri pahalı. **Kod:**
+1. **Dil yapısı (önce, fable planı):** bugün her metin 3'lü demet `(tr, en, ar)` — 53 dosya, ~6.200 anahtar
+   (`lib/core/l10n/strings/`), `enum AppLanguage { system, tr, en, ar }`. 5 dile (+`id` Endonezce, `ms` Malayca)
+   genişletmenin yolu seçilecek: demet → dil başı harita ya da dil başı ayrı dosya (APK/RAM bütçesi, `on_denetim`
+   çeviri anahtarı denetimi, eksik çeviride İngilizceye düşme). Sistem dili `id`/`ms` ise otomatik seçilir.
+2. **Çeviri:** ~6.200 anahtar makine destekli çeviri + yer tutucu (`{n}`) bekçisi; Endonezce ile Malayca yakın ama
+   AYRI (ör. "kereta" ≠ "mobil"; Malezya "fail", Endonezya "berkas") — biri ötekine kopyalanmaz. Ana ekran, PDF,
+   Kitaplık, ödeme ve hata metinleri anadili konuşan biriyle gözden geçirilir (👤).
+3. **Mevcut altyapının uyumu (denetle, büyük ölçüde hazır):** ML Kit Latin OCR Endonezce/Malayca okur; ML Kit
+   çeviride `id`/`ms` var; cihaz sesli okumada `id-ID`/`ms-MY` sesleri (`TtsService` dil eşlemesi); tarih/sayı
+   biçimi (`intl`, `id_ID`/`ms_MY`); Arapça/Cavi içerik için B16.
+4. **Düşük donanım + veri:** 2–3 GB RAM / Android Go telefonlarda PDF/Office açılışı, APK boyutu (bütçe yalnız
+   düşer), indirilen modellerin (ses, OCR) yalnız Wi-Fi'de inmesi seçeneği; C-paketinde ucuz bir cihaz ölçümü.
+5. **Yerel alışkanlıklar:** WhatsApp/Telegram belge akışı (Sohbet medyası zaten var — kısayol öne), dini PDF/Kur'an
+   okuma (Kitaplık + içindekiler + Arapça OCR), devlet/okul formları (PDF form doldurma).
+
+**👤 Senin işlerin (mağaza ve hukuk):**
+- Play mağaza sayfası Endonezce + Malayca (başlık, kısa/uzun açıklama, ekran görüntüleri metni); anahtar sözcük
+  araştırması ("pembaca PDF", "baca dokumen", "pembaca fail PDF").
+- Yerel fiyat: Play'de IDR ve MYR fiyat kademesi (satın alma gücüne göre düşük); Play bu ülkelerde GoPay, OVO, DANA,
+  Touch 'n Go gibi cüzdanları ve operatör faturasını kendisi sunar.
+- Gizlilik politikası Endonezce + Malayca; Endonezya UU PDP (2022) ve Malezya PDPA'ya uygunluk gözden geçirmesi.
+- Lansman: B7 kademeli çıkış ve Android Vitals eşikleri bu ülkelerde de geçerli; ilk yorumlara Endonezce/Malayca yanıt.
