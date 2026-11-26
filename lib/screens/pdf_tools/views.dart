@@ -1,6 +1,78 @@
 part of '../pdf_tools_screen.dart';
 
 
+/// [_PageNumberSheet]'in döndürdüğü seçenekler.
+class _NumberOptions {
+  final bool skipFirst;
+  final bool withTotal;
+  final bool right;
+  const _NumberOptions(this.skipFirst, this.withTotal, this.right);
+}
+
+/// Sayfa numarası seçenekleri — üç anahtar, hepsi kapalı gelir.
+///
+/// Varsayılan (ortada, 1'den başlayan sade sayı) en sık istenen hâl olduğu
+/// için kullanıcı hiçbir şeye dokunmadan "Ekle" diyebilir.
+class _PageNumberSheet extends StatefulWidget {
+  const _PageNumberSheet();
+
+  @override
+  State<_PageNumberSheet> createState() => _PageNumberSheetState();
+}
+
+class _PageNumberSheetState extends State<_PageNumberSheet> {
+  bool _skipFirst = false;
+  bool _withTotal = false;
+  bool _right = false;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(context.t('pt.page_numbers'),
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            SwitchListTile(
+              value: _skipFirst,
+              onChanged: (v) => setState(() => _skipFirst = v),
+              title: Text(context.t('pt.pn_skip_first')),
+              subtitle: Text(context.t('pt.pn_skip_first_sub')),
+            ),
+            SwitchListTile(
+              value: _withTotal,
+              onChanged: (v) => setState(() => _withTotal = v),
+              title: Text(context.t('pt.pn_with_total')),
+            ),
+            SwitchListTile(
+              value: _right,
+              onChanged: (v) => setState(() => _right = v),
+              title: Text(context.t('pt.pn_right')),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(context.t('common.cancel')),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(
+                        context, _NumberOptions(_skipFirst, _withTotal, _right)),
+                    child: Text(context.t('common.add')),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
 extension _PdfToolsScreenViewsPart on _PdfToolsScreenState {
   /// Süren iş perdesi: ne olduğunu yazar ve dokunuşları yutar (işlem sürerken
   /// ikinci bir işlem başlatmak belgeyi tutarsız bırakırdı).

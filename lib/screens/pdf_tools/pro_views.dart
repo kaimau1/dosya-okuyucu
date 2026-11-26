@@ -687,18 +687,8 @@ class _NumberingOptions {
   final bool skipFirst;
   final String prefix;
   final int digits;
-  final bool numbers;
-  final String header;
-  final String footer;
-
-  /// Üst/alt bilgi katmanını kaldır (öteki alanlar yok sayılır).
-  final bool remove;
   const _NumberingOptions(this.style, this.place, this.startAt, this.skipFirst,
-      this.prefix, this.digits,
-      {this.numbers = true,
-      this.header = '',
-      this.footer = '',
-      this.remove = false});
+      this.prefix, this.digits);
 }
 
 class _NumberingSheet extends StatefulWidget {
@@ -712,44 +702,16 @@ class _NumberingSheetState extends State<_NumberingSheet> {
   PageNumberStyle _style = PageNumberStyle.pageOfTotal;
   PdfNumberPlace _place = PdfNumberPlace.bottomCenter;
   bool _skipFirst = false;
-  bool _numbers = true;
   final _start = TextEditingController(text: '1');
   final _prefix = TextEditingController();
   final _digits = TextEditingController(text: '6');
-  final _header = TextEditingController();
-  final _footer = TextEditingController();
 
   @override
   void dispose() {
     _start.dispose();
     _prefix.dispose();
     _digits.dispose();
-    _header.dispose();
-    _footer.dispose();
     super.dispose();
-  }
-
-  void _ok() {
-    if (!_numbers &&
-        _header.text.trim().isEmpty &&
-        _footer.text.trim().isEmpty) {
-      showSnack(context, context.t('pp.hf_empty'));
-      return;
-    }
-    Navigator.pop(
-      context,
-      _NumberingOptions(
-        _style,
-        _place,
-        int.tryParse(_start.text) ?? 1,
-        _skipFirst,
-        _prefix.text,
-        (int.tryParse(_digits.text) ?? 6).clamp(1, 12).toInt(),
-        numbers: _numbers,
-        header: _header.text,
-        footer: _footer.text,
-      ),
-    );
   }
 
   @override
@@ -767,64 +729,46 @@ class _NumberingSheetState extends State<_NumberingSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            controller: _header,
-            decoration: InputDecoration(labelText: context.t('pp.hf_header')),
+          DropdownButtonFormField<PageNumberStyle>(
+            initialValue: _style,
+            decoration: InputDecoration(labelText: context.t('pp.number_style')),
+            items: [
+              for (final st in PageNumberStyle.values)
+                DropdownMenuItem(
+                    value: st, child: Text(context.t('pp.number_${st.name}'))),
+            ],
+            onChanged: (v) => setState(() => _style = v ?? _style),
+          ),
+          DropdownButtonFormField<PdfNumberPlace>(
+            initialValue: _place,
+            decoration: InputDecoration(labelText: context.t('pp.place')),
+            items: [
+              for (final pl in PdfNumberPlace.values)
+                DropdownMenuItem(
+                    value: pl, child: Text(context.t('pp.nplace_${pl.name}'))),
+            ],
+            onChanged: (v) => setState(() => _place = v ?? _place),
           ),
           TextField(
-            controller: _footer,
-            decoration: InputDecoration(labelText: context.t('pp.hf_footer')),
+            controller: _start,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: context.t('pp.number_start')),
+            onChanged: (_) => setState(() {}),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _numbers,
-            onChanged: (v) => setState(() => _numbers = v),
-            title: Text(context.t('pp.hf_numbers')),
-          ),
-          if (_numbers) ...[
-            DropdownButtonFormField<PageNumberStyle>(
-              initialValue: _style,
-              decoration: InputDecoration(labelText: context.t('pp.number_style')),
-              items: [
-                for (final st in PageNumberStyle.values)
-                  DropdownMenuItem(
-                      value: st, child: Text(context.t('pp.number_${st.name}'))),
-              ],
-              onChanged: (v) => setState(() => _style = v ?? _style),
-            ),
-            DropdownButtonFormField<PdfNumberPlace>(
-              initialValue: _place,
-              decoration: InputDecoration(labelText: context.t('pp.place')),
-              items: [
-                for (final pl in PdfNumberPlace.values)
-                  DropdownMenuItem(
-                      value: pl, child: Text(context.t('pp.nplace_${pl.name}'))),
-              ],
-              onChanged: (v) => setState(() => _place = v ?? _place),
-            ),
+          if (bates) ...[
             TextField(
-              controller: _start,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: context.t('pp.number_start')),
+              controller: _prefix,
+              decoration:
+                  InputDecoration(labelText: context.t('pp.number_prefix')),
               onChanged: (_) => setState(() {}),
             ),
-            if (bates) ...[
-              TextField(
-                controller: _prefix,
-                decoration:
-                    InputDecoration(labelText: context.t('pp.number_prefix')),
-                onChanged: (_) => setState(() {}),
-              ),
-              TextField(
-                controller: _digits,
-                keyboardType: TextInputType.number,
-                decoration:
-                    InputDecoration(labelText: context.t('pp.number_digits')),
-                onChanged: (_) => setState(() {}),
-              ),
-          ],
-          Text(context.t('pp.preview', {'text': preview}),
-              style: context.type.caption),
+            TextField(
+              controller: _digits,
+              keyboardType: TextInputType.number,
+              decoration:
+                  InputDecoration(labelText: context.t('pp.number_digits')),
+              onChanged: (_) => setState(() {}),
+            ),
           ],
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -832,26 +776,23 @@ class _NumberingSheetState extends State<_NumberingSheet> {
             onChanged: (v) => setState(() => _skipFirst = v),
             title: Text(context.t('pt.pn_skip_first')),
           ),
+          Text(context.t('pp.preview', {'text': preview}),
+              style: context.type.caption),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-            child: Row(
-              children: [
-                // Düzenle = yeniden ekle (eskisinin yerine geçer); kaldır ayrı.
-                TextButton(
-                  onPressed: () => Navigator.pop(
-                    context,
-                    const _NumberingOptions(PageNumberStyle.plain,
-                        PdfNumberPlace.bottomCenter, 1, false, '', 6,
-                        remove: true),
-                  ),
-                  child: Text(context.t('pp.hf_remove')),
+            child: FilledButton(
+              onPressed: () => Navigator.pop(
+                context,
+                _NumberingOptions(
+                  _style,
+                  _place,
+                  int.tryParse(_start.text) ?? 1,
+                  _skipFirst,
+                  _prefix.text,
+                  (int.tryParse(_digits.text) ?? 6).clamp(1, 12).toInt(),
                 ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _ok,
-                  child: Text(context.t('common.ok')),
-                ),
-              ],
+              ),
+              child: Text(context.t('common.ok')),
             ),
           ),
         ],

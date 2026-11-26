@@ -521,50 +521,6 @@ abstract final class PdfDocPro {
         PageNumberStyle.bates => '$prefix${number.toString().padLeft(digits, '0')}',
       };
 
-  /// Üst/alt bilgi ve numaranın çizildiği katmanın (OCG) adı (B4/P20,
-  /// Faz 63 m.3): düzenle = eskisini silip yeniden çiz, kaldır = katmanı
-  /// çizimiyle sil. Eski sürümlerin doğrudan sayfaya bastığı numara
-  /// katmansızdır, kaldırılamaz.
-  static const headerFooterLayer = 'Dosya Okuyucu: üst/alt bilgi';
-
-  /// Saf: yuvaya göre yazılar — üst bilgi üst ortada, alt bilgi alt ortada,
-  /// numara [place]'te; aynı yuvaya düşenler ' · ' ile birleşir.
-  static Map<PdfNumberPlace, String> headerFooterSlots(PdfNumberPlace place,
-      {String? number, String header = '', String footer = ''}) {
-    final out = <PdfNumberPlace, String>{};
-    void put(PdfNumberPlace at, String? text) {
-      final t = text?.trim() ?? '';
-      if (t.isEmpty) return;
-      final old = out[at];
-      out[at] = old == null ? t : '$old · $t';
-    }
-
-    put(PdfNumberPlace.topCenter, header);
-    put(PdfNumberPlace.bottomCenter, footer);
-    put(place, number);
-    return out;
-  }
-
-  /// Belgedeki üst/alt bilgi katmanlarını çizimleriyle siler; bulduysa `true`.
-  static bool _dropHeaderFooter(PdfDocument doc) {
-    final found = [
-      for (var i = 0; i < doc.layers.count; i++)
-        if (doc.layers[i].name == headerFooterLayer) doc.layers[i],
-    ];
-    for (final l in found) {
-      doc.layers.remove(layer: l, isRemoveGraphicalContent: true);
-    }
-    return found.isNotEmpty;
-  }
-
-  /// Belgede (bu uygulamanın eklediği) üst/alt bilgi var mı.
-  static bool hasHeaderFooter(List<int> bytes, {String? password}) =>
-      readLayers(bytes, password: password)
-          .any((l) => l.name == headerFooterLayer);
-
-  /// Sayfa numarası + üst/alt bilgi: [headerFooterLayer] katmanına çizilir;
-  /// belgede önceki varsa önce o silinir (yeniden eklemek = düzenlemek).
-  /// [numbers] kapalıysa yalnız [header]/[footer].
   static Future<List<int>> addNumbering(
     List<int> bytes, {
     PageNumberStyle style = PageNumberStyle.plain,
@@ -574,89 +530,50 @@ abstract final class PdfDocPro {
     String prefix = '',
     int digits = 6,
     String pageWord = 'Sayfa',
-    bool numbers = true,
-    String header = '',
-    String footer = '',
     double fontSize = 10,
     List<int>? fontBytes,
     String? password,
   }) async {
-    // Önceki katman AYRI geçişte silinir: aynı oturumda sil + yeni katman
-    // çiz Syncfusion'da sayfa içeriğini bozdu (CI 2026-11-27: 2. sayfa ve
-    // yeni yazı kayboldu).
-    if (hasHeaderFooter(bytes, password: password)) {
-      bytes = await removeHeaderFooter(bytes, password: password);
-    }
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
       final font = fontBytes == null
           ? PdfStandardFont(PdfFontFamily.helvetica, fontSize)
           : PdfTrueTypeFont(fontBytes, fontSize);
       final brush = PdfSolidBrush(PdfColor(50, 50, 50));
-      final layer = doc.layers.add(name: headerFooterLayer, visible: true);
       final count = doc.pages.count;
       final first = skipFirstPage ? 1 : 0;
       final total = startAt + (count - first) - 1;
       for (var i = first; i < count; i++) {
         final page = doc.pages[i];
-        final slots = headerFooterSlots(place,
-            number: numbers
-                ? numberLabel(style,
-                    number: startAt + i - first,
-                    total: total,
-                    prefix: prefix,
-                    digits: digits,
-                    pageWord: pageWord)
-                : null,
-            header: header,
-            footer: footer);
-        if (slots.isEmpty) continue;
-        final g = layer.createGraphics(page);
+        final label = numberLabel(style,
+            number: startAt + i - first,
+            total: total,
+            prefix: prefix,
+            digits: digits,
+            pageWord: pageWord);
+        final size = font.measureString(label);
         final pageSize = page.getClientSize();
         const m = 24.0;
-        for (final MapEntry(key: at, value: label) in slots.entries) {
-          final size = font.measureString(label);
-          final x = switch (at) {
-            PdfNumberPlace.bottomLeft || PdfNumberPlace.topLeft => m,
-            PdfNumberPlace.bottomRight ||
-            PdfNumberPlace.topRight =>
-              pageSize.width - size.width - m,
-            _ => (pageSize.width - size.width) / 2,
-          };
-          final top = at == PdfNumberPlace.topCenter ||
-              at == PdfNumberPlace.topLeft ||
-              at == PdfNumberPlace.topRight;
-          final y = top ? m - 8 : pageSize.height - size.height - m;
-          g.drawString(label, font,
-              brush: brush,
-              bounds: Rect.fromLTWH(x, y, size.width + 1, size.height));
-        }
+        final x = switch (place) {
+          PdfNumberPlace.bottomLeft || PdfNumberPlace.topLeft => m,
+          PdfNumberPlace.bottomRight ||
+          PdfNumberPlace.topRight =>
+            pageSize.width - size.width - m,
+          _ => (pageSize.width - size.width) / 2,
+        };
+        final top = place == PdfNumberPlace.topCenter ||
+            place == PdfNumberPlace.topLeft ||
+            place == PdfNumberPlace.topRight;
+        final y = top ? m - 8 : pageSize.height - size.height - m;
+        page.graphics.drawString(label, font,
+            brush: brush,
+            bounds: Rect.fromLTWH(x, y, size.width + 1, size.height));
       }
       return await doc.save();
     } finally {
       doc.dispose();
     }
   }
-
-  /// Üst/alt bilgi + numara katmanını çizimiyle kaldırır; yoksa [StateError].
-  static Future<List<int>> removeHeaderFooter(List<int> bytes,
-      {String? password}) async {
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    try {
-      if (!_dropHeaderFooter(doc)) throw StateError('Üst/alt bilgi yok');
-      return await doc.save();
-    } finally {
-      doc.dispose();
-    }
-  }
-
-  static Future<List<int>> removeHeaderFooterInBackground(List<int> bytes,
-          {String? password}) =>
-      _bg(() => removeHeaderFooter(bytes, password: password));
-
-  static Future<bool> hasHeaderFooterInBackground(List<int> bytes,
-          {String? password}) =>
-      Isolate.run(() => hasHeaderFooter(bytes, password: password));
 
   static Future<List<int>> addNumberingInBackground(
     List<int> bytes, {
@@ -667,9 +584,6 @@ abstract final class PdfDocPro {
     String prefix = '',
     int digits = 6,
     String pageWord = 'Sayfa',
-    bool numbers = true,
-    String header = '',
-    String footer = '',
     List<int>? fontBytes,
     String? password,
   }) =>
@@ -681,9 +595,6 @@ abstract final class PdfDocPro {
           prefix: prefix,
           digits: digits,
           pageWord: pageWord,
-          numbers: numbers,
-          header: header,
-          footer: footer,
           fontBytes: fontBytes,
           password: password));
 

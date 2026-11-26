@@ -1739,13 +1739,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kalite (B16 m.4): matbu Arapça, harekeli Kur'an sayfası, Osmanlıca, Cavi örneğiyle Gemini'ye karşı karakter doğruluğu; tam taranmış sayfada küçük yazı kaçıyor mu (algılama uzun kenarı 1280 px). Süre: tek sayfa kaç sn (ilk çağrı modeli yükler), bellek.
 - [ ] "Otomatik" kipte Arapça sayfa: Latin sonucu zayıfsa yerel Arapça motor devreye girer (anahtar yokken de).
 - [ ] Sesli kitap sesi kuruluyken bir sesi silmek Arapça tanımayı bozmaz (ortak ONNX çalışma zamanı kalır).
-## B4-P20 sayfa stüdyosu tek kapı + üst/alt bilgi (2026-11-27, dal faz-oto-B4-p20) — yazıldı, cihazda doğrulanmadı
+## B4-P20 sayfa stüdyosu tek kapı (2026-11-27, dal faz-oto-B4-p20) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları: alt çubukta tek "Sayfa stüdyosu" düğmesi; ⋮ en üstte "Sayfa stüdyosu", eski taşı/çoğalt/boş sayfa/ters çevir/böl/tara/birleştir girdileri yok.
 - [ ] Görüntüleyici → düzenle → Sayfalar → "Sayfa stüdyosu": araçlar ekranı açılıp stüdyo hemen gelir; Tamam → araçlarda Kaydet → görüntüleyici yeni sırayı gösterir.
 - [ ] Stüdyo ⋮: tek sayfa seçiliyken "Sayfayı taşı…" (numara gir) çalışır; "Sırayı ters çevir" + geri al; "Parçalara böl…" 2 → belgenin yanına -bolum1.. dosyaları.
 - [ ] Stüdyo → Sayfa ekle → Dosyadan: 2 PDF birden seç → seçim sırasıyla, ardışık eklenir.
-- [ ] Araçlar ⋮ Sayfa numarası (ya da Pro → Gelişmiş numaralandırma): üst bilgi + alt bilgi + numara (Türkçe harfli) → sayfalarda doğru yerde; yeniden açıp üst bilgiyi değiştir → eskisi kalmaz; Kaldır → üç yazı da gider, sayfa içeriği bozulmaz; Chrome'da da aynı.
-- [ ] Hiç eklenmemiş belgede Kaldır → "Kaldırılacak üst/alt bilgi yok" iletisi.
 
 ## B4-P21 güvenlik + çıktı (2026-11-27, dal faz-oto-B4-p21) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → PDF Pro → Belge bilgileri → "Tüm meta veriyi temizle" → onay → kaydet (kopya): başka bir okuyucuda (ör. Adobe/Chrome özellikler) başlık/yazar/oluşturan boş; sayfalar aynı; geri al çalışır.
