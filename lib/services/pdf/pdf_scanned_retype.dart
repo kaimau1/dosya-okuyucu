@@ -3,7 +3,8 @@ import 'dart:typed_data';
 import 'dart:ui' show Rect;
 
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:pdfrx/pdfrx.dart' show PdfPage, PdfRect;
+import 'package:pdfrx/pdfrx.dart' as pdfrx show PdfPage;
+import 'package:pdfrx/pdfrx.dart' show PdfRect;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../pdf_tools.dart' show pdfToSyncfusionRect, stampTransform;
@@ -139,7 +140,7 @@ abstract final class PdfScannedRetype {
   /// örnekler (yalnız satır çevresi küçük bir bölge çizilir — düzenleme
   /// anında bir kez, sıcak yolda değil). Çizilemezse null → beyaz/koyu gri.
   static Future<({int background, int ink})?> sampleFromPage(
-      PdfPage page, PdfRect box) async {
+      pdfrx.PdfPage page, PdfRect box) async {
     try {
       const scale = 2.0, pad = 3.0;
       final x = ((box.left - pad) * scale).floor();
