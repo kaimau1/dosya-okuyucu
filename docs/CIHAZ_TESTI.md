@@ -1728,6 +1728,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Beyaz kâğıtta davranış eskisiyle aynı (beyaz kapak, koyu yazı).
 - [ ] 90° döndürülmüş taranmış sayfa: PDF Pro → "Aranabilir yap (OCR)" → aramada sözcük bulunur, vurgu doğru yerde.
 - [ ] 90° döndürülmüş taranmış sayfada satır düzeltme: yeni metin özgün satırın üstüne, doğru yönde yazılır.
+## B4-P19b OCR Pro kalan (2026-11-27, dal faz-oto-B4-p19b) — yazıldı, cihazda doğrulanmadı
+- [ ] Bulanık/eğik taranmış sayfa → düzenle (Metin kipi): emin olunmayan sözcüklerin altı kırmızı çizili; net sayfada işaret yok ya da çok az. Çok/az işaret çıkarsa eşik `ocrLowConfidence` (0,6) ayarlanır.
+- [ ] Okuma görünümünde (düzenleyici dışı) hiçbir işaret görünmez; daha önce açılmış (önbellekli) sayfa işaretsiz açılır, hata vermez.
+- [ ] Taranmış sayfa → düzenle → şeritte "Bu sayfayı düzenlenebilir yap": tüm satırlar aynı yerde, kâğıt/mürekkep renginde gerçek metne döner; sonra satıra dokununca paragraf olarak düzenlenir, metin seçilip kopyalanır; Geri al tek adımda eski taramaya döner.
 ## B16 dilim 1 — internetsiz Arapça metin tanıma (2026-11-26, dal faz-oto-B16-ocr) — yazıldı, cihazda doğrulanmadı
 - [ ] Ayarlar → Belgeler → Metin tanıma dili → "İnternetsiz Arapça tanımayı indir" (≈27 MB; ses kuruluysa ≈13 MB): ayar satırında "%N" ilerler, bitince "hazır" bildirimi. İnternet kapalıyken dene → anlaşılır "indirilemedi … akıllı okuma" iletisi, uygulama donmaz.
 - [ ] "Arapça" seçiliyken (Gemini anahtarı YOKKEN) matbu Arapça sayfa fotoğrafı → Metni tanı: metin sağdan sola doğru sırada, harfler birleşik; uçak kipinde de çalışır. Model silinip anahtar da yoksa → "modeli indir ya da Gemini anahtarı ekle" iletisi.
