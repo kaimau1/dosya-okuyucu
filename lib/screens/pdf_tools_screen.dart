@@ -236,7 +236,7 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
               onSelected: (v) => switch (v) {
                 'studio' => _reorderPages(),
                 'compress' => _compress(),
-                'numbers' => _addPageNumbers(),
+                'numbers' => _numbering(),
                 'watermark' => _addWatermark(),
                 'images' => _exportImages(),
                 'lock' => _setPassword(),
