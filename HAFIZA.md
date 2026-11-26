@@ -816,3 +816,8 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Tuzak (belge):** `build-play.yml` hiç yoktu; Play AAB `build-apk.yml` elle tetik `aab=true`. Yayın rehberi Lite kimliğini `.okuyucu` yazıyordu, kod `.lite` (`Edition.packageId`).
 - **Karar (AAB 16 KB):** Play derlemesinde ELF hizası arm64 + x86_64 denetlenir (Play 64-bit kuralı); Kişisel AAB yalnız arm64 (etiket sürümünü kırmasın). Yerelde libmpv x86_64 0x4000 doğrulandı.
 - **Karar (model aynası):** `lib/core/model_mirror.dart` tek yer; `DOSYA_MODEL_AYNA` (CI `vars.DOSYA_MODEL_AYNA`, boş = özgün). Önce ayna, olmazsa özgün; SHA-256 değişmez. Ayna sunucusu 👤 PLAN §3 m.7b.
+
+## 2026-11-26 — B4 P19 OCR Pro dilimi (dal faz-oto-B4-p19; cihazda doğrulanmadı)
+- **Karar (renk örnekleme):** `PdfScannedRetype.sampleFromPage` satır kutusunun ±3 pt çevresini pdfrx ile 2× çizer (yalnız Bitti anında, sıcak yol değil); kenar halkası kanal medyanı = kâğıt, kâğıttan en uzak %10 piksel ortalaması = mürekkep; karşıtlık (kanal toplamı) < 90 ise mürekkep koyu gri. Örnek alınamazsa eski beyaz kapak. Desenli zemin/inpainting ve kalınlık/yazı tipi sınıfı tahmini YAPILMADI.
+- **Bug kökü (döndürülmüş sayfa):** pdfrx OCR kutuları GÖRÜNEN (döndürülmüş) sayfada; Syncfusion grafik uzayı ham. `addTextLayer` bu yüzden döndürülmüş sayfayı atlıyordu, `PdfScannedRetype` ise yanlış yere yazıyordu → ikisi de `stampTransform` (imza damgası köprüsü) + görünen yükseklikle düzeltildi.
+- **Ertelendi:** düşük güvenli sözcük işareti güven puanını `OcrService`'ten taşımayı ister; B16 (`faz-oto-B16-ocr`) aynı dosyada çalıştığı için bilerek dokunulmadı.

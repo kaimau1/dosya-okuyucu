@@ -1720,3 +1720,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] İmza penceresi: `Çiz` · `Yaz` (italik serif, Türkçe harfler) · `Görsel` (PNG/fotoğraf) + üstte kayıtlı imzalar şeridi (tek dokunuşla yeniden kullan / sil); Baş harf ayrı kaydedilir.
 - [ ] İmza sekmesi: sayfaya birden fazla İmza, Baş harf ve Tarih damgası ekleyip sürükle/boyutlandır/sil; kaydettikten sonra başka okuyucuda doğru konumda görünür (döndürülmüş sayfada da).
 - [ ] Dijital imza sekmesi: imzalı PDF'te doğrulama kartı (Geçerli / İmzadan sonra ekleme / Geçersiz) ve Form/İmza sekmelerinde imzalı belge uyarısı görünür; öz-imzalı ve `.pfx/.p12` sertifikayla görünür/görünmez imzalama çalışır (Lite sürümde Pro kapısı çıkar, doğrulama ücretsizdir).
+
+## B4-P19 OCR Pro (2026-11-26, dal faz-oto-B4-p19) — yazıldı, cihazda doğrulanmadı
+- [ ] Sararmış/renkli kâğıda taranmış PDF → düzenle → taranmış satıra dokun, metni değiştir, Bitti: kapak kâğıt renginde (beyaz yama yok), yazı özgün mürekkep renginde (mavi tükenmez → mavi). Hedef ΔE ≤ 3 (göz kararı: yama seçilmiyor).
+- [ ] Aynı sayfada "Sayfayı düzelt": değişen tüm satırlar aynı şekilde renkli; düzeltme süresi eskisinden belirgin uzun değil (satır başı küçük bölge çizimi).
+- [ ] Beyaz kâğıtta davranış eskisiyle aynı (beyaz kapak, koyu yazı).
+- [ ] 90° döndürülmüş taranmış sayfa: PDF Pro → "Aranabilir yap (OCR)" → aramada sözcük bulunur, vurgu doğru yerde.
+- [ ] 90° döndürülmüş taranmış sayfada satır düzeltme: yeni metin özgün satırın üstüne, doğru yönde yazılır.
