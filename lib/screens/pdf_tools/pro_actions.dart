@@ -461,6 +461,18 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
       builder: (_) => _MetaSheet(initial: current),
     );
     if (edited == null || edited == current || !mounted) return;
+    if (edited == _metaStrip) {
+      final ok = await showAppConfirm(
+        context,
+        title: context.t('pp.meta_strip'),
+        message: context.t('pp.meta_strip_body'),
+        confirmLabel: context.t('pp.meta_strip_ok'),
+      );
+      if (!ok || !mounted) return;
+      await _apply(_str.t('pp.meta_strip'),
+          (b) => PdfDocPro.stripMetaInBackground(b, password: pw));
+      return;
+    }
     await _apply(_str.t('pp.meta'),
         (b) => PdfDocPro.writeMetaInBackground(b, edited, password: pw));
   }

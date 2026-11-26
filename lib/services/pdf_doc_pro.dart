@@ -249,6 +249,34 @@ abstract final class PdfDocPro {
     }
   }
 
+  /// Meta veriyi temizler: bilgi sözlüğündeki başlık/yazar/konu/anahtar
+  /// sözcük/oluşturan/üreten alanları boşalır, değişiklik tarihi silinir.
+  /// Bilgi sözlüğü değişince Syncfusion XMP'yi bu boş bilgiden yeniden kurar
+  /// (eski XMP — araç adı, geçmiş — bağlantısız kalır); belge BAŞTAN yazılır
+  /// ki eski artımlı sürümler ve bağlantısız XMP dosyada kalmasın.
+  /// ponytail: oluşturma tarihini silen API yok (Syncfusion) — kalır.
+  static Future<List<int>> stripMeta(List<int> bytes, {String? password}) async {
+    final doc = PdfDocument(inputBytes: bytes, password: password);
+    try {
+      doc.documentInformation
+        ..title = ''
+        ..author = ''
+        ..subject = ''
+        ..keywords = ''
+        ..creator = ''
+        ..producer = ''
+        ..removeModificationDate();
+      doc.fileStructure.incrementalUpdate = false;
+      return await doc.save();
+    } finally {
+      doc.dispose();
+    }
+  }
+
+  static Future<List<int>> stripMetaInBackground(List<int> bytes,
+          {String? password}) =>
+      _bg(() => stripMeta(bytes, password: password));
+
   static Future<PdfMeta> readMetaInBackground(List<int> bytes,
           {String? password}) =>
       Isolate.run(() => readMeta(bytes, password: password));

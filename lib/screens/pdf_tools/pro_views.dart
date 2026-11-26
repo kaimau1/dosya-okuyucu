@@ -357,10 +357,24 @@ class _MetaSheetState extends State<_MetaSheet> {
                 child: Text(context.t('common.ok')),
               ),
             ),
+            // B4/P21: tüm meta veriyi (XMP ve eski sürümler dahil) sil.
+            Padding(
+              padding: const EdgeInsets.only(bottom: Gap.sm),
+              child: OutlinedButton.icon(
+                icon: const Icon(AppIcons.deleteSweep),
+                onPressed: () => Navigator.pop<PdfMeta>(context, _metaStrip),
+                label: Text(context.t('pp.meta_strip')),
+              ),
+            ),
           ],
         ),
       );
 }
+
+/// [_MetaSheet]'in "tümünü temizle" yanıtı (alanlar boş belge bilgisinden
+/// ayırt edilsin diye özel işaret değer).
+const PdfMeta _metaStrip =
+    (title: ' ', author: '', subject: '', keywords: '');
 
 // ── Katmanlar (OCG) ───────────────────────────────────────────────────────
 
