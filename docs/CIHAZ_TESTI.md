@@ -1709,3 +1709,6 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Bulut (`Şekiller` levhasından): parmakla dikdörtgen sürükle → tırtıklı çerçeve; Silgi dokununca siler; Yorumlar listesinde görünür.
 - [ ] Serbest metin: dokun → yaz (çok satır, Türkçe harfler) → dokunulan yerde yazı; Damga: dokun → Onaylandı / Reddedildi / Gizli / Tarih ve saat / Kendi damgam → çerçeveli renkli damga. Kaydedip başka okuyucuda aç → aynı görünür. Arapça yazınca açık "harf yok" uyarısı.
 - [ ] Kalem (stylus) olan tablette: kalemle çizerken avucunu ekrana koy → çizgi bozulmaz; kalemle bir kez dokunduktan sonra parmak çizmez. Sert basınca çizgi kalın, hafif basınca ince.
+
+## B11 m.1 — slayt şekil yansıması (2026-11-26, dal faz-oto-K1-kuyruk) — yazıldı, cihazda doğrulanmadı
+- [ ] PowerPoint'te bir şekle Biçim → Efektler → Yansıma (ör. "Sıkı yansıma, dokunan") ver → uygulamada aç: şeklin altında aşağı doğru solan aynalı kopya; sunumda ve düzenleyicide aynı; şekle dokununca yalnız asıl şekil seçilir; döndürülmüş şekilde yansıma da döner.
