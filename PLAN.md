@@ -68,7 +68,7 @@ Kapsam dışı: başka izin/ayar/hesap ekranı, PIN. Ayrıntı `ab-olcum` skill'
 
 **SIRA (2026-11-18, kullanıcı: "özellikleri geliştirmeye devam — Word, PDF, Excel, slayt; performans,
 hızlandırma, akıcılık, kullanıcı deneyimi hissi"):**
-- **Kod (bulut ya da yerel; 2026-11-26 eşitlendi):** R2 + K1 dallarını birleştir (yürütücü) → B4 (P18 başka oturumda, P19+ o birleşince) → B13 kalanları → B7b → B5/B6/U4 (kullanıcı kararıyla: K14, K17, K19, U4 adayları) → **en son (kullanıcı 2026-11-26): B16 → B17**.
+- **Kod (bulut ya da yerel; 2026-11-26 eşitlendi):** R2 + K1 dallarını birleştir (yürütücü) → B4 (P18 başka oturumda, P19+ o birleşince) → B7b → B5/B6/U4 (kullanıcı kararıyla: K14, K17, K19, U4 adayları) → **en son (kullanıcı 2026-11-26): B16 → B17**.
 - **Telefonla (yerel, paralel; boşaldıkça):** C2 (önce Word/Excel ikinci tur) → C1 → B3 → C3 (B11 m.4 dahil). **En son:** B8.
 
 Ferrari kuralı (§0): B3'teki hız işleri (P06, P12b, P29) bitmeden büyük yeni özellik **varsayılan
