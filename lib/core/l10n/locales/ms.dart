@@ -1368,4 +1368,347 @@ const Map<String, String> _ms = {
       'Eksport anotasi (XFDF)',
   'pp.xfdf_in':
       'Import anotasi (XFDF)',
+  // ── PDF yerinde düzenleme pse (m.3) ──
+  'pse.editing':
+      'Menyunting',
+  'pse.unsaved_n':
+      'Belum disimpan · {n} perubahan',
+  'pse.saved':
+      'Disimpan',
+  'pse.undo_named':
+      'Buat asal: {name}',
+  'pse.redo_named':
+      'Buat semula: {name}',
+  'pse.step_detail':
+      '{name}: “{detail}”',
+  'pse.hint_tap':
+      'Ketik teks untuk menaip; tekan lama untuk mengalih atau menggayakannya.',
+  'pse.hint_scanned':
+      'Halaman ini ialah imej imbasan tanpa teks yang boleh dipilih. Ketik “Kotak teks” untuk menambah teks atau “Kenali teks (OCR)” untuk mengesannya.',
+  'pse.open_elsewhere':
+      'PDF ini sedang disunting di tetingkap lain — perubahan yang belum disimpan ada di sana.',
+  'pse.edit_title':
+      'Sunting perenggan',
+  'pse.edit_hint':
+      'Teks perenggan',
+  'pse.busy_wait':
+      'Memproses halaman, sila tunggu beberapa saat…',
+  'pse.save_how':
+      'Bagaimanakah ia hendak disimpan?',
+  'pse.save_keep_original':
+      'Simpan sebagai salinan (asal dikekalkan)',
+  'pse.save_overwrite':
+      'Tulis ganti fail asal',
+  'pse.save_as':
+      'Simpan sebagai',
+  'pse.save_as_same':
+      'Salinan dalam folder yang sama',
+  'pse.saved_copy':
+      'Salinan disimpan: {name}',
+  'pse.finish':
+      'Selesai menyunting',
+  'pse.versions':
+      'Sejarah versi',
+  'pse.versions_empty':
+      'Belum ada versi disimpan. Setiap kali anda menyimpan, versi sebelumnya disimpan di sini selama 14 hari.',
+  'pse.versions_note':
+      'Versi sebelumnya disimpan selama 14 hari.',
+  'pse.version_restore':
+      'Pulihkan versi ini',
+  'pse.version_restore_q':
+      'Pulihkan versi dari {when}? Keadaan semasa juga ditambah ke sejarah.',
+  'pse.version_restore_unsaved':
+      'Perubahan yang belum disimpan akan dibuang.',
+  'pse.version_restored':
+      'Versi sebelumnya dipulihkan',
+  'pse.recover_title':
+      'Suntingan belum disimpan ditemui',
+  'pse.recover_body':
+      'Dokumen ini mempunyai {n} perubahan yang belum disimpan semasa aplikasi ditutup.',
+  'pse.recover_body_copy':
+      'Dokumen ini mempunyai perubahan yang belum disimpan semasa aplikasi ditutup. Fail telah berubah sejak itu, jadi keadaan yang disunting boleh dipulihkan sebagai salinan.',
+  'pse.recover_restore':
+      'Pulihkan suntingan yang belum disimpan',
+  'pse.recover_copy':
+      'Simpan salinan yang dipulihkan',
+  'pse.recover_discard':
+      'Buang',
+  'pse.recover_done':
+      '{n} perubahan dipulihkan (belum disimpan)',
+  'pse.recover_partial':
+      '{n} daripada {total} perubahan dipulihkan',
+  'pse.locked_title':
+      'Dokumen ini dilindungi daripada penyuntingan',
+  'pse.locked_open':
+      'Buka dengan kata laluan pemilik',
+  'pse.owner_title':
+      'Kata laluan pemilik',
+  'pse.owner_body':
+      'Masukkan kata laluan yang menanggalkan sekatan penyuntingan.',
+  'pse.al_center':
+      'Tengah',
+  'pse.al_justify':
+      'Rata kiri dan kanan',
+  'pse.al_left':
+      'Jajar kiri',
+  'pse.al_right':
+      'Jajar kanan',
+  'pse.comment_edit':
+      'Sunting nota',
+  'pse.comment_page':
+      'Halaman {n}',
+  'pse.comment_reply':
+      'Balas',
+  'pse.comments':
+      'Komen',
+  'pse.comments_all':
+      'Semua',
+  'pse.comments_none':
+      'Tiada anotasi dalam dokumen ini.',
+  'pse.comments_open':
+      'Terbuka',
+  'pse.comments_resolved':
+      'Diselesaikan',
+  'pse.context_bar':
+      'Pilihan alat',
+  'pse.copied':
+      'Disalin',
+  'pse.copy':
+      'Salin',
+  'pse.cut':
+      'Potong',
+  'pse.delete_pull':
+      'Padam dan tarik ke atas yang di bawah',
+  'pse.done':
+      'Selesai',
+  'pse.duplicate':
+      'Gandakan',
+  'pse.find_case':
+      'Padankan huruf besar/kecil',
+  'pse.find_count':
+      '{n} padanan · memaparkan {i}',
+  'pse.find_hint':
+      'Mencari dalam seluruh dokumen; teks itu sendiri yang diubah.',
+  'pse.find_next':
+      'Seterusnya',
+  'pse.find_none':
+      'Tiada padanan.',
+  'pse.find_replace_all':
+      'Ganti semua',
+  'pse.find_replace_one':
+      'Ganti',
+  'pse.find_replaced':
+      '{n} padanan diganti.',
+  'pse.find_replaced_partial':
+      '{n} padanan diganti; {m} blok tidak dapat diubah.',
+  'pse.find_title':
+      'Cari dan ganti',
+  'pse.find_what':
+      'Cari',
+  'pse.find_with':
+      'Ganti dengan',
+  'pse.find_word':
+      'Perkataan penuh',
+  'pse.flatten':
+      'Ratakan anotasi',
+  'pse.flatten_q':
+      'Anotasi dan medan borang pada halaman ini menjadi sebahagian daripada halaman dan tidak boleh lagi disunting secara berasingan.',
+  'pse.fmt_align':
+      'Penjajaran',
+  'pse.fmt_bold':
+      'Tebal',
+  'pse.fmt_color':
+      'Warna',
+  'pse.fmt_highlight':
+      'Warna penyerlahan',
+  'pse.fmt_italic':
+      'Condong',
+  'pse.fmt_larger':
+      'Teks lebih besar',
+  'pse.fmt_size':
+      'Saiz fon',
+  'pse.fmt_smaller':
+      'Teks lebih kecil',
+  'pse.fmt_strike':
+      'Garis lorek',
+  'pse.fmt_underline':
+      'Garis bawah',
+  'pse.font_doc':
+      'dokumen',
+  'pse.font_fallback':
+      'sandaran',
+  'pse.overflow':
+      'Teks bertindih dengan teks di bawahnya.',
+  'pse.overflow_shrink':
+      'Kecilkan',
+  'pse.overflow_push':
+      'Tolak ke bawah',
+  'pse.overflow_widen':
+      'Lebarkan',
+  'pse.link':
+      'Pautan',
+  'pse.link_web':
+      'Pautkan ke alamat web',
+  'pse.link_web_hint':
+      'Alamat atau e-mel',
+  'pse.link_page':
+      'Pautkan ke halaman dalam dokumen ini',
+  'pse.link_page_hint':
+      'Nombor halaman (1–{n})',
+  'pse.link_to_page':
+      'Kini menuju ke halaman {n}',
+  'pse.link_remove':
+      'Buang pautan',
+  'pse.link_bad':
+      'Alamat atau halaman ini tidak boleh digunakan.',
+  'pse.font_pick':
+      'Fon',
+  'pse.image_exported':
+      'Imej disimpan ke Dokumen: {name}',
+  'pse.img_add':
+      'Tambah imej',
+  'pse.img_from_files':
+      'Daripada galeri atau fail',
+  'pse.img_from_camera':
+      'Ambil dengan kamera',
+  'pse.obj_lasso':
+      'Pilih dengan lasso',
+  'pse.img_back':
+      'Hantar ke belakang',
+  'pse.img_crop':
+      'Pangkas',
+  'pse.img_export':
+      'Eksport',
+  'pse.img_front':
+      'Bawa ke hadapan',
+  'pse.img_replace':
+      'Ganti',
+  'pse.img_rotate':
+      'Putar',
+  'pse.list_bullets':
+      'Senarai berbulet',
+  'pse.list_numbers':
+      'Senarai bernombor',
+  'pse.locked_box':
+      'Tambah kotak teks di atasnya',
+  'pse.locked_line':
+      'Tukar ke mod garis',
+  'pse.locked_replace':
+      'Ganti tulisan',
+  'pse.locked_ai':
+      'Baca dengan AI dan ganti',
+  'pse.ocr_ai_reading':
+      'AI sedang membaca tulisan…',
+  'pse.locked_why':
+      'Mengapa ini tidak boleh disunting?',
+  'pse.mk_stamp':
+      'Setem',
+  'pse.mk_freetext':
+      'Teks bebas',
+  'pse.stamp_approved':
+      'DILULUSKAN',
+  'pse.stamp_rejected':
+      'DITOLAK',
+  'pse.stamp_confidential':
+      'SULIT',
+  'pse.stamp_custom':
+      'Setem tersuai…',
+  'pse.mk_note':
+      'Nota',
+  'pse.page_rotate':
+      'Putar halaman ini',
+  'pse.page_studio':
+      'Studio halaman',
+  'pse.page_studio_hint':
+      'Susun semula, sisip, padam, pisah, gabung',
+  'pse.paste':
+      'Tampal',
+  'pse.select_all':
+      'Pilih semua',
+  'pse.style_copy':
+      'Salin gaya',
+  'pse.style_paste':
+      'Tampal gaya',
+  'pse.tool_all':
+      'Semua alat PDF',
+  'pse.tool_all_hint':
+      'Penyuntingan hitam, kata laluan, mampat, tukar…',
+  'pse.tool_form':
+      'Borang',
+  'pse.tool_pages':
+      'Halaman',
+  'pse.tool_sign':
+      'Tandatangan',
+  'pse.kvkk_apply':
+      'Hitamkan {n} item',
+  'pse.kvkk_custom_hint':
+      'Perkataan tambahan (asingkan dengan koma)',
+  'pse.kvkk_done':
+      '{n} item dihitamkan. Dokumen ditulis semula apabila anda menyimpan.',
+  'pse.kvkk_none':
+      'Tiada corak data peribadi ditemui.',
+  'pse.kvkk_title':
+      'Cari data peribadi',
+  'pse.mk_redact':
+      'Hitamkan',
+  'pse.redact_q':
+      'Teks yang dihitamkan dibuang secara kekal daripada dokumen; selepas disimpan ia tidak boleh dipulihkan dan versi lama turut dipadam.',
+  'pse.ocr_run':
+      'Kenali teks (OCR)',
+  'pse.tool_legacy':
+      'Penyunting klasik',
+  'pse.tool_legacy_hint':
+      'Tera air, pembetulan garis imbasan',
+  'pse.edit_text':
+      'Sunting teks',
+  'pse.style':
+      'Gaya',
+  'pse.add_text':
+      'Tambah teks',
+  'pse.textbox_guide':
+      'Ketik di tempat anda mahu menambah teks',
+  'pse.lasso_guide':
+      'Lukis mengelilingi item yang hendak dipilih',
+  'pse.draw_guide':
+      '{tool} aktif · Cubit dengan 2 jari untuk zum',
+  'pse.stroke_title':
+      'Warna & ketebalan',
+  'pse.stroke_width':
+      'Ketebalan garis',
+  'pse.align_group':
+      'Jajar & agihkan',
+  'pse.order':
+      'Susunan',
+  'pse.block_more':
+      'Tindakan blok',
+  'pse.style_sheet_title':
+      'Pemformatan teks',
+  'pse.font_size_pt':
+      '{n} pt',
+  'pse.obj_guide':
+      'Imej & bentuk yang boleh dipilih diserlahkan · ketik untuk menyunting',
+  'pse.obj_count':
+      '{n} item boleh dipilih',
+  'pse.obj_none_hint':
+      'Tiada imej yang boleh dipilih pada halaman ini · tambah imej baharu di bawah',
+  'pse.obj_badge_image':
+      'Imej',
+  'pse.obj_badge_shape':
+      'Bentuk',
+  'pse.resize':
+      'Ubah saiz',
+  'pse.resize_title':
+      'Saiz & skala imej',
+  'pse.scale_pct':
+      'Skala: {n}%',
+  'pse.size_small':
+      'Kecil',
+  'pse.size_fit':
+      'Muat halaman',
+  'pse.size_large':
+      'Besar',
+  'pse.apply_size':
+      'Guna saiz',
+  'pse.text_guide_rich':
+      'Ketik mana-mana kotak teks untuk menyunting · seret pemegang untuk mengalih atau melebarkan',
 };
