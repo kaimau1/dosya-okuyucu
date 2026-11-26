@@ -514,17 +514,17 @@ const Map<String, (String, String, String)> _t35 = {
   'pse.stamp_approved': (
     'ONAYLANDI',
     'APPROVED',
-    'APPROVED',
+    'معتمد',
   ),
   'pse.stamp_rejected': (
     'REDDEDİLDİ',
     'REJECTED',
-    'REJECTED',
+    'مرفوض',
   ),
   'pse.stamp_confidential': (
     'GİZLİ',
     'CONFIDENTIAL',
-    'CONFIDENTIAL',
+    'سري',
   ),
   'pse.stamp_date': (
     'Tarih ve saat',

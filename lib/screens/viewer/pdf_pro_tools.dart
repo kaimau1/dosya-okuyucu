@@ -732,15 +732,18 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       if (pick == null || !mounted || _pro != pro) return;
       final now = DateTime.now();
       String two(int v) => v.toString().padLeft(2, '0');
+      // Hazır damga yazısı Carlito ile çizilir (Arapça glif yok); Arapça
+      // arayüzde seçenek Arapça gösterilir, belgeye uluslararası İngilizce basılır.
+      final latin = context.language == AppLanguage.ar;
       switch (pick) {
         case 'approved':
-          text = context.t('pse.stamp_approved');
+          text = latin ? 'APPROVED' : context.t('pse.stamp_approved');
           color = 0xFF2E7D32;
         case 'rejected':
-          text = context.t('pse.stamp_rejected');
+          text = latin ? 'REJECTED' : context.t('pse.stamp_rejected');
           color = 0xFFC62828;
         case 'confidential':
-          text = context.t('pse.stamp_confidential');
+          text = latin ? 'CONFIDENTIAL' : context.t('pse.stamp_confidential');
           color = 0xFFC62828;
         case 'date':
           text = '${two(now.day)}.${two(now.month)}.${now.year} '
