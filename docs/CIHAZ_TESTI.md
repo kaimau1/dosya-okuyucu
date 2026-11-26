@@ -1746,3 +1746,15 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] PDF Pro → Agresif sıkıştırma (50+ sayfa): kartta "… n/N" ilerler; Durdur → "durduruldu" iletisi, belge değişmez; yeniden başlatınca sonuna dek gider. Ana ekran şeridi/bildirimdeki Durdur da işi keser.
 - [ ] PDF Pro → PDF/A (30+ sayfa): ilerleme + Durdur aynı; tamamlanınca "-PDFA" kopyası kaydedilir.
 - [ ] Araçlar ⋮ Yazdır: sistem yazdırma penceresi açılır, düzenlenmiş (kaydedilmemiş) sayfalar önizlemede; PDF olarak kaydet çalışır. Parolalı belgede hata olursa ileti çıkar, uygulama çökmez.
+
+## B17 — Endonezce + Malayca arayüz (2026-11-27, dal faz-oto-B17-dil; cihazda doğrulanmadı)
+
+- Ayarlar > Dil: "Bahasa Indonesia" ve "Bahasa Melayu" listede → seçince ana ekran, dosya yöneticisi,
+  dosya işlemleri menüsü, ayarlar ve PDF görüntüleyici menüleri o dilde; çevrilmemiş ekranlar İngilizce
+  (Türkçe DEĞİL). Yazı soldan sağa.
+- Telefon dili Endonezce (ya da Malayca) + uygulamada Dil = Sistem → uygulama kendiliğinden o dilde açılır.
+- Endonezce/Malayca arayüzde sesle yazma (Word mikrofon, PDF sesli not) o dili dinler.
+- Çeviri aracında kaynak/hedef listesinde Endonezce ve Malayca var; model indirilip çevirir.
+- Ayarlar > Gizlilik politikası Endonezce/Malayca arayüzde İngilizce metni açar (çeviri 👤 bekliyor).
+- Cavi (Jawi) içerikli bir PDF/metin: ek harfler (ڠ چ ڤ ڽ ݢ ۏ) kutu değil doğru çiziliyor mu; Arapça OCR
+  (B16) bu harfleri tanıyor mu — tanımıyorsa not düş (Cavi ek harfleri model sözlüğünde olmayabilir).

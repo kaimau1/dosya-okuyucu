@@ -837,3 +837,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (sıkıştır):** `crossReferenceType = crossReferenceStream` → Syncfusion sözlükleri `/ObjStm`'e koyar; kendi `PdfFile` ayrıştırıcımız ObjStm okur (yerinde düzenleme bozulmaz).
 - **Karar (durdurma):** `PdfRaster.renderJpegs(isCancelled:)` → `JobCancelled`; araçlar ekranı `_apply`/`_produce` bunu "durduruldu" (`task.stopped`) sayar, belge/undo değişmez.
 - **Tuzak:** python ile Dart'a `'\u0000'` yazarken bash katmanı gerçek NUL baytı bıraktı → git dosyayı ikili (`-text`) saydı, tüm dosya diff'te değişmiş göründü. Kaçışı dosyaya Write ile yaz; `git ls-files --eol` ile denetle.
+## 2026-11-27 — B17 Endonezce + Malayca (dal faz-oto-B17-dil; cihazda doğrulanmadı)
+- **Karar (dil yapısı):** 3'lü demet `(tr,en,ar)` 5'liye GENİŞLETİLMEDİ (54 dosyanın her satırı + paralel dallarla çakışma). id/ms = dil başı ek tablo `lib/core/l10n/locales/{id,ms}.dart` (`Map<String,String>`); `AppStrings.t` önce ek tabloya bakar, yoksa **İngilizceye** düşer (Türkçeye değil). Bekçi: `l10n_test` (anahtar ana tabloda + yer tutucu Türkçeyle aynı) + `on_denetim` (ek tablo anahtarı).
+- **Tuzak (Endonezce kodu):** eski Android Endonezce'yi "in" bildirir; Dart `Locale` bunu kendisi "id"ye çevirir — ayrıca eşleyici GEREKMEZ.
+- **Karar (Cavi):** Malezya arayüzü Latin (Rumi) → ms soldan sağa, arayüzde Cavi yazı tipi/RTL yok; Cavi yalnız içerikte (B16 OCR + sistem yazı tipi), cihazda bakılacak.
+- **Karar (gizlilik):** id/ms arayüzde gizlilik politikası İngilizce gösterilir; Endonezce/Malayca metin hukuk gözden geçirmesiyle 👤 (§3 m.14), gelince `privacy_policy_screen` eşlemesi açılır.
+- **Ertelendi:** modellerin yalnız Wi-Fi'de inmesi seçeneği (§1.16 m.4) — 2026-09-26 kararı mobil veride indirmeyi bilerek açtı; ayrı iş.
