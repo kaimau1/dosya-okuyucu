@@ -57,7 +57,7 @@ import 'fm/pick_file_screen.dart';
 import 'pdf_compare_screen.dart';
 import 'pdf_region_screen.dart';
 import 'pdf_tools/page_studio.dart';
-import 'pdf_sign_screen.dart';
+import 'pdf_form_screen.dart';
 
 part 'pdf_tools/actions.dart';
 part 'pdf_tools/views.dart';

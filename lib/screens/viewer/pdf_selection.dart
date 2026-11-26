@@ -503,10 +503,14 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     if (filled == true && mounted) await _reloadPdf();
   }
 
-  /// İmza ekranı; imza basılırsa dosya değişmiştir → görüntüleyici tazelenir.
+  /// Form ve imza tek yüzeyi (İmza sekmesi); imza basılırsa görüntüleyici tazelenir.
   Future<void> _signPdf() async {
     if (!await _confirmLeavePending() || !mounted) return;
-    final signed = await PdfSignScreen.open(context, widget.doc.path);
+    final signed = await PdfFormScreen.open(
+      context,
+      widget.doc.path,
+      initialTab: PdfFormTab.sign,
+    );
     if (signed == true && mounted) await _reloadPdf();
   }
 

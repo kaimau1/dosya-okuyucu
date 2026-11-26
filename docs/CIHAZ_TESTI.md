@@ -1709,3 +1709,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Bulut (`Şekiller` levhasından): parmakla dikdörtgen sürükle → tırtıklı çerçeve; Silgi dokununca siler; Yorumlar listesinde görünür.
 - [ ] Serbest metin: dokun → yaz (çok satır, Türkçe harfler) → dokunulan yerde yazı; Damga: dokun → Onaylandı / Reddedildi / Gizli / Tarih ve saat / Kendi damgam → çerçeveli renkli damga. Kaydedip başka okuyucuda aç → aynı görünür. Arapça yazınca açık "harf yok" uyarısı.
 - [ ] Kalem (stylus) olan tablette: kalemle çizerken avucunu ekrana koy → çizgi bozulmaz; kalemle bir kez dokunduktan sonra parmak çizmez. Sert basınca çizgi kalın, hafif basınca ince.
+
+## B4-P18 Form + İmza tek yüzey (2026-11-26, dal faz-oto-B4-form-imza) — yazıldı, cihazda doğrulanmadı
+- [ ] Görüntüleyiciden "Formu doldur" ve "İmzala" aynı ekranda (`Form` · `İmza` · `Dijital imza` sekmeleri) açılır; ayrı eski imza ekranı yoktur.
+- [ ] Tüm AcroForm türleri: tek satır, çok satır, tarih alanı (takvim simgesinden tarih seç), onay kutusu, radyo (yongalar), liste, açılır liste ve imza alanı doldurulup kaydedilince Acrobat/Chrome'da doğru görünür (Türkçe harfler dahil).
+- [ ] İmza penceresi: `Çiz` · `Yaz` (italik serif, Türkçe harfler) · `Görsel` (PNG/fotoğraf) + üstte kayıtlı imzalar şeridi (tek dokunuşla yeniden kullan / sil); Baş harf ayrı kaydedilir.
+- [ ] İmza sekmesi: sayfaya birden fazla İmza, Baş harf ve Tarih damgası ekleyip sürükle/boyutlandır/sil; kaydettikten sonra başka okuyucuda doğru konumda görünür (döndürülmüş sayfada da).
+- [ ] Dijital imza sekmesi: imzalı PDF'te doğrulama kartı (Geçerli / İmzadan sonra ekleme / Geçersiz) ve Form/İmza sekmelerinde imzalı belge uyarısı görünür; öz-imzalı ve `.pfx/.p12` sertifikayla görünür/görünmez imzalama çalışır (Lite sürümde Pro kapısı çıkar, doğrulama ücretsizdir).

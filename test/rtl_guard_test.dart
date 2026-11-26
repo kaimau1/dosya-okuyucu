@@ -111,7 +111,7 @@ void main() {
     // aynalanmaz) ve önce/sonra karşılaştırmasının bölme çizgisi (görüntünün
     // solu "önce", sağı "sonra" — dil değişince görüntü dönmez).
     const physicalOk = [
-      'lib/screens/pdf_sign_screen.dart',
+      'lib/screens/pdf_form_sign_tab.dart',
       'lib/screens/viewer/pdf_navigation.dart',
       'lib/screens/fm/resize_compare_screen.dart',
     ];

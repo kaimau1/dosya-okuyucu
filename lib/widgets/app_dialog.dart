@@ -215,6 +215,7 @@ Future<String?> showAppPrompt(
   int? maxLength,
   int? selectEnd,
   bool multiline = false,
+  bool obscure = false,
 }) async {
   final text = await showDialog<String>(
     context: context,
@@ -226,6 +227,7 @@ Future<String?> showAppPrompt(
       maxLength: maxLength,
       selectEnd: selectEnd,
       multiline: multiline,
+      obscure: obscure,
     ),
   );
   final clean = text?.trim();
@@ -241,12 +243,14 @@ class _PromptDialog extends StatefulWidget {
     this.maxLength,
     this.selectEnd,
     this.multiline = false,
+    this.obscure = false,
   });
 
   final String? title, label, confirmLabel;
 
   /// Çok satırlı metin (Enter yeni satır; onay yalnız düğmeyle).
   final bool multiline;
+  final bool obscure;
   final String initial;
   final int? maxLength;
 
@@ -276,6 +280,7 @@ class _PromptDialogState extends State<_PromptDialog> {
         content: TextField(
           controller: _controller,
           autofocus: true,
+          obscureText: widget.obscure,
           maxLength: widget.maxLength,
           minLines: widget.multiline ? 3 : null,
           maxLines: widget.multiline ? 8 : 1,
