@@ -29,6 +29,8 @@ class TranslateService {
     TranslateLanguage.korean: 'Korece',
     TranslateLanguage.portuguese: 'Portekizce',
     TranslateLanguage.dutch: 'Felemenkçe',
+    TranslateLanguage.indonesian: 'Endonezce',
+    TranslateLanguage.malay: 'Malayca',
   };
 
   static final _models = OnDeviceTranslatorModelManager();

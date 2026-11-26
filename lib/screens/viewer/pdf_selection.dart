@@ -343,11 +343,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
   /// yeniden açan bağlantıyla Notlar'a gider.
   Future<void> _voiceNote(LoadedDoc doc) async {
     final str = AppStrings.of(context);
-    final lang = switch (str.language) {
-      AppLanguage.en => 'en-US',
-      AppLanguage.ar => 'ar',
-      _ => 'tr-TR',
-    };
+    final lang = str.language.speechLocale;
     try {
       final spoken =
           await Dictation.listen(lang: lang, prompt: str.t('vn.prompt'));

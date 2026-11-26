@@ -35,6 +35,12 @@ defined: set[str] = set()
 for f in Path('lib/core/l10n/strings').glob('*.dart'):
     defined |= set(re.findall(r"^\s*'([A-Za-z0-9_.]+)'\s*:", f.read_text(), re.M))
 
+# Endonezce/Malayca ek tabloları (B17): anahtar ana tabloda olmalı.
+for f in Path('lib/core/l10n/locales').glob('*.dart'):
+    for key in re.findall(r"^\s*'([A-Za-z0-9_.]+)'\s*:", f.read_text(), re.M):
+        if key not in defined:
+            errors.append(f'ek dil tablosunda ana tabloda olmayan anahtar: {key} ({f})')
+
 static_call = re.compile(r"""\.t\(\s*'([a-zA-Z0-9_.]+)'""")
 # _t('x.y') / tipKey: 'x.y' / labelKey: 'x.y' gibi dolaylı çağrılar
 indirect_call = re.compile(

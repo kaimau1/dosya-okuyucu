@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show SynchronousFuture;
+import 'package:flutter/foundation.dart'
+    show SynchronousFuture, visibleForTesting;
 import 'package:flutter/widgets.dart';
 
 import 'app_language.dart';
@@ -57,8 +58,11 @@ part 'strings/51_editors_ux.dart';
 part 'strings/52_shared_pool_eco.dart';
 part 'strings/53_play_release.dart';
 part 'strings/54_arabic_ocr.dart';
+part 'locales/id.dart';
+part 'locales/ms.dart';
 
-/// Uygulama metinleri — Türkçe / İngilizce / Arapça.
+/// Uygulama metinleri — Türkçe / İngilizce / Arapça (+ Endonezce, Malayca:
+/// `locales/`, eksik anahtar İngilizceye düşer).
 ///
 /// **Neden kod tablosu, neden `.arb` + `gen_l10n` değil:** üretilen kod CI'da
 /// ek bir adım (`flutter gen-l10n`) ister ve çıktısı depoya girmezse derleme
@@ -104,6 +108,9 @@ class AppStrings {
     var text = switch (language) {
       AppLanguage.en => entry.$2,
       AppLanguage.ar => entry.$3,
+      // Endonezce/Malayca ayrı tabloda; çevrilmemiş anahtar İngilizceye düşer.
+      AppLanguage.id => _id[key] ?? entry.$2,
+      AppLanguage.ms => _ms[key] ?? entry.$2,
       _ => entry.$1,
     };
     if (vars != null) {
@@ -120,8 +127,17 @@ class AppStrings {
   static List<String> variants(String key) {
     final entry = _table[key];
     if (entry == null) return const [];
-    return [entry.$1, entry.$2, entry.$3];
+    return [entry.$1, entry.$2, entry.$3, ?_id[key], ?_ms[key]];
   }
+
+  /// Endonezce / Malayca ek tablosu (bekçi testi: anahtar ana tabloda olmalı,
+  /// yer tutucular Türkçeyle aynı olmalı).
+  @visibleForTesting
+  static Map<String, String> overlay(AppLanguage lang) => switch (lang) {
+        AppLanguage.id => _id,
+        AppLanguage.ms => _ms,
+        _ => const {},
+      };
 
   /// Tablodaki tüm anahtarlar (test ve denetim için).
   static Iterable<String> get keys => _table.keys;
@@ -132,7 +148,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
 
   @override
   bool isSupported(Locale locale) =>
-      const {'tr', 'en', 'ar'}.contains(locale.languageCode);
+      AppLanguageInfo.byCode(locale.languageCode) != AppLanguage.system;
 
   /// **`SynchronousFuture` şart:** tablo koddadır, yüklenecek bir şey yok.
   /// `async` bir gövde `Localizations`ı bir kare bekletir ve o karede ekran

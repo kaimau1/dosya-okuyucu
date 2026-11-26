@@ -559,11 +559,7 @@ extension _WordProPart on _WordMobileEditorScreenState {
 
   // ── Madde 6: sesle yazma + satır içi AI ──────────────────────────────────
 
-  String get _speechLang => switch (AppStrings.of(context).language) {
-        AppLanguage.en => 'en-US',
-        AppLanguage.ar => 'ar',
-        _ => 'tr-TR',
-      };
+  String get _speechLang => AppStrings.of(context).language.speechLocale;
 
   Future<void> _dictate() async {
     final c = _ctrl;
