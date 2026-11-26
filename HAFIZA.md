@@ -802,3 +802,11 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-26 — B13 kalanları: telefonsuz iş yok (dal faz-oto-B13-his)
 - **Doğrulama:** m.2–m.9 main'de; PLAN "B13 kalanları" yalnız m.1'di. B13 satırı silindi, m.1 C2 madde 10'da.
 - **Yanlış yol (m.1 kök neden tahmini):** kırpma animasyonu sayfayı her karede yeniden çizdirir sanıldı — değil: ModalRoute sayfayı zaten `RepaintBoundary` (`_subtreeKey`) içine koyar, `ClipRect` yerleşimi değiştirmez. Slayt/Excel +%13/+%17'nin nedeni koddan çıkmıyor → zaman çizelgesi (cihaz) şart; ölçümsüz bayraklı kod yazılmadı.
+
+
+## 2026-11-26 — B7b Play kod kısmı (dal faz-oto-B7b-play; cihazda doğrulanmadı)
+- **Karar (K15c Lite diyeti 1. tur):** Lite/okuyucu derlemesinde `ci/prepare_android.sh` §11b `libmpv.so` (arm64 11,8 MB) + `libtensorflowlite_jni.so` (4,1 MB) paketlemeden dışlanır; Dart `PlayerEngine.available` / `ImageEnhance.upscaleAvailable` = `Edition.current != Edition.lite` (const → ağaç sarsma). Lite'ta mpv geçişi, "motor" menüsü ve AI büyütme yok. Lite 87,3 MB → beklenen ≈ 71; CI Lite bütçesi 75 MB + iki .so varsa kırmızı; 45 MB hedefi uyarı. ≤ 45 için ikinci aday ölçümden sonra (PLAN B7b).
+- **Tuzak:** `MediaKitLibsAndroidVideoPlugin` statik bloğu `System.loadLibrary("mpv")`'yi try/catch'le çağırır → .so yokken açılış çökmez; asıl risk Dart'ta `VideoPlayerMediaKit.ensureInitialized` — onu `switchTo` kapısı keser.
+- **Tuzak (belge):** `build-play.yml` hiç yoktu; Play AAB `build-apk.yml` elle tetik `aab=true`. Yayın rehberi Lite kimliğini `.okuyucu` yazıyordu, kod `.lite` (`Edition.packageId`).
+- **Karar (AAB 16 KB):** Play derlemesinde ELF hizası arm64 + x86_64 denetlenir (Play 64-bit kuralı); Kişisel AAB yalnız arm64 (etiket sürümünü kırmasın). Yerelde libmpv x86_64 0x4000 doğrulandı.
+- **Karar (model aynası):** `lib/core/model_mirror.dart` tek yer; `DOSYA_MODEL_AYNA` (CI `vars.DOSYA_MODEL_AYNA`, boş = özgün). Önce ayna, olmazsa özgün; SHA-256 değişmez. Ayna sunucusu 👤 PLAN §3 m.7b.

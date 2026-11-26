@@ -55,9 +55,9 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
 2. **Arayüz Kapıları (S2):** Lite sürümde Office düzenleyicilerin salt-okunur açılmasını ve Pro özelliklerinin `ProGate.guard` ile tanıtım levhasına yönlendirilmesini tamamlayın.
 3. **Manifest Varyantları (S4):** `ci/play_variant.py` ile Lite sürümde 0 hassas izin, Pro sürümde ise Play dışı izinlerin (`REQUEST_INSTALL_PACKAGES`, `QUERY_ALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `RECEIVE_BOOT_COMPLETED`, konum ve genel indirme süzgeçleri) çıkarıldığını doğrulayın.
 4. **Paket Kimlikleri ve CI (S5–S6):**
-   - Lite: `com.dosyaokuyucu.dosya_okuyucu.okuyucu` (hedef ≤ 45 MB; `libmpv` ve LiteRT `.so` dışlanmış).
+   - Lite: `com.dosyaokuyucu.dosya_okuyucu.lite` (hedef ≤ 45 MB; `libmpv` ve LiteRT `.so` dışlanmış — `ci/prepare_android.sh` §11b).
    - Pro: `com.dosyaokuyucu.dosya_okuyucu.pro`.
-   - `build-play.yml` ile her iki sürüm için imzalı AAB + sembol paketlerini üretin.
+   - İmzalı AAB: Actions → *APK Derle & Release* → elle tetik, `aab` işaretli (Lite/Pro/Kişisel matrisi; `play_variant verify`, 16 KB ELF arm64 + x86_64). Ayrı `build-play.yml` yok.
 5. **Lite → Pro Geçişi (S7):** Lite'tan ayarları ve son açılanlar listesini dışa aktarıp Pro'da içe aktarma akışını doğrulayın.
 
 ### Aşama 3: İmza Anahtarı ve Güvenlik Denetimi
