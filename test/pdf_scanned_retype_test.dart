@@ -109,4 +109,30 @@ void main() {
       reopened.dispose();
     }
   });
+
+  test('döndürülmüş taranmış sayfada da yazılır', () async {
+    // Rotasyon yalnız YÜKLÜ sayfaya yazılabilir (HAFIZA Faz 1 tuzağı).
+    final d = PdfDocument(inputBytes: await onePagePdf());
+    d.pages[0].rotation = PdfPageRotateAngle.rotateAngle90;
+    final src = await d.save();
+    d.dispose();
+    final out = await PdfScannedRetype.apply(
+      bytes: src,
+      pageIndex: 0,
+      // Görünen (yatay) sayfa: genişlik ≈ 842, yükseklik ≈ 595.
+      box: const PdfRect(50, 500, 300, 482),
+      newText: 'Yatay satır',
+    );
+    final reopened = PdfDocument(inputBytes: out);
+    try {
+      expect(_flat(PdfTextExtractor(reopened).extractText(startPageIndex: 0)),
+          anyOf(contains('Yataysatır'), contains('rıtasyataY')));
+    } finally {
+      reopened.dispose();
+    }
+  });
 }
+
+/// Döndürülmüş metinde çıkarıcı harfleri satır satır / ters sırada
+/// verebilir: boşlukları atıp iki yönü de kabul et.
+String _flat(String s) => s.replaceAll(RegExp(r'\s'), '');

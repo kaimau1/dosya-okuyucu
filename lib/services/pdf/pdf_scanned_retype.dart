@@ -6,7 +6,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdfrx/pdfrx.dart' show PdfPage, PdfRect;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
-import '../pdf_tools.dart' show pdfToSyncfusionRect;
+import '../pdf_tools.dart' show pdfToSyncfusionRect, stampTransform;
 
 /// Taranmış sayfadaki BİR OCR satırı: tanınan metin + PDF koordinatında
 /// (y yukarı; `top > bottom`) kutusu.
@@ -73,19 +73,33 @@ abstract final class PdfScannedRetype {
     final doc = PdfDocument(inputBytes: bytes);
     try {
       final page = doc.pages[pageIndex];
+      // P19: OCR kutusu GÖRÜNEN (döndürülmüş) sayfadadır; grafik uzayı ham.
+      // İmza damgasıyla aynı köprü ([stampTransform]) — eskiden döndürülmüş
+      // taranmış sayfada kapak ve metin yanlış yere düşüyordu.
+      final turns = page.rotation.index % 4;
+      final raw = page.size;
+      final visW = turns.isOdd ? raw.height : raw.width;
+      final visH = turns.isOdd ? raw.width : raw.height;
+      final g = page.graphics;
+      final state = g.save();
+      final t = stampTransform(raw, turns);
+      if (t.angle != 0) {
+        g.translateTransform(t.translate.dx, t.translate.dy);
+        g.rotateTransform(t.angle);
+      }
       for (final edit in edits) {
         final rect = pdfToSyncfusionRect(
           left: edit.box.left,
           pdfTop: edit.box.top,
           width: edit.box.width,
           height: edit.box.height,
-          pageHeight: page.size.height,
+          pageHeight: visH,
         );
         // Kapak satırdan bir tık büyük: OCR kutusu glif uçlarını (ç/ğ kuyruğu,
         // noktalama) kıl payı kaçırabiliyor; artık görünmesin.
         final cover = Rect.fromLTRB(
             rect.left - 2, rect.top - 2, rect.right + 2, rect.bottom + 2);
-        page.graphics.drawRectangle(
+        g.drawRectangle(
             brush: PdfSolidBrush(_pdfColor(edit.background ?? 0xFFFFFFFF)),
             bounds: cover);
 
@@ -98,10 +112,10 @@ abstract final class PdfScannedRetype {
         final drawBounds = Rect.fromLTWH(
           rect.left,
           rect.top - 1,
-          math.max(rect.width, page.size.width - rect.left - 8),
+          math.max(rect.width, visW - rect.left - 8),
           rect.height + 2,
         );
-        page.graphics.drawString(
+        g.drawString(
           text,
           PdfTrueTypeFont(font, size),
           brush: PdfSolidBrush(_pdfColor(edit.ink ?? 0xFF191919)),
@@ -111,6 +125,7 @@ abstract final class PdfScannedRetype {
           ),
         );
       }
+      g.restore(state);
       return await doc.save();
     } finally {
       doc.dispose();
