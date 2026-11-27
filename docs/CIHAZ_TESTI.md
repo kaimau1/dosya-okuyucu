@@ -1816,3 +1816,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Benzer kareler Normal kademede: ilgisiz görseller aynı gruba düşmüyor mu (önceden Gevşek'le taranmışsa Yer aç Normal'le yeniden tarıyor mu).
 - Kuyruk: derin taramalar sürerken başka bir iş (ör. kopyalama, OCR) başlatınca bekliyor mu, ne kadar; İşlemler ekranında sıra anlaşılır mı.
 - Derin tarama ilerlerken liste kaydırması kasıyor mu (gözle).
+
+## B4-P22b — PDF okuma deneyimi (2026-11-27, dal faz-oto-B4-p22b) — yazıldı, cihazda doğrulanmadı
+- 100+ sayfalı PDF'te sağdaki tutamacı sürükle: balonda "N / toplam" + parmak durunca küçük sayfa önizlemesi
+  (üst yarıda balonun altında, alt yarıda üstünde); hızlı sürüklemede kasma/gecikme yok, bırakınca önizleme kayboluyor.
+- İçindekiler (ya da belgedeki iç bağlantı) ile başka sayfaya atla → sol altta "← N. sayfaya dön" hapı; dokununca
+  eski sayfaya dönüyor, X kapatıyor; seçim çubuğu açıkken hap gizli; sayfa rozetiyle (sağ alt) çakışmıyor.
+- A/B: `AB_SENARYO=pdf_100,acilis_gecis` — taban son `[apk]`; gerileme > %10 / p99 > 24 ms ise birleşmez.

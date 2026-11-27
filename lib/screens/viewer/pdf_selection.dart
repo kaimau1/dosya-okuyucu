@@ -268,6 +268,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     _pdfSearcher?.resetTextSearch(); // eşleşmeler eski belgeye aitti
     _ocrSearch?.reset();
     _findEntry = null;
+    _pdfBackPageN.value = null;
     await PdfReload.reloadFile(widget.doc.path);
     if (mounted) _partSetState(() {});
   }
@@ -283,6 +284,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     final linkFailedE = context.t('vw.link_failed_e');
     final dest = link.dest;
     if (dest != null) {
+      _markPdfBack(dest.pageNumber);
       _pdfJumpTarget = dest.pageNumber;
       await _goToDestBelowBars(dest);
       return;
@@ -292,6 +294,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     // PDF Pro oturumunda eklenen sayfa bağlantısı (kayda dek `#page=N`).
     final inner = PdfLinkTarget.pageOf(url.toString());
     if (inner != null) {
+      _markPdfBack(inner + 1);
       _pdfJumpTarget = inner + 1;
       await _pdfController.goToPage(pageNumber: inner + 1);
       return;
@@ -336,6 +339,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     final dest = await showPdfOutlineSheet(context,
         doc: doc, outline: outline, currentPage: _pdfPage);
     if (dest == null || !mounted) return;
+    _markPdfBack(dest.pageNumber);
     _pdfJumpTarget = dest.pageNumber;
     await _goToDestBelowBars(dest);
   }

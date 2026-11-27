@@ -660,6 +660,66 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     }
   }
 
+  /// P22b: atlamadan önce okunan sayfayı "geri dön" hapına yazar.
+  void _markPdfBack(int? target) {
+    if (const bool.fromEnvironment('P22B_KAPALI')) return;
+    final from = _livePdfPage() ?? _pdfPage;
+    if (target == from) return;
+    if (!_pdfBackArmed) _partSetState(() => _pdfBackArmed = true);
+    _pdfBackPageN.value = from;
+  }
+
+  /// "← N. sayfaya dön" hapı (sol alt; yalnız [_pdfBackPageN] doluyken).
+  Widget _pdfBackPill() {
+    return ValueListenableBuilder<int?>(
+      valueListenable: _pdfBackPageN,
+      builder: (context, back, _) {
+        if (back == null) return const SizedBox.shrink();
+        final scheme = Theme.of(context).colorScheme;
+        final fg = scheme.onInverseSurface;
+        return Material(
+          key: const ValueKey('pdf-back-pill'),
+          color: scheme.inverseSurface.withValues(alpha: 0.92),
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InkWell(
+                onTap: () {
+                  _pdfBackPageN.value = null;
+                  if (_pdfCount > 0) unawaited(_goToPdfPage(back, _pdfCount));
+                },
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 6, 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(AppIcons.back, size: 16, color: scheme.inversePrimary),
+                      const SizedBox(width: 6),
+                      Text(
+                        context.t('vw.back_to_page', {'n': '$back'}),
+                        style: context.type.compact.copyWith(color: fg),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: context.t('common.close'),
+                visualDensity: VisualDensity.compact,
+                iconSize: 16,
+                color: fg,
+                onPressed: () => _pdfBackPageN.value = null,
+                icon: const Icon(AppIcons.close),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   /// PDF sayfa rozeti: tek dokunuşla ‹/› sayfa geçişi, ortaya dokununca
   /// görsel sayfa gezgini, uzun basınca yıldızla.
   Widget _pageBadge() {
