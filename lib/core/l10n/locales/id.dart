@@ -5949,4 +5949,385 @@ const Map<String, String> _id = {
       'Apakah kedua berkas identik?',
   'fm.batch_rename':
       'Ganti nama massal',
+// ── fm-ftpd-vault-dl-ab ──
+  'fm.compress':
+      'Kompres (ZIP/7z)',
+  'fm.resize':
+      'Perkecil ukuran (resolusi / frame rate)',
+  'fm.tag':
+      'Tag (orang/grup)',
+  'fm.more_actions':
+      'Tindakan lainnya',
+  'fm.more':
+      'Lainnya',
+  'fm.clipboard_copied':
+      'Disalin ke papan klip. Ketuk “Tempel” di folder tujuan.',
+  'fm.clipboard_cut':
+      'Dipotong ke papan klip. Ketuk “Tempel” di folder tujuan.',
+  'fm.move_here':
+      'Pindahkan ke sini',
+  'fm.copy_here':
+      'Salin ke sini',
+  'fm.scan_document':
+      'Pindai dokumen',
+  'fm.duplicates_title':
+      'Berkas duplikat',
+  'fm.enter_password':
+      'Masukkan kata sandi',
+  'fm.clear_finished':
+      'Hapus yang selesai',
+  'fm.existing_tags':
+      'Tag yang ada',
+  'fm.pin_enter':
+      'Masukkan PIN',
+  'fm.pin_new':
+      'PIN baru',
+  'fm.pin_label':
+      'PIN',
+  'fm.pin_repeat':
+      'PIN (ulangi)',
+  'fm.to_background':
+      'Jalankan di latar belakang',
+  'fm.vol_internal':
+      'Penyimpanan internal',
+  'fm.vol_sdcard':
+      'Kartu SD',
+  'fm.vol_usb':
+      'Drive USB',
+  'fm.quick_untouched':
+      'Tidak dibuka dalam {n} bulan',
+  'fm.quick_opened_within':
+      'Dibuka dalam {n} bulan terakhir',
+  'fm.moving_name':
+      'Pindahkan',
+  'fm.search_all':
+      'Cari di semua berkas',
+  'ftpd.title':
+      'Akses jaringan',
+  'ftpd.description':
+      'Jangkau berkas di ponsel ini dari komputer di jaringan. Mulai layanan, lalu ketik alamat di bawah ke penjelajah berkas di PC. Ponsel dan PC harus berada di jaringan Wi-Fi YANG SAMA.',
+  'ftpd.intro':
+      'Mulai layanan untuk menjangkau berkas lewat jaringan.',
+  'ftpd.web_label':
+      'Buka di peramban',
+  'ftpd.web_hint':
+      'Ketik alamat ini di peramban PC Anda: klik berkas untuk membuka atau mengunduhnya.',
+  'ftpd.ftp_label':
+      'Penjelajah berkas (FTP)',
+  'ftpd.ftp_hint':
+      'Ketik di Explorer untuk menyalin dengan seret dan lepas. Peramban tidak lagi mendukung FTP — gunakan alamat di atas untuk membuka berkas.',
+  'ftpd.random_password':
+      'Kata sandi acak',
+  'ftpd.show_hidden':
+      'Tampilkan berkas tersembunyi',
+  'ftpd.clients':
+      '{n} komputer terhubung',
+  'ftpd.folders_hint':
+      'Di PC Anda akan melihat kotak yang sama seperti di ponsel: Belgeler, Resimler, Videolar, Ses, Arsivler, Uygulamalar, Indirilenler, Kamera — plus "Telefon" untuk semuanya. Anda dapat memilih mana yang dibagikan di atas, atau hanya membagikan folder "Paylasilan".',
+  'ftpd.notification_hint':
+      'Tetap terlihat di panel notifikasi saat aktif, dan berhenti sendiri saat Anda menutup aplikasi.',
+  'ftpd.open_action':
+      'Akses jaringan aktif',
+  'ftpd.advanced':
+      'Lanjutan',
+  'ftpd.start':
+      'MULAI',
+  'ftpd.stop':
+      'HENTIKAN LAYANAN',
+  'ftpd.running':
+      'Berjalan',
+  'ftpd.no_address':
+      'Koneksi Wi-Fi tidak ditemukan. Hubungkan ponsel ke jaringan Wi-Fi.',
+  'ftpd.allow_write':
+      'Izinkan menulis',
+  'ftpd.allow_write_note':
+      'Saat mati, PC hanya dapat membaca. Jika diaktifkan, PC dapat mengubah dan MENGHAPUS berkas di ponsel.',
+  'ftpd.folders_title':
+      'Folder yang dibagikan',
+  'ftpd.folders_all':
+      'Semuanya dibagikan',
+  'ftpd.folders_count':
+      '{n} folder dibagikan',
+  'ftpd.folders_none':
+      'Tidak ada folder dipilih',
+  'ftpd.folders_none_warning':
+      'Tidak ada folder dipilih: meski berbagi aktif, PC tidak akan melihat apa pun.',
+  'ftpd.mode_boxes':
+      'Folder yang saya pilih',
+  'ftpd.mode_boxes_desc':
+      'Hanya folder yang Anda centang di bawah yang dibagikan; sisanya tidak terlihat.',
+  'ftpd.mode_shared':
+      'Hanya folder Dibagikan',
+  'ftpd.mode_shared_desc':
+      'Letakkan yang ingin dikirim ke folder "Dibagikan"; bagian ponsel lainnya sama sekali tidak terlihat di jaringan.',
+  'ftpd.select_all':
+      'Pilih semua',
+  'ftpd.clear_all':
+      'Hapus pilihan',
+  'ftpd.box_on_pc':
+      'Di PC: {name}',
+  'ftpd.box_shared':
+      'Dibagikan',
+  'ftpd.box_storage':
+      'Seluruh ponsel',
+  'ftpd.box_downloads':
+      'Unduhan',
+  'ftpd.box_camera':
+      'Kamera',
+  'ftpd.box_screenshots':
+      'Tangkapan layar',
+  'ftpd.box_images':
+      'Gambar',
+  'ftpd.box_videos':
+      'Video',
+  'ftpd.box_audio':
+      'Audio',
+  'ftpd.box_documents':
+      'Dokumen',
+  'ftpd.box_archives':
+      'Arsip',
+  'ftpd.box_apps':
+      'Aplikasi',
+  'ftpd.shared_folder_hint':
+      'Folder "Paylaşılan" di ponsel. Gunakan "Salin ke Dibagikan" di menu ⋮ berkas untuk menaruh sesuatu di sini.',
+  'ftpd.copied':
+      'Alamat disalin.',
+  'ftpd.start_failed':
+      'Tidak dapat memulai server: {error}',
+  'ftpd.qr_hint':
+      'Pindai dengan kamera komputer atau ponsel lain — berkas Anda terbuka di peramban.',
+  'ftpd.upload_hint':
+      'Komputer ke ponsel: berkas yang dikirim dengan "Telefona gönder" di halaman masuk ke Download/Bilgisayardan.',
+  'vault.title':
+      'Brankas terenkripsi',
+  'vault.pin_use_lock':
+      'Masukkan PIN kunci folder — brankas memakai PIN yang sama',
+  'vault.pin_same_existing':
+      'Brankas memakai PIN yang sama dengan kunci folder dan aplikasi: masukkan PIN Anda saat ini.',
+  'vault.pin_same_new':
+      'PIN ini juga dipakai untuk kunci folder dan aplikasi.',
+  'vault.legacy_title':
+      '{n} item tersembunyi tidak terenkripsi',
+  'vault.legacy_body':
+      '"Berkas tersembunyi" lama hanya disimpan di tempat tersembunyi; terlihat saat ponsel dihubungkan ke komputer. Memindahkannya ke brankas mengenkripsinya — setiap berkas dienkripsi dan diverifikasi sebelum aslinya dihapus.',
+  'vault.legacy_move':
+      'Pindahkan ke brankas',
+  'vault.legacy_show':
+      'Lihat daftar',
+  'vault.move_hint':
+      'Isi dienkripsi; hanya terbuka dengan PIN atau sidik jari',
+  'vault.move_n':
+      'Pindahkan {n} berkas ke brankas',
+  'vault.pick_title':
+      'Pilih berkas untuk brankas',
+  'vault.setup_title':
+      'Siapkan brankas terenkripsi',
+  'vault.setup_body':
+      'Dokumen seperti KTP, sertifikat, dan kontrak disimpan terenkripsi dengan AES-256. Tetap tidak terbaca meski ponsel dihubungkan ke komputer.',
+  'vault.pin':
+      'PIN brankas',
+  'vault.pin_again':
+      'Ulangi PIN',
+  'vault.pin_short':
+      'PIN minimal 4 digit',
+  'vault.pin_mismatch':
+      'PIN tidak cocok',
+  'vault.pin_warning':
+      'Penting: jika PIN lupa, berkas TIDAK DAPAT dipulihkan — tak seorang pun, termasuk kami, dapat mendekripsinya. Sidik jari hanya pintasan di ponsel ini; catat PIN Anda di tempat aman.',
+  'vault.create':
+      'Buat brankas',
+  'vault.locked_title':
+      'Brankas terkunci',
+  'vault.locked_body':
+      'Masukkan PIN atau gunakan sidik jari untuk membuka.',
+  'vault.unlock':
+      'Buka kunci',
+  'vault.unlock_bio':
+      'Buka dengan sidik jari',
+  'vault.bio_prompt':
+      'Verifikasi untuk membuka brankas',
+  'vault.use_pin':
+      'Pakai PIN',
+  'vault.bio_failed':
+      'Tidak dapat membuka dengan sidik jari — gunakan PIN Anda',
+  'vault.bio_toggle':
+      'Buka dengan sidik jari',
+  'vault.bio_invalidated':
+      'Sidik jari baru ditambahkan ke ponsel, sehingga buka kunci sidik jari dimatikan. Buka dengan PIN, lalu aktifkan lagi.',
+  'vault.autolock':
+      'Kunci di latar belakang',
+  'vault.autolock_now':
+      'Segera',
+  'vault.autolock_secs':
+      'Setelah {n} dtk',
+  'vault.autolock_mins':
+      'Setelah {n} mnt',
+  'vault.wrong_pin':
+      'PIN salah',
+  'vault.lock':
+      'Kunci',
+  'vault.add':
+      'Tambah ke brankas',
+  'vault.adding':
+      'Mengenkripsi…',
+  'vault.added_n':
+      '{n} berkas dienkripsi ke brankas',
+  'vault.encrypted_note':
+      'AES-256 · terkunci saat Anda keluar atau aplikasi ke latar belakang',
+  'vault.empty':
+      'Brankas kosong. Tambahkan berkas dengan tombol di bawah, atau tekan lama berkas di penjelajah dan pilih "Pindahkan ke brankas terenkripsi".',
+  'vault.restore':
+      'Keluarkan dari brankas',
+  'vault.restore_sub':
+      'Didekripsi kembali ke folder aslinya',
+  'vault.restored':
+      'Dikeluarkan: {path}',
+  'vault.delete':
+      'Hapus permanen',
+  'vault.delete_body':
+      'Hapus "{name}" dari brankas secara permanen? Tindakan ini tidak dapat dibatalkan.',
+  'vault.open_failed':
+      'Tidak dapat membuka: {error}',
+  'dl.saved':
+      'Disimpan ke Unduhan: {name}',
+  'dl.already_saved':
+      'Sudah ada di Unduhan: {name}',
+  'dl.save_failed':
+      'Tidak dapat menyimpan ke Unduhan: {error}',
+  'dl.show':
+      'Tampilkan',
+  'dl.from_browser':
+      'Berkas yang dibuka dari peramban disimpan ke Unduhan: {name}',
+  'dl.verify':
+      'Verifikasi checksum (SHA-256)',
+  'dl.verify_paste':
+      'Tempel checksum SHA-256 yang diterbitkan sumbernya',
+  'dl.verify_running':
+      'Membaca berkas…',
+  'dl.verify_ok':
+      'Checksum COCOK — berkas utuh',
+  'dl.verify_bad':
+      'Checksum TIDAK cocok — berkas tidak lengkap atau diubah',
+  'dl.title':
+      'Unduhan',
+  'dl.clipboard_download':
+      'Unduh tautan di papan klip',
+  'dl.how_to':
+      'Bagaimana mengunduh dari peramban?',
+  'dl.clear_finished':
+      'Hapus entri yang selesai',
+  'dl.link':
+      'Tautan',
+  'dl.clipboard_link':
+      'Tautan di papan klip',
+  'dl.download':
+      'Unduh',
+  'dl.no_link':
+      'Tidak ada tautan di papan klip. Salin tautan di peramban lalu kembali.',
+  'dl.from_link':
+      'Unduh dari tautan',
+  'dl.link_label':
+      'Tautan (https://…)',
+  'dl.continue':
+      'Lanjutkan',
+  'dl.empty':
+      'Belum ada unduhan',
+  'dl.remaining':
+      '{time} lagi',
+  'dl.link_copied':
+      'Tautan disalin ke papan klip.',
+  'dl.pause':
+      'Jeda',
+  'dl.resume':
+      'Lanjutkan',
+  'dl.cancel_task':
+      'Batal',
+  'dl.open_folder':
+      'Buka foldernya',
+  'dl.copy_link':
+      'Salin tautan',
+  'dl.remove':
+      'Hapus dari daftar',
+  'dl.download_here':
+      'Unduh ke sini',
+  'dl.started':
+      'Unduhan dimulai: {name}',
+  'dl.fetching_release':
+      'Mengambil berkas rilis…',
+  'dl.asset_count':
+      '{n} berkas · {tag}',
+  'dl.size_unknown':
+      'Ukuran tidak diketahui',
+  'dl.step1_title':
+      '1) Bagikan (termudah)',
+  'dl.step1_body':
+      'Tekan lama tautan → “Bagikan tautan” → Dosyalarım. Tombol bagikan milik halaman juga bisa.',
+  'dl.step2_title':
+      '2) Salin dan tempel',
+  'dl.step2_body':
+      'Tekan lama tautan → “Salin alamat tautan”, lalu buka layar ini: tautan muncul di atas, ketuk “Unduh”.',
+  'dl.step3_title':
+      '3) Agar kami muncul saat Anda mengetuk tautan',
+  'dl.step3_body':
+      'Sejak Android 12, aplikasi tidak dapat membuka tautan situs yang bukan miliknya tanpa izin. Anda dapat memberikannya manual: gunakan tombol di bawah untuk membuka layar info aplikasi, lalu:\n• Android murni / Pixel: “Buka secara default” → “Buka tautan yang didukung”\n• Samsung: “Setel sebagai default” → “Alamat web yang didukung”\n• Xiaomi / Redmi: “Buka secara default” → “Tautan yang didukung”\nCentang alamat seperti github.com di daftar yang muncul.',
+  'dl.how_to_note':
+      'Menu ini hanya ada di Android 12 ke atas. Jika tidak menemukannya, gunakan cara 1 — tanpa pengaturan dan berfungsi di semua perangkat.',
+  'dl.open_app_info':
+      'Buka info aplikasi',
+  'dl.verify_name':
+      'Pemeriksaan checksum',
+  'ab.pro_locked_title':
+      'Studio Buku Audio adalah Fitur Pro',
+  'ab.pro_locked_sub':
+      'Tingkatkan ke Pro untuk mengubah dokumen menjadi buku audio (M4A/WAV) dengan jeda alami.',
+  'ab.pro_unlock':
+      'Lihat Fitur Pro',
+  'ab.engine_section':
+      'Mesin Ucapan & Suara Sistem',
+  'ab.engine_label':
+      'Mesin TTS',
+  'ab.system_voice_label':
+      'Suara Sistem',
+  'ab.system_voice_default':
+      'Suara sistem bawaan',
+  'ab.preview':
+      'Pratinjau Suara',
+  'ab.preview_sample':
+      'Halo. Kalimat ini menguji mesin suara yang dipilih dan jeda alami.',
+  'ab.clean_section':
+      'Pembersihan Ucapan Alami',
+  'ab.clean_pages':
+      'Lewati nomor halaman dan header/footer berulang',
+  'ab.clean_symbols':
+      'Bersihkan simbol, tanda kurung, dan URL berlebih agar ucapan alami',
+  'ab.clean_abbr':
+      'Perluas singkatan (mis. Dr., dll.)',
+  'ab.ai_tidy':
+      'Haluskan teks dengan AI (kunci Anda sendiri)',
+  'ab.ai_tidy_sub':
+      'Memperhalus bab agar ucapan alami memakai kunci Gemini Anda sendiri',
+  'ab.title':
+      'Buat buku audio',
+  'ab.library':
+      'Buku audio saya',
+  'ab.intro':
+      'Dokumen dibagi menjadi bab menurut judulnya; setiap bab menjadi berkas audio terpisah bernama yang disimpan ke Music > Sesli Kitaplar. Bab yang selesai tidak dibuat ulang.',
+  'ab.voice':
+      'Suara',
+  'ab.voice_system':
+      'Suara perangkat',
+  'ab.voice_system_sub':
+      'Mesin ucapan ponsel Anda — tanpa unduhan (pilih di Pengaturan > Membaca)',
+  'ab.speed':
+      'Kecepatan',
+  'ab.chapters':
+      'Bab ({n})',
+  'ab.chapter_ready':
+      'Siap — tidak akan dibuat ulang',
+  'ab.chapter_len':
+      '~{min} mnt',
+  'ab.start':
+      'Buat',
+  'ab.listen':
+      'Dengarkan',
 };

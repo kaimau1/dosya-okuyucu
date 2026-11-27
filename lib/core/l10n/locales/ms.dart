@@ -5954,4 +5954,385 @@ const Map<String, String> _ms = {
       'Adakah kedua-dua fail serupa?',
   'fm.batch_rename':
       'Namakan semula secara pukal',
+// ── fm-ftpd-vault-dl-ab ──
+  'fm.compress':
+      'Mampat (ZIP/7z)',
+  'fm.resize':
+      'Kecilkan saiz (resolusi / kadar bingkai)',
+  'fm.tag':
+      'Tag (orang/kumpulan)',
+  'fm.more_actions':
+      'Tindakan lain',
+  'fm.more':
+      'Lagi',
+  'fm.clipboard_copied':
+      'Disalin ke papan keratan. Ketik “Tampal” dalam folder destinasi.',
+  'fm.clipboard_cut':
+      'Dipotong ke papan keratan. Ketik “Tampal” dalam folder destinasi.',
+  'fm.move_here':
+      'Alih ke sini',
+  'fm.copy_here':
+      'Salin ke sini',
+  'fm.scan_document':
+      'Imbas dokumen',
+  'fm.duplicates_title':
+      'Fail pendua',
+  'fm.enter_password':
+      'Masukkan kata laluan',
+  'fm.clear_finished':
+      'Kosongkan yang selesai',
+  'fm.existing_tags':
+      'Tag sedia ada',
+  'fm.pin_enter':
+      'Masukkan PIN',
+  'fm.pin_new':
+      'PIN baharu',
+  'fm.pin_label':
+      'PIN',
+  'fm.pin_repeat':
+      'PIN (sekali lagi)',
+  'fm.to_background':
+      'Jalankan di latar belakang',
+  'fm.vol_internal':
+      'Storan dalaman',
+  'fm.vol_sdcard':
+      'Kad SD',
+  'fm.vol_usb':
+      'Pemacu USB',
+  'fm.quick_untouched':
+      'Tidak dibuka dalam {n} bulan',
+  'fm.quick_opened_within':
+      'Dibuka dalam {n} bulan lepas',
+  'fm.moving_name':
+      'Alih',
+  'fm.search_all':
+      'Cari dalam semua fail',
+  'ftpd.title':
+      'Akses rangkaian',
+  'ftpd.description':
+      'Capai fail pada telefon ini daripada komputer dalam rangkaian. Mulakan perkhidmatan, kemudian taip alamat di bawah ke dalam penjelajah fail pada PC. Telefon dan PC mesti berada pada rangkaian Wi-Fi YANG SAMA.',
+  'ftpd.intro':
+      'Mulakan perkhidmatan untuk mencapai fail melalui rangkaian.',
+  'ftpd.web_label':
+      'Buka dalam penyemak imbas',
+  'ftpd.web_hint':
+      'Taip alamat ini dalam penyemak imbas PC anda: klik fail untuk membuka atau memuat turunnya.',
+  'ftpd.ftp_label':
+      'Penjelajah fail (FTP)',
+  'ftpd.ftp_hint':
+      'Taip dalam Explorer untuk menyalin dengan seret dan lepas. Penyemak imbas tidak lagi menyokong FTP — gunakan alamat di atas untuk membuka fail.',
+  'ftpd.random_password':
+      'Kata laluan rawak',
+  'ftpd.show_hidden':
+      'Tunjukkan fail tersembunyi',
+  'ftpd.clients':
+      '{n} komputer bersambung',
+  'ftpd.folders_hint':
+      'Pada PC anda akan melihat kotak yang sama seperti pada telefon: Belgeler, Resimler, Videolar, Ses, Arsivler, Uygulamalar, Indirilenler, Kamera — serta "Telefon" untuk semuanya. Anda boleh memilih yang dikongsi di atas, atau hanya berkongsi folder "Paylasilan".',
+  'ftpd.notification_hint':
+      'Kekal kelihatan dalam panel pemberitahuan semasa aktif, dan berhenti sendiri apabila anda menutup aplikasi.',
+  'ftpd.open_action':
+      'Akses rangkaian dihidupkan',
+  'ftpd.advanced':
+      'Lanjutan',
+  'ftpd.start':
+      'MULA',
+  'ftpd.stop':
+      'HENTIKAN PERKHIDMATAN',
+  'ftpd.running':
+      'Sedang berjalan',
+  'ftpd.no_address':
+      'Sambungan Wi-Fi tidak ditemui. Sambungkan telefon ke rangkaian Wi-Fi.',
+  'ftpd.allow_write':
+      'Benarkan penulisan',
+  'ftpd.allow_write_note':
+      'Semasa dimatikan, PC hanya boleh membaca. Jika dihidupkan, PC boleh mengubah dan MEMADAM fail pada telefon.',
+  'ftpd.folders_title':
+      'Folder untuk dikongsi',
+  'ftpd.folders_all':
+      'Semuanya dikongsi',
+  'ftpd.folders_count':
+      '{n} folder dikongsi',
+  'ftpd.folders_none':
+      'Tiada folder dipilih',
+  'ftpd.folders_none_warning':
+      'Tiada folder dipilih: walaupun perkongsian dihidupkan, PC tidak akan melihat apa-apa.',
+  'ftpd.mode_boxes':
+      'Folder yang saya pilih',
+  'ftpd.mode_boxes_desc':
+      'Hanya folder yang anda tandakan di bawah dikongsi; selebihnya tidak kelihatan.',
+  'ftpd.mode_shared':
+      'Hanya folder Dikongsi',
+  'ftpd.mode_shared_desc':
+      'Letakkan apa yang hendak dihantar ke folder "Dikongsi"; bahagian telefon yang lain langsung tidak kelihatan pada rangkaian.',
+  'ftpd.select_all':
+      'Pilih semua',
+  'ftpd.clear_all':
+      'Kosongkan pilihan',
+  'ftpd.box_on_pc':
+      'Pada PC: {name}',
+  'ftpd.box_shared':
+      'Dikongsi',
+  'ftpd.box_storage':
+      'Seluruh telefon',
+  'ftpd.box_downloads':
+      'Muat turun',
+  'ftpd.box_camera':
+      'Kamera',
+  'ftpd.box_screenshots':
+      'Tangkapan skrin',
+  'ftpd.box_images':
+      'Imej',
+  'ftpd.box_videos':
+      'Video',
+  'ftpd.box_audio':
+      'Audio',
+  'ftpd.box_documents':
+      'Dokumen',
+  'ftpd.box_archives':
+      'Arkib',
+  'ftpd.box_apps':
+      'Aplikasi',
+  'ftpd.shared_folder_hint':
+      'Folder "Paylaşılan" pada telefon. Gunakan "Salin ke Dikongsi" dalam menu ⋮ fail untuk meletakkan sesuatu di sini.',
+  'ftpd.copied':
+      'Alamat disalin.',
+  'ftpd.start_failed':
+      'Tidak dapat memulakan pelayan: {error}',
+  'ftpd.qr_hint':
+      'Imbas dengan kamera komputer atau telefon lain — fail anda dibuka dalam penyemak imbas.',
+  'ftpd.upload_hint':
+      'Komputer ke telefon: fail yang dihantar dengan "Telefona gönder" pada halaman masuk ke Download/Bilgisayardan.',
+  'vault.title':
+      'Peti besi disulitkan',
+  'vault.pin_use_lock':
+      'Masukkan PIN kunci folder — peti besi menggunakan PIN yang sama',
+  'vault.pin_same_existing':
+      'Peti besi menggunakan PIN yang sama dengan kunci folder dan aplikasi: masukkan PIN semasa anda.',
+  'vault.pin_same_new':
+      'PIN ini juga digunakan untuk kunci folder dan aplikasi.',
+  'vault.legacy_title':
+      '{n} item tersembunyi tidak disulitkan',
+  'vault.legacy_body':
+      '"Fail tersembunyi" lama hanya disimpan di tempat tersembunyi; ia kelihatan apabila telefon disambungkan ke komputer. Mengalihkannya ke peti besi akan menyulitkannya — setiap fail disulitkan dan disahkan sebelum fail asal dipadam.',
+  'vault.legacy_move':
+      'Alih ke peti besi',
+  'vault.legacy_show':
+      'Lihat senarai',
+  'vault.move_hint':
+      'Kandungan disulitkan; hanya dibuka dengan PIN atau cap jari',
+  'vault.move_n':
+      'Alihkan {n} fail ke peti besi',
+  'vault.pick_title':
+      'Pilih fail untuk peti besi',
+  'vault.setup_title':
+      'Sediakan peti besi disulitkan',
+  'vault.setup_body':
+      'Dokumen seperti kad pengenalan, surat hak milik dan kontrak disimpan secara tersulit dengan AES-256. Ia kekal tidak boleh dibaca walaupun telefon disambungkan ke komputer.',
+  'vault.pin':
+      'PIN peti besi',
+  'vault.pin_again':
+      'Ulang PIN',
+  'vault.pin_short':
+      'PIN mesti sekurang-kurangnya 4 digit',
+  'vault.pin_mismatch':
+      'PIN tidak sepadan',
+  'vault.pin_warning':
+      'Penting: jika PIN dilupakan, fail TIDAK BOLEH dipulihkan — tiada sesiapa, termasuk kami, dapat menyahsulitnya. Cap jari hanyalah pintasan pada telefon ini; catat PIN anda di tempat selamat.',
+  'vault.create':
+      'Cipta peti besi',
+  'vault.locked_title':
+      'Peti besi dikunci',
+  'vault.locked_body':
+      'Masukkan PIN atau gunakan cap jari untuk membuka.',
+  'vault.unlock':
+      'Buka kunci',
+  'vault.unlock_bio':
+      'Buka dengan cap jari',
+  'vault.bio_prompt':
+      'Sahkan untuk membuka peti besi',
+  'vault.use_pin':
+      'Guna PIN',
+  'vault.bio_failed':
+      'Tidak dapat membuka dengan cap jari — gunakan PIN anda',
+  'vault.bio_toggle':
+      'Buka dengan cap jari',
+  'vault.bio_invalidated':
+      'Cap jari baharu ditambah pada telefon, jadi buka kunci cap jari dimatikan. Buka dengan PIN, kemudian hidupkan semula.',
+  'vault.autolock':
+      'Kunci di latar belakang',
+  'vault.autolock_now':
+      'Serta-merta',
+  'vault.autolock_secs':
+      'Selepas {n} saat',
+  'vault.autolock_mins':
+      'Selepas {n} min',
+  'vault.wrong_pin':
+      'PIN salah',
+  'vault.lock':
+      'Kunci',
+  'vault.add':
+      'Tambah ke peti besi',
+  'vault.adding':
+      'Menyulitkan…',
+  'vault.added_n':
+      '{n} fail disulitkan ke dalam peti besi',
+  'vault.encrypted_note':
+      'AES-256 · dikunci apabila anda keluar atau aplikasi ke latar belakang',
+  'vault.empty':
+      'Peti besi kosong. Tambah fail dengan butang di bawah, atau tekan lama fail dalam penjelajah dan pilih "Alih ke peti besi disulitkan".',
+  'vault.restore':
+      'Keluarkan daripada peti besi',
+  'vault.restore_sub':
+      'Dinyahsulit semula ke folder asalnya',
+  'vault.restored':
+      'Dikeluarkan: {path}',
+  'vault.delete':
+      'Padam secara kekal',
+  'vault.delete_body':
+      'Padam "{name}" daripada peti besi secara kekal? Tindakan ini tidak boleh dibatalkan.',
+  'vault.open_failed':
+      'Tidak dapat membuka: {error}',
+  'dl.saved':
+      'Disimpan ke Muat turun: {name}',
+  'dl.already_saved':
+      'Sudah ada dalam Muat turun: {name}',
+  'dl.save_failed':
+      'Tidak dapat menyimpan ke Muat turun: {error}',
+  'dl.show':
+      'Tunjukkan',
+  'dl.from_browser':
+      'Fail yang dibuka daripada penyemak imbas disimpan ke Muat turun: {name}',
+  'dl.verify':
+      'Sahkan checksum (SHA-256)',
+  'dl.verify_paste':
+      'Tampal checksum SHA-256 yang diterbitkan oleh sumber',
+  'dl.verify_running':
+      'Membaca fail…',
+  'dl.verify_ok':
+      'Checksum SEPADAN — fail utuh',
+  'dl.verify_bad':
+      'Checksum TIDAK sepadan — fail tidak lengkap atau diubah',
+  'dl.title':
+      'Muat turun',
+  'dl.clipboard_download':
+      'Muat turun pautan dalam papan keratan',
+  'dl.how_to':
+      'Bagaimana memuat turun daripada penyemak imbas?',
+  'dl.clear_finished':
+      'Kosongkan entri yang selesai',
+  'dl.link':
+      'Pautan',
+  'dl.clipboard_link':
+      'Pautan dalam papan keratan',
+  'dl.download':
+      'Muat turun',
+  'dl.no_link':
+      'Tiada pautan dalam papan keratan. Salin pautan dalam penyemak imbas dan kembali.',
+  'dl.from_link':
+      'Muat turun daripada pautan',
+  'dl.link_label':
+      'Pautan (https://…)',
+  'dl.continue':
+      'Teruskan',
+  'dl.empty':
+      'Belum ada muat turun',
+  'dl.remaining':
+      '{time} lagi',
+  'dl.link_copied':
+      'Pautan disalin ke papan keratan.',
+  'dl.pause':
+      'Jeda',
+  'dl.resume':
+      'Sambung semula',
+  'dl.cancel_task':
+      'Batal',
+  'dl.open_folder':
+      'Buka foldernya',
+  'dl.copy_link':
+      'Salin pautan',
+  'dl.remove':
+      'Buang daripada senarai',
+  'dl.download_here':
+      'Muat turun ke sini',
+  'dl.started':
+      'Muat turun dimulakan: {name}',
+  'dl.fetching_release':
+      'Mendapatkan fail keluaran…',
+  'dl.asset_count':
+      '{n} fail · {tag}',
+  'dl.size_unknown':
+      'Saiz tidak diketahui',
+  'dl.step1_title':
+      '1) Kongsi (paling mudah)',
+  'dl.step1_body':
+      'Tekan lama pautan → “Kongsi pautan” → Dosyalarım. Butang kongsi milik halaman juga boleh digunakan.',
+  'dl.step2_title':
+      '2) Salin dan tampal',
+  'dl.step2_body':
+      'Tekan lama pautan → “Salin alamat pautan”, kemudian buka skrin ini: pautan muncul di atas, ketik “Muat turun”.',
+  'dl.step3_title':
+      '3) Supaya kami muncul apabila anda mengetik pautan',
+  'dl.step3_body':
+      'Sejak Android 12, aplikasi tidak boleh membuka pautan tapak yang bukan miliknya tanpa kebenaran. Anda boleh memberikannya secara manual: gunakan butang di bawah untuk membuka skrin maklumat aplikasi, kemudian:\n• Android tulen / Pixel: “Buka secara lalai” → “Buka pautan yang disokong”\n• Samsung: “Tetapkan sebagai lalai” → “Alamat web yang disokong”\n• Xiaomi / Redmi: “Buka secara lalai” → “Pautan yang disokong”\nTandakan alamat seperti github.com dalam senarai yang muncul.',
+  'dl.how_to_note':
+      'Menu ini hanya wujud pada Android 12 ke atas. Jika tidak menjumpainya, gunakan cara 1 — tanpa tetapan dan berfungsi pada semua peranti.',
+  'dl.open_app_info':
+      'Buka maklumat aplikasi',
+  'dl.verify_name':
+      'Semakan checksum',
+  'ab.pro_locked_title':
+      'Studio Buku Audio ialah Ciri Pro',
+  'ab.pro_locked_sub':
+      'Naik taraf ke Pro untuk menukar dokumen kepada buku audio (M4A/WAV) dengan jeda semula jadi.',
+  'ab.pro_unlock':
+      'Lihat Ciri Pro',
+  'ab.engine_section':
+      'Enjin Pertuturan & Suara Sistem',
+  'ab.engine_label':
+      'Enjin TTS',
+  'ab.system_voice_label':
+      'Suara Sistem',
+  'ab.system_voice_default':
+      'Suara sistem lalai',
+  'ab.preview':
+      'Pratonton Suara',
+  'ab.preview_sample':
+      'Helo. Ayat ini menguji enjin suara yang dipilih dan jeda semula jadi.',
+  'ab.clean_section':
+      'Pembersihan Pertuturan Semula Jadi',
+  'ab.clean_pages':
+      'Langkau nombor muka surat dan pengepala/pengaki berulang',
+  'ab.clean_symbols':
+      'Bersihkan simbol, kurungan dan URL berlebihan supaya pertuturan semula jadi',
+  'ab.clean_abbr':
+      'Kembangkan singkatan (cth. Dr., dsb.)',
+  'ab.ai_tidy':
+      'Murnikan teks dengan AI (kunci anda sendiri)',
+  'ab.ai_tidy_sub':
+      'Memurnikan bab supaya pertuturan semula jadi menggunakan kunci Gemini anda sendiri',
+  'ab.title':
+      'Cipta buku audio',
+  'ab.library':
+      'Buku audio saya',
+  'ab.intro':
+      'Dokumen dibahagikan kepada bab mengikut tajuknya; setiap bab menjadi fail audio berasingan bernama yang disimpan ke Music > Sesli Kitaplar. Bab yang selesai tidak dijana semula.',
+  'ab.voice':
+      'Suara',
+  'ab.voice_system':
+      'Suara peranti',
+  'ab.voice_system_sub':
+      'Enjin pertuturan telefon anda — tanpa muat turun (pilih dalam Tetapan > Bacaan)',
+  'ab.speed':
+      'Kelajuan',
+  'ab.chapters':
+      'Bab ({n})',
+  'ab.chapter_ready':
+      'Siap — tidak akan dijana semula',
+  'ab.chapter_len':
+      '~{min} min',
+  'ab.start':
+      'Cipta',
+  'ab.listen':
+      'Dengar',
 };
