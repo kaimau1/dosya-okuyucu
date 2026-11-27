@@ -5192,4 +5192,385 @@ const Map<String, String> _ms = {
       '{ok} item dipadam, {fail} tidak dapat dipadam.',
   'fmset.empty_cancelled':
       'Dihentikan — {ok} item dipadam.',
+// ── fmset-drive-set-sdu ──
+  'fmset.empty_done':
+      'Tong sampah dikosongkan · {ok} item · {size} dibebaskan.',
+  'fmset.full_access':
+      'Akses semua fail',
+  'fmset.usage_access':
+      'Akses penggunaan',
+  'fmset.usage_access_on':
+      'Diberikan — tarikh terakhir dibuka aplikasi kelihatan',
+  'fmset.usage_access_off':
+      'Belum diberikan — tarikh tidak dapat dipaparkan pada skrin “Aplikasi”',
+  'fmset.grant':
+      'Berikan',
+  'fmset.clear_thumbs':
+      'Kosongkan cache lakaran kecil',
+  'fmset.volumes':
+      'Volum',
+  'fmset.volumes_none':
+      'Tidak ditemui',
+  'drive.title':
+      'Google Drive',
+  'drive.upload_action':
+      'Muat naik ke Drive',
+  'drive.sign_in':
+      'Sambung dengan Google',
+  'drive.sign_out':
+      'Putuskan sambungan',
+  'drive.sign_in_prompt':
+      'Sambungkan akaun Google anda untuk menyemak imbas Drive di sini, membuka dan memuat naik fail, serta menyusun folder.',
+  'drive.root':
+      'Drive Saya',
+  'drive.new_folder':
+      'Folder baharu',
+  'drive.new_folder_default':
+      'Folder baharu',
+  'drive.new_folder_failed':
+      'Tidak dapat mencipta folder.',
+  'drive.rename':
+      'Namakan semula',
+  'drive.rename_failed':
+      'Tidak dapat menamakan semula.',
+  'drive.empty':
+      'Folder ini kosong.',
+  'drive.empty_search':
+      'Tiada fail yang sepadan ditemui.',
+  'drive.search_hint':
+      'Cari dalam Drive…',
+  'drive.exports_as':
+      'dimuat turun sebagai {format}',
+  'drive.uploading':
+      'Memuat naik ke Drive…',
+  'drive.upload_name':
+      'Muat naik ke Drive',
+  'drive.upload_done':
+      'Dimuat naik ke Drive:',
+  'drive.upload_failed':
+      'Gagal memuat naik ke Drive.',
+  'drive.download_failed':
+      'Tidak dapat memuat turun fail.',
+  'drive.downloading':
+      'Memuat turun daripada Drive…',
+  'drive.ready_offscreen':
+      'Dimuat turun — ketik untuk membuka:',
+  'drive.download_stopped':
+      'Muat turun dihentikan.',
+  'drive.delete_confirm':
+      'Alihkan “{name}” ke tong sampah Drive?',
+  'drive.delete_failed':
+      'Tidak dapat memadam.',
+  'drive.download':
+      'Muat turun ke telefon…',
+  'drive.download_here':
+      'Muat turun ke sini',
+  'drive.downloaded':
+      'Dimuat turun ke: {folder}',
+  'drive.star':
+      'Tambah bintang',
+  'drive.unstar':
+      'Buang bintang',
+  'drive.star_failed':
+      'Tidak dapat menukar bintang.',
+  'drive.info':
+      'Butiran',
+  'drive.info_kind':
+      'Jenis',
+  'drive.info_size':
+      'Saiz',
+  'drive.info_modified':
+      'Diubah suai',
+  'drive.info_created':
+      'Dicipta',
+  'drive.info_owner':
+      'Pemilik',
+  'drive.info_shared':
+      'Perkongsian',
+  'drive.info_starred':
+      'Berbintang',
+  'drive.shared_yes':
+      'Dikongsi dengan orang lain',
+  'drive.shared_no':
+      'Hanya anda',
+  'drive.sort':
+      'Isih',
+  'drive.folder':
+      'Folder',
+  'drive.share_link':
+      'Kongsi pautan',
+  'drive.share_file':
+      'Kongsi fail',
+  'drive.share_failed':
+      'Tidak dapat mencipta pautan perkongsian.',
+  'drive.paste_failed':
+      'Tidak dapat menampal.',
+  'drive.copy_tag':
+      'salinan',
+  'drive.error_not_signed_in':
+      'Anda belum bersambung ke akaun Google.',
+  'drive.error_not_configured':
+      'Log masuk Google tidak diaktifkan untuk APK ini. Akaun tidak dapat disambungkan sebelum tandatangan aplikasi didaftarkan dalam Google Cloud sebagai "Android OAuth client" (peraturan Google; tidak boleh dibaiki melalui kod). Pemilih sistem di bawah berfungsi tanpa pendaftaran itu.',
+  'drive.setup_title':
+      'Nilai persediaan sekali sahaja',
+  'drive.setup_steps':
+      'Masukkan dua nilai di bawah pada console.cloud.google.com → APIs & Services → Credentials → OAuth client ID (Android). Jika skrin persetujuan OAuth berada dalam mod "Testing", tambah akaun anda sebagai penguji. Butiran: docs/GOOGLE-DRIVE-KURULUM.md',
+  'drive.setup_package':
+      'Nama pakej',
+  'drive.setup_sha1':
+      'SHA-1 tandatangan',
+  'drive.setup_copied':
+      'Disalin.',
+  'drive.error_no_play_services':
+      'Google Play Services tiada atau lapuk pada peranti ini, jadi log masuk Google tidak dapat berjalan. Anda boleh menggunakan pemilih sistem di bawah.',
+  'drive.error_sign_in_failed':
+      'Log masuk Google tidak dapat diselesaikan.',
+  'drive.system_picker_hint':
+      'Walaupun log masuk tidak berfungsi, anda masih boleh mengakses SEMUA kandungan Drive: pemilih sistem Android menyenaraikan Drive sebagai sumber fail dan tidak meminta sebarang kebenaran.',
+  'drive.open_via_system':
+      'Buka fail Drive dengan pemilih sistem',
+  'drive.error_forbidden':
+      'Drive menafikan operasi ini. Fail mungkin tidak dimuat naik dengan aplikasi ini.',
+  'drive.error_api_not_enabled':
+      'Google Drive API tidak diaktifkan untuk projek ini. Pergi ke Google Cloud Console → APIs & Services → Library → "Google Drive API" → Enable, kemudian cuba lagi dalam beberapa minit.',
+  'drive.error_insufficient_scope':
+      'Akaun bersambung tetapi kebenaran Drive belum diberikan. Putuskan sambungan, sambung semula dan luluskan akses Drive dalam dialog persetujuan.',
+  'drive.error_not_found':
+      'Fail tidak ditemui di Drive.',
+  'drive.error_temporary':
+      'Drive tidak bertindak balas buat masa ini, cuba lagi sebentar nanti.',
+  'drive.error_unknown':
+      'Ralat sambungan Drive.',
+  'drive.downloading_name':
+      'Muat turun daripada Drive',
+  'set.sec_documents':
+      'Dokumen',
+  'set.sec_network':
+      'Rangkaian & AI',
+  'set.kw_offline':
+      'luar talian internet rangkaian pesawat',
+  'set.rate_app':
+      'Nilaikan aplikasi',
+  'set.rate_app_sub':
+      'Penilaian anda membantu pasukan pembangun kecil berkembang',
+  'set.key_valid':
+      'Kunci sah · {n} model ditemui',
+  'set.key_invalid':
+      'Kunci tidak dapat disahkan',
+  'set.cat_appearance':
+      'Penampilan & bahasa',
+  'set.cat_appearance_sub':
+      'Tema, fon, saiz teks dan bahasa antara muka',
+  'set.cat_browsing':
+      'Senarai fail',
+  'set.cat_browsing_sub':
+      'Reka letak, isihan, lakaran kecil, folder permulaan',
+  'set.cat_ai':
+      'Kecerdasan buatan',
+  'set.cat_ai_sub':
+      'Folder pintar, kunci dan privasi',
+  'set.sec_smart':
+      'Folder pintar',
+  'set.smart_sort_sub':
+      'Hidup/mati, kamera, penyusunan di latar belakang, Wi-Fi sahaja, had harian, pembetulan yang dipelajari',
+  'set.smart_on':
+      'Hidup · {n} fail disusun — buka folder pintar',
+  'set.smart_off':
+      'Mati — hidupkan untuk memberi fail anda nama kedua dan kategori',
+  'set.smart_pin':
+      'PIN untuk folder sensitif',
+  'set.smart_pin_none':
+      'Folder ID, kesihatan, bank dan cukai kini dibuka tanpa PIN — ketik untuk menetapkan PIN',
+  'set.smart_pin_on':
+      'Folder ID, kesihatan, bank dan cukai meminta PIN sekali setiap sesi',
+  'set.smart_pin_app':
+      'Kunci aplikasi dihidupkan: PIN diminta semasa dibuka, folder tidak bertanya lagi',
+  'set.cat_privacy':
+      'Privasi & kebenaran',
+  'set.cat_privacy_sub':
+      'Kunci folder dan kebenaran yang dipegang aplikasi',
+  'set.cat_reading':
+      'Bacaan & pertuturan',
+  'set.cat_reading_sub':
+      'Suara pertuturan, kelajuan dan bacaan pintar',
+  'set.cat_storage':
+      'Storan & prestasi',
+  'set.cat_storage_sub':
+      'Tong sampah, pengesahan padam, kelajuan dan penyelenggaraan',
+  'set.sec_tts':
+      'Pertuturan',
+  'set.tts_voice':
+      'Suara dan kelajuan',
+  'set.tts_voice_sub':
+      'Pilih daripada suara pada peranti anda, tetapkan kelajuan dan nada (dengan pratonton)',
+  'set.tts_default_voice':
+      'Lalai peranti',
+  'set.tts_summary':
+      'Pertuturan {x}x',
+  'set.tts_ai_read':
+      'Bacaan pintar',
+  'set.tts_ai_read_sub':
+      'Mula bertutur sebaik jawapan tiba',
+  'set.sec_advanced':
+      'Lanjutan',
+  'set.sec_experimental':
+      'Eksperimen',
+  'set.advanced_hint':
+      'Jarang diperlukan — tetapkan sekali',
+  'set.trash_off':
+      'Padam secara kekal',
+  'set.refresh_60':
+      '60 Hz',
+  'set.ai_no_key':
+      'Tiada kunci',
+  'set.ai_key_count':
+      '{n} kunci',
+  'set.api_key_sub':
+      'Kunci API Gemini anda — disimpan pada peranti',
+  'set.kw_dark':
+      'gelap mod malam',
+  'set.kw_font':
+      'fon jenis huruf saiz',
+  'set.kw_speak':
+      'bertutur suara tts baca kuat',
+  'set.kw_gemini':
+      'gemini kunci api token',
+  'set.kw_days':
+      'hari automatik tempoh',
+  'set.sec_theme':
+      'Tema',
+  'set.haptics':
+      'Maklum balas haptik',
+  'set.haptics_sub':
+      'Getaran ringan semasa memilih dan menatal',
+  'set.sec_text':
+      'Teks',
+  'set.sec_language':
+      'Bahasa',
+  'set.sec_lists':
+      'Senarai',
+  'set.sec_photos':
+      'Foto',
+  'set.sec_opening':
+      'Pembukaan',
+  'set.sec_key':
+      'Akses',
+  'set.sec_lock':
+      'Kunci folder',
+  'set.sec_speed':
+      'Kelajuan & bateri',
+  'set.sec_ai_scope':
+      'Skop analisis',
+  'set.sec_ai_privacy':
+      'Apa yang keluar daripada peranti',
+  'set.hints_reset':
+      'Tunjukkan petua lagi',
+  'set.hints_reset_sub':
+      'Petua dan panduan yang dipaparkan sekali akan muncul semula',
+  'set.hints_reset_done':
+      'Petua akan dipaparkan semula',
+  'sdu.title':
+      'Storan gabungan dengan kad SD',
+  'sdu.tile_sub':
+      'Semasa mengecas, mengalihkan foto dan video lama ke kad SD untuk mengosongkan storan dalaman',
+  'sdu.kw':
+      'kad memori microsd alih sandaran mengecas storan dalaman penuh ruang kosong',
+  'sdu.hero_title':
+      'Dua memori, satu storan',
+  'sdu.hero_body':
+      'Apabila telefon sedang dicas, fail lama daripada folder pilihan anda dialihkan ke kad SD dengan susunan folder yang sama. Fail masih dipaparkan bersama dalam senarai dan galeri, dan storan dalaman dikosongkan. Mencabut pengecas menghentikan tugas tanpa meninggalkan fail yang separuh disalin.',
+  'sdu.android_only':
+      'Ciri ini hanya berfungsi pada Android.',
+  'sdu.no_card':
+      'Tiada kad SD dimasukkan',
+  'sdu.no_card_hint':
+      'Masukkan kad microSD ke dalam telefon; kad akan muncul di sini secara automatik.',
+  'sdu.card_missing':
+      'Kad SD yang dipilih tidak dimasukkan buat masa ini. Tugas diteruskan setelah kad kembali.',
+  'sdu.err_readonly':
+      'Telefon ini tidak membenarkan penulisan terus ke kad SD (Android 10 atau lebih lama, atau "Akses semua fail" dimatikan). Hidupkan kebenaran itu dalam Tetapan.',
+  'sdu.enable':
+      'Jalankan secara automatik semasa mengecas',
+  'sdu.enable_sub':
+      'Berfungsi walaupun aplikasi ditutup; tidak menghabiskan bateri dan berhenti apabila dicabut.',
+  'sdu.sec_status':
+      'Status',
+  'sdu.sec_target':
+      'Sasaran dan mod',
+  'sdu.sec_what':
+      'Apa yang dialihkan',
+  'sdu.card_free':
+      '{free} kosong · {total}',
+  'sdu.mode_move':
+      'Alih',
+  'sdu.mode_copy':
+      'Sandarkan',
+  'sdu.mode_move_sub':
+      'Fail dialihkan ke kad SD dan mengosongkan storan dalaman.',
+  'sdu.mode_copy_sub':
+      'Fail kekal dalam storan dalaman dan salinannya disimpan pada kad SD (dikemas kini apabila berubah).',
+  'sdu.folders':
+      'Folder',
+  'sdu.f_camera':
+      'Kamera (DCIM)',
+  'sdu.f_pictures':
+      'Gambar',
+  'sdu.f_movies':
+      'Filem',
+  'sdu.f_music':
+      'Muzik',
+  'sdu.f_download':
+      'Muat turun',
+  'sdu.f_documents':
+      'Dokumen',
+  'sdu.f_recordings':
+      'Rakaman',
+  'sdu.age':
+      'Fail lebih lama daripada',
+  'sdu.age_all':
+      'Semua',
+  'sdu.age_days':
+      '{n} hari',
+  'sdu.preview_wait':
+      'Mengira…',
+  'sdu.preview_move':
+      '{n} fail · {size} akan dialihkan sekarang',
+  'sdu.preview_copy':
+      '{n} fail · {size} akan disandarkan sekarang',
+  'sdu.preview_sub':
+      'Fail yang sudah ada pada kad dilangkau.',
+  'sdu.notify':
+      'Beritahu apabila selesai',
+  'sdu.rules':
+      'Tidak disentuh: folder tersembunyi (.thumbnails), fail yang diubah dalam 10 minit lepas dan media aplikasi sembang seperti WhatsApp/Telegram — sembang menyimpan fail mengikut lokasinya jadi mengalihkannya akan merosakkannya. Sekurang-kurangnya 1 GB dibiarkan kosong pada kad. Jika ada fail lain dengan nama sama, nama baharu digunakan; tiada apa yang ditimpa.',
+  'sdu.charging':
+      'Mengecas',
+  'sdu.not_charging':
+      'Tidak mengecas',
+  'sdu.will_run_now':
+      'akan berjalan sebentar lagi',
+  'sdu.will_run_charging':
+      'berjalan apabila dipalamkan',
+  'sdu.never':
+      'Belum pernah dijalankan.',
+  'sdu.running':
+      'Mengalihkan… {n} fail · {size} setakat ini',
+  'sdu.last_run':
+      'Terakhir dijalankan {when}: {n} fail · {size}',
+  'sdu.total':
+      'Jumlah: {n} fail · {size}',
+  'sdu.failed_n':
+      '{n} fail tidak dapat dialihkan (dicuba lagi lain kali).',
+  'sdu.err_sd_missing':
+      'Kad SD tidak ditemui — tugas dilangkau.',
+  'sdu.err_sd_full':
+      'Kad SD penuh (1 GB dibiarkan kosong) — tugas dihentikan.',
+  'sdu.err_stopped':
+      'Dijeda kerana pengecasan berhenti atau dihentikan; selebihnya dialihkan kemudian.',
+  'sdu.run_now_move':
+      'Alih sekarang',
+  'sdu.run_now_copy':
+      'Sandarkan sekarang',
+  'sdu.run_started':
+      'Dimulakan — anda boleh menutup aplikasi.',
 };

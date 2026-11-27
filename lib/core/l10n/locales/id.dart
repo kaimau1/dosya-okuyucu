@@ -5187,4 +5187,385 @@ const Map<String, String> _id = {
       '{ok} item dihapus, {fail} tidak dapat dihapus.',
   'fmset.empty_cancelled':
       'Dihentikan — {ok} item dihapus.',
+// ── fmset-drive-set-sdu ──
+  'fmset.empty_done':
+      'Tempat sampah dikosongkan · {ok} item · {size} dibebaskan.',
+  'fmset.full_access':
+      'Akses semua berkas',
+  'fmset.usage_access':
+      'Akses penggunaan',
+  'fmset.usage_access_on':
+      'Diberikan — tanggal terakhir dibuka aplikasi terlihat',
+  'fmset.usage_access_off':
+      'Belum diberikan — tanggal tidak dapat ditampilkan di layar “Aplikasi”',
+  'fmset.grant':
+      'Berikan',
+  'fmset.clear_thumbs':
+      'Hapus cache gambar mini',
+  'fmset.volumes':
+      'Volume',
+  'fmset.volumes_none':
+      'Tidak ditemukan',
+  'drive.title':
+      'Google Drive',
+  'drive.upload_action':
+      'Unggah ke Drive',
+  'drive.sign_in':
+      'Hubungkan dengan Google',
+  'drive.sign_out':
+      'Putuskan',
+  'drive.sign_in_prompt':
+      'Hubungkan akun Google Anda untuk menelusuri Drive di sini, membuka dan mengunggah berkas, serta mengatur folder.',
+  'drive.root':
+      'Drive Saya',
+  'drive.new_folder':
+      'Folder baru',
+  'drive.new_folder_default':
+      'Folder baru',
+  'drive.new_folder_failed':
+      'Tidak dapat membuat folder.',
+  'drive.rename':
+      'Ganti nama',
+  'drive.rename_failed':
+      'Tidak dapat mengganti nama.',
+  'drive.empty':
+      'Folder ini kosong.',
+  'drive.empty_search':
+      'Tidak ada berkas yang cocok.',
+  'drive.search_hint':
+      'Cari di Drive…',
+  'drive.exports_as':
+      'diunduh sebagai {format}',
+  'drive.uploading':
+      'Mengunggah ke Drive…',
+  'drive.upload_name':
+      'Unggah ke Drive',
+  'drive.upload_done':
+      'Terunggah ke Drive:',
+  'drive.upload_failed':
+      'Gagal mengunggah ke Drive.',
+  'drive.download_failed':
+      'Tidak dapat mengunduh berkas.',
+  'drive.downloading':
+      'Mengunduh dari Drive…',
+  'drive.ready_offscreen':
+      'Terunduh — ketuk untuk membuka:',
+  'drive.download_stopped':
+      'Unduhan dihentikan.',
+  'drive.delete_confirm':
+      'Pindahkan “{name}” ke tempat sampah Drive?',
+  'drive.delete_failed':
+      'Tidak dapat menghapus.',
+  'drive.download':
+      'Unduh ke ponsel…',
+  'drive.download_here':
+      'Unduh ke sini',
+  'drive.downloaded':
+      'Diunduh ke: {folder}',
+  'drive.star':
+      'Beri bintang',
+  'drive.unstar':
+      'Hapus bintang',
+  'drive.star_failed':
+      'Tidak dapat mengubah bintang.',
+  'drive.info':
+      'Detail',
+  'drive.info_kind':
+      'Jenis',
+  'drive.info_size':
+      'Ukuran',
+  'drive.info_modified':
+      'Diubah',
+  'drive.info_created':
+      'Dibuat',
+  'drive.info_owner':
+      'Pemilik',
+  'drive.info_shared':
+      'Berbagi',
+  'drive.info_starred':
+      'Berbintang',
+  'drive.shared_yes':
+      'Dibagikan ke orang lain',
+  'drive.shared_no':
+      'Hanya Anda',
+  'drive.sort':
+      'Urutkan',
+  'drive.folder':
+      'Folder',
+  'drive.share_link':
+      'Bagikan tautan',
+  'drive.share_file':
+      'Bagikan berkas',
+  'drive.share_failed':
+      'Tidak dapat membuat tautan berbagi.',
+  'drive.paste_failed':
+      'Tidak dapat menempel.',
+  'drive.copy_tag':
+      'salinan',
+  'drive.error_not_signed_in':
+      'Anda belum terhubung ke akun Google.',
+  'drive.error_not_configured':
+      'Masuk Google tidak diaktifkan untuk APK ini. Akun tidak dapat dihubungkan sebelum tanda tangan aplikasi didaftarkan di Google Cloud sebagai "Android OAuth client" (aturan Google; tidak dapat diperbaiki lewat kode). Pemilih sistem di bawah berfungsi tanpa pendaftaran itu.',
+  'drive.setup_title':
+      'Nilai penyiapan satu kali',
+  'drive.setup_steps':
+      'Masukkan dua nilai di bawah di console.cloud.google.com → APIs & Services → Credentials → OAuth client ID (Android). Jika layar persetujuan OAuth dalam mode "Testing", tambahkan akun Anda sebagai penguji. Detail: docs/GOOGLE-DRIVE-KURULUM.md',
+  'drive.setup_package':
+      'Nama paket',
+  'drive.setup_sha1':
+      'SHA-1 penandatanganan',
+  'drive.setup_copied':
+      'Disalin.',
+  'drive.error_no_play_services':
+      'Google Play Services tidak ada atau usang di perangkat ini, sehingga masuk Google tidak dapat berjalan. Anda dapat memakai pemilih sistem di bawah.',
+  'drive.error_sign_in_failed':
+      'Masuk Google tidak dapat diselesaikan.',
+  'drive.system_picker_hint':
+      'Meski masuk tidak berfungsi, Anda tetap dapat mengakses SEMUA isi Drive: pemilih sistem Android mencantumkan Drive sebagai sumber berkas dan tidak meminta izin apa pun.',
+  'drive.open_via_system':
+      'Buka berkas Drive dengan pemilih sistem',
+  'drive.error_forbidden':
+      'Drive menolak operasi ini. Berkas mungkin tidak diunggah dengan aplikasi ini.',
+  'drive.error_api_not_enabled':
+      'Google Drive API tidak diaktifkan untuk proyek ini. Buka Google Cloud Console → APIs & Services → Library → "Google Drive API" → Enable, lalu coba lagi beberapa menit kemudian.',
+  'drive.error_insufficient_scope':
+      'Akun terhubung tetapi izin Drive belum diberikan. Putuskan, hubungkan lagi, dan setujui akses Drive di dialog persetujuan.',
+  'drive.error_not_found':
+      'Berkas tidak ditemukan di Drive.',
+  'drive.error_temporary':
+      'Drive tidak merespons saat ini, coba lagi sebentar lagi.',
+  'drive.error_unknown':
+      'Kesalahan koneksi Drive.',
+  'drive.downloading_name':
+      'Unduhan dari Drive',
+  'set.sec_documents':
+      'Dokumen',
+  'set.sec_network':
+      'Jaringan & AI',
+  'set.kw_offline':
+      'offline internet jaringan pesawat',
+  'set.rate_app':
+      'Beri nilai aplikasi',
+  'set.rate_app_sub':
+      'Penilaian Anda membantu tim pengembang kecil berkembang',
+  'set.key_valid':
+      'Kunci valid · {n} model ditemukan',
+  'set.key_invalid':
+      'Kunci tidak dapat diverifikasi',
+  'set.cat_appearance':
+      'Tampilan & bahasa',
+  'set.cat_appearance_sub':
+      'Tema, font, ukuran teks, dan bahasa antarmuka',
+  'set.cat_browsing':
+      'Daftar berkas',
+  'set.cat_browsing_sub':
+      'Tata letak, pengurutan, gambar mini, folder awal',
+  'set.cat_ai':
+      'Kecerdasan buatan',
+  'set.cat_ai_sub':
+      'Folder pintar, kunci, dan privasi',
+  'set.sec_smart':
+      'Folder pintar',
+  'set.smart_sort_sub':
+      'Hidup/mati, kamera, pengaturan di latar belakang, hanya Wi-Fi, batas harian, perbaikan yang dipelajari',
+  'set.smart_on':
+      'Aktif · {n} berkas diatur — buka folder pintar',
+  'set.smart_off':
+      'Mati — aktifkan untuk memberi berkas Anda nama kedua dan kategori',
+  'set.smart_pin':
+      'PIN untuk folder sensitif',
+  'set.smart_pin_none':
+      'Folder KTP, kesehatan, bank, dan pajak kini terbuka tanpa PIN — ketuk untuk mengatur PIN',
+  'set.smart_pin_on':
+      'Folder KTP, kesehatan, bank, dan pajak menanyakan PIN sekali per sesi',
+  'set.smart_pin_app':
+      'Kunci aplikasi aktif: PIN ditanya saat dibuka, folder tidak bertanya lagi',
+  'set.cat_privacy':
+      'Privasi & izin',
+  'set.cat_privacy_sub':
+      'Kunci folder dan izin yang dimiliki aplikasi',
+  'set.cat_reading':
+      'Membaca & suara',
+  'set.cat_reading_sub':
+      'Suara ucapan, kecepatan, dan baca cerdas',
+  'set.cat_storage':
+      'Penyimpanan & kinerja',
+  'set.cat_storage_sub':
+      'Tempat sampah, konfirmasi hapus, kecepatan, dan perawatan',
+  'set.sec_tts':
+      'Ucapan',
+  'set.tts_voice':
+      'Suara dan kecepatan',
+  'set.tts_voice_sub':
+      'Pilih dari suara di perangkat Anda, atur kecepatan dan nada (dengan pratinjau)',
+  'set.tts_default_voice':
+      'Bawaan perangkat',
+  'set.tts_summary':
+      'Ucapan {x}x',
+  'set.tts_ai_read':
+      'Baca cerdas',
+  'set.tts_ai_read_sub':
+      'Mulai berbicara begitu jawaban tiba',
+  'set.sec_advanced':
+      'Lanjutan',
+  'set.sec_experimental':
+      'Eksperimental',
+  'set.advanced_hint':
+      'Jarang diperlukan — atur sekali',
+  'set.trash_off':
+      'Hapus permanen',
+  'set.refresh_60':
+      '60 Hz',
+  'set.ai_no_key':
+      'Tanpa kunci',
+  'set.ai_key_count':
+      '{n} kunci',
+  'set.api_key_sub':
+      'Kunci API Gemini Anda — disimpan di perangkat',
+  'set.kw_dark':
+      'gelap mode malam',
+  'set.kw_font':
+      'font jenis huruf ukuran',
+  'set.kw_speak':
+      'bicara suara tts baca keras',
+  'set.kw_gemini':
+      'gemini kunci api token',
+  'set.kw_days':
+      'hari otomatis periode',
+  'set.sec_theme':
+      'Tema',
+  'set.haptics':
+      'Umpan balik getar',
+  'set.haptics_sub':
+      'Getaran ringan saat memilih dan menggulir',
+  'set.sec_text':
+      'Teks',
+  'set.sec_language':
+      'Bahasa',
+  'set.sec_lists':
+      'Daftar',
+  'set.sec_photos':
+      'Foto',
+  'set.sec_opening':
+      'Pembukaan',
+  'set.sec_key':
+      'Akses',
+  'set.sec_lock':
+      'Kunci folder',
+  'set.sec_speed':
+      'Kecepatan & baterai',
+  'set.sec_ai_scope':
+      'Cakupan analisis',
+  'set.sec_ai_privacy':
+      'Yang keluar dari perangkat',
+  'set.hints_reset':
+      'Tampilkan tips lagi',
+  'set.hints_reset_sub':
+      'Tips dan panduan yang ditampilkan sekali akan muncul lagi',
+  'set.hints_reset_done':
+      'Tips akan ditampilkan lagi',
+  'sdu.title':
+      'Penyimpanan gabungan dengan kartu SD',
+  'sdu.tile_sub':
+      'Saat mengisi daya, memindahkan foto dan video lama ke kartu SD untuk mengosongkan penyimpanan internal',
+  'sdu.kw':
+      'kartu memori microsd pindah cadangan mengisi daya penyimpanan internal penuh ruang kosong',
+  'sdu.hero_title':
+      'Dua memori, satu penyimpanan',
+  'sdu.hero_body':
+      'Saat ponsel diisi daya, berkas lama dari folder pilihan Anda dipindahkan ke kartu SD dengan susunan folder yang sama. Berkas tetap tampil bersama di daftar dan galeri, dan penyimpanan internal dikosongkan. Mencabut pengisi daya menghentikan tugas tanpa meninggalkan berkas yang setengah tersalin.',
+  'sdu.android_only':
+      'Fitur ini hanya berfungsi di Android.',
+  'sdu.no_card':
+      'Kartu SD tidak terpasang',
+  'sdu.no_card_hint':
+      'Pasang kartu microSD ke ponsel; kartu akan muncul di sini otomatis.',
+  'sdu.card_missing':
+      'Kartu SD yang dipilih sedang tidak terpasang. Tugas berlanjut setelah kartu kembali.',
+  'sdu.err_readonly':
+      'Ponsel ini tidak mengizinkan penulisan langsung ke kartu SD (Android 10 atau lebih lama, atau "Akses semua berkas" mati). Aktifkan izinnya di Pengaturan.',
+  'sdu.enable':
+      'Jalankan otomatis saat mengisi daya',
+  'sdu.enable_sub':
+      'Berfungsi meski aplikasi ditutup; tidak menguras baterai dan berhenti saat dicabut.',
+  'sdu.sec_status':
+      'Status',
+  'sdu.sec_target':
+      'Target dan mode',
+  'sdu.sec_what':
+      'Yang dipindahkan',
+  'sdu.card_free':
+      '{free} kosong · {total}',
+  'sdu.mode_move':
+      'Pindahkan',
+  'sdu.mode_copy':
+      'Cadangkan',
+  'sdu.mode_move_sub':
+      'Berkas pindah ke kartu SD dan mengosongkan penyimpanan internal.',
+  'sdu.mode_copy_sub':
+      'Berkas tetap di penyimpanan internal dan salinannya disimpan di kartu SD (diperbarui saat berubah).',
+  'sdu.folders':
+      'Folder',
+  'sdu.f_camera':
+      'Kamera (DCIM)',
+  'sdu.f_pictures':
+      'Gambar',
+  'sdu.f_movies':
+      'Film',
+  'sdu.f_music':
+      'Musik',
+  'sdu.f_download':
+      'Unduhan',
+  'sdu.f_documents':
+      'Dokumen',
+  'sdu.f_recordings':
+      'Rekaman',
+  'sdu.age':
+      'Berkas lebih lama dari',
+  'sdu.age_all':
+      'Semua',
+  'sdu.age_days':
+      '{n} hari',
+  'sdu.preview_wait':
+      'Menghitung…',
+  'sdu.preview_move':
+      '{n} berkas · {size} akan dipindahkan sekarang',
+  'sdu.preview_copy':
+      '{n} berkas · {size} akan dicadangkan sekarang',
+  'sdu.preview_sub':
+      'Berkas yang sudah ada di kartu dilewati.',
+  'sdu.notify':
+      'Beri tahu saat selesai',
+  'sdu.rules':
+      'Tidak disentuh: folder tersembunyi (.thumbnails), berkas yang diubah dalam 10 menit terakhir, dan media aplikasi obrolan seperti WhatsApp/Telegram — obrolan menyimpan berkas menurut lokasinya sehingga memindahkannya akan merusaknya. Minimal 1 GB dibiarkan kosong di kartu. Jika ada berkas lain dengan nama sama, nama baru dipakai; tidak ada yang ditimpa.',
+  'sdu.charging':
+      'Mengisi daya',
+  'sdu.not_charging':
+      'Tidak mengisi daya',
+  'sdu.will_run_now':
+      'akan segera berjalan',
+  'sdu.will_run_charging':
+      'berjalan saat dicolok',
+  'sdu.never':
+      'Belum pernah berjalan.',
+  'sdu.running':
+      'Memindahkan… {n} berkas · {size} sejauh ini',
+  'sdu.last_run':
+      'Terakhir berjalan {when}: {n} berkas · {size}',
+  'sdu.total':
+      'Total: {n} berkas · {size}',
+  'sdu.failed_n':
+      '{n} berkas tidak dapat dipindahkan (dicoba lagi lain kali).',
+  'sdu.err_sd_missing':
+      'Kartu SD tidak ditemukan — tugas dilewati.',
+  'sdu.err_sd_full':
+      'Kartu SD penuh (1 GB dibiarkan kosong) — tugas dihentikan.',
+  'sdu.err_stopped':
+      'Dijeda karena pengisian daya berhenti atau dihentikan; sisanya dipindahkan nanti.',
+  'sdu.run_now_move':
+      'Pindahkan sekarang',
+  'sdu.run_now_copy':
+      'Cadangkan sekarang',
+  'sdu.run_started':
+      'Dimulai — Anda dapat menutup aplikasi.',
 };
