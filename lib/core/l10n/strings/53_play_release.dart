@@ -116,6 +116,11 @@ const Map<String, (String, String, String)> _t53 = {
     'No readable text found on these pages. Try Enhanced or AI Vision mode.',
     'لم يُعثر على نص مقروء. جرّب الوضع المحسّن أو رؤية AI.',
   ),
+  'ocr_studio.failed': (
+    'Metin tanınamadı: {error}\nCihaz içi tanıma Google Play Hizmetleri ister; yoksa AI Görüş kipini deneyin.',
+    'Text could not be recognized: {error}\nOn-device recognition needs Google Play services; otherwise try AI Vision mode.',
+    'تعذّر التعرّف على النص: {error}\nالتعرّف على الجهاز يتطلب خدمات Google Play؛ وإلا جرّب وضع رؤية AI.',
+  ),
   'ocr_studio.editor_hint': (
     'Tanınan metni burada düzenleyebilirsiniz…',
     'Edit recognized text here…',
