@@ -53,6 +53,76 @@ void main() {
     expect(MenuLook.byName('bento'), MenuLook.bento);
   });
 
+  // R3 (b) bekçisi (2026-11-27): Word ⋮ levhası (showEntryActions ile aynı
+  // showModalBottomSheet kurgusu) kayarken gövde her karede yeniden
+  // KURULMAZ — yalnız açılışın ilk karesinde bir kez. Kare başı build
+  // gerilemesi şüphesinde bu sayaç kanıttır.
+  testWidgets('levha açılıp kapanırken MenuSections tek kez kurulur',
+      (tester) async {
+    for (final look in MenuLook.values) {
+      var builds = 0;
+      final old = debugOnRebuildDirtyWidget;
+      debugOnRebuildDirtyWidget = (e, _) {
+        if (e.widget is MenuSections) builds++;
+      };
+      try {
+        await tester.pumpWidget(_app((context) => Center(
+              child: TextButton(
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  showDragHandle: true,
+                  isScrollControlled: true,
+                  constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.88),
+                  builder: (ctx) => SafeArea(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                          bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+                      child: MenuSections(
+                        look: look,
+                        quick: const [
+                          MenuKitAction(
+                              icon: Icons.copy, label: 'Kopyala', onTap: _noop),
+                          MenuKitAction(
+                              icon: Icons.paste, label: 'Yapıştır', onTap: _noop),
+                          MenuKitAction(
+                              icon: Icons.delete,
+                              label: 'Sil',
+                              tone: MenuTone.danger,
+                              onTap: _noop),
+                        ],
+                        sections: _sections,
+                      ),
+                    ),
+                  ),
+                ),
+                child: const Text('aç'),
+              ),
+            )));
+        // Önceki turun pumpWidget'ı yeni AppTheme.light() verdi: ThemeData
+        // eşit sayılmaz (resolveWith kapanışları) → AnimatedTheme 200 ms
+        // tüm ağacı her karede kurar. Ölçümden önce yerleşsin.
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('aç'));
+        await tester.pump();
+        expect(find.byType(MenuSections), findsOneWidget, reason: '$look');
+        builds = 0;
+        for (var i = 0; i < 30; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(builds, 0, reason: '$look açılış karelerinde yeniden kuruldu');
+        Navigator.of(tester.element(find.byType(MenuSections))).pop();
+        for (var i = 0; i < 30; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        expect(find.byType(MenuSections), findsNothing, reason: '$look');
+        expect(builds, 0, reason: '$look kapanış karelerinde yeniden kuruldu');
+      } finally {
+        debugOnRebuildDirtyWidget = old;
+      }
+    }
+  });
+
   testWidgets('sağlayıcısız ağaçta varsayılan sekmeli', (tester) async {
     late MenuLook look;
     await tester.pumpWidget(_app((context) {
