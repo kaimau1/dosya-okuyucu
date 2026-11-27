@@ -256,6 +256,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// sol altta "← N. sayfaya dön" hapı görünür (`P22B_KAPALI` kapatır).
   final ValueNotifier<int?> _pdfBackPageN = ValueNotifier<int?>(null);
 
+  /// Hap ilk atlamada ağaca girer (o zamana dek hiç kurulmaz).
+  bool _pdfBackArmed = false;
+
   /// Belgenin sayfa sayısı (`onViewerReady`'de okunur).
   int _pdfCount = 0;
 

@@ -196,26 +196,7 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
 
     // Genişletilmiş kap: sürüklerken tutamacın yanında canlı sayfa balonu açılır.
     const bubbleGap = 10.0;
-    return PositionedDirectional(
-      end: widget.margin,
-      top: top,
-      height: thumb.height,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: _dragging && page != null ? 1.0 : 0.0,
-              duration: Motion.of(context, Motion.short),
-              child: AnimatedScale(
-                scale: _dragging ? 1.0 : 0.86,
-                duration: Motion.of(context, Motion.short),
-                curve: Motion.standard,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                Padding(
+    final Widget bubble = Padding(
                   padding: const EdgeInsetsDirectional.only(end: bubbleGap),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -273,10 +254,34 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
                       ),
                     ),
                   ),
-                ),
-                if (page != null) _preview(context, page, frac < 0.5),
-                  ],
-                ),
+                );
+    return PositionedDirectional(
+      end: widget.margin,
+      top: top,
+      height: thumb.height,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _dragging && page != null ? 1.0 : 0.0,
+              duration: Motion.of(context, Motion.short),
+              child: AnimatedScale(
+                scale: _dragging ? 1.0 : 0.86,
+                duration: Motion.of(context, Motion.short),
+                curve: Motion.standard,
+                // Önizleme Stack'i yalnız sürüklerken: açılış/kaydırmada ağaç
+                // P22b öncesiyle aynı (önizleme hiç kurulmaz).
+                child: _previewOn && _dragging && page != null
+                    ? Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          bubble,
+                          _preview(context, page, frac < 0.5),
+                        ],
+                      )
+                    : bubble,
               ),
             ),
           ),

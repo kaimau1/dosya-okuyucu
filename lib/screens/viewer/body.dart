@@ -469,8 +469,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                   ),
                 // P22b: bağlantı/içindekilerden atlayınca "← geri dön" hapı
                 // (sol alt; rozet sağ altta).
-                // Ağaç şekli sabit: seçim çubuğu açıkken yalnız içi boşalır.
-                if (_pageCount > 0)
+                // Tembel: ilk atlamaya dek ağaçta YOK (açılışta kurulmaz,
+                // çubuk animasyonunda yerleşim yapmaz). Sonra şekil sabit:
+                // seçim çubuğu açıkken yalnız içi boşalır.
+                if (_pdfBackArmed)
                   ReadingFloat(
                     start: 16,
                     end: null,

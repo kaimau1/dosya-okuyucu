@@ -665,6 +665,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     if (const bool.fromEnvironment('P22B_KAPALI')) return;
     final from = _livePdfPage() ?? _pdfPage;
     if (target == from) return;
+    if (!_pdfBackArmed) _partSetState(() => _pdfBackArmed = true);
     _pdfBackPageN.value = from;
   }
 
