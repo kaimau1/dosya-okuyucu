@@ -843,6 +843,11 @@ class ImportantGalleryTile extends StatelessWidget {
   /// Seçim kipinde işaretli mi (çerçeve + onay rozeti).
   final bool selected;
 
+  /// Fotoğraf/video küçük resmi açılışta görüntüleyiciye Hero ile uçsun mu
+  /// (normal galeriyle aynı geçiş). Yalnız ızgarada açılır: aynı yol
+  /// ekranda iki kez görünebilen şeritlerde çift etiket olmasın.
+  final bool hero;
+
   const ImportantGalleryTile(
       {super.key,
       required this.entry,
@@ -850,7 +855,8 @@ class ImportantGalleryTile extends StatelessWidget {
       required this.onTap,
       this.onLongPress,
       this.thumbnails = true,
-      this.selected = false});
+      this.selected = false,
+      this.hero = false});
 
   @override
   Widget build(BuildContext context) {
@@ -876,11 +882,14 @@ class ImportantGalleryTile extends StatelessWidget {
                     ? EdgeInsets.zero
                     : EdgeInsets.fromLTRB(8, 8, 8, size * 0.28),
                 child: Center(
-                  child: FmEntryIcon(
-                    entry: entry,
-                    thumbnails: thumbnails,
-                    size: media ? size : size * 0.62,
-                    radius: media ? 0 : Radii.control,
+                  child: _heroWrap(
+                    media,
+                    FmEntryIcon(
+                      entry: entry,
+                      thumbnails: thumbnails,
+                      size: media ? size : size * 0.62,
+                      radius: media ? 0 : Radii.control,
+                    ),
                   ),
                 ),
               ),
@@ -932,6 +941,12 @@ class ImportantGalleryTile extends StatelessWidget {
       ),
     );
   }
+}
+
+extension on ImportantGalleryTile {
+  Widget _heroWrap(bool media, Widget child) => hero && media && !selected
+      ? Hero(tag: fmMediaHeroTag(entry.path), child: child)
+      : child;
 }
 
 /// Ad soran ortak diyalog (yeni klasör / yeni dosya). Gezgin ekranındaki
