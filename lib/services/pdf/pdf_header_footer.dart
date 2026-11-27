@@ -118,7 +118,9 @@ bool hasMarkedHeaderFooter(List<int> bytes) {
         if (latin1.decode(c).contains('/$_marker') && _blocks(c).isNotEmpty) {
           return true;
         }
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: çözülemeyen akış / kapanmamış blok "işaret yok" sayılır.
+      }
     }
   }
   return false;
