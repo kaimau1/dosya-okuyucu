@@ -225,9 +225,11 @@ class _FastPageTransition extends StatelessWidget {
     end: const Offset(0.05, 0),
   ).chain(CurveTween(curve: Motion.enter));
 
-  /// Derinlik hissi veren çok hafif ölçek (yalnız GPU dönüşümü, `saveLayer` yok).
-  static final _exitScale = Tween<double>(begin: 1.0, end: 0.982)
-      .chain(CurveTween(curve: Motion.enter));
+  // R3 (2026-11-27, tablet bisect → bd691226): alttaki sayfaya eklenen
+  // 1.0→0.982 ölçek KALDIRILDI. Ölçek ÖTELEME değildir: alttaki sayfanın
+  // tamamı her karede kesirli ölçekte yeniden rasterlanır (yazı glifleri yeni
+  // ölçekte yeniden çizilir, önbellek tutmaz) → gecis_pdf_acilis raster p90
+  // +%50–96, xlsx kapanış p99 +%58. Alttaki sayfaya YALNIZ öteleme uygula.
 
   @override
   Widget build(BuildContext context) {
@@ -237,14 +239,11 @@ class _FastPageTransition extends StatelessWidget {
       // `transformHitTests: false`: çıkan sayfa kaydırılmış hâldeyken
       // dokunuşları yakalamasın (geçiş sırasında yanlış öğeye basılması).
       transformHitTests: false,
-      child: ScaleTransition(
-        scale: secondaryAnimation.drive(_exitScale),
-        child: _PrimarySlide(
-          animation: animation,
-          enter: rtl ? _enterRtl : _enterLtr,
-          exitSign: rtl ? -1 : 1,
-          child: child,
-        ),
+      child: _PrimarySlide(
+        animation: animation,
+        enter: rtl ? _enterRtl : _enterLtr,
+        exitSign: rtl ? -1 : 1,
+        child: child,
       ),
     );
   }
