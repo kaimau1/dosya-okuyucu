@@ -343,14 +343,20 @@ extension _PdfInkScreenViewsPart on _PdfInkScreenState {
                 ],
               ),
             ),
+            // Kalem · fosforlu · silgi YAN YANA ortak tepside (B20, Notlar'daki
+            // mantık); yazı ve kaydır tepsinin yanında.
             Row(
               children: [
-                tool(InkTool.pen, AppIcons.edit, context.t('ink.pen')),
-                tool(InkTool.highlighter, AppIcons.borderColor,
-                    context.t('ink.highlighter')),
+                const SizedBox(width: 8),
+                PenTray(
+                  selected: _trayTool,
+                  onSelect: _selectTray,
+                  penColor: Color(_penColor),
+                  highlighterColor: Color(_highlightColor),
+                  onSettings: _traySettings,
+                  onClear: _clearPageInk,
+                ),
                 tool(InkTool.text, AppIcons.textFields, context.t('ink.text')),
-                tool(InkTool.eraser, AppIcons.autoFixNormal,
-                    context.t('ink.eraser')),
                 tool(InkTool.hand, AppIcons.panTool,
                     context.t('ink.hand')),
               ],

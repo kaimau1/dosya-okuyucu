@@ -10969,4 +10969,18 @@ const Map<String, String> _ms = {
       'Tiada yang dipilih terlebih dahulu; ketik untuk menyemak mengikut kumpulan. Gambar terbaik tidak pernah dipadam.',
   'clean.why_chat_media':
       'Tiada yang dipilih terlebih dahulu; ketik untuk menyemak mengikut jenis. Dipindah ke tong sampah, boleh dipulihkan.',
+  'ink.swap':
+      'Pen ⇄ pemadam',
+  'ink.eraser_stroke':
+      'Padam garisan',
+  'ink.eraser_area':
+      'Padam kawasan',
+  'ink.clear_all':
+      'Padam semua',
+  'ink.width':
+      'Ketebalan',
+  'ink.color':
+      'Warna',
+  'ink.tray_hint':
+      'Ketik pen yang dipilih sekali lagi untuk tetapan. Butang stylus atau hujung belakangnya memadam.',
 };

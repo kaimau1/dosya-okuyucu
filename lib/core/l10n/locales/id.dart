@@ -10964,4 +10964,18 @@ const Map<String, String> _id = {
       'Tidak ada yang dipilih sebelumnya; ketuk untuk meninjau per grup. Foto terbaik tidak pernah dihapus.',
   'clean.why_chat_media':
       'Tidak ada yang dipilih sebelumnya; ketuk untuk meninjau per jenis. Dipindah ke tempat sampah, dapat dipulihkan.',
+  'ink.swap':
+      'Pena ⇄ penghapus',
+  'ink.eraser_stroke':
+      'Hapus goresan',
+  'ink.eraser_area':
+      'Hapus area',
+  'ink.clear_all':
+      'Hapus semua',
+  'ink.width':
+      'Ketebalan',
+  'ink.color':
+      'Warna',
+  'ink.tray_hint':
+      'Ketuk pena yang dipilih lagi untuk pengaturan. Tombol stylus atau ujung belakangnya menghapus.',
 };

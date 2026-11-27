@@ -1816,3 +1816,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Benzer kareler Normal kademede: ilgisiz görseller aynı gruba düşmüyor mu (önceden Gevşek'le taranmışsa Yer aç Normal'le yeniden tarıyor mu).
 - Kuyruk: derin taramalar sürerken başka bir iş (ör. kopyalama, OCR) başlatınca bekliyor mu, ne kadar; İşlemler ekranında sıra anlaşılır mı.
 - Derin tarama ilerlerken liste kaydırması kasıyor mu (gözle).
+## B20 — Ortak kalem tepsisi (fotoğraf + PDF) (2026-11-27, dal faz-oto-B20-kalem) — yazıldı, cihazda doğrulanmadı
+- Fotoğraf düzenle → İşaretle: "Seç"in yanında kalem · fosforlu · silgi YAN YANA tek kapsülde; seçili olan hafif yukarı kalkıyor, kalemlerin altındaki çizgi seçili renkte. Dar telefonda Bulanıklaştır/Pikselleştir hâlâ ilk bakışta görünüyor mu (kaydırmadan)?
+- PDF → Kalemle düzenle: alt sırada aynı tepsi + Yazı + Kaydır; 360 dp'de taşma yok.
+- ⇄ düğmesi: kalemdeyken tek dokunuş silgi, yeniden dokunuş SON kalem (fosforludaysan fosforluya döner).
+- Seçili kaleme yeniden dokun → ayar levhası (renk, kalınlık önizlemesi); silgiye yeniden dokun → "Çizgiyi sil / Değdiği yeri sil" + "Hepsini sil". Silgiye uzun basmak hepsini siler, Geri al geri getirir.
+- "Değdiği yeri sil": bir çizginin ortasından geçince ikiye bölünüyor, kalan parçaların kalınlığı/rengi değişmiyor; "Çizgiyi sil"de bütün çizgi gidiyor. Fotoğrafta eğri çizginin BOŞ köşesine değmek artık silmemeli.
+- S Pen (varsa): yan düğme basılıyken ya da ters uçla sürükleyince araç değişmeden siliyor mu (PDF ve fotoğraf).
+- Kaydet → dosyayı yeniden aç: çizimler (kesilmiş parçalar dahil) yerinde ve kalıcı mı; PDF düzenleyicinin Çiz sekmesinden "Uygula" da aynı.

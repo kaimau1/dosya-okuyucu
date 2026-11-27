@@ -93,6 +93,33 @@ void main() {
     expect(strokeCount(tester), 1);
   });
 
+  testWidgets('B20: ⇄ kalem/silgi anlık geçişi ve kalemin ters ucu siler',
+      (tester) async {
+    await pump(tester);
+    final c = pageCenter(tester);
+    await drawLine(tester, c - const Offset(60, 0), c + const Offset(60, 0));
+    expect(strokeCount(tester), 1);
+    // ⇄ → silgi: üstünden geç → silinir; ⇄ → kalem: yine çizer.
+    await tester.tap(find.byKey(const ValueKey('pen-tray-swap')));
+    await tester.pump();
+    await drawLine(tester, c + const Offset(0, -30), c + const Offset(0, 30));
+    expect(strokeCount(tester), 0);
+    await tester.tap(find.byKey(const ValueKey('pen-tray-swap')));
+    await tester.pump();
+    await drawLine(tester, c - const Offset(60, 0), c + const Offset(60, 0));
+    expect(strokeCount(tester), 1);
+    // Kalem aracındayken kalemin TERS ucu araç değiştirmeden siler.
+    final back = await tester.startGesture(c + const Offset(0, -30),
+        kind: PointerDeviceKind.invertedStylus);
+    for (var i = 1; i <= 6; i++) {
+      await back.moveTo(c + Offset(0, -30 + i * 10));
+      await tester.pump();
+    }
+    await back.up();
+    await tester.pump();
+    expect(strokeCount(tester), 0);
+  });
+
   testWidgets('silgi üstünden geçilen darbeyi siler, tek adımda geri gelir',
       (tester) async {
     await pump(tester);
