@@ -876,3 +876,7 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Kök neden:** `ci/prepare_android.sh` §6 Latin modelini `play-services-mlkit-text-recognition`'a çeviriyor; Play'siz cihazda (Huawei) ML Kit `No acceptable module com.google.android.gms.vision.dynamite` yazıp `processImage` ya hata atıyor ya da HİÇ dönmüyordu → OCR stüdyosu sonsuz bekliyordu. İkinci kök: `UserError.from` OCR istisnalarını (`OcrModelNotReady`, `ArabicOcrMissing`) genel "bilinmeyen hata" metnine eziyordu.
 - **Düzeltme:** tüm ML Kit çağrıları `OcrService._process`'ten geçiyor → orada 20 sn `timeout` + `isPlayServicesMissing` → `OcrUnavailable` (`OcrModelNotReady` alt türü: tarama döngüleri durur); oturum boyu yapışkan bayrak (arka plan dizini her görselde 20 sn beklemesin). `FriendlyException` arayüzü: `toString`'i kullanıcı dilinde olan istisna `userErrorText`'te aynen gösterilir (tür adıyla değil — `--obfuscate` adları bozar).
 - **Reddedilen:** paketli Latin modeline dönmek (APK +~12 MB) — kullanıcıya soruldu (PLAN §3 B 9a). Pro levhası: Play hatası şerit yerine levha içinde (şerit "Şimdi değil"in üstüne biniyordu).
+
+## 2026-11-27 — Kullanıcı kararları (K40, P19c)
+- **K40 KARAR:** Word ⋮ menüsü (Belge Stüdyosu) süsleri KALIR (raster +3–4 ms, 24 ms sınırı altında). Sadeleştirme önerme.
+- **P19c KARAR:** Play'siz cihazlar için paketli Latin OCR modeli APK'ya KONMAZ (kullanıcı: "Play dışı zaten pek olmayız"). Bu cihazlarda anlaşılır ileti yeterli.
