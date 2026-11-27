@@ -94,7 +94,7 @@ yoluna dokunmaz, dokunulan editörün bütçe testi yeşil, A/B sonra C2'de. C2'
 | C2 | **Cihaz: perf A/B artıkları (hepsi main'de; taban önceki [apk] `.r8test`):** **İkinci tur (2026-11-21 tablette kaldı):** B9b Word yorum sütunu (word_300_kaydirma raster p99 15,9→22,4, word_300_menu build p99 16,6→28,6 — kök muhtemelen ölçüm senaryosu, R2) ve B10 Excel büyük xlsx (xlsx_100k_kaydirma build p90 8,5→24,8, xlsx_10k_x20_acilis p99 144,6→180,9; kod kökü bulunamadı, hipotez: önizleme→tam model yer değişimi). **Kaldı, kök neden bekliyor:** P13 liste/ızgara (klasor_5000 build p99 20,6→46,1), B11 dilim 3 sunum (slayt_300_acilis_pro0 build p99 30,9→45,5). **Ölçülmedi:** B10 süzgeç levhası + chartex çizimi; P12 Excel 10k×20; P14 Word kapanış/menü (K21–K22); P04 boş/hata (K6–K7); U2 tek şerit; U3 ana ekran kaydırma (senaryo yok); U4 Akıllı düzen ızgarası; U5 galeri çimdik + pano araçlar; U7 tablet tek menü + pano (CIHAZ_TESTI U7); B11 dilim 1–2 + m.2 + m.1 yansıma; B4 dilim 1–8 + P16/P17 (kalemle çizerken kare p99; 300 sayfada p99 ≤ 16 ms); B15 budama; B5 UDF açılışı; B3 P29 ana ekran açılışı; Yer aç/Bento levha (senaryo yok); §1.8 C2 listesi (2026-11-18/19 işleri). **Geçti:** B2 dilim 1–5, galeri açılış geçişi (2026-11-20), sol menü (2026-11-21). Ayrıntı §1.8, docs/perf/ | opus | §1.8; docs/perf/ | A/B | evet | **2026-11-26 tablette A/B KALDI (2 tur, 4b2bec2→ad4ee9a, 121 commit):** sonuç docs/perf/2026-11-26-C1-C2.md; kök neden R3'te; P08 bellek (PSS) ve senaryosuz kalemler ölçülmedi |
 | C3 | **Cihaz: genel tur:** P11 `CIHAZ_TESTI.md` baştan sona (Faz 34–42, Güvenlik, 360×800 + 2× yazı, 2026-11-18 AI maddeleri) + §3 "Telefonda sen bak" (K20–K28); kırmızı → ilgili pakete madde | sonnet | CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
 | B16 | **İnternetsiz Arapça OCR (kullanıcı 2026-11-26):** Arapça/Farsça/Urduca/Osmanlıca/Cavi (Jawi) metin tanıma cihazda, ücretsiz; bugün yalnız Gemini (internet + anahtar + ücret). PaddleOCR Arapça modelleri (Apache 2.0) ilk kullanımda iner, APK +0 MB | opus | §1.15 | evet | evet | sürüyor — dal faz-oto-B16-ocr: **dilim 1 yazıldı, cihazda doğrulanmadı** (m.1 model indirme: PP-OCRv5 mobil det + Arapça rec ONNX, ≈13 MB, sesli kitabın WebView ONNX Runtime'ı ORTAK; m.2 `OcrService` sırası: Arapça ayarı → yerel → Gemini, otomatikte zayıf Latin → yerel; m.3 `OcrLine` kutuları aynen; ayar satırında indir/sil). **Kalan:** m.4 kalite kapısı + hız/bellek (cihaz → C2/C3, CIHAZ_TESTI B16), yerel sonuç zayıfsa Gemini'ye sorarak geçiş, eğik fotoğraf için döndürülmüş kutu, m.5 PP-Structure (isteğe bağlı). Sabah bakılacak: ORT wasm indirilen çalışma zamanı (seslerle aynı yol; Play politikası) |
-| B17 | **Endonezya + Malezya pazarı (kullanıcı 2026-11-26, satış hedefi):** Endonezce + Malayca arayüz, mağaza sayfası, yerel fiyat, düşük donanımlı telefon bütçesi, Cavi yazısı, gizlilik metinleri | opus (dil yapısı planı fable) | §1.16 | evet | evet | sürüyor — dal `faz-oto-B17-dil`: bitti m.1 dil altyapısı (id/ms ek tablo, eksik → İngilizce, sistem dili otomatik, dikte/çeviri dilleri, gizlilik → İngilizce) + m.2 ilk çeviri (590 anahtar × 2: ortak, ana ekran, ayarlar, hata, tanıtım, dosya yöneticisi, PDF görüntüleyici); + m.3 (dal `faz-oto-B17-ceviri2`: Kitaplık, temizlik, Pro, PDF araçları pt/pp/pse = 498 anahtar × 2) + m.4 (dal `faz-oto-B17-ceviri3`: excel, word, sl, xp, sp, near, sm, pe = 1.219 anahtar × 2); kalan: öteki ekranların çevirisi (enum, wp, pse, mp, nas, fmset, drive, set, sdu, ied…, ~3.350 kullanılan anahtar), Wi-Fi'de model indirme seçeneği, ucuz cihaz ölçümü (C2), cihaz turu (`docs/CIHAZ_TESTI.md` B17); DEVIR.md'den sür; 👤 maddeler §3 m.14 |
+| B17 | **Endonezya + Malezya pazarı (kullanıcı 2026-11-26, satış hedefi):** Endonezce + Malayca arayüz, mağaza sayfası, yerel fiyat, düşük donanımlı telefon bütçesi, Cavi yazısı, gizlilik metinleri | opus (dil yapısı planı fable) | §1.16 | evet | evet | sürüyor — dal `faz-oto-B17-dil`: bitti m.1 dil altyapısı (id/ms ek tablo, eksik → İngilizce, sistem dili otomatik, dikte/çeviri dilleri, gizlilik → İngilizce) + m.2 ilk çeviri (590 anahtar × 2: ortak, ana ekran, ayarlar, hata, tanıtım, dosya yöneticisi, PDF görüntüleyici); + m.3 (dal `faz-oto-B17-ceviri2`: Kitaplık, temizlik, Pro, PDF araçları pt/pp/pse = 498 anahtar × 2) + m.4 (dal `faz-oto-B17-ceviri3`: excel, word, sl, xp, sp, near, sm, pe = 1.219 anahtar × 2) + m.5 (dal `faz-oto-B17-ceviri4`: enum, wp, pse, mp, nas, fmset, drive, set, sdu, ied, rs, ss, fm, ftpd, vault, dl, ab, ph, skin, pf, jr, pp, cj, sb, clean, apk, suc = 1.500 anahtar × 2); + m.6 (dal `faz-oto-B17-ceviri5`: kalan 1.812 anahtar; çeviri KOD KISMI BİTTİ); kalan: yalnız 👤 anadili gözden geçirme, Wi-Fi'de model indirme seçeneği, ucuz cihaz ölçümü (C2), cihaz turu (`docs/CIHAZ_TESTI.md` B17); DEVIR.md'den sür; 👤 maddeler §3 m.14 |
 
 ### 1.1) B1 ayrıntısı — Akıllı düzen 2.0 çekirdek
 
@@ -192,14 +192,12 @@ Dilim sırası (her biri ayrı oturum/dal `faz-oto-B4-<ad>`; biten madde buradan
    Syncfusion bağlantısız nesneyi atıyor mu ölç), **PdfEditorScreen emekliliği** (⋮ "Eski düzenleyici" —
    `pdf_pro_edit.dart`, `pdf_selection.dart`, `pdf_action_bars.dart` kullanımı grep). Ayrı e-posta kısayolu
    YAPILMADI: Paylaş levhası e-postayı zaten içerir (share_plus hedef seçemez).
-7. **P20 kalan** (Faz 63 m.3 + m.5) — `faz-oto-B4-p20`'de (birleşince bu madde SİLİNİR): araçlar ekranının
-   sayfa işleri stüdyoda (taşı, ters çevir, N sayfada böl, çoklu PDF ekle eklendi; araçlar alt çubuğu/⋮ sayfa
-   girdileri kalktı, tek "Sayfa stüdyosu" düğmesi; görüntüleyicideki "Sayfa stüdyosu" stüdyoyu doğrudan açar);
-   `pdf_reorder_screen` main'de YOKTU (eski ad). **Kalan — üst/alt bilgi + numara ekle/düzenle/kaldır:** OCG
-   katmanına çizip `layers.remove(isRemoveGraphicalContent: true)` ile silme denendi (CI 2 tur kırmızı, geri
-   alındı): Syncfusion 35.1.43 katman içeriğini silerken 2. sayfanın TÜM içeriğini siliyor (tek sayfada sorun
-   yok). Sonraki yol: kendi `PdfFile` ayrıştırıcımızla `/OC` işaretli BDC…EMC bloğunu sayfa sayfa çıkarmak.
-   Numara/filigran ekleme mevcut (araçlar ⋮ ve Pro "Gelişmiş numaralandırma", Bates dahil).
+7. **P20 kalan — üst/alt bilgi + numara ekle/düzenle/kaldır** — `faz-oto-B4-p20ust`te yazıldı (birleşince bu madde
+   SİLİNİR): Pro "Gelişmiş numaralandırma" sayfasında üst/alt bilgi + numara anahtarı + Kaldır; çizim akışı
+   `/Artifact … /DosyaOkuyucuHF` işaretli blokla sarılır, kaldır = kendi `PdfFile` ile yalnız o blok çıkarılır
+   (`pdf/pdf_header_footer.dart`; 4 sayfalı farklı içerikli belgede ekle→düzenle→kaldır sonrası sayfa metni +
+   içerik akışları birebir — `pdf_doc_pro_test`). Eski işaretsiz numara ve parolalı belge kaldırılamaz (bilerek).
+   Cihazda bakılacak: `docs/CIHAZ_TESTI.md` B4-P20ust.
 8. **P22b okuma deneyimi** (FERRARI H2.4 + kullanıcı 2026-11-18): hızlı kaydırma tutamacında sayfa no + küçük
    önizleme balonu (`PdfViewerScrollThumb`, `viewer/body.dart`), bağlantı/içindekilerden atlayınca "← geri dön"
    hapı, belge başına yakınlaştırma/görünüm kipini hatırla, çift dokunuşla sütuna sığdır, seçim tutamaçlarında
@@ -572,10 +570,9 @@ ona takılmaz: **indirilen şey kod değil model dosyası**.
   yöneticisi, dosya işlemleri, USB/SD, PDF/belge görüntüleyici kabuğu.
 #### Kalan
 - m.3 yapıldı (`faz-oto-B17-ceviri2`): `lib`, `clean`, `pro`, `pt`, `pp`, `pse` (kullanılan anahtarlar).
-- m.4 yapıldı (`faz-oto-B17-ceviri3`): `excel`, `word`, `sl`, `xp`, `sp`, `near`, `sm`, `pe` (1.219 anahtar). Kalan çeviri
-  (kullanılıp id'de olmayan ≈3.350; en büyükler): `enum` 132, `wp` 101, `pse` 91, `mp` 69, `nas` 69, `fmset` 67, `drive` 66,
-  `set` 63, `sdu` 59, `ied` 58, `rs` 52, `ss` 51, `fm` 48, `ftpd` 48, `vault` 45, `dl` 44, `ab` 43, `ph` 42, `skin` 42,
-  `pf` 41, `jr` 40, `pp` 40, `cj` 39, `sb` 39 …; B4 P20 yeni anahtarları. Eksik listesi: strings/ anahtarı kodda geçip id.dart'ta olmayanlar.
+- m.4 yapıldı (`faz-oto-B17-ceviri3`): `excel`, `word`, `sl`, `xp`, `sp`, `near`, `sm`, `pe` (1.219 anahtar).
+- m.5 yapıldı (`faz-oto-B17-ceviri4`): 1.500 anahtar — `enum`, `wp`, `pse`, `mp`, `nas`, `fmset`, `drive`, `set`, `sdu`, `ied`, `rs`, `ss`, `fm`, `ftpd`, `vault`, `dl`, `ab`, `ph`, `skin`, `pf`, `jr`, `pp`, `cj`, `sb`, `clean`, `apk`, `suc`, `apps` (başı). Kalan çeviri: YOK.
+- m.6 yapıldı (`faz-oto-B17-ceviri5`): 1.812 anahtar (ct, ocr_studio, smp, apps, foot, ved, vw, upd, link, srch, chart, card, smo, tf, gal, ks ve uzun kuyruk; B4 P20 dahil). Kodda kullanılıp id/ms'de olmayan anahtar = 0. Sonradan eklenen anahtarlar (K15 iç satın alım vb.) ayrıca eklenir.
 - Wi-Fi'de model indirme seçeneği (§1.16 m.4) — yapılmadı (2026-09-26 kararı mobil veride indirmeyi açtı).
 - Ucuz cihaz ölçümü → C2; cihaz turu `docs/CIHAZ_TESTI.md` B17.
 #### Doğrulama

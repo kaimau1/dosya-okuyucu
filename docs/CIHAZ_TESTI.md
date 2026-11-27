@@ -1745,6 +1745,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Stüdyo ⋮: tek sayfa seçiliyken "Sayfayı taşı…" (numara gir) çalışır; "Sırayı ters çevir" + geri al; "Parçalara böl…" 2 → belgenin yanına -bolum1.. dosyaları.
 - [ ] Stüdyo → Sayfa ekle → Dosyadan: 2 PDF birden seç → seçim sırasıyla, ardışık eklenir.
 
+## B4-P20ust üst/alt bilgi + numara (2026-11-27, dal faz-oto-B4-p20ust) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → PDF Pro → Gelişmiş numaralandırma: üst bilgi + alt bilgi + numara → Tamam → her sayfada üstte/altta görünür; kaydet (kopya) → Chrome/Adobe'de de görünür.
+- [ ] Aynı belgede yeniden aç → farklı üst bilgi yaz → Tamam: eskisi gider, yenisi gelir (üst üste binmez).
+- [ ] Kaldır → üst/alt bilgi + numara gider; çok sayfalı GERÇEK belgede (görselli/tablolu) her sayfanın gövdesi aynen kalır (özellikle 2. ve sonraki sayfalar). Geri al çalışır.
+- [ ] Hiç eklenmemiş belgede Kaldır → "Kaldırılacak üst/alt bilgi yok" iletisi, belge değişmez.
+
 ## B4-P21 güvenlik + çıktı (2026-11-27, dal faz-oto-B4-p21) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → PDF Pro → Belge bilgileri → "Tüm meta veriyi temizle" → onay → kaydet (kopya): başka bir okuyucuda (ör. Adobe/Chrome özellikler) başlık/yazar/oluşturan boş; sayfalar aynı; geri al çalışır.
 - [ ] Parolalı belgede meta temizle: kaydedilen dosya yine aynı parolayla açılır.

@@ -126,35 +126,6 @@ extension _PdfToolsScreenActionsPart on _PdfToolsScreenState {
   Future<int> _pageCount() =>
       PdfTools.pageCount(_bytes!, password: _password);
 
-  /// **Sayfa numarası ekle** (2026-08-28).
-  ///
-  /// Seçenekler tek bir kısa sayfada: kapağı atla, "n / toplam" yaz, sağa
-  /// hizala. Varsayılanlar en sık istenen hâl (ortada, 1'den, sade sayı) —
-  /// kullanıcı hiçbir şeye dokunmadan "Ekle" diyebilmeli.
-  Future<void> _addPageNumbers() async {
-    final options = await showModalBottomSheet<_NumberOptions>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (_) => const _PageNumberSheet(),
-    );
-    if (options == null || !mounted) return;
-    final pw = _password;
-    await _apply(
-      _str.t('pt.op_page_numbers'),
-      (b) => PdfTools.addPageNumbersInBackground(
-        b,
-        password: pw,
-        skipFirstPage: options.skipFirst,
-        startAt: options.skipFirst ? 2 : 1,
-        withTotal: options.withTotal,
-        position: options.right
-            ? PdfTools.numberBottomRight
-            : PdfTools.numberBottomCenter,
-      ),
-    );
-  }
-
   /// **Filigran (damga) ekle** (2026-08-28).
   ///
   /// Yazı tipi baytları ASSET'ten geçiliyor: gömülü standart PDF fontları

@@ -608,6 +608,17 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
     );
     if (opts == null || !mounted) return;
     final pw = _password;
+    if (opts.remove) {
+      // Yalnız bu uygulamanın işaretli bloğu kaldırılabilir (eski/yabancı numara
+      // sayfa içeriğine gömülü).
+      if (!await PdfDocPro.hasHeaderFooterInBackground(_bytes!, password: pw)) {
+        if (mounted) _snack(_str.t('pp.hf_none'));
+        return;
+      }
+      await _apply(_str.t('pp.hf_remove'),
+          (b) => PdfDocPro.removeHeaderFooterInBackground(b, password: pw));
+      return;
+    }
     final font = await _unicodeFont();
     final word = _str.t('pp.page_word');
     await _apply(
@@ -620,6 +631,9 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
           prefix: opts.prefix,
           digits: opts.digits,
           pageWord: word,
+          numbers: opts.numbers,
+          header: opts.header,
+          footer: opts.footer,
           fontBytes: font,
           password: pw),
     );
