@@ -1768,6 +1768,11 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Araçlar ⋮ Yazdır: sistem yazdırma penceresi açılır, düzenlenmiş (kaydedilmemiş) sayfalar önizlemede; PDF olarak kaydet çalışır. Parolalı belgede hata olursa ileti çıkar, uygulama çökmez.
 - 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): GEÇTİ: Belge bilgileri > Tüm meta veriyi temizle > kopya kaydet: Title/Author/Creator/Producer boş, sayfa sayısı aynı; ⋮ Sıkıştır 185 KB > 175 KB; Agresif sıkıştırma 320 sayfada "n/320" ilerledi, Durdur "durduruldu" dedi, yeniden başlatınca 320/320 ile bitti; Yazdır önizlemesi 320 sayfa açıldı. BULGU: Agresif sıkıştırma metin-only 108 KB belgeyi 12,5 MB yaptı (varsayılan ayarla ~116x büyüme; kullanıcıya uyarı/kazanç kontrolü gerekebilir). PDF/A 320 sayfada "En çok 150 sayfa — önce sayfa seç ya da böl" iletisi veriyor (denetim listesindeki "30+ sayfa ilerleme+Durdur" PDF/A için denenmedi). DENENMEDİ: parolalı belgede meta temizle, sıkıştırılmış çıktının Chrome'da açılması.
 
+## C3-düzelt agresif sıkıştırma + OCR stüdyosu hata iletisi (2026-11-27, dal faz-oto-C3-duzelt) — yazıldı, cihazda doğrulanmadı
+- [ ] Metin-only PDF (ör. 108 KB / 320 sayfa) → Pro araçlar → Agresif sıkıştırma: levhada kırmızı "büyütebilir" uyarısı; bitince "Küçülmedi (… KB) — özgün dosya korundu", belge değişmemiş (Geri al etkin değil, kaydet istemiyor).
+- [ ] Taranmış (görsel ağırlıklı) PDF'te agresif sıkıştırma eskisi gibi küçültür, uyarı çıkmaz, Geri al çalışır.
+- [ ] Huawei tablette (Play Hizmetleri yok) OCR stüdyosu → Metni Tanı: ilerleme sonrası sonuç ekranında kırmızı "Metin tanınamadı: … Google Play Hizmetleri ister; yoksa AI Görüş" iletisi KALIR. Play Hizmetli telefonda taranmış sayfada metin çıkar; metinsiz sayfada "okunabilir metin bulunamadı".
+
 ## B17 — Endonezce + Malayca arayüz (2026-11-27, dal faz-oto-B17-dil; cihazda doğrulanmadı)
 
 - Ayarlar > Dil: "Bahasa Indonesia" ve "Bahasa Melayu" listede → seçince ana ekran, dosya yöneticisi,
