@@ -146,7 +146,6 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
       child: DecoratedBox(
         key: const ValueKey('pdf-thumb-preview'),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: scheme.outlineVariant),
           boxShadow: [
