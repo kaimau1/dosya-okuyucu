@@ -1838,3 +1838,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - "İki parmakla yakınlaştır" ipucu yalnız ilk girişte tuvalin üstünde çıkıp ilk dokunuşta kayboluyor mu; Yazı ve Bulanıklaştır ipuçları da birer kez.
 - Seç kipinde: yakınlaştır → boşluğa tek parmakla sürükle = görüntü kayıyor; bir işarete dokunup sürükle = işaret taşınıyor. Kalem kipinde tek parmak yine çiziyor.
 - Boyut: Genişlik/Yükseklik koyu zeminde okunuyor, etiket üstte; seçenekler sarılıyor ("1600 px" kesik değil). %50/%25 seçince "Önce/Sonra" büyüteçlerinde fark görünüyor, "Dosya ≈ … KB" yarım saniye içinde geliyor; kaydedilen dosyanın boyu tahminle aynı mı. Seçimler arasında hızlı geçerken takılma var mı.
+
+## B4-kalan — Küçült'te yinelenen font/görsel birleştirme (2026-11-28; cihazda doğrulanmadı)
+- Aynı logolu bir PDF'i kendisiyle birleştir (PDF araçları → Birleştir), sonra Küçült: sonuç birleştirilmişten belirgin küçük mü, sayfalar ve logo/yazılar aynı görünüyor mu.
+- Parolalı belgede Küçült eskisi gibi çalışıyor mu (birleştirme orada devreye girmez).

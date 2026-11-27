@@ -75,7 +75,7 @@ A/B sonra C2'de; gerileme çıkarsa (§0 eşikleri) o commit `git revert` ya da 
 | C2 | **Cihaz: perf A/B listesi** — tam liste §1.8 C2 | opus | §1.8 | A/B | evet | bekliyor — R3'ten sonra |
 | C3 | **Cihaz: elle tur** — tam liste §1.8 C3 + `docs/CIHAZ_TESTI.md` | sonnet | §1.8; CIHAZ_TESTI | evet | hayır | bekliyor — telefon boşken |
 | B3 | **Hız (Ferrari) kalanı:** P12b Excel/liste A/B artıkları + P06 PDF kaydırma H2.1–H2.6 (ayrıntı §1.3) | opus (P06 plan evresi fable) | §1.3; arsiv/FERRARI_PLANI H2 | A/B | evet | cihaz bekliyor |
-| B4 | **PDF Pro tamamlama — kalan:** P21 kalanı (yinelenen font/görsel birleştirme, `PdfEditorScreen` emekliliği), P22 kalite %98 + büyük belge, m.13 düzenleyici artıkları, H1.5 açılış geçişi (ayrıntı §1.4) | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68; arsiv/KALANLAR "PDF Pro" | A/B | evet | sürüyor — P16–P20, P19b/P19c, P20ust, P21 güvenlik/çıktı, P22b main'de; sıradaki P21 kalanı |
+| B4 | **PDF Pro tamamlama — kalan:** P21 kalanı (yinelenen font/görsel birleştirme, `PdfEditorScreen` emekliliği), P22 kalite %98 + büyük belge, m.13 düzenleyici artıkları, H1.5 açılış geçişi (ayrıntı §1.4) | opus (plan evresi fable) | §1.4; arsiv/PDF_PRO_PLANI 54–68; arsiv/KALANLAR "PDF Pro" | A/B | evet | sürüyor — P16–P20, P19b/P19c, P20ust, P21 güvenlik/çıktı, P22b main'de; dal faz-oto-B4-kalan: yinelenen font/görsel birleştirme (Küçült) bitti; m.13 (a)(b)(c)(d)(e) zaten kodda (yalnız indirilebilir font paketi kalan, KARAR ister); `PdfEditorScreen` emekliliği yapılamadı — eksikler §1.4 m.6; sıradaki P22 + H1.5 (cihaz) |
 | B16 | **İnternetsiz Arapça OCR — kalan:** dilim 1 main'de (5afd34d8; PP-OCRv5 det + Arapça rec ONNX, ilk kullanımda iner; tablette model indirme + sentetik sayfa GEÇTİ). Kalan: m.4 kalite kapısı (Gemini'ye karşı karakter doğruluğu; cihaz → §1.8), yerel sonuç zayıfsa Gemini'ye sorarak geçiş, eğik fotoğraf için döndürülmüş kutu, m.5 PP-Structure (isteğe bağlı) (ayrıntı §1.15) | opus | §1.15 | evet | evet | bekliyor. Sabah bakılacak: ORT wasm indirilen çalışma zamanı (seslerle aynı yol; Play politikası) |
 | U4 | **Akıllı klasörler + Analiz — kalan adaylar:** dilim 1–3 main'de (58e0e57d, 09f5dc10, bb0aa582). Seçilmemiş adaylar: (a) klasör kutusunda "+n yeni" rozeti; (b) kutuda ilk dosyanın küçük resmi (ızgara, ölçümle); (c) klasörü ızgaradan gizle; (d) yeni yerleşik kategoriler (ev/tapu/aidat, çocuk/okul, tarif — önce C2 doğruluk tezgâhı); (f) Kategorilerim ızgarada klasör; (h) Analiz'de Akıllı kategoriye göre yer ("Faturalar 1,2 GB"); (j) eski Akıllı dosya asistanı (AiIndex) ile Akıllı düzen ikiliği; + B15 m.4 kategorizasyonu iyileştirme (C2 tezgâhından sonra) | opus (xhigh) | kullanıcı istekleri 2026-11-19 m.7/m.10 (eski PLAN §1.14); HAFIZA 2026-11-20 U4 | A/B | evet | kullanıcı kararı — §3 m.11 |
 | B5 | **Levha birliği + bağımlılık bakımı:** P25 ham `showModalBottomSheet`/`showDialog` → `showAppSheet`/`showAppConfirm`/`showAppPrompt`, parti parti önce/sonra PNG (onay K17); Dependabot dalları actions/cache · upload-artifact · setup-gradle (onay K14); P24 `xml` (webdav_client 1.2.2) ve `pointycastle` (smb_connect 0.0.9) override'ları üst paket yeni sürüm çıkarınca kaldır; `shared_preferences_android` 2.4.28 sabit | opus | arsiv/KALANLAR A9.1; HAFIZA P24 | A/B | evet | kullanıcı kararı — §3 m.10 (K17, K14) |
@@ -103,8 +103,12 @@ P08, P28, P07 · eski düzenleyici yeni motorda · akıllı karartma önerisi. *
 var olanı geliştir. Her dilim CI + `pdf_pro_*` testleri; PDF kabuğu sıcak yoluna (`viewer/body.dart`, kaydırma)
 dokunan madde **bayrak + A/B** (§0 k.9). Dal `faz-oto-B4-<ad>`.
 
-6. **P21 kalan:** yinelenen font/görsel birleştirme (düşük seviye nesne yeniden yazımı — `PdfFile` + tam
-   yeniden yazım; önce Syncfusion bağlantısız nesneyi atıyor mu ölç); **`PdfEditorScreen` emekliliği** (⋮ "Eski
+6. **P21 kalan:** ~~yinelenen font/görsel birleştirme~~ (2026-11-28 `PdfDedupe`, Küçült'te). **`PdfEditorScreen`
+   emekliliği — 2026-11-28 incelendi, KALDIRILMADI:** yeni kipte olmayanlar (1) "Arka plan" paneli: tekrarlanan
+   damga/filigran öğelerini listeleyip seçerek silme (`PdfPageEdit.backgroundItems/removeBackground`); (2) taranmış
+   sayfada OCR satırına dokunup yerinde yeniden yazma + kural/Gemini ile toplu düzeltme + "Bu sayfayı düzenlenebilir
+   yap" (`PdfScannedRetype`). Filigran EKLEME PDF araçlarında, AES-256 R6 kilit açma main'de. Bu ikisi yeni kipe
+   taşınınca eski ekran silinir. Eski not: (⋮ "Eski
    düzenleyici" — `pdf_pro_edit.dart`, `pdf_selection.dart`, `pdf_action_bars.dart` kullanımını grep'le; filigran
    ve AES-256 kilit açma yeni yola taşınınca `lib/screens/pdf_editor*` + eski `PdfEditJournal` silinir —
    arsiv/KALANLAR "PdfEditorScreen emekliliği", "AES-256 (R6)"). Ayrı e-posta kısayolu YAPILMAZ (Paylaş içerir).
@@ -118,7 +122,10 @@ dokunan madde **bayrak + A/B** (§0 k.9). Dal `faz-oto-B4-<ad>`.
     pil/ısı (10 dk düzenleme CPU; boşta 0 kare), tablet yatay düzen (sağ panel), TalkBack/200% yazı/RTL, ilk
     kullanım ipuçları, ayarlar (kaydetme kipi, sürüm geçmişi süresi, font paketleri).
 13. **Düzenleyici artıkları (2026-11-27 arşivden taşındı; kaynak arsiv/KALANLAR "PDF Pro" + arsiv/PDF_PRO_PLANI
-    Faz 56–60; kodda `grep` ile yok doğrulandı):** (a) metne bağlantı ekle/düzenle/kaldır (URI + sayfa içi hedef;
+    Faz 56–60):** **2026-11-28 yeniden grep: (a) `setBlockLink`, (b) `pse-overflow` küçült/it/genişlet, (c)
+    `_proPickFont` (belge → aile → APK paketi), (d) `PdfSnapTargets` + `alignSelected`, (e) `pdfPressureOf` + avuç reddi
+    ZATEN KODDA. Kalan yalnız (c)'nin İNDİRİLEBİLİR font paketi (Caladea/Cousine/Gelasio/Noto Naskh) — indirme kaynağı
+    + APK/izin KARARI ister, sabah bakılacak.** Eski metin: (a) metne bağlantı ekle/düzenle/kaldır (URI + sayfa içi hedef;
     Faz 58/7); (b) taşma/çakışma uyarısı + seçenekler (punto küçült · alttakileri it · genişlet), büyüyen paragraf
     alttakinin üstüne binmesin (Faz 57); (c) font seçici: belgenin fontları → eşleşen aile → isteğe bağlı font
     paketi (Caladea, Cousine, Gelasio, Noto Naskh…) (Faz 56); (d) nesnelerde hizalama kılavuzları + tutunma,
