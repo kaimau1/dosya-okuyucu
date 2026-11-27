@@ -1745,6 +1745,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Stüdyo ⋮: tek sayfa seçiliyken "Sayfayı taşı…" (numara gir) çalışır; "Sırayı ters çevir" + geri al; "Parçalara böl…" 2 → belgenin yanına -bolum1.. dosyaları.
 - [ ] Stüdyo → Sayfa ekle → Dosyadan: 2 PDF birden seç → seçim sırasıyla, ardışık eklenir.
 
+## B4-P20ust üst/alt bilgi + numara (2026-11-27, dal faz-oto-B4-p20ust) — yazıldı, cihazda doğrulanmadı
+- [ ] PDF araçları → PDF Pro → Gelişmiş numaralandırma: üst bilgi + alt bilgi + numara → Tamam → her sayfada üstte/altta görünür; kaydet (kopya) → Chrome/Adobe'de de görünür.
+- [ ] Aynı belgede yeniden aç → farklı üst bilgi yaz → Tamam: eskisi gider, yenisi gelir (üst üste binmez).
+- [ ] Kaldır → üst/alt bilgi + numara gider; çok sayfalı GERÇEK belgede (görselli/tablolu) her sayfanın gövdesi aynen kalır (özellikle 2. ve sonraki sayfalar). Geri al çalışır.
+- [ ] Hiç eklenmemiş belgede Kaldır → "Kaldırılacak üst/alt bilgi yok" iletisi, belge değişmez.
+
 ## B4-P21 güvenlik + çıktı (2026-11-27, dal faz-oto-B4-p21) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → PDF Pro → Belge bilgileri → "Tüm meta veriyi temizle" → onay → kaydet (kopya): başka bir okuyucuda (ör. Adobe/Chrome özellikler) başlık/yazar/oluşturan boş; sayfalar aynı; geri al çalışır.
 - [ ] Parolalı belgede meta temizle: kaydedilen dosya yine aynı parolayla açılır.
@@ -1764,3 +1770,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Ayarlar > Gizlilik politikası Endonezce/Malayca arayüzde İngilizce metni açar (çeviri 👤 bekliyor).
 - Cavi (Jawi) içerikli bir PDF/metin: ek harfler (ڠ چ ڤ ڽ ݢ ۏ) kutu değil doğru çiziliyor mu; Arapça OCR
   (B16) bu harfleri tanıyor mu — tanımıyorsa not düş (Cavi ek harfleri model sözlüğünde olmayabilir).
+
+## K15 — Pro tek seferlik satın alım (2026-11-27, dal faz-oto-K15-iap) — yazıldı, cihazda/Play'de doğrulanmadı
+Önkoşul: Play Console'da `pro_unlock` yönetilen ürünü etkin (👤 PLAN §3 m.7), Lite AAB iç test kanalında, lisans test hesabı.
+- Kilitli bir Pro kutusuna dokun → Pro sayfası; "Satın al" Play ödeme penceresini açıyor mu (fiyat 29,99 TL).
+- Satın al → "Pro açıldı" iletisi, sayfa kapanır, PRO rozetleri hemen kalkar; video "motor" menüsü ve AI büyütme görünür.
+- İptal → "Satın alma iptal edildi"; test kartında "yavaş/bekleyen" → "Ödeme bekleniyor", onaylanınca açılıyor mu.
+- Uçak kipinde aç: satın alınmışsa Pro açık kalıyor mu (yerel kayıt). Uygulamayı sil-kur → "Satın almayı geri yükle" → açılıyor mu.
+- Play Console'dan iade → sonraki açılışta (internet varken) kilit geri geliyor mu. 3 gün sonra satın alma iade edilmemiş olmalı (onay çalışıyor).
+- Ayarlar > Hakkında > Pro satırı: satın alınca "Satın alındı · Tüm Pro özellikleri açık".

@@ -167,3 +167,7 @@ notuyla işaretlenir.
 - **Neden:** Bildirim titreşimi (iş bitti / hatırlatma) ve dokunsal geri
   bildirim. Normal izin.
 
+## BILLING (`com.android.vending`, Play Billing kitaplığından)
+
+- **Neden:** Pro özelliklerini açan tek seferlik uygulama içi satın alım (K15,
+  ürün `pro_unlock`). Normal izin; Play formunda beyan gerekmez.

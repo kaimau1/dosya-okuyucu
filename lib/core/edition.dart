@@ -13,7 +13,13 @@
 /// tablosunda yazar. Arayüz `Edition.current.has(Feature.x)` ya da
 /// `ProGate` ile sorar; başka dosyada sürüm adı karşılaştırılmaz.
 /// Yeni/deneysel özellik önce [Edition.kisisel]'e girer, olgunlaşınca terfi.
+///
+/// **K15 (2026-11-27):** Lite ile Pro AYNI uygulama — Lite'ta tek seferlik
+/// uygulama içi satın alım ([ProUnlock.owned], `ProPurchase`) Pro katmanını
+/// açar. Ayrı Pro derlemesi CI'da kalır, mağazaya çıkmaz.
 library;
+
+import 'package:flutter/foundation.dart' show ValueNotifier;
 
 /// Derlenen sürüm. Sıra anlamlı: her sürüm bir öncekinin üst kümesi
 /// (Lite ⊂ Pro ⊂ Kişisel) — [has] bunu sıra karşılaştırmasıyla sağlar.
@@ -46,8 +52,15 @@ enum Edition {
     return null;
   }
 
-  /// Bu sürümde [f] var mı?
-  bool has(Feature f) => index >= f.minEdition.index;
+  /// Bu sürümde [f] var mı? (Satın alınmış Lite Pro sayılır.)
+  bool has(Feature f) => tier.index >= f.minEdition.index;
+
+  /// Özellik katmanı: Lite + Pro satın alımı → [pro]; aksi halde kendisi.
+  /// Yalnız-Kişisel özellikler satın alımla AÇILMAZ.
+  Edition get tier => this == lite && ProUnlock.owned.value ? pro : this;
+
+  /// Pro katmanı açık mı (Pro/Kişisel derleme ya da satın alınmış Lite)?
+  bool get proActive => tier.index >= pro.index;
 
   /// Bu sürümün Play / Android paket kimliği (`ci/prepare_android.sh` ve
   /// `build-apk.yml` ile birebir aynı).
@@ -167,6 +180,12 @@ const Map<Feature, Edition> _minEdition = {
   Feature.labs: Edition.kisisel,
   Feature.extraVoices: Edition.kisisel,
 };
+
+/// Lite'taki tek seferlik Pro satın alımının durumu. YALNIZ `ProPurchase`
+/// (Play kaydı) yazar; arayüz dinleyip rozetleri yeniler.
+abstract final class ProUnlock {
+  static final ValueNotifier<bool> owned = ValueNotifier(false);
+}
 
 /// Pro sürümün Play bağlantıları ve fiyat metni (SÜRÜM PLANI §3).
 abstract final class ProListing {

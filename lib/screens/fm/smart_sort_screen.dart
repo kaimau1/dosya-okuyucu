@@ -609,7 +609,7 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
                           builder: (_) => const SmartScopeScreen()));
                     },
                   ),
-                  if (Edition.current == Edition.pro &&
+                  if (Edition.current.tier == Edition.pro &&
                       !context.select<AppState, bool>((s) => s.hasApiKey))
                     Text(
                       context.t('sm.starter_usage', {

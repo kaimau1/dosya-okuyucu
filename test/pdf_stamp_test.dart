@@ -1,5 +1,6 @@
 import 'dart:ui' show Rect;
 
+import 'package:dosya_okuyucu/services/pdf_doc_pro.dart';
 import 'package:dosya_okuyucu/services/pdf_tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -38,47 +39,6 @@ String _textOf(List<int> bytes, int pageIndex) {
 }
 
 void main() {
-  group('sayfa numarası', () {
-    test('her sayfaya numara yazılır, sayfa sayısı değişmez', () async {
-      final out = await PdfTools.addPageNumbers(_samplePdf());
-      expect(await PdfTools.pageCount(out), 3);
-      for (var i = 0; i < 3; i++) {
-        expect(_textOf(out, i), contains('${i + 1}'));
-      }
-    });
-
-    test('var olan içerik SİLİNMEZ (üstüne yazılır)', () async {
-      final out = await PdfTools.addPageNumbers(_samplePdf(pages: 1));
-      expect(_textOf(out, 0), contains('Sayfa govdesi 0'));
-    });
-
-    test('kapak atlanabilir ve numara istenen yerden başlar', () async {
-      final out = await PdfTools.addPageNumbers(
-        _samplePdf(),
-        skipFirstPage: true,
-        startAt: 5,
-      );
-      // İlk sayfada gövde metni var ama numara yok.
-      expect(_textOf(out, 0), isNot(contains('5')));
-      expect(_textOf(out, 1), contains('5'));
-      expect(_textOf(out, 2), contains('6'));
-    });
-
-    test('"n / toplam" biçimi', () async {
-      final out = await PdfTools.addPageNumbers(_samplePdf(), withTotal: true);
-      final first = _textOf(out, 0).replaceAll(' ', '');
-      expect(first, contains('1/3'));
-    });
-
-    test('sağ alta hizalama da çalışır', () async {
-      final out = await PdfTools.addPageNumbers(
-        _samplePdf(pages: 1),
-        position: PdfTools.numberBottomRight,
-      );
-      expect(_textOf(out, 0), contains('1'));
-    });
-  });
-
   group('filigran', () {
     test('metin her sayfaya girer', () async {
       final out = await PdfTools.addWatermark(_samplePdf(), text: 'TASLAK');
@@ -115,7 +75,7 @@ void main() {
       // arka arkaya uygulanabiliyor olmalı.
       final watermarked =
           await PdfTools.addWatermark(_samplePdf(pages: 2), text: 'TASLAK');
-      final numbered = await PdfTools.addPageNumbers(watermarked);
+      final numbered = await PdfDocPro.addNumbering(watermarked);
       expect(_textOf(numbered, 1), contains('TASLAK'));
       expect(_textOf(numbered, 1), contains('2'));
     });

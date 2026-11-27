@@ -35,4 +35,5 @@ android.permission.VIBRATE  # eklenti (bildirim/titreşim)
 android.permission.WAKE_LOCK
 android.permission.WRITE_EXTERNAL_STORAGE
 com.android.launcher.permission.INSTALL_SHORTCUT
+com.android.vending.BILLING  # K15 Play Billing (in_app_purchase, 2026-11-27)
 com.dosyaokuyucu.dosya_okuyucu.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION  # AndroidX otomatik (imza düzeyi)

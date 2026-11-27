@@ -46,9 +46,9 @@ abstract final class ImageEnhance {
   /// fotoğrafta ayrıntı zaten bu ölçekte kaybolmuş durumda.
   static const upscaleMaxSide = 800;
 
-  /// Lite'ta LiteRT yerel kütüphanesi APK'ya girmez (K15c boyut diyeti,
-  /// `ci/prepare_android.sh` §11b) → yapay zekâ büyütmesi yalnız Pro/Kişisel.
-  static const upscaleAvailable = Edition.current != Edition.lite;
+  /// Yapay zekâ büyütmesi Pro katmanında (K15, 2026-11-27: LiteRT her
+  /// derlemede var; Lite'ta Pro satın alınınca açılır).
+  static bool get upscaleAvailable => Edition.current.proActive;
 
   static String get _modelPath =>
       p.join(FmEnv.appSupportDir, 'models', 'esrgan.tflite');

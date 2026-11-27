@@ -78,7 +78,7 @@ abstract final class SmartQuota {
 
   /// Bu derlemede Akıllı Klasör için toplam dosya üst sınırı (sınırsızsa null).
   static int? starterCapFor(Edition edition, {required bool hasOwnKey}) =>
-      edition == Edition.pro && !hasOwnKey ? proStarterLimit : null;
+      edition.tier == Edition.pro && !hasOwnKey ? proStarterLimit : null;
 
   static int _cap = defaultCap;
   static bool _wifiOnly = true;

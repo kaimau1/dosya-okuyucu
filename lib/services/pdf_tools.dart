@@ -572,72 +572,6 @@ class PdfTools {
   //
   // İkisi de saf Syncfusion: cihazsız testte koşar, yeni bağımlılık yok.
 
-  /// Sayfa numarasının nereye yazılacağı.
-  ///
-  /// Yalnız ALT kenar: üst kenar başlık/logo bölgesidir ve numarayı oraya
-  /// koymak var olan içeriğin üstüne binme riskini artırır.
-  static const numberBottomCenter = 'bottomCenter';
-  static const numberBottomRight = 'bottomRight';
-
-  /// Sayfalara numara basar.
-  ///
-  /// - [startAt]: ilk numaralanan sayfanın numarası (kapak dışarıda
-  ///   bırakıldığında "2"den başlatmak için).
-  /// - [skipFirstPage]: kapak sayfası numarasız kalsın.
-  /// - [withTotal]: `3 / 12` biçimi (yalnız `3` yerine).
-  /// - [fontBytes]: verilirse TrueType (Türkçe karakterli özel biçim için);
-  ///   yoksa gömülü standart font. Numaralar rakam olduğu için standart font
-  ///   yeter — parametre [addWatermark] ile aynı desen kalsın diye var.
-  ///
-  /// Not: Yazı **var olan içeriğin üstüne** çizilir; sayfanın alt kenarında
-  /// zaten metin varsa üst üste binebilir. Kenar boşluğu 24 pt bu riski
-  /// pratikte en aza indiriyor.
-  static Future<List<int>> addPageNumbers(
-    List<int> bytes, {
-    String? password,
-    int startAt = 1,
-    bool skipFirstPage = false,
-    bool withTotal = false,
-    String position = numberBottomCenter,
-    double fontSize = 10,
-    List<int>? fontBytes,
-  }) async {
-    final doc = PdfDocument(inputBytes: bytes, password: password);
-    try {
-      final font = fontBytes == null
-          ? PdfStandardFont(PdfFontFamily.helvetica, fontSize)
-          : PdfTrueTypeFont(fontBytes, fontSize);
-      final brush = PdfSolidBrush(PdfColor(60, 60, 60));
-      final total = doc.pages.count;
-      final numbered = skipFirstPage ? total - 1 : total;
-      for (var i = skipFirstPage ? 1 : 0; i < total; i++) {
-        final page = doc.pages[i];
-        final index = i - (skipFirstPage ? 1 : 0);
-        final label = withTotal
-            ? '${startAt + index} / ${startAt + numbered - 1}'
-            : '${startAt + index}';
-        final size = font.measureString(label);
-        // `page.size` döndürülmüş sayfada da GÖRÜNEN ölçüyü verir; numara
-        // kullanıcının gördüğü alt kenara düşsün diye ondan hesaplanıyor.
-        final width = page.getClientSize().width;
-        final height = page.getClientSize().height;
-        final x = position == numberBottomRight
-            ? width - size.width - 24
-            : (width - size.width) / 2;
-        page.graphics.drawString(
-          label,
-          font,
-          brush: brush,
-          bounds: Rect.fromLTWH(x, height - size.height - 24, size.width,
-              size.height),
-        );
-      }
-      return await doc.save();
-    } finally {
-      doc.dispose();
-    }
-  }
-
   /// Her sayfaya çapraz filigran basar ("TASLAK", "KOPYA", firma adı…).
   ///
   /// [opacity] 0..1; varsayılan 0,12 — altındaki metin okunur kalmalı, yoksa
@@ -728,24 +662,6 @@ class PdfTools {
     String? password,
   }) =>
       _bg(() => compress(bytes, password: password));
-
-  /// [addPageNumbers] — arka plan isolate'inde.
-  static Future<List<int>> addPageNumbersInBackground(
-    List<int> bytes, {
-    String? password,
-    int startAt = 1,
-    bool skipFirstPage = false,
-    bool withTotal = false,
-    String position = numberBottomCenter,
-    List<int>? fontBytes,
-  }) =>
-      _bg(() => addPageNumbers(bytes,
-          password: password,
-          startAt: startAt,
-          skipFirstPage: skipFirstPage,
-          withTotal: withTotal,
-          position: position,
-          fontBytes: fontBytes));
 
   /// [addWatermark] — arka plan isolate'inde.
   static Future<List<int>> addWatermarkInBackground(

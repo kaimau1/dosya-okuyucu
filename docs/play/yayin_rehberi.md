@@ -51,14 +51,19 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
 4. **Depo Gizliliği:** Kök dizine `LICENSE` ("Tüm hakları saklıdır") ekleyin ve depoyu Private'a alın.
 
 ### Aşama 2: Sürüm Mimarisi ve Kod Kapıları (`SURUM_PLANI.md` S2–S8)
+> **K15 (2026-11-27, kullanıcı kararı — eski K15b/K15c'nin yerine):** mağazaya **TEK uygulama** çıkar
+> (Lite kimliği `com.dosyaokuyucu.dosya_okuyucu.lite`). Pro özellikleri bu uygulamada kilitli
+> görünür ve **29,99 TL tek seferlik uygulama içi satın alımla** (Play Billing, yönetilen ürün
+> `pro_unlock`) açılır. **Ayrı ücretli Pro uygulaması mağazaya ÇIKMAZ**; CI'daki `edition=pro`
+> derlemesi yalnız iç deneme içindir. Akıllı Klasör ekstra kota aboneliği ayrı konu (K15a).
 1. **Kararlar (`PLAN.md` K15, K16):** Pro satış fiyatını (`DOSYA_PRO_FIYAT`), uygulama adlarını (`Dosya Okuyucu Lite` / `Dosya Okuyucu Pro`) ve Drive kapsamını (`K9`) kesinleştirin.
 2. **Arayüz Kapıları (S2):** Lite sürümde Office düzenleyicilerin salt-okunur açılmasını ve Pro özelliklerinin `ProGate.guard` ile tanıtım levhasına yönlendirilmesini tamamlayın.
 3. **Manifest Varyantları (S4):** `ci/play_variant.py` ile Lite sürümde 0 hassas izin, Pro sürümde ise Play dışı izinlerin (`REQUEST_INSTALL_PACKAGES`, `QUERY_ALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `RECEIVE_BOOT_COMPLETED`, konum ve genel indirme süzgeçleri) çıkarıldığını doğrulayın.
 4. **Paket Kimlikleri ve CI (S5–S6):**
-   - Lite: `com.dosyaokuyucu.dosya_okuyucu.lite` (hedef ≤ 45 MB; `libmpv` ve LiteRT `.so` dışlanmış — `ci/prepare_android.sh` §11b).
-   - Pro: `com.dosyaokuyucu.dosya_okuyucu.pro`.
+   - Lite (mağazadaki tek uygulama): `com.dosyaokuyucu.dosya_okuyucu.lite` (≈ 87 MB; tüm kod içinde, Pro satın alımla açılır — K15 diyeti geri aldı).
+   - Pro: `com.dosyaokuyucu.dosya_okuyucu.pro` — yalnız CI/iç deneme, mağazaya çıkmaz.
    - İmzalı AAB: Actions → *APK Derle & Release* → elle tetik, `aab` işaretli (Lite/Pro/Kişisel matrisi; `play_variant verify`, 16 KB ELF arm64 + x86_64). Ayrı `build-play.yml` yok.
-5. **Lite → Pro Geçişi (S7):** Lite'tan ayarları ve son açılanlar listesini dışa aktarıp Pro'da içe aktarma akışını doğrulayın.
+5. **Pro satın alımı (K15):** Play Console → *Para kazanma → Ürünler → Uygulama içi ürünler* altında yönetilen ürün `pro_unlock` (29,99 TL) açın; lisans test hesabıyla satın al / iptal / bekleyen ödeme / "Satın almayı geri yükle" akışlarını iç test kanalında deneyin. (Ayrı uygulama olmadığı için Lite → Pro veri geçişi gerekmez.)
 
 ### Aşama 3: İmza Anahtarı ve Güvenlik Denetimi
 1. **Keystore Yedeği (`SIGNING.md`, `K35`):** `release.jks` ve parolasını en az iki ayrı çevrimdışı ortamda (şifreli USB + kâğıt) yedekleyin; repo değişkenlerine `SIGN_CERT_SHA256` ekleyin (`K33`).
@@ -97,6 +102,6 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
    - İç test temizse sürümü Kapalı Test kanalına yükseltin (bireysel hesapta 20 testçi × 14 gün).
    - **Android Vitals** eşiklerini doğrulayın: çökme oranı **< %1,09**, ANR oranı **< %0,47**.
 3. **Adım 6.3 — Üretim (Production) ve Kademeli Dağıtım:**
-   - Önce **Lite** sürümü (0 izin, hızlı onay), ardından **Pro** sürümü Üretim'e gönderin.
+   - Tek uygulamayı (Lite kimliği) Üretim'e gönderin; Pro ayrı uygulama olarak gönderilmez (K15).
    - İlk yayını **%10–%20 kademeli dağıtım (staged rollout)** ile başlatın; 2–3 gün Vitals metriklerini izledikten sonra **%100**'e çıkarın.
-   - Pro sürüm mağazada yayına girdiğinde Lite sürümde `DOSYA_PRO_FIYAT` bayrağıyla Pro yönlendirme fiyat etiketini etkinleştirin.
+   - `pro_unlock` ürünü Play Console'da etkinken uygulamadaki "Satın al" düğmesi çalışır; fiyat etiketi `DOSYA_PRO_FIYAT` (varsayılan 29,99 TL).

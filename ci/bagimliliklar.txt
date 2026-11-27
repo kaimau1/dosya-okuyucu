@@ -51,6 +51,8 @@ image
 google_sign_in
 flutter_tts
 url_launcher
+in_app_purchase  # K15 2026-11-27 — Pro tek seferlik satın alım (Play Billing 9.1.0); APK farkı ölçülmedi, beklenen < 0,5 MB (ilk Lite [apk] Boyut raporu)
+in_app_purchase_android  # K15 — geçmiş satın alma sorgusu + PurchaseStateWrapper (in_app_purchase ile zaten ağaçta, ek fark 0)
 background_downloader
 dartssh2
 ftpconnect

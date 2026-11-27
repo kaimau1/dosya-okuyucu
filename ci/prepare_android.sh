@@ -597,16 +597,6 @@ elif [ "${DOSYA_SURUM:-}" = "pro" ] || [ "${DOSYA_SURUM:-}" = "lite" ] || [ "${D
   python3 ci/play_variant.py apply
 fi
 
-# ── 11b) Lite boyut diyeti (K15c, B7b 2026-11-26) ───────────────────────────
-# Lite'ta mpv (ExoPlayer'ın çözemediği ek kodekler, ~13-15 MB) ve LiteRT
-# (yapay zekâ ile 4× büyütme, ~4 MB) yerel kütüphaneleri APK'ya girmez.
-# Dart tarafı aynı yolları kapatır: `PlayerEngine.available`,
-# `ImageEnhance.upscaleAvailable` (Edition.lite). Tüm dosyalara erişim DEĞİŞMEZ.
-if [ "${DOSYA_SURUM:-}" = "lite" ] || [ "${DOSYA_OKUYUCU:-0}" = "1" ]; then
-  say "Lite boyut diyeti: libmpv + LiteRT dışarıda"
-  sed -i 's#excludes += "\*\*/libtensorflowlite_gpu_jni.so"#&\n            excludes += setOf("**/libmpv.so", "**/libtensorflowlite_jni.so")#' \
-    android/app/build.gradle.kts
-  grep -q 'libmpv.so' android/app/build.gradle.kts \
-    || { echo "Lite diyeti uygulanamadı (packaging bloğu yok)"; exit 1; }
-fi
+# ── 11b) (K15, 2026-11-27) Lite boyut diyeti KALDIRILDI: Lite ile Pro aynı
+# uygulama, Pro tek seferlik satın alımla açılır → libmpv + LiteRT her derlemede.
 echo "Android iskeleti hazır."

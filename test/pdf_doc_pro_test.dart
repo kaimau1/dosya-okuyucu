@@ -1,6 +1,7 @@
 import 'dart:convert' show latin1;
 import 'dart:ui' show Offset, Rect;
 
+import 'package:dosya_okuyucu/services/pdf/pdf_objects.dart';
 import 'package:dosya_okuyucu/services/pdf_doc_pro.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -24,6 +25,62 @@ String _text(List<int> bytes, {String? password}) {
     return PdfTextExtractor(doc).extractText();
   } finally {
     doc.dispose();
+  }
+}
+
+/// Sayfaları FARKLI içerikli belge: metin + dikdörtgen + çizgi, sayfa başına
+/// değişen konum/sayı (veri güvenliği testleri için).
+Future<List<int>> _rich(int pages) async {
+  final doc = PdfDocument();
+  for (var i = 0; i < pages; i++) {
+    final g = doc.pages.add().graphics;
+    g.drawString('Bolum ${i + 1}', PdfStandardFont(PdfFontFamily.helvetica, 14),
+        bounds: Rect.fromLTWH(40, 100.0 + 40 * i, 300, 20));
+    for (var k = 0; k <= i; k++) {
+      g.drawString('Satir ${i + 1}.$k EMC BDC (x)',
+          PdfStandardFont(PdfFontFamily.timesRoman, 11),
+          bounds: Rect.fromLTWH(40, 400.0 + 20 * k, 400, 16));
+    }
+    g.drawRectangle(
+        pen: PdfPen(PdfColor(200, 0, 0)),
+        bounds: Rect.fromLTWH(30.0 + 10 * i, 60, 100, 30));
+  }
+  final out = await doc.save();
+  doc.dispose();
+  return out;
+}
+
+String _pageText(List<int> bytes, int page) {
+  final doc = PdfDocument(inputBytes: bytes);
+  try {
+    return PdfTextExtractor(doc)
+        .extractText(startPageIndex: page, endPageIndex: page);
+  } finally {
+    doc.dispose();
+  }
+}
+
+/// Sayfa başına q/Q/boş OLMAYAN çözülmüş içerik akışları.
+List<List<String>> _body(List<int> bytes) {
+  final f = PdfFile.parse(bytes);
+  return [
+    for (final page in f.pages)
+      [
+        for (final s in f.contentsOf(page))
+          if (!const {'', 'q', 'Q'}
+              .contains(latin1.decode(f.decodeStream(s)).trim()))
+            latin1.decode(f.decodeStream(s)),
+      ],
+  ];
+}
+
+void _sameBody(List<int> original, List<int> after) {
+  final o = _body(original), n = _body(after);
+  expect(n.length, o.length);
+  for (var i = 0; i < o.length; i++) {
+    expect(n[i], o[i], reason: 'sayfa ${i + 1} içerik akışı değişti');
+    expect(_pageText(after, i), _pageText(original, i),
+        reason: 'sayfa ${i + 1} metni değişti');
   }
 }
 
@@ -96,6 +153,52 @@ void main() {
     expect(ex.extractText(startPageIndex: 1, endPageIndex: 1), contains('EK001'));
     expect(ex.extractText(startPageIndex: 2, endPageIndex: 2), contains('EK002'));
     doc.dispose();
+  });
+
+  test('üst/alt bilgi yuvaları: çakışan yuva birleşir (B4/P20)', () {
+    expect(
+        PdfDocPro.headerFooterSlots(PdfNumberPlace.bottomCenter,
+            number: '3', header: 'Rapor', footer: 'Gizli'),
+        {PdfNumberPlace.topCenter: 'Rapor', PdfNumberPlace.bottomCenter: 'Gizli · 3'});
+    expect(
+        PdfDocPro.headerFooterSlots(PdfNumberPlace.topRight, header: '  '),
+        isEmpty);
+  });
+
+  // VERİ GÜVENLİĞİ (B4/P20): önceki katman yolu 2. sayfanın tüm içeriğini
+  // siliyordu. Farklı içerikli 4 sayfada ekle → (düzenle) → kaldır sonrası
+  // her sayfanın metni ve q/Q dışı içerik akışları özgünüyle BİREBİR aynı.
+  test('üst/alt bilgi ekle → kaldır: her sayfa birebir kalır (B4/P20)',
+      () async {
+    final src = await _rich(4);
+    final a = await PdfDocPro.addNumbering(src,
+        header: 'BASLIKA', footer: 'ALTA', style: PageNumberStyle.bates,
+        prefix: 'NO');
+    expect(PdfDocPro.hasHeaderFooter(src), isFalse);
+    expect(PdfDocPro.hasHeaderFooter(a), isTrue);
+    for (var i = 0; i < 4; i++) {
+      expect(_pageText(a, i),
+          allOf(contains('BASLIKA'), contains('ALTA'), contains('Bolum ${i + 1}')));
+    }
+    final c = await PdfDocPro.removeHeaderFooter(a);
+    expect(PdfDocPro.hasHeaderFooter(c), isFalse);
+    _sameBody(src, c);
+    await expectLater(PdfDocPro.removeHeaderFooter(src), throwsStateError);
+  });
+
+  test('üst/alt bilgiyi yeniden eklemek eskisinin yerine geçer (B4/P20)',
+      () async {
+    final src = await _rich(3);
+    final a = await PdfDocPro.addNumbering(src,
+        header: 'BASLIKA', footer: 'ALTA', skipFirstPage: true);
+    expect(_pageText(a, 0), isNot(contains('BASLIKA')));
+    final b = await PdfDocPro.addNumbering(a, numbers: false, header: 'BASLIKB');
+    for (var i = 0; i < 3; i++) {
+      expect(_pageText(b, i), allOf(contains('BASLIKB'),
+          isNot(contains('BASLIKA')), isNot(contains('ALTA')),
+          contains('Bolum ${i + 1}')));
+    }
+    _sameBody(src, await PdfDocPro.removeHeaderFooter(b));
   });
 
   test('her sayfaya paraf + tarih, seçili sayfa sınırı', () async {
