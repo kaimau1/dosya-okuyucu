@@ -30,7 +30,10 @@ import '../../widgets/embedded_toolbar.dart';
 class ChatCleanupScreen extends StatefulWidget {
   /// İşlemler merkezinin sekmesi mi? (bkz. `OperationsScreen`)
   final bool embedded;
-  const ChatCleanupScreen({super.key, this.embedded = false});
+
+  /// Yer aç'ın seçimi (B18): kovalarda işaretlenenler Yer aç toplamına girer.
+  final Set<String>? picks;
+  const ChatCleanupScreen({super.key, this.embedded = false, this.picks});
 
   @override
   State<ChatCleanupScreen> createState() => _ChatCleanupScreenState();
@@ -77,55 +80,7 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
   }
 
   void _scan() {
-    // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
-    final strings = AppStrings.of(context);
-    final tiny = _tinyBytes;
-    JobQueue.instance.enqueue(
-      id: _jobId,
-      title: strings.t('cj.job_title'),
-      name: strings.t('cj.job_name'),
-      target: const FmJobTarget(FmJobTargetKind.chatCleanup),
-      run: (handle) async {
-        handle.report(detail: strings.t('cj.step_listing'));
-        // Tüm dosyalar (kategori süzgeci YOK): sohbet klasöründe belge ve ses
-        // de var ve "gönderdiklerim" kovası onları da kapsıyor.
-        final all = await MediaLibrary.categoryFiles(null);
-        handle.throwIfCancelled();
-
-        final media = [
-          for (final e in all)
-            if (!e.isDir && isChatMediaPath(e.path)) e,
-        ];
-        handle.report(
-            total: media.length,
-            done: media.length,
-            detail: strings.t('cj.step_found', {'n': media.length}));
-        if (media.isEmpty) {
-          handle.result = ChatJunkReport.empty;
-          handle.report(detail: strings.t('cj.step_none'));
-          return;
-        }
-
-        // Kopya taraması YALNIZ sohbet klasörlerinde: tüm depolamayı bayt bayt
-        // karşılaştırmak dakikalar sürüyor, buradaki soru "WhatsApp yığını".
-        handle.report(detail: strings.t('cj.step_duplicates'));
-        final groups = await DuplicateFinder.scanPaths(media);
-        handle.throwIfCancelled();
-
-        handle.report(detail: strings.t('cj.step_sorting'));
-        await OpenHistory.ensureLoaded();
-        final report = classifyChatJunk(
-          entries: media,
-          nowMs: DateTime.now().millisecondsSinceEpoch,
-          duplicateGroups: [for (final g in groups) g.files],
-          tinyBytes: tiny,
-          wasOpened: (path) => OpenHistory.forPath(path) != null,
-        );
-        handle.result = report;
-        handle.report(detail: ChatJunkLive.summary(report, strings));
-        ChatJunkLive.ensure();
-      },
-    );
+    ChatJunkLive.start(AppStrings.of(context), tinyBytes: _tinyBytes);
     setState(() {});
   }
 
@@ -264,7 +219,8 @@ class _ChatCleanupScreenState extends State<ChatCleanupScreen> {
         isThreeLine: true,
         trailing: const Icon(AppIcons.chevron),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ChatJunkBucketScreen(bucket: bucket),
+          builder: (_) =>
+              ChatJunkBucketScreen(bucket: bucket, picks: widget.picks),
         )),
       ),
     );
@@ -330,6 +286,57 @@ abstract final class ChatJunkLive {
   static bool _busy = false;
   static bool _again = false;
 
+  /// Taramayı kuyruğa verir (ekran açık olmasa da — Yer aç arka planda
+  /// başlatır, B18). Sürüyorsa süren iş döner.
+  static FmJob start(AppStrings strings, {int tinyBytes = defaultTinyBytes}) =>
+      JobQueue.instance.enqueue(
+        id: jobId,
+        title: strings.t('cj.job_title'),
+        name: strings.t('cj.job_name'),
+        target: const FmJobTarget(FmJobTargetKind.chatCleanup),
+        run: (handle) async {
+          handle.report(detail: strings.t('cj.step_listing'));
+          // Tüm dosyalar (kategori süzgeci YOK): sohbet klasöründe belge ve
+          // ses de var ve "gönderdiklerim" kovası onları da kapsıyor.
+          final all = await MediaLibrary.categoryFiles(null);
+          handle.throwIfCancelled();
+
+          final media = [
+            for (final e in all)
+              if (!e.isDir && isChatMediaPath(e.path)) e,
+          ];
+          handle.report(
+              total: media.length,
+              done: media.length,
+              detail: strings.t('cj.step_found', {'n': media.length}));
+          if (media.isEmpty) {
+            handle.result = ChatJunkReport.empty;
+            handle.report(detail: strings.t('cj.step_none'));
+            return;
+          }
+
+          // Kopya taraması YALNIZ sohbet klasörlerinde: tüm depolamayı bayt
+          // bayt karşılaştırmak dakikalar sürüyor, buradaki soru "WhatsApp
+          // yığını".
+          handle.report(detail: strings.t('cj.step_duplicates'));
+          final groups = await DuplicateFinder.scanPaths(media);
+          handle.throwIfCancelled();
+
+          handle.report(detail: strings.t('cj.step_sorting'));
+          await OpenHistory.ensureLoaded();
+          final report = classifyChatJunk(
+            entries: media,
+            nowMs: DateTime.now().millisecondsSinceEpoch,
+            duplicateGroups: [for (final g in groups) g.files],
+            tinyBytes: tinyBytes,
+            wasOpened: (path) => OpenHistory.forPath(path) != null,
+          );
+          handle.result = report;
+          handle.report(detail: summary(report, strings));
+          ensure();
+        },
+      );
+
   static void ensure() {
     if (_listening) return;
     _listening = true;
@@ -381,7 +388,8 @@ abstract final class ChatJunkLive {
 }
 
 /// Sohbet temizliği ekranını açar (pano kutusu ve iş hedefi buradan geçer).
-Future<void> openChatCleanupScreen(BuildContext context) =>
+Future<void> openChatCleanupScreen(BuildContext context,
+        {Set<String>? picks}) =>
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ChatCleanupScreen()),
+      MaterialPageRoute(builder: (_) => ChatCleanupScreen(picks: picks)),
     );

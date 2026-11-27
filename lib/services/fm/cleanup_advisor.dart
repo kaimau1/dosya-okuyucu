@@ -569,3 +569,112 @@ Set<String> cleanupProtectedCopies(List<CleanupSuggestion> chosen) {
           if (deleting.contains(orig.path)) f.path,
   };
 }
+
+/// **Derin tarama önerileri** (B18, kullanıcı 2026-11-27: "benzer kareler ve
+/// sohbet medyası Yer aç ile beraber çalışsın").
+///
+/// Arka planda biten benzer kare taraması ([similarGroups]; her grupta EN
+/// İYİ kare başta) ve sohbet medyası taraması ([chatJunk]) Yer aç listesine
+/// "İncele" önerisi olarak katılır. Kurallar:
+/// - En iyi kare ASLA öneriye girmez; yalnız grubun geri kalanı. Her ek
+///   karenin `originals` kaydı en iyi karedir → temizlikte en iyi kare
+///   diskte yoksa ya da aynı temizlikte siliniyorsa ek kare de silinmez
+///   ([cleanupProtectedCopies]).
+/// - Hızlı taramanın zaten önerdiği dosya ikinci kez önerilmez (toplam
+///   şişmesin); sohbet medyası da benzer karelerdekini tekrar saymaz.
+/// - İkisi de varsayılan SEÇİLMEZ (`safeByDefault: false`).
+List<CleanupSuggestion> deepCleanupSuggestions({
+  required Iterable<CleanupSuggestion> quick,
+  List<List<FsEntry>> similarGroups = const [],
+  Iterable<FsEntry> chatJunk = const [],
+}) {
+  final taken = <String>{
+    for (final s in quick)
+      for (final f in s.files) f.path,
+  };
+  final out = <CleanupSuggestion>[];
+
+  final simFiles = <FsEntry>[];
+  final originals = <String, FsEntry>{};
+  var groups = 0;
+  for (final g in similarGroups) {
+    if (g.length < 2) continue;
+    final best = g.first;
+    var used = false;
+    for (final f in g.skip(1)) {
+      if (f.isDir || f.path == best.path || !taken.add(f.path)) continue;
+      simFiles.add(f);
+      originals[f.path] = best;
+      used = true;
+    }
+    if (used) groups++;
+  }
+  if (simFiles.isNotEmpty) {
+    out.add(CleanupSuggestion(
+      id: 'similar',
+      titleKey: 'sm.similar',
+      detailKey: 'clean.similar_detail',
+      detailVars: {'n': groups},
+      bytes: simFiles.fold<int>(0, (a, f) => a + f.sizeBytes),
+      files: simFiles,
+      originals: originals,
+    ));
+  }
+
+  final chat = [
+    for (final f in chatJunk)
+      if (!f.isDir && taken.add(f.path)) f,
+  ];
+  if (chat.isNotEmpty) {
+    out.add(CleanupSuggestion(
+      id: 'chat_media',
+      titleKey: 'clean.chat_media',
+      detailKey: 'clean.chat_media_detail',
+      detailVars: {'n': chat.length},
+      bytes: chat.fold<int>(0, (a, f) => a + f.sizeBytes),
+      files: chat,
+    ));
+  }
+  return out;
+}
+
+/// Seçimi yalnız YENİ ya da DEĞİŞEN önerilerde kurar (B18).
+///
+/// KÖK: Yer aç eskiden tüm listenin imzası değişince BÜTÜN seçimi baştan
+/// kuruyordu; derin sonuçlar sonradan geldiğinde (ya da tek dosya çöpe
+/// atıldığında) kullanıcının işaretleri silinirdi. Artık:
+/// - yeni öneri varsayılanını alır (güvenli → tümü, İncele → hiçbiri);
+/// - değişen öneride kullanıcının seçimi korunur, yalnız artık olmayan
+///   dosyalar düşer;
+/// - dosyalı önerinin seçim KÜMESİ aynı nesne kalır (ayrıntı ekranları onu
+///   paylaşır, bkz. `SimilarScreen.picks`).
+void cleanupSeedSelection(
+  List<CleanupSuggestion> list, {
+  required Map<String, String> signatures,
+  required Set<String> fileless,
+  required Map<String, Set<String>> files,
+}) {
+  final ids = {for (final s in list) s.id};
+  signatures.removeWhere((id, _) => !ids.contains(id));
+  fileless.removeWhere((id) => !ids.contains(id));
+  for (final s in list) {
+    final sig = '${s.bytes}:${s.files.length}';
+    final old = signatures[s.id];
+    if (old == sig) continue;
+    signatures[s.id] = sig;
+    final isNew = old == null;
+    if (s.files.isEmpty) {
+      if (isNew && s.safeByDefault) fileless.add(s.id);
+      continue;
+    }
+    final sel = files.putIfAbsent(s.id, () => <String>{});
+    if (isNew && s.safeByDefault) {
+      sel
+        ..clear()
+        ..addAll(s.files.map((f) => f.path));
+    } else {
+      final paths = {for (final f in s.files) f.path};
+      sel.retainWhere(paths.contains);
+    }
+  }
+}

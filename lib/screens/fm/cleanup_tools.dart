@@ -11,8 +11,9 @@ import '../../services/fm/chat_junk.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/job_queue.dart';
 import '../../services/fm/media_library.dart';
+import '../../services/fm/image_hash.dart';
 import '../../services/fm/similar_finder.dart';
-import 'chat_cleanup_screen.dart';
+import 'chat_cleanup_screen.dart' show ChatJunkLive;
 import 'similar_screen.dart';
 import 'smart_cleanup_screen.dart';
 
@@ -83,65 +84,24 @@ class DeepScanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-
-    Widget row({
-      required String id,
-      required String jobId,
-      required IconData icon,
-      required Color color,
-      required String title,
-      required String note,
-      required Future<void> Function() open,
-    }) {
-      final st = statusOf(jobId);
-      final found = st != null && !st.running && st.files > 0;
-      final String sub;
-      if (st == null) {
-        sub = note;
-      } else if (st.running) {
-        sub = context.t('clean.deep_running');
-      } else if (found) {
-        sub = context.t('clean.deep_found', {
-          'n': st.files,
-          'size': FsPaths.humanSize(st.bytes),
-        });
-      } else {
-        sub = context.t('clean.deep_none');
-      }
-      return ListTile(
-        key: ValueKey('clean-deep-$id'),
-        leading: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        title: Text(title,
-            style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
-        subtitle: Text(
-          sub,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: found
-              ? theme.textTheme.bodySmall?.copyWith(
-                  color: cs.primary, fontWeight: FontWeight.w700)
-              : null,
-        ),
-        trailing: const Icon(AppIcons.chevron),
-        onTap: () async {
-          await open();
-          onReturn?.call();
-        },
-      );
+    // B18: benzer kareler ve sohbet medyası artık Yer aç listesinin kendi
+    // satırları (arka planda taranır); burada yalnız görselin İÇİNE bakan,
+    // dakikalar süren içerik taraması kalır.
+    final st = statusOf(SmartCleanupScreen.jobId);
+    final found = st != null && !st.running && st.files > 0;
+    final String sub;
+    if (st == null) {
+      sub = context.t('clean.deep_content_note');
+    } else if (st.running) {
+      sub = context.t('clean.deep_running');
+    } else if (found) {
+      sub = context.t('clean.deep_found', {
+        'n': st.files,
+        'size': FsPaths.humanSize(st.bytes),
+      });
+    } else {
+      sub = context.t('clean.deep_none');
     }
-
-    Future<void> push(Widget Function() build) => Navigator.of(context)
-        .push<void>(MaterialPageRoute(builder: (_) => build()));
-
     return Padding(
       padding: const EdgeInsets.only(top: Gap.sm),
       child: Material(
@@ -152,85 +112,95 @@ class DeepScanCard extends StatelessWidget {
           side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, 2),
-              child: Text(
-                context.t('clean.deep_title'),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-              child: Text(
-                context.t('clean.deep_note'),
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: cs.onSurfaceVariant),
-              ),
-            ),
-            const SizedBox(height: Gap.xs),
-            row(
-              id: 'chat',
-              jobId: ChatJunkLive.jobId,
-              icon: AppIcons.forum,
-              color: AppHues.green,
-              title: context.t('clean.chat_tool'),
-              note: context.t('clean.chat_tool_sub'),
-              open: () => openChatCleanupScreen(context),
-            ),
-            row(
-              id: 'similar',
-              jobId: SimilarFinder.jobIdFor(similarAllMediaScope),
-              icon: AppIcons.autoAwesomeMotion,
-              color: AppHues.jade,
-              title: context.t('clean.deep_similar'),
-              note: context.t('ana.similar_note'),
-              open: () => openSimilarMedia(context, index),
-            ),
-            row(
-              id: 'content',
-              jobId: SmartCleanupScreen.jobId,
-              icon: AppIcons.ai,
-              color: AppHues.violet,
-              title: context.t('clean.deep_content'),
-              note: context.t('clean.deep_content_note'),
-              open: () => push(() => const SmartCleanupScreen()),
-            ),
-            const SizedBox(height: Gap.xs),
-          ],
+        child: ListTile(
+          key: const ValueKey('clean-deep-content'),
+          leading: const Icon(AppIcons.ai, color: AppHues.violet),
+          title: Text(context.t('clean.deep_content'),
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          subtitle: Text(
+            sub,
+            style: found
+                ? theme.textTheme.bodySmall?.copyWith(
+                    color: cs.primary, fontWeight: FontWeight.w700)
+                : null,
+          ),
+          trailing: const Icon(AppIcons.chevron),
+          onTap: () async {
+            await Navigator.of(context).push<void>(MaterialPageRoute(
+                builder: (_) => const SmartCleanupScreen()));
+            onReturn?.call();
+          },
         ),
       ),
     );
   }
 }
 
-/// Benzer görseller: hazır indeks varsa anında açılır, kilitli klasörler
-/// hariç eksiksiz liste arka planda gelir.
-Future<void> openSimilarMedia(BuildContext context, StorageIndex? index) {
+/// Tüm-medya benzer taramasının dosya listesi ve tam liste yükleyicisi.
+({List<FsEntry> files, Future<List<FsEntry>> Function() loadAll})
+    _similarSource(BuildContext context, StorageIndex? index) {
   var locked = const <String>[];
   try {
     locked = context.read<AppState>().fmLockedFolders.toList();
   } catch (_) {
     // Testte AppState yok: kilitli klasör yok sayılır.
   }
+  return (
+    files: [
+      ...?index?.files(FmCategory.image),
+      ...?index?.files(FmCategory.video),
+    ],
+    loadAll: () async => [
+          ...await MediaLibrary.categoryFiles(FmCategory.image,
+              lockedFolders: locked),
+          ...await MediaLibrary.categoryFiles(FmCategory.video,
+              lockedFolders: locked),
+        ],
+  );
+}
+
+/// Yer aç'ın derin taramalarını **arka planda** başlatır (B18): benzer
+/// kareler (Normal kademe) ve sohbet medyası. Kuyruk işleri SIRAYLA koştuğu
+/// için hızlı taramanın arkasında beklerler — önce hızlı sonuçlar görünür.
+/// Sonucu duran ya da süren tarama yeniden YAPILMAZ; yalnız "Gevşek" ile
+/// üretilmiş benzer sonucu (ilgisiz görselleri gruplayabiliyor) Normal'le
+/// yenilenir.
+void startDeepScans(BuildContext context, StorageIndex? index) {
+  final simId = SimilarFinder.jobIdFor(similarAllMediaScope);
+  final sim = JobQueue.instance.find(simId);
+  final simOk = sim != null &&
+      (sim.status.isActive ||
+          (sim.result is List<SimilarGroup> &&
+              SimilarScreen.levelOf(similarAllMediaScope) !=
+                  SimilarityLevel.loose));
+  if (!simOk) {
+    final src = _similarSource(context, index);
+    SimilarScreen.startScan(
+        scopeId: similarAllMediaScope,
+        files: src.files,
+        loadAll: src.loadAll);
+  }
+  final chat = JobQueue.instance.find(ChatJunkLive.jobId);
+  if (chat == null ||
+      (!chat.status.isActive && chat.result is! ChatJunkReport)) {
+    ChatJunkLive.start(AppStrings.current);
+  }
+  ChatJunkLive.ensure();
+}
+
+/// Benzer görseller: hazır indeks varsa anında açılır, kilitli klasörler
+/// hariç eksiksiz liste arka planda gelir. [picks] verilirse seçim Yer aç'la
+/// paylaşılır (B18).
+Future<void> openSimilarMedia(BuildContext context, StorageIndex? index,
+    {Set<String>? picks}) {
+  final src = _similarSource(context, index);
   return Navigator.of(context).push<void>(MaterialPageRoute(
     builder: (_) => SimilarScreen(
       scopeId: similarAllMediaScope,
-      files: [
-        ...?index?.files(FmCategory.image),
-        ...?index?.files(FmCategory.video),
-      ],
-      loadAll: () async => [
-        ...await MediaLibrary.categoryFiles(FmCategory.image,
-            lockedFolders: locked),
-        ...await MediaLibrary.categoryFiles(FmCategory.video,
-            lockedFolders: locked),
-      ],
+      files: src.files,
+      loadAll: src.loadAll,
+      picks: picks,
     ),
   ));
 }

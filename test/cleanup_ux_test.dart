@@ -84,7 +84,7 @@ void main() {
     await tester.pump();
 
     expect(find.byType(EmbeddedToolbar), findsNothing);
-    expect(find.textContaining('bulunabilir'), findsOneWidget);
+    expect(find.text('Güvenle açılabilir'), findsOneWidget);
     expect(find.text('app_0.apk'), findsNothing);
 
     // Kart gövdesine (başlığa) dokununca dosya listesi animasyonsuz açılır.

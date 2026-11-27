@@ -10944,4 +10944,24 @@ const Map<String, String> _id = {
       'Konversi terpotong: keluaran {out} dtk, sumber {src} dtk. Berkas asli tidak disentuh.',
   'vt.unreadable_output':
       'Video hasil konversi tidak dapat dibaca (keluaran rusak) — berkas asli tidak disentuh.',
+  'clean.safe_main':
+      'Aman dibebaskan',
+  'clean.review_line':
+      'Layak ditinjau: {size}',
+  'clean.free_after':
+      'Ruang kosong setelah pilihan dibersihkan: {before} → {after} (+{delta})',
+  'clean.groups_n':
+      '{n} grup',
+  'clean.files_n':
+      '{n} berkas',
+  'clean.similar_detail':
+      'Foto yang sangat mirip dalam {n} grup. Foto terbaik tiap grup disimpan; hanya sisanya yang disarankan.',
+  'clean.chat_media':
+      'Media obrolan',
+  'clean.chat_media_detail':
+      '{n} berkas yang mungkin tidak diperlukan di folder WhatsApp dan Telegram: stiker, GIF, media lama dan duplikat.',
+  'clean.why_similar':
+      'Tidak ada yang dipilih sebelumnya; ketuk untuk meninjau per grup. Foto terbaik tidak pernah dihapus.',
+  'clean.why_chat_media':
+      'Tidak ada yang dipilih sebelumnya; ketuk untuk meninjau per jenis. Dipindah ke tempat sampah, dapat dipulihkan.',
 };

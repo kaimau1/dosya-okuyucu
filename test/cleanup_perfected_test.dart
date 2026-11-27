@@ -381,16 +381,11 @@ void main() {
       await tester.pumpWidget(wrap(const CleanupScreen()));
       await tester.pump();
 
-      // Güvenli / İncele süzgeci çalışır.
-      expect(find.byKey(const ValueKey('clean-filters')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('clean-filter-review')));
-      await tester.pump();
-      expect(find.byKey(const ValueKey('clean-card-big_videos')), findsOneWidget);
-      expect(find.byKey(const ValueKey('clean-card-apk')), findsNothing);
-
-      await tester.tap(find.byKey(const ValueKey('clean-filter-all')));
-      await tester.pump();
+      // B18: süzgeç yerine Güvenli / İncele bölüm başlıkları; ikisi de görünür.
+      expect(find.byKey(const ValueKey('clean-filters')), findsNothing);
       expect(find.byKey(const ValueKey('clean-card-apk')), findsOneWidget);
+      expect(find.byKey(const ValueKey('clean-card-big_videos')), findsOneWidget);
+      expect(find.text('Güvenle açılabilir'), findsOneWidget);
 
       // APK kartını açıp bir dosyanın işaretini kaldır → kısmi seçim (1/2 seçili).
       await tester.ensureVisible(find.text('Kurulum dosyaları (APK)'));
@@ -527,7 +522,8 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(const ValueKey('clean-trust-strip')), findsOneWidget);
-      expect(find.byKey(const ValueKey('clean-quick-safe')), findsOneWidget);
+      // B18: tek ana eylem alttaki düğme; üstteki "Güvenlileri temizle" yok.
+      expect(find.byKey(const ValueKey('clean-quick-safe')), findsNothing);
       expect(find.text('Güvenle Temizle (Sıfır Risk)'), findsOneWidget);
       await tester.dragUntilVisible(
           find.text('İnceleyerek Yer Aç (Karar Sizin)'),
@@ -535,6 +531,12 @@ void main() {
           const Offset(0, -180));
       await tester.pump();
       expect(find.text('İnceleyerek Yer Aç (Karar Sizin)'), findsOneWidget);
+      // Ayrıntı (boyut düşür dahil) satıra dokununca açılır.
+      final vidCard = find.byKey(const ValueKey('clean-card-big_videos'));
+      await tester.ensureVisible(vidCard);
+      await tester.tap(
+          find.descendant(of: vidCard, matching: find.byType(Text)).first);
+      await tester.pump();
       await tester.dragUntilVisible(
           find.byKey(const ValueKey('clean-shrink-big_videos')),
           find.byType(ListView).first,

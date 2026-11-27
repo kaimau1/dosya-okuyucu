@@ -58,6 +58,7 @@ part 'strings/51_editors_ux.dart';
 part 'strings/52_shared_pool_eco.dart';
 part 'strings/53_play_release.dart';
 part 'strings/54_arabic_ocr.dart';
+part 'strings/55_yer_ac.dart';
 part 'locales/id.dart';
 part 'locales/ms.dart';
 
@@ -229,4 +230,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t52,
   ..._t53,
   ..._t54,
+  ..._t55,
 };

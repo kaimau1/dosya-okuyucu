@@ -1809,3 +1809,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Bitince bildirime dokun → belge açılır ve önizleme levhası çıkar; belge açıkken bitince levha kendiliğinden çıkar. "PDF'e ekle" → yer imleri yazılır, belge yenilenir.
 - Başlık listesi doğru mu: Arapça alıntılar ve gövde cümleleri listede olmamalı; "BÖLÜM/KISIM/BAB" satırları üst düzeyde.
 - Bekleyen düzenleme varken "PDF'e ekle": önce kaydet/vazgeç sorusu gelmeli. Gerçekten taranmış PDF'te OCR uyarısı yine çıkmalı.
+## B18 — Yer aç yeni görünüm + derin taramalar (2026-11-27, dal faz-oto-B18-yer-ac) — yazıldı, cihazda doğrulanmadı
+- Dar ekranda (telefon dikey) özet kutusu, güven notu ve satırlarda metin kesiliyor/taşıyor mu; "boş alan önce → sonra (+fark)" ondalıklı görünüyor mu.
+- Yer aç açılınca hızlı öneriler önce gelir; "Benzer kareler" ve "Sohbet medyası" satırları önce "taranıyor %…", bitince boyutlu İncele satırı olarak geliyor mu. Ekrandan çıkıp dönünce yeniden taramıyor mu.
+- Derin satıra dokun → ayrıntı ekranında birkaç kare/dosya işaretle → geri dön: Yer aç toplamı ve alttaki "X yer aç" düğmesi seçimi sayıyor mu; satırın onay kutusu kısmi görünüyor mu. Her grubun en iyi karesi seçilemiyor/silinmiyor mu.
+- Benzer kareler Normal kademede: ilgisiz görseller aynı gruba düşmüyor mu (önceden Gevşek'le taranmışsa Yer aç Normal'le yeniden tarıyor mu).
+- Kuyruk: derin taramalar sürerken başka bir iş (ör. kopyalama, OCR) başlatınca bekliyor mu, ne kadar; İşlemler ekranında sıra anlaşılır mı.
+- Derin tarama ilerlerken liste kaydırması kasıyor mu (gözle).

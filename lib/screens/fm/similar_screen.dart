@@ -48,20 +48,83 @@ class SimilarScreen extends StatefulWidget {
   /// sonucunu tutar.
   final String scopeId;
 
+  /// Seçimi dışarıyla PAYLAŞ (B18): Yer aç'tan açılınca buradaki işaretler
+  /// Yer aç'ın seçimidir — geri dönünce toplam ve "X yer aç" düğmesi onu
+  /// sayar. Verilmezse ekranın kendi seçimi.
+  final Set<String>? picks;
+
   const SimilarScreen({
     super.key,
     this.files = const [],
     this.loadAll,
     this.title,
     this.scopeId = 'all',
+    this.picks,
   });
+
+  /// Bu kapsamın son taramasında kullanılan kademe (hiç taranmadıysa null).
+  static SimilarityLevel? levelOf(String scopeId) =>
+      _SimilarScreenState._levelByScope[scopeId];
+
+  /// Taramayı kuyruğa verir (ekran açık olmasa da — Yer aç arka planda
+  /// başlatır, B18). Aynı kapsam sürüyorsa süren iş döner.
+  static FmJob startScan({
+    required String scopeId,
+    List<FsEntry> files = const [],
+    Future<List<FsEntry>> Function()? loadAll,
+    SimilarityLevel level = SimilarityLevel.normal,
+    String? title,
+  }) {
+    // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
+    // `AppStrings.current` (bağlamsız): `initState`ten de çağrılıyor ve orada
+    // `AppStrings.of(context)` = `Localizations`a bağımlılık kurmak yasak.
+    final strings = AppStrings.current;
+    _SimilarScreenState._levelByScope[scopeId] = level;
+    return JobQueue.instance.enqueue(
+      id: SimilarFinder.jobIdFor(scopeId),
+      title: strings.t('sim.scanning_title',
+          {'level': strings.t(level.labelKey)}),
+      name: strings
+          .t('sim.scanning_name', {'level': strings.t(level.labelKey)}),
+      total: files.length,
+      // Sonuç bu kapsamın ekranında duruyor; hedef onu geri açar (tarama
+      // baştan başlamaz, sonuç kuyrukta kayıtlı).
+      target: FmJobTarget.similar(scopeId: scopeId, title: title),
+      run: (handle) async {
+        var list = files;
+        if (loadAll != null) {
+          handle.report(detail: strings.t('sim.preparing_list'));
+          final all = await loadAll();
+          // Kısa liste dönerse elimizdekini koru (bkz. kategori ekranları).
+          if (all.length > list.length) list = all;
+        }
+        handle.result = await SimilarFinder.run(
+          list,
+          level: level,
+          handle: handle,
+          strings: strings,
+        );
+      },
+    );
+  }
+
+  /// SAF: [gone] yolları düşülmüş gruplar; tek dosyası kalan grup kalkar.
+  static List<SimilarGroup> without(
+      List<SimilarGroup> groups, Set<String> gone) {
+    final kept = <SimilarGroup>[];
+    for (final g in groups) {
+      final rest = g.files.where((f) => !gone.contains(f.path)).toList();
+      if (rest.length > 1) kept.add(SimilarGroup(rest));
+    }
+    return kept;
+  }
 
   @override
   State<SimilarScreen> createState() => _SimilarScreenState();
 }
 
 class _SimilarScreenState extends State<SimilarScreen> {
-  final Set<String> _selected = {};
+  late final Set<String> _selected = widget.picks ?? <String>{};
   SimilarityLevel _level = SimilarityLevel.normal;
 
   /// Kapsam başına **son kullanılan benzerlik kademesi**.
@@ -115,42 +178,12 @@ class _SimilarScreenState extends State<SimilarScreen> {
   }
 
   void _start() {
-    // Kuyruk işi ekran kapansa da sürer → metinler ŞİMDİ çözülür.
-    // `AppStrings.current` (bağlamsız): bu yöntem `initState`ten de
-    // çağrılıyor ve orada `AppStrings.of(context)` = `Localizations`a
-    // bağımlılık kurmak yasak (hata ayıklamada kırmızı ekran). Kuyruk işinin
-    // metinleri zaten uygulama dilinde (bildirim de aynı tabloyu okur).
-    final strings = AppStrings.current;
-    final level = _level;
-    _levelByScope[widget.scopeId] = level;
-    final loader = widget.loadAll;
-    JobQueue.instance.enqueue(
-      id: _jobId,
-      title: strings.t('sim.scanning_title',
-          {'level': strings.t(level.labelKey)}),
-      name: strings
-          .t('sim.scanning_name', {'level': strings.t(level.labelKey)}),
-      total: widget.files.length,
-      // Sonuç bu kapsamın ekranında duruyor; hedef onu geri açar (tarama
-      // baştan başlamaz, sonuç kuyrukta kayıtlı).
-      target: FmJobTarget.similar(
-          scopeId: widget.scopeId, title: widget.title),
-      run: (handle) async {
-        var files = widget.files;
-        if (loader != null) {
-          handle.report(detail: strings.t('sim.preparing_list'));
-          final all = await loader();
-          // Kısa liste dönerse elimizdekini koru (bkz. kategori ekranları).
-          if (all.length > files.length) files = all;
-        }
-        final groups = await SimilarFinder.run(
-          files,
-          level: level,
-          handle: handle,
-          strings: strings,
-        );
-        handle.result = groups;
-      },
+    SimilarScreen.startScan(
+      scopeId: widget.scopeId,
+      files: widget.files,
+      loadAll: widget.loadAll,
+      level: _level,
+      title: widget.title,
     );
     setState(() => _selected.clear());
   }
@@ -184,13 +217,8 @@ class _SimilarScreenState extends State<SimilarScreen> {
     // ayıklamak yeter (parmak izleri önbellekte, tekrar tarama bedava değil).
     final job = _job;
     if (job != null) {
-      final gone = files.map((f) => f.path).toSet();
-      final kept = <SimilarGroup>[];
-      for (final g in _groups) {
-        final rest = g.files.where((f) => !gone.contains(f.path)).toList();
-        if (rest.length > 1) kept.add(SimilarGroup(rest));
-      }
-      job.result = kept;
+      job.result =
+          SimilarScreen.without(_groups, files.map((f) => f.path).toSet());
     }
     setState(() => _selected.removeAll(files.map((f) => f.path)));
   }
