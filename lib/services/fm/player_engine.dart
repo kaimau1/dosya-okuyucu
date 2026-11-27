@@ -29,9 +29,9 @@ abstract final class PlayerEngine {
   static VideoPlayerPlatform? _exo;
   static VideoPlayerPlatform? _mpv;
 
-  /// Bu derlemede mpv var mı? Lite'ta `libmpv.so` APK'ya girmez (K15c boyut
-  /// diyeti, `ci/prepare_android.sh` §11b) — orada yalnız ExoPlayer çalışır.
-  static const available = Edition.current != Edition.lite;
+  /// mpv kullanılabilir mi? `libmpv.so` her derlemede var (K15, 2026-11-27:
+  /// Lite diyeti geri alındı); Lite'ta Pro satın alınınca açılır.
+  static bool get available => Edition.current.proActive;
 
   /// Şu an mpv mi kullanılıyor?
   static bool get isMpv =>
