@@ -17,7 +17,7 @@ import '../core/motion.dart';
 import '../core/theme.dart' show Gap, OverlayBar, Radii;
 import '../core/user_error.dart';
 import '../models/media_resize.dart' show aspectChoices, longEdgeChoices;
-import '../services/fm/fs_scan.dart' show FsScan;
+import '../services/fm/fs_scan.dart' show FsPaths;
 import '../services/image_edit.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_action_sheet.dart';
@@ -119,7 +119,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   /// Boyut önizlemesi (B21): seçim değişince [Motion.previewDefer] sonra BİR
   /// kez üretilir — küçültülmüş çıktı (GPU) + kodlanmış bayt (izolat).
   Timer? _sizeTimer;
-  ImageEdits? _sizeFor;
+  ImageEdits? _sizeReq;
   ui.Image? _sizeOut;
   ImageEdits? _sizeOutFor;
   int? _sizeBytes;

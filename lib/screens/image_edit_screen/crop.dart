@@ -41,8 +41,8 @@ extension _ImageEditCrop on _ImageEditScreenState {
   /// Seçim (ölçek) değişince önizleme + dosya boyu, durulunca BİR kez
   /// (B21: "%75/%50/%25 seçince hiçbir fark yok, anlaşılmıyor").
   void _scheduleSizePreview() {
-    if (identical(_sizeFor, _e)) return;
-    final e = _sizeFor = _e;
+    if (identical(_sizeReq, _e)) return;
+    final e = _sizeReq = _e;
     // Büyütecin kapladığı çıktı pikseli: yalnız orta parça tutulur (tam
     // çıktı 8192² olabilir — bellekte bekletilmez).
     final side = (_ImageEditScreenState._loupe *
@@ -58,7 +58,7 @@ extension _ImageEditCrop on _ImageEditScreenState {
         final (bytes, mid) = await _probeSize(out, side,
                 png: editedExtension(widget.path) == '.png')
             .whenComplete(out.dispose);
-        if (!mounted || !identical(_sizeFor, e)) return mid.dispose();
+        if (!mounted || !identical(_sizeReq, e)) return mid.dispose();
         _update(() {
           _sizeOut?.dispose();
           _sizeOut = mid;
@@ -146,7 +146,7 @@ extension _ImageEditCrop on _ImageEditScreenState {
                 key: const ValueKey('ied-size-bytes'),
                 ready && _sizeBytes != null
                     ? context.t('ied.size_estimate',
-                        {'size': FsScan.humanSize(_sizeBytes!)})
+                        {'size': FsPaths.humanSize(_sizeBytes!)})
                     : context.t('ied.size_estimating'),
                 style: const TextStyle(color: AppColors.onMedia),
               ),
