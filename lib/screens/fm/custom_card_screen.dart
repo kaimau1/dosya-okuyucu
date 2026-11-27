@@ -683,6 +683,7 @@ class _CustomCardScreenState extends State<CustomCardScreen> {
             key: ValueKey(f.path),
             entry: f,
             size: cell,
+            hero: true,
             onTap: () => EntryOpener.open(context, f.path, siblings: paths),
           );
         },
