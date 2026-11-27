@@ -5573,4 +5573,385 @@ const Map<String, String> _ms = {
       'Sandarkan sekarang',
   'sdu.run_started':
       'Dimulakan — anda boleh menutup aplikasi.',
+// ── sdu-ied-rs-ss-fm ──
+  'sdu.run_failed':
+      'Tidak dapat dimulakan. Adakah kad SD dimasukkan?',
+  'sdu.notify_title_move':
+      'Dialihkan ke kad SD',
+  'sdu.notify_title_copy':
+      'Disandarkan ke kad SD',
+  'sdu.notify_body':
+      '{n} fail · {size}',
+  'sdu.job_title':
+      'Mengalihkan ke kad SD',
+  'sdu.job_title_copy':
+      'Menyandarkan ke kad SD',
+  'sdu.job_name':
+      'Pemindahan ke kad SD',
+  'ied.title':
+      'Edit',
+  'ied.crop':
+      'Pangkas',
+  'ied.adjust':
+      'Laras',
+  'ied.markup':
+      'Penanda',
+  'ied.free':
+      'Bebas',
+  'ied.rotate':
+      'Putar',
+  'ied.flip':
+      'Balikkan',
+  'ied.reset':
+      'Set semula',
+  'ied.pen':
+      'Pen',
+  'ied.arrow':
+      'Anak panah',
+  'ied.text':
+      'Teks',
+  'ied.text_hint':
+      'Teks untuk ditambah',
+  'ied.tap_for_text':
+      'Ketik di tempat teks hendak diletakkan',
+  'ied.save_copy':
+      'Simpan sebagai salinan',
+  'ied.save_copy_sub':
+      'Fail asal kekal seperti sedia ada',
+  'ied.overwrite':
+      'Tulis ganti fail asal',
+  'ied.overwrite_sub':
+      'Imej asal tidak dapat dipulihkan',
+  'ied.as_jpeg':
+      'Format ini tidak boleh ditulis; disimpan sebagai salinan JPEG',
+  'ied.saved':
+      '{name} disimpan',
+  'ied.original':
+      'Asal',
+  'ied.custom_ratio':
+      'Nisbah tersuai',
+  'ied.ratio_hint':
+      'Nisbah (cth. 4:5)',
+  'ied.ratio_invalid':
+      'Tidak dapat membaca nisbah — taip seperti "4:5".',
+  'ied.hold_original':
+      'Sebelum / selepas — ketik atau tahan',
+  'ied.size_now':
+      'Sekarang {from} → Disimpan sebagai {to}',
+  'ied.size_original':
+      'Seperti sedia ada',
+  'ied.filters':
+      'Penapis',
+  'ied.f_none':
+      'Tiada',
+  'ied.f_vivid':
+      'Terang',
+  'ied.f_warm':
+      'Hangat',
+  'ied.f_cool':
+      'Sejuk',
+  'ied.f_mono':
+      'Mono',
+  'ied.f_sepia':
+      'Sepia',
+  'ied.f_fade':
+      'Pudar',
+  'ied.f_drama':
+      'Dramatik',
+  'ied.f_matte':
+      'Matte',
+  'ied.f_retro':
+      'Retro',
+  'ied.f_document':
+      'Dokumen',
+  'ied.strength':
+      'Kekuatan',
+  'ied.reset_one':
+      'Set semula ini',
+  'ied.flip_v':
+      'Balikkan menegak',
+  'ied.select':
+      'Pilih',
+  'ied.highlighter':
+      'Penyerlah',
+  'ied.eraser':
+      'Pemadam',
+  'ied.line':
+      'Garisan',
+  'ied.rect':
+      'Segi empat tepat',
+  'ied.ellipse':
+      'Elips',
+  'ied.blur':
+      'Kaburkan',
+  'ied.pixelate':
+      'Piksel',
+  'ied.thickness':
+      'Ketebalan',
+  'ied.opacity':
+      'Kelegapan',
+  'ied.edit_text':
+      'Edit teks',
+  'ied.text_box':
+      'Latar belakang',
+  'ied.font_sans':
+      'Sans',
+  'ied.font_serif':
+      'Serif',
+  'ied.font_mono':
+      'Mono',
+  'ied.blur_hint':
+      'Lukis di atas apa yang ingin disembunyikan (muka, plat nombor, nombor pengenalan) — tidak boleh dipulihkan daripada fail yang disimpan.',
+  'ied.zoom_hint':
+      'Cubit untuk zum · ketik dua kali untuk muat',
+  'rs.presets':
+      'Pratetap',
+  'rs.preset_profile':
+      'Profil 640×640',
+  'rs.preset_form':
+      'Muat naik borang ≤ 200 KB',
+  'rs.preset_share':
+      'Sosial 4:5 · 1080',
+  'rs.preset_web':
+      'Web 1600 px',
+  'rs.lock_on':
+      'Nisbah dikunci — ketik untuk membuka kunci',
+  'rs.lock_off':
+      'Nisbah bebas — ketik untuk mengunci',
+  'rs.lock_note':
+      'Nisbah dikunci: taip satu nilai, yang lain dikira. Dengan beberapa fail, setiap satu mengekalkan nisbahnya.',
+  'rs.unlock_note':
+      'Nisbah bebas: taip kedua-dua nilai dan pilih cara imej memenuhi kotak.',
+  'rs.fit':
+      'Bagaimana ia dimuatkan?',
+  'rs.aspect_w':
+      'Lebar',
+  'rs.aspect_h':
+      'Tinggi',
+  'rs.custom_value':
+      'Tersuai',
+  'rs.long_edge_note':
+      'Sisi terpanjang dikecilkan kepada nilai ini dengan nisbah dikekalkan. Foto yang lebih kecil tidak dibesarkan.',
+  'rs.file_size_note':
+      'Disimpan sebagai JPEG; kualiti (dan saiz jika perlu) dilaraskan secara automatik. Jika sasaran tidak dapat dicapai, saiz terdekat dilaporkan.',
+  'rs.upscale_warning':
+      'Foto akan dibesarkan: saiz fail bertambah tetapi ketajaman tidak bertambah baik.',
+  'rs.anchor':
+      'Kekalkan bahagian ini',
+  'rs.video_layout_note':
+      'Pada video, pemangkasan berpusat dan sempadan berwarna hitam.',
+  'rs.video_file_size_note':
+      'Untuk video, saiz sasaran menjadi kadar bit; sasaran rendah turut menurunkan resolusi. Saiz sebenar dilaporkan apabila selesai.',
+  'rs.save_preset':
+      'Simpan tetapan',
+  'rs.preset_name':
+      'Nama pratetap',
+  'rs.preset_delete':
+      'Padam "{name}"?',
+  'rs.preset_hint':
+      'Tekan dan tahan tetapan tersimpan untuk memadamnya.',
+  'rs.preview':
+      'Pratonton',
+  'rs.strip_location':
+      'Buang lokasi',
+  'rs.strip_location_sub':
+      'Tarikh dan maklumat kamera dikekalkan. (Output WebP tidak membawa metadata.)',
+  'rs.title':
+      'Ubah saiz ({n} fail)',
+  'rs.now':
+      'Sekarang',
+  'rs.after':
+      'Selepas',
+  'rs.fps_value':
+      '{n} fps',
+  'rs.bitrate':
+      '{n} Mbps',
+  'rs.no_audio':
+      'senyap',
+  'rs.estimate':
+      'Anggaran: {before} → ≈ {after}',
+  'rs.estimate_gain':
+      '≈ {n}% dijimatkan',
+  'rs.estimate_note':
+      'Saiz sebenar bergantung pada kandungan; hasil tepat muncul apabila tugas selesai.',
+  'rs.and_more':
+      'dan {n} fail lagi · jumlah {size}',
+  'rs.no_change_warning':
+      'Tetapan ini tidak mengecilkan fail ini: resolusi dan kadar bingkai kekal sama. Pilih resolusi atau kadar bingkai yang lebih rendah.',
+  'rs.resolution':
+      'Resolusi',
+  'rs.width':
+      'Lebar (px)',
+  'rs.height':
+      'Tinggi (px)',
+  'rs.jpeg_quality':
+      'Kualiti JPEG (foto)',
+  'rs.format':
+      'Format (foto)',
+  'rs.video_quality':
+      'Pemampatan video',
+  'rs.fps':
+      'Kadar bingkai (fps)',
+  'rs.keep':
+      'Kekalkan seperti sedia ada',
+  'rs.video_note':
+      'Video sentiasa dikodkan semula (walaupun hanya kualiti atau audio yang berubah): ditukar tepat kepada saiz yang diminta menggunakan pengekod perkakasan peranti (Android Media3). Peratusan dan baki masa dipaparkan pada baris tugas. Pada video panjang ini boleh mengambil masa beberapa minit; tugas berjalan di latar belakang.',
+  'rs.strip_audio':
+      'Buang audio',
+  'rs.strip_audio_sub':
+      'Menjimatkan ruang yang ketara pada video yang audionya tidak diperlukan.',
+  'rs.trash_original':
+      'Alihkan fail asal ke tong sampah',
+  'rs.trash_original_sub':
+      'Jika mati, salinan yang lebih kecil ditulis dalam folder yang sama sebagai fail baharu dan fail asal tidak disentuh.',
+  'rs.queue_note':
+      'Tugas berjalan dalam baris gilir latar belakang; anda boleh beralih ke skrin lain. Tugas berhenti jika anda menutup aplikasi sepenuhnya. Fail yang lebih kecil disimpan di sebelah fail asal; anda boleh membuka hasilnya dan fail yang dicipta daripada kotak “Tugas” pada skrin utama.',
+  'rs.start':
+      'Mula',
+  'ss.tools':
+      'Alat penyampai',
+  'ss.prev':
+      'Sebelumnya',
+  'ss.next':
+      'Seterusnya',
+  'ss.laser':
+      'Penuding laser',
+  'ss.pen':
+      'Pen',
+  'ss.pen_color':
+      'Warna pen',
+  'ss.clear_ink':
+      'Kosongkan conteng',
+  'ss.timer':
+      'Pemasa',
+  'ss.play':
+      'Main',
+  'ss.pause':
+      'Jeda',
+  'ss.stop':
+      'Henti',
+  'ss.presenter':
+      'Paparan penyampai',
+  'ss.reset_timer':
+      'Set semula pemasa',
+  'ss.next_slide':
+      'Slaid seterusnya',
+  'ss.slide_time':
+      'Slaid ini: {t}',
+  'ss.end_of_show':
+      'Akhir persembahan',
+  'ss.notes':
+      'Nota',
+  'ss.no_notes':
+      'Tiada nota untuk slaid ini',
+  'ss.volume_keys':
+      'Maju dengan butang kelantangan',
+  'ss.web_remote':
+      'Alat kawalan jauh melalui rangkaian setempat',
+  'ss.second_screen':
+      'Paparkan pada skrin kedua',
+  'ss.blank_black':
+      'Skrin hitam',
+  'ss.blank_white':
+      'Skrin putih',
+  'ss.all_slides':
+      'Semua slaid',
+  'ss.tool_rotate_left':
+      'Putar ke kiri',
+  'ss.tool_rotate_right':
+      'Putar ke kanan',
+  'ss.compare_hold':
+      'Asal (tahan)',
+  'ss.pages_tab':
+      'Muka surat ({n})',
+  'ss.saved':
+      'Disimpan · {folder}',
+  'ss.saving':
+      'Menyimpan…',
+  'ss.save_failed':
+      'Tidak disimpan — ketik untuk cuba lagi',
+  'ss.finishing':
+      'Menyimpan perubahan terakhir…',
+  'ss.tool_crop':
+      'Pangkas',
+  'ss.tool_rotate':
+      'Putar',
+  'ss.tool_filter':
+      'Penapis',
+  'ss.tool_retake':
+      'Ambil semula',
+  'ss.tool_delete':
+      'Padam',
+  'ss.page_deleted':
+      'Muka surat dipadam',
+  'ss.working_crop':
+      'Memangkas…',
+  'ss.working_rotate':
+      'Memutar…',
+  'ss.working_filter':
+      'Menggunakan…',
+  'ss.working_straighten':
+      'Meluruskan…',
+  'ss.moving':
+      'Mengalihkan…',
+  'ss.add_camera':
+      'Imbas dengan kamera',
+  'ss.add_camera_sub':
+      'Tepi muka surat ditemui secara automatik',
+  'ss.add_gallery':
+      'Tambah daripada foto',
+  'ss.add_gallery_sub':
+      'Pilih daripada galeri dan tetapkan pangkasan sendiri',
+  'ss.filter_clear':
+      'Buang penapis',
+  'ss.exit':
+      'Keluar',
+  'ss.step':
+      '{n} / {total}  ·  langkah {step}/{max}',
+  'ss.no_text':
+      '(Tiada teks)',
+  'fm.search_apps':
+      'Cari aplikasi…',
+  'fm.name_spoof_warn':
+      'Amaran: jenis sebenar .{ext}',
+  'fm.recent_opened':
+      'Sejarah',
+  'fm.apk_tab':
+      'APK',
+  'fm.network_storage':
+      'Storan rangkaian',
+  'fm.trash':
+      'Tong sampah',
+  'fm.trash_count':
+      '{n} item',
+  'fm.permission_denied':
+      'Tiada masalah — anda masih boleh membuka fail satu demi satu; tiada kebenaran lain diperlukan.',
+  'fm.internal_storage':
+      'Storan dalaman',
+  'fm.organize':
+      'Susun',
+  'fm.root':
+      'Root',
+  'fm.unreadable':
+      'Folder ini tidak dapat dibaca.\nMungkin lokasi yang dilindungi Android (seperti Android/data), atau "akses semua fail" belum diberikan.',
+  'fm.sort_name':
+      'Isih mengikut nama',
+  'fm.sort_date':
+      'Isih mengikut tarikh',
+  'fm.sort_size':
+      'Isih mengikut saiz',
+  'fm.select_none':
+      'Kosongkan pilihan',
+  'fm.paste':
+      'Tampal',
+  'fm.clipboard_ready':
+      '{n} item sedia untuk {verb}',
+  'fm.verb_move':
+      'dialihkan',
+  'fm.verb_copy':
+      'disalin',
+  'fm.compare_digest':
+      'Adakah kedua-dua fail serupa?',
+  'fm.batch_rename':
+      'Namakan semula secara pukal',
 };

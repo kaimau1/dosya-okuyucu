@@ -5568,4 +5568,385 @@ const Map<String, String> _id = {
       'Cadangkan sekarang',
   'sdu.run_started':
       'Dimulai — Anda dapat menutup aplikasi.',
+// ── sdu-ied-rs-ss-fm ──
+  'sdu.run_failed':
+      'Tidak dapat dimulai. Apakah kartu SD terpasang?',
+  'sdu.notify_title_move':
+      'Dipindahkan ke kartu SD',
+  'sdu.notify_title_copy':
+      'Dicadangkan ke kartu SD',
+  'sdu.notify_body':
+      '{n} berkas · {size}',
+  'sdu.job_title':
+      'Memindahkan ke kartu SD',
+  'sdu.job_title_copy':
+      'Mencadangkan ke kartu SD',
+  'sdu.job_name':
+      'Transfer ke kartu SD',
+  'ied.title':
+      'Edit',
+  'ied.crop':
+      'Pangkas',
+  'ied.adjust':
+      'Sesuaikan',
+  'ied.markup':
+      'Markah',
+  'ied.free':
+      'Bebas',
+  'ied.rotate':
+      'Putar',
+  'ied.flip':
+      'Balik',
+  'ied.reset':
+      'Setel ulang',
+  'ied.pen':
+      'Pena',
+  'ied.arrow':
+      'Panah',
+  'ied.text':
+      'Teks',
+  'ied.text_hint':
+      'Teks yang ditambahkan',
+  'ied.tap_for_text':
+      'Ketuk di tempat teks akan diletakkan',
+  'ied.save_copy':
+      'Simpan sebagai salinan',
+  'ied.save_copy_sub':
+      'Berkas asli tetap seperti semula',
+  'ied.overwrite':
+      'Timpa berkas asli',
+  'ied.overwrite_sub':
+      'Gambar asli tidak dapat dipulihkan',
+  'ied.as_jpeg':
+      'Format ini tidak dapat ditulis; disimpan sebagai salinan JPEG',
+  'ied.saved':
+      '{name} disimpan',
+  'ied.original':
+      'Asli',
+  'ied.custom_ratio':
+      'Rasio kustom',
+  'ied.ratio_hint':
+      'Rasio (mis. 4:5)',
+  'ied.ratio_invalid':
+      'Tidak dapat membaca rasio — ketik seperti "4:5".',
+  'ied.hold_original':
+      'Sebelum / sesudah — ketuk atau tahan',
+  'ied.size_now':
+      'Sekarang {from} → Disimpan sebagai {to}',
+  'ied.size_original':
+      'Apa adanya',
+  'ied.filters':
+      'Filter',
+  'ied.f_none':
+      'Tidak ada',
+  'ied.f_vivid':
+      'Cerah',
+  'ied.f_warm':
+      'Hangat',
+  'ied.f_cool':
+      'Sejuk',
+  'ied.f_mono':
+      'Mono',
+  'ied.f_sepia':
+      'Sepia',
+  'ied.f_fade':
+      'Pudar',
+  'ied.f_drama':
+      'Dramatis',
+  'ied.f_matte':
+      'Mat',
+  'ied.f_retro':
+      'Retro',
+  'ied.f_document':
+      'Dokumen',
+  'ied.strength':
+      'Kekuatan',
+  'ied.reset_one':
+      'Setel ulang ini',
+  'ied.flip_v':
+      'Balik vertikal',
+  'ied.select':
+      'Pilih',
+  'ied.highlighter':
+      'Stabilo',
+  'ied.eraser':
+      'Penghapus',
+  'ied.line':
+      'Garis',
+  'ied.rect':
+      'Persegi panjang',
+  'ied.ellipse':
+      'Elips',
+  'ied.blur':
+      'Buramkan',
+  'ied.pixelate':
+      'Pikselkan',
+  'ied.thickness':
+      'Ketebalan',
+  'ied.opacity':
+      'Opasitas',
+  'ied.edit_text':
+      'Edit teks',
+  'ied.text_box':
+      'Latar belakang',
+  'ied.font_sans':
+      'Sans',
+  'ied.font_serif':
+      'Serif',
+  'ied.font_mono':
+      'Mono',
+  'ied.blur_hint':
+      'Lukis di atas yang ingin disembunyikan (wajah, pelat nomor, nomor identitas) — tidak dapat dipulihkan dari berkas yang disimpan.',
+  'ied.zoom_hint':
+      'Cubit untuk memperbesar · ketuk dua kali untuk menyesuaikan',
+  'rs.presets':
+      'Prasetel',
+  'rs.preset_profile':
+      'Profil 640×640',
+  'rs.preset_form':
+      'Unggah formulir ≤ 200 KB',
+  'rs.preset_share':
+      'Sosial 4:5 · 1080',
+  'rs.preset_web':
+      'Web 1600 px',
+  'rs.lock_on':
+      'Rasio terkunci — ketuk untuk membuka',
+  'rs.lock_off':
+      'Rasio bebas — ketuk untuk mengunci',
+  'rs.lock_note':
+      'Rasio terkunci: ketik satu nilai, yang lain dihitung. Dengan beberapa berkas, masing-masing mempertahankan rasionya.',
+  'rs.unlock_note':
+      'Rasio bebas: ketik kedua nilai dan pilih bagaimana gambar mengisi kotak.',
+  'rs.fit':
+      'Bagaimana pas?',
+  'rs.aspect_w':
+      'Lebar',
+  'rs.aspect_h':
+      'Tinggi',
+  'rs.custom_value':
+      'Kustom',
+  'rs.long_edge_note':
+      'Sisi terpanjang diperkecil ke nilai ini dengan rasio tetap. Foto yang lebih kecil tidak diperbesar.',
+  'rs.file_size_note':
+      'Disimpan sebagai JPEG; kualitas (dan ukuran bila perlu) disesuaikan otomatis. Jika target tidak tercapai, ukuran terdekat dilaporkan.',
+  'rs.upscale_warning':
+      'Foto akan diperbesar: ukuran berkas bertambah tetapi ketajaman tidak membaik.',
+  'rs.anchor':
+      'Pertahankan bagian ini',
+  'rs.video_layout_note':
+      'Pada video, pemangkasan berpusat dan tepinya hitam.',
+  'rs.video_file_size_note':
+      'Untuk video, ukuran target menjadi bitrate; target rendah juga menurunkan resolusi. Ukuran sebenarnya dilaporkan setelah selesai.',
+  'rs.save_preset':
+      'Simpan pengaturan',
+  'rs.preset_name':
+      'Nama prasetel',
+  'rs.preset_delete':
+      'Hapus "{name}"?',
+  'rs.preset_hint':
+      'Tekan dan tahan pengaturan tersimpan untuk menghapusnya.',
+  'rs.preview':
+      'Pratinjau',
+  'rs.strip_location':
+      'Hapus lokasi',
+  'rs.strip_location_sub':
+      'Tanggal dan info kamera dipertahankan. (Keluaran WebP tidak membawa metadata.)',
+  'rs.title':
+      'Ubah ukuran ({n} berkas)',
+  'rs.now':
+      'Sekarang',
+  'rs.after':
+      'Sesudah',
+  'rs.fps_value':
+      '{n} fps',
+  'rs.bitrate':
+      '{n} Mbps',
+  'rs.no_audio':
+      'tanpa suara',
+  'rs.estimate':
+      'Perkiraan: {before} → ≈ {after}',
+  'rs.estimate_gain':
+      '≈ {n}% dihemat',
+  'rs.estimate_note':
+      'Ukuran sebenarnya bergantung pada isi; hasil pastinya muncul saat tugas selesai.',
+  'rs.and_more':
+      'dan {n} berkas lagi · total {size}',
+  'rs.no_change_warning':
+      'Pengaturan ini tidak memperkecil berkas ini: resolusi dan frame rate tetap sama. Pilih resolusi atau frame rate yang lebih rendah.',
+  'rs.resolution':
+      'Resolusi',
+  'rs.width':
+      'Lebar (px)',
+  'rs.height':
+      'Tinggi (px)',
+  'rs.jpeg_quality':
+      'Kualitas JPEG (foto)',
+  'rs.format':
+      'Format (foto)',
+  'rs.video_quality':
+      'Kompresi video',
+  'rs.fps':
+      'Frame rate (fps)',
+  'rs.keep':
+      'Biarkan apa adanya',
+  'rs.video_note':
+      'Video selalu dikodekan ulang (meski hanya kualitas atau audio yang berubah): dikonversi tepat ke ukuran yang diminta memakai encoder perangkat keras (Android Media3). Persentase dan sisa waktu ditampilkan di baris tugas. Pada video panjang ini bisa memakan waktu beberapa menit; tugas berjalan di latar belakang.',
+  'rs.strip_audio':
+      'Hapus audio',
+  'rs.strip_audio_sub':
+      'Menghemat ruang yang cukup besar pada video yang audionya tidak dibutuhkan.',
+  'rs.trash_original':
+      'Pindahkan berkas asli ke tempat sampah',
+  'rs.trash_original_sub':
+      'Jika mati, salinan yang lebih kecil ditulis di folder yang sama sebagai berkas baru dan berkas asli tidak disentuh.',
+  'rs.queue_note':
+      'Tugas berjalan dalam antrean latar belakang; Anda dapat pindah ke layar lain. Tugas berhenti jika Anda menutup aplikasi sepenuhnya. Berkas yang lebih kecil disimpan di samping aslinya; Anda dapat membuka hasilnya dan berkas yang dibuat dari kotak “Tugas” di layar beranda.',
+  'rs.start':
+      'Mulai',
+  'ss.tools':
+      'Alat presenter',
+  'ss.prev':
+      'Sebelumnya',
+  'ss.next':
+      'Berikutnya',
+  'ss.laser':
+      'Penunjuk laser',
+  'ss.pen':
+      'Pena',
+  'ss.pen_color':
+      'Warna pena',
+  'ss.clear_ink':
+      'Hapus coretan',
+  'ss.timer':
+      'Pengatur waktu',
+  'ss.play':
+      'Putar',
+  'ss.pause':
+      'Jeda',
+  'ss.stop':
+      'Berhenti',
+  'ss.presenter':
+      'Tampilan presenter',
+  'ss.reset_timer':
+      'Setel ulang pengatur waktu',
+  'ss.next_slide':
+      'Slide berikutnya',
+  'ss.slide_time':
+      'Slide ini: {t}',
+  'ss.end_of_show':
+      'Akhir presentasi',
+  'ss.notes':
+      'Catatan',
+  'ss.no_notes':
+      'Tidak ada catatan untuk slide ini',
+  'ss.volume_keys':
+      'Maju dengan tombol volume',
+  'ss.web_remote':
+      'Remote lewat jaringan lokal',
+  'ss.second_screen':
+      'Tampilkan di layar kedua',
+  'ss.blank_black':
+      'Layar hitam',
+  'ss.blank_white':
+      'Layar putih',
+  'ss.all_slides':
+      'Semua slide',
+  'ss.tool_rotate_left':
+      'Putar ke kiri',
+  'ss.tool_rotate_right':
+      'Putar ke kanan',
+  'ss.compare_hold':
+      'Asli (tahan)',
+  'ss.pages_tab':
+      'Halaman ({n})',
+  'ss.saved':
+      'Disimpan · {folder}',
+  'ss.saving':
+      'Menyimpan…',
+  'ss.save_failed':
+      'Tidak tersimpan — ketuk untuk mencoba lagi',
+  'ss.finishing':
+      'Menyimpan perubahan terakhir…',
+  'ss.tool_crop':
+      'Pangkas',
+  'ss.tool_rotate':
+      'Putar',
+  'ss.tool_filter':
+      'Filter',
+  'ss.tool_retake':
+      'Ambil ulang',
+  'ss.tool_delete':
+      'Hapus',
+  'ss.page_deleted':
+      'Halaman dihapus',
+  'ss.working_crop':
+      'Memangkas…',
+  'ss.working_rotate':
+      'Memutar…',
+  'ss.working_filter':
+      'Menerapkan…',
+  'ss.working_straighten':
+      'Meluruskan…',
+  'ss.moving':
+      'Memindahkan…',
+  'ss.add_camera':
+      'Pindai dengan kamera',
+  'ss.add_camera_sub':
+      'Tepi halaman ditemukan otomatis',
+  'ss.add_gallery':
+      'Tambah dari foto',
+  'ss.add_gallery_sub':
+      'Pilih dari galeri dan atur pangkasan sendiri',
+  'ss.filter_clear':
+      'Hapus filter',
+  'ss.exit':
+      'Keluar',
+  'ss.step':
+      '{n} / {total}  ·  langkah {step}/{max}',
+  'ss.no_text':
+      '(Tanpa teks)',
+  'fm.search_apps':
+      'Cari aplikasi…',
+  'fm.name_spoof_warn':
+      'Peringatan: jenis sebenarnya .{ext}',
+  'fm.recent_opened':
+      'Riwayat',
+  'fm.apk_tab':
+      'APK',
+  'fm.network_storage':
+      'Penyimpanan jaringan',
+  'fm.trash':
+      'Tempat sampah',
+  'fm.trash_count':
+      '{n} item',
+  'fm.permission_denied':
+      'Tidak masalah — Anda tetap dapat membuka berkas satu per satu; tidak perlu izin lain.',
+  'fm.internal_storage':
+      'Penyimpanan internal',
+  'fm.organize':
+      'Atur',
+  'fm.root':
+      'Root',
+  'fm.unreadable':
+      'Folder ini tidak dapat dibaca.\nMungkin lokasi yang dilindungi Android (seperti Android/data), atau "akses semua berkas" belum diberikan.',
+  'fm.sort_name':
+      'Urutkan menurut nama',
+  'fm.sort_date':
+      'Urutkan menurut tanggal',
+  'fm.sort_size':
+      'Urutkan menurut ukuran',
+  'fm.select_none':
+      'Hapus pilihan',
+  'fm.paste':
+      'Tempel',
+  'fm.clipboard_ready':
+      '{n} item siap untuk {verb}',
+  'fm.verb_move':
+      'dipindahkan',
+  'fm.verb_copy':
+      'disalin',
+  'fm.compare_digest':
+      'Apakah kedua berkas identik?',
+  'fm.batch_rename':
+      'Ganti nama massal',
 };
