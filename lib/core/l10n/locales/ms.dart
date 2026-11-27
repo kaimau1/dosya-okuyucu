@@ -9313,6 +9313,8 @@ const Map<String, String> _ms = {
       'Buang pengecaman Arab luar talian',
   'ocr.ar_model_sub':
       'Dimuat turun sekali (≈{size}); teks kemudian tidak pernah keluar daripada peranti.',
+  'ocr.no_play_services':
+      'Perkhidmatan Google Play tiada pada peranti ini, jadi pengecaman teks pada peranti tidak boleh digunakan. Untuk teks Arab, muat turun model luar talian dalam Tetapan → Dokumen → Skrip pengecaman teks, atau gunakan bacaan pintar dengan kunci Gemini.',
   'ocr.ar_need_model':
       'Untuk pengecaman teks Arab, muat turun model luar talian dalam Tetapan → Dokumen → Skrip pengecaman teks, atau tambah kunci Gemini.',
   'ocr.cloud_need_key':

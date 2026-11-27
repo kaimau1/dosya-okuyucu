@@ -8,13 +8,14 @@ import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
 import '../core/l10n/app_strings.dart';
+import '../core/user_error.dart' show FriendlyException;
 import 'ocr_service.dart' show OcrLine;
 import 'scan_page_ops.dart' show ScanPageOps;
 import 'voice/neural_engine.dart';
 import 'voice/neural_voices.dart';
 
 /// Cihazda Arapça modeli indirilmedi (Ayarlar → Belgeler → Metin tanıma dili).
-class ArabicOcrMissing implements Exception {
+class ArabicOcrMissing implements FriendlyException {
   const ArabicOcrMissing();
   @override
   String toString() => AppStrings.current.t('ocr.ar_need_model');

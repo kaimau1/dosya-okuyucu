@@ -79,7 +79,7 @@ class ScanFlow {
       value: 0,
     ));
     var skipOcr = false;
-    var modelNotReady = false;
+    OcrModelNotReady? modelNotReady;
     final busy = _showProgress(
       context,
       progress,
@@ -104,7 +104,7 @@ class ScanFlow {
       ocrLines = await DocumentScanner.recognizePages(
         images,
         isCancelled: () => skipOcr || task.cancelRequested,
-        onModelNotReady: (_) => modelNotReady = true,
+        onModelNotReady: (e) => modelNotReady = e,
         onProgress: (done, total) {
           final text = AppStrings.current.t('sf.ocr_progress',
               {'n': (done + 1).clamp(1, total), 'total': total});
@@ -152,8 +152,8 @@ class ScanFlow {
       return null;
     }
 
-    if (modelNotReady) {
-      _snack(context, const OcrModelNotReady().toString());
+    if (modelNotReady != null) {
+      _snack(context, modelNotReady.toString());
     }
 
     // Belge üretildi → "Son belgeler"e YAZ (2026-08-06 bulgusu). Stüdyo

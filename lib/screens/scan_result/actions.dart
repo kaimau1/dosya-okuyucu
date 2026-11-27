@@ -822,7 +822,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
   Future<void> _recognize({bool force = false}) async {
     if (_busy || _pages.isEmpty) return;
     _partSetState(() => _work = context.t('vw.ocr_running'));
-    var modelNotReady = false;
+    OcrModelNotReady? modelNotReady;
     try {
       final targets = <ScanPage>[
         for (final page in _pages)
@@ -831,7 +831,7 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       if (targets.isNotEmpty) {
         final recognized = await DocumentScanner.recognizePages(
           [for (final page in targets) page.display],
-          onModelNotReady: (_) => modelNotReady = true,
+          onModelNotReady: (e) => modelNotReady = e,
         );
         for (var i = 0; i < targets.length && i < recognized.length; i++) {
           _ocr[targets[i].source] = recognized[i];
@@ -840,8 +840,8 @@ extension _ScanResultScreenActionsPart on _ScanResultScreenState {
       if (!mounted) return;
       _partSetState(() => _dirty = true);
       _scheduleSave(); // görünmez metin katmanı PDF'e de girsin
-      if (modelNotReady) {
-        _snack(const OcrModelNotReady().toString());
+      if (modelNotReady != null) {
+        _snack(modelNotReady.toString());
       } else if (_text.isEmpty) {
         _snack(context.t('vw.ocr_none'));
       }
