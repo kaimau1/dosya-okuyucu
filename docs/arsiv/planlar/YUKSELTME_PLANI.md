@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # YÜKSELTME PLANI — Faz 43–50 (2026-11-07)
 
 Kullanıcı isteği: *"Flutter ve tüm eklentiler güncel olsun; PDF'i (pdfrx 2.x) tekrar deneyeceğiz ama

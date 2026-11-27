@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # KALANLAR — tek kalan-iş listesi (2026-11-01 toplaması)
 
 > **Bütün açık işler burada, iki fazda:**

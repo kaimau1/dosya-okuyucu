@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # GÜVENLİK PLANI — Faz G0–G12 (2026-11-10)
 
 Kullanıcı isteği: *"Güvenlik için tam detaylı, tek seferde tüm güvenliği sağlayacak altyapı/üstyapı

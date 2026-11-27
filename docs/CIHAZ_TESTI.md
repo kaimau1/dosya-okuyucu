@@ -778,8 +778,8 @@ Her dosyayı **masaüstü Word/Excel/PowerPoint**, **Google Dokümanlar/E-Tablol
 - [ ] `buyuk_100mb.xlsx` aç: kırmızı şerit "Büyük dosya (… MB): akış önizlemesi"; kaydırma akıcı, uygulama kapanmıyor (Hata kayıtları'nda `exit · LOW_MEMORY` yok); kaydet → "kaydedilemez" uyarısı, özgün dosya değişmedi.
 - [ ] `buyuk_100mb.pdf` görüntüleyicide açılıyor/kayıyor; Ayarlar › Depolama ve hız › Başarım = Hafif iken PDF araçları "çok büyük (sınır 64 MB)" açıklaması gösteriyor, Tam'da açılıyor.
 - [ ] Ayarlar › Hakkında › Hata kayıtları › 🐞 Sorunu bildir: önizlemede dosya adı/yol/uzun sayı maskeli; "Kare ölçümünü topla" aç → bir gün kullan → özet `kare: n=… p90≤… p99≤…`; Paylaş yalnız dokununca.
-- [ ] Mağaza: `fastlane/metadata/android/tr-TR/images/featureGraphic.png` Play önizlemesinde kırpılmadan görünüyor; ekran görüntüleri seçimi (`docs/SURUM_ADAYI.md` §3).
-- [ ] Sürüm adayı turu: `docs/SURUM_ADAYI.md` adım adım (B6).
+- [ ] Mağaza: `fastlane/metadata/android/tr-TR/images/featureGraphic.png` Play önizlemesinde kırpılmadan görünüyor; ekran görüntüleri seçimi (`docs/arsiv/planlar/SURUM_ADAYI.md` §3).
+- [ ] Sürüm adayı turu: `docs/arsiv/planlar/SURUM_ADAYI.md` adım adım (arşiv; güncel sıra PLAN §3 C).
 
 ## Yükseltme duman turu (Faz 43–50, her faz sonunda ~10 dk — KALICI, maddeler silinmez)
 > `docs/YUKSELTME_PLANI.md` §0.7: her faz birleşmeden önce bu tur koşulur, sonuç fazın

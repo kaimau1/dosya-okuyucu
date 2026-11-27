@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # GELİŞTİRME PLANI — Faz 34–42 (2026-11-04)
 
 Kaynak: kullanıcı isteği *"görünüm ve işlev olarak geliştir; Excel, Word, Slayt, PDF; belge

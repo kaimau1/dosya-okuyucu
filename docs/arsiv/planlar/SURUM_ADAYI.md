@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # Sürüm adayı turu (B6 / Faz 42 / 4)
 
 İlk kararlı sürüm (`v1.x.0`) ve sonrakiler için tek liste. Bulutta hazır olanlar ✅,

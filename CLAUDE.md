@@ -20,10 +20,10 @@ Sade, hızlı, ücretsiz, çok formatlı **dosya okuyucu/düzenleyici + dosya y�
 paylaşım. (Firebase senkronu 2026-09-26'da kaldırıldı — HAFIZA.) Piyasadaki yavaş/pahalı programlara alternatif.
 
 > Sabit kararlar, tuzaklar, reddedilen yollar ve güncel durum → **HAFIZA.md**
-> **Açık işlerin TEK listesi (2026-11-15) → `PLAN.md`**: §0 hız anayasası · §1 Kuyruk + SIRA
+> **Açık işlerin TEK listesi (2026-11-15; 2026-11-27 temiz sayfa) → `PLAN.md`**: §0 hız anayasası · §1 Kuyruk + SIRA
 > (kod ve telefon işleri) · §2 kapsam dışı · §3 kullanıcının işleri (👤). Telefonda adım adım
 > bakılacaklar `docs/CIHAZ_TESTI.md`. Eski planlar (KALANLAR, KONTROL_LISTEM, FAZ, DUZENLEME,
-> GELISTIRME, YUKSELTME, PDF_PRO, GUVENLIK, FERRARI, SURUM) → `docs/arsiv/planlar/` — yalnız
+> GELISTIRME, YUKSELTME, PDF_PRO, GUVENLIK, FERRARI, SURUM, SURUM_ADAYI) → `docs/arsiv/planlar/` — yalnız
 > ayrıntı/karar kaynağı; yeni plan dosyası AÇILMAZ, yeni iş `PLAN.md`'ye satır olur.
 
 ## 2) Mimari / Dosya Haritası

@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # FERRARİ PLANI — Faz H0–H12: görünüm ve his (2026-11-14)
 
 Kullanıcı bulgusu (tablet videosu + Samsung Dosyalarım karşılaştırması, 2026-11-14):

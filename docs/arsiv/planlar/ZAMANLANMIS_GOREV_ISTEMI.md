@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # Zamanlanmış görev istemi — olay zinciri (2026-11-05, 3. sürüm)
 
 > **2026-11-05 düzeltmesi (kullanıcı: "birbirini tetiklemiyor, Sonnet ile başlıyor, işi yarım bırakıyor"):**
