@@ -187,7 +187,7 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
             ]),
           _Tab.adjust => _adjustPanel(),
           _Tab.filter => _filterPanel(),
-          _Tab.size => _sizePanel(),
+          _Tab.size => _sizePanel(scheme),
           _Tab.markup => _markupPanel(scheme),
         },
       ),

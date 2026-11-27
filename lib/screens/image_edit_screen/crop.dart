@@ -71,12 +71,12 @@ extension _ImageEditCrop on _ImageEditScreenState {
     });
   }
 
-  Widget _sizePanel() {
+  /// [scheme]: stüdyonun KOYU şeması (bu bağlam Theme sarmalayıcısının üstünde).
+  Widget _sizePanel(ColorScheme scheme) {
     _scheduleSizePreview();
     final cropped = croppedSize(_src!, _e);
     final out = outputSize(_src!, _e);
     final longSide = math.max(cropped.width, cropped.height);
-    final scheme = Theme.of(context).colorScheme;
     const soft = TextStyle(color: AppColors.onMediaSoft);
     // Koyu stüdyoda okunur alan (B21: genel temanın açık dolgusu açık yazıyı
     // yutuyordu; etiket alanın üstünde sabit).

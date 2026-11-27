@@ -61,14 +61,16 @@ void main() {
     await t.pumpAndSettle();
     await tapKey(t, 'tool-text');
     final canvas = find.byKey(const ValueKey('ied-canvas'));
-    final c = t.getCenter(canvas);
-    await t.tapAt(c);
+    await t.tapAt(t.getCenter(canvas));
     await t.pumpAndSettle();
     await t.enterText(find.byType(TextField), 'Merhaba');
     await t.tap(find.text('Ekle'));
     await t.pumpAndSettle();
     final added = edits().marks.single;
     expect((added.kind, added.text), (MarkKind.text, 'Merhaba'));
+    // Seçim sırası açılınca panel uzar, tuval küçülür (B21): yazı yine tuvalin
+    // ortasında ama ekranda yeri değişti — merkez yeniden ölçülür.
+    final c = t.getCenter(canvas);
 
     // Taşı: seçili yazıyı 60 dp sağa sürükle.
     await t.timedDragFrom(c, const Offset(60, 0), const Duration(milliseconds: 300));
