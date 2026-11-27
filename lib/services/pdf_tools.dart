@@ -201,6 +201,18 @@ class PdfTools {
     }
   }
 
+  /// Agresif sıkıştırmanın sonucu uygulanmaya değer mi: en az %5 küçülmeli
+  /// (C3 2026-11-27: metin-only 108 KB belge 12,5 MB oluyordu). Değmezse
+  /// belge değişmez.
+  static bool hardCompressWorthIt(int before, int after) =>
+      after <= before * 0.95;
+
+  /// Başlamadan önce ucuz uyarı: sayfa başı ortalama < 30 KB ise sayfalar
+  /// büyük olasılıkla metin/vektör — 96 dpi JPEG sayfa bile bundan büyük.
+  // ponytail: bayt/sayfa sezgisi; görsel nesne sayımı gerekirse PdfXObject.
+  static bool hardCompressLikelyBigger(int bytes, int pages) =>
+      pages > 0 && bytes / pages < 30 * 1024;
+
   /// Belgeyi yeniden yazarak küçültür: akışlar en yüksek seviyede sıkıştırılır,
   /// artımlı güncellemelerle biriken eski sürümler atılır.
   ///

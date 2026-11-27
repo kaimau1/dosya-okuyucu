@@ -1238,7 +1238,7 @@ const Map<String, String> _id = {
   'pp.keep_text_sub':
       'Lapisan teks tak terlihat ditulis',
   'pp.compress_hard_bigger':
-      'Tidak lebih kecil ({size}) — gunakan Urungkan untuk kembali',
+      'Tidak lebih kecil ({size}) — file asli tetap disimpan',
   'pp.studio':
       'Studio halaman',
   'pp.studio_insert':

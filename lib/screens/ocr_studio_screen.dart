@@ -118,6 +118,12 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
   bool _showPreview = false;
   bool _readingAloud = false;
 
+  /// Hiç sayfa tanınmadan biten işin hatası — sonuç ekranında KALICI
+  /// gösterilir (C3 2026-11-27: eskiden kısa şerit + kurulum ekranına dönüş
+  /// "bastım, bir şey olmadı" gibi görünüyordu; Play Hizmetleri olmayan
+  /// cihazda ML Kit hep böyle düşer).
+  String? _error;
+
   int _doneCount = 0;
   int _totalCount = 0;
   List<OcrPage> _pages = const [];
@@ -269,6 +275,7 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
       _totalCount = _isPdf ? (onlyPages?.length ?? math.min(_pdfPageCount, maxPages)) : 1;
       _pages = const [];
       _activePageIndex = -1;
+      _error = null;
     });
 
     try {
@@ -321,10 +328,15 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      showSnack(context, userErrorText(e));
+      if (_pages.isNotEmpty) showSnack(context, userErrorText(e));
       setState(() {
-        _stage = _pages.isNotEmpty ? _StudioStage.result : _StudioStage.setup;
-        if (_pages.isNotEmpty) _syncEditorFromActive();
+        _stage = _StudioStage.result;
+        if (_pages.isNotEmpty) {
+          _activePageIndex = _pages.length == 1 ? 0 : -1;
+          _syncEditorFromActive();
+        } else {
+          _error = userErrorText(e);
+        }
       });
     }
   }
@@ -830,10 +842,15 @@ class _OcrStudioScreenState extends State<OcrStudioScreen> {
             child: _pages.isEmpty && text.isEmpty
                 ? Center(
                     child: Text(
-                      context.t('ocr_studio.empty_result'),
+                      _error == null
+                          ? context.t('ocr_studio.empty_result')
+                          : context.t('ocr_studio.failed', {'error': _error}),
+                      key: const ValueKey('ocr-empty'),
                       textAlign: TextAlign.center,
-                      style: context.type.body
-                          .copyWith(color: scheme.onSurfaceVariant),
+                      style: context.type.body.copyWith(
+                          color: _error == null
+                              ? scheme.onSurfaceVariant
+                              : scheme.error),
                     ),
                   )
                 : TextField(

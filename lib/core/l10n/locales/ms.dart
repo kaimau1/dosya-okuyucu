@@ -1243,7 +1243,7 @@ const Map<String, String> _ms = {
   'pp.keep_text_sub':
       'Lapisan teks tidak kelihatan ditulis',
   'pp.compress_hard_bigger':
-      'Tidak lebih kecil ({size}) — guna Buat asal untuk kembali',
+      'Tidak lebih kecil ({size}) — fail asal dikekalkan',
   'pp.studio':
       'Studio halaman',
   'pp.studio_insert':
