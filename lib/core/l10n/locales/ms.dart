@@ -1711,4 +1711,2442 @@ const Map<String, String> _ms = {
       'Guna saiz',
   'pse.text_guide_rich':
       'Ketik mana-mana kotak teks untuk menyunting · seret pemegang untuk mengalih atau melebarkan',
+  'excel.act_saved':
+      'Disunting',
+  'excel.add_sheet':
+      'Tambah helaian',
+  'excel.alignment':
+      'Penjajaran',
+  'excel.autosum':
+      'Jumlah automatik',
+  'excel.autosum_empty':
+      'Tiada nombor bersebelahan untuk dijumlahkan — taip julatnya sendiri.',
+  'excel.border_all':
+      'Semua sempadan',
+  'excel.border_bottom':
+      'Sempadan bawah',
+  'excel.border_none':
+      'Tanpa sempadan',
+  'excel.border_outline':
+      'Garis luar',
+  'excel.border_top':
+      'Sempadan atas',
+  'excel.borders':
+      'Sempadan',
+  'excel.cell_content':
+      'Kandungan sel',
+  'excel.cell_label':
+      'Sel {ref}',
+  'excel.cell_menu':
+      'Menu sel',
+  'excel.cell_reference':
+      'Rujukan sel',
+  'excel.cell_reference_hint':
+      'cth. C15',
+  'excel.cell_styles':
+      'Gaya sel',
+  'excel.clear_contents':
+      'Kosongkan kandungan',
+  'excel.clear_formats':
+      'Kosongkan format',
+  'excel.clipboard_empty':
+      'Papan keratan kosong.',
+  'excel.col_left_short':
+      'Lajur +←',
+  'excel.col_right_short':
+      'Lajur +→',
+  'excel.color_auto':
+      'Automatik',
+  'excel.color_none':
+      'Tanpa warna',
+  'excel.column':
+      'Lajur',
+  'excel.column_n':
+      'Lajur {c}',
+  'excel.column_width':
+      'Lebar lajur…',
+  'excel.column_width_of':
+      'Lebar lajur {col}',
+  'excel.cond_contains':
+      'Teks mengandungi',
+  'excel.cond_equal':
+      'Sama dengan',
+  'excel.cond_format':
+      'Pemformatan bersyarat',
+  'excel.cond_greater':
+      'Lebih besar daripada',
+  'excel.cond_less':
+      'Lebih kecil daripada',
+  'excel.cond_text':
+      'Teks',
+  'excel.cond_value':
+      'Nilai',
+  'excel.copied_stat':
+      'Disalin: {v}',
+  'excel.copy_done':
+      '{n} sel disalin',
+  'excel.csv_encoding':
+      'Pengekodan CSV',
+  'excel.csv_failed':
+      'Eksport CSV gagal: {error}',
+  'excel.csv_format_lost':
+      'Format tidak disimpan dalam CSV — hanya nilai disimpan',
+  'excel.csv_formula_guard':
+      'Perlindungan formula',
+  'excel.csv_formula_guard_sub':
+      'Teks yang bermula dengan = + - @ diberi tanda \' di hadapan supaya tidak dijalankan sebagai arahan',
+  'excel.csv_legacy':
+      'Excel Turki lama / Notepad',
+  'excel.csv_save_xlsx':
+      'Simpan sebagai XLSX',
+  'excel.csv_utf8':
+      'UTF-8 (disyorkan)',
+  'excel.csv_utf8_sub':
+      'Excel moden / Google Sheets',
+  'excel.custom_sort':
+      'Isihan tersuai',
+  'excel.cut':
+      'Potong',
+  'excel.cut_done':
+      '{n} sel dipotong',
+  'excel.decimal_less':
+      'Kurangkan perpuluhan',
+  'excel.decimal_more':
+      'Tambah perpuluhan',
+  'excel.default_value':
+      'Lalai ({value})',
+  'excel.delete_col':
+      'Padam lajur',
+  'excel.delete_row':
+      'Padam baris',
+  'excel.delete_sheet':
+      'Padam helaian',
+  'excel.delete_sheet_confirm':
+      'Padam helaian “{name}” beserta semua kandungannya?',
+  'excel.dup_done':
+      '{n} baris pendua dipadam; {m} baris unik kekal',
+  'excel.dup_has_header':
+      'Data saya mempunyai pengepala',
+  'excel.dup_needs_range':
+      'Pilih julat beberapa baris',
+  'excel.dup_none':
+      'Tiada baris pendua',
+  'excel.dup_run':
+      'Buang pendua',
+  'excel.dup_title':
+      'Buang pendua',
+  'excel.duplicate_sheet':
+      'Gandakan',
+  'excel.fc_bottom':
+      'Bawah',
+  'excel.fc_category':
+      'Kategori',
+  'excel.fc_code':
+      'Kod format',
+  'excel.fc_control':
+      'Kawalan teks',
+  'excel.fc_decimals':
+      'Tempat perpuluhan',
+  'excel.fc_general':
+      'Am',
+  'excel.fc_horizontal':
+      'Mengufuk',
+  'excel.fc_indent':
+      'Inden',
+  'excel.fc_line':
+      'Garis',
+  'excel.fc_line_color':
+      'Warna garis',
+  'excel.fc_middle':
+      'Tengah',
+  'excel.fc_negative':
+      'Nombor negatif',
+  'excel.fc_presets':
+      'Pratetap',
+  'excel.fc_rotation':
+      'Orientasi',
+  'excel.fc_sample':
+      'Sampel',
+  'excel.fc_style':
+      'Gaya fon',
+  'excel.fc_symbol':
+      'Simbol',
+  'excel.fc_symbol_pos':
+      'Kedudukan simbol',
+  'excel.fc_tab_fill':
+      'Isian',
+  'excel.fc_tab_font':
+      'Fon',
+  'excel.fc_tab_number':
+      'Nombor',
+  'excel.fc_thousands':
+      'Pemisah ribuan',
+  'excel.fc_top':
+      'Atas',
+  'excel.fc_type':
+      'Jenis',
+  'excel.fc_vertical':
+      'Menegak',
+  'excel.fill_color':
+      'Warna isian',
+  'excel.fill_down':
+      'Isi ke bawah',
+  'excel.fill_no_neighbour':
+      'Lajur bersebelahan kosong — tiada yang boleh diisi ke bawah',
+  'excel.fill_right':
+      'Isi ke kanan',
+  'excel.fill_sort_group':
+      'Isi & isih',
+  'excel.filter':
+      'Tapis',
+  'excel.filter_all':
+      'Pilih semua',
+  'excel.filter_blank':
+      '(Kosong)',
+  'excel.filter_bottom10':
+      '10 terbawah',
+  'excel.filter_by_color':
+      'Mengikut warna',
+  'excel.filter_clear':
+      'Kosongkan tapisan',
+  'excel.filter_column':
+      'Tapis lajur {col}',
+  'excel.filter_contains':
+      'Mengandungi…',
+  'excel.filter_create':
+      'Cipta tapisan',
+  'excel.filter_created':
+      'Tapisan dicipta — gunakan anak panah pada pengepala',
+  'excel.filter_needs_table':
+      'Tiada tapisan pada lajur ini. Penapisan berfungsi pada julat jadual yang ditakrifkan dalam fail.',
+  'excel.filter_remove':
+      'Buang tapisan',
+  'excel.filter_removed':
+      'Tapisan dibuang',
+  'excel.filter_top10':
+      '10 teratas',
+  'excel.find_in_sheet':
+      'Cari dalam helaian ini',
+  'excel.flash_done':
+      '{n} sel diisi',
+  'excel.flash_fill':
+      'Isi pantas',
+  'excel.flash_need_data':
+      'Pilih sel di sebelah lajur yang mempunyai data',
+  'excel.flash_need_example':
+      'Taip contoh dalam lajur ini dahulu',
+  'excel.flash_none':
+      'Corak tidak ditemui — taip satu contoh lagi dan cuba semula',
+  'excel.fmt_currency':
+      'Mata wang (₺)',
+  'excel.fmt_date':
+      'Tarikh',
+  'excel.fmt_general':
+      'Am',
+  'excel.fmt_number':
+      'Nombor (1,234.50)',
+  'excel.fmt_percent':
+      'Peratus (15%)',
+  'excel.fmt_text':
+      'Teks',
+  'excel.fmt_thousands':
+      'Ribuan (1,234)',
+  'excel.fmt_time':
+      'Masa',
+  'excel.fn_average':
+      'Purata',
+  'excel.fn_count':
+      'Bilangan',
+  'excel.fn_max':
+      'Maks',
+  'excel.fn_min':
+      'Min',
+  'excel.fn_sum_short':
+      'Jumlah',
+  'excel.font_color':
+      'Warna fon',
+  'excel.font_default':
+      'Fon',
+  'excel.form_new':
+      'Rekod baharu',
+  'excel.form_next':
+      'Rekod seterusnya',
+  'excel.form_prev':
+      'Rekod sebelumnya',
+  'excel.form_record':
+      'Rekod {n} daripada {total}',
+  'excel.form_view':
+      'Paparan borang',
+  'excel.format_as_table':
+      'Format sebagai jadual',
+  'excel.format_cells':
+      'Format sel',
+  'excel.formula_english':
+      'Excel: papar formula dalam bahasa Inggeris',
+  'excel.formula_english_sub':
+      'SUM, IF … dan pemisah koma walaupun antara muka dalam bahasa Turki',
+  'excel.freeze_cell':
+      'Bekukan bahagian atas dan kiri pilihan',
+  'excel.freeze_col':
+      'Bekukan lajur pertama',
+  'excel.freeze_menu':
+      'Bekukan anak tetingkap',
+  'excel.freeze_off_view':
+      'Matikan anak tetingkap beku pada skrin ini',
+  'excel.freeze_on_view':
+      'Hidupkan anak tetingkap beku pada skrin ini',
+  'excel.freeze_row':
+      'Bekukan baris teratas',
+  'excel.fx_library':
+      'Pustaka fungsi',
+  'excel.go':
+      'Pergi',
+  'excel.goto_cell':
+      'Pergi ke sel',
+  'excel.goto_cell_menu':
+      'Pergi ke sel…',
+  'excel.goto_last_cell':
+      'Sel terakhir digunakan',
+  'excel.goto_last_row':
+      'Baris terakhir digunakan',
+  'excel.goto_quick':
+      'Lokasi pantas',
+  'excel.goto_start':
+      'Permulaan (A1)',
+  'excel.grid_label':
+      'Grid sel — tekan lama dan seret untuk memilih julat',
+  'excel.gridlines':
+      'Garis grid',
+  'excel.group_clipboard':
+      'Papan keratan',
+  'excel.group_format':
+      'Format',
+  'excel.group_number':
+      'Nombor',
+  'excel.hidden':
+      'Tersembunyi',
+  'excel.hide_col':
+      'Sembunyikan lajur',
+  'excel.hide_row':
+      'Sembunyikan baris',
+  'excel.hide_sheet':
+      'Sembunyikan helaian',
+  'excel.hide_show':
+      'Sembunyi / tunjuk',
+  'excel.input_kept_text':
+      'Disimpan sebagai teks (tidak ditukar kepada tarikh)',
+  'excel.insert_col':
+      'Sisip lajur',
+  'excel.insert_col_left':
+      'Sisip lajur di kiri',
+  'excel.insert_col_right':
+      'Sisip lajur di kanan',
+  'excel.insert_row':
+      'Sisip baris',
+  'excel.insert_row_above':
+      'Sisip baris di atas',
+  'excel.insert_row_below':
+      'Sisip baris di bawah',
+  'excel.key_enter':
+      'Enter dan turun',
+  'excel.key_tab':
+      'Sel seterusnya (kanan)',
+  'excel.keyboard_123':
+      'Papan kekunci nombor',
+  'excel.keyboard_abc':
+      'Papan kekunci huruf',
+  'excel.last_sheet':
+      'Helaian terakhir tidak boleh dipadam',
+  'excel.last_visible_sheet':
+      'Helaian terakhir yang kelihatan tidak boleh disembunyikan',
+  'excel.merge':
+      'Gabung sel',
+  'excel.merge_center':
+      'Gabung & tengahkan',
+  'excel.merge_needs_range':
+      'Pilih sekurang-kurangnya dua sel untuk digabungkan',
+  'excel.move_sheet_left':
+      'Alih ke kiri',
+  'excel.move_sheet_right':
+      'Alih ke kanan',
+  'excel.no_sheet':
+      'Tiada helaian.',
+  'excel.note_author':
+      'Pembaca Fail',
+  'excel.note_delete':
+      'Padam nota',
+  'excel.note_edit':
+      'Sunting nota',
+  'excel.note_hint':
+      'Nota (percubaan — semak dalam Excel desktop)',
+  'excel.note_new':
+      'Nota baharu',
+  'excel.nothing_hidden':
+      'Tiada yang tersembunyi di sebelah pilihan',
+  'excel.nothing_to_paste':
+      'Salin julat dahulu',
+  'excel.number_format':
+      'Format nombor',
+  'excel.opening_preview':
+      'Sedang dibuka — penyuntingan akan sedia sebentar lagi; memaparkan baris pertama',
+  'excel.panes_trimmed':
+      'Anak tetingkap beku dalam fail tidak muat pada skrin, jadi lajur tersebut dibuat boleh tatal. Anda boleh mematikannya sepenuhnya melalui ⋮ > Nyahbeku anak tetingkap.',
+  'excel.paste':
+      'Tampal',
+  'excel.paste_formats':
+      'Tampal format sahaja',
+  'excel.paste_formulas':
+      'Tampal formula sahaja',
+  'excel.paste_special_group':
+      'Tampal khas',
+  'excel.paste_transpose':
+      'Tampal transposisi',
+  'excel.paste_values':
+      'Tampal nilai sahaja',
+  'excel.pick_from_list':
+      'Pilih daripada senarai',
+  'excel.quick_actions':
+      'Tindakan pantas',
+  'excel.redo':
+      'Buat semula',
+  'excel.redone':
+      'Dibuat semula: {what}',
+  'excel.rename_sheet':
+      'Namakan semula helaian',
+  'excel.replace':
+      'Ganti',
+  'excel.replace_all':
+      'Ganti semua',
+  'excel.replace_none':
+      'Tiada padanan untuk diganti.',
+  'excel.replace_with':
+      'Ganti dengan',
+  'excel.replaced_count':
+      '{n} sel diganti',
+  'excel.ribbon_hide':
+      'Sembunyikan reben',
+  'excel.ribbon_show':
+      'Tunjukkan reben',
+  'excel.row':
+      'Baris',
+  'excel.row_above_short':
+      'Baris +↑',
+  'excel.row_below_short':
+      'Baris +↓',
+  'excel.row_height':
+      'Tinggi baris…',
+  'excel.row_height_of':
+      'Tinggi baris {row}',
+  'excel.rows_cols_group':
+      'Baris & lajur',
+  'excel.save_csv':
+      'Eksport sebagai CSV',
+  'excel.saved_as_xlsx':
+      'Disimpan sebagai {name} (fail .xls asal anda tidak diubah)',
+  'excel.selection_cells':
+      'Dipilih: {n} sel',
+  'excel.selection_filled':
+      'Dipilih: {n} sel  ·  Berisi: {filled}',
+  'excel.sheet_name':
+      'Helaian{n}',
+  'excel.sheet_name_label':
+      'Nama helaian',
+  'excel.sheet_name_taken':
+      'Nama itu sudah digunakan',
+  'excel.sheet_pos':
+      'Helaian {n} / {total}',
+  'excel.sheet_rtl':
+      'Helaian kanan-ke-kiri',
+  'excel.sheet_rtl_off':
+      'Helaian akan disusun kiri-ke-kanan (lajur A di kiri).',
+  'excel.sheet_rtl_on':
+      'Helaian akan disusun kanan-ke-kiri (lajur A di kanan).',
+  'excel.show_cols':
+      'Tunjukkan lajur',
+  'excel.show_rows':
+      'Tunjukkan baris',
+  'excel.sort':
+      'Isih',
+  'excel.sort_add_level':
+      'Tambah peringkat',
+  'excel.sort_asc':
+      'Isih A → Z',
+  'excel.sort_asc_short':
+      'A→Z',
+  'excel.sort_by':
+      'Isih mengikut',
+  'excel.sort_desc':
+      'Isih Z → A',
+  'excel.sort_desc_short':
+      'Z→A',
+  'excel.sort_has_header':
+      'Data saya mempunyai pengepala',
+  'excel.sort_needs_range':
+      'Untuk mengisih, pilih baris dahulu (tekan dan seret) atau tambah tapisan pada jadual.',
+  'excel.sort_then_by':
+      'Kemudian mengikut',
+  'excel.split_comma':
+      'Koma',
+  'excel.split_custom':
+      'Pembatas lain',
+  'excel.split_done':
+      'Dipecahkan kepada {n} lajur',
+  'excel.split_merge':
+      'Anggap pembatas berturutan sebagai satu',
+  'excel.split_none':
+      'Tiada yang dipecahkan',
+  'excel.split_run':
+      'Pisahkan',
+  'excel.split_semi':
+      'Koma bertitik',
+  'excel.split_space':
+      'Ruang',
+  'excel.split_tab':
+      'Tab',
+  'excel.split_title':
+      'Teks ke lajur',
+  'excel.start_formula':
+      'Mulakan formula',
+  'excel.stat_avg_short':
+      'Purata: {v}',
+  'excel.stat_count_short':
+      'Bilangan: {v}',
+  'excel.stat_max_short':
+      'Maks: {v}',
+  'excel.stat_min_short':
+      'Min: {v}',
+  'excel.stat_sum_short':
+      'Jumlah: {v}',
+  'excel.tab_color':
+      'Warna tab',
+  'excel.tab_data':
+      'Data',
+  'excel.tab_formulas':
+      'Formula',
+  'excel.tab_home':
+      'Laman Utama',
+  'excel.tab_insert':
+      'Sisip',
+  'excel.tab_view':
+      'Paparan',
+  'excel.table_needs_range':
+      'Pilih jadual termasuk baris pengepalanya dahulu',
+  'excel.truncated':
+      'Buku kerja ini terlalu besar: hanya {rows} baris dan {cols} lajur pertama dibuka. Penyimpanan dimatikan supaya selebihnya tidak hilang — anda boleh membacanya atau mengeksport CSV.',
+  'excel.truncated_no_save':
+      'Penyimpanan dimatikan: buku kerja dipotong pada had bacaan; menyimpan akan memadam selebihnya.',
+  'excel.undo':
+      'Buat asal',
+  'excel.undo_autosum':
+      'Jumlah automatik',
+  'excel.undo_border':
+      'sempadan',
+  'excel.undo_cell_style':
+      'Gaya sel',
+  'excel.undo_clear':
+      'kosongkan',
+  'excel.undo_cond_format':
+      'pemformatan bersyarat',
+  'excel.undo_dedup':
+      'Buang pendua',
+  'excel.undo_delete_col':
+      'padam lajur',
+  'excel.undo_delete_row':
+      'padam baris',
+  'excel.undo_duplicate_sheet':
+      'Gandakan helaian',
+  'excel.undo_fill':
+      'isi',
+  'excel.undo_fill_color':
+      'warna isian',
+  'excel.undo_filter':
+      'tapisan',
+  'excel.undo_filter_off':
+      'Buang tapisan',
+  'excel.undo_filter_on':
+      'Cipta tapisan',
+  'excel.undo_font':
+      'fon',
+  'excel.undo_font_color':
+      'warna fon',
+  'excel.undo_form':
+      'Borang',
+  'excel.undo_format':
+      'pemformatan',
+  'excel.undo_freeze':
+      'Bekukan anak tetingkap',
+  'excel.undo_gridlines':
+      'Garis grid',
+  'excel.undo_hide':
+      'Sembunyikan',
+  'excel.undo_hide_sheet':
+      'Sembunyikan helaian',
+  'excel.undo_insert_col':
+      'sisip lajur',
+  'excel.undo_insert_row':
+      'sisip baris',
+  'excel.undo_merge':
+      'gabung sel',
+  'excel.undo_note':
+      'Nota',
+  'excel.undo_number_format':
+      'format nombor',
+  'excel.undo_paste':
+      'tampal',
+  'excel.undo_replace':
+      'ganti',
+  'excel.undo_sort':
+      'isih',
+  'excel.undo_split':
+      'Teks ke lajur',
+  'excel.undo_tab_color':
+      'Warna tab',
+  'excel.undo_table_format':
+      'Format jadual',
+  'excel.undo_typing':
+      'menaip',
+  'excel.undo_unhide':
+      'Tunjukkan',
+  'excel.undo_unhide_sheet':
+      'Tunjukkan helaian',
+  'excel.undo_unmerge':
+      'nyahgabung sel',
+  'excel.undo_validation':
+      'Pengesahan data',
+  'excel.undo_wrap':
+      'balut teks',
+  'excel.undone':
+      'Dibuat asal: {what}',
+  'excel.unfreeze_panes':
+      'Nyahbeku anak tetingkap (baris/lajur tetap)',
+  'excel.unhide_sheet':
+      'Tunjukkan helaian',
+  'excel.unit_chars':
+      'aksara',
+  'excel.unit_points':
+      'mata',
+  'excel.unmerge':
+      'Nyahgabung sel',
+  'excel.val_bad_bound':
+      'Masukkan nilai had yang sah',
+  'excel.val_clear':
+      'Kosongkan peraturan',
+  'excel.val_continue':
+      'Masukkan juga?',
+  'excel.val_date_hint':
+      'Tarikh (dd.mm.yyyy)',
+  'excel.val_error':
+      'Mesej ralat (pilihan)',
+  'excel.val_formula_hint':
+      'Formula (cth. =ISTEXT(A1))',
+  'excel.val_invalid':
+      'Nilai ini tidak sepadan dengan peraturan yang ditetapkan untuk sel ini',
+  'excel.val_invalid_title':
+      'Entri tidak sah',
+  'excel.val_list_empty':
+      'Masukkan sekurang-kurangnya satu pilihan',
+  'excel.val_list_hint':
+      'Pilihan (dipisahkan koma)',
+  'excel.val_list_none':
+      'Sumber senarai tiada nilai',
+  'excel.val_list_source':
+      'Atau julat: =Senarai!A1:A9',
+  'excel.val_max':
+      'Maksimum',
+  'excel.val_min':
+      'Minimum',
+  'excel.val_prompt':
+      'Mesej input (pilihan)',
+  'excel.val_prompt_title':
+      'Tajuk mesej input (pilihan)',
+  'excel.val_value':
+      'Nilai',
+  'excel.validation':
+      'Pengesahan data',
+  'excel.wrap_text':
+      'Balut teks',
+  'excel.zoom_in':
+      'Zum masuk',
+  'excel.zoom_out':
+      'Zum keluar',
+  'excel.zoom_reset':
+      'Tetapkan semula zum (100%)',
+  'word.add_paragraph':
+      'Tambah perenggan',
+  'word.add_paragraph_below':
+      'Tambah perenggan di bawah',
+  'word.align_cycle':
+      'Penjajaran',
+  'word.auto_color':
+      'Automatik',
+  'word.autoformat':
+      'Word: Format automatik semasa menaip',
+  'word.autoformat_sub':
+      'Huruf besar awal ayat, -- → —, ruang berganda jadi satu, "- " atau "1. " memulakan senarai',
+  'word.bullet_list':
+      'Senarai berbulet',
+  'word.bullets':
+      'Bulet',
+  'word.clear_format':
+      'Kosongkan format',
+  'word.color_pick':
+      'Warna teks',
+  'word.columns':
+      'Lajur',
+  'word.columns_n':
+      '{n} lajur',
+  'word.comment_author':
+      'Nama anda',
+  'word.comment_author_hint':
+      'Dipaparkan sebagai penulis komen anda',
+  'word.comment_new':
+      'Komen baharu',
+  'word.comment_post':
+      'Hantar',
+  'word.comment_reopen':
+      'Buka semula',
+  'word.comment_replies':
+      '{n} balasan',
+  'word.comment_reply':
+      'Balas',
+  'word.comment_resolve':
+      'Selesaikan',
+  'word.comment_text':
+      'Komen anda',
+  'word.comments':
+      'Komen',
+  'word.comments_none':
+      'Tiada komen dalam dokumen',
+  'word.control_fill':
+      'Isi medan',
+  'word.control_no_items':
+      'Senarai ini tiada pilihan',
+  'word.control_value':
+      'Nilai',
+  'word.count_chars':
+      'Aksara (dengan ruang)',
+  'word.count_chars_ns':
+      'Aksara (tanpa ruang)',
+  'word.count_paras':
+      'Perenggan',
+  'word.count_words':
+      'Perkataan',
+  'word.cut':
+      'Potong',
+  'word.delete_image':
+      'Padam gambar',
+  'word.delete_paragraph':
+      'Padam perenggan',
+  'word.done':
+      'Selesai',
+  'word.edit_link':
+      'Sunting pautan',
+  'word.edit_on_page':
+      'Sunting pada halaman',
+  'word.edit_page':
+      'Sunting pada halaman (lama)',
+  'word.endnote_edit':
+      'Nota hujung {n}',
+  'word.find':
+      'Cari dan ganti',
+  'word.find_hint':
+      'Cari dalam dokumen',
+  'word.font_grow':
+      'Besarkan saiz fon',
+  'word.font_shrink':
+      'Kecilkan saiz fon',
+  'word.font_size':
+      'Saiz',
+  'word.footnote_edit':
+      'Nota kaki {n}',
+  'word.footnote_rich':
+      'Nota kaki ini mengandungi kandungan kaya dan tidak boleh disunting di sini',
+  'word.footnote_text':
+      'Teks nota kaki',
+  'word.format_painter':
+      'Pengecat format',
+  'word.format_painter_hint':
+      'Format disalin — pilih teks untuk menggunakannya',
+  'word.format_painter_locked':
+      'Pengecat format dikunci — ketik ✕ untuk selesai',
+  'word.goto_page':
+      'Pergi ke halaman',
+  'word.goto_page_hint':
+      'Antara 1 dan {total}',
+  'word.hf_apply':
+      'Guna',
+  'word.hf_footer':
+      'Pengaki',
+  'word.hf_header':
+      'Pengepala',
+  'word.hf_page':
+      'Tambah nombor halaman',
+  'word.hf_rich':
+      'Pengepala/pengaki ini mengandungi gambar atau tab jadi tidak boleh disunting di sini.',
+  'word.hf_saved':
+      'Pengepala/pengaki dikemas kini',
+  'word.highlight':
+      'Sorot',
+  'word.highlight_pick':
+      'Warna sorotan',
+  'word.img_alt':
+      'Teks alternatif',
+  'word.img_alt_hint':
+      'Perihalan ringkas untuk orang yang tidak dapat melihat gambar',
+  'word.img_failed':
+      'Gambar tidak dapat dibaca',
+  'word.img_large':
+      'Lebar halaman (6 inci)',
+  'word.img_medium':
+      'Sederhana (4 inci)',
+  'word.img_replace':
+      'Tukar',
+  'word.img_resize_title':
+      'Saiz gambar',
+  'word.img_size':
+      'Saiz',
+  'word.img_small':
+      'Kecil (2 inci)',
+  'word.img_width_pct':
+      'Lebar: {n}%',
+  'word.insert_break':
+      'Pemisah halaman',
+  'word.insert_date':
+      'Tarikh & masa',
+  'word.insert_endnote':
+      'Nota hujung',
+  'word.insert_footnote':
+      'Nota kaki',
+  'word.insert_hf':
+      'Pengepala & pengaki',
+  'word.insert_image':
+      'Sisip gambar',
+  'word.insert_link':
+      'Pautan',
+  'word.insert_rule':
+      'Garis mengufuk',
+  'word.insert_symbol':
+      'Simbol',
+  'word.insert_table':
+      'Jadual',
+  'word.landscape':
+      'Landskap',
+  'word.line_spacing':
+      'Jarak baris',
+  'word.link_bad':
+      'Pautan tidak dapat dibuka',
+  'word.link_insert':
+      'Sisip pautan',
+  'word.link_open':
+      'Buka',
+  'word.link_remove':
+      'Buang',
+  'word.link_text':
+      'Teks untuk dipaparkan',
+  'word.link_url':
+      'Alamat (https://…)',
+  'word.list_gallery':
+      'Gaya senarai',
+  'word.live_edit_unsafe':
+      'Penyuntingan langsung tidak selamat dalam dokumen ini (perenggan tidak sepadan: {web}/{ours}). Gunakan ⋮ > Penyunting teks.',
+  'word.margins':
+      'Margin',
+  'word.mobile_flow':
+      'Paparan mudah alih',
+  'word.mobile_view':
+      'Paparan mudah alih',
+  'word.month_names':
+      'Januari,Februari,Mac,April,Mei,Jun,Julai,Ogos,September,Oktober,November,Disember',
+  'word.multilevel':
+      'Senarai pelbagai peringkat',
+  'word.navigation':
+      'Navigasi',
+  'word.no_headings':
+      'Tiada tajuk. Perenggan bergaya tajuk disenaraikan di sini.',
+  'word.no_highlight':
+      'Tanpa sorotan',
+  'word.no_image_here':
+      'Tiada gambar dalam perenggan pada kursor. Ketik di sebelah gambar dahulu.',
+  'word.numbered_list':
+      'Senarai bernombor',
+  'word.numbering':
+      'Penomboran',
+  'word.opening_preview':
+      'Sedang dibuka — penyuntingan akan sedia sebentar lagi; memaparkan perenggan pertama',
+  'word.orientation':
+      'Orientasi',
+  'word.page_break':
+      'Pemisah halaman',
+  'word.page_layout':
+      'Paparan halaman',
+  'word.page_of':
+      'Halaman {n} / {total}',
+  'word.page_view':
+      'Paparan halaman',
+  'word.paper_size':
+      'Saiz',
+  'word.paste':
+      'Tampal',
+  'word.portrait':
+      'Potret',
+  'word.recent_colors':
+      'Warna terkini',
+  'word.recent_symbols':
+      'Baru digunakan',
+  'word.redo':
+      'Buat semula',
+  'word.redone':
+      'Dibuat semula: {what}',
+  'word.replace_hint':
+      'Ganti dengan',
+  'word.replace_n':
+      '{n} diganti',
+  'word.replace_needs_edit':
+      'Beralih ke mod sunting untuk mengganti',
+  'word.review_page':
+      'Paparan halaman',
+  'word.rtl':
+      'Kanan-ke-kiri',
+  'word.save_failed':
+      'Gagal menyimpan: {error}',
+  'word.saved_as_docx':
+      'Disimpan sebagai {name} (fail UDF asal anda tidak diubah)',
+  'word.search_short':
+      'Cari',
+  'word.select_text_first':
+      'Pilih teks dalam dokumen dahulu',
+  'word.space_after':
+      'Jarak selepas perenggan',
+  'word.space_before':
+      'Jarak sebelum perenggan',
+  'word.spellcheck':
+      'Word: semakan ejaan dan pembetulan automatik',
+  'word.spellcheck_sub':
+      'Garis beralun merah, cadangan papan kekunci, huruf besar awal ayat',
+  'word.st_h1':
+      'Tajuk 1',
+  'word.st_h2':
+      'Tajuk 2',
+  'word.st_h3':
+      'Tajuk 3',
+  'word.st_list':
+      'Perenggan senarai',
+  'word.st_normal':
+      'Biasa',
+  'word.st_quote':
+      'Petikan',
+  'word.st_subtitle':
+      'Subtajuk',
+  'word.st_title':
+      'Tajuk',
+  'word.standard_colors':
+      'Warna standard',
+  'word.subscript':
+      'Subskrip',
+  'word.superscript':
+      'Superskrip',
+  'word.tab_home':
+      'Laman Utama',
+  'word.tab_insert':
+      'Sisip',
+  'word.tab_layout':
+      'Susun atur',
+  'word.tab_picture':
+      'Gambar',
+  'word.tab_review':
+      'Semak',
+  'word.tab_table':
+      'Jadual',
+  'word.tab_view':
+      'Paparan',
+  'word.table_failed':
+      'Jadual tidak dapat disisipkan di sini',
+  'word.table_insert':
+      'Sisip jadual',
+  'word.table_size':
+      'Jadual {r} × {c}',
+  'word.tbl_banded':
+      'Baris berjalur',
+  'word.tbl_banded_short':
+      'Berjalur',
+  'word.tbl_col_left':
+      'Sisip lajur di kiri',
+  'word.tbl_col_left_short':
+      'Lajur +←',
+  'word.tbl_col_right':
+      'Sisip lajur di kanan',
+  'word.tbl_col_right_short':
+      'Lajur +→',
+  'word.tbl_del':
+      'Padam jadual',
+  'word.tbl_del_col':
+      'Padam lajur',
+  'word.tbl_del_col_short':
+      'Pdm lajur',
+  'word.tbl_del_row':
+      'Padam baris',
+  'word.tbl_del_row_short':
+      'Pdm baris',
+  'word.tbl_del_short':
+      'Pdm jadual',
+  'word.tbl_header':
+      'Baris pengepala',
+  'word.tbl_header_short':
+      'Pengepala',
+  'word.tbl_row_above':
+      'Sisip baris di atas',
+  'word.tbl_row_below':
+      'Sisip baris di bawah',
+  'word.tbl_row_down_short':
+      'Baris +↓',
+  'word.tbl_row_up_short':
+      'Baris +↑',
+  'word.tbl_shade':
+      'Lorekan sel',
+  'word.tbl_shade_none':
+      'Tanpa lorekan',
+  'word.text_color':
+      'Warna teks',
+  'word.text_editor':
+      'Paparan teks biasa',
+  'word.theme_colors':
+      'Warna tema',
+  'word.track_accept':
+      'Terima semua perubahan',
+  'word.track_changes':
+      'Jejak perubahan',
+  'word.track_confirm_accept':
+      '{n} perubahan terjejak akan diterima. Tindakan ini tidak boleh dibuat asal.',
+  'word.track_confirm_reject':
+      '{n} perubahan terjejak akan ditolak. Tindakan ini tidak boleh dibuat asal.',
+  'word.track_none':
+      'Tiada perubahan terjejak',
+  'word.track_off':
+      'Penjejakan perubahan dimatikan',
+  'word.track_on':
+      'Penjejakan perubahan dihidupkan: sisipan dan pemadaman anda akan ditandakan',
+  'word.track_reject':
+      'Tolak semua perubahan',
+  'word.translate_selection':
+      'Terjemah pilihan',
+  'word.undo':
+      'Buat asal',
+  'word.undo_add_paragraph':
+      'tambah perenggan',
+  'word.undo_delete_paragraph':
+      'padam perenggan',
+  'word.undone':
+      'Dibuat asal: {what}',
+  'word.word_count':
+      'Bilangan perkataan',
+  'word.words_n':
+      '{n} perkataan',
+  'word.zoom_in':
+      'Zum masuk',
+  'word.zoom_out':
+      'Zum keluar',
+  'sl.actions':
+      'Tindakan slaid',
+  'sl.add_slide_short':
+      'Slaid',
+  'sl.align':
+      'Penjajaran',
+  'sl.background':
+      'Warna latar belakang',
+  'sl.bg_default':
+      'Lalai susun atur',
+  'sl.bring_front':
+      'Bawa ke hadapan',
+  'sl.bullets':
+      'Bulet',
+  'sl.change_layout':
+      'Tukar susun atur',
+  'sl.copied':
+      'Bentuk disalin',
+  'sl.cut':
+      'Potong',
+  'sl.delete':
+      'Padam slaid',
+  'sl.delete_body':
+      'Padam slaid {n}? Tindakan ini tidak boleh dibuat asal (fail tidak berubah sehingga anda menyimpan).',
+  'sl.delete_shape':
+      'Padam bentuk',
+  'sl.design':
+      'Reka bentuk',
+  'sl.done':
+      'Selesai',
+  'sl.duplicate':
+      'Gandakan slaid',
+  'sl.duplicate_shape':
+      'Gandakan',
+  'sl.duplicated':
+      'Slaid digandakan.',
+  'sl.edit_text':
+      'Sunting teks',
+  'sl.fill':
+      'Isian',
+  'sl.fullscreen':
+      'Tayangan slaid skrin penuh',
+  'sl.go_to_title':
+      'Pergi ke slaid',
+  'sl.goto_hint':
+      'Antara 1 dan {total}',
+  'sl.hidden':
+      'Tersembunyi',
+  'sl.hidden_tip':
+      'Dilangkau dalam tayangan slaid',
+  'sl.hide':
+      'Sembunyikan slaid',
+  'sl.image_added':
+      'Gambar ditambah — alihkan atau ubah saiznya dalam PowerPoint. Jangan lupa simpan.',
+  'sl.indent_less':
+      'Kurangkan inden',
+  'sl.indent_more':
+      'Tambah inden',
+  'sl.insert':
+      'Sisip',
+  'sl.insert_image':
+      'Sisip gambar',
+  'sl.line':
+      'Garis',
+  'sl.line_dashed':
+      'Putus-putus',
+  'sl.line_width':
+      'Lebar: {pt} pt',
+  'sl.match_pos':
+      '{n} / {total}',
+  'sl.move_down':
+      'Alih ke bawah',
+  'sl.move_shape':
+      'Alihkan bentuk',
+  'sl.move_up':
+      'Alih ke atas',
+  'sl.new_slide':
+      'Slaid baharu',
+  'sl.next_cell':
+      'Sel seterusnya',
+  'sl.no_fill':
+      'Tanpa isian',
+  'sl.no_line':
+      'Tanpa garis',
+  'sl.no_match':
+      'Tiada padanan',
+  'sl.no_structure':
+      'Struktur slaid tidak boleh disunting dalam fail ini (data pembentangan tiada).',
+  'sl.none':
+      'Tiada slaid ditemui.',
+  'sl.notes_edit':
+      'Nota penceramah',
+  'sl.notes_hint':
+      'Taip nota yang hanya anda lihat semasa pembentangan',
+  'sl.notes_next':
+      'Slaid seterusnya dengan nota',
+  'sl.notes_prev':
+      'Slaid sebelumnya dengan nota',
+  'sl.notes_title':
+      'Slaid {n} · nota',
+  'sl.notes_toggle':
+      'Nota penceramah',
+  'sl.nothing_to_play':
+      'Tiada slaid untuk ditayangkan dalam fail ini.',
+  'sl.numbering':
+      'Penomboran',
+  'sl.open_failed':
+      'Gagal dibuka: {error}',
+  'sl.opening_preview':
+      'Sedang dibuka — penyuntingan akan sedia sebentar lagi; memaparkan slaid pertama',
+  'sl.outline':
+      'Rangka',
+  'sl.paste':
+      'Tampal',
+  'sl.pdf_failed':
+      'PDF tidak dapat dibuat: {error}',
+  'sl.pdf_progress':
+      'Memaparkan slaid {n}/{total}…',
+  'sl.pdf_share':
+      'Pembentangan (PDF)',
+  'sl.play':
+      'Main',
+  'sl.prev_cell':
+      'Sel sebelumnya',
+  'sl.prompt_body':
+      'Ketik untuk menambah teks',
+  'sl.prompt_subtitle':
+      'Ketik untuk menambah subtajuk',
+  'sl.prompt_title':
+      'Ketik untuk menambah tajuk',
+  'sl.quick_arrange':
+      'Susun',
+  'sl.quick_style':
+      'Gaya',
+  'sl.search_hint':
+      'Cari dalam slaid',
+  'sl.send_back':
+      'Hantar ke belakang',
+  'sl.shape':
+      'Tambah bentuk',
+  'sl.slide_of':
+      'Slaid {n} / {total}',
+  'sl.sorter':
+      'Penyusun slaid',
+  'sl.tab_font':
+      'Fon',
+  'sl.tab_paragraph':
+      'Perenggan',
+  'sl.table':
+      'Jadual',
+  'sl.table_added':
+      'Jadual disisipkan — ketik sel untuk menaip.',
+  'sl.table_insert':
+      'Sisip jadual',
+  'sl.table_size':
+      '{r} baris × {c} lajur',
+  'sl.text_box':
+      'Kotak teks',
+  'sl.text_box_default':
+      'Teks',
+  'sl.thumbnails':
+      'Imej kecil',
+  'sl.to_pdf':
+      'PDF',
+  'sl.tr_preview':
+      'Pratonton',
+  'sl.transition':
+      'Peralihan',
+  'sl.transparency':
+      'Ketelusan',
+  'sl.transparency_needs_fill':
+      'Beri bentuk isian pepejal dahulu.',
+  'sl.undo_notes':
+      'Suntingan nota',
+  'sl.undo_outline':
+      'Suntingan rangka',
+  'sl.undo_text':
+      'Suntingan teks',
+  'sl.unhide':
+      'Tunjukkan slaid',
+  'xp.agg':
+      'Fungsi',
+  'xp.agg_header':
+      '{agg} bagi {field}',
+  'xp.allow_edit':
+      'Benarkan suntingan julat',
+  'xp.allow_edit_off':
+      'Julat dikunci semula',
+  'xp.allow_edit_on':
+      'Julat dipilih boleh disunting pada helaian yang dilindungi',
+  'xp.audit_none':
+      'Tiada rujukan untuk dijejak pada helaian ini',
+  'xp.blank':
+      '(kosong)',
+  'xp.chart_combo':
+      'Kombo (siri terakhir sebagai garisan)',
+  'xp.chart_options':
+      'Pilihan carta',
+  'xp.chart_secondary':
+      'Garisan pada paksi sekunder',
+  'xp.chart_share_pdf':
+      'Kongsi sebagai PDF',
+  'xp.chart_share_png':
+      'Kongsi sebagai imej',
+  'xp.chart_style':
+      'Gaya {n}',
+  'xp.chart_trend':
+      'Garis arah aliran',
+  'xp.collapse':
+      'Runtuhkan kumpulan',
+  'xp.color_scale':
+      'Skala warna',
+  'xp.cols':
+      'Lajur (pilihan)',
+  'xp.cond_formula':
+      'Peraturan berdasarkan formula…',
+  'xp.cond_formula_hint':
+      'Syarat relatif kepada {cell} (cth. ={cell}>100)',
+  'xp.cond_manage':
+      'Urus peraturan…',
+  'xp.cond_none':
+      'Tiada peraturan pemformatan bersyarat pada helaian ini',
+  'xp.cond_visual':
+      'Skala, bar, ikon',
+  'xp.cycle_warn':
+      'Rujukan bulat: {cell} merujuk dirinya sendiri (secara tidak langsung)',
+  'xp.data_bar':
+      'Bar data (biru)',
+  'xp.data_bar_green':
+      'Bar data (hijau)',
+  'xp.data_bar_plain':
+      'Bar data',
+  'xp.delim_auto':
+      'Automatik',
+  'xp.delim_comma':
+      'Koma',
+  'xp.delim_pipe':
+      'Palang tegak',
+  'xp.delim_semi':
+      'Koma bertitik',
+  'xp.delim_tab':
+      'Tab',
+  'xp.delimiter':
+      'Pembatas',
+  'xp.density':
+      'Kepadatan',
+  'xp.density_comfortable':
+      'Selesa',
+  'xp.density_compact':
+      'Padat',
+  'xp.density_normal':
+      'Biasa',
+  'xp.enc_cp1254':
+      'Windows Turki',
+  'xp.enc_utf8':
+      'UTF-8',
+  'xp.encoding':
+      'Pengekodan',
+  'xp.err_calc':
+      '#CALC!: hasilnya kosong (cth. FILTER tidak menemui baris).',
+  'xp.err_cycle':
+      'Rujukan bulat: formula merujuk dirinya sendiri.',
+  'xp.err_div0':
+      '#DIV/0!: pembahagian dengan sifar atau dengan sel kosong.',
+  'xp.err_na':
+      '#N/A: nilai yang dicari tidak ditemui.',
+  'xp.err_name':
+      '#NAME?: fungsi atau nama tidak dikenali — semak ejaannya.',
+  'xp.err_null':
+      '#NULL!: kedua-dua julat tidak bersilang.',
+  'xp.err_num':
+      '#NUM!: nombor tidak sah (terlalu besar, punca nombor negatif…).',
+  'xp.err_ref':
+      '#REF!: sel yang dirujuk sudah tiada (baris/lajur dipadam).',
+  'xp.err_spill':
+      '#SPILL!: sel destinasi limpahan tatasusunan tidak kosong — kosongkannya.',
+  'xp.err_value':
+      '#VALUE!: jenis salah — teks (atau nombor dengan ruang) di tempat yang memerlukan nombor.',
+  'xp.err_why':
+      'Mengapa ralat ini?',
+  'xp.expand':
+      'Kembangkan kumpulan',
+  'xp.filter':
+      'Tapis (pilihan)',
+  'xp.fit_width':
+      'Muatkan pada lebar halaman',
+  'xp.goal_bad_input':
+      'Rujukan sel atau nilai tidak sah',
+  'xp.goal_by':
+      'Dengan menukar sel',
+  'xp.goal_done':
+      'Penyelesaian: {cell} = {value}',
+  'xp.goal_failed':
+      'Penyelesaian tidak ditemui',
+  'xp.goal_need_formula':
+      'Sel yang ditetapkan mesti mengandungi formula',
+  'xp.goal_need_value':
+      'Sel yang ditukar mesti mengandungi nilai, bukan formula',
+  'xp.goal_seek':
+      'Pencarian matlamat',
+  'xp.goal_set':
+      'Tetapkan sel (formula)',
+  'xp.goal_to':
+      'Kepada nilai',
+  'xp.grand_total':
+      'Jumlah besar',
+  'xp.group':
+      'Kumpulkan baris',
+  'xp.icon_set':
+      'Set ikon: lampu isyarat',
+  'xp.icon_set_plain':
+      'Set ikon',
+  'xp.import':
+      'Import (CSV/ODS)',
+  'xp.import_done':
+      '{n} helaian diimport',
+  'xp.import_go':
+      'Import ke helaian baharu',
+  'xp.import_rows':
+      '{n} baris',
+  'xp.landscape':
+      'Landskap',
+  'xp.link':
+      'Sisip pautan',
+  'xp.link_cell':
+      'Sel pada {name}',
+  'xp.link_sheet':
+      'Dalam buku kerja ini: {name}',
+  'xp.link_web':
+      'Alamat web',
+  'xp.no_group':
+      'Baris ini tidak berada dalam kumpulan',
+  'xp.none':
+      '— tiada —',
+  'xp.note_reply':
+      'Balas nota',
+  'xp.painter':
+      'Pengecat format',
+  'xp.painter_hint':
+      'Ketik sel untuk menggunakan format',
+  'xp.password':
+      'Kata laluan',
+  'xp.password_again':
+      'Kata laluan (ulang)',
+  'xp.password_cancelled':
+      'Kata laluan tidak dimasukkan — fail tidak dibuka',
+  'xp.password_mismatch':
+      'Kata laluan tidak sepadan',
+  'xp.password_open':
+      'Buku kerja ini dilindungi kata laluan',
+  'xp.password_remove':
+      'Buang kata laluan',
+  'xp.password_removed':
+      'Kata laluan dibuang — disimpan tanpa penyulitan',
+  'xp.password_set':
+      'Lindungi dengan kata laluan',
+  'xp.password_set_done':
+      'Fail akan disulitkan apabila disimpan',
+  'xp.password_unsupported':
+      'Jenis penyulitan ini tidak disokong (Excel lama)',
+  'xp.password_wrong':
+      'Kata laluan salah',
+  'xp.pivot':
+      'Jadual pangsi',
+  'xp.pivot_create':
+      'Cipta',
+  'xp.pivot_refresh':
+      'Segar semula pangsi',
+  'xp.pivot_refreshed':
+      'Pangsi disegarkan semula',
+  'xp.pivot_sheet':
+      'Pangsi {n}',
+  'xp.pivot_source_gone':
+      'Helaian sumber sudah tiada — tidak dapat disegarkan semula',
+  'xp.portrait':
+      'Potret',
+  'xp.print_area_clear':
+      'Kosongkan kawasan cetakan',
+  'xp.print_area_cleared':
+      'Kawasan cetakan dikosongkan',
+  'xp.print_area_set':
+      'Kawasan cetakan ditetapkan',
+  'xp.print_area_set_btn':
+      'Tetapkan pilihan sebagai kawasan cetakan',
+  'xp.print_done':
+      'PDF sedia',
+  'xp.print_empty':
+      'Tiada apa untuk dicetak',
+  'xp.print_go':
+      'Cipta PDF',
+  'xp.print_grid':
+      'Garis grid',
+  'xp.print_group':
+      'Cetak dan lindungi',
+  'xp.print_page':
+      'Halaman {n} / {t}',
+  'xp.print_pdf':
+      'Susun atur cetakan → PDF',
+  'xp.protect_no_pw':
+      'Lindungi tanpa kata laluan',
+  'xp.protect_sheet':
+      'Lindungi helaian',
+  'xp.protect_with_pw':
+      'Lindungi dengan kata laluan…',
+  'xp.protected':
+      'Helaian dilindungi',
+  'xp.protected_cell':
+      'Sel ini dikunci pada helaian yang dilindungi',
+  'xp.repeat_rows':
+      'Baris pengepala diulang pada setiap halaman',
+  'xp.ribbon_full':
+      'Reben penuh',
+  'xp.ribbon_simple':
+      'Reben ringkas',
+  'xp.rows':
+      'Baris',
+  'xp.scale_rg':
+      'Skala warna: merah → hijau',
+  'xp.scale_ryg':
+      'Skala warna: merah → kuning → hijau',
+  'xp.scale_wb':
+      'Skala warna: putih → biru',
+  'xp.sparkline':
+      'Sparkline',
+  'xp.sparkline_needs_range':
+      'Pilih julat data dahulu',
+  'xp.std_colors':
+      'Warna standard',
+  'xp.subtotal':
+      'Subjumlah',
+  'xp.subtotal_by':
+      'Pada setiap perubahan dalam',
+  'xp.subtotal_go':
+      'Cipta subjumlah',
+  'xp.subtotal_sheet':
+      'Subjumlah {name}',
+  'xp.subtotal_suffix':
+      ' Jumlah',
+  'xp.subtotal_sum':
+      'Tambah subjumlah kepada',
+  'xp.theme_colors':
+      'Warna tema',
+  'xp.toggle_group':
+      'Runtuhkan/kembangkan kumpulan',
+  'xp.trace_clear':
+      'Buang anak panah',
+  'xp.trace_dep':
+      'Jejak tanggungan',
+  'xp.trace_prec':
+      'Jejak duluan',
+  'xp.undo_sparkline':
+      'Sisip sparkline',
+  'xp.ungroup':
+      'Nyahkumpul',
+  'xp.unprotect':
+      'Nyahlindung helaian',
+  'xp.unprotected':
+      'Helaian dinyahlindungi',
+  'xp.values':
+      'Nilai',
+  'sp.add_anim':
+      'Tambah animasi',
+  'sp.add_ph':
+      'Tambah pemegang tempat',
+  'sp.add_row':
+      'Tambah kategori',
+  'sp.add_section':
+      'Tambah seksyen',
+  'sp.add_series':
+      'Tambah siri',
+  'sp.add_show':
+      'Tambah tayangan',
+  'sp.align_hint':
+      'Pilih bentuk untuk dijajarkan',
+  'sp.anim_order':
+      'Susunan animasi',
+  'sp.anim_pick_fx':
+      'Kesan',
+  'sp.anim_pick_shape':
+      'Bentuk yang mana?',
+  'sp.animations':
+      'Animasi',
+  'sp.applied':
+      'Digunakan',
+  'sp.apply':
+      'Guna',
+  'sp.arrange_title':
+      'Slaid {n}',
+  'sp.body_size':
+      'Saiz isi',
+  'sp.chart_data':
+      'Data carta',
+  'sp.chart_edit':
+      'Sunting data carta',
+  'sp.chart_from_table':
+      'Carta daripada jadual',
+  'sp.chart_insert':
+      'Sisip carta',
+  'sp.chart_title':
+      'Tajuk carta',
+  'sp.conn_elbow':
+      'Siku',
+  'sp.conn_straight':
+      'Lurus',
+  'sp.connect':
+      'Penyambung',
+  'sp.connect_none':
+      'Tiada bentuk lain untuk disambungkan',
+  'sp.connect_to':
+      'Sambung ke bentuk yang mana?',
+  'sp.copy_suffix':
+      'salinan',
+  'sp.counter':
+      'Kira detik langsung',
+  'sp.counter_added':
+      'Kira detik ditambah',
+  'sp.counter_hint':
+      'Mengira detik semasa tayangan',
+  'sp.counter_minutes':
+      'Berapa minit?',
+  'sp.crop':
+      'Pangkas',
+  'sp.crop_b':
+      'Bawah',
+  'sp.crop_l':
+      'Kiri',
+  'sp.crop_r':
+      'Kanan',
+  'sp.crop_shape':
+      'Pangkas kepada bentuk',
+  'sp.crop_t':
+      'Atas',
+  'sp.custom_shows':
+      'Tayangan tersuai',
+  'sp.delete':
+      'Padam',
+  'sp.draw':
+      'Lukis tandatangan anda',
+  'sp.font_major':
+      'Fon tajuk',
+  'sp.font_minor':
+      'Fon isi',
+  'sp.fx_appear':
+      'Muncul',
+  'sp.fx_emph':
+      'Penekanan',
+  'sp.fx_entr':
+      'Masuk',
+  'sp.fx_exit':
+      'Keluar',
+  'sp.fx_fade':
+      'Pudar',
+  'sp.fx_fly':
+      'Terbang masuk',
+  'sp.fx_other':
+      'Animasi',
+  'sp.fx_path':
+      'Laluan gerakan',
+  'sp.fx_spin':
+      'Pusing',
+  'sp.fx_wipe':
+      'Sapu',
+  'sp.fx_zoom':
+      'Zum',
+  'sp.g_arrange':
+      'Susun',
+  'sp.g_design':
+      'Reka bentuk',
+  'sp.g_insert':
+      'Sisip',
+  'sp.g_show':
+      'Tayangan & eksport',
+  'sp.g_slides':
+      'Slaid',
+  'sp.glow':
+      'Pendar',
+  'sp.gradient':
+      'Isian kecerunan',
+  'sp.hex_input':
+      'Taip kod warna (RRGGBB)',
+  'sp.hide':
+      'Sembunyikan',
+  'sp.image_hint':
+      'Pilih foto tandatangan atau PNG lutsinar.',
+  'sp.inherited':
+      'daripada induk',
+  'sp.layers':
+      'Lapisan',
+  'sp.layers_align':
+      'Lapisan & penjajaran',
+  'sp.layers_hint':
+      'Susunan Z, sembunyi, jajar, agih',
+  'sp.layout':
+      'Susun atur',
+  'sp.layout_dup':
+      'Gandakan susun atur',
+  'sp.layout_hint':
+      'Ketik: pilih · seret: alih · sudut kanan bawah: ubah saiz',
+  'sp.layouts':
+      'Susun atur',
+  'sp.link':
+      'Pautan / tindakan',
+  'sp.link_slide':
+      'Slaid tertentu',
+  'sp.link_url':
+      'Alamat web',
+  'sp.master':
+      'Induk slaid & tema',
+  'sp.master_bg':
+      'Warna latar belakang',
+  'sp.master_hint':
+      'Susun atur, pemegang tempat, warna dan fon tema',
+  'sp.master_n':
+      'Induk {n}',
+  'sp.master_style':
+      'Gaya induk',
+  'sp.media_added':
+      'Media ditambah',
+  'sp.media_hint':
+      'Dimainkan apabila diketik dalam tayangan',
+  'sp.media_insert':
+      'Sisip audio / video',
+  'sp.media_too_big':
+      'Fail terlalu besar (maks 150 MB)',
+  'sp.mic_denied':
+      'Kebenaran mikrofon ditolak',
+  'sp.move_down':
+      'Alih ke bawah',
+  'sp.move_up':
+      'Alih ke atas',
+  'sp.no_anims':
+      'Tiada animasi pada slaid ini',
+  'sp.no_chart':
+      'Data carta tidak dapat dibaca',
+  'sp.no_sections':
+      'Tiada seksyen. Tambah satu bermula daripada sesuatu slaid.',
+  'sp.no_shapes':
+      'Tiada bentuk pada slaid ini',
+  'sp.no_shows':
+      'Tiada tayangan tersuai',
+  'sp.no_smartart':
+      'Tiada SmartArt dalam dek ini',
+  'sp.off':
+      'Mati',
+  'sp.on':
+      'Hidup',
+  'sp.pick_color':
+      'Pilih warna',
+  'sp.pick_image':
+      'Pilih imej',
+  'sp.png_all':
+      'Semua slaid sebagai PNG (zip)',
+  'sp.png_one':
+      'Kongsi slaid ini sebagai PNG',
+  'sp.presenter_hint':
+      'Nota, slaid seterusnya dan masa bersebelahan',
+  'sp.record':
+      'Latihan & rakam narasi',
+  'sp.record_done':
+      'Narasi ditambah',
+  'sp.record_hint':
+      'Suara dan masa setiap slaid disimpan; tayangan maju sendiri',
+  'sp.record_save':
+      'Narasi dirakam untuk {n} slaid. Tambah ke dek?',
+  'sp.reflection':
+      'Pantulan',
+  'sp.rehearse':
+      'Latih masa',
+  'sp.rehearse_done':
+      'Masa disimpan',
+  'sp.rehearse_hint':
+      'Masa pada setiap slaid diukur; tayangan kemudian maju sendiri',
+  'sp.rehearse_save':
+      'Latihan mengambil masa {t} ({n} slaid). Simpan masanya?',
+  'sp.remove_bg':
+      'Buang latar belakang',
+  'sp.remove_bg_downloading':
+      'Model sedang dimuat turun; cuba lagi sebentar lagi',
+  'sp.remove_bg_failed':
+      'Latar belakang tidak dapat dibuang',
+  'sp.remove_bg_hint':
+      'Pada peranti (ML Kit); model dimuat turun semasa penggunaan pertama',
+  'sp.remove_bg_unavailable':
+      'Tidak tersedia pada peranti ini',
+  'sp.remove_bg_working':
+      'Membuang latar belakang…',
+  'sp.remove_row':
+      'Buang baris',
+  'sp.remove_series':
+      'Buang siri',
+  'sp.rename':
+      'Namakan semula',
+  'sp.saved_list':
+      'Tandatangan tersimpan',
+  'sp.section_default':
+      'Seksyen {n}',
+  'sp.section_first':
+      'Seksyen lalai',
+  'sp.section_name':
+      'Nama seksyen',
+  'sp.section_start':
+      'Slaid mana yang memulakan seksyen?',
+  'sp.sections':
+      'Seksyen',
+  'sp.sections_hint':
+      'Kumpulkan slaid; tayangkan subset pilihan',
+  'sp.sections_title':
+      'Seksyen & tayangan tersuai',
+  'sp.selected_n':
+      '{n} dipilih',
+  'sp.shadow':
+      'Bayang',
+  'sp.shape_library':
+      'Pustaka bentuk',
+  'sp.shape_library_hint':
+      'Asas, anak panah, bintang, petak teks, carta alir, butang tindakan',
+  'sp.shape_tools':
+      'Alat',
+  'sp.show':
+      'Tayangkan',
+  'sp.show_default':
+      'Tayangan {n}',
+  'sp.show_name':
+      'Nama tayangan',
+  'sp.slide_n':
+      'Slaid {n}',
+  'sp.slides_n':
+      '{n} slaid',
+  'sp.smartart':
+      'Tukar SmartArt kepada bentuk',
+  'sp.smartart_done':
+      'SmartArt ditukar kepada bentuk',
+  'sp.smartart_hint':
+      'Menjadi kumpulan bentuk yang boleh disunting',
+  'sp.suggested':
+      'Dicadangkan',
+  'sp.tab_draw':
+      'Lukis',
+  'sp.tab_image':
+      'Imej',
+  'sp.tab_type':
+      'Taip',
+  'sp.table_no_data':
+      'Jadual tiada data carta',
+  'sp.table_style':
+      'Gaya jadual',
+  'sp.templates':
+      'Galeri templat',
+  'sp.templates_hint':
+      '8 tema kemas — kandungan dikekalkan',
+  'sp.theme_colors':
+      'Warna tema',
+  'sp.title_size':
+      'Saiz tajuk',
+  'sp.tools':
+      'Alat',
+  'sp.tpl_sample':
+      'Contoh bulet',
+  'sp.type_hint':
+      'Nama atau inisial anda',
+  'sp.video_encoding':
+      'Mengekod video…',
+  'sp.video_export':
+      'Eksport sebagai video (MP4)',
+  'sp.video_hint':
+      'Setiap slaid untuk tempoh tertentu; masa rakaman dikekalkan',
+  'sp.video_seconds':
+      'Saat setiap slaid',
+  'sp.video_unavailable':
+      'Eksport video tidak tersedia pada peranti ini',
+  'near.accept':
+      'Terima',
+  'near.add_files':
+      'Tambah fail',
+  'near.add_folder':
+      'Tambah folder',
+  'near.add_text':
+      'Teks',
+  'near.asking':
+      'Menunggu {name} menerima…',
+  'near.bg_ask_body':
+      '{name} ingin menghantar {n} fail',
+  'near.bg_ask_title':
+      'Permintaan fail masuk',
+  'near.bg_ch_ask':
+      'Permintaan fail masuk',
+  'near.bg_ch_quiet':
+      'Keterlihatan latar belakang',
+  'near.bg_failed':
+      'Tidak dapat dihidupkan — adakah Bluetooth hidup dan dibenarkan?',
+  'near.bg_note_text':
+      'Bluetooth kuasa rendah · permintaan masuk memerlukan kelulusan anda',
+  'near.bg_note_title':
+      'Kelihatan kepada peranti berdekatan',
+  'near.bg_off':
+      'Keterlihatan latar belakang dimatikan.',
+  'near.bg_on':
+      'Peranti berdekatan boleh melihat anda walaupun skrin ini ditutup (Bluetooth kuasa rendah); permintaan ditanya melalui pemberitahuan.',
+  'near.bg_switch':
+      'Kelihatan di latar belakang',
+  'near.bg_waiting':
+      '{name} meluluskan — penghantaran akan bermula melalui Wi-Fi',
+  'near.bt_denied':
+      'Tiada kebenaran Bluetooth · benarkan',
+  'near.bt_failed':
+      'Bluetooth gagal · cuba lagi',
+  'near.bt_none':
+      'Tiada Bluetooth LE',
+  'near.bt_off':
+      'Bluetooth mati · cuba lagi',
+  'near.bt_on':
+      'Bluetooth',
+  'near.bt_wait':
+      'Bluetooth…',
+  'near.busy_sending':
+      'Tunggu penghantaran semasa selesai (atau Henti)',
+  'near.clear_sel':
+      'Kosongkan',
+  'near.clip_files':
+      'Tambah {n} fail yang disalin',
+  'near.copied':
+      'Alamat disalin',
+  'near.decline':
+      'Tolak',
+  'near.dur_lt1':
+      'kurang daripada 1 saat',
+  'near.dur_ms':
+      '{m} min {s} saat',
+  'near.dur_s':
+      '{s} saat',
+  'near.empty_hint':
+      'Buka Transfer juga pada peranti lain (Wi-Fi yang sama atau Bluetooth).',
+  'near.fail_code':
+      'kod pemadanan ditolak',
+  'near.fail_identity':
+      'identiti penerima berubah, dihentikan demi keselamatan',
+  'near.fail_network':
+      'sambungan terputus, penerima tidak dapat dicapai',
+  'near.fail_receiver':
+      'penerima tidak dapat menyimpannya (tiada ruang atau kebenaran)',
+  'near.fail_secure':
+      'sambungan selamat gagal',
+  'near.fail_tile':
+      'Tidak dihantar',
+  'near.file_done':
+      'Selesai',
+  'near.folder_files':
+      '{n} fail',
+  'near.history':
+      'Sejarah',
+  'near.invite_failed':
+      'Tidak dapat mencapai {name}. Dekatkan dan cuba lagi, atau imbas QR.',
+  'near.invited':
+      'Fail akan dipindahkan selepas {name} menerima — biarkan skrin ini terbuka.',
+  'near.inviting':
+      'Memberitahu {name}…',
+  'near.keep_body':
+      'Perkongsian akan ditutup sendiri apabila selesai',
+  'near.keep_title':
+      'Memindahkan fail',
+  'near.missing':
+      'sudah tiada',
+  'near.network':
+      'Rangkaian',
+  'near.no_network':
+      'Tidak dapat menyediakan rangkaian — hidupkan Wi-Fi atau guna QR.',
+  'near.none_received':
+      'Belum ada yang diterima.',
+  'near.none_sent':
+      'Belum ada yang dihantar.',
+  'near.offer_dest':
+      'Disimpan ke: {dir}',
+  'near.offer_more':
+      '+{n} lagi',
+  'near.offer_sub':
+      '{n} item · {size}',
+  'near.offer_title':
+      '{from} menghantar fail',
+  'near.other_ways':
+      'Cara lain',
+  'near.password':
+      'Kata laluan',
+  'near.pick_this_folder':
+      'Hantar folder ini',
+  'near.pick_to_link':
+      'Pilih fail & cipta pautan',
+  'near.received_tab':
+      'Diterima',
+  'near.receiving':
+      'Menerima',
+  'near.receiving_n':
+      'Menerima · {n} fail',
+  'near.remove_record':
+      'Buang daripada senarai',
+  'near.reveal':
+      'Tunjukkan lokasi',
+  'near.searching':
+      'Mencari Dosyalarım berdekatan…',
+  'near.sec_local':
+      'Rangkaian setempat & muat turun',
+  'near.sec_prefs':
+      'Keutamaan pemindahan',
+  'near.selected':
+      '{n} item dipilih',
+  'near.sending_to':
+      'Menghantar kepada {name}',
+  'near.sent_fail':
+      'Gagal',
+  'near.sent_ok':
+      'Berjaya',
+  'near.sent_partial':
+      '{ok} fail dihantar · {bad} tidak dihantar: {why}',
+  'near.sent_tab':
+      'Dihantar',
+  'near.sent_tile':
+      'Dihantar',
+  'near.sent_to':
+      '→ {name}',
+  'near.share_apps':
+      'Kongsi dengan aplikasi',
+  'near.share_no_folder':
+      'Folder tidak boleh dikongsi dengan aplikasi; pilih fail di dalamnya.',
+  'near.share_sub':
+      'Ke telefon berdekatan, atau melalui QR ke mana-mana pelayar — tanpa aplikasi',
+  'near.show_all':
+      'Tunjukkan semua ({n})',
+  'near.starting':
+      'Bersiap sedia…',
+  'near.step_page':
+      '2 · Buka fail',
+  'near.step_what':
+      '1 · Apa yang dihantar?',
+  'near.step_who':
+      '2 · Kepada siapa?',
+  'near.step_wifi':
+      '1 · Sertai rangkaian',
+  'near.tap_device':
+      'Ketik peranti di bawah untuk menghantar · folder tiba sebagai folder, banyak fail kecil dihantar sebagai satu bungkusan',
+  'near.text_copy':
+      'Salin',
+  'near.text_failed':
+      'Teks tidak dapat dihantar — adakah Transfer dibuka dan aplikasinya terkini di sana?',
+  'near.text_from':
+      '{from} menghantar teks',
+  'near.text_hint':
+      'Taip atau tampal — muncul pada peranti lain, sedia untuk disalin',
+  'near.text_sent':
+      'Teks dihantar kepada {name}',
+  'near.text_title':
+      'Teks untuk dihantar',
+  'near.text_wifi_only':
+      'Teks hanya dihantar melalui Wi-Fi — kedua-dua peranti mesti berada pada rangkaian yang sama',
+  'near.title':
+      'Berdekatan',
+  'near.trust_this':
+      'Percayai peranti ini — jangan tanya lagi',
+  'near.trusted':
+      'Peranti dipercayai',
+  'near.trusted_added':
+      '{name} ditambah ke peranti dipercayai',
+  'near.trusted_badge':
+      'Dipercayai',
+  'near.type_address':
+      'Jika QR tidak dapat diimbas, taip alamat ini dalam pelayar telefon lain.',
+  'near.untrust':
+      'Tarik balik kepercayaan',
+  'near.via_web':
+      'Pelayar (QR)',
+  'near.waiting':
+      'Sambungan terputus — akan disambung semula dari titik berhenti…',
+  'near.web_idle':
+      'Muat turun dalam pelayar melalui QR',
+  'near.web_idle_sub':
+      'Pilih fail dan QR beserta alamat pendek muncul di sini; orang lain mengimbasnya dan memuat turun dalam pelayar.',
+  'near.web_same_wifi':
+      'Telefon pada Wi-Fi yang sama mengimbasnya dengan kamera — halaman terbuka, satu ketikan untuk memuat turun.',
+  'near.web_step1':
+      '1. Imbas dengan kamera → sertai rangkaian telefon saya',
+  'near.web_step2':
+      '2. Sekarang imbas ini → halaman terbuka, fail dimuat turun',
+  'near.what_to_send':
+      'Apa yang dihantar kepada {name}?',
+  'near.wifi_off':
+      'Tiada Wi-Fi',
+  'near.wifi_on':
+      'Wi-Fi',
+  'sm.amount_title':
+      'Jumlah: {range}',
+  'sm.auto':
+      'Susun fail baharu secara automatik',
+  'sm.auto_sub':
+      'Fail baharu disusun secara senyap setiap kali anda kembali ke aplikasi',
+  'sm.bg':
+      'Hanya semasa mengecas pada Wi-Fi (juga di latar belakang)',
+  'sm.bg_sub':
+      'Menyusun semasa mengecas pada Wi-Fi, walaupun aplikasi ditutup; paling banyak {n} fail setiap pusingan',
+  'sm.camera':
+      'Sertakan foto kamera',
+  'sm.cap':
+      'Paling banyak {cap} fail sehari',
+  'sm.cap_day':
+      '{d}: {n} fail · {l} amaran kuota',
+  'sm.cap_n':
+      '{n} fail',
+  'sm.cap_none':
+      'Tanpa had harian',
+  'sm.cap_sub':
+      'Hari ini {n}/{cap} · amaran kuota percuma {l}',
+  'sm.cap_sub_none':
+      'Hari ini {n} fail · amaran kuota percuma {l}',
+  'sm.cap_title':
+      'Had harian',
+  'sm.cap_unlimited':
+      'Tanpa had',
+  'sm.clutter':
+      'Bersihkan',
+  'sm.clutter_empty':
+      'Tiada yang tidak diperlukan 🎉',
+  'sm.clutter_sub':
+      'Kad ucapan, meme, foto kabur dan tangkapan tidak sengaja',
+  'sm.clutter_title':
+      'Bersihkan · {n} tidak diperlukan',
+  'sm.delete_sel':
+      'Padam ({n})',
+  'sm.deselect_one':
+      'Nyahpilih',
+  'sm.disable':
+      'Matikan susunan pintar',
+  'sm.done':
+      '{n} fail disusun',
+  'sm.enable':
+      'Hidupkan dan susun',
+  'sm.expired':
+      'Dokumen tamat tempoh',
+  'sm.expiring_soon':
+      'Hampir tamat tempoh',
+  'sm.fail_blocked':
+      'kandungan tidak dijawab atas sebab keselamatan',
+  'sm.fail_empty':
+      'jawapan kosong, akan dicuba lagi kemudian',
+  'sm.failed':
+      '{n} fail gagal',
+  'sm.filter_title':
+      'Kategori pintar',
+  'sm.folders':
+      'Folder pintar',
+  'sm.folders_empty':
+      'Belum ada kategori — ketik "Susun sekarang".',
+  'sm.group_all':
+      'Semua',
+  'sm.group_docs':
+      'Dokumen',
+  'sm.group_finance':
+      'Kewangan',
+  'sm.group_images':
+      'Imej',
+  'sm.group_media':
+      'Media',
+  'sm.hidden_empty':
+      'Tiada fail tersembunyi',
+  'sm.hidden_n':
+      '{n} fail disembunyikan',
+  'sm.hide_sel':
+      'Sembunyikan ({n})',
+  'sm.hold_cap':
+      '{n} fail disusun; had hari ini ({cap}) dicapai, selebihnya esok',
+  'sm.hold_offline':
+      'Mod luar talian dihidupkan — matikan di Tetapan > Privasi untuk menyusun',
+  'sm.hold_scope':
+      'Tiada folder untuk disusun — semak akses fail dan Tetapan > Kecerdasan buatan > skop',
+  'sm.hold_wifi':
+      'Menyusun hanya pada Wi-Fi; diteruskan setelah anda berada pada Wi-Fi',
+  'sm.inst_title':
+      'Penerbit: {name}',
+  'sm.intro_body':
+      'Susunan pintar memeriksa dokumen baharu (PDF, Word, Excel, slaid, teks), imej, rakaman suara dan video, lalu memberi setiap satu nama kedua dan kategori yang jelas.',
+  'sm.intro_pick_sub':
+      'Anda bermula dengan kuota {max} fail; tandakan hanya yang anda mahu, bukannya mengimbas semuanya.',
+  'sm.intro_pick_title':
+      'Fail mana yang perlu diimbas?',
+  'sm.intro_title':
+      'Biarkan telefon anda menyusun dirinya sendiri',
+  'sm.keep':
+      'Kekalkan',
+  'sm.keep_body':
+      'Fail ini keluar daripada senarai Bersihkan dan tidak akan dicadangkan lagi.',
+  'sm.keep_title':
+      'Bukan yang tidak diperlukan?',
+  'sm.local_ready_sub':
+      'Invois, resit bank, dokumen rasmi, rekod kesihatan, tangkapan skrin dan APK diasingkan secara luar talian, percuma. Kunci Gemini pilihan turut mengelaskan fail yang kabur.',
+  'sm.local_ready_title':
+      'Pengasingan pintar setempat sedia (tanpa kunci API)',
+  'sm.local_saved':
+      '{n} fail dikelaskan secara setempat dengan 0 kredit AI',
+  'sm.low_conf':
+      'Semak',
+  'sm.nothing_new':
+      'Tiada fail baharu untuk disusun',
+  'sm.overdue':
+      'Bil tertunggak',
+  'sm.pick_download_folder':
+      'Folder Muat Turun',
+  'sm.pick_more_sources':
+      'Jenis & sumber folder lain',
+  'sm.pick_one':
+      'Pilih sekurang-kurangnya satu jenis dan sumber untuk diimbas.',
+  'sm.point_clean':
+      'Kad ucapan, meme, foto kabur dan tangkapan tidak sengaja boleh disembunyikan atau dipadam dengan satu ketikan.',
+  'sm.point_name':
+      'Nama kedua seperti "Bil elektrik · Oktober 2026"; tapis senarai mengikut kategori pintar, cari dalam apa-apa bahasa.',
+  'sm.point_place':
+      'Fail kekal di tempat dan namanya — tiada yang dialihkan.',
+  'sm.preset_all':
+      'Semua',
+  'sm.preset_docs':
+      'Dokumen sahaja',
+  'sm.preset_downloads':
+      'Muat turun sahaja',
+  'sm.privacy':
+      'Skop: Muat Turun, Dokumen, tangkapan skrin, rakaman, WhatsApp dan Telegram. Kamera hanya jika anda menghidupkannya. Fail (untuk Word, Excel dan slaid hanya teksnya; untuk video hanya minit pertama dilihat; untuk APK dan arkib hanya nama, saiz dan folder) dihantar kepada Google Gemini untuk disemak; hasilnya kekal hanya pada telefon anda. Dengan kunci Gemini percuma, Google boleh menggunakan data untuk menambah baik produknya. Folder di luar skop AI tidak pernah dihantar.',
+  'sm.progress':
+      'Menyusun {done}/{total}',
+  'sm.r_all':
+      'Semua',
+  'sm.restore_sel':
+      'Pulihkan ({n})',
+  'sm.restored_n':
+      '{n} fail dipulihkan',
+  'sm.reused_n':
+      '{n} salinan setempat digunakan semula (0 unit)',
+  'sm.run':
+      'Susun sekarang',
+  'sm.search_empty':
+      'Tiada fail tersusun yang sepadan',
+  'sm.search_hint':
+      'Cari susunan pintar (nama, penerbit, tahun, jenis…)',
+  'sm.search_results':
+      '{n} hasil',
+  'sm.select_all':
+      'Pilih semua',
+  'sm.select_one':
+      'Pilih',
+  'sm.selected':
+      '{n} dipilih',
+  'sm.sensitive_pin':
+      'Dokumen sensitif — PIN',
+  'sm.settings':
+      'Tetapan',
+  'sm.similar':
+      'Foto serupa',
+  'sm.starter_cap_hit':
+      '{n} fail disusun · Kuota permulaan {max} fail dicapai. Gunakan langganan pilihan atau kunci anda sendiri untuk lebih banyak.',
+  'sm.starter_usage':
+      '{n} / {max} kuota permulaan digunakan',
+  'sm.status':
+      '{n} fail · {c} kategori',
+  'sm.status_sub':
+      'Fail kekal di tempatnya; nama kedua dipaparkan dalam senarai dan carian.',
+  'sm.stop':
+      'Henti',
+  'sm.stopped':
+      '{n} fail disusun, proses dihentikan. {reason}',
+  'sm.sub_all':
+      'Semua',
+  'sm.tab_clutter':
+      'Tidak diperlukan ({n})',
+  'sm.tab_hidden':
+      'Tersembunyi ({n})',
+  'sm.tile':
+      'Susunan pintar',
+  'sm.tile_off':
+      'Hidupkan susunan pintar',
+  'sm.tile_on':
+      '{n} fail disusun',
+  'sm.title':
+      'Susunan pintar',
+  'sm.upcoming_due':
+      'Hampir tamat tempoh bayaran',
+  'sm.usage':
+      'Pusingan terakhir: {n} fail · ~{t} unit dan {q} soalan setiap fail',
+  'sm.waiting':
+      'jeda singkat, akan disambung sendiri',
+  'sm.wifi':
+      'Hanya pada Wi-Fi',
+  'sm.wifi_sub':
+      'Tiada fail dihantar melalui data mudah alih',
+  'sm.year_title':
+      'Tahun dokumen: {y}',
+  'pe.add_image':
+      'Tambah imej',
+  'pe.add_initials':
+      'Tambah inisial',
+  'pe.add_signature':
+      'Tambah tandatangan',
+  'pe.add_text':
+      'Tambah teks',
+  'pe.background_failed':
+      'Tidak dapat mengimbas item latar belakang: {error}',
+  'pe.bold':
+      'Tebal',
+  'pe.busy_applying':
+      'Menggunakan perubahan pada halaman…',
+  'pe.busy_background':
+      'Mencari item latar belakang…',
+  'pe.busy_draw':
+      'Menggunakan lukisan…',
+  'pe.busy_fix':
+      'Membetulkan baris…',
+  'pe.busy_fix_ai':
+      'Membetulkan baris secara pintar — beberapa saat…',
+  'pe.busy_image':
+      'Menukar imej…',
+  'pe.busy_make_editable':
+      'Menukar halaman kepada teks…',
+  'pe.busy_reading':
+      'Membaca halaman {page} — teks yang boleh disunting akan digariskan sebentar lagi…',
+  'pe.busy_redo':
+      'Membuat semula: {what}…',
+  'pe.busy_refresh':
+      'Menyegarkan semula halaman…',
+  'pe.busy_rotate':
+      'Memutar halaman…',
+  'pe.busy_saving':
+      'Menyimpan — menulis teks, tandatangan dan imej yang ditambah…',
+  'pe.busy_undo':
+      'Membuat asal: {what}…',
+  'pe.busy_working':
+      'Memproses…',
+  'pe.clear_selection':
+      'Kosongkan pilihan',
+  'pe.delete_image':
+      'Padam imej',
+  'pe.delete_image_body':
+      'Imej ini akan dibuang daripada halaman. Anda boleh memulihkannya dengan Buat asal.',
+  'pe.draw_initials':
+      'Lukis inisial anda',
+  'pe.draw_open':
+      'Lukis dengan pena',
+  'pe.drawn':
+      'Lukisan ditambah',
+  'pe.field_next':
+      'Medan seterusnya',
+  'pe.field_prev':
+      'Medan sebelumnya',
+  'pe.fix_done':
+      '{n} baris dibetulkan.',
+  'pe.fix_nothing':
+      'Tiada yang perlu dibetulkan — halaman sudah kelihatan bersih.',
+  'pe.fix_page':
+      'Betulkan teks',
+  'pe.fix_page_ai':
+      'Betulkan teks secara pintar',
+  'pe.font_bigger':
+      'Lebih besar',
+  'pe.font_smaller':
+      'Lebih kecil',
+  'pe.force_ocr':
+      'Sunting dengan OCR',
+  'pe.form_filled':
+      'Medan diisi',
+  'pe.form_locked':
+      'Medan ini baca sahaja',
+  'pe.form_signature':
+      'Medan tandatangan: tambah tandatangan anda daripada tab Tandatangan',
+  'pe.hint_background':
+      'Item yang berulang pada setiap halaman disenaraikan di bawah. Pilih yang ingin dibuang.',
+  'pe.hint_draw':
+      'Pen, penyerlah, pemadam dan teks — lukisan menjadi sebahagian daripada satu langkah suntingan ini',
+  'pe.hint_failed':
+      'Halaman ini tidak dapat dianalisis: {error}',
+  'pe.hint_form':
+      'Ketik medan dan isi pada halaman',
+  'pe.hint_form_loading':
+      'Membaca medan borang…',
+  'pe.hint_form_none':
+      'Dokumen ini tiada medan borang yang boleh diisi',
+  'pe.hint_image':
+      'Ketik imej untuk memilihnya; seret untuk mengalihkan, ubah saiz dari sudut, atau gunakan bar di bawah untuk memutar dan membalikkannya.',
+  'pe.hint_image_locked':
+      'Imej pada halaman ini dikunci di tempatnya: dipaparkan tetapi tidak boleh disunting (blok lukisan kongsi atau imej sebaris).',
+  'pe.hint_image_none':
+      'Tiada imej terbenam pada halaman ini.',
+  'pe.hint_page':
+      'Putar halaman yang dibuka.',
+  'pe.hint_place_text':
+      'Ketik tempat teks harus bermula.',
+  'pe.hint_sign':
+      'Tambah tandatangan atau inisial; seret, ubah saiz dari sudut',
+  'pe.hint_text':
+      'Ketik perenggan yang ingin diubah.',
+  'pe.hint_text_none':
+      'Tiada teks yang boleh disunting pada halaman ini. Ketik “Tambah teks” untuk menulis di atasnya.',
+  'pe.hint_text_scanned':
+      'Halaman imbasan: ketik baris untuk menaip di atasnya (mengenali baris…).',
+  'pe.hint_text_unsupported':
+      'Teks halaman ini belum boleh disunting terus (susun aturnya tidak dapat dibaca). Ketik "Tambah teks" untuk meletakkan teks baharu.',
+  'pe.image_added':
+      'Imej ditambah',
+  'pe.image_deleted':
+      'Imej dipadam',
+  'pe.image_mirrored':
+      'Imej dibalikkan',
+  'pe.image_moved':
+      'Imej dialihkan',
+  'pe.image_turned':
+      'Imej diputar',
+  'pe.image_unreadable':
+      'Imej tidak dapat dibaca',
+  'pe.inline_checking':
+      'Menyemak sama ada muat pada halaman…',
+  'pe.inline_empty':
+      'Perenggan tidak boleh kosong; gunakan "Tulis ganti" tanpa teks untuk membuangnya',
+  'pe.inline_fits':
+      'Muat — ketik Selesai untuk menggunakan',
+  'pe.inline_hint':
+      'Ubah teks, gunakan dengan ✓. Anda akan dimaklumkan di sini jika tidak muat.',
+  'pe.inline_hint_scanned':
+      'Baris imbasan: betulkan teks, ✓ menulis gantinya pada baris.',
+  'pe.items_removed':
+      'Item dipilih dibuang',
+  'pe.make_editable':
+      'Jadikan halaman ini boleh disunting',
+  'pe.make_editable_done':
+      '{n} baris ditukar kepada teks yang boleh disunting.',
+  'pe.mirror_h':
+      'Balikkan secara mengufuk',
+  'pe.mirror_v':
+      'Balikkan secara menegak',
+  'pe.mode_draw':
+      'Lukis',
+  'pe.mode_form':
+      'Borang',
+  'pe.mode_image':
+      'Imej',
+  'pe.mode_page':
+      'Halaman',
+  'pe.mode_sign':
+      'Tandatangan',
+  'pe.mode_text':
+      'Teks',
+  'pe.mode_watermark':
+      'Tera air',
+  'pe.no_background':
+      'Tiada item latar belakang berulang ditemui.',
+  'pe.object_deleted':
+      'Objek dipadam',
+  'pe.object_locked':
+      'Imej ini tidak boleh disunting; hanya kedudukannya dipaparkan.',
+  'pe.object_moved':
+      'Objek dialihkan',
+  'pe.op_failed':
+      'Operasi gagal: {error}',
+  'pe.outline_failed':
+      'Tidak dapat menganalisis halaman: {error}',
+  'pe.overwrite':
+      'Tulis ganti',
+  'pe.overwrite_help':
+      'Tutup perenggan dengan warna putih dan tulis teks baharu di tempatnya',
+  'pe.overwritten':
+      'Perenggan ditulis ganti',
+  'pe.page_rotated':
+      'Halaman diputar',
+  'pe.paragraph_updated':
+      'Perenggan dikemas kini',
+  'pe.pick_to_remove':
+      'Pilih item yang akan dibuang',
+  'pe.prepare_failed':
+      'Dokumen tidak dapat disediakan: {error}',
+  'pe.protected_body':
+      'Dokumen ini dikunci daripada penyuntingan tetapi dibuka tanpa meminta kata laluan (kunci kebenaran). Buang perlindungannya dan sunting?\n\nFail asal anda tidak diubah; perlindungan hanya dibuang pada salinan yang disunting.',
+  'pe.protected_title':
+      'Dokumen dilindungi',
+  'pe.protection_removed':
+      'Perlindungan dibuang',
+  'pe.redone_what':
+      'Dibuat semula: {what}',
+  'pe.redraw_signature':
+      'Lukis semula',
+  'pe.remove_picked':
+      'Buang yang dipilih ({n})',
+  'pe.remove_protection':
+      'Buang perlindungan',
+  'pe.rot_left':
+      '90° kiri',
+  'pe.rot_right':
+      '90° kanan',
+  'pe.save_note':
+      'Di mana dokumen yang disunting akan disimpan?',
+  'pe.scanned_updated':
+      'Baris dikemas kini.',
+  'pe.signature_added':
+      'Tandatangan ditambah',
+  'pe.text_added':
+      'Teks ditambah',
+  'pe.text_color':
+      'Warna teks',
+  'pe.text_edited':
+      'Teks disunting',
+  'pe.undone_what':
+      'Dibuat asal: {what}',
+  'pe.unlock_failed':
+      'Tidak dapat membuang perlindungan kata laluan dokumen: {error}\n\nJika ada kata laluan sebenar, buangnya melalui alat PDF dan cuba lagi.',
+  'pe.wait_busy':
+      'Sebentar — {what}',
 };
