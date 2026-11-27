@@ -218,7 +218,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       var outline = await doc.loadOutline();
       if (!mounted) return;
       if (outline.isEmpty) {
-        final changed = await createPdfOutline(context, path: path, doc: doc);
+        final changed = await createPdfOutline(context, path: path);
         if (!changed || !mounted) return;
         await doc.dispose();
         doc = null;

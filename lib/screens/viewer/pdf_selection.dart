@@ -326,10 +326,10 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     final outline = await doc.loadOutline();
     if (!mounted) return;
     if (outline.isEmpty) {
-      // Dosyaya yazılacak: bekleyen düzenlemeler önce kaydedilmeli.
-      if (!await _confirmLeavePending() || !mounted) return;
-      final changed =
-          await createPdfOutline(context, path: widget.doc.path, doc: doc);
+      // Arama arka planda; dosyaya yazmadan önce bekleyen düzenlemeler
+      // kaydedilmeli (beforeWrite).
+      final changed = await createPdfOutline(context,
+          path: widget.doc.path, beforeWrite: _confirmLeavePending);
       if (changed && mounted) await _reloadPdf();
       return;
     }

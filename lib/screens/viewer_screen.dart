@@ -549,6 +549,26 @@ class _ViewerScreenState extends State<ViewerScreen> {
   double? _pdfLastTy;
   double? _pdfLastZoom;
 
+  /// Arka plandaki içindekiler araması bu belge için bittiyse önizleme +
+  /// onay levhası (B19). Açılışta ve iş bitince ([PdfOutlineJobs.ready]).
+  // Sınıfta (uzantıda değil): uzantı yöntemi koparması her seferinde yeni
+  // kapanış verir, removeListener onu bulamazdı.
+  void _onOutlineReady() {
+    if (!mounted ||
+        _pdfDoc == null ||
+        !PdfOutlineJobs.hasReady(widget.doc.path)) {
+      return;
+    }
+    // Mikrogörev: `onViewerReady` kare içinden gelebilir; levha kare
+    // bittikten sonra açılsın.
+    scheduleMicrotask(() async {
+      if (!mounted) return;
+      final changed = await reviewPdfOutline(context,
+          path: widget.doc.path, beforeWrite: _confirmLeavePending);
+      if (changed && mounted) await _reloadPdf();
+    });
+  }
+
   /// PDF kaydırması → okuma kipi. pdfrx kaydırma bildirimi YAYMIYOR; matris
   /// değişimi izlenir. Yakınlaştırma (ölçek değişimi) ve seçim sürüklemesi
   /// çubuklara dokunmaz.
@@ -707,6 +727,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // (sürüm 475, her PDF — 2026-11-03 hata kaydı).
       _ocrSearch = PdfOcrSearch()..addListener(_onPdfSearch);
       _pdfController.addListener(_onPdfMatrix);
+      PdfOutlineJobs.ready.addListener(_onOutlineReady);
       // Gecikmeli: tarama aynı dosyayı okur; ilk sayfalar önce çizilsin
       // (USB'de okuma yarışı — 2026-11-14). Zamanlayıcı dispose'ta iptal.
       _formOfferTimer =
@@ -930,6 +951,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pageBadgeOnN.dispose();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();
     _pdfController.removeListener(_onPdfMatrix);
+    PdfOutlineJobs.ready.removeListener(_onOutlineReady);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).
     _pro
       ?..removeListener(_onProChanged)
