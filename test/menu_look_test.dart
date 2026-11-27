@@ -61,8 +61,10 @@ void main() {
       (tester) async {
     for (final look in MenuLook.values) {
       var builds = 0;
+      final trace = <String>[];
       final old = debugOnRebuildDirtyWidget;
       debugOnRebuildDirtyWidget = (e, _) {
+        if (trace.length < 60) trace.add('${e.widget.runtimeType}');
         if (e.widget is MenuSections) builds++;
       };
       try {
@@ -103,7 +105,11 @@ void main() {
         await tester.pump();
         expect(find.byType(MenuSections), findsOneWidget, reason: '$look');
         builds = 0;
-        for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        trace.clear();
+        await tester.pump(const Duration(milliseconds: 16));
+        debugPrint('R3 kare izi ($look): ${trace.join(' > ')}');
+        for (var i = 0; i < 28; i++) {
           await tester.pump(const Duration(milliseconds: 16));
         }
         expect(builds, 0, reason: '$look açılış karelerinde yeniden kuruldu');
