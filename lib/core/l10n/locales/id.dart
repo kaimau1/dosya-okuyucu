@@ -4144,4 +4144,3012 @@ const Map<String, String> _id = {
       'Tidak dapat menghapus perlindungan kata sandi dokumen: {error}\n\nJika ada kata sandi sungguhan, hapus lewat alat PDF lalu coba lagi.',
   'pe.wait_busy':
       'Sebentar — {what}',
+// ── enum ──
+  'enum.res_long_edge':
+      'Sisi terpanjang',
+  'enum.res_aspect':
+      'Rasio aspek',
+  'enum.res_file_size':
+      'Ukuran berkas',
+  'enum.layout_list':
+      'Daftar',
+  'enum.layout_detail':
+      'Daftar besar',
+  'enum.layout_grid2':
+      '2 kolom',
+  'enum.layout_grid3':
+      '3 kolom',
+  'enum.layout_grid4':
+      '4 kolom',
+  'enum.layout_grid5':
+      '5 kolom',
+  'enum.layout_list_desc':
+      'Satu baris · nama, ukuran, dan tanggal',
+  'enum.layout_detail_desc':
+      'Satu baris · pratinjau besar',
+  'enum.layout_grid2_desc':
+      'Ubin terbesar',
+  'enum.layout_grid3_desc':
+      'Seimbang — bawaan',
+  'enum.layout_grid4_desc':
+      'Muat lebih banyak berkas',
+  'enum.layout_grid5_desc':
+      'Tampilan terpadat',
+  'enum.photo_group_day':
+      'Hari',
+  'enum.photo_group_month':
+      'Bulan',
+  'enum.photo_group_year':
+      'Tahun',
+  'enum.open_with_ask':
+      'Tanya setiap kali',
+  'enum.open_with_in_app':
+      'Pemutar dalam aplikasi',
+  'enum.open_with_external':
+      'Aplikasi lain',
+  'enum.open_with_ask_desc':
+      'Anda akan ditanya aplikasi mana yang dipakai saat membuka video/audio/gambar',
+  'enum.open_with_in_app_desc':
+      'Berkas dibuka di pemutar aplikasi ini',
+  'enum.open_with_external_desc':
+      'Pemutar/galeri bawaan ponsel Anda akan terbuka',
+  'enum.cat_folder':
+      'Folder',
+  'enum.cat_image':
+      'Foto',
+  'enum.cat_video':
+      'Video',
+  'enum.cat_audio':
+      'Audio',
+  'enum.cat_document':
+      'Dokumen',
+  'enum.cat_archive':
+      'Arsip',
+  'enum.cat_apk':
+      'Berkas pemasang',
+  'enum.cat_other':
+      'Lainnya',
+  'enum.sort_name':
+      'Menurut nama',
+  'enum.sort_date':
+      'Menurut tanggal',
+  'enum.sort_size':
+      'Menurut ukuran',
+  'enum.sort_type':
+      'Menurut jenis',
+  'enum.doc_pdf':
+      'PDF',
+  'enum.doc_text':
+      'Teks',
+  'enum.doc_spreadsheet':
+      'Excel',
+  'enum.doc_word':
+      'Word',
+  'enum.doc_slides':
+      'Slide',
+  'enum.doc_image':
+      'Gambar',
+  'enum.doc_unknown':
+      'Tidak dikenal',
+  'enum.bucket_camera':
+      'Kamera',
+  'enum.bucket_screenshot':
+      'Tangkapan layar',
+  'enum.bucket_whatsapp':
+      'WhatsApp',
+  'enum.bucket_telegram':
+      'Telegram',
+  'enum.bucket_instagram':
+      'Instagram',
+  'enum.bucket_download':
+      'Unduhan',
+  'enum.bucket_bluetooth':
+      'Bluetooth',
+  'enum.bucket_other':
+      'Lainnya',
+  'enum.dl_queued':
+      'Antre',
+  'enum.dl_running':
+      'Mengunduh',
+  'enum.dl_paused':
+      'Dijeda',
+  'enum.dl_completed':
+      'Selesai',
+  'enum.dl_failed':
+      'Gagal',
+  'enum.dl_canceled':
+      'Dibatalkan',
+  'enum.age_fresh':
+      'baru',
+  'enum.age_recent':
+      'bulan ini',
+  'enum.age_old':
+      'lama',
+  'enum.age_ancient':
+      'sangat lama',
+  'enum.age_unknown':
+      'tidak diketahui',
+  'enum.date_any':
+      'Kapan saja',
+  'enum.date_today':
+      'Hari ini',
+  'enum.date_week':
+      '7 hari terakhir',
+  'enum.date_month':
+      '30 hari terakhir',
+  'enum.date_year':
+      'Tahun lalu',
+  'enum.date_custom':
+      'Rentang kustom',
+  'enum.size_any':
+      'Semua',
+  'enum.size_tiny':
+      'Di bawah 1 MB',
+  'enum.size_small':
+      '1 – 10 MB',
+  'enum.size_medium':
+      '10 – 100 MB',
+  'enum.size_large':
+      'Di atas 100 MB',
+  'enum.chat_image':
+      'Gambar',
+  'enum.chat_video':
+      'Video',
+  'enum.chat_document':
+      'Dokumen',
+  'enum.chat_audio':
+      'Audio',
+  'enum.chat_voice':
+      'Pesan suara',
+  'enum.chat_sticker':
+      'Stiker',
+  'enum.chat_gif':
+      'Animasi (GIF)',
+  'enum.chat_other':
+      'Lainnya',
+  'enum.chat_dir_any':
+      'Semua',
+  'enum.chat_dir_received':
+      'Diterima',
+  'enum.chat_dir_sent':
+      'Terkirim',
+  'enum.res_keep':
+      'Biarkan apa adanya',
+  'enum.res_480':
+      '480p',
+  'enum.res_540':
+      '540p',
+  'enum.res_720':
+      '720p (HD)',
+  'enum.res_1080':
+      '1080p (Full HD)',
+  'enum.res_percent':
+      'Persen',
+  'enum.res_custom':
+      'Piksel (lebar × tinggi)',
+  'enum.imgfmt_keep':
+      'Tetap sama',
+  'enum.imgfmt_jpeg':
+      'JPEG (kecil)',
+  'enum.imgfmt_png':
+      'PNG (tanpa kehilangan)',
+  'enum.imgfmt_webp':
+      'WebP (terkecil)',
+  'enum.vq_very_low':
+      'Berkas terkecil',
+  'enum.vq_low':
+      'Kecil',
+  'enum.vq_medium':
+      'Seimbang',
+  'enum.vq_high':
+      'Kualitas tinggi',
+  'enum.doc_invoice':
+      'Faktur',
+  'enum.doc_receipt':
+      'Kuitansi',
+  'enum.doc_id':
+      'KTP / dokumen resmi',
+  'enum.doc_health':
+      'Dokumen kesehatan',
+  'enum.doc_bank':
+      'Bank / keuangan',
+  'enum.doc_contract':
+      'Kontrak',
+  'enum.doc_education':
+      'Pendidikan / catatan',
+  'enum.doc_screenshot':
+      'Tangkapan layar',
+  'enum.doc_ticket':
+      'Tiket / pemesanan',
+  'enum.doc_other':
+      'Lainnya',
+  'enum.org_type':
+      'Menurut jenis',
+  'enum.org_date':
+      'Menurut tanggal',
+  'enum.org_source':
+      'Menurut sumber',
+  'enum.org_type_desc':
+      'Gambar, Video, Dokumen…',
+  'enum.org_date_desc':
+      '2026-07, 2026-06…',
+  'enum.org_source_desc':
+      'Kamera, WhatsApp, Unduhan…',
+  'enum.job_queued':
+      'Antre',
+  'enum.job_running':
+      'Berjalan',
+  'enum.job_done':
+      'Selesai',
+  'enum.job_failed':
+      'Gagal',
+  'enum.job_cancelled':
+      'Dibatalkan',
+  'enum.job_interrupted':
+      'Terputus',
+  'enum.sim_strict':
+      'Sangat ketat',
+  'enum.sim_normal':
+      'Normal',
+  'enum.sim_loose':
+      'Longgar',
+  'enum.sim_strict_desc':
+      'Gambar yang hampir identik (salinan dikompresi ulang).',
+  'enum.sim_normal_desc':
+      'Gambar yang sama dengan ukuran diubah, dikodekan ulang, atau dipangkas ringan.',
+  'enum.sim_loose_desc':
+      'Juga mencocokkan jepretan berturut-turut dari adegan yang sama; kecocokan palsu mungkin terjadi.',
+  'enum.op_move':
+      'Pindahkan',
+  'enum.op_copy':
+      'Salin',
+  'enum.op_delete':
+      'Hapus',
+  'enum.op_rename':
+      'Ganti nama',
+  'enum.op_organize':
+      'Atur otomatis',
+  'wp.tab':
+      'Alat',
+  'wp.failed':
+      'Tidak dapat menyelesaikan: {error}',
+  'wp.style_update':
+      'Perbarui gaya',
+  'wp.style_updated':
+      'Gaya diperbarui agar sesuai dengan pilihan',
+  'wp.theme':
+      'Tema dokumen',
+  'wp.theme_applied':
+      'Tema diterapkan',
+  'wp.page_setup':
+      'Pengaturan halaman',
+  'wp.page_applied':
+      'Pengaturan halaman diterapkan',
+// ── wp-pse-mp ──
+  'wp.print_preview':
+      'Pratinjau cetak',
+  'wp.custom':
+      'Kustom',
+  'wp.title_page':
+      'Halaman pertama berbeda',
+  'wp.equation':
+      'Persamaan',
+  'wp.equation_edit':
+      'Edit persamaan',
+  'wp.equation_latex':
+      'Persamaan (LaTeX)',
+  'wp.tbl_merge':
+      'Gabungkan',
+  'wp.tbl_merge_right':
+      'Dengan sel di kanan',
+  'wp.tbl_merge_down':
+      'Dengan sel di bawah',
+  'wp.tbl_borders':
+      'Garis tepi',
+  'wp.tbl_b_all':
+      'Semua garis tepi',
+  'wp.tbl_b_outer':
+      'Garis tepi luar',
+  'wp.tbl_b_inner':
+      'Garis tepi dalam',
+  'wp.tbl_b_none':
+      'Tanpa garis tepi',
+  'wp.tbl_autofit':
+      'Sesuaikan otomatis',
+  'wp.tbl_fit_content':
+      'Sesuaikan dengan isi',
+  'wp.tbl_fit_window':
+      'Sesuaikan dengan jendela',
+  'wp.tbl_fit_fixed':
+      'Kolom sama lebar tetap',
+  'wp.tbl_sort':
+      'Urutkan',
+  'wp.tbl_sort_asc_h':
+      'A→Z (pertahankan baris judul)',
+  'wp.tbl_sort_desc_h':
+      'Z→A (pertahankan baris judul)',
+  'wp.tbl_sort_asc':
+      'A→Z (semua baris)',
+  'wp.tbl_sort_desc':
+      'Z→A (semua baris)',
+  'wp.tbl_err_no_table':
+      'Kursor tidak berada di dalam sel tabel',
+  'wp.compare_done':
+      'Perbedaan dari versi lama ditandai sebagai perubahan terlacak',
+  'wp.compare_encrypted':
+      'Dokumen yang dipilih dilindungi kata sandi',
+  'wp.combine_done':
+      'Dokumen disisipkan setelah kursor',
+  'wp.review_none':
+      'Tidak ada komentar atau perubahan terlacak',
+  'wp.review_comment':
+      'Komentar',
+  'wp.review_prev':
+      'Sebelumnya',
+  'wp.review_next':
+      'Berikutnya',
+  'wp.password':
+      'Kata sandi dokumen',
+  'wp.password_change':
+      'Ubah kata sandi',
+  'wp.password_open':
+      'Dokumen ini dilindungi kata sandi',
+  'wp.password_unsupported':
+      'Jenis enkripsi ini tidak didukung (Word lama)',
+  'wp.dictate_prompt':
+      'Bicaralah — teks masuk di posisi kursor',
+  'wp.export':
+      'Ekspor',
+  'wp.textbox':
+      'Kotak teks',
+  'wp.shape':
+      'Bentuk',
+  'wp.cover':
+      'Halaman sampul',
+  'wp.toc_title':
+      'Daftar isi',
+  'wp.toc_none':
+      'Tidak ada judul — gunakan gaya Judul 1–3 untuk daftar isi',
+  'wp.toc_done':
+      'Daftar isi diperbarui',
+  'wp.section_break':
+      'Pemisah bagian',
+  'wp.field':
+      'Bidang',
+  'wp.cross_ref':
+      'Referensi silang',
+  'wp.bibliography':
+      'Daftar pustaka',
+  'wp.para_border':
+      'Garis tepi',
+  'wp.outline':
+      'Panel navigasi',
+  'wp.thumbnails':
+      'Gambar mini halaman',
+  'wp.stats':
+      'Jumlah dan waktu baca',
+  'wp.export_pdf':
+      'PDF (font disematkan)',
+  'wp.export_docx_fonts':
+      'Word dengan font tersemat (.docx)',
+  'wp.export_save':
+      'Simpan ke Unduhan',
+  'wp.stats_pages':
+      'Halaman (perkiraan)',
+  'wp.stats_headings':
+      'Judul',
+  'wp.stats_reading':
+      'Waktu baca',
+  'wp.stats_speaking':
+      'Waktu bicara',
+  'wp.stats_selection':
+      'Kata dalam pilihan',
+  'wp.stats_min':
+      '{n} mnt',
+  'wp.stats_under_min':
+      'Kurang dari 1 mnt',
+  'wp.bdr_box':
+      'Kotak',
+  'wp.bdr_top':
+      'Garis atas',
+  'wp.bdr_bottom':
+      'Garis bawah',
+  'wp.bdr_shade':
+      'Arsiran abu-abu',
+  'wp.bdr_none':
+      'Tanpa garis tepi',
+  'wp.textbox_text':
+      'Teks dalam kotak',
+  'wp.img_wrap':
+      'Bungkus teks',
+  'wp.cover_title':
+      'Judul',
+  'wp.cover_subtitle':
+      'Subjudul',
+  'wp.cover_author':
+      'Penulis',
+  'wp.cover_date':
+      'Tanggal',
+  'wp.cover_done':
+      'Halaman sampul ditambahkan di awal',
+  'wp.sb_next':
+      'Halaman berikutnya',
+  'wp.sb_cont':
+      'Berkelanjutan',
+  'wp.sb_even':
+      'Halaman genap',
+  'wp.sb_odd':
+      'Halaman ganjil',
+  'wp.sb_done':
+      'Pemisah bagian disisipkan',
+  'wp.xref_text':
+      'Teks judul',
+  'wp.xref_page':
+      'Nomor halaman',
+  'wp.xref_above':
+      'Atas / bawah',
+  'wp.xref_is_above':
+      'di atas',
+  'wp.xref_is_below':
+      'di bawah',
+  'wp.src_author':
+      'Penulis (Belakang, Depan)',
+  'wp.src_year':
+      'Tahun',
+  'wp.src_title':
+      'Judul',
+  'wp.src_publisher':
+      'Penerbit / URL',
+  'wp.export_odt':
+      'Teks OpenDocument (.odt)',
+  'wp.export_rtf':
+      'Teks kaya (.rtf)',
+  'wp.export_md':
+      'Markdown (.md)',
+  'wp.export_txt':
+      'Teks biasa (.txt)',
+  'wp.reader_theme':
+      'Latar belakang',
+  'wp.outline_fold':
+      'Luaskan / ciutkan',
+  'pse.step_paragraph':
+      'Paragraf diedit',
+  'pse.refused_glyph':
+      'Font dokumen tidak memiliki sebagian huruf ini; paragraf tidak diubah.',
+  'pse.refused':
+      'Paragraf ini tidak dapat diedit di versi ini; dokumen tidak diubah.',
+  'pse.undo_failed':
+      'Tidak dapat mengurungkan; dokumen tidak berubah.',
+  'pse.save_as_docs':
+      'Salinan di Dokumen',
+  'pse.readonly_fallback':
+      'Lokasi ini tidak dapat ditulis. Salinan disimpan di Dokumen: {name}',
+  'pse.save_failed':
+      'Tidak dapat menyimpan: {error}',
+  'pse.version_failed':
+      'Tidak dapat memulihkan versi: {error}',
+  'pse.recover_none':
+      'Suntingan tidak dapat diterapkan ulang pada dokumen ini.',
+  'pse.locked_body':
+      'Pemilik dokumen membatasi perubahan pada isinya. Pengeditan memerlukan kata sandi pemilik.',
+  'pse.owner_wrong':
+      'Itu bukan kata sandi pemilik dokumen ini.',
+  'pse.comment_reopen':
+      'Buka kembali',
+  'pse.comment_resolve':
+      'Tandai selesai',
+  'pse.crop_bottom':
+      'Bawah',
+  'pse.crop_left':
+      'Kiri',
+  'pse.crop_right':
+      'Kanan',
+  'pse.crop_top':
+      'Atas',
+  'pse.step_push':
+      'Teks di bawah digeser ke bawah',
+  'pse.step_link':
+      'Tautan diubah',
+  'pse.font_kind_doc':
+      'Font di dokumen ini',
+  'pse.font_kind_match':
+      'Paling mirip dengan font dokumen',
+  'pse.font_kind_pkg':
+      'Font di aplikasi',
+  'pse.obj_align_left':
+      'Rata kiri',
+  'pse.obj_align_hcenter':
+      'Tengah secara horizontal',
+  'pse.obj_align_right':
+      'Rata kanan',
+  'pse.obj_align_top':
+      'Rata atas',
+  'pse.obj_align_vcenter':
+      'Tengah secara vertikal',
+  'pse.obj_align_bottom':
+      'Rata bawah',
+  'pse.obj_distribute_h':
+      'Distribusikan horizontal',
+  'pse.obj_distribute_v':
+      'Distribusikan vertikal',
+  'pse.step_align':
+      'Diratakan',
+  'pse.locked_ocr':
+      'Teks ini adalah lapisan pengenalan tak terlihat dari halaman hasil pindai; tulisannya sendiri berupa gambar. Jika Anda menggantinya, tulisan lama ditutup dengan warna kertas dan teks yang dikenali masuk ke kotak yang dapat diedit.',
+  'pse.ocr_ai_failed':
+      'AI tidak dapat membacanya; teks hasil pengenalan di perangkat dipakai.',
+  'pse.step_ocr_replace':
+      'Tulisan hasil pindai diganti',
+  'pse.locked_rtl':
+      'Teks kanan-ke-kiri (Arab, Ibrani) belum dapat diedit langsung: penyambungan huruf akan rusak. Anda dapat menambahkan kotak teks di atasnya.',
+  'pse.mk_arrow':
+      'Panah',
+  'pse.mk_ellipse':
+      'Elips',
+  'pse.mk_eraser':
+      'Penghapus',
+  'pse.mk_highlight':
+      'Sorot',
+  'pse.mk_ink':
+      'Pena',
+  'pse.mk_marker':
+      'Spidol',
+  'pse.mk_cloud':
+      'Awan',
+  'pse.step_stamp':
+      'Stempel ditambahkan',
+  'pse.step_freetext':
+      'Teks ditambahkan',
+  'pse.step_cloud':
+      'Awan ditambahkan',
+  'pse.mk_line':
+      'Garis',
+  'pse.mk_other':
+      'Anotasi',
+  'pse.mk_rect':
+      'Persegi panjang',
+  'pse.mk_squiggly':
+      'Bergelombang',
+  'pse.mk_strikeout':
+      'Coret',
+  'pse.mk_underline':
+      'Garis bawah',
+  'pse.mode_line':
+      'Mode baris',
+  'pse.mode_paragraph':
+      'Mode paragraf',
+  'pse.step_crop':
+      'Gambar dipangkas',
+  'pse.step_delete':
+      'Dihapus',
+  'pse.step_duplicate':
+      'Diduplikasi',
+  'pse.step_flatten':
+      'Anotasi diratakan',
+  'pse.step_format':
+      'Pemformatan diubah',
+  'pse.step_image':
+      'Gambar ditambahkan',
+  'pse.step_image_replace':
+      'Gambar diganti',
+  'pse.step_ink':
+      'Gambar tangan ditambahkan',
+  'pse.step_list':
+      'Daftar diubah',
+  'pse.step_markup':
+      'Markah',
+  'pse.step_markup_remove':
+      'Markah dihapus',
+  'pse.step_move':
+      'Dipindahkan',
+  'pse.step_note':
+      'Catatan',
+  'pse.step_order':
+      'Urutan diubah',
+  'pse.step_paste':
+      'Ditempel',
+  'pse.step_replace':
+      'Cari dan ganti',
+  'pse.step_resize':
+      'Ukuran diubah',
+  'pse.step_rotate':
+      'Diputar',
+  'pse.step_shape':
+      'Bentuk ditambahkan',
+  'pse.step_textbox':
+      'Kotak teks ditambahkan',
+  'pse.tool_image':
+      'Gambar',
+  'pse.tool_markup':
+      'Markah',
+  'pse.tool_text':
+      'Teks',
+  'pse.kvkk_custom':
+      'Kata kustom',
+  'pse.kvkk_email':
+      'Email',
+  'pse.kvkk_iban':
+      'IBAN',
+  'pse.kvkk_phone':
+      'Telepon',
+  'pse.kvkk_tckn':
+      'Nomor KTP Turki',
+  'pse.step_redact':
+      'Disamarkan',
+  'pse.shapes':
+      'Bentuk',
+  'pse.text_lines':
+      'Baris teks',
+  'pse.stroke_thin':
+      'Tipis',
+  'pse.stroke_medium':
+      'Sedang',
+  'pse.stroke_thick':
+      'Tebal',
+  'pse.stroke_bold':
+      'Sangat tebal',
+  'pse.mode_label_para':
+      'Mode: Paragraf',
+  'pse.mode_label_line':
+      'Mode: Baris',
+  'pse.size_reset':
+      'Asli',
+  'mp.playlist_save':
+      'Simpan daftar putar',
+  'mp.playlist_open':
+      'Buka daftar putar',
+  'mp.playlist_saved':
+      '{name} disimpan',
+  'mp.playlist_loaded':
+      '{n} lagu dimuat ({missing} hilang)',
+  'mp.playlist_empty':
+      'Tidak ada berkas yang dapat diputar dalam daftar',
+  'mp.playlist_name':
+      'Nama daftar putar',
+// ── mp-nas-fmset ──
+  'mp.auto_next':
+      'Putar berikutnya otomatis',
+  'mp.auto_next_on':
+      'Putar berikutnya otomatis aktif',
+  'mp.auto_next_off':
+      'Putar berikutnya otomatis nonaktif',
+  'mp.loop_mark_a':
+      'Ulang A-B: tandai A',
+  'mp.loop_mark_b':
+      'Ulang A-B: tandai B',
+  'mp.loop_off':
+      'Hapus ulang A-B',
+  'mp.loop_a_set':
+      'Titik awal (A) ditandai',
+  'mp.loop_on':
+      'Ulang A-B aktif — rentang terus berulang.',
+  'mp.loop_cleared':
+      'Ulang A-B dihapus',
+  'mp.lock':
+      'Kunci kontrol',
+  'mp.rotate_right':
+      'Putar ke kanan',
+  'mp.rotate_left':
+      'Putar ke kiri',
+  'mp.unlock':
+      'Buka kunci',
+  'mp.sec_player':
+      'Pemutar',
+  'mp.float_window':
+      'Putar dalam gambar-dalam-gambar',
+  'mp.float_failed':
+      'Perangkat ini tidak mendukung gambar-dalam-gambar.',
+  'mp.zoom_fill':
+      'Penuhi layar',
+  'mp.zoom_fit':
+      'Sesuaikan dengan layar',
+  'mp.resumed_at':
+      'Melanjutkan dari {time}',
+  'mp.restart':
+      'Mulai dari awal',
+  'mp.sleep_timer':
+      'Pengatur waktu tidur',
+  'mp.sleep_off':
+      'Mati',
+  'mp.sleep_minutes':
+      '{n} menit',
+  'mp.sleep_active':
+      'Berhenti dalam {time}',
+  'mp.audio_failed':
+      'Berkas audio ini tidak dapat diputar: {error}',
+  'mp.channel_name':
+      'Pemutar musik',
+  'mp.channel_desc':
+      'Notifikasi untuk audio yang diputar di latar belakang',
+  'mp.play':
+      'Putar',
+  'mp.pause':
+      'Jeda',
+  'mp.next':
+      'Berikutnya',
+  'mp.previous':
+      'Sebelumnya',
+  'mp.now_playing':
+      'Sedang diputar',
+  'mp.speed':
+      'Kecepatan',
+  'mp.back10':
+      'Mundur 10 dtk',
+  'mp.forward10':
+      'Maju 10 dtk',
+  'mp.portrait':
+      'Potret',
+  'mp.fullscreen':
+      'Layar penuh (lanskap)',
+  'mp.next_page':
+      'Halaman berikutnya',
+  'mp.play_speed':
+      'Kecepatan pemutaran',
+  'mp.speed_reset':
+      'Setel ulang ke 1×',
+  'mp.subtitles':
+      'Subjudul',
+  'mp.sub_off':
+      'Subjudul mati',
+  'mp.engine_mpv':
+      'Buka dengan mesin lanjutan (mpv — semua codec)',
+  'mp.engine_exo':
+      'Kembali ke mesin standar (ExoPlayer)',
+  'mp.audio_track_n':
+      'Audio {n}',
+  'mp.sub_online':
+      'Cari online (OpenSubtitles)…',
+  'mp.sub_online_none':
+      'Subjudul untuk video ini tidak ditemukan.',
+  'mp.sub_online_failed':
+      'Tidak dapat mengambil subjudul: {error}',
+  'mp.sub_exact':
+      'Cocok persis dengan berkas ini',
+  'mp.sub_bigger':
+      'Subjudul lebih besar',
+  'mp.sub_smaller':
+      'Subjudul lebih kecil',
+  'mp.sub_pick':
+      'Pilih berkas subjudul…',
+  'mp.sub_earlier':
+      'Majukan subjudul 0,5 dtk lebih awal',
+  'mp.sub_later':
+      'Tunda subjudul 0,5 dtk',
+  'mp.sub_offset':
+      'Offset: {v} dtk',
+  'mp.sub_unreadable':
+      'Tidak dapat membaca berkas subjudul.',
+  'mp.open_with':
+      'Buka dengan aplikasi lain',
+  'mp.file_ops':
+      'Operasi berkas (pindah, salin, bagikan…)',
+  'mp.shuffle':
+      'Acak',
+  'mp.repeat_off':
+      'Ulangi: mati',
+  'mp.repeat_one':
+      'Ulangi: lagu ini',
+  'mp.repeat_all':
+      'Ulangi: semua',
+  'mp.video_failed':
+      'Berkas ini tidak dapat diputar. Perangkat Anda mungkin tidak mendukung codec ini — coba “Buka dengan aplikasi lain”.\n\n{error}',
+  'nas.ftp_plain_warning':
+      'FTP biasa tidak dienkripsi: kata sandi dan berkas Anda dikirim terbuka. Pilih FTPES atau SFTP jika server mendukungnya.',
+  'nas.webdav_http_warning':
+      'http:// tidak dienkripsi: kata sandi Anda dikirim terbuka. Gunakan hanya di jaringan rumah; pilih https:// di internet.',
+  'nas.title':
+      'Penyimpanan jaringan',
+  'nas.empty':
+      'Belum ada koneksi tersimpan. Tambahkan server secara manual atau pindai jaringan.',
+  'nas.add':
+      'Tambah koneksi',
+  'nas.edit':
+      'Edit koneksi',
+  'nas.scan':
+      'Pindai jaringan',
+  'nas.scanning':
+      'Memindai jaringan…',
+  'nas.scan_none':
+      'Server tidak ditemukan. Apakah server dan ponsel berada di jaringan Wi-Fi YANG SAMA?',
+  'nas.scan_found':
+      '{n} server ditemukan',
+  'nas.protocol':
+      'Protokol',
+  'nas.name':
+      'Nama',
+  'nas.name_hint':
+      'NAS Rumah',
+  'nas.host':
+      'Alamat server',
+  'nas.host_hint':
+      '192.168.1.10',
+  'nas.webdav_host_hint':
+      'https://server/dav',
+  'nas.port':
+      'Port',
+  'nas.user':
+      'Nama pengguna',
+  'nas.password':
+      'Kata sandi',
+  'nas.domain':
+      'Domain / grup kerja',
+  'nas.initial_path':
+      'Folder awal',
+  'nas.save_password':
+      'Simpan kata sandi',
+  'nas.save_password_note':
+      'Kata sandi disimpan terenkripsi dengan kunci yang terikat pada perangkat. Jika dimatikan, kata sandi ditanyakan setiap kali terhubung.',
+  'nas.unprotected_note':
+      'Penyimpanan kunci aman tidak berfungsi di perangkat ini: kata sandi tersimpan tanpa perlindungan.',
+  'nas.password_prompt':
+      'Kata sandi untuk “{name}”',
+  'nas.test':
+      'Uji koneksi',
+  'nas.test_ok':
+      'Koneksi berhasil.',
+  'nas.connecting':
+      'Menghubungkan…',
+  'nas.delete_confirm':
+      'Hapus koneksi “{name}”? (Berkas di server tidak disentuh.)',
+  'nas.upload_here':
+      'Unggah ke sini',
+  'nas.uploading':
+      'Mengunggah…',
+  'nas.upload_done':
+      'Terunggah.',
+  'nas.new_folder':
+      'Folder baru',
+  'nas.folder_name':
+      'Nama folder',
+  'nas.smb1_title':
+      'Protokol SMB1 lawas',
+  'nas.smb1_body':
+      '{host} hanya mendukung SMB1. SMB1 sudah usang dan tidak aman: kata sandi dan berkas lebih mudah disadap. Izinkan hanya di jaringan rumah tepercaya.',
+  'nas.smb1_allow':
+      'Tetap hubungkan',
+  'nas.copy_to_phone':
+      'Salin ke ponsel',
+  'nas.copied_to_phone':
+      'Disalin ke Download/Dosya Okuyucu',
+  'nas.copy_only_files':
+      'Hanya berkas yang dapat disalin (sebuah folder dipilih).',
+  'nas.copy_skipped_dirs':
+      'folder dilewati',
+  'nas.copying':
+      'Menyalin',
+  'nas.filter_hint':
+      'Saring folder ini',
+  'nas.no_match':
+      'Tidak ada berkas yang cocok.',
+  'nas.delete_many':
+      'Hapus {n} item?',
+  'nas.sort_ascending':
+      'Menaik',
+  'nas.rename':
+      'Ganti nama',
+  'nas.new_name':
+      'Nama baru',
+  'nas.empty_folder':
+      'Folder ini kosong.',
+  'nas.smb_share_root':
+      'Berbagi — buka satu berbagi untuk melihat berkasnya.',
+  'nas.error_unreachable':
+      'Tidak dapat menjangkau server. Periksa alamat, port, dan pastikan Anda berada di jaringan yang sama.',
+  'nas.error_auth':
+      'Nama pengguna atau kata sandi ditolak.',
+  'nas.error_not_found':
+      'Folder atau berkas tidak ditemukan.',
+  'nas.error_denied':
+      'Server menolak akses.',
+  'nas.error_unsupported':
+      'Server tidak mendukung versi protokol ini. Coba SFTP atau FTP.',
+  'nas.error_hostkey':
+      'Identitas server tidak dikonfirmasi atau telah berubah. Koneksi diputus.',
+  'nas.error_insecure':
+      'Koneksi tidak aman diblokir: kata sandi Anda tidak pernah dikirim tanpa enkripsi lewat internet atau ke server pengalihan. Gunakan alamat https://.',
+  'nas.hostkey_new_title':
+      'Server baru',
+  'nas.hostkey_new_body':
+      'Anda terhubung ke {host}:{port} untuk pertama kali.\n\n{type}\n{fp}\n\nPercayai jika sidik jarinya sama dengan yang ditampilkan NAS Anda.',
+  'nas.hostkey_changed_title':
+      'Identitas server BERUBAH',
+  'nas.hostkey_changed_body':
+      'Kunci {host}:{port} telah berubah. Mungkin ada yang menyadap.\n\nLama: {old}\nBaru: {fp}\n\nJANGAN terhubung kecuali Anda memasang ulang server.',
+  'nas.hostkey_trust':
+      'Percayai',
+  'nas.error_unknown':
+      'Kesalahan koneksi.',
+  'nas.smb_warning':
+      'SMB telah diuji dengan berbagi Samba/Windows (SMB2) dan berfungsi. Server yang hanya mewajibkan SMB3 mungkin tidak terhubung; dalam hal itu coba SFTP atau FTP pada server yang sama. Port selalu 445 dan tidak dapat diubah.',
+  'nas.writeback_title':
+      'Unggah perubahan ke server?',
+  'nas.writeback_body':
+      '“{name}” telah diedit. Perubahan baru ada di salinan sementara di ponsel; berkas di server masih yang lama. Mengunggah MENIMPA versi di server.',
+  'nas.writeback_upload':
+      'Unggah',
+  'nas.writeback_keep_local':
+      'Jangan unggah dulu',
+  'nas.writeback_done':
+      'Terunggah ke server.',
+  'fmset.folder_sizes':
+      'Ukuran folder di daftar',
+  'fmset.folder_sizes_sub':
+      'Folder yang terlihat diukur di latar belakang; pohon besar butuh waktu lebih lama.',
+  'fmset.resume':
+      'Lanjutkan dari terakhir dibuka',
+  'fmset.resume_sub':
+      'Ingat posisi pemutaran dan halaman dokumen.',
+  'fmset.audio_bg':
+      'Tetap putar audio di latar belakang',
+  'fmset.audio_bg_sub':
+      'Jika mati, musik berhenti saat Anda keluar dari aplikasi atau mengunci layar.',
+  'fmset.start_folder':
+      'Folder awal',
+  'fmset.start_folder_none':
+      'Aplikasi terbuka di dasbor',
+  'fmset.start_folder_pick':
+      'Buka ini saat mulai',
+  'fmset.start_folder_clear':
+      'Hapus folder awal',
+  'fmset.sec_privacy':
+      'Privasi',
+  'fmset.sec_delete':
+      'Penghapusan',
+  'fmset.sec_permissions':
+      'Izin',
+  'fmset.sec_maintenance':
+      'Pemeliharaan',
+  'fmset.list_layout':
+      'Tata letak daftar berkas',
+  'fmset.photo_grid':
+      'Kisi foto',
+  'fmset.grid_density':
+      'Kepadatan kisi',
+  'fmset.grouping':
+      'pengelompokan',
+  'fmset.show_hidden':
+      'Tampilkan berkas tersembunyi',
+  'fmset.show_hidden_sub':
+      'Nama yang diawali titik (seperti .thumbnails)',
+  'fmset.thumbnails':
+      'Gambar mini',
+  'fmset.thumbnails_sub':
+      'Pratinjau gambar dan video (matikan di perangkat lambat)',
+  'fmset.default_sort':
+      'Urutan bawaan',
+  'fmset.reverse_dir':
+      'Balik arah',
+  'fmset.group_photos':
+      'Kelompokkan foto',
+  'fmset.group_photos_sub':
+      'Dikelompokkan menurut {unit}',
+  'fmset.media_open_with':
+      'Buka video, audio, dan gambar dengan',
+  'fmset.index':
+      'Indeks pencarian',
+  'fmset.index_building':
+      'Membangun…',
+  'fmset.index_none':
+      'Belum dibangun — dibangun saat pencarian pertama atau setelah pemindaian',
+  'fmset.index_stale':
+      ' · berkas berubah, perlu disegarkan',
+  'fmset.index_ready':
+      '{n} catatan · {date}{stale}',
+  'fmset.index_failed':
+      'Indeks tidak dapat dibangun (izin penyimpanan mungkin tidak ada).',
+  'fmset.index_built':
+      'Indeks pencarian dibangun · {n} catatan.',
+  'fmset.pin_change':
+      'Ubah PIN kunci folder',
+  'fmset.pin_set':
+      'Atur PIN kunci folder',
+  'fmset.pin_sub_locked':
+      '{n} folder terkunci · untuk mengunci, gunakan ⋮ > “Kunci folder” di folder',
+  'fmset.pin_sub_unset':
+      'Folder terkunci disembunyikan dari daftar dan galeri. Berkas TIDAK dienkripsi — hanya disembunyikan di dalam aplikasi ini.',
+  'fmset.pin_remove':
+      'Hapus kunci sepenuhnya',
+  'fmset.pin_remove_sub':
+      'PIN dihapus dan semua folder dibuka kuncinya.',
+  'fmset.unlock':
+      'Buka kunci',
+  'fmset.use_trash':
+      'Gunakan tempat sampah',
+  'fmset.use_trash_sub':
+      'Jika mati, berkas langsung dihapus permanen (tidak dapat dibatalkan)',
+  'fmset.confirm_delete':
+      'Tanya sebelum menghapus',
+  'fmset.trash_auto':
+      'Kosongkan tempat sampah otomatis',
+  'fmset.trash_auto_off':
+      'Mati — tempat sampah dikosongkan manual',
+  'fmset.trash_auto_on':
+      'Item lebih lama dari {n} hari dihapus',
+  'fmset.off':
+      'Mati',
+  'fmset.days':
+      '{n} hari',
+  'fmset.empty_trash_now':
+      'Kosongkan tempat sampah sekarang',
+  'fmset.trash_empty':
+      'Tempat sampah kosong',
+  'fmset.trash_summary':
+      '{n} item · {size}',
+  'fmset.empty_confirm_title':
+      'Kosongkan tempat sampah?',
+  'fmset.empty_confirm_body':
+      '{n} item ({size}) akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+  'fmset.empty':
+      'Kosongkan',
+  'fmset.emptying':
+      'Mengosongkan tempat sampah',
+  'fmset.empty_partial':
+      '{ok} item dihapus, {fail} tidak dapat dihapus.',
+  'fmset.empty_cancelled':
+      'Dihentikan — {ok} item dihapus.',
+// ── fmset-drive-set-sdu ──
+  'fmset.empty_done':
+      'Tempat sampah dikosongkan · {ok} item · {size} dibebaskan.',
+  'fmset.full_access':
+      'Akses semua berkas',
+  'fmset.usage_access':
+      'Akses penggunaan',
+  'fmset.usage_access_on':
+      'Diberikan — tanggal terakhir dibuka aplikasi terlihat',
+  'fmset.usage_access_off':
+      'Belum diberikan — tanggal tidak dapat ditampilkan di layar “Aplikasi”',
+  'fmset.grant':
+      'Berikan',
+  'fmset.clear_thumbs':
+      'Hapus cache gambar mini',
+  'fmset.volumes':
+      'Volume',
+  'fmset.volumes_none':
+      'Tidak ditemukan',
+  'drive.title':
+      'Google Drive',
+  'drive.upload_action':
+      'Unggah ke Drive',
+  'drive.sign_in':
+      'Hubungkan dengan Google',
+  'drive.sign_out':
+      'Putuskan',
+  'drive.sign_in_prompt':
+      'Hubungkan akun Google Anda untuk menelusuri Drive di sini, membuka dan mengunggah berkas, serta mengatur folder.',
+  'drive.root':
+      'Drive Saya',
+  'drive.new_folder':
+      'Folder baru',
+  'drive.new_folder_default':
+      'Folder baru',
+  'drive.new_folder_failed':
+      'Tidak dapat membuat folder.',
+  'drive.rename':
+      'Ganti nama',
+  'drive.rename_failed':
+      'Tidak dapat mengganti nama.',
+  'drive.empty':
+      'Folder ini kosong.',
+  'drive.empty_search':
+      'Tidak ada berkas yang cocok.',
+  'drive.search_hint':
+      'Cari di Drive…',
+  'drive.exports_as':
+      'diunduh sebagai {format}',
+  'drive.uploading':
+      'Mengunggah ke Drive…',
+  'drive.upload_name':
+      'Unggah ke Drive',
+  'drive.upload_done':
+      'Terunggah ke Drive:',
+  'drive.upload_failed':
+      'Gagal mengunggah ke Drive.',
+  'drive.download_failed':
+      'Tidak dapat mengunduh berkas.',
+  'drive.downloading':
+      'Mengunduh dari Drive…',
+  'drive.ready_offscreen':
+      'Terunduh — ketuk untuk membuka:',
+  'drive.download_stopped':
+      'Unduhan dihentikan.',
+  'drive.delete_confirm':
+      'Pindahkan “{name}” ke tempat sampah Drive?',
+  'drive.delete_failed':
+      'Tidak dapat menghapus.',
+  'drive.download':
+      'Unduh ke ponsel…',
+  'drive.download_here':
+      'Unduh ke sini',
+  'drive.downloaded':
+      'Diunduh ke: {folder}',
+  'drive.star':
+      'Beri bintang',
+  'drive.unstar':
+      'Hapus bintang',
+  'drive.star_failed':
+      'Tidak dapat mengubah bintang.',
+  'drive.info':
+      'Detail',
+  'drive.info_kind':
+      'Jenis',
+  'drive.info_size':
+      'Ukuran',
+  'drive.info_modified':
+      'Diubah',
+  'drive.info_created':
+      'Dibuat',
+  'drive.info_owner':
+      'Pemilik',
+  'drive.info_shared':
+      'Berbagi',
+  'drive.info_starred':
+      'Berbintang',
+  'drive.shared_yes':
+      'Dibagikan ke orang lain',
+  'drive.shared_no':
+      'Hanya Anda',
+  'drive.sort':
+      'Urutkan',
+  'drive.folder':
+      'Folder',
+  'drive.share_link':
+      'Bagikan tautan',
+  'drive.share_file':
+      'Bagikan berkas',
+  'drive.share_failed':
+      'Tidak dapat membuat tautan berbagi.',
+  'drive.paste_failed':
+      'Tidak dapat menempel.',
+  'drive.copy_tag':
+      'salinan',
+  'drive.error_not_signed_in':
+      'Anda belum terhubung ke akun Google.',
+  'drive.error_not_configured':
+      'Masuk Google tidak diaktifkan untuk APK ini. Akun tidak dapat dihubungkan sebelum tanda tangan aplikasi didaftarkan di Google Cloud sebagai "Android OAuth client" (aturan Google; tidak dapat diperbaiki lewat kode). Pemilih sistem di bawah berfungsi tanpa pendaftaran itu.',
+  'drive.setup_title':
+      'Nilai penyiapan satu kali',
+  'drive.setup_steps':
+      'Masukkan dua nilai di bawah di console.cloud.google.com → APIs & Services → Credentials → OAuth client ID (Android). Jika layar persetujuan OAuth dalam mode "Testing", tambahkan akun Anda sebagai penguji. Detail: docs/GOOGLE-DRIVE-KURULUM.md',
+  'drive.setup_package':
+      'Nama paket',
+  'drive.setup_sha1':
+      'SHA-1 penandatanganan',
+  'drive.setup_copied':
+      'Disalin.',
+  'drive.error_no_play_services':
+      'Google Play Services tidak ada atau usang di perangkat ini, sehingga masuk Google tidak dapat berjalan. Anda dapat memakai pemilih sistem di bawah.',
+  'drive.error_sign_in_failed':
+      'Masuk Google tidak dapat diselesaikan.',
+  'drive.system_picker_hint':
+      'Meski masuk tidak berfungsi, Anda tetap dapat mengakses SEMUA isi Drive: pemilih sistem Android mencantumkan Drive sebagai sumber berkas dan tidak meminta izin apa pun.',
+  'drive.open_via_system':
+      'Buka berkas Drive dengan pemilih sistem',
+  'drive.error_forbidden':
+      'Drive menolak operasi ini. Berkas mungkin tidak diunggah dengan aplikasi ini.',
+  'drive.error_api_not_enabled':
+      'Google Drive API tidak diaktifkan untuk proyek ini. Buka Google Cloud Console → APIs & Services → Library → "Google Drive API" → Enable, lalu coba lagi beberapa menit kemudian.',
+  'drive.error_insufficient_scope':
+      'Akun terhubung tetapi izin Drive belum diberikan. Putuskan, hubungkan lagi, dan setujui akses Drive di dialog persetujuan.',
+  'drive.error_not_found':
+      'Berkas tidak ditemukan di Drive.',
+  'drive.error_temporary':
+      'Drive tidak merespons saat ini, coba lagi sebentar lagi.',
+  'drive.error_unknown':
+      'Kesalahan koneksi Drive.',
+  'drive.downloading_name':
+      'Unduhan dari Drive',
+  'set.sec_documents':
+      'Dokumen',
+  'set.sec_network':
+      'Jaringan & AI',
+  'set.kw_offline':
+      'offline internet jaringan pesawat',
+  'set.rate_app':
+      'Beri nilai aplikasi',
+  'set.rate_app_sub':
+      'Penilaian Anda membantu tim pengembang kecil berkembang',
+  'set.key_valid':
+      'Kunci valid · {n} model ditemukan',
+  'set.key_invalid':
+      'Kunci tidak dapat diverifikasi',
+  'set.cat_appearance':
+      'Tampilan & bahasa',
+  'set.cat_appearance_sub':
+      'Tema, font, ukuran teks, dan bahasa antarmuka',
+  'set.cat_browsing':
+      'Daftar berkas',
+  'set.cat_browsing_sub':
+      'Tata letak, pengurutan, gambar mini, folder awal',
+  'set.cat_ai':
+      'Kecerdasan buatan',
+  'set.cat_ai_sub':
+      'Folder pintar, kunci, dan privasi',
+  'set.sec_smart':
+      'Folder pintar',
+  'set.smart_sort_sub':
+      'Hidup/mati, kamera, pengaturan di latar belakang, hanya Wi-Fi, batas harian, perbaikan yang dipelajari',
+  'set.smart_on':
+      'Aktif · {n} berkas diatur — buka folder pintar',
+  'set.smart_off':
+      'Mati — aktifkan untuk memberi berkas Anda nama kedua dan kategori',
+  'set.smart_pin':
+      'PIN untuk folder sensitif',
+  'set.smart_pin_none':
+      'Folder KTP, kesehatan, bank, dan pajak kini terbuka tanpa PIN — ketuk untuk mengatur PIN',
+  'set.smart_pin_on':
+      'Folder KTP, kesehatan, bank, dan pajak menanyakan PIN sekali per sesi',
+  'set.smart_pin_app':
+      'Kunci aplikasi aktif: PIN ditanya saat dibuka, folder tidak bertanya lagi',
+  'set.cat_privacy':
+      'Privasi & izin',
+  'set.cat_privacy_sub':
+      'Kunci folder dan izin yang dimiliki aplikasi',
+  'set.cat_reading':
+      'Membaca & suara',
+  'set.cat_reading_sub':
+      'Suara ucapan, kecepatan, dan baca cerdas',
+  'set.cat_storage':
+      'Penyimpanan & kinerja',
+  'set.cat_storage_sub':
+      'Tempat sampah, konfirmasi hapus, kecepatan, dan perawatan',
+  'set.sec_tts':
+      'Ucapan',
+  'set.tts_voice':
+      'Suara dan kecepatan',
+  'set.tts_voice_sub':
+      'Pilih dari suara di perangkat Anda, atur kecepatan dan nada (dengan pratinjau)',
+  'set.tts_default_voice':
+      'Bawaan perangkat',
+  'set.tts_summary':
+      'Ucapan {x}x',
+  'set.tts_ai_read':
+      'Baca cerdas',
+  'set.tts_ai_read_sub':
+      'Mulai berbicara begitu jawaban tiba',
+  'set.sec_advanced':
+      'Lanjutan',
+  'set.sec_experimental':
+      'Eksperimental',
+  'set.advanced_hint':
+      'Jarang diperlukan — atur sekali',
+  'set.trash_off':
+      'Hapus permanen',
+  'set.refresh_60':
+      '60 Hz',
+  'set.ai_no_key':
+      'Tanpa kunci',
+  'set.ai_key_count':
+      '{n} kunci',
+  'set.api_key_sub':
+      'Kunci API Gemini Anda — disimpan di perangkat',
+  'set.kw_dark':
+      'gelap mode malam',
+  'set.kw_font':
+      'font jenis huruf ukuran',
+  'set.kw_speak':
+      'bicara suara tts baca keras',
+  'set.kw_gemini':
+      'gemini kunci api token',
+  'set.kw_days':
+      'hari otomatis periode',
+  'set.sec_theme':
+      'Tema',
+  'set.haptics':
+      'Umpan balik getar',
+  'set.haptics_sub':
+      'Getaran ringan saat memilih dan menggulir',
+  'set.sec_text':
+      'Teks',
+  'set.sec_language':
+      'Bahasa',
+  'set.sec_lists':
+      'Daftar',
+  'set.sec_photos':
+      'Foto',
+  'set.sec_opening':
+      'Pembukaan',
+  'set.sec_key':
+      'Akses',
+  'set.sec_lock':
+      'Kunci folder',
+  'set.sec_speed':
+      'Kecepatan & baterai',
+  'set.sec_ai_scope':
+      'Cakupan analisis',
+  'set.sec_ai_privacy':
+      'Yang keluar dari perangkat',
+  'set.hints_reset':
+      'Tampilkan tips lagi',
+  'set.hints_reset_sub':
+      'Tips dan panduan yang ditampilkan sekali akan muncul lagi',
+  'set.hints_reset_done':
+      'Tips akan ditampilkan lagi',
+  'sdu.title':
+      'Penyimpanan gabungan dengan kartu SD',
+  'sdu.tile_sub':
+      'Saat mengisi daya, memindahkan foto dan video lama ke kartu SD untuk mengosongkan penyimpanan internal',
+  'sdu.kw':
+      'kartu memori microsd pindah cadangan mengisi daya penyimpanan internal penuh ruang kosong',
+  'sdu.hero_title':
+      'Dua memori, satu penyimpanan',
+  'sdu.hero_body':
+      'Saat ponsel diisi daya, berkas lama dari folder pilihan Anda dipindahkan ke kartu SD dengan susunan folder yang sama. Berkas tetap tampil bersama di daftar dan galeri, dan penyimpanan internal dikosongkan. Mencabut pengisi daya menghentikan tugas tanpa meninggalkan berkas yang setengah tersalin.',
+  'sdu.android_only':
+      'Fitur ini hanya berfungsi di Android.',
+  'sdu.no_card':
+      'Kartu SD tidak terpasang',
+  'sdu.no_card_hint':
+      'Pasang kartu microSD ke ponsel; kartu akan muncul di sini otomatis.',
+  'sdu.card_missing':
+      'Kartu SD yang dipilih sedang tidak terpasang. Tugas berlanjut setelah kartu kembali.',
+  'sdu.err_readonly':
+      'Ponsel ini tidak mengizinkan penulisan langsung ke kartu SD (Android 10 atau lebih lama, atau "Akses semua berkas" mati). Aktifkan izinnya di Pengaturan.',
+  'sdu.enable':
+      'Jalankan otomatis saat mengisi daya',
+  'sdu.enable_sub':
+      'Berfungsi meski aplikasi ditutup; tidak menguras baterai dan berhenti saat dicabut.',
+  'sdu.sec_status':
+      'Status',
+  'sdu.sec_target':
+      'Target dan mode',
+  'sdu.sec_what':
+      'Yang dipindahkan',
+  'sdu.card_free':
+      '{free} kosong · {total}',
+  'sdu.mode_move':
+      'Pindahkan',
+  'sdu.mode_copy':
+      'Cadangkan',
+  'sdu.mode_move_sub':
+      'Berkas pindah ke kartu SD dan mengosongkan penyimpanan internal.',
+  'sdu.mode_copy_sub':
+      'Berkas tetap di penyimpanan internal dan salinannya disimpan di kartu SD (diperbarui saat berubah).',
+  'sdu.folders':
+      'Folder',
+  'sdu.f_camera':
+      'Kamera (DCIM)',
+  'sdu.f_pictures':
+      'Gambar',
+  'sdu.f_movies':
+      'Film',
+  'sdu.f_music':
+      'Musik',
+  'sdu.f_download':
+      'Unduhan',
+  'sdu.f_documents':
+      'Dokumen',
+  'sdu.f_recordings':
+      'Rekaman',
+  'sdu.age':
+      'Berkas lebih lama dari',
+  'sdu.age_all':
+      'Semua',
+  'sdu.age_days':
+      '{n} hari',
+  'sdu.preview_wait':
+      'Menghitung…',
+  'sdu.preview_move':
+      '{n} berkas · {size} akan dipindahkan sekarang',
+  'sdu.preview_copy':
+      '{n} berkas · {size} akan dicadangkan sekarang',
+  'sdu.preview_sub':
+      'Berkas yang sudah ada di kartu dilewati.',
+  'sdu.notify':
+      'Beri tahu saat selesai',
+  'sdu.rules':
+      'Tidak disentuh: folder tersembunyi (.thumbnails), berkas yang diubah dalam 10 menit terakhir, dan media aplikasi obrolan seperti WhatsApp/Telegram — obrolan menyimpan berkas menurut lokasinya sehingga memindahkannya akan merusaknya. Minimal 1 GB dibiarkan kosong di kartu. Jika ada berkas lain dengan nama sama, nama baru dipakai; tidak ada yang ditimpa.',
+  'sdu.charging':
+      'Mengisi daya',
+  'sdu.not_charging':
+      'Tidak mengisi daya',
+  'sdu.will_run_now':
+      'akan segera berjalan',
+  'sdu.will_run_charging':
+      'berjalan saat dicolok',
+  'sdu.never':
+      'Belum pernah berjalan.',
+  'sdu.running':
+      'Memindahkan… {n} berkas · {size} sejauh ini',
+  'sdu.last_run':
+      'Terakhir berjalan {when}: {n} berkas · {size}',
+  'sdu.total':
+      'Total: {n} berkas · {size}',
+  'sdu.failed_n':
+      '{n} berkas tidak dapat dipindahkan (dicoba lagi lain kali).',
+  'sdu.err_sd_missing':
+      'Kartu SD tidak ditemukan — tugas dilewati.',
+  'sdu.err_sd_full':
+      'Kartu SD penuh (1 GB dibiarkan kosong) — tugas dihentikan.',
+  'sdu.err_stopped':
+      'Dijeda karena pengisian daya berhenti atau dihentikan; sisanya dipindahkan nanti.',
+  'sdu.run_now_move':
+      'Pindahkan sekarang',
+  'sdu.run_now_copy':
+      'Cadangkan sekarang',
+  'sdu.run_started':
+      'Dimulai — Anda dapat menutup aplikasi.',
+// ── sdu-ied-rs-ss-fm ──
+  'sdu.run_failed':
+      'Tidak dapat dimulai. Apakah kartu SD terpasang?',
+  'sdu.notify_title_move':
+      'Dipindahkan ke kartu SD',
+  'sdu.notify_title_copy':
+      'Dicadangkan ke kartu SD',
+  'sdu.notify_body':
+      '{n} berkas · {size}',
+  'sdu.job_title':
+      'Memindahkan ke kartu SD',
+  'sdu.job_title_copy':
+      'Mencadangkan ke kartu SD',
+  'sdu.job_name':
+      'Transfer ke kartu SD',
+  'ied.title':
+      'Edit',
+  'ied.crop':
+      'Pangkas',
+  'ied.adjust':
+      'Sesuaikan',
+  'ied.markup':
+      'Markah',
+  'ied.free':
+      'Bebas',
+  'ied.rotate':
+      'Putar',
+  'ied.flip':
+      'Balik',
+  'ied.reset':
+      'Setel ulang',
+  'ied.pen':
+      'Pena',
+  'ied.arrow':
+      'Panah',
+  'ied.text':
+      'Teks',
+  'ied.text_hint':
+      'Teks yang ditambahkan',
+  'ied.tap_for_text':
+      'Ketuk di tempat teks akan diletakkan',
+  'ied.save_copy':
+      'Simpan sebagai salinan',
+  'ied.save_copy_sub':
+      'Berkas asli tetap seperti semula',
+  'ied.overwrite':
+      'Timpa berkas asli',
+  'ied.overwrite_sub':
+      'Gambar asli tidak dapat dipulihkan',
+  'ied.as_jpeg':
+      'Format ini tidak dapat ditulis; disimpan sebagai salinan JPEG',
+  'ied.saved':
+      '{name} disimpan',
+  'ied.original':
+      'Asli',
+  'ied.custom_ratio':
+      'Rasio kustom',
+  'ied.ratio_hint':
+      'Rasio (mis. 4:5)',
+  'ied.ratio_invalid':
+      'Tidak dapat membaca rasio — ketik seperti "4:5".',
+  'ied.hold_original':
+      'Sebelum / sesudah — ketuk atau tahan',
+  'ied.size_now':
+      'Sekarang {from} → Disimpan sebagai {to}',
+  'ied.size_original':
+      'Apa adanya',
+  'ied.filters':
+      'Filter',
+  'ied.f_none':
+      'Tidak ada',
+  'ied.f_vivid':
+      'Cerah',
+  'ied.f_warm':
+      'Hangat',
+  'ied.f_cool':
+      'Sejuk',
+  'ied.f_mono':
+      'Mono',
+  'ied.f_sepia':
+      'Sepia',
+  'ied.f_fade':
+      'Pudar',
+  'ied.f_drama':
+      'Dramatis',
+  'ied.f_matte':
+      'Mat',
+  'ied.f_retro':
+      'Retro',
+  'ied.f_document':
+      'Dokumen',
+  'ied.strength':
+      'Kekuatan',
+  'ied.reset_one':
+      'Setel ulang ini',
+  'ied.flip_v':
+      'Balik vertikal',
+  'ied.select':
+      'Pilih',
+  'ied.highlighter':
+      'Stabilo',
+  'ied.eraser':
+      'Penghapus',
+  'ied.line':
+      'Garis',
+  'ied.rect':
+      'Persegi panjang',
+  'ied.ellipse':
+      'Elips',
+  'ied.blur':
+      'Buramkan',
+  'ied.pixelate':
+      'Pikselkan',
+  'ied.thickness':
+      'Ketebalan',
+  'ied.opacity':
+      'Opasitas',
+  'ied.edit_text':
+      'Edit teks',
+  'ied.text_box':
+      'Latar belakang',
+  'ied.font_sans':
+      'Sans',
+  'ied.font_serif':
+      'Serif',
+  'ied.font_mono':
+      'Mono',
+  'ied.blur_hint':
+      'Lukis di atas yang ingin disembunyikan (wajah, pelat nomor, nomor identitas) — tidak dapat dipulihkan dari berkas yang disimpan.',
+  'ied.zoom_hint':
+      'Cubit untuk memperbesar · ketuk dua kali untuk menyesuaikan',
+  'rs.presets':
+      'Prasetel',
+  'rs.preset_profile':
+      'Profil 640×640',
+  'rs.preset_form':
+      'Unggah formulir ≤ 200 KB',
+  'rs.preset_share':
+      'Sosial 4:5 · 1080',
+  'rs.preset_web':
+      'Web 1600 px',
+  'rs.lock_on':
+      'Rasio terkunci — ketuk untuk membuka',
+  'rs.lock_off':
+      'Rasio bebas — ketuk untuk mengunci',
+  'rs.lock_note':
+      'Rasio terkunci: ketik satu nilai, yang lain dihitung. Dengan beberapa berkas, masing-masing mempertahankan rasionya.',
+  'rs.unlock_note':
+      'Rasio bebas: ketik kedua nilai dan pilih bagaimana gambar mengisi kotak.',
+  'rs.fit':
+      'Bagaimana pas?',
+  'rs.aspect_w':
+      'Lebar',
+  'rs.aspect_h':
+      'Tinggi',
+  'rs.custom_value':
+      'Kustom',
+  'rs.long_edge_note':
+      'Sisi terpanjang diperkecil ke nilai ini dengan rasio tetap. Foto yang lebih kecil tidak diperbesar.',
+  'rs.file_size_note':
+      'Disimpan sebagai JPEG; kualitas (dan ukuran bila perlu) disesuaikan otomatis. Jika target tidak tercapai, ukuran terdekat dilaporkan.',
+  'rs.upscale_warning':
+      'Foto akan diperbesar: ukuran berkas bertambah tetapi ketajaman tidak membaik.',
+  'rs.anchor':
+      'Pertahankan bagian ini',
+  'rs.video_layout_note':
+      'Pada video, pemangkasan berpusat dan tepinya hitam.',
+  'rs.video_file_size_note':
+      'Untuk video, ukuran target menjadi bitrate; target rendah juga menurunkan resolusi. Ukuran sebenarnya dilaporkan setelah selesai.',
+  'rs.save_preset':
+      'Simpan pengaturan',
+  'rs.preset_name':
+      'Nama prasetel',
+  'rs.preset_delete':
+      'Hapus "{name}"?',
+  'rs.preset_hint':
+      'Tekan dan tahan pengaturan tersimpan untuk menghapusnya.',
+  'rs.preview':
+      'Pratinjau',
+  'rs.strip_location':
+      'Hapus lokasi',
+  'rs.strip_location_sub':
+      'Tanggal dan info kamera dipertahankan. (Keluaran WebP tidak membawa metadata.)',
+  'rs.title':
+      'Ubah ukuran ({n} berkas)',
+  'rs.now':
+      'Sekarang',
+  'rs.after':
+      'Sesudah',
+  'rs.fps_value':
+      '{n} fps',
+  'rs.bitrate':
+      '{n} Mbps',
+  'rs.no_audio':
+      'tanpa suara',
+  'rs.estimate':
+      'Perkiraan: {before} → ≈ {after}',
+  'rs.estimate_gain':
+      '≈ {n}% dihemat',
+  'rs.estimate_note':
+      'Ukuran sebenarnya bergantung pada isi; hasil pastinya muncul saat tugas selesai.',
+  'rs.and_more':
+      'dan {n} berkas lagi · total {size}',
+  'rs.no_change_warning':
+      'Pengaturan ini tidak memperkecil berkas ini: resolusi dan frame rate tetap sama. Pilih resolusi atau frame rate yang lebih rendah.',
+  'rs.resolution':
+      'Resolusi',
+  'rs.width':
+      'Lebar (px)',
+  'rs.height':
+      'Tinggi (px)',
+  'rs.jpeg_quality':
+      'Kualitas JPEG (foto)',
+  'rs.format':
+      'Format (foto)',
+  'rs.video_quality':
+      'Kompresi video',
+  'rs.fps':
+      'Frame rate (fps)',
+  'rs.keep':
+      'Biarkan apa adanya',
+  'rs.video_note':
+      'Video selalu dikodekan ulang (meski hanya kualitas atau audio yang berubah): dikonversi tepat ke ukuran yang diminta memakai encoder perangkat keras (Android Media3). Persentase dan sisa waktu ditampilkan di baris tugas. Pada video panjang ini bisa memakan waktu beberapa menit; tugas berjalan di latar belakang.',
+  'rs.strip_audio':
+      'Hapus audio',
+  'rs.strip_audio_sub':
+      'Menghemat ruang yang cukup besar pada video yang audionya tidak dibutuhkan.',
+  'rs.trash_original':
+      'Pindahkan berkas asli ke tempat sampah',
+  'rs.trash_original_sub':
+      'Jika mati, salinan yang lebih kecil ditulis di folder yang sama sebagai berkas baru dan berkas asli tidak disentuh.',
+  'rs.queue_note':
+      'Tugas berjalan dalam antrean latar belakang; Anda dapat pindah ke layar lain. Tugas berhenti jika Anda menutup aplikasi sepenuhnya. Berkas yang lebih kecil disimpan di samping aslinya; Anda dapat membuka hasilnya dan berkas yang dibuat dari kotak “Tugas” di layar beranda.',
+  'rs.start':
+      'Mulai',
+  'ss.tools':
+      'Alat presenter',
+  'ss.prev':
+      'Sebelumnya',
+  'ss.next':
+      'Berikutnya',
+  'ss.laser':
+      'Penunjuk laser',
+  'ss.pen':
+      'Pena',
+  'ss.pen_color':
+      'Warna pena',
+  'ss.clear_ink':
+      'Hapus coretan',
+  'ss.timer':
+      'Pengatur waktu',
+  'ss.play':
+      'Putar',
+  'ss.pause':
+      'Jeda',
+  'ss.stop':
+      'Berhenti',
+  'ss.presenter':
+      'Tampilan presenter',
+  'ss.reset_timer':
+      'Setel ulang pengatur waktu',
+  'ss.next_slide':
+      'Slide berikutnya',
+  'ss.slide_time':
+      'Slide ini: {t}',
+  'ss.end_of_show':
+      'Akhir presentasi',
+  'ss.notes':
+      'Catatan',
+  'ss.no_notes':
+      'Tidak ada catatan untuk slide ini',
+  'ss.volume_keys':
+      'Maju dengan tombol volume',
+  'ss.web_remote':
+      'Remote lewat jaringan lokal',
+  'ss.second_screen':
+      'Tampilkan di layar kedua',
+  'ss.blank_black':
+      'Layar hitam',
+  'ss.blank_white':
+      'Layar putih',
+  'ss.all_slides':
+      'Semua slide',
+  'ss.tool_rotate_left':
+      'Putar ke kiri',
+  'ss.tool_rotate_right':
+      'Putar ke kanan',
+  'ss.compare_hold':
+      'Asli (tahan)',
+  'ss.pages_tab':
+      'Halaman ({n})',
+  'ss.saved':
+      'Disimpan · {folder}',
+  'ss.saving':
+      'Menyimpan…',
+  'ss.save_failed':
+      'Tidak tersimpan — ketuk untuk mencoba lagi',
+  'ss.finishing':
+      'Menyimpan perubahan terakhir…',
+  'ss.tool_crop':
+      'Pangkas',
+  'ss.tool_rotate':
+      'Putar',
+  'ss.tool_filter':
+      'Filter',
+  'ss.tool_retake':
+      'Ambil ulang',
+  'ss.tool_delete':
+      'Hapus',
+  'ss.page_deleted':
+      'Halaman dihapus',
+  'ss.working_crop':
+      'Memangkas…',
+  'ss.working_rotate':
+      'Memutar…',
+  'ss.working_filter':
+      'Menerapkan…',
+  'ss.working_straighten':
+      'Meluruskan…',
+  'ss.moving':
+      'Memindahkan…',
+  'ss.add_camera':
+      'Pindai dengan kamera',
+  'ss.add_camera_sub':
+      'Tepi halaman ditemukan otomatis',
+  'ss.add_gallery':
+      'Tambah dari foto',
+  'ss.add_gallery_sub':
+      'Pilih dari galeri dan atur pangkasan sendiri',
+  'ss.filter_clear':
+      'Hapus filter',
+  'ss.exit':
+      'Keluar',
+  'ss.step':
+      '{n} / {total}  ·  langkah {step}/{max}',
+  'ss.no_text':
+      '(Tanpa teks)',
+  'fm.search_apps':
+      'Cari aplikasi…',
+  'fm.name_spoof_warn':
+      'Peringatan: jenis sebenarnya .{ext}',
+  'fm.recent_opened':
+      'Riwayat',
+  'fm.apk_tab':
+      'APK',
+  'fm.network_storage':
+      'Penyimpanan jaringan',
+  'fm.trash':
+      'Tempat sampah',
+  'fm.trash_count':
+      '{n} item',
+  'fm.permission_denied':
+      'Tidak masalah — Anda tetap dapat membuka berkas satu per satu; tidak perlu izin lain.',
+  'fm.internal_storage':
+      'Penyimpanan internal',
+  'fm.organize':
+      'Atur',
+  'fm.root':
+      'Root',
+  'fm.unreadable':
+      'Folder ini tidak dapat dibaca.\nMungkin lokasi yang dilindungi Android (seperti Android/data), atau "akses semua berkas" belum diberikan.',
+  'fm.sort_name':
+      'Urutkan menurut nama',
+  'fm.sort_date':
+      'Urutkan menurut tanggal',
+  'fm.sort_size':
+      'Urutkan menurut ukuran',
+  'fm.select_none':
+      'Hapus pilihan',
+  'fm.paste':
+      'Tempel',
+  'fm.clipboard_ready':
+      '{n} item siap untuk {verb}',
+  'fm.verb_move':
+      'dipindahkan',
+  'fm.verb_copy':
+      'disalin',
+  'fm.compare_digest':
+      'Apakah kedua berkas identik?',
+  'fm.batch_rename':
+      'Ganti nama massal',
+// ── fm-ftpd-vault-dl-ab ──
+  'fm.compress':
+      'Kompres (ZIP/7z)',
+  'fm.resize':
+      'Perkecil ukuran (resolusi / frame rate)',
+  'fm.tag':
+      'Tag (orang/grup)',
+  'fm.more_actions':
+      'Tindakan lainnya',
+  'fm.more':
+      'Lainnya',
+  'fm.clipboard_copied':
+      'Disalin ke papan klip. Ketuk “Tempel” di folder tujuan.',
+  'fm.clipboard_cut':
+      'Dipotong ke papan klip. Ketuk “Tempel” di folder tujuan.',
+  'fm.move_here':
+      'Pindahkan ke sini',
+  'fm.copy_here':
+      'Salin ke sini',
+  'fm.scan_document':
+      'Pindai dokumen',
+  'fm.duplicates_title':
+      'Berkas duplikat',
+  'fm.enter_password':
+      'Masukkan kata sandi',
+  'fm.clear_finished':
+      'Hapus yang selesai',
+  'fm.existing_tags':
+      'Tag yang ada',
+  'fm.pin_enter':
+      'Masukkan PIN',
+  'fm.pin_new':
+      'PIN baru',
+  'fm.pin_label':
+      'PIN',
+  'fm.pin_repeat':
+      'PIN (ulangi)',
+  'fm.to_background':
+      'Jalankan di latar belakang',
+  'fm.vol_internal':
+      'Penyimpanan internal',
+  'fm.vol_sdcard':
+      'Kartu SD',
+  'fm.vol_usb':
+      'Drive USB',
+  'fm.quick_untouched':
+      'Tidak dibuka dalam {n} bulan',
+  'fm.quick_opened_within':
+      'Dibuka dalam {n} bulan terakhir',
+  'fm.moving_name':
+      'Pindahkan',
+  'fm.search_all':
+      'Cari di semua berkas',
+  'ftpd.title':
+      'Akses jaringan',
+  'ftpd.description':
+      'Jangkau berkas di ponsel ini dari komputer di jaringan. Mulai layanan, lalu ketik alamat di bawah ke penjelajah berkas di PC. Ponsel dan PC harus berada di jaringan Wi-Fi YANG SAMA.',
+  'ftpd.intro':
+      'Mulai layanan untuk menjangkau berkas lewat jaringan.',
+  'ftpd.web_label':
+      'Buka di peramban',
+  'ftpd.web_hint':
+      'Ketik alamat ini di peramban PC Anda: klik berkas untuk membuka atau mengunduhnya.',
+  'ftpd.ftp_label':
+      'Penjelajah berkas (FTP)',
+  'ftpd.ftp_hint':
+      'Ketik di Explorer untuk menyalin dengan seret dan lepas. Peramban tidak lagi mendukung FTP — gunakan alamat di atas untuk membuka berkas.',
+  'ftpd.random_password':
+      'Kata sandi acak',
+  'ftpd.show_hidden':
+      'Tampilkan berkas tersembunyi',
+  'ftpd.clients':
+      '{n} komputer terhubung',
+  'ftpd.folders_hint':
+      'Di PC Anda akan melihat kotak yang sama seperti di ponsel: Belgeler, Resimler, Videolar, Ses, Arsivler, Uygulamalar, Indirilenler, Kamera — plus "Telefon" untuk semuanya. Anda dapat memilih mana yang dibagikan di atas, atau hanya membagikan folder "Paylasilan".',
+  'ftpd.notification_hint':
+      'Tetap terlihat di panel notifikasi saat aktif, dan berhenti sendiri saat Anda menutup aplikasi.',
+  'ftpd.open_action':
+      'Akses jaringan aktif',
+  'ftpd.advanced':
+      'Lanjutan',
+  'ftpd.start':
+      'MULAI',
+  'ftpd.stop':
+      'HENTIKAN LAYANAN',
+  'ftpd.running':
+      'Berjalan',
+  'ftpd.no_address':
+      'Koneksi Wi-Fi tidak ditemukan. Hubungkan ponsel ke jaringan Wi-Fi.',
+  'ftpd.allow_write':
+      'Izinkan menulis',
+  'ftpd.allow_write_note':
+      'Saat mati, PC hanya dapat membaca. Jika diaktifkan, PC dapat mengubah dan MENGHAPUS berkas di ponsel.',
+  'ftpd.folders_title':
+      'Folder yang dibagikan',
+  'ftpd.folders_all':
+      'Semuanya dibagikan',
+  'ftpd.folders_count':
+      '{n} folder dibagikan',
+  'ftpd.folders_none':
+      'Tidak ada folder dipilih',
+  'ftpd.folders_none_warning':
+      'Tidak ada folder dipilih: meski berbagi aktif, PC tidak akan melihat apa pun.',
+  'ftpd.mode_boxes':
+      'Folder yang saya pilih',
+  'ftpd.mode_boxes_desc':
+      'Hanya folder yang Anda centang di bawah yang dibagikan; sisanya tidak terlihat.',
+  'ftpd.mode_shared':
+      'Hanya folder Dibagikan',
+  'ftpd.mode_shared_desc':
+      'Letakkan yang ingin dikirim ke folder "Dibagikan"; bagian ponsel lainnya sama sekali tidak terlihat di jaringan.',
+  'ftpd.select_all':
+      'Pilih semua',
+  'ftpd.clear_all':
+      'Hapus pilihan',
+  'ftpd.box_on_pc':
+      'Di PC: {name}',
+  'ftpd.box_shared':
+      'Dibagikan',
+  'ftpd.box_storage':
+      'Seluruh ponsel',
+  'ftpd.box_downloads':
+      'Unduhan',
+  'ftpd.box_camera':
+      'Kamera',
+  'ftpd.box_screenshots':
+      'Tangkapan layar',
+  'ftpd.box_images':
+      'Gambar',
+  'ftpd.box_videos':
+      'Video',
+  'ftpd.box_audio':
+      'Audio',
+  'ftpd.box_documents':
+      'Dokumen',
+  'ftpd.box_archives':
+      'Arsip',
+  'ftpd.box_apps':
+      'Aplikasi',
+  'ftpd.shared_folder_hint':
+      'Folder "Paylaşılan" di ponsel. Gunakan "Salin ke Dibagikan" di menu ⋮ berkas untuk menaruh sesuatu di sini.',
+  'ftpd.copied':
+      'Alamat disalin.',
+  'ftpd.start_failed':
+      'Tidak dapat memulai server: {error}',
+  'ftpd.qr_hint':
+      'Pindai dengan kamera komputer atau ponsel lain — berkas Anda terbuka di peramban.',
+  'ftpd.upload_hint':
+      'Komputer ke ponsel: berkas yang dikirim dengan "Telefona gönder" di halaman masuk ke Download/Bilgisayardan.',
+  'vault.title':
+      'Brankas terenkripsi',
+  'vault.pin_use_lock':
+      'Masukkan PIN kunci folder — brankas memakai PIN yang sama',
+  'vault.pin_same_existing':
+      'Brankas memakai PIN yang sama dengan kunci folder dan aplikasi: masukkan PIN Anda saat ini.',
+  'vault.pin_same_new':
+      'PIN ini juga dipakai untuk kunci folder dan aplikasi.',
+  'vault.legacy_title':
+      '{n} item tersembunyi tidak terenkripsi',
+  'vault.legacy_body':
+      '"Berkas tersembunyi" lama hanya disimpan di tempat tersembunyi; terlihat saat ponsel dihubungkan ke komputer. Memindahkannya ke brankas mengenkripsinya — setiap berkas dienkripsi dan diverifikasi sebelum aslinya dihapus.',
+  'vault.legacy_move':
+      'Pindahkan ke brankas',
+  'vault.legacy_show':
+      'Lihat daftar',
+  'vault.move_hint':
+      'Isi dienkripsi; hanya terbuka dengan PIN atau sidik jari',
+  'vault.move_n':
+      'Pindahkan {n} berkas ke brankas',
+  'vault.pick_title':
+      'Pilih berkas untuk brankas',
+  'vault.setup_title':
+      'Siapkan brankas terenkripsi',
+  'vault.setup_body':
+      'Dokumen seperti KTP, sertifikat, dan kontrak disimpan terenkripsi dengan AES-256. Tetap tidak terbaca meski ponsel dihubungkan ke komputer.',
+  'vault.pin':
+      'PIN brankas',
+  'vault.pin_again':
+      'Ulangi PIN',
+  'vault.pin_short':
+      'PIN minimal 4 digit',
+  'vault.pin_mismatch':
+      'PIN tidak cocok',
+  'vault.pin_warning':
+      'Penting: jika PIN lupa, berkas TIDAK DAPAT dipulihkan — tak seorang pun, termasuk kami, dapat mendekripsinya. Sidik jari hanya pintasan di ponsel ini; catat PIN Anda di tempat aman.',
+  'vault.create':
+      'Buat brankas',
+  'vault.locked_title':
+      'Brankas terkunci',
+  'vault.locked_body':
+      'Masukkan PIN atau gunakan sidik jari untuk membuka.',
+  'vault.unlock':
+      'Buka kunci',
+  'vault.unlock_bio':
+      'Buka dengan sidik jari',
+  'vault.bio_prompt':
+      'Verifikasi untuk membuka brankas',
+  'vault.use_pin':
+      'Pakai PIN',
+  'vault.bio_failed':
+      'Tidak dapat membuka dengan sidik jari — gunakan PIN Anda',
+  'vault.bio_toggle':
+      'Buka dengan sidik jari',
+  'vault.bio_invalidated':
+      'Sidik jari baru ditambahkan ke ponsel, sehingga buka kunci sidik jari dimatikan. Buka dengan PIN, lalu aktifkan lagi.',
+  'vault.autolock':
+      'Kunci di latar belakang',
+  'vault.autolock_now':
+      'Segera',
+  'vault.autolock_secs':
+      'Setelah {n} dtk',
+  'vault.autolock_mins':
+      'Setelah {n} mnt',
+  'vault.wrong_pin':
+      'PIN salah',
+  'vault.lock':
+      'Kunci',
+  'vault.add':
+      'Tambah ke brankas',
+  'vault.adding':
+      'Mengenkripsi…',
+  'vault.added_n':
+      '{n} berkas dienkripsi ke brankas',
+  'vault.encrypted_note':
+      'AES-256 · terkunci saat Anda keluar atau aplikasi ke latar belakang',
+  'vault.empty':
+      'Brankas kosong. Tambahkan berkas dengan tombol di bawah, atau tekan lama berkas di penjelajah dan pilih "Pindahkan ke brankas terenkripsi".',
+  'vault.restore':
+      'Keluarkan dari brankas',
+  'vault.restore_sub':
+      'Didekripsi kembali ke folder aslinya',
+  'vault.restored':
+      'Dikeluarkan: {path}',
+  'vault.delete':
+      'Hapus permanen',
+  'vault.delete_body':
+      'Hapus "{name}" dari brankas secara permanen? Tindakan ini tidak dapat dibatalkan.',
+  'vault.open_failed':
+      'Tidak dapat membuka: {error}',
+  'dl.saved':
+      'Disimpan ke Unduhan: {name}',
+  'dl.already_saved':
+      'Sudah ada di Unduhan: {name}',
+  'dl.save_failed':
+      'Tidak dapat menyimpan ke Unduhan: {error}',
+  'dl.show':
+      'Tampilkan',
+  'dl.from_browser':
+      'Berkas yang dibuka dari peramban disimpan ke Unduhan: {name}',
+  'dl.verify':
+      'Verifikasi checksum (SHA-256)',
+  'dl.verify_paste':
+      'Tempel checksum SHA-256 yang diterbitkan sumbernya',
+  'dl.verify_running':
+      'Membaca berkas…',
+  'dl.verify_ok':
+      'Checksum COCOK — berkas utuh',
+  'dl.verify_bad':
+      'Checksum TIDAK cocok — berkas tidak lengkap atau diubah',
+  'dl.title':
+      'Unduhan',
+  'dl.clipboard_download':
+      'Unduh tautan di papan klip',
+  'dl.how_to':
+      'Bagaimana mengunduh dari peramban?',
+  'dl.clear_finished':
+      'Hapus entri yang selesai',
+  'dl.link':
+      'Tautan',
+  'dl.clipboard_link':
+      'Tautan di papan klip',
+  'dl.download':
+      'Unduh',
+  'dl.no_link':
+      'Tidak ada tautan di papan klip. Salin tautan di peramban lalu kembali.',
+  'dl.from_link':
+      'Unduh dari tautan',
+  'dl.link_label':
+      'Tautan (https://…)',
+  'dl.continue':
+      'Lanjutkan',
+  'dl.empty':
+      'Belum ada unduhan',
+  'dl.remaining':
+      '{time} lagi',
+  'dl.link_copied':
+      'Tautan disalin ke papan klip.',
+  'dl.pause':
+      'Jeda',
+  'dl.resume':
+      'Lanjutkan',
+  'dl.cancel_task':
+      'Batal',
+  'dl.open_folder':
+      'Buka foldernya',
+  'dl.copy_link':
+      'Salin tautan',
+  'dl.remove':
+      'Hapus dari daftar',
+  'dl.download_here':
+      'Unduh ke sini',
+  'dl.started':
+      'Unduhan dimulai: {name}',
+  'dl.fetching_release':
+      'Mengambil berkas rilis…',
+  'dl.asset_count':
+      '{n} berkas · {tag}',
+  'dl.size_unknown':
+      'Ukuran tidak diketahui',
+  'dl.step1_title':
+      '1) Bagikan (termudah)',
+  'dl.step1_body':
+      'Tekan lama tautan → “Bagikan tautan” → Dosyalarım. Tombol bagikan milik halaman juga bisa.',
+  'dl.step2_title':
+      '2) Salin dan tempel',
+  'dl.step2_body':
+      'Tekan lama tautan → “Salin alamat tautan”, lalu buka layar ini: tautan muncul di atas, ketuk “Unduh”.',
+  'dl.step3_title':
+      '3) Agar kami muncul saat Anda mengetuk tautan',
+  'dl.step3_body':
+      'Sejak Android 12, aplikasi tidak dapat membuka tautan situs yang bukan miliknya tanpa izin. Anda dapat memberikannya manual: gunakan tombol di bawah untuk membuka layar info aplikasi, lalu:\n• Android murni / Pixel: “Buka secara default” → “Buka tautan yang didukung”\n• Samsung: “Setel sebagai default” → “Alamat web yang didukung”\n• Xiaomi / Redmi: “Buka secara default” → “Tautan yang didukung”\nCentang alamat seperti github.com di daftar yang muncul.',
+  'dl.how_to_note':
+      'Menu ini hanya ada di Android 12 ke atas. Jika tidak menemukannya, gunakan cara 1 — tanpa pengaturan dan berfungsi di semua perangkat.',
+  'dl.open_app_info':
+      'Buka info aplikasi',
+  'dl.verify_name':
+      'Pemeriksaan checksum',
+  'ab.pro_locked_title':
+      'Studio Buku Audio adalah Fitur Pro',
+  'ab.pro_locked_sub':
+      'Tingkatkan ke Pro untuk mengubah dokumen menjadi buku audio (M4A/WAV) dengan jeda alami.',
+  'ab.pro_unlock':
+      'Lihat Fitur Pro',
+  'ab.engine_section':
+      'Mesin Ucapan & Suara Sistem',
+  'ab.engine_label':
+      'Mesin TTS',
+  'ab.system_voice_label':
+      'Suara Sistem',
+  'ab.system_voice_default':
+      'Suara sistem bawaan',
+  'ab.preview':
+      'Pratinjau Suara',
+  'ab.preview_sample':
+      'Halo. Kalimat ini menguji mesin suara yang dipilih dan jeda alami.',
+  'ab.clean_section':
+      'Pembersihan Ucapan Alami',
+  'ab.clean_pages':
+      'Lewati nomor halaman dan header/footer berulang',
+  'ab.clean_symbols':
+      'Bersihkan simbol, tanda kurung, dan URL berlebih agar ucapan alami',
+  'ab.clean_abbr':
+      'Perluas singkatan (mis. Dr., dll.)',
+  'ab.ai_tidy':
+      'Haluskan teks dengan AI (kunci Anda sendiri)',
+  'ab.ai_tidy_sub':
+      'Memperhalus bab agar ucapan alami memakai kunci Gemini Anda sendiri',
+  'ab.title':
+      'Buat buku audio',
+  'ab.library':
+      'Buku audio saya',
+  'ab.intro':
+      'Dokumen dibagi menjadi bab menurut judulnya; setiap bab menjadi berkas audio terpisah bernama yang disimpan ke Music > Sesli Kitaplar. Bab yang selesai tidak dibuat ulang.',
+  'ab.voice':
+      'Suara',
+  'ab.voice_system':
+      'Suara perangkat',
+  'ab.voice_system_sub':
+      'Mesin ucapan ponsel Anda — tanpa unduhan (pilih di Pengaturan > Membaca)',
+  'ab.speed':
+      'Kecepatan',
+  'ab.chapters':
+      'Bab ({n})',
+  'ab.chapter_ready':
+      'Siap — tidak akan dibuat ulang',
+  'ab.chapter_len':
+      '~{min} mnt',
+  'ab.start':
+      'Buat',
+  'ab.listen':
+      'Dengarkan',
+// ── ab-ph-skin-pf-jr-pp ──
+  'ab.running':
+      'Membuat bab {n}/{total} — hentikan',
+  'ab.preparing':
+      'Menyiapkan suara: {voice}',
+  'ab.done':
+      '{n} bab siap ({folder})',
+  'ab.stopped':
+      'Dihentikan — {n} bab siap; dapat dilanjutkan nanti',
+  'ab.failed':
+      'Tidak dapat membuat buku audio: {error}',
+  'ab.job_running':
+      'Buku audio: {name}',
+  'ab.job_name':
+      'Buku audio ({name})',
+  'ab.background':
+      'Membuat di latar belakang',
+  'ab.background_sub':
+      'Anda dapat meninggalkan layar ini atau berpindah aplikasi; kemajuan ditampilkan di notifikasi.',
+  'ab.make':
+      'Buat buku audio',
+  'ab.make_hint':
+      'Berkas bab dengan judul',
+  'ab.library_empty':
+      'Belum ada buku audio',
+  'ab.library_empty_hint':
+      'Pilih "Buat buku audio" di menu ⋮ berkas PDF, Word, slide, atau teks.',
+  'ab.book_sub':
+      '{n} bab · {size}',
+  'ab.play_all':
+      'Putar dari awal',
+  'ab.delete_q':
+      'Hapus buku audio "{name}"?',
+  'ph.pin_home':
+      'Tambah ke layar utama',
+  'ph.pin_home_hint':
+      'Halaman ini mendapat ikonnya sendiri di layar utama',
+  'ph.albums':
+      'Album',
+  'ph.show_all':
+      'Tampilkan semua',
+  'ph.on_this_day':
+      'Pada hari ini',
+  'ph.on_this_day_sub':
+      'Hari ini di tahun-tahun lalu · {n}',
+  'ph.loading':
+      'Memuat berkas…',
+  'ph.empty':
+      'Tidak ada berkas untuk ditampilkan di sini.',
+  'ph.no_match':
+      'Tidak ada berkas yang cocok dengan pencarian/filter Anda.',
+  'ph.verifying':
+      'Memverifikasi salinan byte demi byte…',
+  'ph.not_identical':
+      'Verifikasi byte demi byte tidak menemukan salinan persis — tidak ada yang dihapus.',
+  'ph.show':
+      'Tampilkan',
+  'ph.search_in':
+      'Cari di {title}',
+  'ph.search_in_hint':
+      'Cari di {title}…',
+  'ph.layout':
+      'Tata letak: {name}',
+  'ph.selected_of':
+      '{n} / {total} dipilih',
+  'ph.select_above':
+      'Pilih juga yang di atas',
+  'ph.select_below':
+      'Pilih juga yang di bawah',
+  'ph.clear_selection':
+      'Hapus pilihan',
+  'ph.select_all':
+      'Pilih semua',
+  'ph.cat_empty':
+      'Tidak ada berkas di kategori ini.',
+  'ph.group_deselect':
+      'Batalkan pilihan grup',
+  'ph.group_select':
+      'Pilih grup',
+  'ph.delete_dupes_title':
+      'Hapus salinannya?',
+  'ph.delete_dupes_body':
+      '{n} salinan tambahan ({size}) {fate}. Berkas tertua di setiap grup dipertahankan.',
+  'ph.fate_trash':
+      'akan dipindahkan ke tempat sampah',
+  'ph.fate_permanent':
+      'akan dihapus PERMANEN (tempat sampah dimatikan di pengaturan)',
+  'ph.hidden_dupes_short':
+      '{n} duplikat disembunyikan',
+  'ph.clean':
+      'Bersihkan',
+  'ph.similar_title':
+      'Serupa: {title}',
+  'ph.similar_short':
+      'Cari yang serupa',
+  'ph.sorted_header':
+      '{n} berkas · {sort}',
+  'ph.view':
+      'Tampilan',
+  'ph.view_scale':
+      'Skala waktu',
+  'ph.view_columns':
+      'Kolom',
+  'ph.albums_hide':
+      'Sembunyikan area album',
+  'ph.albums_show':
+      'Tampilkan area album',
+  'ph.pinch_hint':
+      'Tips: cubit kisi dengan dua jari untuk memperkecil, rentangkan untuk memperbesar.',
+  'ph.empty_hint':
+      'Foto dan video baru muncul di sini begitu diambil.',
+  'ph.no_match_hint':
+      'Coba hapus filter.',
+  'ph.clear_filters':
+      'Hapus filter',
+  'ph.fast_scroll':
+      'Gagang gulir cepat',
+  'skin.sage':
+      'Sage',
+  'skin.sage_sub':
+      'Meja dan kertas: dasar hijau-abu lembut, kartu terang, aksen teal',
+  'skin.classic':
+      'Klasik',
+  'skin.classic_sub':
+      'Folder kuning, ikon halaman polos — pengelola berkas gaya lama',
+  'skin.ledger':
+      'Buku besar',
+  'skin.ledger_sub':
+      'Latar krem, folder manila, ikon polos',
+  'skin.calm':
+      'Tenang',
+  'skin.calm_sub':
+      'Kartu putih, aksen terakota, ikon berbingkai',
+  'skin.bento':
+      'Bento',
+  'skin.bento_sub':
+      'Kartu penyimpanan berwarna, ubin besar dan kecil',
+  'skin.band':
+      'Header gelap',
+  'skin.band_sub':
+      'Header berwarna, ubin sebagai daftar',
+  'skin.g_layout':
+      'Baru · dengan tata letak beranda',
+  'skin.g_color':
+      'Tema warna',
+  'skin.g_classic':
+      'Ikon klasik',
+  'skin.g_special':
+      'Malam & sistem',
+  'skin.title':
+      'Gaya tema',
+  'skin.clay':
+      'Tanah liat',
+  'skin.clay_sub':
+      'Dasar krem-merah muda hangat, aksen plum, kartu putih kertas',
+  'skin.lavender':
+      'Lavender',
+  'skin.lavender_sub':
+      'Dasar abu-abu lilac, aksen ungu plum',
+  'skin.olive':
+      'Zaitun',
+  'skin.olive_sub':
+      'Dasar batu zaitun, aksen hijau zaitun',
+  'skin.white':
+      'Putih klasik',
+  'skin.white_sub':
+      'Dasar abu-abu muda, kartu putih bersih, aksen biru',
+  'skin.straw':
+      'Kertas jerami',
+  'skin.straw_sub':
+      'Dasar jerami, kartu krem, tinta sepia',
+  'skin.cream':
+      'Krem',
+  'skin.cream_sub':
+      'Dasar krem muda, kartu gading, aksen ambar',
+  'skin.peach':
+      'Persik',
+  'skin.peach_sub':
+      'Dasar pastel hangat yang nyaman di mata untuk membaca lama',
+  'skin.mint':
+      'Mint',
+  'skin.mint_sub':
+      'Dasar hijau-biru tenang, aksen hijau laut',
+  'skin.porcelain':
+      'Porselen',
+  'skin.porcelain_sub':
+      'Dasar abu-abu biru sejuk, aksen biru tua, kartu putih kertas',
+  'skin.modern':
+      'Modern',
+  'skin.modern_sub':
+      'Aksen ungu cerah, sudut bulat, ikon besar',
+  'skin.system':
+      'Warna sistem',
+  'skin.system_sub':
+      'Mengambil warna wallpaper Anda (Android 12+)',
+  'skin.night':
+      'Malam (OLED)',
+  'skin.night_sub':
+      'Dasar hitam pekat: hemat baterai, nyaman di malam hari',
+  'skin.forces_dark':
+      'Tema ini selalu tetap gelap',
+  'pf.tab_form':
+      'Formulir',
+  'pf.tab_sign':
+      'Tanda tangan',
+  'pf.tab_digital':
+      'Digital',
+  'pf.title_unified':
+      'Formulir & tanda tangan — {name}',
+  'pf.pick_date':
+      'Pilih tanggal',
+  'pf.go_sign':
+      'Tanda tangani dokumen / tambah tanggal',
+  'pf.add_signature':
+      'Tanda tangan',
+  'pf.add_initials':
+      'Paraf',
+  'pf.add_date_stamp':
+      'Cap tanggal',
+  'pf.sign_empty_hint':
+      'Tambahkan Tanda tangan, Paraf, atau Cap tanggal di atas untuk diletakkan di halaman.',
+  'pf.sign_drag_hint':
+      'Seret untuk memosisikan; ubah ukuran dengan penggeser di bawah.',
+  'pf.save_all':
+      'Simpan',
+  'pf.signed_warn':
+      'Dokumen ini ditandatangani secara digital. Menimpanya akan membatalkan tanda tangan yang ada; disarankan menyimpan salinan.',
+  'pf.dsig_verify_title':
+      'Verifikasi tanda tangan',
+  'pf.dsig_valid':
+      'Valid — dokumen tidak berubah sejak ditandatangani',
+  'pf.dsig_valid_partial':
+      'Valid — pembaruan tambahan ditambahkan setelah penandatanganan',
+  'pf.dsig_invalid':
+      'Tidak valid — dokumen diubah setelah ditandatangani',
+  'pf.dsig_self_signed':
+      'Sertifikat tanda tangan sendiri',
+  'pf.dsig_issuer':
+      'Penerbit: {name}',
+  'pf.dsig_sign_title':
+      'Tambah tanda tangan digital (PAdES)',
+  'pf.dsig_self_opt':
+      'Identitas tanda tangan sendiri',
+  'pf.dsig_pfx_opt':
+      'Impor sertifikat (.pfx / .p12)',
+  'pf.dsig_signer_name':
+      'Nama penandatangan',
+  'pf.dsig_reason':
+      'Alasan (opsional)',
+  'pf.dsig_location':
+      'Lokasi (opsional)',
+  'pf.dsig_visible':
+      'Kotak tanda tangan terlihat',
+  'pf.dsig_last_page':
+      'Letakkan di halaman terakhir',
+  'pf.dsig_pick_pfx':
+      'Pilih berkas sertifikat',
+  'pf.save':
+      'Isi dan simpan',
+  'pf.page':
+      'Halaman {n}',
+  'pf.other_fields':
+      'Bidang lain',
+  'pf.read_only':
+      'hanya-baca',
+  'pf.sign_tap':
+      'Ketuk untuk menandatangani',
+  'pf.signed':
+      'Ditandatangani — dicap ke bidang saat disimpan',
+  'pf.flatten':
+      'Kunci setelah diisi',
+  'pf.flatten_sub':
+      'Nilai digambar ke halaman; tidak ada yang dapat mengubahnya setelahnya. Tindakan ini tidak dapat dibatalkan.',
+  'pf.note':
+      'Formulir terisi',
+  'pf.note_flat':
+      'Formulir terisi dan terkunci',
+  'pf.no_fields':
+      'PDF ini tidak memiliki bidang formulir yang dapat diisi.',
+  'pf.no_fields_hint':
+      'Untuk menambah teks gunakan alat teks di editor PDF; untuk menandatangani gunakan ⋮ → Tanda tangani.',
+  'pf.failed':
+      'Tidak dapat mengisi formulir: {error}',
+  'jr.undo_move':
+      'Urungkan pemindahan',
+  'jr.moved_back':
+      '{n} berkas dikembalikan',
+  'jr.untrash':
+      'Pulihkan',
+  'jr.restored':
+      '{n} berkas dipulihkan',
+  'jr.trash_created':
+      'Pindahkan ke tempat sampah',
+  'jr.trashed':
+      '{n} item dipindahkan ke tempat sampah',
+  'jr.undo_rename':
+      'Urungkan penggantian nama',
+  'jr.renamed_back':
+      '{n} berkas mendapatkan nama lamanya kembali',
+  'jr.headline_tags':
+      'Penandaan pintar memeriksa {files} berkas dan menyarankan {groups} tag ({n} saran)',
+  'jr.headline':
+      '{n} perubahan pada {files} berkas',
+  'jr.status_none':
+      'Belum ada yang diterapkan — berkas belum bertag. Ketuk saran yang salah untuk membuangnya (✕), lalu "Terapkan semua".',
+  'jr.status_all':
+      'Selesai: {n} tag ditulis ke berkas · {x} dibuang. Ketuk mana saja untuk berubah pikiran.',
+  'jr.status_some':
+      '{n} diterapkan · {p} tertunda · {x} dibuang.',
+  'jr.hint':
+      'Ketuk gambar mini: buang ✕ / simpan ✓ · Tekan lama: buka berkas',
+  'jr.by_tag':
+      'Menurut tag',
+  'jr.by_file':
+      'Menurut berkas',
+  'jr.all_tags':
+      'Semua',
+  'jr.show_all':
+      'Tampilkan semua ({n})',
+  'jr.apply_n':
+      'Terapkan ({n})',
+  'jr.n_files':
+      '{n} berkas',
+  'jr.n_applied':
+      '{n} diterapkan',
+  'jr.n_pending':
+      '{n} disarankan',
+  'jr.n_rejected':
+      '{n} dibuang',
+  'jr.state_applied':
+      'bertag',
+  'jr.state_pending':
+      'disarankan — belum diterapkan',
+  'jr.state_rejected':
+      'dibuang',
+  'jr.remove_one_hint':
+      'Saran dihapus dari daftar ini; berkas tetap ada',
+  'jr.empty':
+      'Tugas ini tidak meninggalkan perubahan tercatat pada berkas.',
+  'jr.summary':
+      '{groups} grup · {files} berkas · {applied} diterapkan · {pending} tertunda',
+  'jr.apply_all':
+      'Terapkan semua ({n})',
+  'jr.undo_all':
+      'Urungkan semua',
+  'jr.apply':
+      'Terapkan',
+  'jr.rename_tag':
+      'Ganti nama tag',
+  'jr.remove_tag':
+      'Hapus tag',
+  'jr.remove_tag_body':
+      'Hapus tag "{tag}" dari {n} berkas tugas ini? Berkas tidak dihapus.',
+  'jr.remove_one':
+      'Hapus dari berkas ini',
+  'jr.move_files':
+      'Pindahkan berkas ke folder',
+  'jr.moved':
+      '{n} berkas dipindahkan',
+  'jr.nothing_to_move':
+      'Tidak ada berkas yang tersisa untuk dipindahkan',
+  'jr.missing':
+      'Berkas sudah tidak ada',
+  'pp.dsign_sub':
+      'Tanda tangan PKCS#7; diverifikasi oleh Adobe/Chrome',
+  'pp.region_hint':
+      'Seret untuk menggambar kotak; ketuk kotak untuk menghapusnya',
+  'pp.region_hint_crop':
+      'Seret untuk menggambar area yang dipertahankan',
+  'pp.redact_sub':
+      'Benar-benar menghapus teks dan gambar',
+  'pp.to_xlsx_sub':
+      'Baris/kolom terdeteksi; halaman terpilih atau semua',
+  'pp.to_docx_sub':
+      'Baris, indentasi, ukuran font, dan pemisah halaman',
+  'pp.pdfa_sub':
+      'Arsip jangka panjang (PDF/A-2b)',
+  'pp.compare_sub':
+      'Perbedaan teks dan visual',
+  'pp.permissions_sub':
+      'Batasi cetak/salin/edit',
+  'pp.outline_sub':
+      'Tambah, ganti nama, susun ulang, indentasi',
+  'pp.outline_rename':
+      'Edit penanda',
+  'pp.stamp_sub':
+      'Disetujui, Draf, Rahasia, Salinan tersertifikasi…',
+  'pp.numbering_sub':
+      'Halaman n / N, Romawi, nomor Bates',
+  'pp.compress_hard_sub':
+      'Penghematan besar pada PDF hasil pindai/gambar',
+  'pp.studio_sub':
+      'Pilih, putar, hapus, gandakan, dan susun ulang halaman',
+  'pp.studio_insert_file':
+      'Sisipkan halaman dari berkas',
+  'pp.studio_insert_image':
+      'Sisipkan halaman dari gambar',
+  'pp.studio_insert_scan':
+      'Pindai dan sisipkan halaman',
+  'pp.blank_sub':
+      'Sisi belakang kosong pada hasil pindai',
+// ── pp-cj-sb-clean-apk-suc-apps ──
+  'pp.crop_sub':
+      'Halaman terpilih atau semua',
+  'pp.fit_a4_sub':
+      'Menyamakan ukuran halaman yang bercampur',
+  'pp.profile_sub':
+      'Nama, email, telepon, alamat',
+  'pp.form_create_sub':
+      'Teks, kotak centang, bidang tanda tangan',
+  'pp.ocr_layer_sub':
+      'Menambahkan lapisan teks tak terlihat pada halaman hasil pindai',
+  'pp.images_to_pdf_sub':
+      'Pilih banyak gambar → satu PDF',
+  'pp.pdf_to_images_sub':
+      'Halaman terpilih atau semua ke folder JPEG',
+  'pp.web_to_pdf_sub':
+      'Masukkan alamat, simpan sebagai PDF A4',
+  'pp.office_to_pdf_sub':
+      'Teks, judul, dan tabel dipertahankan',
+  'pp.signatures_sub':
+      'Tanda tangan/paraf tersimpan, paraf tiap halaman, tanggal, stempel',
+  'pp.crop_margins_hint':
+      'Teks memenuhi layar; diingat untuk dokumen ini',
+  'pp.crop_one_column':
+      'Hanya dalam tampilan satu kolom',
+  'pp.paged_hint':
+      'Halaman pas di layar; ketuk tepi atau geser',
+  'pp.meta_sub':
+      'Judul, penulis, subjek, kata kunci',
+  'pp.meta_title':
+      'Judul',
+  'pp.meta_author':
+      'Penulis',
+  'pp.meta_subject':
+      'Subjek',
+  'pp.meta_keywords':
+      'Kata kunci',
+  'pp.layers_sub':
+      'Tampilkan atau sembunyikan lapisan',
+  'pp.xfdf_out_sub':
+      'Pindahkan sorotan dan catatan ke aplikasi lain',
+  'pp.xfdf_in_sub':
+      'Tambahkan sorotan dan catatan dari aplikasi lain',
+  'cj.title':
+      'Pembersihan media obrolan',
+  'cj.job_title':
+      'Memindai media obrolan',
+  'cj.job_name':
+      'Pemindaian media obrolan',
+  'cj.rescan':
+      'Pindai lagi',
+  'cj.step_listing':
+      'Mendaftar berkas…',
+  'cj.step_found':
+      'Ditemukan {n} berkas obrolan',
+  'cj.step_duplicates':
+      'Mencari salinan identik…',
+  'cj.step_sorting':
+      'Mengurutkan…',
+  'cj.step_none':
+      'Tidak ada media obrolan ditemukan',
+  'cj.step_clean':
+      'Tidak ada yang tampak tidak perlu',
+  'cj.step_summary':
+      '{n} berkas · {size} dapat dibebaskan',
+  'cj.scanned':
+      '{n} berkas obrolan · {size}',
+  'cj.summary':
+      '{n} di antaranya ({percent}%) tampak tidak perlu · {size}',
+  'cj.summary_none':
+      'Tidak ada tumpukan yang tidak perlu.',
+  'cj.disclaimer':
+      '“Tidak perlu” hanyalah dugaan: siapa pengirim berkas atau artinya bagi Anda tidak dapat dibaca dari berkas. Tidak ada yang dihapus sendiri — Anda yang memutuskan.',
+  'cj.tiny_threshold':
+      'Batas gambar kecil (di bawah ini dianggap “diteruskan”)',
+  'cj.empty_no_media':
+      'Folder WhatsApp/Telegram tidak ditemukan di ponsel ini.',
+  'cj.empty_clean':
+      'Tidak ada tumpukan tidak perlu di media obrolan Anda 🎉',
+  'cj.kind_duplicate':
+      'Salinan identik',
+  'cj.kind_sticker':
+      'Stiker',
+  'cj.kind_gif':
+      'Animasi (GIF)',
+  'cj.kind_profile':
+      'Foto profil',
+  'cj.kind_tiny':
+      'Gambar kecil',
+  'cj.kind_sent':
+      'Berkas yang saya kirim',
+  'cj.kind_stale':
+      'Lama tidak dibuka',
+  'cj.why_duplicate':
+      'Salinan tambahan dari berkas yang sama. Salinan tertua di setiap set DIPERTAHANKAN.',
+  'cj.why_sticker':
+      'Hiasan obrolan, bukan kenangan yang layak disimpan.',
+  'cj.why_gif':
+      'Biasanya lelucon atau animasi yang diteruskan.',
+  'cj.why_profile':
+      'Cache foto profil yang diunduh aplikasi.',
+  'cj.why_tiny':
+      'Gambar sekecil ini kebanyakan poster, meme, atau gambar “selamat pagi” yang diteruskan; foto yang diambil dengan ponsel lebih besar.',
+  'cj.why_sent':
+      'Salinan kedua dari berkas yang Anda kirim; aslinya mungkin masih ada di galeri atau unduhan.',
+  'cj.why_stale':
+      'Tidak dibuka maupun disentuh selama berbulan-bulan.',
+  'cj.select_all':
+      'Pilih semua',
+  'cj.select_none':
+      'Hapus pilihan',
+  'cj.nothing_selected':
+      'Pilih berkas yang akan dihapus',
+  'cj.selected_summary':
+      '{n} berkas dipilih · {size}',
+  'cj.bucket_empty':
+      'Tidak ada berkas tersisa di kelompok ini.',
+  'cj.similar_title':
+      'Jepretan serupa (WhatsApp)',
+  'cj.similar_body':
+      'Tumpukan yang tidak dapat ditemukan kelompok: lima jepretan dari momen yang sama, salinan terkompresi ulang. Ini mendekode gambar, jadi butuh waktu.',
+  'sb.title':
+      'Uji akurasi',
+  'sb.sub':
+      'Ukur akurasi penataan pintar dengan berkas Anda sendiri',
+  'sb.intro':
+      'Beri label hingga {n} berkas dengan kategori yang benar; label dibandingkan dengan jawaban Penataan pintar. Label tetap di ponsel ini dan laporan tidak memuat nama berkas.',
+  'sb.category':
+      'Kategori',
+  'sb.subtype':
+      'Subjenis',
+  'sb.date':
+      'Tanggal (bulan + tahun)',
+  'sb.gate':
+      'gerbang {g}',
+  'sb.no_data':
+      'tidak ada data',
+  'sb.measured':
+      '{m} dari {n} berkas memiliki jawaban Penataan pintar',
+  'sb.threshold':
+      'Ambang keyakinan yang disarankan: {t}',
+  'sb.threshold_none':
+      'Jawaban benar belum cukup untuk menyarankan ambang',
+  'sb.ask_missing':
+      'Tanyakan yang belum ({n})',
+  'sb.ask_all':
+      'Tanya semua lagi',
+  'sb.asking':
+      'Bertanya {done}/{total}',
+  'sb.stop':
+      'Berhenti',
+  'sb.asked':
+      '{ok} jawaban diterima, {failed} gagal',
+  'sb.stopped':
+      'Dihentikan: {reason}',
+  'sb.add':
+      'Beri label berkas',
+  'sb.full':
+      'Anda dapat memberi label paling banyak {n} berkas',
+  'sb.labelled':
+      'Berlabel',
+  'sb.empty':
+      'Belum ada label. Mulai dengan "Beri label berkas".',
+  'sb.pick_title':
+      'Berkas yang diberi label',
+  'sb.pick_empty':
+      'Tidak ada berkas dalam cakupan penataan pintar',
+  'sb.row':
+      'Benar: {truth} · Pintar: {model}',
+  'sb.row_none':
+      'tanpa jawaban',
+  'sb.label_title':
+      'Label yang benar',
+  'sb.sub_skip':
+      'Jangan beri skor',
+  'sb.sub_other':
+      'Tidak ada / lainnya',
+  'sb.date_label':
+      'Beri skor tanggal dokumen',
+  'sb.month':
+      'Bulan',
+  'sb.year':
+      'Tahun',
+  'sb.no_date':
+      'Tidak ada',
+  'sb.year_none':
+      'Tidak ada / lebih lama',
+  'sb.save':
+      'Simpan',
+  'sb.remove':
+      'Hapus label',
+  'sb.copy':
+      'Salin laporan',
+  'sb.copied':
+      'Laporan disalin (tanpa nama berkas)',
+  'sb.clear':
+      'Hapus semua label',
+  'sb.clear_ask':
+      'Hapus semua label? Berkas Anda tidak disentuh.',
+  'clean.trash':
+      'Kosongkan tempat sampah',
+  'clean.trash_detail':
+      '{n} item · berkas yang sudah dihapus',
+  'clean.duplicates':
+      'Bersihkan berkas duplikat',
+  'clean.duplicates_detail':
+      '{n} salinan tambahan · satu dari tiap grup dipertahankan',
+  'clean.stale_downloads':
+      'Unduhan lama',
+  'clean.stale_downloads_detail':
+      '{n} berkas · tidak dibuka 180+ hari',
+  'clean.apk':
+      'Berkas pemasang (APK)',
+  'clean.apk_detail':
+      '{n} berkas · tidak perlu setelah aplikasi terpasang',
+  'clean.big_videos':
+      'Video besar',
+  'clean.big_videos_detail':
+      '{n} video · di atas 100 MB (pilih satu per satu)',
+  'clean.finding_dupes':
+      'Mencari berkas duplikat (byte demi byte)…',
+  'clean.never_suggest':
+      'Jangan sarankan lagi',
+  'clean.never_suggest_file':
+      'Jangan sarankan berkas ini lagi',
+  'clean.app_backup':
+      'Cadangan aplikasi',
+  'clean.app_backup_detail':
+      '{n} berkas cadangan (.bak). Aplikasi TIDAK membutuhkannya untuk berjalan — ini salinan yang dibuat alat pencadangan. Menghapusnya tidak merusak aplikasi terpasang; Anda hanya kehilangan kemampuan memulihkan dari cadangan ini.',
+  'clean.verifying_sent':
+      'Memverifikasi berkas asli media terkirim…',
+  'clean.trash_copy_only':
+      'Pindahkan hanya salinan ini ke tempat sampah (aslinya tetap)',
+  'clean.bg_safe_apply':
+      'Pembersihan berlanjut di latar belakang jika Anda keluar',
+  'clean.done_freed':
+      '{size} dibebaskan · {n} item',
+  'clean.done_trash':
+      '{size} dibersihkan · {n} item dipindahkan ke tempat sampah (dapat dipulihkan)',
+  'clean.sort_size':
+      'Ukuran',
+  'clean.sort_date':
+      'Tanggal',
+  'clean.bg_safe':
+      'Pemindaian berlanjut di latar belakang jika Anda keluar',
+  'clean.done_card_sub_trash':
+      '{n} item dibersihkan. Apa pun yang dipindahkan ke tempat sampah dapat dipulihkan kapan saja.',
+  'clean.done_card_sub_perm':
+      '{n} item tidak perlu dibersihkan dengan aman.',
+  'clean.why_trash':
+      'Item yang sudah Anda hapus; mengosongkannya langsung membebaskan ruang.',
+  'clean.why_duplicates':
+      'Salinan asli tertua di setiap grup tidak disentuh; hanya salinan tambahan yang dihapus.',
+  'clean.why_temp_junk':
+      'Unduhan tidak lengkap & sisa sementara; menghapusnya tidak merusak aplikasi atau dokumen.',
+  'clean.why_app_cache':
+      'Gambar mini dibuat ulang saat diperlukan; tidak ada berkas pribadi yang disentuh.',
+  'clean.why_apk':
+      'Hanya paket pemasang; aplikasi dan data yang sudah terpasang tetap utuh.',
+  'clean.why_app_backup':
+      'Hanya arsip cadangan lama; aplikasi terpasang tetap berjalan normal.',
+  'clean.why_empty_folders':
+      'Hanya folder yang benar-benar kosong; dilewati jika ada berkas di dalamnya.',
+  'clean.why_chat_sent':
+      'Salinan obrolan terkirim; foto/video asli di perangkat sudah diverifikasi dan tetap aman.',
+  'clean.why_big_videos':
+      'Tidak dipilih sebelumnya. Anda dapat memperkecil ukuran tanpa menghapus agar video tetap ada.',
+  'clean.why_stale_downloads':
+      'Unduhan tidak dibuka selama 6 bulan; periksa satu per satu sebelum menghapus.',
+  'clean.why_old_screenshots':
+      'Tangkapan layar tidak disentuh selama 3 bulan; tinjau dan pilih satu per satu.',
+  'clean.why_old_large':
+      'Berkas besar tidak dibuka selama 1 tahun; hanya item yang Anda centang dipindahkan ke tempat sampah.',
+  'apk.share':
+      'Bagikan / simpan sebagai APK',
+  'apk.share_sub':
+      'Format, lokasi simpan, dan opsi berbagi',
+  'apk.save':
+      'Simpan APK langsung',
+  'apk.save_sub':
+      'Tanpa pertanyaan, ke Downloads/APK',
+  'apk.sheet_title':
+      'Ekspor APK',
+  'apk.dest':
+      'Lokasi simpan',
+  'apk.change':
+      'Ubah',
+  'apk.save_here':
+      'Simpan di sini',
+  'apk.do_both':
+      'Simpan dan bagikan',
+  'apk.do_share':
+      'Bagikan saja',
+  'apk.do_save':
+      'Simpan saja',
+  'apk.saved_in':
+      '{name} → {dir}',
+  'apk.split_base_note':
+      'Lebih kecil, tetapi mungkin gagal dipasang atau mogok di ponsel lain.',
+  'apk.extracting':
+      'Menyiapkan APK…',
+  'apk.not_found':
+      'Berkas APK aplikasi ini tidak dapat dibaca.',
+  'apk.failed':
+      'Tidak dapat mengekstrak APK: {error}',
+  'apk.split_title':
+      'Aplikasi ini dipasang dalam beberapa bagian',
+  'apk.split_body':
+      'Aplikasi yang dipasang dari Play disimpan sebagai base.apk ditambah bagian layar/bahasa/CPU ({n} bagian). Kode ada di base.apk tetapi pustaka dan sumber daya ada di bagian lain: base.apk saja mungkin gagal dipasang atau mogok saat dibuka.',
+  'apk.split_all':
+      'Semua bagian (.apks — disarankan)',
+  'apk.split_base':
+      'Hanya base.apk',
+  'apk.split_note':
+      'Semua bagian dalam satu berkas. Dipasang dengan satu ketukan di aplikasi ini; alat seperti SAI juga dapat membukanya.',
+  'apk.installing':
+      'Menyiapkan pemasangan…',
+  'apk.installed':
+      'Aplikasi terpasang',
+  'apk.install_aborted':
+      'Pemasangan dibatalkan',
+  'apk.install_permission':
+      'Izinkan pemasangan aplikasi tidak dikenal, lalu ketuk berkas lagi.',
+  'apk.install_no_apk':
+      'Tidak ada APK di dalam paket',
+  'apk.check_title':
+      'Pasang paket ini?',
+  'apk.check_app':
+      'Aplikasi: {name}\n{pkg}',
+  'apk.check_version':
+      'Versi: {v}',
+  'apk.check_installed':
+      'Versi terpasang: {v}',
+  'apk.check_sha':
+      'Tanda tangan (SHA-256):\n{fp}',
+  'apk.check_same':
+      'Tanda tangan cocok dengan aplikasi terpasang.',
+  'apk.check_unreadable':
+      'Tidak dapat membaca detail paket. Pasang paket hanya dari sumber tepercaya.',
+  'apk.check_install':
+      'Pasang',
+  'apk.install_failed':
+      'Pemasangan gagal: {error}',
+  'apk.extracting_name':
+      'Persiapan APK',
+  'suc.section':
+      'Kategori saya',
+  'suc.sub':
+      'Jelaskan kategori Anda sendiri; Penataan pintar menanyakan setiap berkas secara terpisah. Satu berkas dapat berada di beberapa kategori.',
+  'suc.empty':
+      'Belum ada kategori. Contoh: "Sewa" — kontrak sewa, kuitansi sewa, dan biaya pemeliharaan.',
+  'suc.add':
+      'Tambah kategori',
+  'suc.full':
+      'Anda dapat menambah paling banyak {n} kategori',
+  'suc.new_title':
+      'Kategori baru',
+  'suc.edit_title':
+      'Edit kategori',
+  'suc.name':
+      'Nama',
+  'suc.name_hint':
+      'mis. Sewa',
+  'suc.about':
+      'Apa cakupannya? (satu kalimat)',
+  'suc.about_hint':
+      'mis. Kontrak sewa, kuitansi sewa, dan slip biaya pemeliharaan',
+  'suc.icon':
+      'Ikon',
+  'suc.color':
+      'Warna',
+  'suc.try':
+      'Coba',
+  'suc.try_sub':
+      'Sebelum menyimpan, dicoba pada {n} berkas terakhir Anda; kecocokan akan terlihat.',
+  'suc.trying':
+      'Mencoba… {done}/{total}',
+  'suc.try_none':
+      'Tidak ada yang cocok di {n} berkas terakhir. Sesuaikan kalimat dan coba lagi.',
+  'suc.try_hits':
+      '{m} dari {n} berkas cocok',
+  'suc.try_stale':
+      'Nama atau kalimat berubah — coba lagi.',
+  'suc.no_files':
+      'Tidak ada berkas untuk dicoba',
+  'suc.matched':
+      'Cocok',
+  'suc.not_matched':
+      'Tidak cocok',
+  'suc.confirm':
+      'Hasilnya benar',
+  'suc.confirm_sub':
+      'Apakah yang cocok benar-benar termasuk di sini? Jika tidak, sesuaikan kalimat.',
+  'suc.save':
+      'Simpan',
+  'suc.save_need':
+      'Untuk menyimpan, coba dulu, lihat minimal satu kecocokan, dan konfirmasi hasilnya.',
+  'suc.apply':
+      'Terapkan ke berkas sebelumnya ({n})',
+  'suc.applying':
+      'Menerapkan… {done}/{total}',
+  'suc.applied':
+      '{n} berkas diperiksa, {m} cocok',
+  'suc.stopped':
+      'Dihentikan: {reason}',
+  'suc.stop':
+      'Berhenti',
+  'suc.count':
+      '{n} berkas',
+  'suc.pending':
+      '{n} berkas · {p} belum diperiksa',
+  'suc.menu':
+      'Opsi kategori',
+  'suc.edit':
+      'Edit',
+  'suc.delete_q':
+      'Hapus kategori "{name}"? Berkas tetap di tempatnya.',
+  'apps.not_found':
+      'Tidak ada aplikasi ditemukan',
+  'apps.sort_name':
+      'Menurut nama',
 };
