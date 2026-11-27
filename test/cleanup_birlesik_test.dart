@@ -218,7 +218,13 @@ void main() {
       expect(find.byKey(const ValueKey('clean-dup-groups')), findsOneWidget);
 
       // B18: benzer kareler Yer aç listesinin kendi satırı (İncele grubu);
-      // en iyi kare (a) önerilmez, yalnız fazlası (b).
+      // en iyi kare (a) önerilmez, yalnız fazlası (b). Liste tembel kurulur:
+      // açılan kopya satırı onu ekranın altına iter.
+      await tester.dragUntilVisible(
+          find.byKey(const ValueKey('clean-card-similar')),
+          find.byType(ListView),
+          const Offset(0, -200));
+      await tester.pump();
       expect(find.byKey(const ValueKey('clean-card-similar')), findsOneWidget);
       expect(find.text('${FsPaths.humanSize(2 * mb)} · 1 grup'),
           findsOneWidget);
