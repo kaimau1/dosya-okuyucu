@@ -47,6 +47,7 @@ import 'services/app_update.dart';
 import 'services/cloud_ocr.dart';
 import 'services/fm/smart_sort.dart';
 import 'services/play_store.dart';
+import 'services/pro_purchase.dart';
 import 'services/fm/ai_index.dart';
 import 'models/fm_filter.dart';
 import 'services/fm/fm_colors_store.dart';
@@ -146,6 +147,8 @@ Future<void> _main() async {
   // `SharedPreferences.getInstance` geleceğini `appState.init` de bekliyor;
   // bu dinleyici önce kayıtlı olduğundan değer yine `runApp`ten önce yerinde.
   unawaited(AppHaptics.load());
+  // K15: Lite'ta Pro satın alımının yerel kaydı (Play doğrulaması aşağıda kuyrukta).
+  unawaited(ProPurchase.loadCached());
   // Ekran içi aramalar ikinci adı da bulsun (bkz. `FmFilter.aliasOf`).
   // Dizin ilk aramada arka planda yüklenir; açılışı bekletmez.
   FmFilter.aliasOf = (path) {
@@ -313,6 +316,7 @@ Future<void> _main() async {
   );
   // Play derlemesi (A6.6): Play'in kendi uygulama içi güncellemesi.
   StartupQueue.instance.add('play-update', PlayStore.runOnStartup);
+  StartupQueue.instance.add('pro-dogrula', ProPurchase.verify);
   StartupQueue.instance.add('aktar-esitle', AutoSync.instance.sweep);
   // Akıllı düzen: açıksa yeni dosyalar dönüşte sessizce düzenlenir.
   StartupQueue.instance.add(

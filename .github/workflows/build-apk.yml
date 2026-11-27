@@ -654,11 +654,10 @@ jobs:
       # C10 + 2026-09-26 denetimleri — derleme yeşil diye VARSAYILMAZ, ölçülür:
       - name: APK denetimi (içerik, 16 KB hiza, boyut bütçesi)
         env:
-          # Lite (K15c, B7b 2026-11-26): libmpv + LiteRT çıktı (87,3 MB → ≈ 71
-          # MB beklenen). Mandal yalnız düşer: ilk ölçümden sonra ölçülen + %3'e
-          # indir; hedef 45 MB (aşılırsa yalnız uyarı).
-          BUDGET_MB: ${{ matrix.edition == 'lite' && 75 || 100 }}
-          LITE_TARGET_MB: 45
+          # Lite (K15, 2026-11-27): diyet geri alındı — Lite = tüm kod (Pro
+          # satın alımla açılır). Bütçe = ölçülen 87,3 MB + Billing + %3.
+          # Mandal yalnız düşer: ilk ölçümden sonra ölçülen + %3'e indir.
+          BUDGET_MB: ${{ matrix.edition == 'lite' && 91 || 100 }}
         run: |
           set -e
           APK="dist/$APK_NAME"
@@ -670,15 +669,13 @@ jobs:
           if unzip -l "$APK" | grep -q 'libmlkit_google_ocr_pipeline.so'; then
             echo "::error::Gömülü OCR kütüphanesi hâlâ APK'da (ikame çalışmadı)"; exit 1
           fi
+          # K15: Lite = tüm kod; satın alımla açılan mpv + LiteRT APK'da OLMALI.
           if [ "$DOSYA_SURUM" = "lite" ]; then
             for so in libmpv.so libtensorflowlite_jni.so; do
-              if unzip -l "$APK" | grep -q "lib/arm64-v8a/$so"; then
-                echo "::error::Lite APK'da $so var (ci/prepare_android.sh §11b diyeti çalışmadı)"; exit 1
+              if ! unzip -l "$APK" | grep -q "lib/arm64-v8a/$so"; then
+                echo "::error::Lite APK'da $so yok (Pro satın alımı açınca çalışmaz)"; exit 1
               fi
             done
-            if [ "$(stat -c %s "$APK")" -gt $((LITE_TARGET_MB * 1048576)) ]; then
-              echo "::warning::Lite APK hedef $LITE_TARGET_MB MB'ın üstünde (K15c sürüyor; Boyut raporu'na bak)"
-            fi
           fi
           # Faz 19: başlatıcı kısayolları, uygulama başına dil ve açılış ekranı
           # kaynakları APK'da olmalı (ci/res kopyalaması sessizce düşerse).

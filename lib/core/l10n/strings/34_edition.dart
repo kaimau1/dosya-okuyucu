@@ -59,6 +59,37 @@ const Map<String, (String, String, String)> _t34 = {
   'pro.price': ('Fiyat: {p}', 'Price: {p}', 'السعر: {p}'),
   'pro.store': ("Play'de gör", 'View on Play', 'عرض في Play'),
   'pro.later': ('Şimdi değil', 'Not now', 'ليس الآن'),
+  // K15 (2026-11-27): tek seferlik uygulama içi satın alım.
+  'pro.buy': ('Satın al', 'Buy', 'شراء'),
+  'pro.restore': ('Satın almayı geri yükle', 'Restore purchase', 'استعادة الشراء'),
+  'pro.done': ('Pro açıldı — teşekkürler!', 'Pro unlocked — thank you!', 'تم فتح Pro — شكرًا لك!'),
+  'pro.pending': (
+    'Ödeme bekleniyor; onaylanınca Pro kendiliğinden açılır.',
+    'Payment pending; Pro unlocks automatically once it is approved.',
+    'الدفع قيد الانتظار؛ سيُفتح Pro تلقائيًا بعد الموافقة.',
+  ),
+  'pro.canceled': ('Satın alma iptal edildi.', 'Purchase canceled.', 'تم إلغاء الشراء.'),
+  'pro.unavailable': (
+    "Google Play'e ulaşılamadı. İnternet bağlantını ve Play Store'da oturum açık olduğunu denetle.",
+    "Couldn't reach Google Play. Check your connection and that you're signed in to the Play Store.",
+    'تعذّر الوصول إلى Google Play. تحقّق من الاتصال ومن تسجيل الدخول إلى متجر Play.',
+  ),
+  'pro.failed': (
+    'Satın alma tamamlanamadı; daha sonra yeniden dene.',
+    "The purchase couldn't be completed; please try again later.",
+    'تعذّر إتمام الشراء؛ حاول مرة أخرى لاحقًا.',
+  ),
+  'pro.restored': ('Satın alma geri yüklendi — Pro açık.', 'Purchase restored — Pro is unlocked.', 'تمت استعادة الشراء — Pro مفعّل.'),
+  'pro.restore_none': (
+    'Bu Google hesabında Pro satın alımı bulunamadı.',
+    'No Pro purchase found on this Google account.',
+    'لم يُعثر على شراء Pro في حساب Google هذا.',
+  ),
+  'pro.owned_sub': (
+    'Satın alındı · Tüm Pro özellikleri açık',
+    'Purchased · All Pro features unlocked',
+    'تم الشراء · جميع ميزات Pro مفعّلة',
+  ),
   'pro.trust': (
     'Lite sürümde tüm temel özellikler sonsuza dek ücretsiz ve reklamsızdır.',
     'All core features in Lite stay free and ad-free forever.',
