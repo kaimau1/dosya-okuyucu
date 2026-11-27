@@ -53,4 +53,81 @@ void main() {
     expect(lines.first.size, 20);
     expect(lines.first.pos, closeTo(700 / 800, 1e-9));
   });
+
+  // B19 (2026-11-27): Türkçe + Arapça alıntılı kitapta gövdeden gelen yanlış
+  // başlıklar.
+  List<OutlineLine> filler() => [
+        for (var i = 0; i < 6; i++)
+          body('Gövde metni sürer, uzun bir satır daha burada yazılı duruyor')
+      ];
+
+  test('Latin belgede iri Arapça alıntı ve uzun cümle başlık değil', () {
+    final pages = [
+      page(1, [
+        const OutlineLine('NAMAZIN SIRLARI', 16, 0.8),
+        ...filler(),
+        const OutlineLine('بسم الله الرحمن الرحيم', 14, 0.5),
+        const OutlineLine(
+            'Bu satır iri dizilmiş ama noktayla biten uzun bir cümledir.',
+            14,
+            0.4),
+      ]),
+      page(2, filler()),
+    ];
+    expect(PdfAutoOutline.pickHeadings(pages).map((e) => e.toString()),
+        ['0:NAMAZIN SIRLARI@0']);
+  });
+
+  test('art arda 4 iri satır alıntı bloğudur, başlık sayılmaz', () {
+    final pages = [
+      page(1, [
+        const OutlineLine('ORUCUN FAZİLETİ', 16, 0.8),
+        ...filler(),
+        for (var i = 0; i < 4; i++)
+          OutlineLine('İri dizilmiş alıntı satırı $i', 13, 0.5 - i * 0.03),
+      ]),
+      page(2, filler()),
+    ];
+    expect(PdfAutoOutline.pickHeadings(pages).map((e) => e.toString()),
+        ['0:ORUCUN FAZİLETİ@0']);
+  });
+
+  test('gövde boyundaki bölüm kalıbı düzey 0 ve altındaki adla birleşir', () {
+    final pages = [
+      page(1, [
+        body('BİRİNCİ BÖLÜM', 0.85),
+        const OutlineLine('Abdestin Farzları', 14, 0.8),
+        ...filler(),
+        body('ALT KONU BAŞLIĞI'),
+        ...filler(),
+      ]),
+      page(2, filler()),
+    ];
+    expect(PdfAutoOutline.pickHeadings(pages).map((e) => e.toString()), [
+      '0:BİRİNCİ BÖLÜM Abdestin Farzları@0',
+      '1:ALT KONU BAŞLIĞI@0',
+    ]);
+  });
+
+  test('bölüm kalıbı tanıma', () {
+    for (final t in [
+      'BÖLÜM 3',
+      'Birinci Kısım',
+      '2. BAB',
+      'Fasıl: Namaz',
+      'İKİNCİ KİTAP:',
+      'الفصل الأول',
+      'Chapter 7'
+    ]) {
+      expect(PdfAutoOutline.isChapterLine(t), isTrue, reason: t);
+    }
+    for (final t in ['Bölümlerin sayısı', 'Babası geldi', 'Partiler']) {
+      expect(PdfAutoOutline.isChapterLine(t), isFalse, reason: t);
+    }
+    expect(PdfAutoOutline.bodyLike('Kısa başlık'), isFalse);
+    expect(
+        PdfAutoOutline.bodyLike(
+            'Bu cümle gövdeden gelir ve noktayla biter, başlık olamaz.'),
+        isTrue);
+  });
 }
