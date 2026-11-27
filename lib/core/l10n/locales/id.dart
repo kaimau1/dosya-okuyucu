@@ -3510,4 +3510,638 @@ const Map<String, String> _id = {
       'Detik per slide',
   'sp.video_unavailable':
       'Ekspor video tidak tersedia di perangkat ini',
+  'near.accept':
+      'Terima',
+  'near.add_files':
+      'Tambah berkas',
+  'near.add_folder':
+      'Tambah folder',
+  'near.add_text':
+      'Teks',
+  'near.asking':
+      'Menunggu {name} menerima…',
+  'near.bg_ask_body':
+      '{name} ingin mengirim {n} berkas',
+  'near.bg_ask_title':
+      'Permintaan berkas masuk',
+  'near.bg_ch_ask':
+      'Permintaan berkas masuk',
+  'near.bg_ch_quiet':
+      'Visibilitas latar belakang',
+  'near.bg_failed':
+      'Tidak dapat diaktifkan — apakah Bluetooth menyala dan diizinkan?',
+  'near.bg_note_text':
+      'Bluetooth berdaya rendah · permintaan masuk perlu persetujuan Anda',
+  'near.bg_note_title':
+      'Terlihat oleh perangkat di sekitar',
+  'near.bg_off':
+      'Visibilitas latar belakang dimatikan.',
+  'near.bg_on':
+      'Perangkat di sekitar dapat melihat Anda bahkan saat layar ini ditutup (Bluetooth berdaya rendah); permintaan ditanyakan lewat notifikasi.',
+  'near.bg_switch':
+      'Terlihat di latar belakang',
+  'near.bg_waiting':
+      '{name} menyetujui — pengiriman akan dimulai lewat Wi-Fi',
+  'near.bt_denied':
+      'Tidak ada izin Bluetooth · izinkan',
+  'near.bt_failed':
+      'Bluetooth gagal · coba lagi',
+  'near.bt_none':
+      'Tidak ada Bluetooth LE',
+  'near.bt_off':
+      'Bluetooth mati · coba lagi',
+  'near.bt_on':
+      'Bluetooth',
+  'near.bt_wait':
+      'Bluetooth…',
+  'near.busy_sending':
+      'Tunggu pengiriman saat ini selesai (atau Berhenti)',
+  'near.clear_sel':
+      'Hapus',
+  'near.clip_files':
+      'Tambahkan {n} berkas yang disalin',
+  'near.copied':
+      'Alamat disalin',
+  'near.decline':
+      'Tolak',
+  'near.dur_lt1':
+      'kurang dari 1 dtk',
+  'near.dur_ms':
+      '{m} mnt {s} dtk',
+  'near.dur_s':
+      '{s} dtk',
+  'near.empty_hint':
+      'Buka Transfer juga di perangkat lain (Wi-Fi yang sama atau Bluetooth).',
+  'near.fail_code':
+      'kode pemasangan ditolak',
+  'near.fail_identity':
+      'identitas penerima berubah, dihentikan demi keamanan',
+  'near.fail_network':
+      'koneksi terputus, penerima tidak terjangkau',
+  'near.fail_receiver':
+      'penerima tidak dapat menyimpannya (tidak ada ruang atau izin)',
+  'near.fail_secure':
+      'koneksi aman gagal',
+  'near.fail_tile':
+      'Tidak terkirim',
+  'near.file_done':
+      'Selesai',
+  'near.folder_files':
+      '{n} berkas',
+  'near.history':
+      'Riwayat',
+  'near.invite_failed':
+      'Tidak dapat menjangkau {name}. Dekatkan dan coba lagi, atau pindai QR.',
+  'near.invited':
+      'Berkas akan ditransfer setelah {name} menerima — biarkan layar ini terbuka.',
+  'near.inviting':
+      'Memberi tahu {name}…',
+  'near.keep_body':
+      'Berbagi akan menutup sendiri setelah selesai',
+  'near.keep_title':
+      'Mentransfer berkas',
+  'near.missing':
+      'sudah tidak ada',
+  'near.network':
+      'Jaringan',
+  'near.no_network':
+      'Tidak dapat menyiapkan jaringan — nyalakan Wi-Fi atau gunakan QR.',
+  'near.none_received':
+      'Belum ada yang diterima.',
+  'near.none_sent':
+      'Belum ada yang dikirim.',
+  'near.offer_dest':
+      'Disimpan ke: {dir}',
+  'near.offer_more':
+      '+{n} lagi',
+  'near.offer_sub':
+      '{n} item · {size}',
+  'near.offer_title':
+      '{from} mengirim berkas',
+  'near.other_ways':
+      'Cara lain',
+  'near.password':
+      'Kata sandi',
+  'near.pick_this_folder':
+      'Kirim folder ini',
+  'near.pick_to_link':
+      'Pilih berkas & buat tautan',
+  'near.received_tab':
+      'Diterima',
+  'near.receiving':
+      'Menerima',
+  'near.receiving_n':
+      'Menerima · {n} berkas',
+  'near.remove_record':
+      'Hapus dari daftar',
+  'near.reveal':
+      'Tampilkan lokasi',
+  'near.searching':
+      'Mencari Dosyalarım di sekitar…',
+  'near.sec_local':
+      'Jaringan lokal & unduhan',
+  'near.sec_prefs':
+      'Preferensi transfer',
+  'near.selected':
+      '{n} item dipilih',
+  'near.sending_to':
+      'Mengirim ke {name}',
+  'near.sent_fail':
+      'Gagal',
+  'near.sent_ok':
+      'Berhasil',
+  'near.sent_partial':
+      '{ok} berkas terkirim · {bad} tidak terkirim: {why}',
+  'near.sent_tab':
+      'Terkirim',
+  'near.sent_tile':
+      'Terkirim',
+  'near.sent_to':
+      '→ {name}',
+  'near.share_apps':
+      'Bagikan dengan aplikasi',
+  'near.share_no_folder':
+      'Folder tidak dapat dibagikan dengan aplikasi; pilih berkas di dalamnya.',
+  'near.share_sub':
+      'Ke ponsel di sekitar, atau lewat QR ke browser mana pun — tanpa aplikasi',
+  'near.show_all':
+      'Tampilkan semua ({n})',
+  'near.starting':
+      'Bersiap…',
+  'near.step_page':
+      '2 · Buka berkas',
+  'near.step_what':
+      '1 · Apa yang dikirim?',
+  'near.step_who':
+      '2 · Kepada siapa?',
+  'near.step_wifi':
+      '1 · Gabung jaringan',
+  'near.tap_device':
+      'Ketuk perangkat di bawah untuk mengirim · folder tiba sebagai folder, banyak berkas kecil dikirim sebagai satu paket',
+  'near.text_copy':
+      'Salin',
+  'near.text_failed':
+      'Teks tidak dapat dikirim — apakah Transfer terbuka dan aplikasinya mutakhir di sana?',
+  'near.text_from':
+      '{from} mengirim teks',
+  'near.text_hint':
+      'Ketik atau tempel — muncul di perangkat lain, siap disalin',
+  'near.text_sent':
+      'Teks dikirim ke {name}',
+  'near.text_title':
+      'Teks untuk dikirim',
+  'near.text_wifi_only':
+      'Teks hanya dikirim lewat Wi-Fi — kedua perangkat harus berada di jaringan yang sama',
+  'near.title':
+      'Di sekitar',
+  'near.trust_this':
+      'Percayai perangkat ini — jangan tanya lagi',
+  'near.trusted':
+      'Perangkat tepercaya',
+  'near.trusted_added':
+      '{name} ditambahkan ke perangkat tepercaya',
+  'near.trusted_badge':
+      'Tepercaya',
+  'near.type_address':
+      'Jika QR tidak terpindai, ketik alamat ini di browser ponsel lain.',
+  'near.untrust':
+      'Cabut kepercayaan',
+  'near.via_web':
+      'Browser (QR)',
+  'near.waiting':
+      'Koneksi terputus — akan dilanjutkan dari titik berhenti…',
+  'near.web_idle':
+      'Unduh di browser lewat QR',
+  'near.web_idle_sub':
+      'Pilih berkas dan QR beserta alamat singkat muncul di sini; orang lain memindainya dan mengunduh di browser.',
+  'near.web_same_wifi':
+      'Ponsel di Wi-Fi yang sama memindainya dengan kamera — halaman terbuka, satu ketukan untuk mengunduh.',
+  'near.web_step1':
+      '1. Pindai dengan kamera → gabung ke jaringan ponsel saya',
+  'near.web_step2':
+      '2. Sekarang pindai ini → halaman terbuka, berkas terunduh',
+  'near.what_to_send':
+      'Apa yang dikirim ke {name}?',
+  'near.wifi_off':
+      'Tidak ada Wi-Fi',
+  'near.wifi_on':
+      'Wi-Fi',
+  'sm.amount_title':
+      'Jumlah: {range}',
+  'sm.auto':
+      'Atur berkas baru secara otomatis',
+  'sm.auto_sub':
+      'Berkas baru diatur diam-diam setiap kali Anda kembali ke aplikasi',
+  'sm.bg':
+      'Hanya saat mengisi daya di Wi-Fi (juga di latar belakang)',
+  'sm.bg_sub':
+      'Mengatur saat mengisi daya di Wi-Fi, bahkan dengan aplikasi tertutup; paling banyak {n} berkas per putaran',
+  'sm.camera':
+      'Sertakan foto kamera',
+  'sm.cap':
+      'Paling banyak {cap} berkas sehari',
+  'sm.cap_day':
+      '{d}: {n} berkas · {l} peringatan kuota',
+  'sm.cap_n':
+      '{n} berkas',
+  'sm.cap_none':
+      'Tanpa batas harian',
+  'sm.cap_sub':
+      'Hari ini {n}/{cap} · peringatan kuota gratis {l}',
+  'sm.cap_sub_none':
+      'Hari ini {n} berkas · peringatan kuota gratis {l}',
+  'sm.cap_title':
+      'Batas harian',
+  'sm.cap_unlimited':
+      'Tanpa batas',
+  'sm.clutter':
+      'Bersihkan',
+  'sm.clutter_empty':
+      'Tidak ada yang tidak diperlukan 🎉',
+  'sm.clutter_sub':
+      'Kartu ucapan, meme, foto buram, dan jepretan tidak sengaja',
+  'sm.clutter_title':
+      'Bersihkan · {n} tidak diperlukan',
+  'sm.delete_sel':
+      'Hapus ({n})',
+  'sm.deselect_one':
+      'Batalkan pilihan',
+  'sm.disable':
+      'Matikan atur pintar',
+  'sm.done':
+      '{n} berkas diatur',
+  'sm.enable':
+      'Aktifkan dan atur',
+  'sm.expired':
+      'Dokumen kedaluwarsa',
+  'sm.expiring_soon':
+      'Segera kedaluwarsa',
+  'sm.fail_blocked':
+      'konten tidak dijawab karena alasan keamanan',
+  'sm.fail_empty':
+      'jawaban kosong, akan dicoba lagi nanti',
+  'sm.failed':
+      '{n} berkas gagal',
+  'sm.filter_title':
+      'Kategori pintar',
+  'sm.folders':
+      'Folder pintar',
+  'sm.folders_empty':
+      'Belum ada kategori — ketuk "Atur sekarang".',
+  'sm.group_all':
+      'Semua',
+  'sm.group_docs':
+      'Dokumen',
+  'sm.group_finance':
+      'Keuangan',
+  'sm.group_images':
+      'Gambar',
+  'sm.group_media':
+      'Media',
+  'sm.hidden_empty':
+      'Tidak ada berkas tersembunyi',
+  'sm.hidden_n':
+      '{n} berkas disembunyikan',
+  'sm.hide_sel':
+      'Sembunyikan ({n})',
+  'sm.hold_cap':
+      '{n} berkas diatur; batas hari ini ({cap}) tercapai, sisanya besok',
+  'sm.hold_offline':
+      'Mode luring aktif — matikan di Pengaturan > Privasi untuk mengatur',
+  'sm.hold_scope':
+      'Tidak ada folder untuk diatur — periksa akses berkas dan Pengaturan > Kecerdasan buatan > cakupan',
+  'sm.hold_wifi':
+      'Mengatur hanya di Wi-Fi; dilanjutkan setelah Anda di Wi-Fi',
+  'sm.inst_title':
+      'Penerbit: {name}',
+  'sm.intro_body':
+      'Atur pintar memeriksa dokumen baru (PDF, Word, Excel, slide, teks), gambar, rekaman suara, dan video, lalu memberi masing-masing nama kedua dan kategori yang jelas.',
+  'sm.intro_pick_sub':
+      'Anda mulai dengan jatah {max} berkas; centang hanya yang Anda mau, bukan memindai semuanya.',
+  'sm.intro_pick_title':
+      'Berkas mana yang harus dipindai?',
+  'sm.intro_title':
+      'Biarkan ponsel Anda mengatur dirinya sendiri',
+  'sm.keep':
+      'Pertahankan',
+  'sm.keep_body':
+      'Berkas ini keluar dari daftar Bersihkan dan tidak akan disarankan lagi.',
+  'sm.keep_title':
+      'Bukan yang tidak diperlukan?',
+  'sm.local_ready_sub':
+      'Faktur, bukti bank, dokumen resmi, catatan kesehatan, tangkapan layar, dan APK dipilah secara luring, gratis. Kunci Gemini opsional juga mengklasifikasikan berkas yang ambigu.',
+  'sm.local_ready_title':
+      'Pemilahan pintar lokal siap (tanpa kunci API)',
+  'sm.local_saved':
+      '{n} berkas diklasifikasikan secara lokal dengan 0 kredit AI',
+  'sm.low_conf':
+      'Tinjau',
+  'sm.nothing_new':
+      'Tidak ada berkas baru untuk diatur',
+  'sm.overdue':
+      'Tagihan terlambat',
+  'sm.pick_download_folder':
+      'Folder Unduhan',
+  'sm.pick_more_sources':
+      'Jenis & sumber folder lainnya',
+  'sm.pick_one':
+      'Pilih minimal satu jenis dan sumber untuk dipindai.',
+  'sm.point_clean':
+      'Kartu ucapan, meme, foto buram, dan jepretan tidak sengaja dapat disembunyikan atau dihapus dengan satu ketukan.',
+  'sm.point_name':
+      'Nama kedua seperti "Tagihan listrik · Oktober 2026"; saring daftar menurut kategori pintar, cari dalam bahasa apa pun.',
+  'sm.point_place':
+      'Berkas tetap di tempat dan namanya — tidak ada yang dipindahkan.',
+  'sm.preset_all':
+      'Semua',
+  'sm.preset_docs':
+      'Hanya dokumen',
+  'sm.preset_downloads':
+      'Hanya unduhan',
+  'sm.privacy':
+      'Cakupan: Unduhan, Dokumen, tangkapan layar, rekaman, WhatsApp, dan Telegram. Kamera hanya jika Anda mengaktifkannya. Berkas (untuk Word, Excel, dan slide hanya teksnya; untuk video hanya menit pertama yang dilihat; untuk APK dan arsip hanya nama, ukuran, dan folder) dikirim ke Google Gemini untuk ditinjau; hasilnya tetap hanya di ponsel Anda. Dengan kunci Gemini gratis, Google dapat menggunakan data untuk meningkatkan produknya. Folder di luar cakupan AI tidak pernah dikirim.',
+  'sm.progress':
+      'Menyusun {done}/{total}',
+  'sm.r_all':
+      'Semua',
+  'sm.restore_sel':
+      'Pulihkan ({n})',
+  'sm.restored_n':
+      '{n} berkas dipulihkan',
+  'sm.reused_n':
+      '{n} salinan lokal digunakan ulang (0 unit)',
+  'sm.run':
+      'Atur sekarang',
+  'sm.search_empty':
+      'Tidak ada berkas teratur yang cocok',
+  'sm.search_hint':
+      'Cari atur pintar (nama, penerbit, tahun, jenis…)',
+  'sm.search_results':
+      '{n} hasil',
+  'sm.select_all':
+      'Pilih semua',
+  'sm.select_one':
+      'Pilih',
+  'sm.selected':
+      '{n} dipilih',
+  'sm.sensitive_pin':
+      'Dokumen sensitif — PIN',
+  'sm.settings':
+      'Pengaturan',
+  'sm.similar':
+      'Foto serupa',
+  'sm.starter_cap_hit':
+      '{n} berkas diatur · Jatah awal {max} berkas tercapai. Gunakan langganan opsional atau kunci Anda sendiri untuk lebih banyak.',
+  'sm.starter_usage':
+      '{n} / {max} jatah awal terpakai',
+  'sm.status':
+      '{n} berkas · {c} kategori',
+  'sm.status_sub':
+      'Berkas tetap di tempatnya; nama kedua tampil di daftar dan pencarian.',
+  'sm.stop':
+      'Berhenti',
+  'sm.stopped':
+      '{n} berkas diatur, proses dihentikan. {reason}',
+  'sm.sub_all':
+      'Semua',
+  'sm.tab_clutter':
+      'Tidak diperlukan ({n})',
+  'sm.tab_hidden':
+      'Tersembunyi ({n})',
+  'sm.tile':
+      'Atur pintar',
+  'sm.tile_off':
+      'Aktifkan atur pintar',
+  'sm.tile_on':
+      '{n} berkas diatur',
+  'sm.title':
+      'Atur pintar',
+  'sm.upcoming_due':
+      'Segera jatuh tempo',
+  'sm.usage':
+      'Putaran terakhir: {n} berkas · ~{t} unit dan {q} pertanyaan per berkas',
+  'sm.waiting':
+      'jeda singkat, akan berlanjut sendiri',
+  'sm.wifi':
+      'Hanya di Wi-Fi',
+  'sm.wifi_sub':
+      'Tidak ada berkas yang dikirim lewat data seluler',
+  'sm.year_title':
+      'Tahun dokumen: {y}',
+  'pe.add_image':
+      'Tambah gambar',
+  'pe.add_initials':
+      'Tambah inisial',
+  'pe.add_signature':
+      'Tambah tanda tangan',
+  'pe.add_text':
+      'Tambah teks',
+  'pe.background_failed':
+      'Tidak dapat memindai item latar belakang: {error}',
+  'pe.bold':
+      'Tebal',
+  'pe.busy_applying':
+      'Menerapkan perubahan ke halaman…',
+  'pe.busy_background':
+      'Mencari item latar belakang…',
+  'pe.busy_draw':
+      'Menerapkan gambar…',
+  'pe.busy_fix':
+      'Memperbaiki baris…',
+  'pe.busy_fix_ai':
+      'Memperbaiki baris secara pintar — beberapa detik…',
+  'pe.busy_image':
+      'Mengubah gambar…',
+  'pe.busy_make_editable':
+      'Mengubah halaman menjadi teks…',
+  'pe.busy_reading':
+      'Membaca halaman {page} — teks yang dapat diedit segera diberi garis…',
+  'pe.busy_redo':
+      'Mengulangi: {what}…',
+  'pe.busy_refresh':
+      'Menyegarkan halaman…',
+  'pe.busy_rotate':
+      'Memutar halaman…',
+  'pe.busy_saving':
+      'Menyimpan — menulis teks, tanda tangan, dan gambar yang ditambahkan…',
+  'pe.busy_undo':
+      'Mengurungkan: {what}…',
+  'pe.busy_working':
+      'Memproses…',
+  'pe.clear_selection':
+      'Hapus pilihan',
+  'pe.delete_image':
+      'Hapus gambar',
+  'pe.delete_image_body':
+      'Gambar ini akan dihapus dari halaman. Anda dapat mengembalikannya dengan Urungkan.',
+  'pe.draw_initials':
+      'Gambar inisial Anda',
+  'pe.draw_open':
+      'Gambar dengan pena',
+  'pe.drawn':
+      'Gambar ditambahkan',
+  'pe.field_next':
+      'Kolom berikutnya',
+  'pe.field_prev':
+      'Kolom sebelumnya',
+  'pe.fix_done':
+      '{n} baris dikoreksi.',
+  'pe.fix_nothing':
+      'Tidak ada yang perlu dikoreksi — halaman sudah tampak bersih.',
+  'pe.fix_page':
+      'Perbaiki teks',
+  'pe.fix_page_ai':
+      'Perbaiki teks secara pintar',
+  'pe.font_bigger':
+      'Lebih besar',
+  'pe.font_smaller':
+      'Lebih kecil',
+  'pe.force_ocr':
+      'Edit dengan OCR',
+  'pe.form_filled':
+      'Kolom terisi',
+  'pe.form_locked':
+      'Kolom ini hanya-baca',
+  'pe.form_signature':
+      'Kolom tanda tangan: tambahkan tanda tangan Anda dari tab Tanda tangan',
+  'pe.hint_background':
+      'Item yang berulang di setiap halaman tercantum di bawah. Pilih yang ingin dihapus.',
+  'pe.hint_draw':
+      'Pena, stabilo, penghapus, dan teks — gambar menjadi bagian dari satu langkah edit ini',
+  'pe.hint_failed':
+      'Halaman ini tidak dapat dianalisis: {error}',
+  'pe.hint_form':
+      'Ketuk kolom dan isi di halaman',
+  'pe.hint_form_loading':
+      'Membaca kolom formulir…',
+  'pe.hint_form_none':
+      'Dokumen ini tidak memiliki kolom formulir yang dapat diisi',
+  'pe.hint_image':
+      'Ketuk gambar untuk memilihnya; seret untuk memindahkan, ubah ukuran dari sudut, atau gunakan bilah di bawah untuk memutar dan membalikkannya.',
+  'pe.hint_image_locked':
+      'Gambar di halaman ini terkunci di tempatnya: ditampilkan tetapi tidak dapat diedit (blok gambar bersama atau gambar sebaris).',
+  'pe.hint_image_none':
+      'Tidak ada gambar tertanam di halaman ini.',
+  'pe.hint_page':
+      'Putar halaman yang terbuka.',
+  'pe.hint_place_text':
+      'Ketuk tempat teks harus dimulai.',
+  'pe.hint_sign':
+      'Tambahkan tanda tangan atau inisial; seret, ubah ukuran dari sudut',
+  'pe.hint_text':
+      'Ketuk paragraf yang ingin diubah.',
+  'pe.hint_text_none':
+      'Tidak ada teks yang dapat diedit di halaman ini. Ketuk “Tambah teks” untuk menulis di atasnya.',
+  'pe.hint_text_scanned':
+      'Halaman hasil pindai: ketuk baris untuk mengetik di atasnya (mengenali baris…).',
+  'pe.hint_text_unsupported':
+      'Teks halaman ini belum dapat diedit langsung (tata letaknya tidak terbaca). Ketuk "Tambah teks" untuk menaruh teks baru.',
+  'pe.image_added':
+      'Gambar ditambahkan',
+  'pe.image_deleted':
+      'Gambar dihapus',
+  'pe.image_mirrored':
+      'Gambar dibalik',
+  'pe.image_moved':
+      'Gambar dipindahkan',
+  'pe.image_turned':
+      'Gambar diputar',
+  'pe.image_unreadable':
+      'Gambar tidak dapat dibaca',
+  'pe.inline_checking':
+      'Memeriksa apakah muat di halaman…',
+  'pe.inline_empty':
+      'Paragraf tidak boleh kosong; gunakan "Timpa" tanpa teks untuk menghapusnya',
+  'pe.inline_fits':
+      'Muat — ketuk Selesai untuk menerapkan',
+  'pe.inline_hint':
+      'Ubah teks, terapkan dengan ✓. Anda akan diberi tahu di sini jika tidak muat.',
+  'pe.inline_hint_scanned':
+      'Baris hasil pindai: perbaiki teks, ✓ menimpanya pada baris.',
+  'pe.items_removed':
+      'Item terpilih dihapus',
+  'pe.make_editable':
+      'Jadikan halaman ini dapat diedit',
+  'pe.make_editable_done':
+      '{n} baris diubah menjadi teks yang dapat diedit.',
+  'pe.mirror_h':
+      'Balik horizontal',
+  'pe.mirror_v':
+      'Balik vertikal',
+  'pe.mode_draw':
+      'Gambar',
+  'pe.mode_form':
+      'Formulir',
+  'pe.mode_image':
+      'Gambar',
+  'pe.mode_page':
+      'Halaman',
+  'pe.mode_sign':
+      'Tanda tangan',
+  'pe.mode_text':
+      'Teks',
+  'pe.mode_watermark':
+      'Tanda air',
+  'pe.no_background':
+      'Tidak ditemukan item latar belakang yang berulang.',
+  'pe.object_deleted':
+      'Objek dihapus',
+  'pe.object_locked':
+      'Gambar ini tidak dapat diedit; hanya posisinya yang ditampilkan.',
+  'pe.object_moved':
+      'Objek dipindahkan',
+  'pe.op_failed':
+      'Operasi gagal: {error}',
+  'pe.outline_failed':
+      'Tidak dapat menganalisis halaman: {error}',
+  'pe.overwrite':
+      'Timpa',
+  'pe.overwrite_help':
+      'Tutup paragraf dengan warna putih dan tulis teks baru di tempatnya',
+  'pe.overwritten':
+      'Paragraf ditimpa',
+  'pe.page_rotated':
+      'Halaman diputar',
+  'pe.paragraph_updated':
+      'Paragraf diperbarui',
+  'pe.pick_to_remove':
+      'Pilih item yang akan dihapus',
+  'pe.prepare_failed':
+      'Dokumen tidak dapat disiapkan: {error}',
+  'pe.protected_body':
+      'Dokumen ini dikunci dari pengeditan tetapi terbuka tanpa meminta kata sandi (kunci izin). Hapus perlindungannya dan edit?\n\nBerkas asli Anda tidak diubah; perlindungan hanya dihapus pada salinan yang diedit.',
+  'pe.protected_title':
+      'Dokumen dilindungi',
+  'pe.protection_removed':
+      'Perlindungan dihapus',
+  'pe.redone_what':
+      'Diulangi: {what}',
+  'pe.redraw_signature':
+      'Gambar ulang',
+  'pe.remove_picked':
+      'Hapus yang dipilih ({n})',
+  'pe.remove_protection':
+      'Hapus perlindungan',
+  'pe.rot_left':
+      '90° kiri',
+  'pe.rot_right':
+      '90° kanan',
+  'pe.save_note':
+      'Di mana dokumen yang diedit akan disimpan?',
+  'pe.scanned_updated':
+      'Baris diperbarui.',
+  'pe.signature_added':
+      'Tanda tangan ditambahkan',
+  'pe.text_added':
+      'Teks ditambahkan',
+  'pe.text_color':
+      'Warna teks',
+  'pe.text_edited':
+      'Teks diedit',
+  'pe.undone_what':
+      'Diurungkan: {what}',
+  'pe.unlock_failed':
+      'Tidak dapat menghapus perlindungan kata sandi dokumen: {error}\n\nJika ada kata sandi sungguhan, hapus lewat alat PDF lalu coba lagi.',
+  'pe.wait_busy':
+      'Sebentar — {what}',
 };
