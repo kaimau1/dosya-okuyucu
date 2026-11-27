@@ -511,6 +511,7 @@ Aşağıdaki liste `yayin_rehberi.md`, `SURUM_ADAYI.md`, `SURUM_PLANI.md`, `izin
 
 ### C. Mağaza Sayfası, Video, Gerçek Telefon Kontrolü ve Lansman
     - **Word ⋮ menüsü süsleri (K40, 2026-11-27 ölçümü):** Belge Stüdyosu'nun karo süsleri (simge kutusu, renkli kenar, arama kutusu gölgesi) menü kare çizimini 3–4 ms artırıyor (raster p99 15,7→19,7 ms; 24 ms sınırının altında, kurulumda gerileme yok — docs/perf/2026-11-27-R3-word-taban.md). Süsler kalsın mı, sadeleşsin mi?
+    - **P22b PDF okuma eklentileri (K41, 2026-11-27):** tutamaçta sayfa önizlemesi + "N. sayfaya dön" düğmesi dal `faz-oto-B4-p22b`'de hazır. 2 tur A/B: PDF açılışı artık yeşil, ama PDF geçişlerinde kare kurulum p99 8 ölçümün 4'ünde 24 ms'yi aştı (tabanda hiç); aynı koşularda P22b'nin dokunmadığı slayt geçişinde de 121 ms takılma var (gürültü şüphesi) — docs/perf/2026-11-27-P22b-ab2.md. Seçenek: (a) bir tur daha yalnız geçiş ölçümü, (b) varsayılan KAPALI bayrakla birleştir, (c) bırak.
 10. **Ekran görüntüleri ve 2 kısa Play izin videosu çek:**
     - Telefon & tablette TR/EN/AR ekran görüntüleri al.
     - Hem Lite hem Pro sürüm `Tüm dosyalara erişim` istediği için Play incelemesinde istenen YouTube *Liste Dışı* 2 kısa ekran kaydı yükle: (1) açılışta izin istemeyip dosya yöneticisinde nasıl izin istendiği (~30 sn), (2) arka planda dosya taşıma/müzik bildirimi (~20 sn).
