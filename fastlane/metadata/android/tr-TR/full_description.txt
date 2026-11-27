@@ -1,19 +1,24 @@
 Dosya Okuyucu, telefonunuzdaki belgeler ve dosyalar için hızlı, sade ve tamamen reklamsız bir yardımcıdır. Temel okuma, dosya yönetimi ve aktarım araçları ücretsizdir; verileriniz cihazdan çıkmaz.
 
-Lite sürümde neler ücretsiz?
+Ücretsiz sunulan özellikler:
 
 • PDF okuma ve işaretleme: vurgula, yer imi ekle, form doldur, elle imzala, parolalı PDF aç, seçili metni kopyala veya çevrimdışı çevir
-• Belge tarama ve çevrimdışı OCR: kamerayla sayfa tara, cihaz içi metin tanı
+• Belge tarama ve çevrimdışı OCR: kamerayla sayfa tara, cihaz içi metin tanı (Arapça dahil indirilebilir çevrimdışı dil modelleriyle)
 • Word, Excel, PowerPoint: biçimi koruyarak aç ve temel düzenleme yap — mobilde rahat okuma/yazım görünümü, taslak kurtarma ve otomatik kaydetme
-• Dosya yöneticisi: tür süzgeci, klasör sıralama, çöp kutusu ve geri al, arşiv açma/oluşturma (ZIP), USB bellek (salt okunur) ve SD kart, SMB/SFTP/WebDAV, şifreli kasa
+• Dosya yöneticisi: tür süzgeci, klasör sıralama, çöp kutusu ve geri al, arşiv açma/oluşturma (ZIP), USB bellek (salt okunur) ve SD kart, SMB/SFTP/WebDAV, şifreli kasa ve Yer Aç analizi
 • Yakındakiler: yakındaki telefona ya da aynı ağdaki tarayıcıya kablosuz dosya gönder — sunucuya yüklenmez, ortak Wi-Fi gerekmez
 • Medya ve görsel araçları: dahili galeri, video/ses oynatıcı, görsel boyutlandırma, kırpma, döndürme, WebP dönüşümü ve QR kodla not paylaşımı
-• Göz yormayan kırık beyaz ve koyu tema; Türkçe, İngilizce, Arapça arayüz
+• Göz yormayan kırık beyaz ve koyu tema; Türkçe, İngilizce, Arapça, Endonezce ve Malayca arayüz
 • Gizlilik: reklam yok, izleme analitiği yok, hesap zorunluluğu yok
 
-Pro sürümde neler ayrı?
+Uygulama içi tek seferlik Pro ile neler açılır?
 
-Uygulamada `PRO` rozetiyle açıkça işaretlenen gelişmiş araçlar ayrı Pro uygulamasındadır: PDF paragraf/sayfa düzenleme, Akıllı Klasörler (çevrimdışı kural motoru + isteğe bağlı kendi Gemini anahtarınız), belgelerden Sesli Kitap oluşturma ve video boyut düşürme.
+Uygulamada `PRO` rozetiyle açıkça işaretlenen gelişmiş araçlar tek seferlik satın alımla açılır (temel özelliklerde abonelik yoktur):
+
+• Gelişmiş PDF stüdyosu: paragraf ve sayfa düzenleme, birleştir/böl, üst/alt bilgi, dijital imza, PDF arama katmanı ve filigran
+• Akıllı Klasörler: taramadan önce tür ve klasör seçerek belgeleri otomatik kategorilere ayır (500 dosyaya kadar başlangıç hakkı dahil; daha fazla bulut analizi isteğe bağlı ek abonelik veya kendi Gemini anahtarınla)
+• Sesli Kitap Stüdyosu: PDF, Word ve metinlerden cihaz içinde bölümlü sesli kitap oluştur ve çevrimdışı dinle
+• Video boyut düşürme ve gelişmiş Word/Slayt araçları
 
 İzinler: Açılışta izin istenmez. Başka uygulamadan gelen bir belgeyi açmak için ek izin gerekmez. Tüm dosyalara erişim yalnız klasör gezginini ve temizliği kullanmak istediğinizde, kendi onayınızla istenir.
 

@@ -129,7 +129,7 @@ typedef _InlineGeom = ({
 });
 
 class _PdfEditorScreenState extends State<PdfEditorScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, ProUnlockWatcher<PdfEditorScreen> {
   /// Bu ekranın mesajları uzun asenkron işlerin **içinden** üretiliyor
   /// (`_run`, `_apply`, `catch` dalları); orada `context` kullanmak
   /// `use_build_context_synchronously` demektir. Dil uygulama genelinde tek
@@ -277,11 +277,17 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
   final FocusNode _fieldFocus = FocusNode();
 
   @override
+  Feature get proFeature => Feature.pdfAdvanced;
+
+  @override
   void initState() {
-    super.initState();
     _page = widget.initialPage;
     PdfEditorScreen.lastPage = _page;
-    if (!Edition.current.has(Feature.pdfAdvanced)) return;
+    super.initState();
+  }
+
+  @override
+  void onProUnlocked() {
     WidgetsBinding.instance.addObserver(this);
     _prepare();
   }
@@ -301,7 +307,7 @@ class _PdfEditorScreenState extends State<PdfEditorScreen>
 
   @override
   void dispose() {
-    if (Edition.current.has(Feature.pdfAdvanced)) {
+    if (proInitialized) {
       WidgetsBinding.instance.removeObserver(this);
     }
     _revealTimer?.cancel();

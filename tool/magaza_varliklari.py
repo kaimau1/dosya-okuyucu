@@ -27,14 +27,20 @@ SECTIONS = {  # başlık → (dil kodu, alan etiketleri)
     'Türkçe': ('tr-TR', ('Başlık', 'Kısa açıklama', 'Uzun açıklama')),
     'English': ('en-US', ('Title', 'Short description', 'Full description')),
     'العربية': ('ar', ('العنوان', 'وصف قصير', 'الوصف الكامل')),
+    'Bahasa Indonesia': ('id', ('Judul', 'Deskripsi singkat', 'Deskripsi lengkap')),
+    'Bahasa Melayu': ('ms-MY', ('Tajuk', 'Huraian ringkas', 'Huraian penuh')),
 }
 NOTES = {
-    'tr-TR': 'Büyük Excel dosyaları akışla açılır, PDF araçlarında bellek koruması, '
-             'Hata kayıtları\'nda "Sorunu bildir" (anonim, onaylı), hız ve kararlılık iyileştirmeleri.',
-    'en-US': 'Large Excel files open as a streaming preview, memory guard for PDF tools, '
-             '"Report a problem" in Error logs (anonymous, consent-based), speed and stability fixes.',
-    'ar': 'فتح ملفات Excel الكبيرة كمعاينة متدفقة، حماية الذاكرة في أدوات PDF، '
-          '"الإبلاغ عن مشكلة" في سجل الأخطاء (مجهول وبموافقتك)، تحسينات في السرعة والثبات.',
+    'tr-TR': 'Tek seferlik uygulama içi Pro açılışı, çevrimdışı Arapça metin tanıma (OCR), '
+             'PDF dijital imza/üst-alt bilgi, Endonezce ve Malayca dil desteği ile hız iyileştirmeleri.',
+    'en-US': 'One-time in-app Pro unlock, offline Arabic OCR, PDF digital signing & headers/footers, '
+             'Indonesian & Malay support, and speed improvements.',
+    'ar': 'فتح Pro داخل التطبيق بشراء لمرة واحدة، التعرّف على النص العربي دون إنترنت، '
+          'التوقيع الرقمي لـ PDF، ودعم الإندونيسية والماليزية مع تحسينات السرعة.',
+    'id': 'Pembelian Pro sekali bayar di dalam aplikasi, OCR Arab luring, tanda tangan digital PDF, '
+          'dukungan Bahasa Indonesia & Melayu, serta peningkatan kecepatan.',
+    'ms-MY': 'Buka kunci Pro sekali beli dalam aplikasi, OCR Arab luar talian, tandatangan digital PDF, '
+             'sokongan Bahasa Melayu & Indonesia, serta penambahbaikan kelajuan.',
 }
 
 

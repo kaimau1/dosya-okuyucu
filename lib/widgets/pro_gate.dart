@@ -5,12 +5,68 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_icons.dart';
 import '../core/edition.dart';
+import '../core/l10n/app_language.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/theme.dart';
 import '../services/play_store.dart';
 import '../services/pro_purchase.dart';
 import 'app_dialog.dart';
+
+/// Bölgesel Pro fiyat etiketini çözer:
+/// 1) Play Store'dan okunan canlı ülke fiyatı (`₺29,99`, `$0.79`, `Rp 12.000`),
+/// 2) Türkiye / Türkçe arayüzde lansman varsayılanı (`29,99 TL`) ya da açıkça
+///    verilmiş özel derleme etiketi,
+/// 3) Diğer dillerde Play fiyatı henüz gelmeden sabit TL göstermemek için `''`.
+String resolveProPrice(BuildContext context, {String? storePrice}) {
+  final live = storePrice?.trim();
+  if (live != null && live.isNotEmpty) return live;
+  final lang = AppStrings.of(context).language;
+  if (lang == AppLanguage.tr) return ProListing.priceLabel;
+  if (ProListing.priceLabel.isNotEmpty && ProListing.priceLabel != '29,99 TL') {
+    return ProListing.priceLabel;
+  }
+  return '';
+}
+
+/// Doğrudan açılabilen kilitli Pro ekranlarında, kullanıcı aynı ekran
+/// açıkken Pro satın alırsa kilidi anında kaldırır ve ilk yüklemeyi başlatır.
+mixin ProUnlockWatcher<T extends StatefulWidget> on State<T> {
+  Feature get proFeature;
+  void onProUnlocked();
+
+  bool _proInitialized = false;
+
+  /// Bu ekranın Pro verisi yüklendi mi (dispose temizliği için)?
+  bool get proInitialized => _proInitialized;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Edition.current.has(proFeature)) {
+      _proInitialized = true;
+      onProUnlocked();
+    } else if (Edition.current == Edition.lite) {
+      ProUnlock.owned.addListener(_handleProUnlock);
+    }
+  }
+
+  void _handleProUnlock() {
+    if (!mounted || _proInitialized || !Edition.current.has(proFeature)) {
+      return;
+    }
+    ProUnlock.owned.removeListener(_handleProUnlock);
+    _proInitialized = true;
+    onProUnlocked();
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    ProUnlock.owned.removeListener(_handleProUnlock);
+    super.dispose();
+  }
+}
 
 /// **Pro kapısı** (SÜRÜM PLANI S2/S3, 2026-11-12).
 ///
@@ -199,6 +255,14 @@ class _ProSheetBodyState extends State<_ProSheetBody> {
 
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    if (Edition.current == Edition.lite) {
+      unawaited(ProPurchase.loadPrice());
+    }
+  }
+
   /// Play satın alma akışı; sonuç iletisi, başarıda levha kapanır.
   Future<void> _buy() async {
     final s = AppStrings.of(context);
@@ -287,25 +351,7 @@ class _ProSheetBodyState extends State<_ProSheetBody> {
                 ],
               ),
             ),
-          if (ProListing.priceLabel.isNotEmpty) ...[
-            const SizedBox(height: Gap.sm),
-            Container(
-              key: const ValueKey('pro-price'),
-              padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-              decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(Radii.control),
-              ),
-              child: Text(
-                context.t('pro.price_one_time', {'p': ProListing.priceLabel}),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: cs.onPrimaryContainer,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
+          const _ProPricePill(prominent: true),
           const SizedBox(height: Gap.sm),
           Text(
             context.t('pro.smart_limit_note'),
@@ -401,27 +447,7 @@ class ProLockedView extends StatelessWidget {
                   color: cs.onSurfaceVariant,
                 ),
               ),
-              if (ProListing.priceLabel.isNotEmpty) ...[
-                const SizedBox(height: Gap.md),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: cs.secondaryContainer,
-                    borderRadius: BorderRadius.circular(Radii.control),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Gap.sm, vertical: 5),
-                    child: Text(
-                      context.t(
-                          'pro.price_one_time', {'p': ProListing.priceLabel}),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: cs.onSecondaryContainer,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              const _ProPricePill(prominent: false),
               const SizedBox(height: Gap.lg),
               FilledButton.icon(
                 key: const ValueKey('pro-locked-btn'),
@@ -438,6 +464,51 @@ class ProLockedView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: body,
+    );
+  }
+}
+
+class _ProPricePill extends StatelessWidget {
+  final bool prominent;
+  const _ProPricePill({required this.prominent});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return ValueListenableBuilder<String?>(
+      valueListenable: ProPurchase.storePrice,
+      builder: (context, livePrice, _) {
+        final price = resolveProPrice(context, storePrice: livePrice);
+        if (price.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: EdgeInsets.only(top: prominent ? Gap.sm : Gap.md),
+          child: Container(
+            key: ValueKey(prominent ? 'pro-price' : 'pro-locked-price'),
+            padding: EdgeInsets.symmetric(
+              horizontal: prominent ? Gap.md : Gap.sm,
+              vertical: prominent ? Gap.sm : 5,
+            ),
+            decoration: BoxDecoration(
+              color: prominent
+                  ? cs.primaryContainer.withValues(alpha: 0.65)
+                  : cs.secondaryContainer,
+              borderRadius: BorderRadius.circular(Radii.control),
+            ),
+            child: Text(
+              context.t('pro.price_one_time', {'p': price}),
+              textAlign: TextAlign.center,
+              style: (prominent
+                      ? theme.textTheme.titleMedium
+                      : theme.textTheme.labelMedium)
+                  ?.copyWith(
+                color: prominent ? cs.onPrimaryContainer : cs.onSecondaryContainer,
+                fontWeight: prominent ? FontWeight.w800 : FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -1,1 +1,1 @@
-Large Excel files open as a streaming preview, memory guard for PDF tools, "Report a problem" in Error logs (anonymous, consent-based), speed and stability fixes.
+One-time in-app Pro unlock, offline Arabic OCR, PDF digital signing & headers/footers, Indonesian & Malay support, and speed improvements.

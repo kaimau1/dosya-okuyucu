@@ -10781,4 +10781,164 @@ const Map<String, String> _ms = {
       'Nota suara',
   'wt.title':
       'Dokumen Word baharu',
+  'act.clear_confirm':
+      'Kosongkan senarai ini? Fail anda TIDAK dipadam — hanya rekod log dikosongkan.',
+  'act.empty':
+      'Belum ada rekod.\nKecilkan saiz video, sunting PDF atau imbas dokumen supaya fail hasilnya disenaraikan di sini mengikut jenis.',
+  'aipool.backup_keys_sub':
+      'Apabila semua model bagi kunci pertama kehabisan kuota, kunci seterusnya digunakan. Sehingga 5 kunci.',
+  'aipool.model_chain_sub':
+      'Gemini mengira kuota mengikut model. Apabila satu model habis, permintaan beralih ke model seterusnya. Sehingga 6 model.',
+  'aiset.budget_sub':
+      'Tiada had secara lalai supaya analisis tidak berhenti sendiri. Apabila kuota benar-benar habis, kumpulan beralih ke model/kunci seterusnya.',
+  'aiset.excluded_sub':
+      'Folder ini tidak pernah dianalisis dan kandungannya tidak pernah meninggalkan peranti. Folder kamera dikecualikan secara lalai.',
+  'aiset.send_images_sub':
+      'Apabila dimatikan, imej itu sendiri tidak pernah dimuat naik; hanya teks OCR pada peranti digunakan.',
+  'aiset.send_text_sub':
+      '{kb} KB teks pertama dihantar ke Gemini. Apabila dimatikan, hanya nama dan saiz fail dihantar.',
+  'apps.usage_body':
+      'Jika anda memberikan kebenaran “Akses penggunaan” Android, anda boleh melihat bila kali terakhir setiap aplikasi dibuka dan yang lama tidak digunakan ditandakan. Tiada data keluar dari peranti.',
+  'backup.sub':
+      'Tema, bahasa, penanda halaman dan keutamaan dalam satu fail. Kunci API dan PIN TIDAK disertakan.',
+  'cmp.7z_note':
+      'Fail lebih kecil. Dengan kata laluan, menggunakan AES-256; nama fail juga boleh disembunyikan.',
+  'cmp.password_warning':
+      'Jika terlupa kata laluan, arkib TIDAK BOLEH dibuka — tiada cara pemulihan.',
+  'cmp.zip_note':
+      'Dibuka di mana-mana sahaja. Dengan kata laluan, disulitkan dengan AES-256 (nama fail kekal kelihatan).',
+  'err.render_logged':
+      'Ralat direkodkan (Tetapan > Log ralat).\nAnda boleh kembali ke skrin sebelumnya.',
+  'flt.direction_note':
+      'Fail dihantar dibaca daripada folder “Sent” WhatsApp. Telegram tidak membuat pemisahan ini jadi failnya dikira sebagai “diterima”.',
+  'flt.hide_dupes_sub':
+      'Fail dengan nama dan saiz yang sama dipaparkan sekali sahaja (WhatsApp menulis imej yang sama ke beberapa folder).',
+  'fp.no_subfolders':
+      'Folder ini tiada subfolder.\nGunakan butang di bawah untuk meletakkan di sini, atau cipta dengan “folder baharu” di atas.',
+  'ia.permission_hint':
+      'Berikan kebenaran kepada “Dosyalarım” pada halaman tetapan yang dibuka, kembali semula, kemudian muat semula.',
+  'important.explain':
+      'Simpan fail yang tidak boleh hilang — kad pengenalan, bil, kontrak — di satu tempat. Folder dicipta dalam storan dalaman.\n\nUntuk menambah fail: tekan lama sebarang fail → “Alih” atau “Salin” → “Fail penting”. Anda juga boleh mencipta subfolder mengikut topik.',
+  'important.no_subfolder':
+      'Belum ada subfolder. Gunakan “Baharu” untuk mencipta topik (Bil, Pengenalan, Kontrak…). Untuk menambah fail, tekan lama mana-mana fail dan pilih “Alih”/“Salin”.',
+  'jb.background_note':
+      'Tugas terus berjalan di latar belakang dan kemajuan ditunjukkan dalam pemberitahuan. Jika anda menutup aplikasi daripada senarai tugas, proses akan berhenti.',
+  'jb.empty':
+      'Belum ada tugas.\nTugas seperti pengecilan saiz, pengosongan ruang dan imbasan pendua akan muncul di sini.',
+  'jb.interrupted':
+      'Tergendala kerana aplikasi ditutup. Ketik untuk memulakannya semula.',
+  'lib.empty_body':
+      'Tambah fail PDF, EPUB, MOBI, FB2, DJVU dan komik (CBZ). Anda juga boleh gunakan “Tambah ke pustaka” pada menu fail; fail asal kekal di tempatnya.',
+  'ocr.script_arabic_sub':
+      'Arab, Parsi, Urdu, Uthmaniyah: luar talian dengan model muat turun; jika tiada guna bacaan pintar.',
+  'ocr.script_auto_sub':
+      'Mengenal pasti pada peranti; mencuba model Arab atau bacaan pintar untuk teks bukan Latin.',
+  'ocr.script_latin_sub':
+      'Pada peranti sahaja, luar talian.',
+  'oph.clear_body':
+      'Hanya rekod operasi dipadamkan; tiada apa berlaku pada fail anda. Namun anda hilang keupayaan untuk membuat asal.',
+  'oph.empty':
+      'Belum ada operasi direkodkan.\nPemindahan dan penyusunan automatik dikumpul di sini dan boleh dibuat asal dari sini.',
+  'oph.undo_partial':
+      '{n}/{total} item berjaya dibuat asal; bakinya tidak dapat dialihkan. Rekod disimpan supaya anda boleh cuba semula.',
+  'org.confirm_body':
+      '{files} fail akan dialihkan ke {folders} folder. Fail disusun semula di dalam folder yang sama; tiada apa dipadamkan dan boleh dibuat asal daripada sejarah.',
+  'org.include_sub_note':
+      'Apabila dimatikan, hanya fail dalam folder ini disusun; subfolder sedia ada tidak disentuh.',
+  'oss.body':
+      'Pengecilan dan main balik video menggunakan Android Media3 (Apache 2.0); H.264 menggunakan pengekod perkakasan peranti. Main balik kodeks sandaran menggunakan libmpv/FFmpeg (media_kit, LGPL v2.1+, .so dinamik).\n\nSyncfusion Flutter PDF — Syncfusion Community License (BUKAN sumber terbuka; penggunaan percuma tertakluk pada syarat).\n\nKomponen lain (Flutter, PDFium/pdfrx, Google ML Kit, archive, image, video_player, flutter_local_notifications …) berlesen BSD/MIT/Apache 2.0. Senarai penuh: “Semua lesen”.',
+  'pin.not_encrypted':
+      'Kunci ini TIDAK menyulitkan fail: ia hanya menyembunyikannya daripada senarai dalam aplikasi ini. Jika telefon disambungkan ke komputer atau pengurus fail lain digunakan, fail masih kelihatan.',
+  'pp.allow_annotate':
+      'Benarkan anotasi',
+  'pp.allow_assemble':
+      'Benarkan susunan halaman',
+  'pp.allow_copy':
+      'Benarkan salinan teks',
+  'pp.allow_edit':
+      'Benarkan suntingan kandungan',
+  'pp.allow_print':
+      'Benarkan cetakan',
+  'pp.dsign_signed':
+      'Ditandatangani',
+  'pro.buy':
+      'Beli',
+  'pro.canceled':
+      'Pembelian dibatalkan.',
+  'pro.done':
+      'Pro dibuka — terima kasih!',
+  'pro.f.ai':
+      'AI',
+  'pro.f.audiobook':
+      'Buku audio',
+  'pro.f.cleanup':
+      'Kosongkan ruang',
+  'pro.f.convert':
+      'Penukaran',
+  'pro.f.extras':
+      'Alat tambahan',
+  'pro.f.labs':
+      'Ciri eksperimen',
+  'pro.f.media':
+      'Media & galeri',
+  'pro.f.remote':
+      'Sambungan jauh',
+  'pro.f.scan':
+      'Imbasan dokumen',
+  'pro.f.transfer':
+      'Pemindahan',
+  'pro.f.vault':
+      'Peti besi & kunci',
+  'pro.failed':
+      'Pembelian tidak dapat dilengkapkan; sila cuba lagi nanti.',
+  'pro.owned_sub':
+      'Sudah dibeli · Semua ciri Pro dibuka',
+  'pro.pending':
+      'Pembayaran tertunda; Pro akan dibuka secara automatik selepas diluluskan.',
+  'pro.price':
+      'Harga: {p}',
+  'pro.restore':
+      'Pulihkan pembelian',
+  'pro.restore_none':
+      'Tiada pembelian Pro ditemui pada akaun Google ini.',
+  'pro.restored':
+      'Pembelian dipulihkan — Pro aktif.',
+  'pro.unavailable':
+      'Tidak dapat mencapai Google Play. Semak sambungan internet dan pastikan anda log masuk ke Play Store.',
+  'pt.annot_body':
+      'Dokumen ini mempunyai {n} serlahan/nota. Operasi “{action}” membina semula halaman sehingga nota tersebut akan dipadamkan.\n\nJika mahu memadamkan halaman, butang “Padam” mengekalkan serlahan.',
+  'pt.compress_body':
+      'Dokumen ({size}) ditulis semula agar lebih kecil: aliran data dimampatkan semaksimum mungkin dan sisa semakan lama dibuang. Kualiti imej TIDAK berubah.\n\nOleh itu penjimatan lebih kecil pada dokumen imbasan (banyak imej). Bagi dokumen besar ini boleh mengambil masa seminit dan berjalan di latar belakang.',
+  'ra.already_running':
+      'Tugas ini sedang berjalan. Anda boleh memantaunya daripada bar di bawah atau skrin “Tugas”.',
+  'ra.queued':
+      'Tugas dimasukkan ke baris gilir; akan bermula selepas tugas semasa selesai. Pantau di skrin “Tugas”.',
+  'ra.started':
+      'Tugas bermula di latar belakang. Status dan fail hasilnya dapat dilihat pada bar di bawah atau skrin “Tugas”.',
+  'scr.no_text_yet':
+      'Imbasan ini dibuat tanpa pengecaman teks. Anda boleh mengenal pasti teks pada halaman sekarang.',
+  'sim.background_note':
+      'Anda boleh menutup skrin ini — imbasan diteruskan di latar belakang dan hasilnya sedia apabila anda kembali.',
+  'srch.empty_hint':
+      'Taip sebahagian nama fail atau folder.\n\nPetua: anda juga boleh menaip ayat seperti “video whatsapp bulan lepas”, “pdf minggu ini” atau “foto tahun 2024”.',
+  'tf.failed':
+      'Terjemahan gagal: {error}\nJika model bahasa belum dimuat turun, semak sambungan internet anda.',
+  'tf.inplace_none':
+      'Tiada perenggan dapat ditulis semula ({n} dicuba): fon terbenam dalam dokumen ini mungkin tidak menyokong huruf bahasa sasaran. “Terjemah sebagai teks” berfungsi untuk dokumen ini.',
+  'tf.inplace_partial':
+      '{n} perenggan diterjemahkan; {skipped} tidak dapat ditulis semula (fon terbenam kekurangan huruf bahasa sasaran atau teks tidak muat) dan dikekalkan seperti asal.',
+  'tp.note':
+      'Tag tidak ditulis di dalam fail; ia disimpan dalam rekod aplikasi ini sendiri. Tag mengikut fail apabila anda mengalih, menamakan semula atau memulihkannya dengan aplikasi ini, tetapi tidak jika dialihkan dengan aplikasi lain.',
+  'tts.no_voices':
+      'Peranti tidak melaporkan senarai suara; kelajuan dan pic masih boleh dilaraskan. Suara lebih baik boleh dimuat turun melalui tetapan pertuturan sistem.',
+  'usb.diag_cbi_only':
+      'Pemacu ini melaporkan protokol lama (CBI) — pemacu aplikasi menggunakan Bulk-Only.',
+  'usb.diag_uas_only':
+      'Pemacu ini hanya melaporkan pengangkutan UAS (USB 3) — pemacu aplikasi menggunakan Bulk-Only. Kebenaran folder (Pilih folder) masih berfungsi.',
+  'usb.open_raw_hint':
+      'Aplikasi memacu peranti secara terus walaupun Android tidak melekapkannya. FAT16/FAT32 dan exFAT boleh dibaca dan ditulis; NTFS dan ext2/3/4 hanya baca.',
+  'vt.truncated':
+      'Penukaran terpotong: output {out} s, sumber {src} s. Fail asal tidak disentuh.',
+  'vt.unreadable_output':
+      'Video yang ditukar tidak dapat dibaca (output rosak) — fail asal tidak disentuh.',
 };

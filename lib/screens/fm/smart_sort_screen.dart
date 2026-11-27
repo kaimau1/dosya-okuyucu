@@ -67,7 +67,8 @@ class SmartSortScreen extends StatefulWidget {
   State<SmartSortScreen> createState() => _SmartSortScreenState();
 }
 
-class _SmartSortScreenState extends State<SmartSortScreen> {
+class _SmartSortScreenState extends State<SmartSortScreen>
+    with ProUnlockWatcher<SmartSortScreen> {
   /// Bir "Başlat" dokunuşunda en çok bu kadar tur (tur başına sınır kadar
   /// dosya) art arda koşar; sonsuz döngü olmasın.
   static const _maxTurns = 10;
@@ -118,16 +119,16 @@ class _SmartSortScreenState extends State<SmartSortScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.smartFolders)) return;
+  Feature get proFeature => Feature.smartFolders;
+
+  @override
+  void onProUnlocked() {
     unawaited(Future.wait([
       SmartSort.ensureLoaded(),
       SmartQuota.read(),
       SmartScopePick.read(),
       SmartFolders.instance.ensureLoaded(),
-    ])
-        .then((_) async {
+    ]).then((_) async {
       if (mounted) setState(() => _ready = true);
       // Silinmiş dosyaların kaydı düşsün: klasör sayıları gerçek olsun (U4).
       await SmartSort.pruneMissing();

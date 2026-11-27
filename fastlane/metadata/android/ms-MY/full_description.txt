@@ -1,0 +1,23 @@
+Dosya Okuyucu ialah pembaca dokumen dan pengurus fail yang pantas, kemas dan 100% bebas iklan. Fungsi asas membaca, mengurus fail dan pemindahan tanpa wayar percuma tanpa akaun dan tanpa penjejakan.
+
+Ciri percuma:
+
+• Baca & anotasi PDF: serlahan, penanda halaman, isi borang, tandatangan tulisan tangan, PDF berkod laluan dan terjemahan luar talian
+• Pengimbas dokumen & OCR pada peranti tanpa muat naik ke awan (menyokong tulisan Rumi serta model Arab/Jawi luar talian yang boleh dimuat turun)
+• Word, Excel & PowerPoint: buka dan buat suntingan asas tanpa merosakkan reka bentuk, paparan bacaan mudah alih dan pemulihan draf
+• Pengurus fail lengkap: penapis jenis, isihan mengikut folder, tong sampah dengan buat asal, arkib ZIP, USB OTG (baca sahaja) & kad SD, SMB/SFTP/WebDAV, peti besi disulitkan dan pengosong ruang
+• Peranti Berdekatan: hantar fail secara tanpa wayar ke telefon berdekatan atau pelayar tempatan tanpa pelayan
+• Media & utiliti: galeri dan pemain terbina dalam, ubah saiz/pangkas imej, kongsi teks melalui kod QR serta bahasa MS, ID, EN, AR dan TR
+
+Naik taraf Pro pilihan (pembelian sekali sahaja dalam aplikasi, bertanda `PRO`):
+
+Buka semua alat kuasa penuh dengan satu pembelian dalam aplikasi (tiada langganan bagi ciri teras):
+
+• Studio PDF Penuh: sunting perenggan terus, gabung/pisah, susun/putar halaman, pengepala/pengaki, tandatangan digital, OCR PDF dan tera air
+• Folder Pintar: pilih jenis fail dan folder sebelum imbasan untuk mengasingkan bil, resit bank dan dokumen rasmi secara tempatan (termasuk kuota permulaan 500 fail; kuota awan tambahan adalah pilihan melalui langganan atau kunci Gemini sendiri)
+• Studio Buku Audio: tukar dokumen menjadi buku audio berbab luar talian
+• Kecilkan saiz video secara tempatan serta alat Word & Slaid lanjutan
+
+Kebenaran: Tiada kebenaran diminta semasa pelancaran. Akses semua fail hanya diminta apabila anda memilih untuk melayari folder dalam pengurus fail.
+
+Microsoft Word, Excel dan PowerPoint ialah tanda dagangan Microsoft Corporation; aplikasi ini tidak bergabung dengan Microsoft.

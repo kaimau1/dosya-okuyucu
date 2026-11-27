@@ -1,1 +1,1 @@
-Büyük Excel dosyaları akışla açılır, PDF araçlarında bellek koruması, Hata kayıtları'nda "Sorunu bildir" (anonim, onaylı), hız ve kararlılık iyileştirmeleri.
+Tek seferlik uygulama içi Pro açılışı, çevrimdışı Arapça metin tanıma (OCR), PDF dijital imza/üst-alt bilgi, Endonezce ve Malayca dil desteği ile hız iyileştirmeleri.

@@ -45,7 +45,8 @@ class SmartClutterScreen extends StatefulWidget {
   State<SmartClutterScreen> createState() => _SmartClutterScreenState();
 }
 
-class _SmartClutterScreenState extends State<SmartClutterScreen> {
+class _SmartClutterScreenState extends State<SmartClutterScreen>
+    with ProUnlockWatcher<SmartClutterScreen> {
   static const _reasons = [
     'greeting',
     'meme',
@@ -63,16 +64,17 @@ class _SmartClutterScreenState extends State<SmartClutterScreen> {
   Set<String>? _alive;
 
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.smartFolders)) return;
+  Feature get proFeature => Feature.smartFolders;
+
+  @override
+  void onProUnlocked() {
     SmartSort.revision.addListener(_onChange);
     unawaited(_checkAlive());
   }
 
   @override
   void dispose() {
-    if (Edition.current.has(Feature.smartFolders)) {
+    if (proInitialized) {
       SmartSort.revision.removeListener(_onChange);
     }
     super.dispose();

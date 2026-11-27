@@ -27,13 +27,15 @@ class SmartScopeScreen extends StatefulWidget {
   State<SmartScopeScreen> createState() => _SmartScopeScreenState();
 }
 
-class _SmartScopeScreenState extends State<SmartScopeScreen> {
+class _SmartScopeScreenState extends State<SmartScopeScreen>
+    with ProUnlockWatcher<SmartScopeScreen> {
   SmartScopeCounts? _counts;
 
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.smartFolders)) return;
+  Feature get proFeature => Feature.smartFolders;
+
+  @override
+  void onProUnlocked() {
     SmartScopePick.revision.addListener(_changed);
     SmartSort.revision.addListener(_changed);
     unawaited(_load());
@@ -41,7 +43,7 @@ class _SmartScopeScreenState extends State<SmartScopeScreen> {
 
   @override
   void dispose() {
-    if (Edition.current.has(Feature.smartFolders)) {
+    if (proInitialized) {
       SmartScopePick.revision.removeListener(_changed);
       SmartSort.revision.removeListener(_changed);
     }

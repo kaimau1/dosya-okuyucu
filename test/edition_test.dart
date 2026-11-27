@@ -1,10 +1,13 @@
 import 'package:dosya_okuyucu/core/edition.dart';
+import 'package:dosya_okuyucu/core/l10n/app_language.dart';
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
 import 'package:dosya_okuyucu/screens/settings/settings_catalog.dart';
 import 'package:dosya_okuyucu/services/fm/storage_permission.dart';
+import 'package:dosya_okuyucu/services/pro_purchase.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_category_tile.dart';
 import 'package:dosya_okuyucu/widgets/pro_gate.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -112,10 +115,21 @@ void main() {
       expect(ProGate.locked(Feature.smartFolders, edition: Edition.pro), isFalse);
     });
 
-    Widget host(Widget Function(BuildContext) b) => MaterialApp(
-          localizationsDelegates: const [AppStrings.delegate],
+    Widget host(Widget Function(BuildContext) b,
+            {Locale locale = const Locale('tr')}) =>
+        MaterialApp(
+          locale: locale,
+          supportedLocales: AppLanguageInfo.supportedLocales,
+          localizationsDelegates: const [
+            AppStrings.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           home: Scaffold(body: Builder(builder: b)),
         );
+
+    tearDown(ProPurchase.resetPriceForTest);
 
     testWidgets('Lite\'ta guard işi çalıştırmaz, Pro levhasını açar', (tester) async {
       var ran = 0;
@@ -131,9 +145,30 @@ void main() {
       expect(find.byKey(const ValueKey('pro-one-time')), findsOneWidget);
       expect(ProListing.priceLabel, '29,99 TL');
       expect(find.byKey(const ValueKey('pro-price')), findsOneWidget);
+      expect(find.text('29,99 TL · Tek seferlik'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('pro-later')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('pro-store')), findsNothing);
+    });
+
+    testWidgets('yabancı dilde Play fiyatı yokken sabit TL gösterilmez; canlı fiyat gelince yazar',
+        (tester) async {
+      await tester.pumpWidget(host(
+        (_) => const ProLockedView(
+          feature: Feature.pdfAdvanced,
+          title: 'Pro',
+          withScaffold: false,
+        ),
+        locale: const Locale('en'),
+      ));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('pro-locked-price')), findsNothing);
+      expect(find.textContaining('TL'), findsNothing);
+
+      ProPurchase.storePrice.value = r'$0.79';
+      await tester.pump();
+      expect(find.byKey(const ValueKey('pro-locked-price')), findsOneWidget);
+      expect(find.text(r'$0.79 · One-time'), findsOneWidget);
     });
 
     testWidgets('Pro/Kişisel\'de guard doğrudan çalıştırır', (tester) async {
