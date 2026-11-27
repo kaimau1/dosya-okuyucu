@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -11,6 +14,11 @@ import '../core/theme.dart';
 /// yanında canlı sayfa/yüzde balonu gösterir.
 ///
 /// `viewerOverlayBuilder`'ın döndürdüğü `Stack`in doğrudan çocuğu olmalı.
+///
+/// **P22b:** sürüklerken balonun yanında küçük sayfa önizlemesi. Yalnız
+/// sürüklerken ve parmak [Motion.short] durunca çizilir (hızlı sürüklemede
+/// iş yok); küçük (≈ 96 dp boy) ve son [_previewCap] sayfa önbellekte.
+/// Kapatma: `--dart-define=P22B_KAPALI=true`.
 class PdfInsetScrollThumb extends StatefulWidget {
   final PdfViewerController controller;
   final Size thumbSize;
@@ -40,6 +48,122 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
   double _panStartOffset = 0;
   bool _dragging = false;
   int? _lastTickPage;
+
+  static const _previewOn = !bool.fromEnvironment('P22B_KAPALI');
+  static const _previewH = 96.0;
+  static const _previewCap = 24;
+  // ponytail: ekleme sırası = LRU (isabette yeniden eklenir).
+  final _previews = <int, ui.Image>{};
+  PdfDocument? _previewDoc;
+  int? _previewWant;
+  Timer? _previewTimer;
+  PdfPageRenderCancellationToken? _previewToken;
+
+  @override
+  void dispose() {
+    _previewTimer?.cancel();
+    _previewToken?.cancel();
+    _clearPreviews();
+    super.dispose();
+  }
+
+  void _clearPreviews() {
+    for (final img in _previews.values) {
+      img.dispose();
+    }
+    _previews.clear();
+    _previewWant = null;
+  }
+
+  ui.Image? _previewFor(int page) {
+    final img = _previews.remove(page);
+    if (img != null) {
+      _previews[page] = img;
+    } else if (_previewWant != page) {
+      _previewWant = page;
+      _previewTimer?.cancel();
+      _previewTimer = Timer(Motion.short, () => _renderPreview(page));
+    }
+    return img;
+  }
+
+  Future<void> _renderPreview(int page) async {
+    final doc = _previewDoc;
+    if (!mounted || !_dragging || doc == null) return;
+    if (page < 1 || page > doc.pages.length) return;
+    final p = doc.pages[page - 1];
+    if (p.height <= 0) return;
+    final scale = _previewH * MediaQuery.devicePixelRatioOf(context) / p.height;
+    _previewToken?.cancel();
+    final token = _previewToken = p.createCancellationToken();
+    try {
+      final img = await p.renderForDisplay(
+        fullWidth: p.width * scale,
+        fullHeight: p.height * scale,
+        cancellationToken: token,
+      );
+      if (img == null) return;
+      if (!mounted || !identical(doc, _previewDoc)) {
+        img.dispose();
+        return;
+      }
+      _previews.remove(page)?.dispose();
+      _previews[page] = img;
+      while (_previews.length > _previewCap) {
+        _previews.remove(_previews.keys.first)?.dispose();
+      }
+      if (_dragging) setState(() {});
+    } catch (_) {
+      // Bilinçli: iptal/çizilemeyen sayfa — önizleme yok, balon yine çalışır.
+    }
+  }
+
+  void _endDrag() {
+    _previewTimer?.cancel();
+    _previewToken?.cancel();
+    _previewWant = null;
+    setState(() => _dragging = false);
+  }
+
+  Widget _preview(BuildContext context, int page, bool below) {
+    if (!_previewOn || !_dragging) return const SizedBox.shrink();
+    final ctl = widget.controller;
+    final doc = ctl.document;
+    if (!identical(doc, _previewDoc)) {
+      _clearPreviews();
+      _previewDoc = doc;
+    }
+    final img = _previewFor(page);
+    if (img == null) return const SizedBox.shrink();
+    final w = _previewH * img.width / img.height;
+    final scheme = Theme.of(context).colorScheme;
+    return PositionedDirectional(
+      end: 10,
+      top: below ? null : -(_previewH + 8),
+      bottom: below ? -(_previewH + 8) : null,
+      width: w,
+      height: _previewH,
+      child: DecoratedBox(
+        key: const ValueKey('pdf-thumb-preview'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: scheme.outlineVariant),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.studioShadow(
+                  Theme.of(context).brightness == Brightness.dark),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: RawImage(image: img, fit: BoxFit.fill),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,23 +196,7 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
 
     // Genişletilmiş kap: sürüklerken tutamacın yanında canlı sayfa balonu açılır.
     const bubbleGap = 10.0;
-    return PositionedDirectional(
-      end: widget.margin,
-      top: top,
-      height: thumb.height,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: _dragging && page != null ? 1.0 : 0.0,
-              duration: Motion.of(context, Motion.short),
-              child: AnimatedScale(
-                scale: _dragging ? 1.0 : 0.86,
-                duration: Motion.of(context, Motion.short),
-                curve: Motion.standard,
-                child: Padding(
+    final Widget bubble = Padding(
                   padding: const EdgeInsetsDirectional.only(end: bubbleGap),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -146,7 +254,34 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
                       ),
                     ),
                   ),
-                ),
+                );
+    return PositionedDirectional(
+      end: widget.margin,
+      top: top,
+      height: thumb.height,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _dragging && page != null ? 1.0 : 0.0,
+              duration: Motion.of(context, Motion.short),
+              child: AnimatedScale(
+                scale: _dragging ? 1.0 : 0.86,
+                duration: Motion.of(context, Motion.short),
+                curve: Motion.standard,
+                // Önizleme Stack'i yalnız sürüklerken: açılış/kaydırmada ağaç
+                // P22b öncesiyle aynı (önizleme hiç kurulmaz).
+                child: _previewOn && _dragging && page != null
+                    ? Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          bubble,
+                          _preview(context, page, frac < 0.5),
+                        ],
+                      )
+                    : bubble,
               ),
             ),
           ),
@@ -173,8 +308,8 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
                   AppHaptics.step();
                 }
               },
-              onPanEnd: (_) => setState(() => _dragging = false),
-              onPanCancel: () => setState(() => _dragging = false),
+              onPanEnd: (_) => _endDrag(),
+              onPanCancel: _endDrag,
               child: RepaintBoundary(child: thumbChild),
             ),
           ),

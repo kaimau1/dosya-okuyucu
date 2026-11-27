@@ -6,6 +6,7 @@ const Map<String, (String, String, String)> _t30 = {
   'vw.sel_count': ('{chars} karakter · {words} sözcük', '{chars} characters · {words} words', '{chars} حرفًا · {words} كلمة'),
   'vw.sel_expand': ('Seçimin tamamını göster', 'Show the whole selection', 'عرض التحديد كاملًا'),
   'vw.sel_collapse': ('Önizlemeyi daralt', 'Collapse preview', 'طي المعاينة'),
+  'vw.back_to_page': ('{n}. sayfaya dön', 'Back to page {n}', 'العودة إلى الصفحة {n}'),
   'pe.force_ocr': ('OCR ile düzenle', 'Edit with OCR', 'التحرير عبر OCR'),
   'pe.hint_text_unsupported': (
     'Bu sayfanın metni bu sürümde yerinde düzenlenemiyor (biçimi çözülemedi). Yeni metin eklemek için "Yazı ekle"ye dokunun.',

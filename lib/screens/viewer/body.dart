@@ -468,6 +468,19 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       ),
                     ),
                   ),
+                // P22b: bağlantı/içindekilerden atlayınca "← geri dön" hapı
+                // (sol alt; rozet sağ altta).
+                // Tembel: ilk atlamaya dek ağaçta YOK (açılışta kurulmaz,
+                // çubuk animasyonunda yerleşim yapmaz). Sonra şekil sabit:
+                // seçim çubuğu açıkken yalnız içi boşalır.
+                if (_pdfBackArmed)
+                  ReadingFloat(
+                    start: 16,
+                    end: null,
+                    child: _pdfBarShown
+                        ? const SizedBox.shrink()
+                        : _pdfBackPill(),
+                  ),
                 if (_resumeNotePage case final page?)
                   PdfResumeNote(
                     page: page,
