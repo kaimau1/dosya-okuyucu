@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # PDF PRO PLANI — Profesyonel PDF düzenleyici (Faz 51–68) · 2026-11-08
 
 Kullanıcı isteği (2026-11-08, 6 ekran görüntüsüyle):

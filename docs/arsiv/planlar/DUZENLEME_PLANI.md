@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # Telefonda Office Gibi Düzenleme — Araştırma ve Faz Planı (Faz 20–33)
 
 > **Tarih:** 2026-10-23 · **İncelenen sürüm:** `main` @ `525f24b`

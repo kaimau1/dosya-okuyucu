@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # Kontrol listem — senin bakacakların (2026-11-13)
 
 Her madde: **ne** · **nasıl** · **doğruysa** · **yanlışsa**. Bitince başına ✔ koy ya da bana yaz.

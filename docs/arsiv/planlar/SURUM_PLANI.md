@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # SÜRÜM PLANI — Lite / Pro / Kişisel (2026-11-10)
 
 Kullanıcı kararı: **üç sürüm, tek kod tabanı.**

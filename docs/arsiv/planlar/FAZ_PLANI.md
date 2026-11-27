@@ -1,3 +1,5 @@
+> ARŞİV — açık işler PLAN.md'de (2026-11-27)
+
 # Dosya Okuyucu — Kapsamlı İnceleme Raporu ve Faz Planı
 
 > **Tarih:** 2026-10-21 · **İncelenen sürüm:** `main` @ `a066e8e` (v1.0.379)
