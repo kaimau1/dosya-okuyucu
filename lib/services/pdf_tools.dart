@@ -234,7 +234,9 @@ class PdfTools {
     if (merged != null) {
       try {
         return await _compressOnce(merged, null);
-      } catch (_) {}
+      } catch (_) {
+        // Bilinçli: birleşmiş bayt Syncfusion'a uymadı → aşağıda özgünle.
+      }
     }
     return _compressOnce(bytes, password);
   }
