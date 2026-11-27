@@ -2920,4 +2920,594 @@ const Map<String, String> _id = {
       'Edit teks',
   'sl.unhide':
       'Tampilkan slide',
+  'xp.agg':
+      'Fungsi',
+  'xp.agg_header':
+      '{agg} dari {field}',
+  'xp.allow_edit':
+      'Izinkan edit rentang',
+  'xp.allow_edit_off':
+      'Rentang dikunci kembali',
+  'xp.allow_edit_on':
+      'Rentang terpilih dapat diedit di lembar yang dilindungi',
+  'xp.audit_none':
+      'Tidak ada referensi untuk dilacak di lembar ini',
+  'xp.blank':
+      '(kosong)',
+  'xp.chart_combo':
+      'Kombinasi (seri terakhir sebagai garis)',
+  'xp.chart_options':
+      'Opsi bagan',
+  'xp.chart_secondary':
+      'Garis pada sumbu sekunder',
+  'xp.chart_share_pdf':
+      'Bagikan sebagai PDF',
+  'xp.chart_share_png':
+      'Bagikan sebagai gambar',
+  'xp.chart_style':
+      'Gaya {n}',
+  'xp.chart_trend':
+      'Garis tren',
+  'xp.collapse':
+      'Ciutkan grup',
+  'xp.color_scale':
+      'Skala warna',
+  'xp.cols':
+      'Kolom (opsional)',
+  'xp.cond_formula':
+      'Aturan berdasarkan rumus…',
+  'xp.cond_formula_hint':
+      'Kondisi relatif terhadap {cell} (mis. ={cell}>100)',
+  'xp.cond_manage':
+      'Kelola aturan…',
+  'xp.cond_none':
+      'Tidak ada aturan pemformatan bersyarat di lembar ini',
+  'xp.cond_visual':
+      'Skala, batang, ikon',
+  'xp.cycle_warn':
+      'Referensi melingkar: {cell} merujuk dirinya sendiri (secara tidak langsung)',
+  'xp.data_bar':
+      'Batang data (biru)',
+  'xp.data_bar_green':
+      'Batang data (hijau)',
+  'xp.data_bar_plain':
+      'Batang data',
+  'xp.delim_auto':
+      'Otomatis',
+  'xp.delim_comma':
+      'Koma',
+  'xp.delim_pipe':
+      'Garis tegak',
+  'xp.delim_semi':
+      'Titik koma',
+  'xp.delim_tab':
+      'Tab',
+  'xp.delimiter':
+      'Pemisah',
+  'xp.density':
+      'Kerapatan',
+  'xp.density_comfortable':
+      'Lega',
+  'xp.density_compact':
+      'Padat',
+  'xp.density_normal':
+      'Normal',
+  'xp.enc_cp1254':
+      'Windows Turki',
+  'xp.enc_utf8':
+      'UTF-8',
+  'xp.encoding':
+      'Pengodean',
+  'xp.err_calc':
+      '#CALC!: hasilnya kosong (mis. FILTER tidak menemukan baris).',
+  'xp.err_cycle':
+      'Referensi melingkar: rumus merujuk dirinya sendiri.',
+  'xp.err_div0':
+      '#DIV/0!: pembagian dengan nol atau dengan sel kosong.',
+  'xp.err_na':
+      '#N/A: nilai yang dicari tidak ditemukan.',
+  'xp.err_name':
+      '#NAME?: fungsi atau nama tidak dikenali — periksa ejaannya.',
+  'xp.err_null':
+      '#NULL!: kedua rentang tidak berpotongan.',
+  'xp.err_num':
+      '#NUM!: angka tidak valid (terlalu besar, akar bilangan negatif…).',
+  'xp.err_ref':
+      '#REF!: sel yang dirujuk sudah tidak ada (baris/kolom dihapus).',
+  'xp.err_spill':
+      '#SPILL!: sel tujuan limpahan larik tidak kosong — kosongkan.',
+  'xp.err_value':
+      '#VALUE!: tipe salah — teks (atau angka dengan spasi) di tempat yang butuh angka.',
+  'xp.err_why':
+      'Mengapa galat ini?',
+  'xp.expand':
+      'Perluas grup',
+  'xp.filter':
+      'Filter (opsional)',
+  'xp.fit_width':
+      'Sesuaikan lebar halaman',
+  'xp.goal_bad_input':
+      'Referensi sel atau nilai tidak valid',
+  'xp.goal_by':
+      'Dengan mengubah sel',
+  'xp.goal_done':
+      'Solusi: {cell} = {value}',
+  'xp.goal_failed':
+      'Solusi tidak ditemukan',
+  'xp.goal_need_formula':
+      'Sel yang ditetapkan harus berisi rumus',
+  'xp.goal_need_value':
+      'Sel yang diubah harus berisi nilai, bukan rumus',
+  'xp.goal_seek':
+      'Pencarian target',
+  'xp.goal_set':
+      'Tetapkan sel (rumus)',
+  'xp.goal_to':
+      'Ke nilai',
+  'xp.grand_total':
+      'Total keseluruhan',
+  'xp.group':
+      'Kelompokkan baris',
+  'xp.icon_set':
+      'Set ikon: lampu lalu lintas',
+  'xp.icon_set_plain':
+      'Set ikon',
+  'xp.import':
+      'Impor (CSV/ODS)',
+  'xp.import_done':
+      '{n} lembar diimpor',
+  'xp.import_go':
+      'Impor ke lembar baru',
+  'xp.import_rows':
+      '{n} baris',
+  'xp.landscape':
+      'Lanskap',
+  'xp.link':
+      'Sisipkan tautan',
+  'xp.link_cell':
+      'Sel di {name}',
+  'xp.link_sheet':
+      'Di buku kerja ini: {name}',
+  'xp.link_web':
+      'Alamat web',
+  'xp.no_group':
+      'Baris ini tidak berada dalam grup',
+  'xp.none':
+      '— tidak ada —',
+  'xp.note_reply':
+      'Balas catatan',
+  'xp.painter':
+      'Kuas format',
+  'xp.painter_hint':
+      'Ketuk sel untuk menerapkan format',
+  'xp.password':
+      'Kata sandi',
+  'xp.password_again':
+      'Kata sandi (ulangi)',
+  'xp.password_cancelled':
+      'Kata sandi tidak dimasukkan — berkas tidak dibuka',
+  'xp.password_mismatch':
+      'Kata sandi tidak cocok',
+  'xp.password_open':
+      'Buku kerja ini dilindungi kata sandi',
+  'xp.password_remove':
+      'Hapus kata sandi',
+  'xp.password_removed':
+      'Kata sandi dihapus — disimpan tanpa enkripsi',
+  'xp.password_set':
+      'Lindungi dengan kata sandi',
+  'xp.password_set_done':
+      'Berkas akan dienkripsi saat disimpan',
+  'xp.password_unsupported':
+      'Jenis enkripsi ini tidak didukung (Excel lama)',
+  'xp.password_wrong':
+      'Kata sandi salah',
+  'xp.pivot':
+      'Tabel pivot',
+  'xp.pivot_create':
+      'Buat',
+  'xp.pivot_refresh':
+      'Segarkan pivot',
+  'xp.pivot_refreshed':
+      'Pivot disegarkan',
+  'xp.pivot_sheet':
+      'Pivot {n}',
+  'xp.pivot_source_gone':
+      'Lembar sumber sudah tidak ada — tidak dapat menyegarkan',
+  'xp.portrait':
+      'Potret',
+  'xp.print_area_clear':
+      'Hapus area cetak',
+  'xp.print_area_cleared':
+      'Area cetak dihapus',
+  'xp.print_area_set':
+      'Area cetak ditetapkan',
+  'xp.print_area_set_btn':
+      'Tetapkan pilihan sebagai area cetak',
+  'xp.print_done':
+      'PDF siap',
+  'xp.print_empty':
+      'Tidak ada yang dicetak',
+  'xp.print_go':
+      'Buat PDF',
+  'xp.print_grid':
+      'Garis kisi',
+  'xp.print_group':
+      'Cetak dan lindungi',
+  'xp.print_page':
+      'Halaman {n} / {t}',
+  'xp.print_pdf':
+      'Tata letak cetak → PDF',
+  'xp.protect_no_pw':
+      'Lindungi tanpa kata sandi',
+  'xp.protect_sheet':
+      'Lindungi lembar',
+  'xp.protect_with_pw':
+      'Lindungi dengan kata sandi…',
+  'xp.protected':
+      'Lembar dilindungi',
+  'xp.protected_cell':
+      'Sel ini terkunci di lembar yang dilindungi',
+  'xp.repeat_rows':
+      'Baris judul diulang di setiap halaman',
+  'xp.ribbon_full':
+      'Pita lengkap',
+  'xp.ribbon_simple':
+      'Pita ringkas',
+  'xp.rows':
+      'Baris',
+  'xp.scale_rg':
+      'Skala warna: merah → hijau',
+  'xp.scale_ryg':
+      'Skala warna: merah → kuning → hijau',
+  'xp.scale_wb':
+      'Skala warna: putih → biru',
+  'xp.sparkline':
+      'Sparkline',
+  'xp.sparkline_needs_range':
+      'Pilih rentang data terlebih dahulu',
+  'xp.std_colors':
+      'Warna standar',
+  'xp.subtotal':
+      'Subtotal',
+  'xp.subtotal_by':
+      'Pada setiap perubahan di',
+  'xp.subtotal_go':
+      'Buat subtotal',
+  'xp.subtotal_sheet':
+      'Subtotal {name}',
+  'xp.subtotal_suffix':
+      ' Total',
+  'xp.subtotal_sum':
+      'Tambahkan subtotal ke',
+  'xp.theme_colors':
+      'Warna tema',
+  'xp.toggle_group':
+      'Ciutkan/perluas grup',
+  'xp.trace_clear':
+      'Hapus panah',
+  'xp.trace_dep':
+      'Lacak dependen',
+  'xp.trace_prec':
+      'Lacak preseden',
+  'xp.undo_sparkline':
+      'Sisipkan sparkline',
+  'xp.ungroup':
+      'Pisahkan grup',
+  'xp.unprotect':
+      'Buka perlindungan lembar',
+  'xp.unprotected':
+      'Perlindungan lembar dibuka',
+  'xp.values':
+      'Nilai',
+  'sp.add_anim':
+      'Tambah animasi',
+  'sp.add_ph':
+      'Tambah placeholder',
+  'sp.add_row':
+      'Tambah kategori',
+  'sp.add_section':
+      'Tambah bagian',
+  'sp.add_series':
+      'Tambah seri',
+  'sp.add_show':
+      'Tambah tayangan',
+  'sp.align_hint':
+      'Pilih bentuk untuk diratakan',
+  'sp.anim_order':
+      'Urutan animasi',
+  'sp.anim_pick_fx':
+      'Efek',
+  'sp.anim_pick_shape':
+      'Bentuk yang mana?',
+  'sp.animations':
+      'Animasi',
+  'sp.applied':
+      'Diterapkan',
+  'sp.apply':
+      'Terapkan',
+  'sp.arrange_title':
+      'Slide {n}',
+  'sp.body_size':
+      'Ukuran isi',
+  'sp.chart_data':
+      'Data bagan',
+  'sp.chart_edit':
+      'Edit data bagan',
+  'sp.chart_from_table':
+      'Bagan dari tabel',
+  'sp.chart_insert':
+      'Sisipkan bagan',
+  'sp.chart_title':
+      'Judul bagan',
+  'sp.conn_elbow':
+      'Siku',
+  'sp.conn_straight':
+      'Lurus',
+  'sp.connect':
+      'Konektor',
+  'sp.connect_none':
+      'Tidak ada bentuk lain untuk dihubungkan',
+  'sp.connect_to':
+      'Hubungkan ke bentuk yang mana?',
+  'sp.copy_suffix':
+      'salinan',
+  'sp.counter':
+      'Hitung mundur langsung',
+  'sp.counter_added':
+      'Hitung mundur ditambahkan',
+  'sp.counter_hint':
+      'Menghitung mundur selama tayangan',
+  'sp.counter_minutes':
+      'Berapa menit?',
+  'sp.crop':
+      'Pangkas',
+  'sp.crop_b':
+      'Bawah',
+  'sp.crop_l':
+      'Kiri',
+  'sp.crop_r':
+      'Kanan',
+  'sp.crop_shape':
+      'Pangkas ke bentuk',
+  'sp.crop_t':
+      'Atas',
+  'sp.custom_shows':
+      'Tayangan kustom',
+  'sp.delete':
+      'Hapus',
+  'sp.draw':
+      'Gambar tanda tangan Anda',
+  'sp.font_major':
+      'Huruf judul',
+  'sp.font_minor':
+      'Huruf isi',
+  'sp.fx_appear':
+      'Muncul',
+  'sp.fx_emph':
+      'Penekanan',
+  'sp.fx_entr':
+      'Masuk',
+  'sp.fx_exit':
+      'Keluar',
+  'sp.fx_fade':
+      'Memudar',
+  'sp.fx_fly':
+      'Terbang masuk',
+  'sp.fx_other':
+      'Animasi',
+  'sp.fx_path':
+      'Jalur gerak',
+  'sp.fx_spin':
+      'Putar',
+  'sp.fx_wipe':
+      'Sapu',
+  'sp.fx_zoom':
+      'Zum',
+  'sp.g_arrange':
+      'Susun',
+  'sp.g_design':
+      'Desain',
+  'sp.g_insert':
+      'Sisipkan',
+  'sp.g_show':
+      'Tayangan & ekspor',
+  'sp.g_slides':
+      'Slide',
+  'sp.glow':
+      'Cahaya',
+  'sp.gradient':
+      'Isian gradien',
+  'sp.hex_input':
+      'Ketik kode warna (RRGGBB)',
+  'sp.hide':
+      'Sembunyikan',
+  'sp.image_hint':
+      'Pilih foto tanda tangan atau PNG transparan.',
+  'sp.inherited':
+      'dari master',
+  'sp.layers':
+      'Lapisan',
+  'sp.layers_align':
+      'Lapisan & perataan',
+  'sp.layers_hint':
+      'Urutan Z, sembunyikan, ratakan, distribusikan',
+  'sp.layout':
+      'Tata letak',
+  'sp.layout_dup':
+      'Gandakan tata letak',
+  'sp.layout_hint':
+      'Ketuk: pilih · seret: pindah · sudut kanan bawah: ubah ukuran',
+  'sp.layouts':
+      'Tata letak',
+  'sp.link':
+      'Tautan / tindakan',
+  'sp.link_slide':
+      'Slide tertentu',
+  'sp.link_url':
+      'Alamat web',
+  'sp.master':
+      'Master slide & tema',
+  'sp.master_bg':
+      'Warna latar',
+  'sp.master_hint':
+      'Tata letak, placeholder, warna dan huruf tema',
+  'sp.master_n':
+      'Master {n}',
+  'sp.master_style':
+      'Gaya master',
+  'sp.media_added':
+      'Media ditambahkan',
+  'sp.media_hint':
+      'Diputar saat diketuk dalam tayangan',
+  'sp.media_insert':
+      'Sisipkan audio / video',
+  'sp.media_too_big':
+      'Berkas terlalu besar (maks 150 MB)',
+  'sp.mic_denied':
+      'Izin mikrofon ditolak',
+  'sp.move_down':
+      'Turunkan',
+  'sp.move_up':
+      'Naikkan',
+  'sp.no_anims':
+      'Tidak ada animasi di slide ini',
+  'sp.no_chart':
+      'Data bagan tidak dapat dibaca',
+  'sp.no_sections':
+      'Tidak ada bagian. Tambahkan satu mulai dari sebuah slide.',
+  'sp.no_shapes':
+      'Tidak ada bentuk di slide ini',
+  'sp.no_shows':
+      'Tidak ada tayangan kustom',
+  'sp.no_smartart':
+      'Tidak ada SmartArt di dek ini',
+  'sp.off':
+      'Mati',
+  'sp.on':
+      'Hidup',
+  'sp.pick_color':
+      'Pilih warna',
+  'sp.pick_image':
+      'Pilih gambar',
+  'sp.png_all':
+      'Semua slide sebagai PNG (zip)',
+  'sp.png_one':
+      'Bagikan slide ini sebagai PNG',
+  'sp.presenter_hint':
+      'Catatan, slide berikutnya, dan waktu berdampingan',
+  'sp.record':
+      'Latihan & rekam narasi',
+  'sp.record_done':
+      'Narasi ditambahkan',
+  'sp.record_hint':
+      'Suara dan waktu tiap slide disimpan; tayangan maju sendiri',
+  'sp.record_save':
+      'Narasi direkam untuk {n} slide. Tambahkan ke dek?',
+  'sp.reflection':
+      'Pantulan',
+  'sp.rehearse':
+      'Latih waktu',
+  'sp.rehearse_done':
+      'Waktu disimpan',
+  'sp.rehearse_hint':
+      'Waktu di tiap slide diukur; tayangan lalu maju sendiri',
+  'sp.rehearse_save':
+      'Latihan berlangsung {t} ({n} slide). Simpan waktunya?',
+  'sp.remove_bg':
+      'Hapus latar belakang',
+  'sp.remove_bg_downloading':
+      'Model sedang diunduh; coba lagi sebentar lagi',
+  'sp.remove_bg_failed':
+      'Latar belakang tidak dapat dihapus',
+  'sp.remove_bg_hint':
+      'Di perangkat (ML Kit); model diunduh saat pertama dipakai',
+  'sp.remove_bg_unavailable':
+      'Tidak tersedia di perangkat ini',
+  'sp.remove_bg_working':
+      'Menghapus latar belakang…',
+  'sp.remove_row':
+      'Hapus baris',
+  'sp.remove_series':
+      'Hapus seri',
+  'sp.rename':
+      'Ganti nama',
+  'sp.saved_list':
+      'Tanda tangan tersimpan',
+  'sp.section_default':
+      'Bagian {n}',
+  'sp.section_first':
+      'Bagian bawaan',
+  'sp.section_name':
+      'Nama bagian',
+  'sp.section_start':
+      'Slide mana yang memulai bagian?',
+  'sp.sections':
+      'Bagian',
+  'sp.sections_hint':
+      'Kelompokkan slide; tayangkan subset pilihan',
+  'sp.sections_title':
+      'Bagian & tayangan kustom',
+  'sp.selected_n':
+      '{n} dipilih',
+  'sp.shadow':
+      'Bayangan',
+  'sp.shape_library':
+      'Pustaka bentuk',
+  'sp.shape_library_hint':
+      'Dasar, panah, bintang, balon teks, diagram alir, tombol aksi',
+  'sp.shape_tools':
+      'Alat',
+  'sp.show':
+      'Tayangkan',
+  'sp.show_default':
+      'Tayangan {n}',
+  'sp.show_name':
+      'Nama tayangan',
+  'sp.slide_n':
+      'Slide {n}',
+  'sp.slides_n':
+      '{n} slide',
+  'sp.smartart':
+      'Ubah SmartArt menjadi bentuk',
+  'sp.smartart_done':
+      'SmartArt diubah menjadi bentuk',
+  'sp.smartart_hint':
+      'Menjadi grup bentuk yang dapat diedit',
+  'sp.suggested':
+      'Disarankan',
+  'sp.tab_draw':
+      'Gambar',
+  'sp.tab_image':
+      'Gambar',
+  'sp.tab_type':
+      'Ketik',
+  'sp.table_no_data':
+      'Tabel tidak memiliki data bagan',
+  'sp.table_style':
+      'Gaya tabel',
+  'sp.templates':
+      'Galeri templat',
+  'sp.templates_hint':
+      '8 tema bersih — konten tetap dipertahankan',
+  'sp.theme_colors':
+      'Warna tema',
+  'sp.title_size':
+      'Ukuran judul',
+  'sp.tools':
+      'Alat',
+  'sp.tpl_sample':
+      'Contoh poin',
+  'sp.type_hint':
+      'Nama atau inisial Anda',
+  'sp.video_encoding':
+      'Mengodekan video…',
+  'sp.video_export':
+      'Ekspor sebagai video (MP4)',
+  'sp.video_hint':
+      'Tiap slide selama waktu tertentu; waktu rekaman dipertahankan',
+  'sp.video_seconds':
+      'Detik per slide',
+  'sp.video_unavailable':
+      'Ekspor video tidak tersedia di perangkat ini',
 };
