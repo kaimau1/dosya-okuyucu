@@ -252,6 +252,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// (bkz. [currentPdfPage]).
   int? _pdfJumpTarget;
 
+  /// P22b: bağlantı/içindekilerden atlamadan önce okunan sayfa — dolu iken
+  /// sol altta "← N. sayfaya dön" hapı görünür (`P22B_KAPALI` kapatır).
+  final ValueNotifier<int?> _pdfBackPageN = ValueNotifier<int?>(null);
+
   /// Belgenin sayfa sayısı (`onViewerReady`'de okunur).
   int _pdfCount = 0;
 
@@ -928,6 +932,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     _pdfPageN.dispose();
     _bookmarkRevN.dispose();
     _pageBadgeOnN.dispose();
+    _pdfBackPageN.dispose();
     if (widget.doc.kind == DocKind.pdf) PdfProPerf.openDone();
     _pdfController.removeListener(_onPdfMatrix);
     // Kaydedilmemiş düzenleme varsa çökme kaydı kalır (yeniden açılışta sunulur).

@@ -1779,3 +1779,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Uçak kipinde aç: satın alınmışsa Pro açık kalıyor mu (yerel kayıt). Uygulamayı sil-kur → "Satın almayı geri yükle" → açılıyor mu.
 - Play Console'dan iade → sonraki açılışta (internet varken) kilit geri geliyor mu. 3 gün sonra satın alma iade edilmemiş olmalı (onay çalışıyor).
 - Ayarlar > Hakkında > Pro satırı: satın alınca "Satın alındı · Tüm Pro özellikleri açık".
+
+## B4-P22b — PDF okuma deneyimi (2026-11-27, dal faz-oto-B4-p22b) — yazıldı, cihazda doğrulanmadı
+- 100+ sayfalı PDF'te sağdaki tutamacı sürükle: balonda "N / toplam" + parmak durunca küçük sayfa önizlemesi
+  (üst yarıda balonun altında, alt yarıda üstünde); hızlı sürüklemede kasma/gecikme yok, bırakınca önizleme kayboluyor.
+- İçindekiler (ya da belgedeki iç bağlantı) ile başka sayfaya atla → sol altta "← N. sayfaya dön" hapı; dokununca
+  eski sayfaya dönüyor, X kapatıyor; seçim çubuğu açıkken hap gizli; sayfa rozetiyle (sağ alt) çakışmıyor.
+- A/B: `AB_SENARYO=pdf_100,acilis_gecis` — taban son `[apk]`; gerileme > %10 / p99 > 24 ms ise birleşmez.

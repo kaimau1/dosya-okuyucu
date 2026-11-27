@@ -467,6 +467,17 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       ),
                     ),
                   ),
+                // P22b: bağlantı/içindekilerden atlayınca "← geri dön" hapı
+                // (sol alt; rozet sağ altta).
+                // Ağaç şekli sabit: seçim çubuğu açıkken yalnız içi boşalır.
+                if (_pageCount > 0)
+                  ReadingFloat(
+                    start: 16,
+                    end: null,
+                    child: _pdfBarShown
+                        ? const SizedBox.shrink()
+                        : _pdfBackPill(),
+                  ),
                 if (_resumeNotePage case final page?)
                   PdfResumeNote(
                     page: page,
