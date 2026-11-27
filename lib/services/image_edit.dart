@@ -847,6 +847,15 @@ Future<String> saveEdited(String path, ui.Image edited,
   return target;
 }
 
+/// [saveEdited]'in yazacağı bayt sayısı (aynı kodlayıcı, izolatta) — Boyut
+/// sekmesindeki "≈ 180 KB" (B21).
+Future<int> encodedSize(ui.Image edited, {required bool png}) async {
+  final raw = await edited.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final bytes = await compute(
+      _encode, (raw!.buffer.asUint8List(), edited.width, edited.height, png));
+  return bytes.length;
+}
+
 Uint8List _encode((Uint8List, int, int, bool) a) {
   final (rgba, w, h, png) = a;
   final im = img.Image.fromBytes(

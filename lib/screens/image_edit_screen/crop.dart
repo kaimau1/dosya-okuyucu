@@ -38,47 +38,124 @@ extension _ImageEditCrop on _ImageEditScreenState {
         '${(width ? out.height : out.width).round()}';
   }
 
+  /// Seçim (ölçek) değişince önizleme + dosya boyu, durulunca BİR kez
+  /// (B21: "%75/%50/%25 seçince hiçbir fark yok, anlaşılmıyor").
+  void _scheduleSizePreview() {
+    if (identical(_sizeFor, _e)) return;
+    final e = _sizeFor = _e;
+    _sizeTimer?.cancel();
+    _sizeTimer = Timer(Motion.previewDefer, () async {
+      final src = _src;
+      if (src == null || !mounted) return;
+      try {
+        final out = await renderEdits(src, e);
+        final bytes = await encodedSize(out,
+            png: editedExtension(widget.path) == '.png');
+        if (!mounted || !identical(_sizeFor, e)) return out.dispose();
+        _update(() {
+          _sizeOut?.dispose();
+          _sizeOut = out;
+          _sizeOutFor = e;
+          _sizeBytes = bytes;
+        });
+      } catch (_) {
+        // Önizleme isteğe bağlı: kaydetme yolu kendi hatasını gösterir.
+      }
+    });
+  }
+
   Widget _sizePanel() {
+    _scheduleSizePreview();
     final cropped = croppedSize(_src!, _e);
     final out = outputSize(_src!, _e);
     final longSide = math.max(cropped.width, cropped.height);
+    final scheme = Theme.of(context).colorScheme;
     const soft = TextStyle(color: AppColors.onMediaSoft);
+    // Koyu stüdyoda okunur alan (B21: genel temanın açık dolgusu açık yazıyı
+    // yutuyordu; etiket alanın üstünde sabit).
     InputDecoration deco(String key) => InputDecoration(
           labelText: context.t(key),
           labelStyle: soft,
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          filled: true,
+          fillColor: scheme.surfaceContainerHigh,
           isDense: true,
           border: const OutlineInputBorder(),
           enabledBorder: const OutlineInputBorder(
               borderSide: BorderSide(color: AppColors.onMediaFaint)),
         );
-    Widget chip(String label, double scale, {Key? key}) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
-          child: ChoiceChip(
-            key: key,
-            label: Text(label),
-            selected: (_e.scale - scale).abs() < 0.002,
-            onSelected: (_) => _setScale(scale),
-          ),
+    Widget chip(String label, double scale, {Key? key}) => ChoiceChip(
+          key: key,
+          label: Text(label),
+          selected: (_e.scale - scale).abs() < 0.002,
+          onSelected: (_) => _setScale(scale),
+        );
+    final ready = _sizeOut != null && identical(_sizeOutFor, _e);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final label = Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: AppColors.onMediaSoft);
+    // 1:1 büyüteç: aynı yerin özgün ve küçültülmüş hâli yan yana — küçültme
+    // telefon ekranında ancak yakından görünür.
+    Widget loupe(String key, String labelKey, ui.Image? image,
+            ImageEdits edits, double pixelsPerDp) =>
+        Padding(
+          padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              key: ValueKey(key),
+              width: 64,
+              height: 64,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Radii.sm),
+                border: Border.all(color: AppColors.onMediaFaint),
+              ),
+              child: image == null
+                  ? const SizedBox.shrink()
+                  : CustomPaint(
+                      painter: _LoupePainter(image, edits, pixelsPerDp)),
+            ),
+            Text(context.t(labelKey), style: label),
+          ]),
         );
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(
-        context.t('ied.size_now', {
-          'from': '${cropped.width.round()} × ${cropped.height.round()}',
-          'to': '${out.width.round()} × ${out.height.round()}',
-        }),
-        style: soft,
-      ),
-      const SizedBox(height: 6),
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [
-          chip(context.t('ied.size_original'), 1),
-          for (final p in const [75, 50, 25]) chip('%$p', p / 100),
-          for (final edge in longEdgeChoices.reversed)
-            if (edge < longSide)
-              chip('$edge px', edge / longSide, key: ValueKey('edge-$edge')),
-        ]),
-      ),
+      Row(children: [
+        loupe('ied-loupe-before', 'ied.size_before', _src, _e, dpr),
+        loupe('ied-loupe-after', 'ied.size_after', _sizeOut,
+            const ImageEdits(), dpr * (_sizeOutFor?.scale ?? 1)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.t('ied.size_now', {
+                  'from': '${cropped.width.round()} × ${cropped.height.round()}',
+                  'to': '${out.width.round()} × ${out.height.round()}',
+                }),
+                style: soft,
+              ),
+              Text(
+                key: const ValueKey('ied-size-bytes'),
+                ready && _sizeBytes != null
+                    ? context.t('ied.size_estimate',
+                        {'size': FsScan.humanSize(_sizeBytes!)})
+                    : context.t('ied.size_estimating'),
+                style: const TextStyle(color: AppColors.onMedia),
+              ),
+            ],
+          ),
+        ),
+      ]),
+      const SizedBox(height: Gap.xs),
+      // Sarılır: dar ekranda "1600 px" kesilmez (B21).
+      Wrap(spacing: Gap.xs + 2, runSpacing: Gap.xs, children: [
+        chip(context.t('ied.size_original'), 1),
+        for (final p in const [75, 50, 25]) chip('%$p', p / 100),
+        for (final edge in longEdgeChoices.reversed)
+          if (edge < longSide)
+            chip('$edge px', edge / longSide, key: ValueKey('edge-$edge')),
+      ]),
       const SizedBox(height: 8),
       Row(children: [
         Expanded(
@@ -228,4 +305,33 @@ extension _ImageEditCrop on _ImageEditScreenState {
     final t = (c.center.dy - nh / 2).clamp(0.0, 1.0 - nh);
     _push(_e.copyWith(crop: Rect.fromLTWH(l, t, nw, nh)));
   }
+}
+
+/// Boyut büyüteci (B21): [src]'nin kırpma merkezini [pixelsPerDp] ölçekte
+/// (görsel pikseli / mantıksal piksel) kutuya çizer — özgünde cihaz pikseli
+/// başına 1 görsel pikseli; küçültülmüş çıktı aynı yeri kaplar.
+class _LoupePainter extends CustomPainter {
+  _LoupePainter(this.src, this.edits, this.pixelsPerDp);
+
+  final ui.Image src;
+  final ImageEdits edits;
+  final double pixelsPerDp;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final full = orientedSize(src, edits) / pixelsPerDp;
+    final c = edits.crop.center;
+    canvas.clipRect(Offset.zero & size);
+    paintEdits(
+      canvas,
+      src,
+      edits,
+      Rect.fromLTWH(size.width / 2 - c.dx * full.width,
+          size.height / 2 - c.dy * full.height, full.width, full.height),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_LoupePainter old) =>
+      old.src != src || old.edits != edits || old.pixelsPerDp != pixelsPerDp;
 }

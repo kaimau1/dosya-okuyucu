@@ -95,6 +95,33 @@ void main() {
     expect(edits().marks.single.background, isFalse);
   });
 
+  // B21 bekçisi (kullanıcı 2026-11-27: "Seç kipinde tek parmakla kaydırma
+  // çalışmıyor"): yakınlaştırılmışken boşluğa değen tek parmak kaydırır;
+  // çizen kipte ya da işaret yakalanınca kaydırmaz; sığdırılmışken kaydırmaz.
+  test('tek parmak kaydırma kararı', () {
+    bool pans(bool draws, bool grabbed, double zoom) =>
+        ImageEditScreen.oneFingerPans(
+            drawsOnCanvas: draws, grabbedMark: grabbed, zoom: zoom);
+    expect(pans(false, false, 2), isTrue); // Seç, boşluk, yakın
+    expect(pans(false, true, 2), isFalse); // Seç, işaret yakalandı
+    expect(pans(true, false, 2), isFalse); // kalem/kırpma çizer
+    expect(pans(false, false, 1), isFalse); // sığdırılmış
+  });
+
+  testWidgets('Boyut: seçenekler sarılır, büyüteç ve dosya boyu görünür', (t) async {
+    await open(t);
+    await t.tap(find.text('Boyut'));
+    await t.pump();
+    expect(find.byType(Wrap), findsWidgets);
+    expect(find.byKey(const ValueKey('ied-loupe-before')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ied-loupe-after')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ied-size-bytes')), findsOneWidget);
+    // Alanlar koyu dolgulu (açık temanın açık dolgusu değil).
+    final field = t.widget<TextField>(find.byKey(const ValueKey('ied-width')));
+    expect(field.decoration!.filled, isTrue);
+    expect(field.decoration!.fillColor!.computeLuminance(), lessThan(0.3));
+  });
+
   testWidgets('filtre seç + ayar kaydır, tek dokunuşla sıfırla', (t) async {
     await open(t);
     await t.tap(find.text('Filtreler'));

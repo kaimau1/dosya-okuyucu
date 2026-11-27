@@ -75,6 +75,36 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
               ),
             ),
           ),
+          // Bir kezlik ipucu (B21): panelde yer kaplamaz; yok iken de aynı
+          // ağaç şekli (SizedBox.shrink).
+          Positioned(
+            top: Gap.sm,
+            left: Gap.md,
+            right: Gap.md,
+            child: IgnorePointer(
+              child: Center(
+                child: _hint == null
+                    ? const SizedBox.shrink()
+                    : DecoratedBox(
+                        key: const ValueKey('ied-hint'),
+                        decoration: BoxDecoration(
+                          color: AppColors.mediaChrome,
+                          borderRadius: BorderRadius.circular(Radii.card),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: Gap.md, vertical: Gap.sm),
+                          child: Text(context.t(_hint!),
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelMedium
+                                  ?.copyWith(color: AppColors.onMedia)),
+                        ),
+                      ),
+              ),
+            ),
+          ),
         ]),
       ),
       );
@@ -82,8 +112,6 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
   }
 
   Widget _panel(ColorScheme scheme) {
-    final chipTheme = ChipTheme.of(context);
-    final hint = chipTheme.labelStyle?.copyWith(color: AppColors.onMediaSoft);
     return Material(
       color: AppColors.mediaSurface,
       child: Padding(
@@ -160,7 +188,7 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
           _Tab.adjust => _adjustPanel(),
           _Tab.filter => _filterPanel(),
           _Tab.size => _sizePanel(),
-          _Tab.markup => _markupPanel(scheme, hint),
+          _Tab.markup => _markupPanel(scheme),
         },
       ),
     );
@@ -297,9 +325,74 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
     ]);
   }
 
-  Widget _markupPanel(ColorScheme scheme, TextStyle? hint) {
+  /// Üst sıradaki kipe geçiş (B21): Çiz son kalemi, Şekil son şekli açar.
+  void _setMode(_Mode m) => _update(() {
+        _tool = switch (m) {
+          _Mode.select => _Tool.select,
+          _Mode.draw => PenTrayMemory.lastPen == PenTrayTool.highlighter
+              ? _Tool.highlighter
+              : _Tool.pen,
+          _Mode.blur => _Tool.blur,
+          _Mode.pixelate => _Tool.pixelate,
+          _Mode.text => _Tool.text,
+          _Mode.shape => _lastShape,
+        };
+        if (_tool != _Tool.select && _tool != _Tool.text) _sel = null;
+        if (m == _Mode.text) _showHint('ied.tap_for_text');
+        if (m == _Mode.blur || m == _Mode.pixelate) _showHint('ied.blur_hint');
+      });
+
+  /// İpucu oturumda bir kez, tuvalin üstünde; ilk dokunuşta kaybolur
+  /// (B21, kullanıcı: "ipucu kalıcı değil, bir kez gösterilip kaybolsun").
+  void _showHint(String key) {
+    if (_ImageEditScreenState._hintsShown.add(key)) _hint = key;
+  }
+
+  /// İşaretle paneli (B21, kullanıcı 2026-11-27): üstte KESİLMEYEN kip sırası
+  /// (Seç · Çiz · Bulanıklaştır · Pikselleştir · Yazı · Şekil — bulanık/piksel
+  /// yine Çiz'in hemen ardında, 2026-11-22), altında yalnız seçili kipin tek
+  /// sırası; kalınlık/saydamlık ayar düğmesiyle açılır → fotoğraf alanı büyür.
+  Widget _markupPanel(ColorScheme scheme) {
     final sel = _selected;
-    const soft = TextStyle(color: AppColors.onMediaSoft);
+    final mode = _mode;
+    final label = Theme.of(context).textTheme.labelSmall;
+    Widget modeButton(_Mode m, IconData icon, String key) {
+      final on = mode == m;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: on,
+          child: InkWell(
+            key: ValueKey('tool-${m.name}'),
+            borderRadius: BorderRadius.circular(Radii.control),
+            onTap: () => _setMode(m),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+              decoration: BoxDecoration(
+                color: on ? scheme.secondaryContainer : null,
+                borderRadius: BorderRadius.circular(Radii.control),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(icon,
+                    size: 22,
+                    color: on
+                        ? scheme.onSecondaryContainer
+                        : AppColors.onMediaSoft),
+                // Ad kesilmez: dar ekranda küçülerek sığar.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(context.t(key),
+                      maxLines: 1,
+                      style: label?.copyWith(
+                          color: on ? AppColors.onMedia : AppColors.onMediaSoft)),
+                ),
+              ]),
+            ),
+          ),
+        ),
+      );
+    }
+
     Widget slider(IconData icon, String key, double value, double min,
             double max, void Function(double) onChanged,
             {void Function(double)? onStart}) =>
@@ -321,61 +414,15 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
             ),
           ]),
         );
-    Widget chip(_Tool tool, IconData icon, String key) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
-          child: ChoiceChip(
-            key: ValueKey('tool-${tool.name}'),
-            avatar: Icon(icon, size: 18),
-            label: Text(context.t(key)),
-            selected: _tool == tool,
-            onSelected: (_) => _update(() {
-              _tool = tool;
-              if (tool != _Tool.select && tool != _Tool.text) _sel = null;
-            }),
-          ),
-        );
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      // "Seç" kaymaz, hep solda (2026-11-20, kullanıcı: "seç direkt alt
-      // panelde hazır olarak bulunmalı" — şerit kaydırılınca kayboluyordu).
-      Row(children: [
-        chip(_Tool.select, AppIcons.pointer, 'ied.select'),
-        // Kalem · fosforlu · silgi YAN YANA ortak tepside (B20, kullanıcı:
-        // "kalemle silgi yan yana olmalı" — Notlar'daki kalem mantığı).
-        PenTray(
-          selected: _trayTool,
-          onSelect: _selectTray,
-          penColor: _color,
-          highlighterColor: _color,
-          onSettings: _traySettings,
-          onClear: _clearMarks,
-        ),
-        const SizedBox(width: 3),
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              for (final (tool, icon, key) in const [
-                // Bulanıklaştır/pikselleştir öne (2026-11-22, kullanıcı: "önde görülsün").
-                (_Tool.blur, AppIcons.blur, 'ied.blur'),
-                (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
-                (_Tool.text, AppIcons.textFields, 'ied.text'),
-                (_Tool.arrow, AppIcons.arrowTool, 'ied.arrow'),
-                (_Tool.line, AppIcons.lineTool, 'ied.line'),
-                (_Tool.rect, AppIcons.rectTool, 'ied.rect'),
-                (_Tool.ellipse, AppIcons.ellipseTool, 'ied.ellipse'),
-              ])
-                chip(tool, icon, key),
-            ]),
-          ),
-        ),
-      ]),
-      SingleChildScrollView(
+    final current = sel?.color ?? _color;
+    final colors = Expanded(
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        child: Row(children: [
           for (final color in _ImageEditScreenState._colors)
             Semantics(
               button: true,
-              selected: color == (sel?.color ?? _color),
+              selected: color == current,
               child: InkResponse(
                 onTap: () {
                   _update(() => _color = color);
@@ -383,19 +430,19 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
                     _updateSelected(sel.copyWith(color: color));
                   }
                 },
-                radius: 22,
+                radius: 20,
                 child: Container(
-                  width: 28,
-                  height: 28,
-                  margin: const EdgeInsets.all(7),
+                  width: 24,
+                  height: 24,
+                  margin: const EdgeInsets.all(Gap.xs + 1),
                   decoration: BoxDecoration(
                     color: color,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: color == (sel?.color ?? _color)
+                      color: color == current
                           ? scheme.primary
                           : AppColors.onMediaFaint,
-                      width: color == (sel?.color ?? _color) ? 3 : 1,
+                      width: color == current ? 3 : 1,
                     ),
                   ),
                 ),
@@ -403,76 +450,144 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
             ),
         ]),
       ),
+    );
+    final tune = IconButton(
+      key: const ValueKey('ied-tune'),
+      tooltip: context.t('ied.stroke_settings'),
+      isSelected: _strokeOpen,
+      color: AppColors.onMediaSoft,
+      icon: const Icon(AppIcons.tune),
+      onPressed: () => _update(() => _strokeOpen = !_strokeOpen),
+    );
+    final thickness = slider(
+      AppIcons.lineWeight,
+      'ied.thickness',
+      sel == null
+          ? _stroke
+          : sel.kind == MarkKind.text
+              ? sel.size
+              : _sizeOf(sel),
+      0.004,
+      sel?.kind == MarkKind.text ? 0.4 : 0.05,
+      (v) => sel == null
+          ? _update(() => _stroke = v)
+          : _replaceSelected(sel.copyWith(
+              size: sel.kind == MarkKind.text
+                  ? v
+                  : v * (sel.size / _sizeOf(sel)))),
+      onStart: sel == null ? null : (_) => _history.push(_e),
+    );
+    final brush = mode == _Mode.blur || mode == _Mode.pixelate;
+    final Widget modeRow = sel != null
+        ? Row(children: [
+            colors,
+            tune,
+            IconButton(
+              key: const ValueKey('ied-delete-mark'),
+              tooltip: context.t('common.delete'),
+              color: AppColors.onMediaSoft,
+              icon: const Icon(AppIcons.delete),
+              onPressed: _deleteSelected,
+            ),
+          ])
+        : switch (mode) {
+            _Mode.select => const SizedBox.shrink(),
+            _Mode.blur || _Mode.pixelate => Row(children: [thickness]),
+            _Mode.text => Row(children: [colors, tune]),
+            _Mode.draw => Row(children: [
+                // Kalem · fosforlu · silgi YAN YANA ortak tepside (B20).
+                PenTray(
+                  selected: _trayTool,
+                  onSelect: _selectTray,
+                  penColor: _color,
+                  highlighterColor: _color,
+                  onSettings: _traySettings,
+                  onClear: _clearMarks,
+                ),
+                colors,
+                tune,
+              ]),
+            _Mode.shape => Row(children: [
+                for (final (tool, icon, key) in const [
+                  (_Tool.arrow, AppIcons.arrowTool, 'ied.arrow'),
+                  (_Tool.line, AppIcons.lineTool, 'ied.line'),
+                  (_Tool.rect, AppIcons.rectTool, 'ied.rect'),
+                  (_Tool.ellipse, AppIcons.ellipseTool, 'ied.ellipse'),
+                ])
+                  IconButton(
+                    key: ValueKey('tool-${tool.name}'),
+                    tooltip: context.t(key),
+                    isSelected: _tool == tool,
+                    color: AppColors.onMediaSoft,
+                    style: IconButton.styleFrom(
+                        backgroundColor:
+                            _tool == tool ? scheme.secondaryContainer : null),
+                    icon: Icon(icon),
+                    onPressed: () => _update(() {
+                      _tool = tool;
+                      _lastShape = tool;
+                      _sel = null;
+                    }),
+                  ),
+                colors,
+                tune,
+              ]),
+          };
+    return Column(mainAxisSize: MainAxisSize.min, children: [
       Row(children: [
-        slider(
-          AppIcons.lineWeight,
-          'ied.thickness',
-          sel == null
-              ? _stroke
-              : sel.kind == MarkKind.text
-                  ? sel.size
-                  : _sizeOf(sel),
-          0.004,
-          sel?.kind == MarkKind.text ? 0.4 : 0.05,
-          (v) => sel == null
-              ? _update(() => _stroke = v)
-              : _replaceSelected(sel.copyWith(
-                  size: sel.kind == MarkKind.text ? v : v * (sel.size / _sizeOf(sel)))),
-          onStart: sel == null ? null : (_) => _history.push(_e),
-        ),
-        slider(
-          AppIcons.opacity,
-          'ied.opacity',
-          sel?.opacity ?? _opacity,
-          0.1,
-          1,
-          (v) => sel == null
-              ? _update(() => _opacity = v)
-              : _replaceSelected(sel.copyWith(opacity: v)),
-          onStart: sel == null ? null : (_) => _history.push(_e),
-        ),
+        modeButton(_Mode.select, AppIcons.pointer, 'ied.select'),
+        modeButton(_Mode.draw, AppIcons.edit, 'ied.draw'),
+        modeButton(_Mode.blur, AppIcons.blur, 'ied.blur'),
+        modeButton(_Mode.pixelate, AppIcons.pixelate, 'ied.pixelate'),
+        modeButton(_Mode.text, AppIcons.textFields, 'ied.text'),
+        modeButton(_Mode.shape, AppIcons.rectTool, 'ied.shape'),
       ]),
-      if (sel != null)
+      modeRow,
+      if (_strokeOpen && !brush && (mode != _Mode.select || sel != null))
+        Row(children: [
+          thickness,
+          slider(
+            AppIcons.opacity,
+            'ied.opacity',
+            sel?.opacity ?? _opacity,
+            0.1,
+            1,
+            (v) => sel == null
+                ? _update(() => _opacity = v)
+                : _replaceSelected(sel.copyWith(opacity: v)),
+            onStart: sel == null ? null : (_) => _history.push(_e),
+          ),
+        ]),
+      if (sel != null && sel.kind == MarkKind.text)
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(children: [
-            if (sel.kind == MarkKind.text) ...[
-              _toolButton(AppIcons.edit, 'ied.edit_text', _editText),
-              for (final (font, key) in const [
-                ('sans', 'ied.font_sans'),
-                ('serif', 'ied.font_serif'),
-                ('mono', 'ied.font_mono'),
-              ])
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: ChoiceChip(
-                    label: Text(context.t(key)),
-                    selected: sel.font == font,
-                    onSelected: (_) =>
-                        _updateSelected(sel.copyWith(font: font)),
-                  ),
-                ),
+            _toolButton(AppIcons.edit, 'ied.edit_text', _editText),
+            for (final (font, key) in const [
+              ('sans', 'ied.font_sans'),
+              ('serif', 'ied.font_serif'),
+              ('mono', 'ied.font_mono'),
+            ])
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: FilterChip(
-                  key: const ValueKey('text-bg'),
-                  label: Text(context.t('ied.text_box')),
-                  selected: sel.background,
-                  onSelected: (v) =>
-                      _updateSelected(sel.copyWith(background: v)),
+                child: ChoiceChip(
+                  label: Text(context.t(key)),
+                  selected: sel.font == font,
+                  onSelected: (_) => _updateSelected(sel.copyWith(font: font)),
                 ),
               ),
-            ],
-            _toolButton(AppIcons.delete, 'common.delete', _deleteSelected),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: FilterChip(
+                key: const ValueKey('text-bg'),
+                label: Text(context.t('ied.text_box')),
+                selected: sel.background,
+                onSelected: (v) =>
+                    _updateSelected(sel.copyWith(background: v)),
+              ),
+            ),
           ]),
-        )
-      else if (_tool == _Tool.text)
-        Text(context.t('ied.tap_for_text'), style: hint)
-      else if (_tool == _Tool.blur || _tool == _Tool.pixelate)
-        Text(context.t('ied.blur_hint'),
-            textAlign: TextAlign.center, style: hint ?? soft)
-      else
-        Text(context.t('ied.zoom_hint'), style: hint ?? soft),
+        ),
     ]);
   }
 
