@@ -1728,10 +1728,14 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Beyaz kâğıtta davranış eskisiyle aynı (beyaz kapak, koyu yazı).
 - [ ] 90° döndürülmüş taranmış sayfa: PDF Pro → "Aranabilir yap (OCR)" → aramada sözcük bulunur, vurgu doğru yerde.
 - [ ] 90° döndürülmüş taranmış sayfada satır düzeltme: yeni metin özgün satırın üstüne, doğru yönde yazılır.
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): DENENMEDİ — elimizde gerçek sararmış/renkli taranmış sayfa yok; sentetik `taranmis.pdf` ile OCR stüdyosu açıldı (Metni Tanı basışı ekranda görünür sonuç vermedi, çökme yok). Gerçek tarama gerekir.
+
 ## B4-P19b OCR Pro kalan (2026-11-27, dal faz-oto-B4-p19b) — yazıldı, cihazda doğrulanmadı
 - [ ] Bulanık/eğik taranmış sayfa → düzenle (Metin kipi): emin olunmayan sözcüklerin altı kırmızı çizili; net sayfada işaret yok ya da çok az. Çok/az işaret çıkarsa eşik `ocrLowConfidence` (0,6) ayarlanır.
 - [ ] Okuma görünümünde (düzenleyici dışı) hiçbir işaret görünmez; daha önce açılmış (önbellekli) sayfa işaretsiz açılır, hata vermez.
 - [ ] Taranmış sayfa → düzenle → şeritte "Bu sayfayı düzenlenebilir yap": tüm satırlar aynı yerde, kâğıt/mürekkep renginde gerçek metne döner; sonra satıra dokununca paragraf olarak düzenlenir, metin seçilip kopyalanır; Geri al tek adımda eski taramaya döner.
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): DENENMEDİ — bulanık/eğik gerçek tarama yok (aynı gerekçe).
+
 ## B16 dilim 1 — internetsiz Arapça metin tanıma (2026-11-26, dal faz-oto-B16-ocr) — yazıldı, cihazda doğrulanmadı
 - [ ] Ayarlar → Belgeler → Metin tanıma dili → "İnternetsiz Arapça tanımayı indir" (≈27 MB; ses kuruluysa ≈13 MB): ayar satırında "%N" ilerler, bitince "hazır" bildirimi. İnternet kapalıyken dene → anlaşılır "indirilemedi … akıllı okuma" iletisi, uygulama donmaz.
 - [ ] "Arapça" seçiliyken (Gemini anahtarı YOKKEN) matbu Arapça sayfa fotoğrafı → Metni tanı: metin sağdan sola doğru sırada, harfler birleşik; uçak kipinde de çalışır. Model silinip anahtar da yoksa → "modeli indir ya da Gemini anahtarı ekle" iletisi.
@@ -1739,17 +1743,21 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Kalite (B16 m.4): matbu Arapça, harekeli Kur'an sayfası, Osmanlıca, Cavi örneğiyle Gemini'ye karşı karakter doğruluğu; tam taranmış sayfada küçük yazı kaçıyor mu (algılama uzun kenarı 1280 px). Süre: tek sayfa kaç sn (ilk çağrı modeli yükler), bellek.
 - [ ] "Otomatik" kipte Arapça sayfa: Latin sonucu zayıfsa yerel Arapça motor devreye girer (anahtar yokken de).
 - [ ] Sesli kitap sesi kuruluyken bir sesi silmek Arapça tanımayı bozmaz (ortak ONNX çalışma zamanı kalır).
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): DENENMEDİ — model indirme + gerçek Arapça sayfa gerekir; bu turda indirme yapılmadı.
+
 ## B4-P20 sayfa stüdyosu tek kapı (2026-11-27, dal faz-oto-B4-p20) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları: alt çubukta tek "Sayfa stüdyosu" düğmesi; ⋮ en üstte "Sayfa stüdyosu", eski taşı/çoğalt/boş sayfa/ters çevir/böl/tara/birleştir girdileri yok.
 - [ ] Görüntüleyici → düzenle → Sayfalar → "Sayfa stüdyosu": araçlar ekranı açılıp stüdyo hemen gelir; Tamam → araçlarda Kaydet → görüntüleyici yeni sırayı gösterir.
 - [ ] Stüdyo ⋮: tek sayfa seçiliyken "Sayfayı taşı…" (numara gir) çalışır; "Sırayı ters çevir" + geri al; "Parçalara böl…" 2 → belgenin yanına -bolum1.. dosyaları.
 - [ ] Stüdyo → Sayfa ekle → Dosyadan: 2 PDF birden seç → seçim sırasıyla, ardışık eklenir.
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): GEÇTİ (kısmen): ⋮ menüde en üstte "Sayfa stüdyosu", eski taşı/çoğalt/böl girdileri yok; düzenle > Sayfalar > Sayfa stüdyosu stüdyoyu açıyor; "Sırayı ters çevir" + Geri al çalıştı; "Parçalara böl… 2 sayfalık" -bolum1/-bolum2 dosyalarını yazdı. DENENMEDİ: "Sayfayı taşı…" numara girişi, iki PDF birden ekleme.
 
 ## B4-P20ust üst/alt bilgi + numara (2026-11-27, dal faz-oto-B4-p20ust) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → PDF Pro → Gelişmiş numaralandırma: üst bilgi + alt bilgi + numara → Tamam → her sayfada üstte/altta görünür; kaydet (kopya) → Chrome/Adobe'de de görünür.
 - [ ] Aynı belgede yeniden aç → farklı üst bilgi yaz → Tamam: eskisi gider, yenisi gelir (üst üste binmez).
 - [ ] Kaldır → üst/alt bilgi + numara gider; çok sayfalı GERÇEK belgede (görselli/tablolu) her sayfanın gövdesi aynen kalır (özellikle 2. ve sonraki sayfalar). Geri al çalışır.
 - [ ] Hiç eklenmemiş belgede Kaldır → "Kaldırılacak üst/alt bilgi yok" iletisi, belge değişmez.
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): GEÇTİ: üst+alt bilgi+numara 4 sayfanın hepsinde göründü; yeniden açıp başka üst bilgi yazınca eskisi gitti (üst üste binmedi); Kaldır sonrası gövdeler aynen kaldı, Geri al üst bilgiyi geri getirdi. DENENMEDİ: Chrome/Adobe'de görünüm, "kaldırılacak yok" iletisi.
 
 ## B4-P21 güvenlik + çıktı (2026-11-27, dal faz-oto-B4-p21) — yazıldı, cihazda doğrulanmadı
 - [ ] PDF araçları → PDF Pro → Belge bilgileri → "Tüm meta veriyi temizle" → onay → kaydet (kopya): başka bir okuyucuda (ör. Adobe/Chrome özellikler) başlık/yazar/oluşturan boş; sayfalar aynı; geri al çalışır.
@@ -1758,6 +1766,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] PDF Pro → Agresif sıkıştırma (50+ sayfa): kartta "… n/N" ilerler; Durdur → "durduruldu" iletisi, belge değişmez; yeniden başlatınca sonuna dek gider. Ana ekran şeridi/bildirimdeki Durdur da işi keser.
 - [ ] PDF Pro → PDF/A (30+ sayfa): ilerleme + Durdur aynı; tamamlanınca "-PDFA" kopyası kaydedilir.
 - [ ] Araçlar ⋮ Yazdır: sistem yazdırma penceresi açılır, düzenlenmiş (kaydedilmemiş) sayfalar önizlemede; PDF olarak kaydet çalışır. Parolalı belgede hata olursa ileti çıkar, uygulama çökmez.
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): GEÇTİ: Belge bilgileri > Tüm meta veriyi temizle > kopya kaydet: Title/Author/Creator/Producer boş, sayfa sayısı aynı; ⋮ Sıkıştır 185 KB > 175 KB; Agresif sıkıştırma 320 sayfada "n/320" ilerledi, Durdur "durduruldu" dedi, yeniden başlatınca 320/320 ile bitti; Yazdır önizlemesi 320 sayfa açıldı. BULGU: Agresif sıkıştırma metin-only 108 KB belgeyi 12,5 MB yaptı (varsayılan ayarla ~116x büyüme; kullanıcıya uyarı/kazanç kontrolü gerekebilir). PDF/A 320 sayfada "En çok 150 sayfa — önce sayfa seç ya da böl" iletisi veriyor (denetim listesindeki "30+ sayfa ilerleme+Durdur" PDF/A için denenmedi). DENENMEDİ: parolalı belgede meta temizle, sıkıştırılmış çıktının Chrome'da açılması.
 
 ## B17 — Endonezce + Malayca arayüz (2026-11-27, dal faz-oto-B17-dil; cihazda doğrulanmadı)
 
@@ -1770,6 +1779,7 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Ayarlar > Gizlilik politikası Endonezce/Malayca arayüzde İngilizce metni açar (çeviri 👤 bekliyor).
 - Cavi (Jawi) içerikli bir PDF/metin: ek harfler (ڠ چ ڤ ڽ ݢ ۏ) kutu değil doğru çiziliyor mu; Arapça OCR
   (B16) bu harfleri tanıyor mu — tanımıyorsa not düş (Cavi ek harfleri model sözlüğünde olmayabilir).
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): GEÇTİ: Dil seçeneklerinde Bahasa Indonesia ve Bahasa Melayu var; Endonezce seçilince ayarlar/ana kategoriler Endonezce ("Pengaturan", "Tampilan & bahasa"), Malayca "Tetapan"; sonra Sistem'e geri alındı. DENENMEDİ: sistem dili Endonezce, sesle yazma, çeviri aracı listesi, Cavi harfleri.
 
 ## K15 — Pro tek seferlik satın alım (2026-11-27, dal faz-oto-K15-iap) — yazıldı, cihazda/Play'de doğrulanmadı
 Önkoşul: Play Console'da `pro_unlock` yönetilen ürünü etkin (👤 PLAN §3 m.7), Lite AAB iç test kanalında, lisans test hesabı.
@@ -1779,3 +1789,5 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Uçak kipinde aç: satın alınmışsa Pro açık kalıyor mu (yerel kayıt). Uygulamayı sil-kur → "Satın almayı geri yükle" → açılıyor mu.
 - Play Console'dan iade → sonraki açılışta (internet varken) kilit geri geliyor mu. 3 gün sonra satın alma iade edilmemiş olmalı (onay çalışıyor).
 - Ayarlar > Hakkında > Pro satırı: satın alınca "Satın alındı · Tüm Pro özellikleri açık".
+- 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): DENENEMEDİ — nightly APK tam sürüm (Edition.full): Pro kutuları kilitsiz, Ayarlar > Hakkında'da Pro satırı yok, Ayarlar aramada "Pro" yok. Kilit/satın alma ekranı yalnız Lite (Play AAB iç test) derlemesinde görünür; bu turda Lite derlemesi yok.
+
