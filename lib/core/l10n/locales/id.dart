@@ -6330,4 +6330,405 @@ const Map<String, String> _id = {
       'Buat',
   'ab.listen':
       'Dengarkan',
+// ── ab-ph-skin-pf-jr-pp ──
+  'ab.running':
+      'Membuat bab {n}/{total} — hentikan',
+  'ab.preparing':
+      'Menyiapkan suara: {voice}',
+  'ab.done':
+      '{n} bab siap ({folder})',
+  'ab.stopped':
+      'Dihentikan — {n} bab siap; dapat dilanjutkan nanti',
+  'ab.failed':
+      'Tidak dapat membuat buku audio: {error}',
+  'ab.job_running':
+      'Buku audio: {name}',
+  'ab.job_name':
+      'Buku audio ({name})',
+  'ab.background':
+      'Membuat di latar belakang',
+  'ab.background_sub':
+      'Anda dapat meninggalkan layar ini atau berpindah aplikasi; kemajuan ditampilkan di notifikasi.',
+  'ab.make':
+      'Buat buku audio',
+  'ab.make_hint':
+      'Berkas bab dengan judul',
+  'ab.library_empty':
+      'Belum ada buku audio',
+  'ab.library_empty_hint':
+      'Pilih "Buat buku audio" di menu ⋮ berkas PDF, Word, slide, atau teks.',
+  'ab.book_sub':
+      '{n} bab · {size}',
+  'ab.play_all':
+      'Putar dari awal',
+  'ab.delete_q':
+      'Hapus buku audio "{name}"?',
+  'ph.pin_home':
+      'Tambah ke layar utama',
+  'ph.pin_home_hint':
+      'Halaman ini mendapat ikonnya sendiri di layar utama',
+  'ph.albums':
+      'Album',
+  'ph.show_all':
+      'Tampilkan semua',
+  'ph.on_this_day':
+      'Pada hari ini',
+  'ph.on_this_day_sub':
+      'Hari ini di tahun-tahun lalu · {n}',
+  'ph.loading':
+      'Memuat berkas…',
+  'ph.empty':
+      'Tidak ada berkas untuk ditampilkan di sini.',
+  'ph.no_match':
+      'Tidak ada berkas yang cocok dengan pencarian/filter Anda.',
+  'ph.verifying':
+      'Memverifikasi salinan byte demi byte…',
+  'ph.not_identical':
+      'Verifikasi byte demi byte tidak menemukan salinan persis — tidak ada yang dihapus.',
+  'ph.show':
+      'Tampilkan',
+  'ph.search_in':
+      'Cari di {title}',
+  'ph.search_in_hint':
+      'Cari di {title}…',
+  'ph.layout':
+      'Tata letak: {name}',
+  'ph.selected_of':
+      '{n} / {total} dipilih',
+  'ph.select_above':
+      'Pilih juga yang di atas',
+  'ph.select_below':
+      'Pilih juga yang di bawah',
+  'ph.clear_selection':
+      'Hapus pilihan',
+  'ph.select_all':
+      'Pilih semua',
+  'ph.cat_empty':
+      'Tidak ada berkas di kategori ini.',
+  'ph.group_deselect':
+      'Batalkan pilihan grup',
+  'ph.group_select':
+      'Pilih grup',
+  'ph.delete_dupes_title':
+      'Hapus salinannya?',
+  'ph.delete_dupes_body':
+      '{n} salinan tambahan ({size}) {fate}. Berkas tertua di setiap grup dipertahankan.',
+  'ph.fate_trash':
+      'akan dipindahkan ke tempat sampah',
+  'ph.fate_permanent':
+      'akan dihapus PERMANEN (tempat sampah dimatikan di pengaturan)',
+  'ph.hidden_dupes_short':
+      '{n} duplikat disembunyikan',
+  'ph.clean':
+      'Bersihkan',
+  'ph.similar_title':
+      'Serupa: {title}',
+  'ph.similar_short':
+      'Cari yang serupa',
+  'ph.sorted_header':
+      '{n} berkas · {sort}',
+  'ph.view':
+      'Tampilan',
+  'ph.view_scale':
+      'Skala waktu',
+  'ph.view_columns':
+      'Kolom',
+  'ph.albums_hide':
+      'Sembunyikan area album',
+  'ph.albums_show':
+      'Tampilkan area album',
+  'ph.pinch_hint':
+      'Tips: cubit kisi dengan dua jari untuk memperkecil, rentangkan untuk memperbesar.',
+  'ph.empty_hint':
+      'Foto dan video baru muncul di sini begitu diambil.',
+  'ph.no_match_hint':
+      'Coba hapus filter.',
+  'ph.clear_filters':
+      'Hapus filter',
+  'ph.fast_scroll':
+      'Gagang gulir cepat',
+  'skin.sage':
+      'Sage',
+  'skin.sage_sub':
+      'Meja dan kertas: dasar hijau-abu lembut, kartu terang, aksen teal',
+  'skin.classic':
+      'Klasik',
+  'skin.classic_sub':
+      'Folder kuning, ikon halaman polos — pengelola berkas gaya lama',
+  'skin.ledger':
+      'Buku besar',
+  'skin.ledger_sub':
+      'Latar krem, folder manila, ikon polos',
+  'skin.calm':
+      'Tenang',
+  'skin.calm_sub':
+      'Kartu putih, aksen terakota, ikon berbingkai',
+  'skin.bento':
+      'Bento',
+  'skin.bento_sub':
+      'Kartu penyimpanan berwarna, ubin besar dan kecil',
+  'skin.band':
+      'Header gelap',
+  'skin.band_sub':
+      'Header berwarna, ubin sebagai daftar',
+  'skin.g_layout':
+      'Baru · dengan tata letak beranda',
+  'skin.g_color':
+      'Tema warna',
+  'skin.g_classic':
+      'Ikon klasik',
+  'skin.g_special':
+      'Malam & sistem',
+  'skin.title':
+      'Gaya tema',
+  'skin.clay':
+      'Tanah liat',
+  'skin.clay_sub':
+      'Dasar krem-merah muda hangat, aksen plum, kartu putih kertas',
+  'skin.lavender':
+      'Lavender',
+  'skin.lavender_sub':
+      'Dasar abu-abu lilac, aksen ungu plum',
+  'skin.olive':
+      'Zaitun',
+  'skin.olive_sub':
+      'Dasar batu zaitun, aksen hijau zaitun',
+  'skin.white':
+      'Putih klasik',
+  'skin.white_sub':
+      'Dasar abu-abu muda, kartu putih bersih, aksen biru',
+  'skin.straw':
+      'Kertas jerami',
+  'skin.straw_sub':
+      'Dasar jerami, kartu krem, tinta sepia',
+  'skin.cream':
+      'Krem',
+  'skin.cream_sub':
+      'Dasar krem muda, kartu gading, aksen ambar',
+  'skin.peach':
+      'Persik',
+  'skin.peach_sub':
+      'Dasar pastel hangat yang nyaman di mata untuk membaca lama',
+  'skin.mint':
+      'Mint',
+  'skin.mint_sub':
+      'Dasar hijau-biru tenang, aksen hijau laut',
+  'skin.porcelain':
+      'Porselen',
+  'skin.porcelain_sub':
+      'Dasar abu-abu biru sejuk, aksen biru tua, kartu putih kertas',
+  'skin.modern':
+      'Modern',
+  'skin.modern_sub':
+      'Aksen ungu cerah, sudut bulat, ikon besar',
+  'skin.system':
+      'Warna sistem',
+  'skin.system_sub':
+      'Mengambil warna wallpaper Anda (Android 12+)',
+  'skin.night':
+      'Malam (OLED)',
+  'skin.night_sub':
+      'Dasar hitam pekat: hemat baterai, nyaman di malam hari',
+  'skin.forces_dark':
+      'Tema ini selalu tetap gelap',
+  'pf.tab_form':
+      'Formulir',
+  'pf.tab_sign':
+      'Tanda tangan',
+  'pf.tab_digital':
+      'Digital',
+  'pf.title_unified':
+      'Formulir & tanda tangan — {name}',
+  'pf.pick_date':
+      'Pilih tanggal',
+  'pf.go_sign':
+      'Tanda tangani dokumen / tambah tanggal',
+  'pf.add_signature':
+      'Tanda tangan',
+  'pf.add_initials':
+      'Paraf',
+  'pf.add_date_stamp':
+      'Cap tanggal',
+  'pf.sign_empty_hint':
+      'Tambahkan Tanda tangan, Paraf, atau Cap tanggal di atas untuk diletakkan di halaman.',
+  'pf.sign_drag_hint':
+      'Seret untuk memosisikan; ubah ukuran dengan penggeser di bawah.',
+  'pf.save_all':
+      'Simpan',
+  'pf.signed_warn':
+      'Dokumen ini ditandatangani secara digital. Menimpanya akan membatalkan tanda tangan yang ada; disarankan menyimpan salinan.',
+  'pf.dsig_verify_title':
+      'Verifikasi tanda tangan',
+  'pf.dsig_valid':
+      'Valid — dokumen tidak berubah sejak ditandatangani',
+  'pf.dsig_valid_partial':
+      'Valid — pembaruan tambahan ditambahkan setelah penandatanganan',
+  'pf.dsig_invalid':
+      'Tidak valid — dokumen diubah setelah ditandatangani',
+  'pf.dsig_self_signed':
+      'Sertifikat tanda tangan sendiri',
+  'pf.dsig_issuer':
+      'Penerbit: {name}',
+  'pf.dsig_sign_title':
+      'Tambah tanda tangan digital (PAdES)',
+  'pf.dsig_self_opt':
+      'Identitas tanda tangan sendiri',
+  'pf.dsig_pfx_opt':
+      'Impor sertifikat (.pfx / .p12)',
+  'pf.dsig_signer_name':
+      'Nama penandatangan',
+  'pf.dsig_reason':
+      'Alasan (opsional)',
+  'pf.dsig_location':
+      'Lokasi (opsional)',
+  'pf.dsig_visible':
+      'Kotak tanda tangan terlihat',
+  'pf.dsig_last_page':
+      'Letakkan di halaman terakhir',
+  'pf.dsig_pick_pfx':
+      'Pilih berkas sertifikat',
+  'pf.save':
+      'Isi dan simpan',
+  'pf.page':
+      'Halaman {n}',
+  'pf.other_fields':
+      'Bidang lain',
+  'pf.read_only':
+      'hanya-baca',
+  'pf.sign_tap':
+      'Ketuk untuk menandatangani',
+  'pf.signed':
+      'Ditandatangani — dicap ke bidang saat disimpan',
+  'pf.flatten':
+      'Kunci setelah diisi',
+  'pf.flatten_sub':
+      'Nilai digambar ke halaman; tidak ada yang dapat mengubahnya setelahnya. Tindakan ini tidak dapat dibatalkan.',
+  'pf.note':
+      'Formulir terisi',
+  'pf.note_flat':
+      'Formulir terisi dan terkunci',
+  'pf.no_fields':
+      'PDF ini tidak memiliki bidang formulir yang dapat diisi.',
+  'pf.no_fields_hint':
+      'Untuk menambah teks gunakan alat teks di editor PDF; untuk menandatangani gunakan ⋮ → Tanda tangani.',
+  'pf.failed':
+      'Tidak dapat mengisi formulir: {error}',
+  'jr.undo_move':
+      'Urungkan pemindahan',
+  'jr.moved_back':
+      '{n} berkas dikembalikan',
+  'jr.untrash':
+      'Pulihkan',
+  'jr.restored':
+      '{n} berkas dipulihkan',
+  'jr.trash_created':
+      'Pindahkan ke tempat sampah',
+  'jr.trashed':
+      '{n} item dipindahkan ke tempat sampah',
+  'jr.undo_rename':
+      'Urungkan penggantian nama',
+  'jr.renamed_back':
+      '{n} berkas mendapatkan nama lamanya kembali',
+  'jr.headline_tags':
+      'Penandaan pintar memeriksa {files} berkas dan menyarankan {groups} tag ({n} saran)',
+  'jr.headline':
+      '{n} perubahan pada {files} berkas',
+  'jr.status_none':
+      'Belum ada yang diterapkan — berkas belum bertag. Ketuk saran yang salah untuk membuangnya (✕), lalu "Terapkan semua".',
+  'jr.status_all':
+      'Selesai: {n} tag ditulis ke berkas · {x} dibuang. Ketuk mana saja untuk berubah pikiran.',
+  'jr.status_some':
+      '{n} diterapkan · {p} tertunda · {x} dibuang.',
+  'jr.hint':
+      'Ketuk gambar mini: buang ✕ / simpan ✓ · Tekan lama: buka berkas',
+  'jr.by_tag':
+      'Menurut tag',
+  'jr.by_file':
+      'Menurut berkas',
+  'jr.all_tags':
+      'Semua',
+  'jr.show_all':
+      'Tampilkan semua ({n})',
+  'jr.apply_n':
+      'Terapkan ({n})',
+  'jr.n_files':
+      '{n} berkas',
+  'jr.n_applied':
+      '{n} diterapkan',
+  'jr.n_pending':
+      '{n} disarankan',
+  'jr.n_rejected':
+      '{n} dibuang',
+  'jr.state_applied':
+      'bertag',
+  'jr.state_pending':
+      'disarankan — belum diterapkan',
+  'jr.state_rejected':
+      'dibuang',
+  'jr.remove_one_hint':
+      'Saran dihapus dari daftar ini; berkas tetap ada',
+  'jr.empty':
+      'Tugas ini tidak meninggalkan perubahan tercatat pada berkas.',
+  'jr.summary':
+      '{groups} grup · {files} berkas · {applied} diterapkan · {pending} tertunda',
+  'jr.apply_all':
+      'Terapkan semua ({n})',
+  'jr.undo_all':
+      'Urungkan semua',
+  'jr.apply':
+      'Terapkan',
+  'jr.rename_tag':
+      'Ganti nama tag',
+  'jr.remove_tag':
+      'Hapus tag',
+  'jr.remove_tag_body':
+      'Hapus tag "{tag}" dari {n} berkas tugas ini? Berkas tidak dihapus.',
+  'jr.remove_one':
+      'Hapus dari berkas ini',
+  'jr.move_files':
+      'Pindahkan berkas ke folder',
+  'jr.moved':
+      '{n} berkas dipindahkan',
+  'jr.nothing_to_move':
+      'Tidak ada berkas yang tersisa untuk dipindahkan',
+  'jr.missing':
+      'Berkas sudah tidak ada',
+  'pp.dsign_sub':
+      'Tanda tangan PKCS#7; diverifikasi oleh Adobe/Chrome',
+  'pp.region_hint':
+      'Seret untuk menggambar kotak; ketuk kotak untuk menghapusnya',
+  'pp.region_hint_crop':
+      'Seret untuk menggambar area yang dipertahankan',
+  'pp.redact_sub':
+      'Benar-benar menghapus teks dan gambar',
+  'pp.to_xlsx_sub':
+      'Baris/kolom terdeteksi; halaman terpilih atau semua',
+  'pp.to_docx_sub':
+      'Baris, indentasi, ukuran font, dan pemisah halaman',
+  'pp.pdfa_sub':
+      'Arsip jangka panjang (PDF/A-2b)',
+  'pp.compare_sub':
+      'Perbedaan teks dan visual',
+  'pp.permissions_sub':
+      'Batasi cetak/salin/edit',
+  'pp.outline_sub':
+      'Tambah, ganti nama, susun ulang, indentasi',
+  'pp.outline_rename':
+      'Edit penanda',
+  'pp.stamp_sub':
+      'Disetujui, Draf, Rahasia, Salinan tersertifikasi…',
+  'pp.numbering_sub':
+      'Halaman n / N, Romawi, nomor Bates',
+  'pp.compress_hard_sub':
+      'Penghematan besar pada PDF hasil pindai/gambar',
+  'pp.studio_sub':
+      'Pilih, putar, hapus, gandakan, dan susun ulang halaman',
+  'pp.studio_insert_file':
+      'Sisipkan halaman dari berkas',
+  'pp.studio_insert_image':
+      'Sisipkan halaman dari gambar',
+  'pp.studio_insert_scan':
+      'Pindai dan sisipkan halaman',
+  'pp.blank_sub':
+      'Sisi belakang kosong pada hasil pindai',
 };

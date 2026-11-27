@@ -6335,4 +6335,405 @@ const Map<String, String> _ms = {
       'Cipta',
   'ab.listen':
       'Dengar',
+// ── ab-ph-skin-pf-jr-pp ──
+  'ab.running':
+      'Mencipta bab {n}/{total} — hentikan',
+  'ab.preparing':
+      'Menyediakan suara: {voice}',
+  'ab.done':
+      '{n} bab siap ({folder})',
+  'ab.stopped':
+      'Dihentikan — {n} bab siap; boleh disambung kemudian',
+  'ab.failed':
+      'Tidak dapat mencipta buku audio: {error}',
+  'ab.job_running':
+      'Buku audio: {name}',
+  'ab.job_name':
+      'Buku audio ({name})',
+  'ab.background':
+      'Mencipta di latar belakang',
+  'ab.background_sub':
+      'Anda boleh meninggalkan skrin ini atau beralih aplikasi; kemajuan dipaparkan dalam pemberitahuan.',
+  'ab.make':
+      'Cipta buku audio',
+  'ab.make_hint':
+      'Fail bab dengan tajuk',
+  'ab.library_empty':
+      'Belum ada buku audio',
+  'ab.library_empty_hint':
+      'Pilih "Cipta buku audio" dalam menu ⋮ fail PDF, Word, slaid atau teks.',
+  'ab.book_sub':
+      '{n} bab · {size}',
+  'ab.play_all':
+      'Main dari awal',
+  'ab.delete_q':
+      'Padam buku audio "{name}"?',
+  'ph.pin_home':
+      'Tambah ke skrin utama',
+  'ph.pin_home_hint':
+      'Halaman ini mendapat ikonnya sendiri pada skrin utama',
+  'ph.albums':
+      'Album',
+  'ph.show_all':
+      'Tunjukkan semua',
+  'ph.on_this_day':
+      'Pada hari ini',
+  'ph.on_this_day_sub':
+      'Hari ini pada tahun-tahun lepas · {n}',
+  'ph.loading':
+      'Memuatkan fail…',
+  'ph.empty':
+      'Tiada fail untuk dipaparkan di sini.',
+  'ph.no_match':
+      'Tiada fail yang sepadan dengan carian/penapis anda.',
+  'ph.verifying':
+      'Mengesahkan salinan bait demi bait…',
+  'ph.not_identical':
+      'Pengesahan bait demi bait tidak menemui salinan tepat — tiada apa yang dipadam.',
+  'ph.show':
+      'Tunjukkan',
+  'ph.search_in':
+      'Cari dalam {title}',
+  'ph.search_in_hint':
+      'Cari dalam {title}…',
+  'ph.layout':
+      'Reka letak: {name}',
+  'ph.selected_of':
+      '{n} / {total} dipilih',
+  'ph.select_above':
+      'Pilih juga yang di atas',
+  'ph.select_below':
+      'Pilih juga yang di bawah',
+  'ph.clear_selection':
+      'Kosongkan pilihan',
+  'ph.select_all':
+      'Pilih semua',
+  'ph.cat_empty':
+      'Tiada fail dalam kategori ini.',
+  'ph.group_deselect':
+      'Nyahpilih kumpulan',
+  'ph.group_select':
+      'Pilih kumpulan',
+  'ph.delete_dupes_title':
+      'Padam salinan itu?',
+  'ph.delete_dupes_body':
+      '{n} salinan tambahan ({size}) {fate}. Fail tertua dalam setiap kumpulan dikekalkan.',
+  'ph.fate_trash':
+      'akan dialihkan ke tong sampah',
+  'ph.fate_permanent':
+      'akan dipadam SECARA KEKAL (tong sampah dimatikan dalam tetapan)',
+  'ph.hidden_dupes_short':
+      '{n} pendua disembunyikan',
+  'ph.clean':
+      'Bersihkan',
+  'ph.similar_title':
+      'Serupa: {title}',
+  'ph.similar_short':
+      'Cari yang serupa',
+  'ph.sorted_header':
+      '{n} fail · {sort}',
+  'ph.view':
+      'Paparan',
+  'ph.view_scale':
+      'Skala masa',
+  'ph.view_columns':
+      'Lajur',
+  'ph.albums_hide':
+      'Sembunyikan kawasan album',
+  'ph.albums_show':
+      'Tunjukkan kawasan album',
+  'ph.pinch_hint':
+      'Petua: cubit grid dengan dua jari untuk mengecilkan, renggangkan untuk membesarkan.',
+  'ph.empty_hint':
+      'Foto dan video baharu muncul di sini sebaik sahaja diambil.',
+  'ph.no_match_hint':
+      'Cuba kosongkan penapis.',
+  'ph.clear_filters':
+      'Kosongkan penapis',
+  'ph.fast_scroll':
+      'Pemegang tatal pantas',
+  'skin.sage':
+      'Sage',
+  'skin.sage_sub':
+      'Meja dan kertas: latar hijau-kelabu lembut, kad cerah, aksen teal',
+  'skin.classic':
+      'Klasik',
+  'skin.classic_sub':
+      'Folder kuning, ikon halaman biasa — pengurus fail gaya lama',
+  'skin.ledger':
+      'Lejar',
+  'skin.ledger_sub':
+      'Latar krim, folder manila, ikon biasa',
+  'skin.calm':
+      'Tenang',
+  'skin.calm_sub':
+      'Kad putih, aksen terakota, ikon berbingkai',
+  'skin.bento':
+      'Bento',
+  'skin.bento_sub':
+      'Kad storan berwarna, jubin besar dan kecil',
+  'skin.band':
+      'Pengepala gelap',
+  'skin.band_sub':
+      'Pengepala berwarna, jubin sebagai senarai',
+  'skin.g_layout':
+      'Baharu · dengan reka letak utama',
+  'skin.g_color':
+      'Tema warna',
+  'skin.g_classic':
+      'Ikon klasik',
+  'skin.g_special':
+      'Malam & sistem',
+  'skin.title':
+      'Gaya tema',
+  'skin.clay':
+      'Tanah liat',
+  'skin.clay_sub':
+      'Latar krim-merah jambu hangat, aksen plum, kad putih kertas',
+  'skin.lavender':
+      'Lavender',
+  'skin.lavender_sub':
+      'Latar kelabu lilac, aksen ungu plum',
+  'skin.olive':
+      'Zaitun',
+  'skin.olive_sub':
+      'Latar batu zaitun, aksen hijau zaitun',
+  'skin.white':
+      'Putih klasik',
+  'skin.white_sub':
+      'Latar kelabu cerah, kad putih bersih, aksen biru',
+  'skin.straw':
+      'Kertas jerami',
+  'skin.straw_sub':
+      'Latar jerami, kad krim, dakwat sepia',
+  'skin.cream':
+      'Krim',
+  'skin.cream_sub':
+      'Latar krim cerah, kad gading, aksen ambar',
+  'skin.peach':
+      'Pic',
+  'skin.peach_sub':
+      'Latar pastel hangat yang selesa di mata untuk bacaan panjang',
+  'skin.mint':
+      'Pudina',
+  'skin.mint_sub':
+      'Latar hijau-biru tenang, aksen hijau laut',
+  'skin.porcelain':
+      'Porselin',
+  'skin.porcelain_sub':
+      'Latar kelabu biru sejuk, aksen biru tua, kad putih kertas',
+  'skin.modern':
+      'Moden',
+  'skin.modern_sub':
+      'Aksen ungu terang, sudut bulat, ikon besar',
+  'skin.system':
+      'Warna sistem',
+  'skin.system_sub':
+      'Mengambil warna kertas dinding anda (Android 12+)',
+  'skin.night':
+      'Malam (OLED)',
+  'skin.night_sub':
+      'Latar hitam pekat: jimat bateri, selesa pada waktu malam',
+  'skin.forces_dark':
+      'Tema ini sentiasa kekal gelap',
+  'pf.tab_form':
+      'Borang',
+  'pf.tab_sign':
+      'Tandatangan',
+  'pf.tab_digital':
+      'Digital',
+  'pf.title_unified':
+      'Borang & tandatangan — {name}',
+  'pf.pick_date':
+      'Pilih tarikh',
+  'pf.go_sign':
+      'Tandatangani dokumen / tambah tarikh',
+  'pf.add_signature':
+      'Tandatangan',
+  'pf.add_initials':
+      'Paraf',
+  'pf.add_date_stamp':
+      'Cop tarikh',
+  'pf.sign_empty_hint':
+      'Tambah Tandatangan, Paraf atau Cop tarikh di atas untuk diletakkan pada muka surat.',
+  'pf.sign_drag_hint':
+      'Seret untuk meletakkan; ubah saiz dengan peluncur di bawah.',
+  'pf.save_all':
+      'Simpan',
+  'pf.signed_warn':
+      'Dokumen ini ditandatangani secara digital. Menimpanya akan membatalkan tandatangan sedia ada; disyorkan menyimpan salinan.',
+  'pf.dsig_verify_title':
+      'Pengesahan tandatangan',
+  'pf.dsig_valid':
+      'Sah — dokumen tidak berubah sejak ditandatangani',
+  'pf.dsig_valid_partial':
+      'Sah — kemas kini tambahan ditambah selepas penandatanganan',
+  'pf.dsig_invalid':
+      'Tidak sah — dokumen diubah selepas ditandatangani',
+  'pf.dsig_self_signed':
+      'Sijil tandatangan sendiri',
+  'pf.dsig_issuer':
+      'Pengeluar: {name}',
+  'pf.dsig_sign_title':
+      'Tambah tandatangan digital (PAdES)',
+  'pf.dsig_self_opt':
+      'Identiti tandatangan sendiri',
+  'pf.dsig_pfx_opt':
+      'Import sijil (.pfx / .p12)',
+  'pf.dsig_signer_name':
+      'Nama penandatangan',
+  'pf.dsig_reason':
+      'Sebab (pilihan)',
+  'pf.dsig_location':
+      'Lokasi (pilihan)',
+  'pf.dsig_visible':
+      'Kotak tandatangan kelihatan',
+  'pf.dsig_last_page':
+      'Letakkan pada muka surat terakhir',
+  'pf.dsig_pick_pfx':
+      'Pilih fail sijil',
+  'pf.save':
+      'Isi dan simpan',
+  'pf.page':
+      'Muka surat {n}',
+  'pf.other_fields':
+      'Medan lain',
+  'pf.read_only':
+      'baca sahaja',
+  'pf.sign_tap':
+      'Ketik untuk menandatangani',
+  'pf.signed':
+      'Ditandatangani — dicop pada medan semasa disimpan',
+  'pf.flatten':
+      'Kunci selepas diisi',
+  'pf.flatten_sub':
+      'Nilai dilukis pada muka surat; tiada sesiapa boleh mengubahnya selepas itu. Tindakan ini tidak boleh dibatalkan.',
+  'pf.note':
+      'Borang diisi',
+  'pf.note_flat':
+      'Borang diisi dan dikunci',
+  'pf.no_fields':
+      'PDF ini tidak mempunyai medan borang yang boleh diisi.',
+  'pf.no_fields_hint':
+      'Untuk menambah teks gunakan alat teks dalam editor PDF; untuk menandatangani gunakan ⋮ → Tandatangan.',
+  'pf.failed':
+      'Tidak dapat mengisi borang: {error}',
+  'jr.undo_move':
+      'Buat asal pengalihan',
+  'jr.moved_back':
+      '{n} fail dikembalikan',
+  'jr.untrash':
+      'Pulihkan',
+  'jr.restored':
+      '{n} fail dipulihkan',
+  'jr.trash_created':
+      'Alih ke tong sampah',
+  'jr.trashed':
+      '{n} item dialihkan ke tong sampah',
+  'jr.undo_rename':
+      'Buat asal penamaan semula',
+  'jr.renamed_back':
+      '{n} fail mendapat semula nama lamanya',
+  'jr.headline_tags':
+      'Penandaan pintar memeriksa {files} fail dan mencadangkan {groups} tag ({n} cadangan)',
+  'jr.headline':
+      '{n} perubahan pada {files} fail',
+  'jr.status_none':
+      'Belum ada yang digunakan — fail belum bertag. Ketik cadangan yang salah untuk membuangnya (✕), kemudian "Gunakan semua".',
+  'jr.status_all':
+      'Selesai: {n} tag ditulis pada fail · {x} dibuang. Ketik mana-mana untuk menukar fikiran.',
+  'jr.status_some':
+      '{n} digunakan · {p} belum selesai · {x} dibuang.',
+  'jr.hint':
+      'Ketik lakaran kecil: buang ✕ / kekal ✓ · Tekan lama: buka fail',
+  'jr.by_tag':
+      'Mengikut tag',
+  'jr.by_file':
+      'Mengikut fail',
+  'jr.all_tags':
+      'Semua',
+  'jr.show_all':
+      'Tunjukkan semua ({n})',
+  'jr.apply_n':
+      'Gunakan ({n})',
+  'jr.n_files':
+      '{n} fail',
+  'jr.n_applied':
+      '{n} digunakan',
+  'jr.n_pending':
+      '{n} dicadangkan',
+  'jr.n_rejected':
+      '{n} dibuang',
+  'jr.state_applied':
+      'bertag',
+  'jr.state_pending':
+      'dicadangkan — belum digunakan',
+  'jr.state_rejected':
+      'dibuang',
+  'jr.remove_one_hint':
+      'Cadangan dipadam daripada senarai ini; fail dikekalkan',
+  'jr.empty':
+      'Tugas ini tidak meninggalkan perubahan yang direkodkan pada fail.',
+  'jr.summary':
+      '{groups} kumpulan · {files} fail · {applied} digunakan · {pending} belum selesai',
+  'jr.apply_all':
+      'Gunakan semua ({n})',
+  'jr.undo_all':
+      'Buat asal semua',
+  'jr.apply':
+      'Gunakan',
+  'jr.rename_tag':
+      'Namakan semula tag',
+  'jr.remove_tag':
+      'Buang tag',
+  'jr.remove_tag_body':
+      'Buang tag "{tag}" daripada {n} fail tugas ini? Fail tidak dipadam.',
+  'jr.remove_one':
+      'Buang daripada fail ini',
+  'jr.move_files':
+      'Alihkan fail ke folder',
+  'jr.moved':
+      '{n} fail dialihkan',
+  'jr.nothing_to_move':
+      'Tiada fail yang tinggal untuk dialihkan',
+  'jr.missing':
+      'Fail sudah tidak wujud',
+  'pp.dsign_sub':
+      'Tandatangan PKCS#7; disahkan oleh Adobe/Chrome',
+  'pp.region_hint':
+      'Seret untuk melukis kotak; ketik kotak untuk membuangnya',
+  'pp.region_hint_crop':
+      'Seret untuk melukis kawasan yang dikekalkan',
+  'pp.redact_sub':
+      'Benar-benar membuang teks dan imej',
+  'pp.to_xlsx_sub':
+      'Baris/lajur dikesan; muka surat terpilih atau semua',
+  'pp.to_docx_sub':
+      'Baris, inden, saiz fon dan pemisah muka surat',
+  'pp.pdfa_sub':
+      'Arkib jangka panjang (PDF/A-2b)',
+  'pp.compare_sub':
+      'Perbezaan teks dan visual',
+  'pp.permissions_sub':
+      'Hadkan cetak/salin/edit',
+  'pp.outline_sub':
+      'Tambah, namakan semula, susun semula, inden',
+  'pp.outline_rename':
+      'Edit penanda buku',
+  'pp.stamp_sub':
+      'Diluluskan, Draf, Sulit, Salinan diperakui…',
+  'pp.numbering_sub':
+      'Muka surat n / N, Rom, nombor Bates',
+  'pp.compress_hard_sub':
+      'Penjimatan besar pada PDF imbasan/imej',
+  'pp.studio_sub':
+      'Pilih, putar, padam, gandakan dan susun semula muka surat',
+  'pp.studio_insert_file':
+      'Sisipkan muka surat daripada fail',
+  'pp.studio_insert_image':
+      'Sisipkan muka surat daripada imej',
+  'pp.studio_insert_scan':
+      'Imbas dan sisipkan muka surat',
+  'pp.blank_sub':
+      'Belakang kosong dalam imbasan',
 };
