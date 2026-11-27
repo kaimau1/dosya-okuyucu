@@ -1831,3 +1831,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - "Değdiği yeri sil": bir çizginin ortasından geçince ikiye bölünüyor, kalan parçaların kalınlığı/rengi değişmiyor; "Çizgiyi sil"de bütün çizgi gidiyor. Fotoğrafta eğri çizginin BOŞ köşesine değmek artık silmemeli.
 - S Pen (varsa): yan düğme basılıyken ya da ters uçla sürükleyince araç değişmeden siliyor mu (PDF ve fotoğraf).
 - Kaydet → dosyayı yeniden aç: çizimler (kesilmiş parçalar dahil) yerinde ve kalıcı mı; PDF düzenleyicinin Çiz sekmesinden "Uygula" da aynı.
+
+## B21 — Fotoğraf düzenleyici: İşaretle kip sırası, büyük görüntü alanı, Seç'te kaydırma, Boyut önizlemesi (2026-11-27, dal faz-oto-B21-foto-menu) — yazıldı, cihazda doğrulanmadı
+- İşaretle: üst sırada Seç · Çiz · Bulanıklaştır · Pikselleştir · Yazı · Şekil adları KESİLMEDEN görünüyor mu (dar ekranda da; ad gerekirse küçülür). "Çiz" altında kalem tepsisi + renkler + ayar düğmesi; "Şekil" altında Ok/Çizgi/Dikdörtgen/Elips.
+- Ayar düğmesi kalınlık + saydamlık sırasını açıp kapıyor mu; kapalıyken fotoğraf alanı öncekinden belirgin büyük mü (alt sekme çubuğu da inceldi).
+- "İki parmakla yakınlaştır" ipucu yalnız ilk girişte tuvalin üstünde çıkıp ilk dokunuşta kayboluyor mu; Yazı ve Bulanıklaştır ipuçları da birer kez.
+- Seç kipinde: yakınlaştır → boşluğa tek parmakla sürükle = görüntü kayıyor; bir işarete dokunup sürükle = işaret taşınıyor. Kalem kipinde tek parmak yine çiziyor.
+- Boyut: Genişlik/Yükseklik koyu zeminde okunuyor, etiket üstte; seçenekler sarılıyor ("1600 px" kesik değil). %50/%25 seçince "Önce/Sonra" büyüteçlerinde fark görünüyor, "Dosya ≈ … KB" yarım saniye içinde geliyor; kaydedilen dosyanın boyu tahminle aynı mı. Seçimler arasında hızlı geçerken takılma var mı.

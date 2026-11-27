@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -12,9 +13,11 @@ import '../core/edit/edit_session.dart';
 import '../core/edit/ink_logic.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
-import '../core/theme.dart' show OverlayBar;
+import '../core/motion.dart';
+import '../core/theme.dart' show Gap, OverlayBar, Radii;
 import '../core/user_error.dart';
 import '../models/media_resize.dart' show aspectChoices, longEdgeChoices;
+import '../services/fm/fs_scan.dart' show FsPaths;
 import '../services/image_edit.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_action_sheet.dart';
@@ -45,11 +48,25 @@ class ImageEditScreen extends StatefulWidget {
         MaterialPageRoute(builder: (_) => ImageEditScreen(path: path)),
       );
 
+  /// **Tek parmak görüntüyü kaydırır mı?** (B21, kullanıcı 2026-11-27: "Seç
+  /// kipinde tek parmakla kaydırma çalışmıyor"). Yalnız yakınlaştırılmışken;
+  /// parmak bir şey çizmiyorsa (kırpma, kalem, şekil…) ve bir işaret ya da
+  /// tutamak yakalamadıysa.
+  static bool oneFingerPans({
+    required bool drawsOnCanvas,
+    required bool grabbedMark,
+    required double zoom,
+  }) =>
+      zoom > 1.01 && !drawsOnCanvas && !grabbedMark;
+
   @override
   State<ImageEditScreen> createState() => _ImageEditScreenState();
 }
 
 enum _Tab { crop, adjust, filter, markup, size }
+
+/// İşaretle'nin üst sırasındaki kip (B21); araç [_Tool]'dan türetilir.
+enum _Mode { select, draw, blur, pixelate, text, shape }
 
 /// İşaretleme aracı; [MarkKind] dışındakiler: seç ve silgi.
 enum _Tool {
@@ -85,6 +102,27 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   final _widthCtl = TextEditingController();
   final _heightCtl = TextEditingController();
   _Tool _tool = _Tool.pen;
+  _Tool _lastShape = _Tool.arrow;
+
+  /// İşaretle'de kalınlık/saydamlık sırası açık mı (B21: varsayılan kapalı,
+  /// fotoğrafa yer kalsın).
+  bool _strokeOpen = false;
+
+  /// Tuvalin üstündeki bir kezlik ipucu (çeviri anahtarı); oturumda her
+  /// ipucu bir kez ([_hintsShown]).
+  String? _hint;
+  static final _hintsShown = <String>{};
+
+  /// Boyut büyütecinin kenarı (dp).
+  static const _loupe = 64.0;
+
+  /// Boyut önizlemesi (B21): seçim değişince [Motion.previewDefer] sonra BİR
+  /// kez üretilir — küçültülmüş çıktı (GPU) + kodlanmış bayt (izolat).
+  Timer? _sizeTimer;
+  ImageEdits? _sizeReq;
+  ui.Image? _sizeOut;
+  ImageEdits? _sizeOutFor;
+  int? _sizeBytes;
   Color _color = const Color(0xFFE53935);
   double _stroke = 0.012; // kısa kenara oranlı kalınlık
   double _opacity = 1;
@@ -126,6 +164,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   double _vs = 1;
   Offset _vo = Offset.zero;
   bool _viewGesture = false;
+  int _viewPointers = 0;
   double _vsStart = 1;
   Offset _voStart = Offset.zero, _focalStart = Offset.zero;
   Size _avail = Size.zero;
@@ -217,6 +256,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     _proxy?.dispose();
     _thumb?.dispose();
     _sharp?.dispose();
+    _sizeTimer?.cancel();
+    _sizeOut?.dispose();
     _liveTick.dispose();
     _widthCtl.dispose();
     _heightCtl.dispose();
@@ -301,6 +342,15 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
         MarkKind.blur || MarkKind.pixelate => _stroke * 5,
         MarkKind.highlighter => _stroke * 2.5,
         _ => _stroke,
+      };
+
+  _Mode get _mode => switch (_tool) {
+        _Tool.select => _Mode.select,
+        _Tool.pen || _Tool.highlighter || _Tool.eraser => _Mode.draw,
+        _Tool.blur => _Mode.blur,
+        _Tool.pixelate => _Mode.pixelate,
+        _Tool.text => _Mode.text,
+        _Tool.arrow || _Tool.line || _Tool.rect || _Tool.ellipse => _Mode.shape,
       };
 
   ImageMark? get _selected =>
@@ -628,12 +678,28 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   void _gestureStart(ScaleStartDetails d) {
     // Önce/sonra açıkken tuvale dokunmak düzenlemeye döner.
     if (_showOriginal) setState(() => _showOriginal = false);
+    if (_hint != null) setState(() => _hint = null);
+    _viewPointers = d.pointerCount;
     _viewGesture = d.pointerCount > 1;
     if (_viewGesture) return _viewStart(d.localFocalPoint);
-    if (_tab == _Tab.crop && !_showOriginal) {
+    final crop = _tab == _Tab.crop;
+    if (crop) {
       _cropStart(d.localFocalPoint);
     } else if (_tab == _Tab.markup) {
       _markStart(d.localFocalPoint);
+    }
+    // Seç kipinde (ve Ayarla/Filtreler/Boyut'ta) boşluğa değen tek parmak
+    // yakınlaştırılmış görüntüyü kaydırır (B21).
+    if (ImageEditScreen.oneFingerPans(
+      drawsOnCanvas: crop ||
+          (_tab == _Tab.markup &&
+              _tool != _Tool.select &&
+              _tool != _Tool.text),
+      grabbedMark: _selDrag != _SelDrag.none || _tempErase,
+      zoom: _vs,
+    )) {
+      _viewGesture = true;
+      _viewStart(d.localFocalPoint);
     }
   }
 
@@ -641,9 +707,15 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     if (d.pointerCount > 1 && !_viewGesture) {
       _cancelTool();
       _viewGesture = true;
+      _viewPointers = d.pointerCount;
       _viewStart(d.localFocalPoint);
     }
     if (_viewGesture) {
+      // Parmak eklenip kalkınca odak sıçramasın: başlangıç yeniden alınır.
+      if (d.pointerCount != _viewPointers) {
+        _viewPointers = d.pointerCount;
+        _viewStart(d.localFocalPoint);
+      }
       final c = _avail.center(Offset.zero);
       final vs = (_vsStart * d.scale).clamp(1.0, 8.0);
       setState(() {
@@ -760,6 +832,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
         scrolledUnderElevation: 0,
       ),
       navigationBarTheme: NavigationBarThemeData(
+        // 80 → 64 dp (B21): fotoğrafa yer.
+        height: 64,
         backgroundColor: dark.surfaceContainerLow,
         indicatorColor: dark.secondaryContainer,
         iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
@@ -893,6 +967,8 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
                 setState(() {
                   _tab = _Tab.values[i];
                   _sel = null;
+                  _hint = null;
+                  if (_tab == _Tab.markup) _showHint('ied.zoom_hint');
                 });
                 if (_tab == _Tab.size) _syncSizeFields();
               },

@@ -5699,6 +5699,20 @@ const Map<String, String> _id = {
       'Lukis di atas yang ingin disembunyikan (wajah, pelat nomor, nomor identitas) — tidak dapat dipulihkan dari berkas yang disimpan.',
   'ied.zoom_hint':
       'Cubit untuk memperbesar · ketuk dua kali untuk menyesuaikan',
+  'ied.draw':
+      'Gambar',
+  'ied.shape':
+      'Bentuk',
+  'ied.stroke_settings':
+      'Ketebalan dan opasitas',
+  'ied.size_before':
+      'Sebelum',
+  'ied.size_after':
+      'Sesudah',
+  'ied.size_estimate':
+      'Berkas ≈ {size}',
+  'ied.size_estimating':
+      'Menghitung ukuran berkas…',
   'rs.presets':
       'Prasetel',
   'rs.preset_profile':

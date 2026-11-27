@@ -5704,6 +5704,20 @@ const Map<String, String> _ms = {
       'Lukis di atas apa yang ingin disembunyikan (muka, plat nombor, nombor pengenalan) — tidak boleh dipulihkan daripada fail yang disimpan.',
   'ied.zoom_hint':
       'Cubit untuk zum · ketik dua kali untuk muat',
+  'ied.draw':
+      'Lukis',
+  'ied.shape':
+      'Bentuk',
+  'ied.stroke_settings':
+      'Ketebalan dan kelegapan',
+  'ied.size_before':
+      'Sebelum',
+  'ied.size_after':
+      'Selepas',
+  'ied.size_estimate':
+      'Fail ≈ {size}',
+  'ied.size_estimating':
+      'Mengira saiz fail…',
   'rs.presets':
       'Pratetap',
   'rs.preset_profile':

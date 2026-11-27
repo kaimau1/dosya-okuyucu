@@ -51,4 +51,24 @@ const Map<String, (String, String, String)> _t18 = {
     'Pinch to zoom · double-tap to fit',
     'قرّب بإصبعين · انقر مرتين للملاءمة',
   ),
+  // B21 (2026-11-27): İşaretle kip sırası ve Boyut önizlemesi.
+  'ied.draw': ('Çiz', 'Draw', 'رسم'),
+  'ied.shape': ('Şekil', 'Shape', 'شكل'),
+  'ied.stroke_settings': (
+    'Kalınlık ve saydamlık',
+    'Thickness and opacity',
+    'السماكة والعتامة',
+  ),
+  'ied.size_before': ('Önce', 'Before', 'قبل'),
+  'ied.size_after': ('Sonra', 'After', 'بعد'),
+  'ied.size_estimate': (
+    'Dosya ≈ {size}',
+    'File ≈ {size}',
+    'الملف ≈ {size}',
+  ),
+  'ied.size_estimating': (
+    'Dosya boyutu hesaplanıyor…',
+    'Calculating file size…',
+    'جارٍ حساب حجم الملف…',
+  ),
 };

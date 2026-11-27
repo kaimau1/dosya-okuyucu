@@ -58,6 +58,10 @@ abstract final class Motion {
   /// H10.2): kısa işte pencere yanıp sönmesin.
   static const busyDefer = Duration(milliseconds: 300);
 
+  /// Zamanlayıcı (hareket değil): seçim durulunca ağır önizleme bir kez
+  /// üretilir (fotoğraf düzenleyici Boyut önizlemesi + dosya boyu, B21).
+  static const previewDefer = Duration(milliseconds: 350);
+
   /// Görünüm son bu süre içinde kıpırdadıysa parmak değişi süren bir
   /// fırlatmayı durdurmak içindir (PDF; çubukları açıp kapamaz).
   static const flingStopWindow = Duration(milliseconds: 60);
