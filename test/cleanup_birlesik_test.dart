@@ -209,22 +209,30 @@ void main() {
       await tester.pumpWidget(wrap(const CleanupScreen()));
       await tester.pump();
 
-      // Kopyalar aracı ayrı satır değil; kopya kartında.
-      expect(find.byKey(const ValueKey('clean-dup-groups')), findsOneWidget);
+      // Kopyalar aracı ayrı satır değil; kopya satırının ayrıntısında.
       expect(find.byKey(const ValueKey('clean-tool-dupes')), findsNothing);
+      final dupCard = find.byKey(const ValueKey('clean-card-duplicates'));
+      await tester.tap(
+          find.descendant(of: dupCard, matching: find.byType(Text)).first);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('clean-dup-groups')), findsOneWidget);
+
+      // B18: benzer kareler Yer aç listesinin kendi satırı (İncele grubu);
+      // en iyi kare (a) önerilmez, yalnız fazlası (b).
+      expect(find.byKey(const ValueKey('clean-card-similar')), findsOneWidget);
+      expect(find.text('${FsPaths.humanSize(2 * mb)} · 1 grup'),
+          findsOneWidget);
+      final simCb = tester
+          .widget<Checkbox>(find.byKey(const ValueKey('clean-cb-similar')));
+      expect(simCb.value, isFalse, reason: 'İncele: önceden seçilmez');
 
       await tester.dragUntilVisible(find.byKey(const ValueKey('clean-deep')),
           find.byType(ListView), const Offset(0, -200));
       await tester.pump();
-      expect(find.byKey(const ValueKey('clean-deep-chat')), findsOneWidget);
-      expect(find.byKey(const ValueKey('clean-deep-similar')), findsOneWidget);
       expect(find.byKey(const ValueKey('clean-deep-content')), findsOneWidget);
+      expect(find.byKey(const ValueKey('clean-deep-similar')), findsNothing);
       // Klasör haritası yalnız Bellek Analizi'nde.
       expect(find.text('Klasör haritası'), findsNothing);
-      // Benzer taramasının sonucu satırda yazar.
-      expect(
-          find.text('1 dosya · ${FsPaths.humanSize(2 * mb)} temizlenebilir'),
-          findsOneWidget);
     });
 
     testWidgets('"Grupları tek tek incele" aynı grupları YENİDEN TARAMADAN açar',
@@ -248,6 +256,10 @@ void main() {
           ));
 
       await tester.pumpWidget(wrap(const CleanupScreen()));
+      await tester.pump();
+      final dupCard = find.byKey(const ValueKey('clean-card-duplicates'));
+      await tester.tap(
+          find.descendant(of: dupCard, matching: find.byType(Text)).first);
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey('clean-dup-groups')));
       await tester.pump();

@@ -10941,4 +10941,24 @@ const Map<String, String> _ms = {
       'Penukaran terpotong: output {out} s, sumber {src} s. Fail asal tidak disentuh.',
   'vt.unreadable_output':
       'Video yang ditukar tidak dapat dibaca (output rosak) — fail asal tidak disentuh.',
+  'clean.safe_main':
+      'Selamat dibebaskan',
+  'clean.review_line':
+      'Wajar disemak: {size}',
+  'clean.free_after':
+      'Ruang kosong selepas pilihan dibersihkan: {before} → {after} (+{delta})',
+  'clean.groups_n':
+      '{n} kumpulan',
+  'clean.files_n':
+      '{n} fail',
+  'clean.similar_detail':
+      'Gambar yang hampir sama dalam {n} kumpulan. Gambar terbaik setiap kumpulan disimpan; hanya lebihannya dicadangkan.',
+  'clean.chat_media':
+      'Media sembang',
+  'clean.chat_media_detail':
+      '{n} fail yang mungkin tidak diperlukan dalam folder WhatsApp dan Telegram: pelekat, GIF, media lama dan pendua.',
+  'clean.why_similar':
+      'Tiada yang dipilih terlebih dahulu; ketik untuk menyemak mengikut kumpulan. Gambar terbaik tidak pernah dipadam.',
+  'clean.why_chat_media':
+      'Tiada yang dipilih terlebih dahulu; ketik untuk menyemak mengikut jenis. Dipindah ke tong sampah, boleh dipulihkan.',
 };

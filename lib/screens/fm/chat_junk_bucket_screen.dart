@@ -25,7 +25,12 @@ class ChatJunkBucketScreen extends StatefulWidget {
   /// Hepsi seçili gelsin mi? (Yalnız bir kopyanın kesin kaldığı kovalar.)
   final bool safeByDefault;
 
-  ChatJunkBucketScreen({super.key, required ChatJunkBucket bucket})
+  /// Yer aç'ın seçimi (B18): verilirse işaretler oraya yazılır ve önceden
+  /// hiçbir şey seçilmez (Yer aç'ta sohbet medyası "İncele" grubunda).
+  final Set<String>? picks;
+
+  ChatJunkBucketScreen(
+      {super.key, required ChatJunkBucket bucket, this.picks})
       : files = bucket.files,
         titleKey = bucket.kind.labelKey,
         reasonKey = bucket.kind.reasonKey,
@@ -38,7 +43,7 @@ class ChatJunkBucketScreen extends StatefulWidget {
     required this.titleKey,
     required this.reasonKey,
     this.safeByDefault = false,
-  });
+  }) : picks = null;
 
   @override
   State<ChatJunkBucketScreen> createState() => _ChatJunkBucketScreenState();
@@ -50,9 +55,8 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
   /// Seçili yollar. Güvenli kovada (birebir kopyalar — bir kopya korunuyor)
   /// hepsi açık gelir; fotoğraf içeren kovalarda HİÇBİRİ seçili gelmez.
   /// Yanlışlıkla silinen anı geri gelmez; bu kural projede sabit.
-  late final Set<String> _selected = widget.safeByDefault
-      ? {for (final e in _files) e.path}
-      : <String>{};
+  late final Set<String> _selected = widget.picks ??
+      (widget.safeByDefault ? {for (final e in _files) e.path} : <String>{});
 
   int get _selectedBytes => _files
       .where((e) => _selected.contains(e.path))
@@ -71,7 +75,8 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
                 ? null
                 : () => setState(() {
                       if (allSelected) {
-                        _selected.clear();
+                        // Paylaşılan seçimde öteki kovalar silinmesin.
+                        _selected.removeAll(_files.map((e) => e.path));
                       } else {
                         _selected.addAll(_files.map((e) => e.path));
                       }
@@ -179,7 +184,7 @@ class _ChatJunkBucketScreenState extends State<ChatJunkBucketScreen> {
         for (final e in _files)
           if (!_selected.contains(e.path)) e,
       ];
-      _selected.clear();
+      _selected.removeAll(chosen.map((e) => e.path));
     });
   }
 }
