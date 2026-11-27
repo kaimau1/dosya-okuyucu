@@ -6731,4 +6731,425 @@ const Map<String, String> _id = {
       'Pindai dan sisipkan halaman',
   'pp.blank_sub':
       'Sisi belakang kosong pada hasil pindai',
+// ── pp-cj-sb-clean-apk-suc-apps ──
+  'pp.crop_sub':
+      'Halaman terpilih atau semua',
+  'pp.fit_a4_sub':
+      'Menyamakan ukuran halaman yang bercampur',
+  'pp.profile_sub':
+      'Nama, email, telepon, alamat',
+  'pp.form_create_sub':
+      'Teks, kotak centang, bidang tanda tangan',
+  'pp.ocr_layer_sub':
+      'Menambahkan lapisan teks tak terlihat pada halaman hasil pindai',
+  'pp.images_to_pdf_sub':
+      'Pilih banyak gambar → satu PDF',
+  'pp.pdf_to_images_sub':
+      'Halaman terpilih atau semua ke folder JPEG',
+  'pp.web_to_pdf_sub':
+      'Masukkan alamat, simpan sebagai PDF A4',
+  'pp.office_to_pdf_sub':
+      'Teks, judul, dan tabel dipertahankan',
+  'pp.signatures_sub':
+      'Tanda tangan/paraf tersimpan, paraf tiap halaman, tanggal, stempel',
+  'pp.crop_margins_hint':
+      'Teks memenuhi layar; diingat untuk dokumen ini',
+  'pp.crop_one_column':
+      'Hanya dalam tampilan satu kolom',
+  'pp.paged_hint':
+      'Halaman pas di layar; ketuk tepi atau geser',
+  'pp.meta_sub':
+      'Judul, penulis, subjek, kata kunci',
+  'pp.meta_title':
+      'Judul',
+  'pp.meta_author':
+      'Penulis',
+  'pp.meta_subject':
+      'Subjek',
+  'pp.meta_keywords':
+      'Kata kunci',
+  'pp.layers_sub':
+      'Tampilkan atau sembunyikan lapisan',
+  'pp.xfdf_out_sub':
+      'Pindahkan sorotan dan catatan ke aplikasi lain',
+  'pp.xfdf_in_sub':
+      'Tambahkan sorotan dan catatan dari aplikasi lain',
+  'cj.title':
+      'Pembersihan media obrolan',
+  'cj.job_title':
+      'Memindai media obrolan',
+  'cj.job_name':
+      'Pemindaian media obrolan',
+  'cj.rescan':
+      'Pindai lagi',
+  'cj.step_listing':
+      'Mendaftar berkas…',
+  'cj.step_found':
+      'Ditemukan {n} berkas obrolan',
+  'cj.step_duplicates':
+      'Mencari salinan identik…',
+  'cj.step_sorting':
+      'Mengurutkan…',
+  'cj.step_none':
+      'Tidak ada media obrolan ditemukan',
+  'cj.step_clean':
+      'Tidak ada yang tampak tidak perlu',
+  'cj.step_summary':
+      '{n} berkas · {size} dapat dibebaskan',
+  'cj.scanned':
+      '{n} berkas obrolan · {size}',
+  'cj.summary':
+      '{n} di antaranya ({percent}%) tampak tidak perlu · {size}',
+  'cj.summary_none':
+      'Tidak ada tumpukan yang tidak perlu.',
+  'cj.disclaimer':
+      '“Tidak perlu” hanyalah dugaan: siapa pengirim berkas atau artinya bagi Anda tidak dapat dibaca dari berkas. Tidak ada yang dihapus sendiri — Anda yang memutuskan.',
+  'cj.tiny_threshold':
+      'Batas gambar kecil (di bawah ini dianggap “diteruskan”)',
+  'cj.empty_no_media':
+      'Folder WhatsApp/Telegram tidak ditemukan di ponsel ini.',
+  'cj.empty_clean':
+      'Tidak ada tumpukan tidak perlu di media obrolan Anda 🎉',
+  'cj.kind_duplicate':
+      'Salinan identik',
+  'cj.kind_sticker':
+      'Stiker',
+  'cj.kind_gif':
+      'Animasi (GIF)',
+  'cj.kind_profile':
+      'Foto profil',
+  'cj.kind_tiny':
+      'Gambar kecil',
+  'cj.kind_sent':
+      'Berkas yang saya kirim',
+  'cj.kind_stale':
+      'Lama tidak dibuka',
+  'cj.why_duplicate':
+      'Salinan tambahan dari berkas yang sama. Salinan tertua di setiap set DIPERTAHANKAN.',
+  'cj.why_sticker':
+      'Hiasan obrolan, bukan kenangan yang layak disimpan.',
+  'cj.why_gif':
+      'Biasanya lelucon atau animasi yang diteruskan.',
+  'cj.why_profile':
+      'Cache foto profil yang diunduh aplikasi.',
+  'cj.why_tiny':
+      'Gambar sekecil ini kebanyakan poster, meme, atau gambar “selamat pagi” yang diteruskan; foto yang diambil dengan ponsel lebih besar.',
+  'cj.why_sent':
+      'Salinan kedua dari berkas yang Anda kirim; aslinya mungkin masih ada di galeri atau unduhan.',
+  'cj.why_stale':
+      'Tidak dibuka maupun disentuh selama berbulan-bulan.',
+  'cj.select_all':
+      'Pilih semua',
+  'cj.select_none':
+      'Hapus pilihan',
+  'cj.nothing_selected':
+      'Pilih berkas yang akan dihapus',
+  'cj.selected_summary':
+      '{n} berkas dipilih · {size}',
+  'cj.bucket_empty':
+      'Tidak ada berkas tersisa di kelompok ini.',
+  'cj.similar_title':
+      'Jepretan serupa (WhatsApp)',
+  'cj.similar_body':
+      'Tumpukan yang tidak dapat ditemukan kelompok: lima jepretan dari momen yang sama, salinan terkompresi ulang. Ini mendekode gambar, jadi butuh waktu.',
+  'sb.title':
+      'Uji akurasi',
+  'sb.sub':
+      'Ukur akurasi penataan pintar dengan berkas Anda sendiri',
+  'sb.intro':
+      'Beri label hingga {n} berkas dengan kategori yang benar; label dibandingkan dengan jawaban Penataan pintar. Label tetap di ponsel ini dan laporan tidak memuat nama berkas.',
+  'sb.category':
+      'Kategori',
+  'sb.subtype':
+      'Subjenis',
+  'sb.date':
+      'Tanggal (bulan + tahun)',
+  'sb.gate':
+      'gerbang {g}',
+  'sb.no_data':
+      'tidak ada data',
+  'sb.measured':
+      '{m} dari {n} berkas memiliki jawaban Penataan pintar',
+  'sb.threshold':
+      'Ambang keyakinan yang disarankan: {t}',
+  'sb.threshold_none':
+      'Jawaban benar belum cukup untuk menyarankan ambang',
+  'sb.ask_missing':
+      'Tanyakan yang belum ({n})',
+  'sb.ask_all':
+      'Tanya semua lagi',
+  'sb.asking':
+      'Bertanya {done}/{total}',
+  'sb.stop':
+      'Berhenti',
+  'sb.asked':
+      '{ok} jawaban diterima, {failed} gagal',
+  'sb.stopped':
+      'Dihentikan: {reason}',
+  'sb.add':
+      'Beri label berkas',
+  'sb.full':
+      'Anda dapat memberi label paling banyak {n} berkas',
+  'sb.labelled':
+      'Berlabel',
+  'sb.empty':
+      'Belum ada label. Mulai dengan "Beri label berkas".',
+  'sb.pick_title':
+      'Berkas yang diberi label',
+  'sb.pick_empty':
+      'Tidak ada berkas dalam cakupan penataan pintar',
+  'sb.row':
+      'Benar: {truth} · Pintar: {model}',
+  'sb.row_none':
+      'tanpa jawaban',
+  'sb.label_title':
+      'Label yang benar',
+  'sb.sub_skip':
+      'Jangan beri skor',
+  'sb.sub_other':
+      'Tidak ada / lainnya',
+  'sb.date_label':
+      'Beri skor tanggal dokumen',
+  'sb.month':
+      'Bulan',
+  'sb.year':
+      'Tahun',
+  'sb.no_date':
+      'Tidak ada',
+  'sb.year_none':
+      'Tidak ada / lebih lama',
+  'sb.save':
+      'Simpan',
+  'sb.remove':
+      'Hapus label',
+  'sb.copy':
+      'Salin laporan',
+  'sb.copied':
+      'Laporan disalin (tanpa nama berkas)',
+  'sb.clear':
+      'Hapus semua label',
+  'sb.clear_ask':
+      'Hapus semua label? Berkas Anda tidak disentuh.',
+  'clean.trash':
+      'Kosongkan tempat sampah',
+  'clean.trash_detail':
+      '{n} item · berkas yang sudah dihapus',
+  'clean.duplicates':
+      'Bersihkan berkas duplikat',
+  'clean.duplicates_detail':
+      '{n} salinan tambahan · satu dari tiap grup dipertahankan',
+  'clean.stale_downloads':
+      'Unduhan lama',
+  'clean.stale_downloads_detail':
+      '{n} berkas · tidak dibuka 180+ hari',
+  'clean.apk':
+      'Berkas pemasang (APK)',
+  'clean.apk_detail':
+      '{n} berkas · tidak perlu setelah aplikasi terpasang',
+  'clean.big_videos':
+      'Video besar',
+  'clean.big_videos_detail':
+      '{n} video · di atas 100 MB (pilih satu per satu)',
+  'clean.finding_dupes':
+      'Mencari berkas duplikat (byte demi byte)…',
+  'clean.never_suggest':
+      'Jangan sarankan lagi',
+  'clean.never_suggest_file':
+      'Jangan sarankan berkas ini lagi',
+  'clean.app_backup':
+      'Cadangan aplikasi',
+  'clean.app_backup_detail':
+      '{n} berkas cadangan (.bak). Aplikasi TIDAK membutuhkannya untuk berjalan — ini salinan yang dibuat alat pencadangan. Menghapusnya tidak merusak aplikasi terpasang; Anda hanya kehilangan kemampuan memulihkan dari cadangan ini.',
+  'clean.verifying_sent':
+      'Memverifikasi berkas asli media terkirim…',
+  'clean.trash_copy_only':
+      'Pindahkan hanya salinan ini ke tempat sampah (aslinya tetap)',
+  'clean.bg_safe_apply':
+      'Pembersihan berlanjut di latar belakang jika Anda keluar',
+  'clean.done_freed':
+      '{size} dibebaskan · {n} item',
+  'clean.done_trash':
+      '{size} dibersihkan · {n} item dipindahkan ke tempat sampah (dapat dipulihkan)',
+  'clean.sort_size':
+      'Ukuran',
+  'clean.sort_date':
+      'Tanggal',
+  'clean.bg_safe':
+      'Pemindaian berlanjut di latar belakang jika Anda keluar',
+  'clean.done_card_sub_trash':
+      '{n} item dibersihkan. Apa pun yang dipindahkan ke tempat sampah dapat dipulihkan kapan saja.',
+  'clean.done_card_sub_perm':
+      '{n} item tidak perlu dibersihkan dengan aman.',
+  'clean.why_trash':
+      'Item yang sudah Anda hapus; mengosongkannya langsung membebaskan ruang.',
+  'clean.why_duplicates':
+      'Salinan asli tertua di setiap grup tidak disentuh; hanya salinan tambahan yang dihapus.',
+  'clean.why_temp_junk':
+      'Unduhan tidak lengkap & sisa sementara; menghapusnya tidak merusak aplikasi atau dokumen.',
+  'clean.why_app_cache':
+      'Gambar mini dibuat ulang saat diperlukan; tidak ada berkas pribadi yang disentuh.',
+  'clean.why_apk':
+      'Hanya paket pemasang; aplikasi dan data yang sudah terpasang tetap utuh.',
+  'clean.why_app_backup':
+      'Hanya arsip cadangan lama; aplikasi terpasang tetap berjalan normal.',
+  'clean.why_empty_folders':
+      'Hanya folder yang benar-benar kosong; dilewati jika ada berkas di dalamnya.',
+  'clean.why_chat_sent':
+      'Salinan obrolan terkirim; foto/video asli di perangkat sudah diverifikasi dan tetap aman.',
+  'clean.why_big_videos':
+      'Tidak dipilih sebelumnya. Anda dapat memperkecil ukuran tanpa menghapus agar video tetap ada.',
+  'clean.why_stale_downloads':
+      'Unduhan tidak dibuka selama 6 bulan; periksa satu per satu sebelum menghapus.',
+  'clean.why_old_screenshots':
+      'Tangkapan layar tidak disentuh selama 3 bulan; tinjau dan pilih satu per satu.',
+  'clean.why_old_large':
+      'Berkas besar tidak dibuka selama 1 tahun; hanya item yang Anda centang dipindahkan ke tempat sampah.',
+  'apk.share':
+      'Bagikan / simpan sebagai APK',
+  'apk.share_sub':
+      'Format, lokasi simpan, dan opsi berbagi',
+  'apk.save':
+      'Simpan APK langsung',
+  'apk.save_sub':
+      'Tanpa pertanyaan, ke Downloads/APK',
+  'apk.sheet_title':
+      'Ekspor APK',
+  'apk.dest':
+      'Lokasi simpan',
+  'apk.change':
+      'Ubah',
+  'apk.save_here':
+      'Simpan di sini',
+  'apk.do_both':
+      'Simpan dan bagikan',
+  'apk.do_share':
+      'Bagikan saja',
+  'apk.do_save':
+      'Simpan saja',
+  'apk.saved_in':
+      '{name} → {dir}',
+  'apk.split_base_note':
+      'Lebih kecil, tetapi mungkin gagal dipasang atau mogok di ponsel lain.',
+  'apk.extracting':
+      'Menyiapkan APK…',
+  'apk.not_found':
+      'Berkas APK aplikasi ini tidak dapat dibaca.',
+  'apk.failed':
+      'Tidak dapat mengekstrak APK: {error}',
+  'apk.split_title':
+      'Aplikasi ini dipasang dalam beberapa bagian',
+  'apk.split_body':
+      'Aplikasi yang dipasang dari Play disimpan sebagai base.apk ditambah bagian layar/bahasa/CPU ({n} bagian). Kode ada di base.apk tetapi pustaka dan sumber daya ada di bagian lain: base.apk saja mungkin gagal dipasang atau mogok saat dibuka.',
+  'apk.split_all':
+      'Semua bagian (.apks — disarankan)',
+  'apk.split_base':
+      'Hanya base.apk',
+  'apk.split_note':
+      'Semua bagian dalam satu berkas. Dipasang dengan satu ketukan di aplikasi ini; alat seperti SAI juga dapat membukanya.',
+  'apk.installing':
+      'Menyiapkan pemasangan…',
+  'apk.installed':
+      'Aplikasi terpasang',
+  'apk.install_aborted':
+      'Pemasangan dibatalkan',
+  'apk.install_permission':
+      'Izinkan pemasangan aplikasi tidak dikenal, lalu ketuk berkas lagi.',
+  'apk.install_no_apk':
+      'Tidak ada APK di dalam paket',
+  'apk.check_title':
+      'Pasang paket ini?',
+  'apk.check_app':
+      'Aplikasi: {name}\n{pkg}',
+  'apk.check_version':
+      'Versi: {v}',
+  'apk.check_installed':
+      'Versi terpasang: {v}',
+  'apk.check_sha':
+      'Tanda tangan (SHA-256):\n{fp}',
+  'apk.check_same':
+      'Tanda tangan cocok dengan aplikasi terpasang.',
+  'apk.check_unreadable':
+      'Tidak dapat membaca detail paket. Pasang paket hanya dari sumber tepercaya.',
+  'apk.check_install':
+      'Pasang',
+  'apk.install_failed':
+      'Pemasangan gagal: {error}',
+  'apk.extracting_name':
+      'Persiapan APK',
+  'suc.section':
+      'Kategori saya',
+  'suc.sub':
+      'Jelaskan kategori Anda sendiri; Penataan pintar menanyakan setiap berkas secara terpisah. Satu berkas dapat berada di beberapa kategori.',
+  'suc.empty':
+      'Belum ada kategori. Contoh: "Sewa" — kontrak sewa, kuitansi sewa, dan biaya pemeliharaan.',
+  'suc.add':
+      'Tambah kategori',
+  'suc.full':
+      'Anda dapat menambah paling banyak {n} kategori',
+  'suc.new_title':
+      'Kategori baru',
+  'suc.edit_title':
+      'Edit kategori',
+  'suc.name':
+      'Nama',
+  'suc.name_hint':
+      'mis. Sewa',
+  'suc.about':
+      'Apa cakupannya? (satu kalimat)',
+  'suc.about_hint':
+      'mis. Kontrak sewa, kuitansi sewa, dan slip biaya pemeliharaan',
+  'suc.icon':
+      'Ikon',
+  'suc.color':
+      'Warna',
+  'suc.try':
+      'Coba',
+  'suc.try_sub':
+      'Sebelum menyimpan, dicoba pada {n} berkas terakhir Anda; kecocokan akan terlihat.',
+  'suc.trying':
+      'Mencoba… {done}/{total}',
+  'suc.try_none':
+      'Tidak ada yang cocok di {n} berkas terakhir. Sesuaikan kalimat dan coba lagi.',
+  'suc.try_hits':
+      '{m} dari {n} berkas cocok',
+  'suc.try_stale':
+      'Nama atau kalimat berubah — coba lagi.',
+  'suc.no_files':
+      'Tidak ada berkas untuk dicoba',
+  'suc.matched':
+      'Cocok',
+  'suc.not_matched':
+      'Tidak cocok',
+  'suc.confirm':
+      'Hasilnya benar',
+  'suc.confirm_sub':
+      'Apakah yang cocok benar-benar termasuk di sini? Jika tidak, sesuaikan kalimat.',
+  'suc.save':
+      'Simpan',
+  'suc.save_need':
+      'Untuk menyimpan, coba dulu, lihat minimal satu kecocokan, dan konfirmasi hasilnya.',
+  'suc.apply':
+      'Terapkan ke berkas sebelumnya ({n})',
+  'suc.applying':
+      'Menerapkan… {done}/{total}',
+  'suc.applied':
+      '{n} berkas diperiksa, {m} cocok',
+  'suc.stopped':
+      'Dihentikan: {reason}',
+  'suc.stop':
+      'Berhenti',
+  'suc.count':
+      '{n} berkas',
+  'suc.pending':
+      '{n} berkas · {p} belum diperiksa',
+  'suc.menu':
+      'Opsi kategori',
+  'suc.edit':
+      'Edit',
+  'suc.delete_q':
+      'Hapus kategori "{name}"? Berkas tetap di tempatnya.',
+  'apps.not_found':
+      'Tidak ada aplikasi ditemukan',
+  'apps.sort_name':
+      'Menurut nama',
 };

@@ -6736,4 +6736,425 @@ const Map<String, String> _ms = {
       'Imbas dan sisipkan muka surat',
   'pp.blank_sub':
       'Belakang kosong dalam imbasan',
+// ── pp-cj-sb-clean-apk-suc-apps ──
+  'pp.crop_sub':
+      'Muka surat terpilih atau semua',
+  'pp.fit_a4_sub':
+      'Menyamakan saiz muka surat yang bercampur',
+  'pp.profile_sub':
+      'Nama, e-mel, telefon, alamat',
+  'pp.form_create_sub':
+      'Teks, kotak semak, medan tandatangan',
+  'pp.ocr_layer_sub':
+      'Menambah lapisan teks tidak kelihatan pada muka surat yang diimbas',
+  'pp.images_to_pdf_sub':
+      'Pilih banyak imej → satu PDF',
+  'pp.pdf_to_images_sub':
+      'Muka surat terpilih atau semua ke dalam folder JPEG',
+  'pp.web_to_pdf_sub':
+      'Masukkan alamat, simpan sebagai PDF A4',
+  'pp.office_to_pdf_sub':
+      'Teks, tajuk dan jadual dikekalkan',
+  'pp.signatures_sub':
+      'Tandatangan/paraf tersimpan, paraf setiap muka surat, tarikh, cop',
+  'pp.crop_margins_hint':
+      'Teks memenuhi skrin; diingati untuk dokumen ini',
+  'pp.crop_one_column':
+      'Hanya dalam paparan satu lajur',
+  'pp.paged_hint':
+      'Muka surat muat pada skrin; ketik tepi atau leret',
+  'pp.meta_sub':
+      'Tajuk, penulis, subjek, kata kunci',
+  'pp.meta_title':
+      'Tajuk',
+  'pp.meta_author':
+      'Penulis',
+  'pp.meta_subject':
+      'Subjek',
+  'pp.meta_keywords':
+      'Kata kunci',
+  'pp.layers_sub':
+      'Tunjukkan atau sembunyikan lapisan',
+  'pp.xfdf_out_sub':
+      'Alihkan serlahan dan nota ke aplikasi lain',
+  'pp.xfdf_in_sub':
+      'Tambah serlahan dan nota daripada aplikasi lain',
+  'cj.title':
+      'Pembersihan media sembang',
+  'cj.job_title':
+      'Mengimbas media sembang',
+  'cj.job_name':
+      'Imbasan media sembang',
+  'cj.rescan':
+      'Imbas semula',
+  'cj.step_listing':
+      'Menyenaraikan fail…',
+  'cj.step_found':
+      'Ditemui {n} fail sembang',
+  'cj.step_duplicates':
+      'Mencari salinan serupa…',
+  'cj.step_sorting':
+      'Mengisih…',
+  'cj.step_none':
+      'Tiada media sembang ditemui',
+  'cj.step_clean':
+      'Tiada yang kelihatan tidak perlu',
+  'cj.step_summary':
+      '{n} fail · {size} boleh dibebaskan',
+  'cj.scanned':
+      '{n} fail sembang · {size}',
+  'cj.summary':
+      '{n} daripadanya ({percent}%) kelihatan tidak perlu · {size}',
+  'cj.summary_none':
+      'Tiada longgokan yang tidak perlu.',
+  'cj.disclaimer':
+      '“Tidak perlu” hanyalah andaian: siapa penghantar fail atau maknanya bagi anda tidak boleh dibaca daripada fail. Tiada apa yang dipadam sendiri — anda yang memutuskan.',
+  'cj.tiny_threshold':
+      'Had imej kecil (di bawah ini dianggap “dimajukan”)',
+  'cj.empty_no_media':
+      'Folder WhatsApp/Telegram tidak ditemui pada telefon ini.',
+  'cj.empty_clean':
+      'Tiada longgokan tidak perlu dalam media sembang anda 🎉',
+  'cj.kind_duplicate':
+      'Salinan serupa',
+  'cj.kind_sticker':
+      'Pelekat',
+  'cj.kind_gif':
+      'Animasi (GIF)',
+  'cj.kind_profile':
+      'Foto profil',
+  'cj.kind_tiny':
+      'Imej kecil',
+  'cj.kind_sent':
+      'Fail yang saya hantar',
+  'cj.kind_stale':
+      'Lama tidak dibuka',
+  'cj.why_duplicate':
+      'Salinan tambahan fail yang sama. Salinan tertua dalam setiap set DIKEKALKAN.',
+  'cj.why_sticker':
+      'Hiasan sembang, bukan kenangan yang patut disimpan.',
+  'cj.why_gif':
+      'Biasanya jenaka atau animasi yang dimajukan.',
+  'cj.why_profile':
+      'Cache foto profil yang dimuat turun oleh aplikasi.',
+  'cj.why_tiny':
+      'Imej sekecil ini kebanyakannya poster, meme atau gambar “selamat pagi” yang dimajukan; foto yang diambil dengan telefon lebih besar.',
+  'cj.why_sent':
+      'Salinan kedua fail yang anda hantar; fail asal mungkin masih ada dalam galeri atau muat turun.',
+  'cj.why_stale':
+      'Tidak dibuka mahupun disentuh selama beberapa bulan.',
+  'cj.select_all':
+      'Pilih semua',
+  'cj.select_none':
+      'Kosongkan pilihan',
+  'cj.nothing_selected':
+      'Pilih fail untuk dipadam',
+  'cj.selected_summary':
+      '{n} fail dipilih · {size}',
+  'cj.bucket_empty':
+      'Tiada fail tinggal dalam kumpulan ini.',
+  'cj.similar_title':
+      'Bidikan serupa (WhatsApp)',
+  'cj.similar_body':
+      'Longgokan yang tidak dapat ditemui kumpulan: lima bidikan detik yang sama, salinan dimampatkan semula. Ia menyahkod imej, jadi mengambil masa.',
+  'sb.title':
+      'Ujian ketepatan',
+  'sb.sub':
+      'Ukur ketepatan penyusunan pintar dengan fail anda sendiri',
+  'sb.intro':
+      'Labelkan sehingga {n} fail dengan kategori yang betul; ia dibandingkan dengan jawapan Penyusunan pintar. Label kekal pada telefon ini dan laporan tidak mengandungi nama fail.',
+  'sb.category':
+      'Kategori',
+  'sb.subtype':
+      'Subjenis',
+  'sb.date':
+      'Tarikh (bulan + tahun)',
+  'sb.gate':
+      'get {g}',
+  'sb.no_data':
+      'tiada data',
+  'sb.measured':
+      '{m} daripada {n} fail mempunyai jawapan Penyusunan pintar',
+  'sb.threshold':
+      'Ambang keyakinan yang disyorkan: {t}',
+  'sb.threshold_none':
+      'Jawapan betul belum mencukupi untuk mencadangkan ambang',
+  'sb.ask_missing':
+      'Tanya yang belum ({n})',
+  'sb.ask_all':
+      'Tanya semua semula',
+  'sb.asking':
+      'Bertanya {done}/{total}',
+  'sb.stop':
+      'Henti',
+  'sb.asked':
+      '{ok} jawapan diterima, {failed} gagal',
+  'sb.stopped':
+      'Dihentikan: {reason}',
+  'sb.add':
+      'Labelkan fail',
+  'sb.full':
+      'Anda boleh melabel paling banyak {n} fail',
+  'sb.labelled':
+      'Berlabel',
+  'sb.empty':
+      'Belum ada label. Mulakan dengan "Labelkan fail".',
+  'sb.pick_title':
+      'Fail untuk dilabel',
+  'sb.pick_empty':
+      'Tiada fail dalam skop penyusunan pintar',
+  'sb.row':
+      'Betul: {truth} · Pintar: {model}',
+  'sb.row_none':
+      'tiada jawapan',
+  'sb.label_title':
+      'Label yang betul',
+  'sb.sub_skip':
+      'Jangan beri skor',
+  'sb.sub_other':
+      'Tiada / lain-lain',
+  'sb.date_label':
+      'Beri skor tarikh dokumen',
+  'sb.month':
+      'Bulan',
+  'sb.year':
+      'Tahun',
+  'sb.no_date':
+      'Tiada',
+  'sb.year_none':
+      'Tiada / lebih lama',
+  'sb.save':
+      'Simpan',
+  'sb.remove':
+      'Buang label',
+  'sb.copy':
+      'Salin laporan',
+  'sb.copied':
+      'Laporan disalin (tanpa nama fail)',
+  'sb.clear':
+      'Padam semua label',
+  'sb.clear_ask':
+      'Padam semua label? Fail anda tidak disentuh.',
+  'clean.trash':
+      'Kosongkan tong sampah',
+  'clean.trash_detail':
+      '{n} item · fail yang sudah dipadam',
+  'clean.duplicates':
+      'Bersihkan fail pendua',
+  'clean.duplicates_detail':
+      '{n} salinan tambahan · satu daripada setiap kumpulan dikekalkan',
+  'clean.stale_downloads':
+      'Muat turun lama',
+  'clean.stale_downloads_detail':
+      '{n} fail · tidak dibuka 180+ hari',
+  'clean.apk':
+      'Fail pemasang (APK)',
+  'clean.apk_detail':
+      '{n} fail · tidak diperlukan setelah aplikasi dipasang',
+  'clean.big_videos':
+      'Video besar',
+  'clean.big_videos_detail':
+      '{n} video · melebihi 100 MB (pilih satu demi satu)',
+  'clean.finding_dupes':
+      'Mencari fail pendua (bait demi bait)…',
+  'clean.never_suggest':
+      'Jangan cadangkan lagi',
+  'clean.never_suggest_file':
+      'Jangan cadangkan fail ini lagi',
+  'clean.app_backup':
+      'Sandaran aplikasi',
+  'clean.app_backup_detail':
+      '{n} fail sandaran (.bak). Aplikasi TIDAK memerlukannya untuk berjalan — ini salinan yang dibuat oleh alat sandaran. Memadamnya tidak merosakkan aplikasi yang dipasang; anda hanya kehilangan keupayaan memulihkan daripada sandaran ini.',
+  'clean.verifying_sent':
+      'Mengesahkan fail asal media yang dihantar…',
+  'clean.trash_copy_only':
+      'Alihkan hanya salinan ini ke tong sampah (fail asal kekal)',
+  'clean.bg_safe_apply':
+      'Pembersihan diteruskan di latar belakang jika anda keluar',
+  'clean.done_freed':
+      '{size} dibebaskan · {n} item',
+  'clean.done_trash':
+      '{size} dibersihkan · {n} item dialihkan ke tong sampah (boleh dipulihkan)',
+  'clean.sort_size':
+      'Saiz',
+  'clean.sort_date':
+      'Tarikh',
+  'clean.bg_safe':
+      'Imbasan diteruskan di latar belakang jika anda keluar',
+  'clean.done_card_sub_trash':
+      '{n} item dibersihkan. Apa-apa yang dialihkan ke tong sampah boleh dipulihkan pada bila-bila masa.',
+  'clean.done_card_sub_perm':
+      '{n} item tidak perlu dibersihkan dengan selamat.',
+  'clean.why_trash':
+      'Item yang sudah anda padam; mengosongkannya terus membebaskan ruang.',
+  'clean.why_duplicates':
+      'Fail asal tertua dalam setiap kumpulan tidak disentuh; hanya salinan tambahan yang dibuang.',
+  'clean.why_temp_junk':
+      'Muat turun tidak lengkap & sisa sementara; memadamnya tidak merosakkan aplikasi atau dokumen.',
+  'clean.why_app_cache':
+      'Lakaran kecil dijana semula apabila perlu; tiada fail peribadi disentuh.',
+  'clean.why_apk':
+      'Hanya pakej pemasang; aplikasi dan data yang sudah dipasang kekal utuh.',
+  'clean.why_app_backup':
+      'Hanya arkib sandaran lama; aplikasi yang dipasang terus berjalan seperti biasa.',
+  'clean.why_empty_folders':
+      'Hanya folder yang benar-benar kosong; dilangkau jika ada fail di dalamnya.',
+  'clean.why_chat_sent':
+      'Salinan sembang yang dihantar; foto/video asal pada peranti telah disahkan dan kekal selamat.',
+  'clean.why_big_videos':
+      'Tidak dipilih awal. Anda boleh mengecilkan saiz tanpa memadam supaya video anda kekal.',
+  'clean.why_stale_downloads':
+      'Muat turun tidak dibuka selama 6 bulan; semak satu demi satu sebelum membuang.',
+  'clean.why_old_screenshots':
+      'Tangkapan skrin tidak disentuh selama 3 bulan; semak dan pilih satu demi satu.',
+  'clean.why_old_large':
+      'Fail besar tidak dibuka selama 1 tahun; hanya item yang anda tandakan dialihkan ke tong sampah.',
+  'apk.share':
+      'Kongsi / simpan sebagai APK',
+  'apk.share_sub':
+      'Format, lokasi simpan dan pilihan perkongsian',
+  'apk.save':
+      'Simpan APK terus',
+  'apk.save_sub':
+      'Tanpa soalan, ke Downloads/APK',
+  'apk.sheet_title':
+      'Eksport APK',
+  'apk.dest':
+      'Lokasi simpan',
+  'apk.change':
+      'Tukar',
+  'apk.save_here':
+      'Simpan di sini',
+  'apk.do_both':
+      'Simpan dan kongsi',
+  'apk.do_share':
+      'Kongsi sahaja',
+  'apk.do_save':
+      'Simpan sahaja',
+  'apk.saved_in':
+      '{name} → {dir}',
+  'apk.split_base_note':
+      'Lebih kecil, tetapi mungkin gagal dipasang atau ranap pada telefon lain.',
+  'apk.extracting':
+      'Menyediakan APK…',
+  'apk.not_found':
+      'Fail APK aplikasi ini tidak dapat dibaca.',
+  'apk.failed':
+      'Tidak dapat mengekstrak APK: {error}',
+  'apk.split_title':
+      'Aplikasi ini dipasang dalam beberapa bahagian',
+  'apk.split_body':
+      'Aplikasi yang dipasang daripada Play disimpan sebagai base.apk serta bahagian skrin/bahasa/CPU ({n} bahagian). Kod ada dalam base.apk tetapi pustaka dan sumber ada dalam bahagian lain: base.apk sahaja mungkin gagal dipasang atau ranap semasa dibuka.',
+  'apk.split_all':
+      'Semua bahagian (.apks — disyorkan)',
+  'apk.split_base':
+      'base.apk sahaja',
+  'apk.split_note':
+      'Semua bahagian dalam satu fail. Dipasang dengan satu ketikan dalam aplikasi ini; alat seperti SAI juga boleh membukanya.',
+  'apk.installing':
+      'Menyediakan pemasangan…',
+  'apk.installed':
+      'Aplikasi dipasang',
+  'apk.install_aborted':
+      'Pemasangan dibatalkan',
+  'apk.install_permission':
+      'Benarkan pemasangan aplikasi tidak diketahui, kemudian ketik fail itu semula.',
+  'apk.install_no_apk':
+      'Tiada APK dalam pakej',
+  'apk.check_title':
+      'Pasang pakej ini?',
+  'apk.check_app':
+      'Aplikasi: {name}\n{pkg}',
+  'apk.check_version':
+      'Versi: {v}',
+  'apk.check_installed':
+      'Versi terpasang: {v}',
+  'apk.check_sha':
+      'Tandatangan (SHA-256):\n{fp}',
+  'apk.check_same':
+      'Tandatangan sepadan dengan aplikasi yang dipasang.',
+  'apk.check_unreadable':
+      'Tidak dapat membaca butiran pakej. Pasang pakej hanya daripada sumber yang dipercayai.',
+  'apk.check_install':
+      'Pasang',
+  'apk.install_failed':
+      'Pemasangan gagal: {error}',
+  'apk.extracting_name':
+      'Penyediaan APK',
+  'suc.section':
+      'Kategori saya',
+  'suc.sub':
+      'Huraikan kategori anda sendiri; Penyusunan pintar bertanya tentang setiap fail secara berasingan. Satu fail boleh berada dalam beberapa kategori.',
+  'suc.empty':
+      'Belum ada kategori. Contoh: "Sewa" — kontrak sewa, resit sewa dan yuran penyelenggaraan.',
+  'suc.add':
+      'Tambah kategori',
+  'suc.full':
+      'Anda boleh menambah paling banyak {n} kategori',
+  'suc.new_title':
+      'Kategori baharu',
+  'suc.edit_title':
+      'Edit kategori',
+  'suc.name':
+      'Nama',
+  'suc.name_hint':
+      'cth. Sewa',
+  'suc.about':
+      'Apa skopnya? (satu ayat)',
+  'suc.about_hint':
+      'cth. Kontrak sewa, resit sewa dan slip yuran penyelenggaraan',
+  'suc.icon':
+      'Ikon',
+  'suc.color':
+      'Warna',
+  'suc.try':
+      'Cuba',
+  'suc.try_sub':
+      'Sebelum menyimpan, ia dicuba pada {n} fail terakhir anda; padanan akan kelihatan.',
+  'suc.trying':
+      'Mencuba… {done}/{total}',
+  'suc.try_none':
+      'Tiada yang sepadan dalam {n} fail terakhir. Laraskan ayat dan cuba lagi.',
+  'suc.try_hits':
+      '{m} daripada {n} fail sepadan',
+  'suc.try_stale':
+      'Nama atau ayat berubah — cuba lagi.',
+  'suc.no_files':
+      'Tiada fail untuk dicuba',
+  'suc.matched':
+      'Sepadan',
+  'suc.not_matched':
+      'Tidak sepadan',
+  'suc.confirm':
+      'Hasilnya betul',
+  'suc.confirm_sub':
+      'Adakah yang sepadan benar-benar tergolong di sini? Jika tidak, laraskan ayat.',
+  'suc.save':
+      'Simpan',
+  'suc.save_need':
+      'Untuk menyimpan, cuba dahulu, lihat sekurang-kurangnya satu padanan, dan sahkan hasilnya.',
+  'suc.apply':
+      'Gunakan pada fail terdahulu ({n})',
+  'suc.applying':
+      'Menggunakan… {done}/{total}',
+  'suc.applied':
+      '{n} fail disemak, {m} sepadan',
+  'suc.stopped':
+      'Dihentikan: {reason}',
+  'suc.stop':
+      'Henti',
+  'suc.count':
+      '{n} fail',
+  'suc.pending':
+      '{n} fail · {p} belum disemak',
+  'suc.menu':
+      'Pilihan kategori',
+  'suc.edit':
+      'Edit',
+  'suc.delete_q':
+      'Padam kategori "{name}"? Fail kekal di tempatnya.',
+  'apps.not_found':
+      'Tiada aplikasi ditemui',
+  'apps.sort_name':
+      'Mengikut nama',
 };
