@@ -284,7 +284,7 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     final dest = link.dest;
     if (dest != null) {
       _pdfJumpTarget = dest.pageNumber;
-      await _pdfController.goToDest(dest);
+      await _goToDestBelowBars(dest);
       return;
     }
     final url = link.url;
@@ -337,7 +337,22 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
         doc: doc, outline: outline, currentPage: _pdfPage);
     if (dest == null || !mounted) return;
     _pdfJumpTarget = dest.pageNumber;
-    await _pdfController.goToDest(dest);
+    await _goToDestBelowBars(dest);
+  }
+
+  /// Hedefi ekranın en üstüne değil, üst çubuğun ALTINA koyar. pdfrx hedef
+  /// noktayı görünümün y=0'ına yerleştiriyor; görünüm durum/üst çubuğun
+  /// arkasından başladığı için başlık çubuğun altında kalıyordu (kullanıcı
+  /// ekran görüntüsü, İçindekiler → "MESCİDLERDE İŞLENEN MÜNKERÂT").
+  Future<void> _goToDestBelowBars(PdfDest dest) async {
+    final m = _pdfController.calcMatrixForDest(dest);
+    if (m == null) {
+      await _pdfController.goToDest(dest);
+      return;
+    }
+    final top = MediaQuery.paddingOf(context).top + kToolbarHeight + 8;
+    await _pdfController.goTo(m..leftTranslateByDouble(0, top, 0, 1),
+        duration: Motion.short);
   }
 
   /// **Sesli not** (KALANLAR A10, yalnız kişisel derleme): dikte hemen
