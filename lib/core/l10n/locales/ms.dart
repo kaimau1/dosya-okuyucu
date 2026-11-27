@@ -4149,4 +4149,666 @@ const Map<String, String> _ms = {
       'Tidak dapat membuang perlindungan kata laluan dokumen: {error}\n\nJika ada kata laluan sebenar, buangnya melalui alat PDF dan cuba lagi.',
   'pe.wait_busy':
       'Sebentar — {what}',
+// ── enum ──
+  'enum.res_long_edge':
+      'Sisi terpanjang',
+  'enum.res_aspect':
+      'Nisbah bidang',
+  'enum.res_file_size':
+      'Saiz fail',
+  'enum.layout_list':
+      'Senarai',
+  'enum.layout_detail':
+      'Senarai besar',
+  'enum.layout_grid2':
+      '2 lajur',
+  'enum.layout_grid3':
+      '3 lajur',
+  'enum.layout_grid4':
+      '4 lajur',
+  'enum.layout_grid5':
+      '5 lajur',
+  'enum.layout_list_desc':
+      'Satu baris · nama, saiz dan tarikh',
+  'enum.layout_detail_desc':
+      'Satu baris · pratonton besar',
+  'enum.layout_grid2_desc':
+      'Jubin terbesar',
+  'enum.layout_grid3_desc':
+      'Seimbang — lalai',
+  'enum.layout_grid4_desc':
+      'Muat lebih banyak fail',
+  'enum.layout_grid5_desc':
+      'Paparan terpadat',
+  'enum.photo_group_day':
+      'Hari',
+  'enum.photo_group_month':
+      'Bulan',
+  'enum.photo_group_year':
+      'Tahun',
+  'enum.open_with_ask':
+      'Tanya setiap kali',
+  'enum.open_with_in_app':
+      'Pemain dalam aplikasi',
+  'enum.open_with_external':
+      'Aplikasi lain',
+  'enum.open_with_ask_desc':
+      'Anda akan ditanya aplikasi mana yang digunakan semasa membuka video/audio/imej',
+  'enum.open_with_in_app_desc':
+      'Fail dibuka dalam pemain aplikasi ini',
+  'enum.open_with_external_desc':
+      'Pemain/galeri lalai telefon anda akan dibuka',
+  'enum.cat_folder':
+      'Folder',
+  'enum.cat_image':
+      'Foto',
+  'enum.cat_video':
+      'Video',
+  'enum.cat_audio':
+      'Audio',
+  'enum.cat_document':
+      'Dokumen',
+  'enum.cat_archive':
+      'Arkib',
+  'enum.cat_apk':
+      'Fail pemasang',
+  'enum.cat_other':
+      'Lain-lain',
+  'enum.sort_name':
+      'Mengikut nama',
+  'enum.sort_date':
+      'Mengikut tarikh',
+  'enum.sort_size':
+      'Mengikut saiz',
+  'enum.sort_type':
+      'Mengikut jenis',
+  'enum.doc_pdf':
+      'PDF',
+  'enum.doc_text':
+      'Teks',
+  'enum.doc_spreadsheet':
+      'Excel',
+  'enum.doc_word':
+      'Word',
+  'enum.doc_slides':
+      'Slaid',
+  'enum.doc_image':
+      'Imej',
+  'enum.doc_unknown':
+      'Tidak diketahui',
+  'enum.bucket_camera':
+      'Kamera',
+  'enum.bucket_screenshot':
+      'Tangkapan skrin',
+  'enum.bucket_whatsapp':
+      'WhatsApp',
+  'enum.bucket_telegram':
+      'Telegram',
+  'enum.bucket_instagram':
+      'Instagram',
+  'enum.bucket_download':
+      'Muat turun',
+  'enum.bucket_bluetooth':
+      'Bluetooth',
+  'enum.bucket_other':
+      'Lain-lain',
+  'enum.dl_queued':
+      'Dalam baris gilir',
+  'enum.dl_running':
+      'Memuat turun',
+  'enum.dl_paused':
+      'Dijeda',
+  'enum.dl_completed':
+      'Selesai',
+  'enum.dl_failed':
+      'Gagal',
+  'enum.dl_canceled':
+      'Dibatalkan',
+  'enum.age_fresh':
+      'baharu',
+  'enum.age_recent':
+      'bulan ini',
+  'enum.age_old':
+      'lama',
+  'enum.age_ancient':
+      'sangat lama',
+  'enum.age_unknown':
+      'tidak diketahui',
+  'enum.date_any':
+      'Bila-bila masa',
+  'enum.date_today':
+      'Hari ini',
+  'enum.date_week':
+      '7 hari lepas',
+  'enum.date_month':
+      '30 hari lepas',
+  'enum.date_year':
+      'Tahun lepas',
+  'enum.date_custom':
+      'Julat tersuai',
+  'enum.size_any':
+      'Semua',
+  'enum.size_tiny':
+      'Di bawah 1 MB',
+  'enum.size_small':
+      '1 – 10 MB',
+  'enum.size_medium':
+      '10 – 100 MB',
+  'enum.size_large':
+      'Melebihi 100 MB',
+  'enum.chat_image':
+      'Imej',
+  'enum.chat_video':
+      'Video',
+  'enum.chat_document':
+      'Dokumen',
+  'enum.chat_audio':
+      'Audio',
+  'enum.chat_voice':
+      'Mesej suara',
+  'enum.chat_sticker':
+      'Pelekat',
+  'enum.chat_gif':
+      'Animasi (GIF)',
+  'enum.chat_other':
+      'Lain-lain',
+  'enum.chat_dir_any':
+      'Semua',
+  'enum.chat_dir_received':
+      'Diterima',
+  'enum.chat_dir_sent':
+      'Dihantar',
+  'enum.res_keep':
+      'Kekalkan seperti sedia ada',
+  'enum.res_480':
+      '480p',
+  'enum.res_540':
+      '540p',
+  'enum.res_720':
+      '720p (HD)',
+  'enum.res_1080':
+      '1080p (Full HD)',
+  'enum.res_percent':
+      'Peratus',
+  'enum.res_custom':
+      'Piksel (lebar × tinggi)',
+  'enum.imgfmt_keep':
+      'Kekal sama',
+  'enum.imgfmt_jpeg':
+      'JPEG (kecil)',
+  'enum.imgfmt_png':
+      'PNG (tanpa kehilangan)',
+  'enum.imgfmt_webp':
+      'WebP (terkecil)',
+  'enum.vq_very_low':
+      'Fail terkecil',
+  'enum.vq_low':
+      'Kecil',
+  'enum.vq_medium':
+      'Seimbang',
+  'enum.vq_high':
+      'Kualiti tinggi',
+  'enum.doc_invoice':
+      'Invois',
+  'enum.doc_receipt':
+      'Resit',
+  'enum.doc_id':
+      'Kad pengenalan / dokumen rasmi',
+  'enum.doc_health':
+      'Dokumen kesihatan',
+  'enum.doc_bank':
+      'Bank / kewangan',
+  'enum.doc_contract':
+      'Kontrak',
+  'enum.doc_education':
+      'Pendidikan / nota',
+  'enum.doc_screenshot':
+      'Tangkapan skrin',
+  'enum.doc_ticket':
+      'Tiket / tempahan',
+  'enum.doc_other':
+      'Lain-lain',
+  'enum.org_type':
+      'Mengikut jenis',
+  'enum.org_date':
+      'Mengikut tarikh',
+  'enum.org_source':
+      'Mengikut sumber',
+  'enum.org_type_desc':
+      'Imej, Video, Dokumen…',
+  'enum.org_date_desc':
+      '2026-07, 2026-06…',
+  'enum.org_source_desc':
+      'Kamera, WhatsApp, Muat turun…',
+  'enum.job_queued':
+      'Dalam baris gilir',
+  'enum.job_running':
+      'Sedang berjalan',
+  'enum.job_done':
+      'Selesai',
+  'enum.job_failed':
+      'Gagal',
+  'enum.job_cancelled':
+      'Dibatalkan',
+  'enum.job_interrupted':
+      'Terganggu',
+  'enum.sim_strict':
+      'Sangat ketat',
+  'enum.sim_normal':
+      'Normal',
+  'enum.sim_loose':
+      'Longgar',
+  'enum.sim_strict_desc':
+      'Imej yang hampir serupa (salinan dimampatkan semula).',
+  'enum.sim_normal_desc':
+      'Imej yang sama dengan saiz diubah, dikodkan semula atau dipangkas sedikit.',
+  'enum.sim_loose_desc':
+      'Turut memadankan bidikan berturut-turut daripada babak yang sama; padanan palsu mungkin berlaku.',
+  'enum.op_move':
+      'Alih',
+  'enum.op_copy':
+      'Salin',
+  'enum.op_delete':
+      'Padam',
+  'enum.op_rename':
+      'Namakan semula',
+  'enum.op_organize':
+      'Susun secara automatik',
+  'wp.tab':
+      'Alat',
+  'wp.failed':
+      'Tidak dapat diselesaikan: {error}',
+  'wp.style_update':
+      'Kemas kini gaya',
+  'wp.style_updated':
+      'Gaya dikemas kini supaya sepadan dengan pilihan',
+  'wp.theme':
+      'Tema dokumen',
+  'wp.theme_applied':
+      'Tema digunakan',
+  'wp.page_setup':
+      'Penyediaan halaman',
+  'wp.page_applied':
+      'Penyediaan halaman digunakan',
+// ── wp-pse-mp ──
+  'wp.print_preview':
+      'Pratonton cetakan',
+  'wp.custom':
+      'Tersuai',
+  'wp.title_page':
+      'Muka surat pertama berbeza',
+  'wp.equation':
+      'Persamaan',
+  'wp.equation_edit':
+      'Edit persamaan',
+  'wp.equation_latex':
+      'Persamaan (LaTeX)',
+  'wp.tbl_merge':
+      'Gabung',
+  'wp.tbl_merge_right':
+      'Dengan sel di sebelah kanan',
+  'wp.tbl_merge_down':
+      'Dengan sel di bawah',
+  'wp.tbl_borders':
+      'Sempadan',
+  'wp.tbl_b_all':
+      'Semua sempadan',
+  'wp.tbl_b_outer':
+      'Sempadan luar',
+  'wp.tbl_b_inner':
+      'Sempadan dalam',
+  'wp.tbl_b_none':
+      'Tiada sempadan',
+  'wp.tbl_autofit':
+      'Suai muat automatik',
+  'wp.tbl_fit_content':
+      'Suai muat kandungan',
+  'wp.tbl_fit_window':
+      'Suai muat tetingkap',
+  'wp.tbl_fit_fixed':
+      'Lajur sama lebar tetap',
+  'wp.tbl_sort':
+      'Isih',
+  'wp.tbl_sort_asc_h':
+      'A→Z (kekalkan baris pengepala)',
+  'wp.tbl_sort_desc_h':
+      'Z→A (kekalkan baris pengepala)',
+  'wp.tbl_sort_asc':
+      'A→Z (semua baris)',
+  'wp.tbl_sort_desc':
+      'Z→A (semua baris)',
+  'wp.tbl_err_no_table':
+      'Kursor tidak berada dalam sel jadual',
+  'wp.compare_done':
+      'Perbezaan daripada versi lama ditandakan sebagai perubahan yang dijejaki',
+  'wp.compare_encrypted':
+      'Dokumen yang dipilih dilindungi kata laluan',
+  'wp.combine_done':
+      'Dokumen disisipkan selepas kursor',
+  'wp.review_none':
+      'Tiada komen atau perubahan yang dijejaki',
+  'wp.review_comment':
+      'Komen',
+  'wp.review_prev':
+      'Sebelumnya',
+  'wp.review_next':
+      'Seterusnya',
+  'wp.password':
+      'Kata laluan dokumen',
+  'wp.password_change':
+      'Tukar kata laluan',
+  'wp.password_open':
+      'Dokumen ini dilindungi kata laluan',
+  'wp.password_unsupported':
+      'Jenis penyulitan ini tidak disokong (Word lama)',
+  'wp.dictate_prompt':
+      'Bertutur — teks dimasukkan pada kedudukan kursor',
+  'wp.export':
+      'Eksport',
+  'wp.textbox':
+      'Kotak teks',
+  'wp.shape':
+      'Bentuk',
+  'wp.cover':
+      'Muka surat kulit',
+  'wp.toc_title':
+      'Kandungan',
+  'wp.toc_none':
+      'Tiada tajuk — gunakan gaya Tajuk 1–3 untuk jadual kandungan',
+  'wp.toc_done':
+      'Jadual kandungan dikemas kini',
+  'wp.section_break':
+      'Pemisah bahagian',
+  'wp.field':
+      'Medan',
+  'wp.cross_ref':
+      'Rujukan silang',
+  'wp.bibliography':
+      'Bibliografi',
+  'wp.para_border':
+      'Sempadan',
+  'wp.outline':
+      'Anak tetingkap navigasi',
+  'wp.thumbnails':
+      'Lakaran kecil muka surat',
+  'wp.stats':
+      'Bilangan dan masa bacaan',
+  'wp.export_pdf':
+      'PDF (fon dibenamkan)',
+  'wp.export_docx_fonts':
+      'Word dengan fon terbenam (.docx)',
+  'wp.export_save':
+      'Simpan ke Muat turun',
+  'wp.stats_pages':
+      'Muka surat (anggaran)',
+  'wp.stats_headings':
+      'Tajuk',
+  'wp.stats_reading':
+      'Masa bacaan',
+  'wp.stats_speaking':
+      'Masa pertuturan',
+  'wp.stats_selection':
+      'Perkataan dalam pilihan',
+  'wp.stats_min':
+      '{n} min',
+  'wp.stats_under_min':
+      'Kurang daripada 1 min',
+  'wp.bdr_box':
+      'Kotak',
+  'wp.bdr_top':
+      'Sempadan atas',
+  'wp.bdr_bottom':
+      'Sempadan bawah',
+  'wp.bdr_shade':
+      'Lorekan kelabu',
+  'wp.bdr_none':
+      'Tiada sempadan',
+  'wp.textbox_text':
+      'Teks dalam kotak',
+  'wp.img_wrap':
+      'Balut teks',
+  'wp.cover_title':
+      'Tajuk',
+  'wp.cover_subtitle':
+      'Subtajuk',
+  'wp.cover_author':
+      'Penulis',
+  'wp.cover_date':
+      'Tarikh',
+  'wp.cover_done':
+      'Muka surat kulit ditambah di permulaan',
+  'wp.sb_next':
+      'Muka surat seterusnya',
+  'wp.sb_cont':
+      'Berterusan',
+  'wp.sb_even':
+      'Muka surat genap',
+  'wp.sb_odd':
+      'Muka surat ganjil',
+  'wp.sb_done':
+      'Pemisah bahagian disisipkan',
+  'wp.xref_text':
+      'Teks tajuk',
+  'wp.xref_page':
+      'Nombor muka surat',
+  'wp.xref_above':
+      'Atas / bawah',
+  'wp.xref_is_above':
+      'di atas',
+  'wp.xref_is_below':
+      'di bawah',
+  'wp.src_author':
+      'Penulis (Nama akhir, Nama pertama)',
+  'wp.src_year':
+      'Tahun',
+  'wp.src_title':
+      'Tajuk',
+  'wp.src_publisher':
+      'Penerbit / URL',
+  'wp.export_odt':
+      'Teks OpenDocument (.odt)',
+  'wp.export_rtf':
+      'Teks kaya (.rtf)',
+  'wp.export_md':
+      'Markdown (.md)',
+  'wp.export_txt':
+      'Teks biasa (.txt)',
+  'wp.reader_theme':
+      'Latar belakang',
+  'wp.outline_fold':
+      'Kembangkan / runtuhkan',
+  'pse.step_paragraph':
+      'Perenggan diedit',
+  'pse.refused_glyph':
+      'Fon dokumen tidak mempunyai sebahagian huruf ini; perenggan tidak diubah.',
+  'pse.refused':
+      'Perenggan ini tidak dapat diedit dalam versi ini; dokumen tidak diubah.',
+  'pse.undo_failed':
+      'Tidak dapat dibatalkan; dokumen tidak berubah.',
+  'pse.save_as_docs':
+      'Salinan dalam Dokumen',
+  'pse.readonly_fallback':
+      'Lokasi ini tidak boleh ditulis. Satu salinan disimpan dalam Dokumen: {name}',
+  'pse.save_failed':
+      'Tidak dapat menyimpan: {error}',
+  'pse.version_failed':
+      'Tidak dapat memulihkan versi: {error}',
+  'pse.recover_none':
+      'Suntingan tidak dapat digunakan semula pada dokumen ini.',
+  'pse.locked_body':
+      'Pemilik dokumen telah menyekat perubahan pada kandungannya. Pengeditan memerlukan kata laluan pemilik.',
+  'pse.owner_wrong':
+      'Itu bukan kata laluan pemilik dokumen ini.',
+  'pse.comment_reopen':
+      'Buka semula',
+  'pse.comment_resolve':
+      'Tandakan selesai',
+  'pse.crop_bottom':
+      'Bawah',
+  'pse.crop_left':
+      'Kiri',
+  'pse.crop_right':
+      'Kanan',
+  'pse.crop_top':
+      'Atas',
+  'pse.step_push':
+      'Teks di bawah ditolak ke bawah',
+  'pse.step_link':
+      'Pautan diubah',
+  'pse.font_kind_doc':
+      'Fon dalam dokumen ini',
+  'pse.font_kind_match':
+      'Paling hampir dengan fon dokumen',
+  'pse.font_kind_pkg':
+      'Fon dalam aplikasi',
+  'pse.obj_align_left':
+      'Jajar kiri',
+  'pse.obj_align_hcenter':
+      'Tengah secara mendatar',
+  'pse.obj_align_right':
+      'Jajar kanan',
+  'pse.obj_align_top':
+      'Jajar atas',
+  'pse.obj_align_vcenter':
+      'Tengah secara menegak',
+  'pse.obj_align_bottom':
+      'Jajar bawah',
+  'pse.obj_distribute_h':
+      'Agihkan secara mendatar',
+  'pse.obj_distribute_v':
+      'Agihkan secara menegak',
+  'pse.step_align':
+      'Dijajarkan',
+  'pse.locked_ocr':
+      'Teks ini ialah lapisan pengecaman tidak kelihatan bagi muka surat yang diimbas; tulisannya sendiri berupa imej. Jika anda menggantinya, tulisan lama ditutup dengan warna kertas dan teks yang dikenali dimasukkan ke dalam kotak yang boleh diedit.',
+  'pse.ocr_ai_failed':
+      'AI tidak dapat membacanya; teks hasil pengecaman pada peranti digunakan.',
+  'pse.step_ocr_replace':
+      'Tulisan hasil imbasan diganti',
+  'pse.locked_rtl':
+      'Teks kanan-ke-kiri (Arab, Ibrani) belum boleh diedit terus: penyambungan huruf akan rosak. Anda boleh menambah kotak teks di atasnya.',
+  'pse.mk_arrow':
+      'Anak panah',
+  'pse.mk_ellipse':
+      'Elips',
+  'pse.mk_eraser':
+      'Pemadam',
+  'pse.mk_highlight':
+      'Serlah',
+  'pse.mk_ink':
+      'Pen',
+  'pse.mk_marker':
+      'Penanda',
+  'pse.mk_cloud':
+      'Awan',
+  'pse.step_stamp':
+      'Cop ditambah',
+  'pse.step_freetext':
+      'Teks ditambah',
+  'pse.step_cloud':
+      'Awan ditambah',
+  'pse.mk_line':
+      'Garisan',
+  'pse.mk_other':
+      'Anotasi',
+  'pse.mk_rect':
+      'Segi empat tepat',
+  'pse.mk_squiggly':
+      'Beralun',
+  'pse.mk_strikeout':
+      'Garis lorek',
+  'pse.mk_underline':
+      'Garis bawah',
+  'pse.mode_line':
+      'Mod baris',
+  'pse.mode_paragraph':
+      'Mod perenggan',
+  'pse.step_crop':
+      'Imej dipangkas',
+  'pse.step_delete':
+      'Dipadam',
+  'pse.step_duplicate':
+      'Diduplikasi',
+  'pse.step_flatten':
+      'Anotasi diratakan',
+  'pse.step_format':
+      'Pemformatan diubah',
+  'pse.step_image':
+      'Imej ditambah',
+  'pse.step_image_replace':
+      'Imej diganti',
+  'pse.step_ink':
+      'Lukisan ditambah',
+  'pse.step_list':
+      'Senarai diubah',
+  'pse.step_markup':
+      'Penanda',
+  'pse.step_markup_remove':
+      'Penanda dialih keluar',
+  'pse.step_move':
+      'Dialihkan',
+  'pse.step_note':
+      'Nota',
+  'pse.step_order':
+      'Susunan diubah',
+  'pse.step_paste':
+      'Ditampal',
+  'pse.step_replace':
+      'Cari dan ganti',
+  'pse.step_resize':
+      'Saiz diubah',
+  'pse.step_rotate':
+      'Diputar',
+  'pse.step_shape':
+      'Bentuk ditambah',
+  'pse.step_textbox':
+      'Kotak teks ditambah',
+  'pse.tool_image':
+      'Imej',
+  'pse.tool_markup':
+      'Penanda',
+  'pse.tool_text':
+      'Teks',
+  'pse.kvkk_custom':
+      'Perkataan tersuai',
+  'pse.kvkk_email':
+      'E-mel',
+  'pse.kvkk_iban':
+      'IBAN',
+  'pse.kvkk_phone':
+      'Telefon',
+  'pse.kvkk_tckn':
+      'Nombor ID Turki',
+  'pse.step_redact':
+      'Disamarkan',
+  'pse.shapes':
+      'Bentuk',
+  'pse.text_lines':
+      'Baris teks',
+  'pse.stroke_thin':
+      'Nipis',
+  'pse.stroke_medium':
+      'Sederhana',
+  'pse.stroke_thick':
+      'Tebal',
+  'pse.stroke_bold':
+      'Sangat tebal',
+  'pse.mode_label_para':
+      'Mod: Perenggan',
+  'pse.mode_label_line':
+      'Mod: Baris',
+  'pse.size_reset':
+      'Asal',
+  'mp.playlist_save':
+      'Simpan senarai main',
+  'mp.playlist_open':
+      'Buka senarai main',
+  'mp.playlist_saved':
+      '{name} disimpan',
+  'mp.playlist_loaded':
+      '{n} lagu dimuatkan ({missing} hilang)',
+  'mp.playlist_empty':
+      'Tiada fail yang boleh dimainkan dalam senarai',
+  'mp.playlist_name':
+      'Nama senarai main',
 };
