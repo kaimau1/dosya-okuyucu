@@ -1706,4 +1706,664 @@ const Map<String, String> _id = {
       'Terapkan ukuran',
   'pse.text_guide_rich':
       'Ketuk kotak teks mana pun untuk mengedit · seret gagang untuk memindahkan atau melebarkan',
+  'excel.act_saved':
+      'Diedit',
+  'excel.add_sheet':
+      'Tambah lembar',
+  'excel.alignment':
+      'Perataan',
+  'excel.autosum':
+      'Jumlah otomatis',
+  'excel.autosum_empty':
+      'Tidak ada angka di sebelahnya untuk dijumlahkan — ketik rentangnya sendiri.',
+  'excel.border_all':
+      'Semua garis tepi',
+  'excel.border_bottom':
+      'Garis tepi bawah',
+  'excel.border_none':
+      'Tanpa garis tepi',
+  'excel.border_outline':
+      'Garis luar',
+  'excel.border_top':
+      'Garis tepi atas',
+  'excel.borders':
+      'Garis tepi',
+  'excel.cell_content':
+      'Isi sel',
+  'excel.cell_label':
+      'Sel {ref}',
+  'excel.cell_menu':
+      'Menu sel',
+  'excel.cell_reference':
+      'Referensi sel',
+  'excel.cell_reference_hint':
+      'mis. C15',
+  'excel.cell_styles':
+      'Gaya sel',
+  'excel.clear_contents':
+      'Hapus isi',
+  'excel.clear_formats':
+      'Hapus format',
+  'excel.clipboard_empty':
+      'Papan klip kosong.',
+  'excel.col_left_short':
+      'Kol +←',
+  'excel.col_right_short':
+      'Kol +→',
+  'excel.color_auto':
+      'Otomatis',
+  'excel.color_none':
+      'Tanpa warna',
+  'excel.column':
+      'Kolom',
+  'excel.column_n':
+      'Kolom {c}',
+  'excel.column_width':
+      'Lebar kolom…',
+  'excel.column_width_of':
+      'Lebar kolom {col}',
+  'excel.cond_contains':
+      'Teks berisi',
+  'excel.cond_equal':
+      'Sama dengan',
+  'excel.cond_format':
+      'Pemformatan bersyarat',
+  'excel.cond_greater':
+      'Lebih besar dari',
+  'excel.cond_less':
+      'Lebih kecil dari',
+  'excel.cond_text':
+      'Teks',
+  'excel.cond_value':
+      'Nilai',
+  'excel.copied_stat':
+      'Disalin: {v}',
+  'excel.copy_done':
+      '{n} sel disalin',
+  'excel.csv_encoding':
+      'Pengodean CSV',
+  'excel.csv_failed':
+      'Ekspor CSV gagal: {error}',
+  'excel.csv_format_lost':
+      'Format tidak disimpan di CSV — hanya nilai yang disimpan',
+  'excel.csv_formula_guard':
+      'Perlindungan rumus',
+  'excel.csv_formula_guard_sub':
+      'Teks yang diawali = + - @ diberi tanda \' di depan agar tidak berjalan sebagai perintah',
+  'excel.csv_legacy':
+      'Excel Turki lama / Notepad',
+  'excel.csv_save_xlsx':
+      'Simpan sebagai XLSX',
+  'excel.csv_utf8':
+      'UTF-8 (disarankan)',
+  'excel.csv_utf8_sub':
+      'Excel modern / Google Sheets',
+  'excel.custom_sort':
+      'Urutan kustom',
+  'excel.cut':
+      'Potong',
+  'excel.cut_done':
+      '{n} sel dipotong',
+  'excel.decimal_less':
+      'Kurangi desimal',
+  'excel.decimal_more':
+      'Tambah desimal',
+  'excel.default_value':
+      'Bawaan ({value})',
+  'excel.delete_col':
+      'Hapus kolom',
+  'excel.delete_row':
+      'Hapus baris',
+  'excel.delete_sheet':
+      'Hapus lembar',
+  'excel.delete_sheet_confirm':
+      'Hapus lembar “{name}” beserta seluruh isinya?',
+  'excel.dup_done':
+      '{n} baris duplikat dihapus; tersisa {m} baris unik',
+  'excel.dup_has_header':
+      'Data saya punya judul kolom',
+  'excel.dup_needs_range':
+      'Pilih rentang beberapa baris',
+  'excel.dup_none':
+      'Tidak ada baris duplikat',
+  'excel.dup_run':
+      'Hapus duplikat',
+  'excel.dup_title':
+      'Hapus duplikat',
+  'excel.duplicate_sheet':
+      'Gandakan',
+  'excel.fc_bottom':
+      'Bawah',
+  'excel.fc_category':
+      'Kategori',
+  'excel.fc_code':
+      'Kode format',
+  'excel.fc_control':
+      'Kontrol teks',
+  'excel.fc_decimals':
+      'Tempat desimal',
+  'excel.fc_general':
+      'Umum',
+  'excel.fc_horizontal':
+      'Horizontal',
+  'excel.fc_indent':
+      'Indentasi',
+  'excel.fc_line':
+      'Garis',
+  'excel.fc_line_color':
+      'Warna garis',
+  'excel.fc_middle':
+      'Tengah',
+  'excel.fc_negative':
+      'Angka negatif',
+  'excel.fc_presets':
+      'Preset',
+  'excel.fc_rotation':
+      'Orientasi',
+  'excel.fc_sample':
+      'Contoh',
+  'excel.fc_style':
+      'Gaya huruf',
+  'excel.fc_symbol':
+      'Simbol',
+  'excel.fc_symbol_pos':
+      'Posisi simbol',
+  'excel.fc_tab_fill':
+      'Isian',
+  'excel.fc_tab_font':
+      'Huruf',
+  'excel.fc_tab_number':
+      'Angka',
+  'excel.fc_thousands':
+      'Pemisah ribuan',
+  'excel.fc_top':
+      'Atas',
+  'excel.fc_type':
+      'Jenis',
+  'excel.fc_vertical':
+      'Vertikal',
+  'excel.fill_color':
+      'Warna isian',
+  'excel.fill_down':
+      'Isi ke bawah',
+  'excel.fill_no_neighbour':
+      'Kolom di sebelahnya kosong — tidak ada yang bisa diisi ke bawah',
+  'excel.fill_right':
+      'Isi ke kanan',
+  'excel.fill_sort_group':
+      'Isi & urutkan',
+  'excel.filter':
+      'Filter',
+  'excel.filter_all':
+      'Pilih semua',
+  'excel.filter_blank':
+      '(Kosong)',
+  'excel.filter_bottom10':
+      '10 terbawah',
+  'excel.filter_by_color':
+      'Menurut warna',
+  'excel.filter_clear':
+      'Hapus filter',
+  'excel.filter_column':
+      'Filter kolom {col}',
+  'excel.filter_contains':
+      'Berisi…',
+  'excel.filter_create':
+      'Buat filter',
+  'excel.filter_created':
+      'Filter dibuat — gunakan panah pada judul',
+  'excel.filter_needs_table':
+      'Tidak ada filter pada kolom ini. Penyaringan berlaku pada rentang tabel yang ditentukan di berkas.',
+  'excel.filter_remove':
+      'Hapus filter',
+  'excel.filter_removed':
+      'Filter dihapus',
+  'excel.filter_top10':
+      '10 teratas',
+  'excel.find_in_sheet':
+      'Cari di lembar ini',
+  'excel.flash_done':
+      '{n} sel terisi',
+  'excel.flash_fill':
+      'Isi kilat',
+  'excel.flash_need_data':
+      'Pilih sel di samping kolom berisi data',
+  'excel.flash_need_example':
+      'Ketik contoh di kolom ini terlebih dahulu',
+  'excel.flash_none':
+      'Pola tidak ditemukan — ketik satu contoh lagi lalu coba lagi',
+  'excel.fmt_currency':
+      'Mata uang (₺)',
+  'excel.fmt_date':
+      'Tanggal',
+  'excel.fmt_general':
+      'Umum',
+  'excel.fmt_number':
+      'Angka (1,234.50)',
+  'excel.fmt_percent':
+      'Persen (15%)',
+  'excel.fmt_text':
+      'Teks',
+  'excel.fmt_thousands':
+      'Ribuan (1,234)',
+  'excel.fmt_time':
+      'Waktu',
+  'excel.fn_average':
+      'Rata-rata',
+  'excel.fn_count':
+      'Jumlah data',
+  'excel.fn_max':
+      'Maks',
+  'excel.fn_min':
+      'Min',
+  'excel.fn_sum_short':
+      'Jumlah',
+  'excel.font_color':
+      'Warna huruf',
+  'excel.font_default':
+      'Huruf',
+  'excel.form_new':
+      'Catatan baru',
+  'excel.form_next':
+      'Catatan berikutnya',
+  'excel.form_prev':
+      'Catatan sebelumnya',
+  'excel.form_record':
+      'Catatan {n} dari {total}',
+  'excel.form_view':
+      'Tampilan formulir',
+  'excel.format_as_table':
+      'Format sebagai tabel',
+  'excel.format_cells':
+      'Format sel',
+  'excel.formula_english':
+      'Excel: tampilkan rumus dalam bahasa Inggris',
+  'excel.formula_english_sub':
+      'SUM, IF … dan pemisah koma meskipun antarmuka berbahasa Turki',
+  'excel.freeze_cell':
+      'Bekukan bagian atas dan kiri pilihan',
+  'excel.freeze_col':
+      'Bekukan kolom pertama',
+  'excel.freeze_menu':
+      'Bekukan panel',
+  'excel.freeze_off_view':
+      'Matikan panel beku di layar ini',
+  'excel.freeze_on_view':
+      'Aktifkan panel beku di layar ini',
+  'excel.freeze_row':
+      'Bekukan baris teratas',
+  'excel.fx_library':
+      'Pustaka fungsi',
+  'excel.go':
+      'Pergi',
+  'excel.goto_cell':
+      'Ke sel',
+  'excel.goto_cell_menu':
+      'Ke sel…',
+  'excel.goto_last_cell':
+      'Sel terakhir yang dipakai',
+  'excel.goto_last_row':
+      'Baris terakhir yang dipakai',
+  'excel.goto_quick':
+      'Lokasi cepat',
+  'excel.goto_start':
+      'Awal (A1)',
+  'excel.grid_label':
+      'Kisi sel — tekan lama dan seret untuk memilih rentang',
+  'excel.gridlines':
+      'Garis kisi',
+  'excel.group_clipboard':
+      'Papan klip',
+  'excel.group_format':
+      'Format',
+  'excel.group_number':
+      'Angka',
+  'excel.hidden':
+      'Tersembunyi',
+  'excel.hide_col':
+      'Sembunyikan kolom',
+  'excel.hide_row':
+      'Sembunyikan baris',
+  'excel.hide_sheet':
+      'Sembunyikan lembar',
+  'excel.hide_show':
+      'Sembunyikan / tampilkan',
+  'excel.input_kept_text':
+      'Disimpan sebagai teks (tidak diubah menjadi tanggal)',
+  'excel.insert_col':
+      'Sisipkan kolom',
+  'excel.insert_col_left':
+      'Sisipkan kolom di kiri',
+  'excel.insert_col_right':
+      'Sisipkan kolom di kanan',
+  'excel.insert_row':
+      'Sisipkan baris',
+  'excel.insert_row_above':
+      'Sisipkan baris di atas',
+  'excel.insert_row_below':
+      'Sisipkan baris di bawah',
+  'excel.key_enter':
+      'Enter dan turun',
+  'excel.key_tab':
+      'Sel berikutnya (kanan)',
+  'excel.keyboard_123':
+      'Tombol angka',
+  'excel.keyboard_abc':
+      'Papan ketik huruf',
+  'excel.last_sheet':
+      'Lembar terakhir tidak dapat dihapus',
+  'excel.last_visible_sheet':
+      'Lembar terakhir yang terlihat tidak dapat disembunyikan',
+  'excel.merge':
+      'Gabungkan sel',
+  'excel.merge_center':
+      'Gabung & tengahkan',
+  'excel.merge_needs_range':
+      'Pilih minimal dua sel untuk digabungkan',
+  'excel.move_sheet_left':
+      'Pindah ke kiri',
+  'excel.move_sheet_right':
+      'Pindah ke kanan',
+  'excel.no_sheet':
+      'Tidak ada lembar.',
+  'excel.note_author':
+      'Pembaca Berkas',
+  'excel.note_delete':
+      'Hapus catatan',
+  'excel.note_edit':
+      'Ubah catatan',
+  'excel.note_hint':
+      'Catatan (eksperimental — periksa di Excel desktop)',
+  'excel.note_new':
+      'Catatan baru',
+  'excel.nothing_hidden':
+      'Tidak ada yang tersembunyi di samping pilihan',
+  'excel.nothing_to_paste':
+      'Salin rentang terlebih dahulu',
+  'excel.number_format':
+      'Format angka',
+  'excel.opening_preview':
+      'Sedang dibuka — pengeditan segera siap; menampilkan baris pertama',
+  'excel.panes_trimmed':
+      'Panel beku di berkas tidak muat di layar, sehingga kolom tersebut dibuat bisa digulir. Anda dapat mematikannya sepenuhnya lewat ⋮ > Lepas panel beku.',
+  'excel.paste':
+      'Tempel',
+  'excel.paste_formats':
+      'Tempel format saja',
+  'excel.paste_formulas':
+      'Tempel rumus saja',
+  'excel.paste_special_group':
+      'Tempel khusus',
+  'excel.paste_transpose':
+      'Tempel transposisi',
+  'excel.paste_values':
+      'Tempel nilai saja',
+  'excel.pick_from_list':
+      'Pilih dari daftar',
+  'excel.quick_actions':
+      'Tindakan cepat',
+  'excel.redo':
+      'Ulangi',
+  'excel.redone':
+      'Diulangi: {what}',
+  'excel.rename_sheet':
+      'Ganti nama lembar',
+  'excel.replace':
+      'Ganti',
+  'excel.replace_all':
+      'Ganti semua',
+  'excel.replace_none':
+      'Tidak ada yang cocok untuk diganti.',
+  'excel.replace_with':
+      'Ganti dengan',
+  'excel.replaced_count':
+      '{n} sel diganti',
+  'excel.ribbon_hide':
+      'Sembunyikan pita',
+  'excel.ribbon_show':
+      'Tampilkan pita',
+  'excel.row':
+      'Baris',
+  'excel.row_above_short':
+      'Baris +↑',
+  'excel.row_below_short':
+      'Baris +↓',
+  'excel.row_height':
+      'Tinggi baris…',
+  'excel.row_height_of':
+      'Tinggi baris {row}',
+  'excel.rows_cols_group':
+      'Baris & kolom',
+  'excel.save_csv':
+      'Ekspor sebagai CSV',
+  'excel.saved_as_xlsx':
+      'Disimpan sebagai {name} (berkas .xls asli Anda tidak diubah)',
+  'excel.selection_cells':
+      'Dipilih: {n} sel',
+  'excel.selection_filled':
+      'Dipilih: {n} sel  ·  Terisi: {filled}',
+  'excel.sheet_name':
+      'Lembar{n}',
+  'excel.sheet_name_label':
+      'Nama lembar',
+  'excel.sheet_name_taken':
+      'Nama itu sudah dipakai',
+  'excel.sheet_pos':
+      'Lembar {n} / {total}',
+  'excel.sheet_rtl':
+      'Lembar kanan-ke-kiri',
+  'excel.sheet_rtl_off':
+      'Lembar akan ditata kiri-ke-kanan (kolom A di kiri).',
+  'excel.sheet_rtl_on':
+      'Lembar akan ditata kanan-ke-kiri (kolom A di kanan).',
+  'excel.show_cols':
+      'Tampilkan kolom',
+  'excel.show_rows':
+      'Tampilkan baris',
+  'excel.sort':
+      'Urutkan',
+  'excel.sort_add_level':
+      'Tambah tingkat',
+  'excel.sort_asc':
+      'Urutkan A → Z',
+  'excel.sort_asc_short':
+      'A→Z',
+  'excel.sort_by':
+      'Urutkan menurut',
+  'excel.sort_desc':
+      'Urutkan Z → A',
+  'excel.sort_desc_short':
+      'Z→A',
+  'excel.sort_has_header':
+      'Data saya punya judul kolom',
+  'excel.sort_needs_range':
+      'Untuk mengurutkan, pilih dulu baris (tekan dan seret) atau tambahkan filter pada tabel.',
+  'excel.sort_then_by':
+      'Kemudian menurut',
+  'excel.split_comma':
+      'Koma',
+  'excel.split_custom':
+      'Pemisah lain',
+  'excel.split_done':
+      'Dipecah menjadi {n} kolom',
+  'excel.split_merge':
+      'Anggap pemisah berurutan sebagai satu',
+  'excel.split_none':
+      'Tidak ada yang dipecah',
+  'excel.split_run':
+      'Pecah',
+  'excel.split_semi':
+      'Titik koma',
+  'excel.split_space':
+      'Spasi',
+  'excel.split_tab':
+      'Tab',
+  'excel.split_title':
+      'Teks ke kolom',
+  'excel.start_formula':
+      'Mulai rumus',
+  'excel.stat_avg_short':
+      'Rata-rata: {v}',
+  'excel.stat_count_short':
+      'Jumlah data: {v}',
+  'excel.stat_max_short':
+      'Maks: {v}',
+  'excel.stat_min_short':
+      'Min: {v}',
+  'excel.stat_sum_short':
+      'Jumlah: {v}',
+  'excel.tab_color':
+      'Warna tab',
+  'excel.tab_data':
+      'Data',
+  'excel.tab_formulas':
+      'Rumus',
+  'excel.tab_home':
+      'Beranda',
+  'excel.tab_insert':
+      'Sisipkan',
+  'excel.tab_view':
+      'Tampilan',
+  'excel.table_needs_range':
+      'Pilih tabel termasuk baris judulnya terlebih dahulu',
+  'excel.truncated':
+      'Buku kerja ini terlalu besar: hanya {rows} baris dan {cols} kolom pertama yang dibuka. Penyimpanan dimatikan agar sisanya tidak hilang — Anda dapat membacanya atau mengekspor CSV.',
+  'excel.truncated_no_save':
+      'Penyimpanan dimatikan: buku kerja terpotong pada batas baca; menyimpan akan menghapus sisanya.',
+  'excel.undo':
+      'Urungkan',
+  'excel.undo_autosum':
+      'Jumlah otomatis',
+  'excel.undo_border':
+      'garis tepi',
+  'excel.undo_cell_style':
+      'Gaya sel',
+  'excel.undo_clear':
+      'hapus',
+  'excel.undo_cond_format':
+      'pemformatan bersyarat',
+  'excel.undo_dedup':
+      'Hapus duplikat',
+  'excel.undo_delete_col':
+      'hapus kolom',
+  'excel.undo_delete_row':
+      'hapus baris',
+  'excel.undo_duplicate_sheet':
+      'Gandakan lembar',
+  'excel.undo_fill':
+      'isi',
+  'excel.undo_fill_color':
+      'warna isian',
+  'excel.undo_filter':
+      'filter',
+  'excel.undo_filter_off':
+      'Hapus filter',
+  'excel.undo_filter_on':
+      'Buat filter',
+  'excel.undo_font':
+      'huruf',
+  'excel.undo_font_color':
+      'warna huruf',
+  'excel.undo_form':
+      'Formulir',
+  'excel.undo_format':
+      'pemformatan',
+  'excel.undo_freeze':
+      'Bekukan panel',
+  'excel.undo_gridlines':
+      'Garis kisi',
+  'excel.undo_hide':
+      'Sembunyikan',
+  'excel.undo_hide_sheet':
+      'Sembunyikan lembar',
+  'excel.undo_insert_col':
+      'sisipkan kolom',
+  'excel.undo_insert_row':
+      'sisipkan baris',
+  'excel.undo_merge':
+      'gabungkan sel',
+  'excel.undo_note':
+      'Catatan',
+  'excel.undo_number_format':
+      'format angka',
+  'excel.undo_paste':
+      'tempel',
+  'excel.undo_replace':
+      'ganti',
+  'excel.undo_sort':
+      'urutkan',
+  'excel.undo_split':
+      'Teks ke kolom',
+  'excel.undo_tab_color':
+      'Warna tab',
+  'excel.undo_table_format':
+      'Format tabel',
+  'excel.undo_typing':
+      'mengetik',
+  'excel.undo_unhide':
+      'Tampilkan',
+  'excel.undo_unhide_sheet':
+      'Tampilkan lembar',
+  'excel.undo_unmerge':
+      'pisahkan sel',
+  'excel.undo_validation':
+      'Validasi data',
+  'excel.undo_wrap':
+      'bungkus teks',
+  'excel.undone':
+      'Diurungkan: {what}',
+  'excel.unfreeze_panes':
+      'Lepas panel beku (baris/kolom tetap)',
+  'excel.unhide_sheet':
+      'Tampilkan lembar',
+  'excel.unit_chars':
+      'karakter',
+  'excel.unit_points':
+      'poin',
+  'excel.unmerge':
+      'Pisahkan sel',
+  'excel.val_bad_bound':
+      'Masukkan nilai batas yang valid',
+  'excel.val_clear':
+      'Hapus aturan',
+  'excel.val_continue':
+      'Tetap masukkan?',
+  'excel.val_date_hint':
+      'Tanggal (dd.mm.yyyy)',
+  'excel.val_error':
+      'Pesan kesalahan (opsional)',
+  'excel.val_formula_hint':
+      'Rumus (mis. =ISTEXT(A1))',
+  'excel.val_invalid':
+      'Nilai ini tidak sesuai dengan aturan yang ditetapkan untuk sel ini',
+  'excel.val_invalid_title':
+      'Entri tidak valid',
+  'excel.val_list_empty':
+      'Masukkan minimal satu opsi',
+  'excel.val_list_hint':
+      'Opsi (dipisahkan koma)',
+  'excel.val_list_none':
+      'Sumber daftar tidak memiliki nilai',
+  'excel.val_list_source':
+      'Atau rentang: =Daftar!A1:A9',
+  'excel.val_max':
+      'Maksimum',
+  'excel.val_min':
+      'Minimum',
+  'excel.val_prompt':
+      'Pesan masukan (opsional)',
+  'excel.val_prompt_title':
+      'Judul pesan masukan (opsional)',
+  'excel.val_value':
+      'Nilai',
+  'excel.validation':
+      'Validasi data',
+  'excel.wrap_text':
+      'Bungkus teks',
+  'excel.zoom_in':
+      'Perbesar',
+  'excel.zoom_out':
+      'Perkecil',
+  'excel.zoom_reset':
+      'Setel ulang zum (100%)',
 };

@@ -1711,4 +1711,664 @@ const Map<String, String> _ms = {
       'Guna saiz',
   'pse.text_guide_rich':
       'Ketik mana-mana kotak teks untuk menyunting · seret pemegang untuk mengalih atau melebarkan',
+  'excel.act_saved':
+      'Disunting',
+  'excel.add_sheet':
+      'Tambah helaian',
+  'excel.alignment':
+      'Penjajaran',
+  'excel.autosum':
+      'Jumlah automatik',
+  'excel.autosum_empty':
+      'Tiada nombor bersebelahan untuk dijumlahkan — taip julatnya sendiri.',
+  'excel.border_all':
+      'Semua sempadan',
+  'excel.border_bottom':
+      'Sempadan bawah',
+  'excel.border_none':
+      'Tanpa sempadan',
+  'excel.border_outline':
+      'Garis luar',
+  'excel.border_top':
+      'Sempadan atas',
+  'excel.borders':
+      'Sempadan',
+  'excel.cell_content':
+      'Kandungan sel',
+  'excel.cell_label':
+      'Sel {ref}',
+  'excel.cell_menu':
+      'Menu sel',
+  'excel.cell_reference':
+      'Rujukan sel',
+  'excel.cell_reference_hint':
+      'cth. C15',
+  'excel.cell_styles':
+      'Gaya sel',
+  'excel.clear_contents':
+      'Kosongkan kandungan',
+  'excel.clear_formats':
+      'Kosongkan format',
+  'excel.clipboard_empty':
+      'Papan keratan kosong.',
+  'excel.col_left_short':
+      'Lajur +←',
+  'excel.col_right_short':
+      'Lajur +→',
+  'excel.color_auto':
+      'Automatik',
+  'excel.color_none':
+      'Tanpa warna',
+  'excel.column':
+      'Lajur',
+  'excel.column_n':
+      'Lajur {c}',
+  'excel.column_width':
+      'Lebar lajur…',
+  'excel.column_width_of':
+      'Lebar lajur {col}',
+  'excel.cond_contains':
+      'Teks mengandungi',
+  'excel.cond_equal':
+      'Sama dengan',
+  'excel.cond_format':
+      'Pemformatan bersyarat',
+  'excel.cond_greater':
+      'Lebih besar daripada',
+  'excel.cond_less':
+      'Lebih kecil daripada',
+  'excel.cond_text':
+      'Teks',
+  'excel.cond_value':
+      'Nilai',
+  'excel.copied_stat':
+      'Disalin: {v}',
+  'excel.copy_done':
+      '{n} sel disalin',
+  'excel.csv_encoding':
+      'Pengekodan CSV',
+  'excel.csv_failed':
+      'Eksport CSV gagal: {error}',
+  'excel.csv_format_lost':
+      'Format tidak disimpan dalam CSV — hanya nilai disimpan',
+  'excel.csv_formula_guard':
+      'Perlindungan formula',
+  'excel.csv_formula_guard_sub':
+      'Teks yang bermula dengan = + - @ diberi tanda \' di hadapan supaya tidak dijalankan sebagai arahan',
+  'excel.csv_legacy':
+      'Excel Turki lama / Notepad',
+  'excel.csv_save_xlsx':
+      'Simpan sebagai XLSX',
+  'excel.csv_utf8':
+      'UTF-8 (disyorkan)',
+  'excel.csv_utf8_sub':
+      'Excel moden / Google Sheets',
+  'excel.custom_sort':
+      'Isihan tersuai',
+  'excel.cut':
+      'Potong',
+  'excel.cut_done':
+      '{n} sel dipotong',
+  'excel.decimal_less':
+      'Kurangkan perpuluhan',
+  'excel.decimal_more':
+      'Tambah perpuluhan',
+  'excel.default_value':
+      'Lalai ({value})',
+  'excel.delete_col':
+      'Padam lajur',
+  'excel.delete_row':
+      'Padam baris',
+  'excel.delete_sheet':
+      'Padam helaian',
+  'excel.delete_sheet_confirm':
+      'Padam helaian “{name}” beserta semua kandungannya?',
+  'excel.dup_done':
+      '{n} baris pendua dipadam; {m} baris unik kekal',
+  'excel.dup_has_header':
+      'Data saya mempunyai pengepala',
+  'excel.dup_needs_range':
+      'Pilih julat beberapa baris',
+  'excel.dup_none':
+      'Tiada baris pendua',
+  'excel.dup_run':
+      'Buang pendua',
+  'excel.dup_title':
+      'Buang pendua',
+  'excel.duplicate_sheet':
+      'Gandakan',
+  'excel.fc_bottom':
+      'Bawah',
+  'excel.fc_category':
+      'Kategori',
+  'excel.fc_code':
+      'Kod format',
+  'excel.fc_control':
+      'Kawalan teks',
+  'excel.fc_decimals':
+      'Tempat perpuluhan',
+  'excel.fc_general':
+      'Am',
+  'excel.fc_horizontal':
+      'Mengufuk',
+  'excel.fc_indent':
+      'Inden',
+  'excel.fc_line':
+      'Garis',
+  'excel.fc_line_color':
+      'Warna garis',
+  'excel.fc_middle':
+      'Tengah',
+  'excel.fc_negative':
+      'Nombor negatif',
+  'excel.fc_presets':
+      'Pratetap',
+  'excel.fc_rotation':
+      'Orientasi',
+  'excel.fc_sample':
+      'Sampel',
+  'excel.fc_style':
+      'Gaya fon',
+  'excel.fc_symbol':
+      'Simbol',
+  'excel.fc_symbol_pos':
+      'Kedudukan simbol',
+  'excel.fc_tab_fill':
+      'Isian',
+  'excel.fc_tab_font':
+      'Fon',
+  'excel.fc_tab_number':
+      'Nombor',
+  'excel.fc_thousands':
+      'Pemisah ribuan',
+  'excel.fc_top':
+      'Atas',
+  'excel.fc_type':
+      'Jenis',
+  'excel.fc_vertical':
+      'Menegak',
+  'excel.fill_color':
+      'Warna isian',
+  'excel.fill_down':
+      'Isi ke bawah',
+  'excel.fill_no_neighbour':
+      'Lajur bersebelahan kosong — tiada yang boleh diisi ke bawah',
+  'excel.fill_right':
+      'Isi ke kanan',
+  'excel.fill_sort_group':
+      'Isi & isih',
+  'excel.filter':
+      'Tapis',
+  'excel.filter_all':
+      'Pilih semua',
+  'excel.filter_blank':
+      '(Kosong)',
+  'excel.filter_bottom10':
+      '10 terbawah',
+  'excel.filter_by_color':
+      'Mengikut warna',
+  'excel.filter_clear':
+      'Kosongkan tapisan',
+  'excel.filter_column':
+      'Tapis lajur {col}',
+  'excel.filter_contains':
+      'Mengandungi…',
+  'excel.filter_create':
+      'Cipta tapisan',
+  'excel.filter_created':
+      'Tapisan dicipta — gunakan anak panah pada pengepala',
+  'excel.filter_needs_table':
+      'Tiada tapisan pada lajur ini. Penapisan berfungsi pada julat jadual yang ditakrifkan dalam fail.',
+  'excel.filter_remove':
+      'Buang tapisan',
+  'excel.filter_removed':
+      'Tapisan dibuang',
+  'excel.filter_top10':
+      '10 teratas',
+  'excel.find_in_sheet':
+      'Cari dalam helaian ini',
+  'excel.flash_done':
+      '{n} sel diisi',
+  'excel.flash_fill':
+      'Isi pantas',
+  'excel.flash_need_data':
+      'Pilih sel di sebelah lajur yang mempunyai data',
+  'excel.flash_need_example':
+      'Taip contoh dalam lajur ini dahulu',
+  'excel.flash_none':
+      'Corak tidak ditemui — taip satu contoh lagi dan cuba semula',
+  'excel.fmt_currency':
+      'Mata wang (₺)',
+  'excel.fmt_date':
+      'Tarikh',
+  'excel.fmt_general':
+      'Am',
+  'excel.fmt_number':
+      'Nombor (1,234.50)',
+  'excel.fmt_percent':
+      'Peratus (15%)',
+  'excel.fmt_text':
+      'Teks',
+  'excel.fmt_thousands':
+      'Ribuan (1,234)',
+  'excel.fmt_time':
+      'Masa',
+  'excel.fn_average':
+      'Purata',
+  'excel.fn_count':
+      'Bilangan',
+  'excel.fn_max':
+      'Maks',
+  'excel.fn_min':
+      'Min',
+  'excel.fn_sum_short':
+      'Jumlah',
+  'excel.font_color':
+      'Warna fon',
+  'excel.font_default':
+      'Fon',
+  'excel.form_new':
+      'Rekod baharu',
+  'excel.form_next':
+      'Rekod seterusnya',
+  'excel.form_prev':
+      'Rekod sebelumnya',
+  'excel.form_record':
+      'Rekod {n} daripada {total}',
+  'excel.form_view':
+      'Paparan borang',
+  'excel.format_as_table':
+      'Format sebagai jadual',
+  'excel.format_cells':
+      'Format sel',
+  'excel.formula_english':
+      'Excel: papar formula dalam bahasa Inggeris',
+  'excel.formula_english_sub':
+      'SUM, IF … dan pemisah koma walaupun antara muka dalam bahasa Turki',
+  'excel.freeze_cell':
+      'Bekukan bahagian atas dan kiri pilihan',
+  'excel.freeze_col':
+      'Bekukan lajur pertama',
+  'excel.freeze_menu':
+      'Bekukan anak tetingkap',
+  'excel.freeze_off_view':
+      'Matikan anak tetingkap beku pada skrin ini',
+  'excel.freeze_on_view':
+      'Hidupkan anak tetingkap beku pada skrin ini',
+  'excel.freeze_row':
+      'Bekukan baris teratas',
+  'excel.fx_library':
+      'Pustaka fungsi',
+  'excel.go':
+      'Pergi',
+  'excel.goto_cell':
+      'Pergi ke sel',
+  'excel.goto_cell_menu':
+      'Pergi ke sel…',
+  'excel.goto_last_cell':
+      'Sel terakhir digunakan',
+  'excel.goto_last_row':
+      'Baris terakhir digunakan',
+  'excel.goto_quick':
+      'Lokasi pantas',
+  'excel.goto_start':
+      'Permulaan (A1)',
+  'excel.grid_label':
+      'Grid sel — tekan lama dan seret untuk memilih julat',
+  'excel.gridlines':
+      'Garis grid',
+  'excel.group_clipboard':
+      'Papan keratan',
+  'excel.group_format':
+      'Format',
+  'excel.group_number':
+      'Nombor',
+  'excel.hidden':
+      'Tersembunyi',
+  'excel.hide_col':
+      'Sembunyikan lajur',
+  'excel.hide_row':
+      'Sembunyikan baris',
+  'excel.hide_sheet':
+      'Sembunyikan helaian',
+  'excel.hide_show':
+      'Sembunyi / tunjuk',
+  'excel.input_kept_text':
+      'Disimpan sebagai teks (tidak ditukar kepada tarikh)',
+  'excel.insert_col':
+      'Sisip lajur',
+  'excel.insert_col_left':
+      'Sisip lajur di kiri',
+  'excel.insert_col_right':
+      'Sisip lajur di kanan',
+  'excel.insert_row':
+      'Sisip baris',
+  'excel.insert_row_above':
+      'Sisip baris di atas',
+  'excel.insert_row_below':
+      'Sisip baris di bawah',
+  'excel.key_enter':
+      'Enter dan turun',
+  'excel.key_tab':
+      'Sel seterusnya (kanan)',
+  'excel.keyboard_123':
+      'Papan kekunci nombor',
+  'excel.keyboard_abc':
+      'Papan kekunci huruf',
+  'excel.last_sheet':
+      'Helaian terakhir tidak boleh dipadam',
+  'excel.last_visible_sheet':
+      'Helaian terakhir yang kelihatan tidak boleh disembunyikan',
+  'excel.merge':
+      'Gabung sel',
+  'excel.merge_center':
+      'Gabung & tengahkan',
+  'excel.merge_needs_range':
+      'Pilih sekurang-kurangnya dua sel untuk digabungkan',
+  'excel.move_sheet_left':
+      'Alih ke kiri',
+  'excel.move_sheet_right':
+      'Alih ke kanan',
+  'excel.no_sheet':
+      'Tiada helaian.',
+  'excel.note_author':
+      'Pembaca Fail',
+  'excel.note_delete':
+      'Padam nota',
+  'excel.note_edit':
+      'Sunting nota',
+  'excel.note_hint':
+      'Nota (percubaan — semak dalam Excel desktop)',
+  'excel.note_new':
+      'Nota baharu',
+  'excel.nothing_hidden':
+      'Tiada yang tersembunyi di sebelah pilihan',
+  'excel.nothing_to_paste':
+      'Salin julat dahulu',
+  'excel.number_format':
+      'Format nombor',
+  'excel.opening_preview':
+      'Sedang dibuka — penyuntingan akan sedia sebentar lagi; memaparkan baris pertama',
+  'excel.panes_trimmed':
+      'Anak tetingkap beku dalam fail tidak muat pada skrin, jadi lajur tersebut dibuat boleh tatal. Anda boleh mematikannya sepenuhnya melalui ⋮ > Nyahbeku anak tetingkap.',
+  'excel.paste':
+      'Tampal',
+  'excel.paste_formats':
+      'Tampal format sahaja',
+  'excel.paste_formulas':
+      'Tampal formula sahaja',
+  'excel.paste_special_group':
+      'Tampal khas',
+  'excel.paste_transpose':
+      'Tampal transposisi',
+  'excel.paste_values':
+      'Tampal nilai sahaja',
+  'excel.pick_from_list':
+      'Pilih daripada senarai',
+  'excel.quick_actions':
+      'Tindakan pantas',
+  'excel.redo':
+      'Buat semula',
+  'excel.redone':
+      'Dibuat semula: {what}',
+  'excel.rename_sheet':
+      'Namakan semula helaian',
+  'excel.replace':
+      'Ganti',
+  'excel.replace_all':
+      'Ganti semua',
+  'excel.replace_none':
+      'Tiada padanan untuk diganti.',
+  'excel.replace_with':
+      'Ganti dengan',
+  'excel.replaced_count':
+      '{n} sel diganti',
+  'excel.ribbon_hide':
+      'Sembunyikan reben',
+  'excel.ribbon_show':
+      'Tunjukkan reben',
+  'excel.row':
+      'Baris',
+  'excel.row_above_short':
+      'Baris +↑',
+  'excel.row_below_short':
+      'Baris +↓',
+  'excel.row_height':
+      'Tinggi baris…',
+  'excel.row_height_of':
+      'Tinggi baris {row}',
+  'excel.rows_cols_group':
+      'Baris & lajur',
+  'excel.save_csv':
+      'Eksport sebagai CSV',
+  'excel.saved_as_xlsx':
+      'Disimpan sebagai {name} (fail .xls asal anda tidak diubah)',
+  'excel.selection_cells':
+      'Dipilih: {n} sel',
+  'excel.selection_filled':
+      'Dipilih: {n} sel  ·  Berisi: {filled}',
+  'excel.sheet_name':
+      'Helaian{n}',
+  'excel.sheet_name_label':
+      'Nama helaian',
+  'excel.sheet_name_taken':
+      'Nama itu sudah digunakan',
+  'excel.sheet_pos':
+      'Helaian {n} / {total}',
+  'excel.sheet_rtl':
+      'Helaian kanan-ke-kiri',
+  'excel.sheet_rtl_off':
+      'Helaian akan disusun kiri-ke-kanan (lajur A di kiri).',
+  'excel.sheet_rtl_on':
+      'Helaian akan disusun kanan-ke-kiri (lajur A di kanan).',
+  'excel.show_cols':
+      'Tunjukkan lajur',
+  'excel.show_rows':
+      'Tunjukkan baris',
+  'excel.sort':
+      'Isih',
+  'excel.sort_add_level':
+      'Tambah peringkat',
+  'excel.sort_asc':
+      'Isih A → Z',
+  'excel.sort_asc_short':
+      'A→Z',
+  'excel.sort_by':
+      'Isih mengikut',
+  'excel.sort_desc':
+      'Isih Z → A',
+  'excel.sort_desc_short':
+      'Z→A',
+  'excel.sort_has_header':
+      'Data saya mempunyai pengepala',
+  'excel.sort_needs_range':
+      'Untuk mengisih, pilih baris dahulu (tekan dan seret) atau tambah tapisan pada jadual.',
+  'excel.sort_then_by':
+      'Kemudian mengikut',
+  'excel.split_comma':
+      'Koma',
+  'excel.split_custom':
+      'Pembatas lain',
+  'excel.split_done':
+      'Dipecahkan kepada {n} lajur',
+  'excel.split_merge':
+      'Anggap pembatas berturutan sebagai satu',
+  'excel.split_none':
+      'Tiada yang dipecahkan',
+  'excel.split_run':
+      'Pisahkan',
+  'excel.split_semi':
+      'Koma bertitik',
+  'excel.split_space':
+      'Ruang',
+  'excel.split_tab':
+      'Tab',
+  'excel.split_title':
+      'Teks ke lajur',
+  'excel.start_formula':
+      'Mulakan formula',
+  'excel.stat_avg_short':
+      'Purata: {v}',
+  'excel.stat_count_short':
+      'Bilangan: {v}',
+  'excel.stat_max_short':
+      'Maks: {v}',
+  'excel.stat_min_short':
+      'Min: {v}',
+  'excel.stat_sum_short':
+      'Jumlah: {v}',
+  'excel.tab_color':
+      'Warna tab',
+  'excel.tab_data':
+      'Data',
+  'excel.tab_formulas':
+      'Formula',
+  'excel.tab_home':
+      'Laman Utama',
+  'excel.tab_insert':
+      'Sisip',
+  'excel.tab_view':
+      'Paparan',
+  'excel.table_needs_range':
+      'Pilih jadual termasuk baris pengepalanya dahulu',
+  'excel.truncated':
+      'Buku kerja ini terlalu besar: hanya {rows} baris dan {cols} lajur pertama dibuka. Penyimpanan dimatikan supaya selebihnya tidak hilang — anda boleh membacanya atau mengeksport CSV.',
+  'excel.truncated_no_save':
+      'Penyimpanan dimatikan: buku kerja dipotong pada had bacaan; menyimpan akan memadam selebihnya.',
+  'excel.undo':
+      'Buat asal',
+  'excel.undo_autosum':
+      'Jumlah automatik',
+  'excel.undo_border':
+      'sempadan',
+  'excel.undo_cell_style':
+      'Gaya sel',
+  'excel.undo_clear':
+      'kosongkan',
+  'excel.undo_cond_format':
+      'pemformatan bersyarat',
+  'excel.undo_dedup':
+      'Buang pendua',
+  'excel.undo_delete_col':
+      'padam lajur',
+  'excel.undo_delete_row':
+      'padam baris',
+  'excel.undo_duplicate_sheet':
+      'Gandakan helaian',
+  'excel.undo_fill':
+      'isi',
+  'excel.undo_fill_color':
+      'warna isian',
+  'excel.undo_filter':
+      'tapisan',
+  'excel.undo_filter_off':
+      'Buang tapisan',
+  'excel.undo_filter_on':
+      'Cipta tapisan',
+  'excel.undo_font':
+      'fon',
+  'excel.undo_font_color':
+      'warna fon',
+  'excel.undo_form':
+      'Borang',
+  'excel.undo_format':
+      'pemformatan',
+  'excel.undo_freeze':
+      'Bekukan anak tetingkap',
+  'excel.undo_gridlines':
+      'Garis grid',
+  'excel.undo_hide':
+      'Sembunyikan',
+  'excel.undo_hide_sheet':
+      'Sembunyikan helaian',
+  'excel.undo_insert_col':
+      'sisip lajur',
+  'excel.undo_insert_row':
+      'sisip baris',
+  'excel.undo_merge':
+      'gabung sel',
+  'excel.undo_note':
+      'Nota',
+  'excel.undo_number_format':
+      'format nombor',
+  'excel.undo_paste':
+      'tampal',
+  'excel.undo_replace':
+      'ganti',
+  'excel.undo_sort':
+      'isih',
+  'excel.undo_split':
+      'Teks ke lajur',
+  'excel.undo_tab_color':
+      'Warna tab',
+  'excel.undo_table_format':
+      'Format jadual',
+  'excel.undo_typing':
+      'menaip',
+  'excel.undo_unhide':
+      'Tunjukkan',
+  'excel.undo_unhide_sheet':
+      'Tunjukkan helaian',
+  'excel.undo_unmerge':
+      'nyahgabung sel',
+  'excel.undo_validation':
+      'Pengesahan data',
+  'excel.undo_wrap':
+      'balut teks',
+  'excel.undone':
+      'Dibuat asal: {what}',
+  'excel.unfreeze_panes':
+      'Nyahbeku anak tetingkap (baris/lajur tetap)',
+  'excel.unhide_sheet':
+      'Tunjukkan helaian',
+  'excel.unit_chars':
+      'aksara',
+  'excel.unit_points':
+      'mata',
+  'excel.unmerge':
+      'Nyahgabung sel',
+  'excel.val_bad_bound':
+      'Masukkan nilai had yang sah',
+  'excel.val_clear':
+      'Kosongkan peraturan',
+  'excel.val_continue':
+      'Masukkan juga?',
+  'excel.val_date_hint':
+      'Tarikh (dd.mm.yyyy)',
+  'excel.val_error':
+      'Mesej ralat (pilihan)',
+  'excel.val_formula_hint':
+      'Formula (cth. =ISTEXT(A1))',
+  'excel.val_invalid':
+      'Nilai ini tidak sepadan dengan peraturan yang ditetapkan untuk sel ini',
+  'excel.val_invalid_title':
+      'Entri tidak sah',
+  'excel.val_list_empty':
+      'Masukkan sekurang-kurangnya satu pilihan',
+  'excel.val_list_hint':
+      'Pilihan (dipisahkan koma)',
+  'excel.val_list_none':
+      'Sumber senarai tiada nilai',
+  'excel.val_list_source':
+      'Atau julat: =Senarai!A1:A9',
+  'excel.val_max':
+      'Maksimum',
+  'excel.val_min':
+      'Minimum',
+  'excel.val_prompt':
+      'Mesej input (pilihan)',
+  'excel.val_prompt_title':
+      'Tajuk mesej input (pilihan)',
+  'excel.val_value':
+      'Nilai',
+  'excel.validation':
+      'Pengesahan data',
+  'excel.wrap_text':
+      'Balut teks',
+  'excel.zoom_in':
+      'Zum masuk',
+  'excel.zoom_out':
+      'Zum keluar',
+  'excel.zoom_reset':
+      'Tetapkan semula zum (100%)',
 };
