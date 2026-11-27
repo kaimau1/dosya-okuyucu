@@ -192,14 +192,12 @@ Dilim sırası (her biri ayrı oturum/dal `faz-oto-B4-<ad>`; biten madde buradan
    Syncfusion bağlantısız nesneyi atıyor mu ölç), **PdfEditorScreen emekliliği** (⋮ "Eski düzenleyici" —
    `pdf_pro_edit.dart`, `pdf_selection.dart`, `pdf_action_bars.dart` kullanımı grep). Ayrı e-posta kısayolu
    YAPILMADI: Paylaş levhası e-postayı zaten içerir (share_plus hedef seçemez).
-7. **P20 kalan** (Faz 63 m.3 + m.5) — `faz-oto-B4-p20`'de (birleşince bu madde SİLİNİR): araçlar ekranının
-   sayfa işleri stüdyoda (taşı, ters çevir, N sayfada böl, çoklu PDF ekle eklendi; araçlar alt çubuğu/⋮ sayfa
-   girdileri kalktı, tek "Sayfa stüdyosu" düğmesi; görüntüleyicideki "Sayfa stüdyosu" stüdyoyu doğrudan açar);
-   `pdf_reorder_screen` main'de YOKTU (eski ad). **Kalan — üst/alt bilgi + numara ekle/düzenle/kaldır:** OCG
-   katmanına çizip `layers.remove(isRemoveGraphicalContent: true)` ile silme denendi (CI 2 tur kırmızı, geri
-   alındı): Syncfusion 35.1.43 katman içeriğini silerken 2. sayfanın TÜM içeriğini siliyor (tek sayfada sorun
-   yok). Sonraki yol: kendi `PdfFile` ayrıştırıcımızla `/OC` işaretli BDC…EMC bloğunu sayfa sayfa çıkarmak.
-   Numara/filigran ekleme mevcut (araçlar ⋮ ve Pro "Gelişmiş numaralandırma", Bates dahil).
+7. **P20 kalan — üst/alt bilgi + numara ekle/düzenle/kaldır** — `faz-oto-B4-p20ust`te yazıldı (birleşince bu madde
+   SİLİNİR): Pro "Gelişmiş numaralandırma" sayfasında üst/alt bilgi + numara anahtarı + Kaldır; çizim akışı
+   `/Artifact … /DosyaOkuyucuHF` işaretli blokla sarılır, kaldır = kendi `PdfFile` ile yalnız o blok çıkarılır
+   (`pdf/pdf_header_footer.dart`; 4 sayfalı farklı içerikli belgede ekle→düzenle→kaldır sonrası sayfa metni +
+   içerik akışları birebir — `pdf_doc_pro_test`). Eski işaretsiz numara ve parolalı belge kaldırılamaz (bilerek).
+   Cihazda bakılacak: `docs/CIHAZ_TESTI.md` B4-P20ust.
 8. **P22b okuma deneyimi** (FERRARI H2.4 + kullanıcı 2026-11-18): hızlı kaydırma tutamacında sayfa no + küçük
    önizleme balonu (`PdfViewerScrollThumb`, `viewer/body.dart`), bağlantı/içindekilerden atlayınca "← geri dön"
    hapı, belge başına yakınlaştırma/görünüm kipini hatırla, çift dokunuşla sütuna sığdır, seçim tutamaçlarında
