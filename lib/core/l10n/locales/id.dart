@@ -9308,6 +9308,8 @@ const Map<String, String> _id = {
       'Hapus pengenalan Arab luring',
   'ocr.ar_model_sub':
       'Diunduh sekali (≈{size}); teks lalu tidak pernah keluar dari perangkat.',
+  'ocr.no_play_services':
+      'Layanan Google Play tidak tersedia di perangkat ini, jadi pengenalan teks di perangkat tidak dapat digunakan. Untuk teks Arab, unduh model luring di Pengaturan → Dokumen → Aksara pengenalan teks, atau gunakan bacaan pintar dengan kunci Gemini.',
   'ocr.ar_need_model':
       'Untuk pengenalan teks Arab, unduh model luring di Pengaturan → Dokumen → Aksara pengenalan teks, atau tambahkan kunci Gemini.',
   'ocr.cloud_need_key':

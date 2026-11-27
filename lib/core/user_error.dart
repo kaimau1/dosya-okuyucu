@@ -33,6 +33,12 @@ enum UserErrorKind {
 /// (103 yer, FAZ_PLANI I1). Artık [UserError.from] hatayı sınıflandırır:
 /// kısa, çevrilmiş bir [message] + yalnız "Ayrıntı"da görünen ham [detail].
 /// Sınıflandırılamayan hatalar `CrashLog`a otomatik yazılır.
+/// `toString`'i zaten kullanıcı dilinde, ne yapacağını söyleyen istisna
+/// (OCR modeli yok/iniyor gibi). [UserError.from] bunları genel "bir şeyler
+/// ters gitti" metnine EZMEZ — 2026-11-27 tablet bulgusu: OCR stüdyosu bu
+/// iletileri yutuyordu.
+abstract interface class FriendlyException implements Exception {}
+
 @immutable
 class UserError {
   final UserErrorKind kind;
@@ -48,6 +54,9 @@ class UserError {
   /// Bilinen hata türlerini kullanıcı diline çevirir.
   factory UserError.from(Object error, {AppStrings? strings}) {
     final s = strings ?? AppStrings.current;
+    if (error is FriendlyException) {
+      return UserError(UserErrorKind.unknown, '$error', '$error');
+    }
     final kind = classify(error);
     if (kind == UserErrorKind.unknown) {
       unawaited(CrashLog.record(error, StackTrace.current,

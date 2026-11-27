@@ -473,7 +473,12 @@ class _OfficeShellState extends State<OfficeShell>
     final surface = topBg;
     return Scaffold(
       backgroundColor: OfficeColors.canvas(context),
-      resizeToAvoidBottomInset: widget.resizeForKeyboard,
+      // Üstte levha/pencere açıkken (ör. İçindekiler araması) klavye bu
+      // ekranı yeniden boyutlamasın: her animasyon karesinde belge
+      // görüntüleyici baştan yerleşiyordu (kullanıcı: "klavye açılıp
+      // kapanırken aşırı kasma"). Klavye payını üstteki levha kendisi alır.
+      resizeToAvoidBottomInset: widget.resizeForKeyboard &&
+          (ModalRoute.of(context)?.isCurrent ?? true),
       body: ReadingChrome(
         top: chromeTop,
         bottom: bottomH,

@@ -357,6 +357,7 @@ class _ImportantGalleryScreenState extends State<ImportantGalleryScreen> {
               entry: f,
               size: cell,
               selected: _selected.contains(f.path),
+              hero: true,
               onTap: _selecting
                   ? () => _toggle(f.path)
                   : () => EntryOpener.open(context, f.path, siblings: paths),

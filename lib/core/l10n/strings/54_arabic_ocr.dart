@@ -53,4 +53,9 @@ const Map<String, (String, String, String)> _t54 = {
     'For Arabic text recognition, download the offline model in Settings → Documents → Text recognition script, or add a Gemini key.',
     'للتعرّف على النص العربي، نزّل النموذج دون إنترنت من الإعدادات ← المستندات ← لغة التعرّف على النص، أو أضف مفتاح Gemini.',
   ),
+  'ocr.no_play_services': (
+    'Bu cihazda Google Play Hizmetleri yok; cihaz içi metin tanıma kullanılamıyor. Arapça metin için Ayarlar → Belgeler → Metin tanıma dili bölümünden internetsiz modeli indirebilir ya da Gemini anahtarıyla akıllı okumayı kullanabilirsin.',
+    'Google Play services are not available on this device, so on-device text recognition cannot be used. For Arabic text you can download the offline model in Settings → Documents → Text recognition script, or use smart reading with a Gemini key.',
+    'خدمات Google Play غير متوفرة على هذا الجهاز، لذا لا يمكن استخدام التعرّف على النص على الجهاز. للنص العربي يمكنك تنزيل النموذج دون إنترنت من الإعدادات ← المستندات ← لغة التعرّف على النص، أو استخدام القراءة الذكية بمفتاح Gemini.',
+  ),
 };

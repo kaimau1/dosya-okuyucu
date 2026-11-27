@@ -158,6 +158,19 @@ class _OutlineBodyState extends State<_OutlineBody> {
       .where((w) => w.isNotEmpty)
       .toList();
 
+  // Klavye animasyonunda levha her karede yeniden kurulur; süzme (1000+
+  // başlık) yalnız arama/bölüm değişince yapılır.
+  (String, int?)? _shownKey;
+  List<int> _shownCache = const [];
+  List<int> _shownCached() {
+    final key = (_query, _vol);
+    if (key != _shownKey) {
+      _shownKey = key;
+      _shownCache = _shown();
+    }
+    return _shownCache;
+  }
+
   /// Arama bütün belgede; aramasız liste seçili bölümle sınırlı.
   List<int> _shown() {
     final words = _words;
@@ -178,8 +191,8 @@ class _OutlineBodyState extends State<_OutlineBody> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final shown = _shownCached();
     final searching = _words.isNotEmpty;
-    final shown = _shown();
     final outline = widget.outline;
     return Column(
       children: [
