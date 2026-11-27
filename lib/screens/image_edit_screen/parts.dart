@@ -21,7 +21,14 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
       final markup = _tab == _Tab.markup;
       final view = _showOriginal ? (_proxy ?? src) : _view;
       final sel = markup ? _selected : null;
-      return GestureDetector(
+      // Dinleyici arenaya girmez: yalnız son değen işaretçinin türünü ve
+      // düğmelerini not eder (kalemin silgi ucu, B20).
+      return Listener(
+        onPointerDown: (e) {
+          _downKind = e.kind;
+          _downButtons = e.buttons;
+        },
+        child: GestureDetector(
         key: const ValueKey('ied-canvas'),
         behavior: HitTestBehavior.opaque,
         onScaleStart: _gestureStart,
@@ -69,6 +76,7 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
             ),
           ),
         ]),
+      ),
       );
     });
   }
@@ -331,18 +339,26 @@ extension _ImageEditScreenStateParts on _ImageEditScreenState {
       // panelde hazır olarak bulunmalı" — şerit kaydırılınca kayboluyordu).
       Row(children: [
         chip(_Tool.select, AppIcons.pointer, 'ied.select'),
+        // Kalem · fosforlu · silgi YAN YANA ortak tepside (B20, kullanıcı:
+        // "kalemle silgi yan yana olmalı" — Notlar'daki kalem mantığı).
+        PenTray(
+          selected: _trayTool,
+          onSelect: _selectTray,
+          penColor: _color,
+          highlighterColor: _color,
+          onSettings: _traySettings,
+          onClear: _clearMarks,
+        ),
+        const SizedBox(width: 3),
         Expanded(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
               for (final (tool, icon, key) in const [
                 // Bulanıklaştır/pikselleştir öne (2026-11-22, kullanıcı: "önde görülsün").
-                (_Tool.pen, AppIcons.edit, 'ied.pen'),
                 (_Tool.blur, AppIcons.blur, 'ied.blur'),
                 (_Tool.pixelate, AppIcons.pixelate, 'ied.pixelate'),
                 (_Tool.text, AppIcons.textFields, 'ied.text'),
-                (_Tool.highlighter, AppIcons.highlighter, 'ied.highlighter'),
-                (_Tool.eraser, AppIcons.eraser, 'ied.eraser'),
                 (_Tool.arrow, AppIcons.arrowTool, 'ied.arrow'),
                 (_Tool.line, AppIcons.lineTool, 'ied.line'),
                 (_Tool.rect, AppIcons.rectTool, 'ied.rect'),

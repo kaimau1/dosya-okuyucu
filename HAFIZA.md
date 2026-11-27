@@ -210,3 +210,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 5. Tarihli kayıtlar (yeni kayıt en alta; `## YYYY-MM-DD — başlık`)
 
 
+
+## 2026-11-27 — B20 ortak kalem tepsisi (dal faz-oto-B20-kalem; cihazda doğrulanmadı)
+- **KARAR (kullanıcı):** "kalemle silgi yan yana; Notlar'daki kalem mantığı birebir, PDF vs. içinde". Ortak: `lib/core/edit/ink_logic.dart` (saf: `PenTrayMemory` son kalem + silgi kipi, `isStylusEraser`, `strokeHit`, `cutStroke` alan silgisi) + `lib/widgets/ink/pen_tray.dart` (`PenTray` + `showPenSettings`). Kullanan: fotoğraf düzenleyici İşaretle, PDF kalem ekranı (PDF düzenleyici Çiz sekmesi de bu ekranı açar).
+- Notlar'dan alınan davranış: üç kalem tek kapsül, seçiliye yeniden dokun = ayarlar, ⇄ anlık geçiş (son kalem hatırlanır), silgiye uzun bas = hepsini sil (geri alınır), kalemin yan düğmesi/ters ucu darbe boyunca silgi, silgi kipi çizgi/alan. ALINMAYAN (bağımlılık/kapsam): dolma kalem, kement, şekil tanıma, jestler, ön ayar iğneleme, tepsi saklanması.
+- Veri biçimi aynı: alan silgisi parçaları yine `InkMark`/`ImageMark` (aynı renk/kalınlık), geçmiş tek adım. Fotoğraf silgisi eskiden işaretin SINIR KUTUSUNA bakıyordu (eğrinin boş köşesi de siliyordu) → elle çizilen izde gövde isabeti; şekil/yazı yine kutu.
+- Sabah bakılacak: fotoğraf panelinde tepsi Bulanıklaştır/Pikselleştir'i (2026-11-22 "önde görülsün") ~2 çip sağa itti; dar ekranda görünürlük CIHAZ_TESTI B20. Sunum kalemi (slideshow) ve imza ayrı kaldı.

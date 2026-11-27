@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
@@ -8,6 +9,7 @@ import '../core/app_colors.dart';
 import '../core/app_icons.dart';
 import '../core/edit/edit_history.dart';
 import '../core/edit/edit_session.dart';
+import '../core/edit/ink_logic.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/theme.dart' show OverlayBar;
@@ -16,6 +18,7 @@ import '../models/media_resize.dart' show aspectChoices, longEdgeChoices;
 import '../services/image_edit.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_action_sheet.dart';
+import '../widgets/ink/pen_tray.dart';
 
 part 'image_edit_screen/crop.dart';
 part 'image_edit_screen/parts.dart';
@@ -101,6 +104,14 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   /// Sürükleme başındaki hâl — bitince değiştiyse TEK geçmiş adımı.
   ImageEdits? _before;
+
+  /// Tuvale son değen işaretçi (kalemin yan düğmesi / ters ucu → silgi, B20).
+  PointerDeviceKind? _downKind;
+  int _downButtons = 0;
+
+  /// Bu sürükleme kalemin silgi ucuyla: araç değişmeden silgi.
+  bool _tempErase = false;
+  bool get _erasing => _tool == _Tool.eraser || _tempErase;
 
   /// Ayarla sekmesinde seçili ayar.
   String _adjustKey = 'brightness';
@@ -328,6 +339,13 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   }
 
   void _markStart(Offset local) {
+    _tempErase = isStylusEraser(_downKind, _downButtons);
+    if (_tempErase) {
+      setState(() => _sel = null);
+      _before = _e;
+      _erase(local);
+      return;
+    }
     final sel = _selected;
     if (sel != null) {
       final (scale, rotate) = _handles(sel);
@@ -384,7 +402,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
 
   void _markUpdate(Offset local) {
     if (_selDrag != _SelDrag.none) return _selUpdate(local);
-    if (_tool == _Tool.eraser) return _erase(local);
+    if (_erasing) return _erase(local);
     final d = _live;
     if (d == null) return;
     // Nokta listesi yerinde büyür (IM2: kopya yok, setState yok).
@@ -397,8 +415,9 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   }
 
   void _markEnd() {
-    if (_selDrag != _SelDrag.none || _tool == _Tool.eraser) {
+    if (_selDrag != _SelDrag.none || _erasing) {
       _selDrag = _SelDrag.none;
+      _tempErase = false;
       return _commitDrag();
     }
     final d = _live;
@@ -419,6 +438,7 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     if (_before != null) setState(() => _e = _before!);
     _before = null;
     _selDrag = _SelDrag.none;
+    _tempErase = false;
     _drag = _Drag.none;
   }
 
@@ -452,10 +472,88 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
     }
   }
 
+  /// Silgi (B20, Notlar'daki kalem mantığı): elle çizilen izlerde isabet
+  /// çizginin GÖVDESİNE bakar (eskiden sınır kutusu — eğri bir çizginin boş
+  /// köşesine değmek de siliyordu); "değdiği yeri sil" kipinde iz kesilir,
+  /// kalan parçalar ayrı iz olur. Şekil ve yazı her kipte bütün silinir.
   void _erase(Offset local) {
-    final hit = hitMark(_e.marks, _box, local, slop: 6);
-    if (hit == null) return;
-    setState(() => _e = _e.copyWith(marks: [..._e.marks]..removeAt(hit)));
+    final n = _norm(local);
+    final aspect = _box.width / _box.height;
+    // Parmak ucu kadar: ekranda ~14 piksel (genişlik biriminde).
+    final r = 14 / _box.width;
+    final area = PenTrayMemory.eraserMode == EraserMode.area;
+    final out = <ImageMark>[];
+    var changed = false;
+    for (final m in _e.marks) {
+      if (m.isShape || m.kind == MarkKind.text) {
+        if (hitMark([m], _box, local, slop: 6) != null) {
+          changed = true;
+        } else {
+          out.add(m);
+        }
+        continue;
+      }
+      final rr = r + m.size * _box.shortestSide / _box.width / 2;
+      if (!area) {
+        if (normalizedStrokeHit(m.points, n, rr, aspect)) {
+          changed = true;
+        } else {
+          out.add(m);
+        }
+        continue;
+      }
+      final pieces = cutNormalizedStroke(m.points, n, rr, aspect);
+      if (pieces == null) {
+        out.add(m);
+        continue;
+      }
+      changed = true;
+      for (final piece in pieces) {
+        out.add(m.copyWith(points: piece));
+      }
+    }
+    if (changed) setState(() => _e = _e.copyWith(marks: out));
+  }
+
+  PenTrayTool? get _trayTool => switch (_tool) {
+        _Tool.pen => PenTrayTool.pen,
+        _Tool.highlighter => PenTrayTool.highlighter,
+        _Tool.eraser => PenTrayTool.eraser,
+        _ => null,
+      };
+
+  void _selectTray(PenTrayTool t) => setState(() {
+        _tool = switch (t) {
+          PenTrayTool.pen => _Tool.pen,
+          PenTrayTool.highlighter => _Tool.highlighter,
+          PenTrayTool.eraser => _Tool.eraser,
+        };
+        _sel = null;
+      });
+
+  /// Silgiye uzun basma / ayarlardaki "Hepsini sil" (tek geri al adımı).
+  void _clearMarks() {
+    if (_e.marks.isEmpty) return;
+    _push(_e.copyWith(marks: const []));
+    setState(() => _sel = null);
+  }
+
+  /// Seçili kaleme yeniden dokununca: ortak kalem ayarları.
+  void _traySettings(PenTrayTool t) {
+    final hl = t == PenTrayTool.highlighter;
+    showPenSettings(
+      context,
+      tool: t,
+      colors: _colors,
+      color: _color,
+      onColor: (c) => setState(() => _color = c),
+      width: _stroke,
+      minWidth: 0.004,
+      maxWidth: 0.05,
+      previewPixels: (w) => w * _box.shortestSide * (hl ? 2.5 : 1),
+      onWidth: (w) => setState(() => _stroke = w),
+      onClear: _clearMarks,
+    );
   }
 
   void _markTap(Offset local) {

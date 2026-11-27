@@ -19,6 +19,13 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       return;
     }
     final point = _norm(e.localPosition, fitted);
+    // Kalemin yan düğmesi / ters ucu: bu darbe boyunca silgi (B20).
+    _tempErase = isStylusEraser(e.kind, e.buttons);
+    if (_tempErase) {
+      _eraseStart = _marks;
+      _eraseAt(point, fitted);
+      return;
+    }
     switch (_tool) {
       case InkTool.pen || InkTool.highlighter:
         final hl = _tool == InkTool.highlighter;
@@ -51,7 +58,7 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       final dy = (point.dy - last.dy) * fitted.height;
       if (dx * dx + dy * dy < 2.25) return;
       _partSetState(() => _live = live.withPoints([...live.points, point]));
-    } else if (_tool == InkTool.eraser) {
+    } else if (_tool == InkTool.eraser || _tempErase) {
       _eraseAt(point, fitted);
     }
   }
@@ -64,6 +71,7 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       _live = null;
       _commit([..._marks, live]);
     }
+    _tempErase = false;
     _finishErase();
   }
 
@@ -75,15 +83,85 @@ extension _PdfInkScreenInputPart on _PdfInkScreenState {
       // Parmak ucu kadar: ekranda ~14 piksel.
       radius: 14 / fitted.width,
       aspect: fitted.width / fitted.height,
+      partial: PenTrayMemory.eraserMode == EraserMode.area,
     );
-    if (next.length != _marks.length) _partSetState(() => _marks = next);
+    if (!_sameMarks(next, _marks)) _partSetState(() => _marks = next);
+  }
+
+  /// Aynı izler aynı sırayla mı (alan silgisi sayıyı değiştirmeden de keser).
+  static bool _sameMarks(List<PdfMark> a, List<PdfMark> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i])) return false;
+    }
+    return true;
+  }
+
+  /// Silgiye uzun basma / ayarlardaki "Hepsini sil": bu sayfanın kalem izleri
+  /// (tek geri al adımı).
+  void _clearPageInk() {
+    final next = [
+      for (final m in _marks)
+        if (m is! InkMark || m.page != _page) m,
+    ];
+    if (next.length != _marks.length) _commit(next);
+  }
+
+  PenTrayTool? get _trayTool => switch (_tool) {
+        InkTool.pen => PenTrayTool.pen,
+        InkTool.highlighter => PenTrayTool.highlighter,
+        InkTool.eraser => PenTrayTool.eraser,
+        InkTool.text || InkTool.hand => null,
+      };
+
+  void _selectTray(PenTrayTool t) => _partSetState(() => _tool = switch (t) {
+        PenTrayTool.pen => InkTool.pen,
+        PenTrayTool.highlighter => InkTool.highlighter,
+        PenTrayTool.eraser => InkTool.eraser,
+      });
+
+  /// Seçili kaleme yeniden dokununca: ortak kalem ayarları.
+  void _traySettings(PenTrayTool t) {
+    final hl = t == PenTrayTool.highlighter;
+    final widths = hl
+        ? _PdfInkScreenState._highlightWidths
+        : _PdfInkScreenState._penWidths;
+    final colors = hl
+        ? _PdfInkScreenState._highlightColors
+        : _PdfInkScreenState._penColors;
+    final pageWidth = _viewportSize.width;
+    showPenSettings(
+      context,
+      tool: t,
+      colors: [for (final c in colors) Color(c)],
+      color: Color(hl ? _highlightColor : _penColor),
+      onColor: (c) => _partSetState(() {
+        if (hl) {
+          _highlightColor = c.toARGB32();
+        } else {
+          _penColor = c.toARGB32();
+        }
+      }),
+      width: (hl ? _highlightWidth : _penWidth).toDouble(),
+      maxWidth: 2,
+      divisions: 2,
+      previewPixels: (i) => widths[i.round()] * pageWidth,
+      onWidth: (v) => _partSetState(() {
+        if (hl) {
+          _highlightWidth = v.round();
+        } else {
+          _penWidth = v.round();
+        }
+      }),
+      onClear: _clearPageInk,
+    );
   }
 
   void _finishErase() {
     final start = _eraseStart;
     _eraseStart = null;
     if (start == null || identical(start, _marks)) return;
-    if (start.length == _marks.length) return;
+    if (_sameMarks(start, _marks)) return;
     _partSetState(() {
       _undo.add(start);
       _redo.clear();

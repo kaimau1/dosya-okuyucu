@@ -4,6 +4,8 @@ import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import '../../core/edit/ink_logic.dart'
+    show cutNormalizedStroke, normalizedStrokeHit;
 import '../pdf_tools.dart' show stampTransform;
 
 /// Kalem ekranının ([PdfInkScreen]) sayfaya bıraktığı iz.
@@ -79,45 +81,39 @@ const double kHighlighterOpacity = 0.35;
 /// oranı) izleri çıkarır. [aspect] = sayfa genişliği / yüksekliği; oranlar
 /// iki eksende farklı ölçekte olduğu için mesafe ondan geçerek ölçülür.
 ///
-/// Darbe **bütün olarak** silinir (parça parça kesmek yerine) — elle
-/// işaretlemede beklenen davranış bu, geri al da tek adımda geri getirir.
-/// Saf fonksiyon — birim testli.
+/// Darbe varsayılan olarak **bütün** silinir — elle işaretlemede beklenen
+/// davranış, geri al da tek adımda getirir. [partial] (kalem tepsisinin
+/// "alan silgisi", B20) yalnız değilen yeri keser; kalan parçalar ayrı darbe
+/// olur. Saf fonksiyon — birim testli.
 List<PdfMark> eraseMarksAt(
   List<PdfMark> marks, {
   required int page,
   required Offset point,
   required double radius,
   required double aspect,
+  bool partial = false,
 }) {
-  // Y'yi genişlik biriminde ölç: dy_w = dy / aspect.
-  Offset norm(Offset o) => Offset(o.dx, o.dy / aspect);
-  final c = norm(point);
-  bool hit(PdfMark m) {
-    if (m.page != page) return false;
-    switch (m) {
-      case InkMark():
-        final r = radius + m.widthFraction / 2;
-        final pts = m.points.map(norm).toList();
-        if (pts.length == 1) return (pts.first - c).distance <= r;
-        for (var i = 0; i + 1 < pts.length; i++) {
-          if (_segmentDistance(c, pts[i], pts[i + 1]) <= r) return true;
-        }
-        return false;
-      case TextMark():
-        return false; // metin dokunarak seçilip siliniyor (ekranda)
+  final out = <PdfMark>[];
+  for (final m in marks) {
+    if (m is! InkMark || m.page != page) {
+      out.add(m); // metin dokunarak seçilip siliniyor (ekranda)
+      continue;
+    }
+    final r = radius + m.widthFraction / 2;
+    if (!partial) {
+      if (!normalizedStrokeHit(m.points, point, r, aspect)) out.add(m);
+      continue;
+    }
+    final pieces = cutNormalizedStroke(m.points, point, r, aspect);
+    if (pieces == null) {
+      out.add(m);
+    } else {
+      for (final piece in pieces) {
+        out.add(m.withPoints(piece));
+      }
     }
   }
-
-  return [for (final m in marks) if (!hit(m)) m];
-}
-
-double _segmentDistance(Offset p, Offset a, Offset b) {
-  final ab = b - a;
-  final len2 = ab.dx * ab.dx + ab.dy * ab.dy;
-  if (len2 == 0) return (p - a).distance;
-  final t = (((p.dx - a.dx) * ab.dx + (p.dy - a.dy) * ab.dy) / len2)
-      .clamp(0.0, 1.0);
-  return (p - Offset(a.dx + ab.dx * t, a.dy + ab.dy * t)).distance;
+  return out;
 }
 
 /// İzleri PDF'e **kalıcı** olarak (sayfa içeriğine vektör) yazar.

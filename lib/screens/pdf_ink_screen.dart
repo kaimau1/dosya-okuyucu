@@ -8,12 +8,14 @@ import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
 import '../core/app_icons.dart';
+import '../core/edit/ink_logic.dart';
 import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/pdf_markup.dart';
 import '../widgets/download_action.dart';
+import '../widgets/ink/pen_tray.dart';
 import '../widgets/pdf_save_dialog.dart';
 import '../core/user_error.dart';
 import '../core/app_colors.dart';
@@ -149,6 +151,9 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
 
   /// Silgi sürüklemesi başlamadan önceki durum — tek geri al adımı olsun.
   List<PdfMark>? _eraseStart;
+
+  /// Bu darbe kalemin yan düğmesi / ters ucuyla: araç değişmeden silgi.
+  bool _tempErase = false;
 
   // ── İki parmak (kaydır + yakınlaştır + sayfa çevir) ─────────────────────
   final _viewportKey = GlobalKey();
