@@ -1764,3 +1764,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - Ayarlar > Gizlilik politikası Endonezce/Malayca arayüzde İngilizce metni açar (çeviri 👤 bekliyor).
 - Cavi (Jawi) içerikli bir PDF/metin: ek harfler (ڠ چ ڤ ڽ ݢ ۏ) kutu değil doğru çiziliyor mu; Arapça OCR
   (B16) bu harfleri tanıyor mu — tanımıyorsa not düş (Cavi ek harfleri model sözlüğünde olmayabilir).
+
+## K15 — Pro tek seferlik satın alım (2026-11-27, dal faz-oto-K15-iap) — yazıldı, cihazda/Play'de doğrulanmadı
+Önkoşul: Play Console'da `pro_unlock` yönetilen ürünü etkin (👤 PLAN §3 m.7), Lite AAB iç test kanalında, lisans test hesabı.
+- Kilitli bir Pro kutusuna dokun → Pro sayfası; "Satın al" Play ödeme penceresini açıyor mu (fiyat 29,99 TL).
+- Satın al → "Pro açıldı" iletisi, sayfa kapanır, PRO rozetleri hemen kalkar; video "motor" menüsü ve AI büyütme görünür.
+- İptal → "Satın alma iptal edildi"; test kartında "yavaş/bekleyen" → "Ödeme bekleniyor", onaylanınca açılıyor mu.
+- Uçak kipinde aç: satın alınmışsa Pro açık kalıyor mu (yerel kayıt). Uygulamayı sil-kur → "Satın almayı geri yükle" → açılıyor mu.
+- Play Console'dan iade → sonraki açılışta (internet varken) kilit geri geliyor mu. 3 gün sonra satın alma iade edilmemiş olmalı (onay çalışıyor).
+- Ayarlar > Hakkında > Pro satırı: satın alınca "Satın alındı · Tüm Pro özellikleri açık".
