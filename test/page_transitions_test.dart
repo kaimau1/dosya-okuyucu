@@ -51,6 +51,14 @@ void main() {
     // `FadeTransition`/`ZoomPageTransitionsBuilder` opaklık kullanır: her
     // karede tüm sayfayı ayrı bir katmana çizip harmanlamak, uzun listelerde
     // geçişin en pahalı işiydi.
+    // R3 (2026-11-27): alttaki sayfa ÖLÇEKLENMEZ — kesirli ölçek her karede
+    // tüm sayfayı yeniden rasterlatır (PDF açılış geçişi raster p90 +%50–96).
+    for (final t in tester.widgetList<Transform>(find.ancestor(
+        of: find.text('aç'), matching: find.byType(Transform)))) {
+      final m = t.transform;
+      expect(m.entry(0, 0), 1.0, reason: 'alttaki sayfa ölçeklenmemeli');
+      expect(m.entry(1, 1), 1.0, reason: 'alttaki sayfa ölçeklenmemeli');
+    }
     expect(find.byType(FadeTransition), findsNothing);
 
     await tester.pumpAndSettle();
