@@ -1058,6 +1058,19 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             PdfProChip(AppIcons.ocr, t('pse.ocr_run'),
                 () => _runOcr(onlyPage: shown + 1),
                 tapKey: const ValueKey('pse-chip-ocr')),
+          // Eski düzenleyiciden (2026-11-28): sayfayı kural/yapay zekâ ile
+          // düzelt ya da gerçek metne çevir (sonra satırlar yerinde yazılır).
+          if (scanned && PdfOcrText.isSupported) ...[
+            PdfProChip(AppIcons.organize, t('pe.fix_page'),
+                () => unawaited(_proFixScanned(shown)),
+                tapKey: const ValueKey('pse-chip-fix')),
+            PdfProChip(AppIcons.ai, t('pe.fix_page_ai'),
+                () => unawaited(_proFixScanned(shown, withAi: true)),
+                tapKey: const ValueKey('pse-chip-fix-ai')),
+            PdfProChip(AppIcons.editNote, t('pe.make_editable'),
+                () => unawaited(_proFixScanned(shown, keepText: true)),
+                tapKey: const ValueKey('pse-chip-editable')),
+          ],
           PdfProChip(AppIcons.textFields, t('pse.add_text'),
               () => pro.armTextBox = !pro.armTextBox,
               active: pro.armTextBox,

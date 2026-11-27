@@ -11,50 +11,39 @@ final _proOverwriteOk = <String>{};
 
 /// **PDF Pro düzenleme kipi** (Faz 54, PK2 + PK3): düzenleme görüntüleyicinin
 /// bir kipidir — ekran, belge, yakınlaştırma ve kaydırma değişmez; çalışma
-/// kopyası yoktur. Gizli bayrak `pdf_pro_engine` açıkken "Düzenle" buraya
-/// gelir; kapalıyken eski `PdfEditorScreen` açılır.
+/// kopyası yoktur. "Düzenle" her zaman buraya gelir.
 extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
-  Future<bool> _proEnabled() async {
-    if (const bool.fromEnvironment('PDF_PRO_ENGINE')) return true;
-    final prefs = await SharedPreferences.getInstance();
-    // Faz 57'den beri varsayılan AÇIK (PK1 koşulları + külliyat hedefleri
-    // tuttu). Kapatmak için tercih false yapılır; eski düzenleyici ayrıca
-    // ⋮ → "Eski düzenleyici" ile her zaman açılabilir.
-    return prefs.getBool('pdf_pro_engine') ?? true;
-  }
-
-  /// Düzenleme kipine girer. false = bayrak kapalı (çağıran eski yola gider);
-  /// true = bu yol üstlendi (kipe girildi ya da kullanıcı vazgeçti).
-  Future<bool> _enterProEdit({int? page, PdfEditSelection? selection}) async {
-    if (!Edition.current.has(Feature.pdfAdvanced)) return true;
-    if (_pro != null) return true;
-    if (!await _proEnabled()) return false;
+  /// Düzenleme kipine girer (kipe girildi ya da kullanıcı vazgeçti). Eski
+  /// `PdfEditorScreen` ve `pdf_pro_engine` bayrağı 2026-11-28'de kaldırıldı.
+  Future<void> _enterProEdit({int? page, PdfEditSelection? selection}) async {
+    if (!Edition.current.has(Feature.pdfAdvanced)) return;
+    if (_pro != null) return;
     final doc = _pdfDoc;
-    if (doc == null || !mounted) return true;
-    if (_proOwnedElsewhere(doc)) return true;
+    if (doc == null || !mounted) return;
+    if (_proOwnedElsewhere(doc)) return;
     // Şifreli belge (Faz 54 / 5): izin bayrakları düzenlemeyi yasaklıyorsa
     // sessizce düzenlenmez — açık uyarı + sahip parolası.
     if (!_proOwnerOk &&
         PdfEditAccessCheck.of(doc) == PdfEditAccess.ownerPasswordNeeded) {
-      if (!await showPdfLockedSheet(context) || !mounted) return true;
+      if (!await showPdfLockedSheet(context) || !mounted) return;
       final wrong = context.t('pse.owner_wrong');
       final password = await askArchivePassword(
         context,
         title: context.t('pse.owner_title'),
         body: context.t('pse.owner_body'),
       );
-      if (password == null) return true;
+      if (password == null) return;
       final ok = await PdfEditAccessCheck.isOwnerPasswordForFile(
           widget.doc.path, password);
       if (!ok) {
         _snack(wrong);
-        return true;
+        return;
       }
       _proOwnerOk = true;
     }
     // Sorular sürerken belge yeniden yüklenmiş ya da ekran kapanmış olabilir.
-    if (!mounted || _pdfDoc != doc || _pro != null) return true;
-    if (_proOwnedElsewhere(doc)) return true;
+    if (!mounted || _pdfDoc != doc || _pro != null) return;
+    if (_proOwnedElsewhere(doc)) return;
     final pro = PdfProEditController(
       document: doc,
       path: widget.doc.path,
@@ -80,7 +69,6 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
     } else {
       unawaited(_proEntryHint(pro));
     }
-    return true;
   }
 
   /// Aynı PDF başka bir görüntüleyicide (yığında altta) düzenleme kipindeyse
@@ -311,12 +299,11 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
               value: 'comments',
               icon: AppIcons.comment,
               label: context.t('pse.comments')),
-          if (context.read<AppState>().labWordEditor)
-            AppAction(
-                value: 'legacy',
-                icon: AppIcons.editNote,
-                label: context.t('pse.tool_legacy'),
-                hint: context.t('pse.tool_legacy_hint')),
+          AppAction(
+              value: 'background',
+              icon: AppIcons.layersClear,
+              label: context.t('pe.mode_watermark'),
+              hint: context.t('pe.hint_background')),
           AppAction(
               value: 'tools',
               icon: AppIcons.construction,
@@ -345,8 +332,8 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         await _proFindReplace();
       case 'comments':
         await _proComments();
-      case 'legacy':
-        await _openPdfEditor(legacy: true);
+      case 'background':
+        await _proBackground();
       case 'tools':
         await _openPdfTools();
       case 'versions':
@@ -570,7 +557,6 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
   Future<void> _proCheckRecovery() async {
     if (_proRecoveryAsked || _pro != null) return;
     _proRecoveryAsked = true;
-    if (!await _proEnabled()) return;
     final path = widget.doc.path;
     final entry = await PdfEditRecovery.find(path);
     if (entry == null || !mounted) return;

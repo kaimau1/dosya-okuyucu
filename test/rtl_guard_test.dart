@@ -32,10 +32,6 @@ const _contentFiles = [
   'lib/widgets/slide_text_controller.dart',
   'lib/widgets/docx_view.dart',
   'lib/widgets/chart_painter.dart',
-  'lib/widgets/pdf_edit_overlay.dart',
-  // Faz 31: PDF sayfa katmanları (nesne, yerinde paragraf, form) sayfa
-  // koordinatında — sayfa dil değişince aynalanmaz.
-  'lib/widgets/pdf_object_layer.dart',
   'lib/widgets/pdf_select_layer.dart',
   'lib/widgets/pdf_select_layer_chrome.dart',
   // PDF Pro (Faz 57–60): düzenleme kipinin sayfa katmanı — tutamaçlar sayfa

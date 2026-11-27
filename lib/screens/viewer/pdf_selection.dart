@@ -7,13 +7,14 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
 
   /// Kalem: düzenleme kipinin **işaretleme stüdyosu** kalem kurulu açılır
   /// (Faz 60 m.5 — tek yol; izler gerçek PDF açıklaması, geri al/yinele ve
-  /// kayıt düzenleme kipinin). Eski motor seçiliyse (bayrak kapalı) eski
-  /// kalem ekranı; özgün dosyanın üzerine yazıldıysa görüntüleyici tazelenir.
+  /// kayıt düzenleme kipinin). PDF Pro'suz sürümde kalem ekranı; özgün
+  /// dosyanın üzerine yazıldıysa görüntüleyici tazelenir.
   Future<void> _openInk() async {
     final live = _pro;
     if (live != null) return live.armMarkup(PdfMarkupKind.ink);
     if (!await _confirmLeavePending() || !mounted) return;
-    if (Edition.current.has(Feature.pdfAdvanced) && await _enterProEdit()) {
+    if (Edition.current.has(Feature.pdfAdvanced)) {
+      await _enterProEdit();
       if (mounted) _pro?.armMarkup(PdfMarkupKind.ink);
       return;
     }
@@ -26,53 +27,15 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     if (overwritten == true && mounted) await _reloadPdf();
   }
 
-  /// Tek PDF düzenleme ekranı: metin (paragraf), görsel, filigran ve sayfa.
-  Future<void> _openPdfEditor(
-      {int? page, PdfEditSelection? selection, bool legacy = false}) async {
+  /// Düzenle: PDF Pro düzenleme kipi (Faz 54) — ayrı ekran ve çalışma
+  /// kopyası yok (PK3). Okumada seçilen aralık düzenlemede seçili açılır.
+  Future<void> _openPdfEditor({int? page, PdfEditSelection? selection}) async {
     if (!await ProGate.check(context, Feature.pdfAdvanced)) return;
-    if (!mounted) return;
-    // Editör ÖZGÜN dosyanın kopyası üzerinde çalışır; bekleyen düzenlemeler
-    // önce kaydedilmezse sessizce kaybolurdu.
-    if (_pro != null && !legacy) return; // zaten düzenleme kipinde
+    if (!mounted || _pro != null) return; // zaten düzenleme kipinde
+    // Bekleyen okuma işaretleri önce kaydedilmezse sessizce kaybolurdu.
     if (!await _confirmLeavePending() || !mounted) return;
-    // PDF Pro (Faz 54, bayrak `pdf_pro_engine`): düzenleme bu ekranın kipi —
-    // ayrı ekran ve çalışma kopyası yok (PK3). Bayrak kapalıysa eski ekran.
-    if (!legacy &&
-        (await _enterProEdit(
-                page: page ?? selPageOrNull(selection),
-                selection: selection) ||
-            !mounted)) {
-      return;
-    }
-    if (!mounted) return;
-    final saved = await PdfEditorScreen.open(
-      context,
-      path: widget.doc.path,
-      initialPage: (page != null && page > 0) ? page : (_livePdfPage() ?? _pdfPage),
-      selection: selection,
-    );
-    if (saved == null || !mounted) return;
-    // PS3 (Faz 51): KOPYA kaydedildiyse görüntüleyici özgünü tazelemez,
-    // kopyayı açar — düzenlenen sayfada ([PdfEditorScreen.lastPage]).
-    if (!p.equals(saved, widget.doc.path)) {
-      final file = File(saved);
-      if (_pdfCount > 0 && await file.exists()) {
-        final size = await file.length();
-        ReadingPositions.record(saved, PdfEditorScreen.lastPage, _pdfCount,
-            size: size);
-      }
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      await openSavedPdf(saved);
-      return;
-    }
-    _partSetState(() => _pdfText = '');
-    final editedPage = PdfEditorScreen.lastPage;
-    await _reloadPdf();
-    // Düzenlenen sayfada kalınsın.
-    if (mounted && editedPage > 0 && _pdfCount > 0) {
-      await _goToPdfPage(editedPage, _pdfCount);
-    }
+    await _enterProEdit(
+        page: page ?? selPageOrNull(selection), selection: selection);
   }
 
   /// Seçim sürüklemesinin ekran konumu değişti (null = bitti). Kenara

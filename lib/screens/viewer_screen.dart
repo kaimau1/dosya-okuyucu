@@ -112,7 +112,15 @@ import '../widgets/translate_flow.dart';
 import '../widgets/tts_voice_sheet.dart';
 import 'reader_screen.dart';
 import 'pdf_form_screen.dart';
-import 'pdf_editor_screen.dart';
+import '../services/gemini_service.dart' show GeminiService;
+import '../services/pdf/pdf_ocr_text.dart';
+import '../services/pdf/pdf_scanned_retype.dart'
+    show PdfScannedRetype, ScannedEdit;
+import '../services/pdf_page_edit.dart'
+    show PdfBackgroundEntry, PdfPageEdit, PdfPageRefused;
+import '../services/scan_ai_fix.dart';
+import '../services/scan_text_fix.dart';
+import '../widgets/ai_key_gate.dart';
 import 'pdf_tools_screen.dart';
 import '../core/snack.dart';
 import '../core/once_hints.dart';
@@ -157,6 +165,7 @@ part 'viewer/pdf_reading_aids.dart';
 part 'viewer/pdf_reading_comfort.dart';
 part 'viewer/pdf_pro_edit.dart';
 part 'viewer/pdf_pro_tools.dart';
+part 'viewer/pdf_pro_cleanup.dart';
 
 /// PDF vurgu renkleri (0xAARRGGBB) — vurgu kipindeki sıra. Pastel tonlar
 /// (2026-09-27): eski doygun pembe (F06292) çarpımsal harmanda bile kelimeyi
