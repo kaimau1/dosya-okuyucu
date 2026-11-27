@@ -255,6 +255,10 @@ class _ProSheetBodyState extends State<_ProSheetBody> {
 
   bool _busy = false;
 
+  /// Başarısız/iptal sonucun iletisi LEVHANIN İÇİNDE (2026-11-27 tablet
+  /// bulgusu: alttaki şerit "Şimdi değil" düğmesinin üstüne biniyordu).
+  String? _note;
+
   @override
   void initState() {
     super.initState();
@@ -268,34 +272,54 @@ class _ProSheetBodyState extends State<_ProSheetBody> {
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _note = null;
+    });
     final r = await ProPurchase.buy();
     if (!mounted) return;
-    setState(() => _busy = false);
-    showSnackOn(messenger, s.t(switch (r) {
+    final text = s.t(switch (r) {
       ProBuyResult.purchased => 'pro.done',
       ProBuyResult.pending => 'pro.pending',
       ProBuyResult.canceled => 'pro.canceled',
       ProBuyResult.unavailable => 'pro.unavailable',
       ProBuyResult.failed => 'pro.failed',
-    }));
-    if (r == ProBuyResult.purchased) nav.pop();
+    });
+    if (r == ProBuyResult.purchased) {
+      showSnackOn(messenger, text);
+      nav.pop();
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _note = text;
+    });
   }
 
   Future<void> _restore() async {
     final s = AppStrings.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _note = null;
+    });
     final owned = await ProPurchase.restore();
     if (!mounted) return;
-    setState(() => _busy = false);
-    showSnackOn(messenger, s.t(switch (owned) {
+    final text = s.t(switch (owned) {
       true => 'pro.restored',
       false => 'pro.restore_none',
       null => 'pro.unavailable',
-    }));
-    if (owned == true) nav.pop();
+    });
+    if (owned == true) {
+      showSnackOn(messenger, text);
+      nav.pop();
+      return;
+    }
+    setState(() {
+      _busy = false;
+      _note = text;
+    });
   }
 
   @override
@@ -370,6 +394,15 @@ class _ProSheetBodyState extends State<_ProSheetBody> {
             ),
           ),
           const SizedBox(height: Gap.md),
+          if (_note != null) ...[
+            Text(
+              _note!,
+              key: const ValueKey('pro-note'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: cs.error),
+            ),
+            const SizedBox(height: Gap.sm),
+          ],
           FilledButton.icon(
             key: const ValueKey('pro-store'),
             onPressed: _busy ? null : _buy,
