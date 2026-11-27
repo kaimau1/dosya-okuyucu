@@ -710,7 +710,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
                 iconSize: 16,
                 color: fg,
                 onPressed: () => _pdfBackPageN.value = null,
-                icon: Icon(AppIcons.close),
+                icon: const Icon(AppIcons.close),
               ),
             ],
           ),
