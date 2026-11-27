@@ -848,3 +848,4 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **Karar (gizlilik):** id/ms arayüzde gizlilik politikası İngilizce gösterilir; Endonezce/Malayca metin hukuk gözden geçirmesiyle 👤 (§3 m.14), gelince `privacy_policy_screen` eşlemesi açılır.
 - **Ertelendi:** modellerin yalnız Wi-Fi'de inmesi seçeneği (§1.16 m.4) — 2026-09-26 kararı mobil veride indirmeyi bilerek açtı; ayrı iş.
 - 2026-11-27 B17 m.3 (`faz-oto-B17-ceviri2`): id/ms ek tablolara 498 anahtar (Kitaplık, temizlik, Pro, PDF araçları pt/pp/pse); TSV→Dart üretimi yer tutucu denetimli. Kalan ≈3.200 kullanılan anahtar PLAN §1.16 Kalan'da. Tuzak: locales dosyaları CRLF'li çalışma ağacında LF'ye çevrilir (indeks LF, sorun değil).
+- 2026-11-27 B17 m.4 (`faz-oto-B17-ceviri3`): id/ms ek tablolara 1.219 anahtar (excel, word, sl, xp, sp, near, sm, pe); `pipe` TSV→Dart üretimi, yer tutucu denetimli. Kalan ≈3.350 kullanılan anahtar (PLAN §1.16).
