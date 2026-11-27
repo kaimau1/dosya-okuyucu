@@ -8,9 +8,11 @@
 /// * Satırlar tek satır, sık, sayfa numaralı (kullanıcı: "satır satır olmalı").
 ///
 /// Yer imi olmayan PDF'te [createPdfOutline] başlıkları tarayıp çıkarır ve
-/// onaydan sonra PDF'in İÇİNE gerçek yer imi olarak yazar.
+/// onaydan sonra PDF'in İÇİNE gerçek yer imi olarak yazar (arama arka
+/// planda, iş kuyruğunda — [PdfOutlineJobs]).
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ import '../core/l10n/app_strings.dart';
 import '../core/snack.dart';
 import '../core/text_search.dart' show asciiFold;
 import '../core/user_error.dart';
+import '../services/fm/job_queue.dart';
 import '../services/pdf/pdf_auto_outline.dart';
 import '../services/pdf_doc_pro.dart';
 import 'app_dialog.dart';
@@ -287,38 +290,146 @@ class _OutlineBodyState extends State<_OutlineBody> {
   }
 }
 
-/// Yer imi olmayan PDF'e içindekiler çıkarır ve onaylanırsa dosyaya yazar.
-/// Dosya değiştiyse true döner (çağıran belgeyi yeniden yüklemeli).
+/// **Arka planda içindekiler çıkarma** (B19, kullanıcı 2026-11-27: 750
+/// sayfalık kitapta levha ekranı kilitliyordu).
 ///
-/// Taranmış belge yalnız GERÇEKTEN metinsizse ayrıca uyarılır (OCR yavaş);
-/// metinli PDF'te tek onay yeter. Tarama ve önizleme tek levhada; levhayı
-/// kapatmak taramayı durdurur.
+/// İş [JobQueue.track] ile izlenir: alt şerit, İşlemler ekranı ve sistem
+/// bildirimi; "Durdur" çalışır, levha/ekran kapanınca iş sürer. Belge
+/// görüntüleyicinin değil, işin KENDİ (kademesiz yüklenen) belgesidir —
+/// görüntüleyici kapanınca ölmez, yüklenmemiş sayfa yüzünden "taranmış"
+/// sanılmaz. Biten sonuç [ready]de bekler; kullanıcı belgeye dönünce (ya da
+/// bildirimden belge açılınca) önizleme + onay levhası çıkar
+/// ([reviewPdfOutline]).
+abstract final class PdfOutlineJobs {
+  // ponytail: sonuç yalnız bellekte; süreç ölürse yeniden aranır.
+  // Kalıcı gerekirse JSON olarak uygulama klasörüne yazılabilir.
+  static final _ready = <String, List<PdfOutlineItem>>{};
+
+  /// Yeni sonuç geldikçe artar (açık görüntüleyici dinler).
+  static final ready = ValueNotifier<int>(0);
+
+  static String _id(String path) => 'toc:$path';
+
+  static bool hasReady(String path) => _ready.containsKey(path);
+
+  static bool isRunning(String path) =>
+      JobQueue.instance.find(_id(path))?.status.isActive ?? false;
+
+  /// İşi başlatır; aynı dosya için süren iş varsa ikinci açılmaz.
+  static bool start(String path, {required bool scanned}) {
+    if (isRunning(path)) return false;
+    final str = AppStrings.current;
+    final job = JobQueue.instance.track(
+      id: _id(path),
+      title: str.t('toc.create'),
+      name: path.split(Platform.pathSeparator).last,
+      detail: str.t(scanned ? 'toc.scanning_ocr' : 'toc.scanning'),
+      target: FmJobTarget.files([path]),
+    );
+    unawaited(_run(job, path, scanned));
+    return true;
+  }
+
+  static Future<void> _run(TrackedJob job, String path, bool scanned) async {
+    final str = AppStrings.current;
+    PdfDocument? doc;
+    try {
+      doc = await PdfDocument.openFile(path);
+      final items = await PdfAutoOutline.detect(
+        doc,
+        ocr: scanned,
+        onProgress: (d, t) => job.report(done: d, total: t),
+        cancelled: () => job.cancelRequested,
+      );
+      if (job.cancelRequested) {
+        await job.stopped();
+      } else if (items.isEmpty) {
+        await job.complete(detail: str.t('toc.none_found'));
+      } else {
+        _ready[path] = items;
+        ready.value++;
+        await job.complete(detail: str.t('toc.ready', {'n': items.length}));
+      }
+    } catch (e) {
+      await job.fail(userErrorText(e));
+    } finally {
+      await doc?.dispose();
+    }
+  }
+}
+
+/// Yer imi olmayan PDF'e içindekiler: hazır sonuç varsa önizletip yazar
+/// (true = dosya değişti, çağıran yeniden yüklemeli); yoksa onay alıp aramayı
+/// arka planda başlatır ([PdfOutlineJobs]) ve false döner.
+///
+/// Taranmış belge yalnız GERÇEKTEN metinsizse ayrıca uyarılır (OCR yavaş).
+/// [beforeWrite] dosyaya yazmadan önce çağrılır (görüntüleyicinin bekleyen
+/// düzenleme denetimi); false dönerse yazılmaz, sonuç bekler.
 Future<bool> createPdfOutline(
   BuildContext context, {
   required String path,
-  required PdfDocument doc,
+  Future<bool> Function()? beforeWrite,
 }) async {
-  final scanned = await PdfAutoOutline.looksScanned(doc);
+  if (PdfOutlineJobs.hasReady(path)) {
+    return reviewPdfOutline(context, path: path, beforeWrite: beforeWrite);
+  }
+  if (PdfOutlineJobs.isRunning(path)) {
+    showSnack(context, context.t('toc.running'));
+    return false;
+  }
+  bool scanned;
+  int pages;
+  try {
+    final doc = await PdfDocument.openFile(path);
+    try {
+      pages = doc.pages.length;
+      scanned = await PdfAutoOutline.looksScanned(doc);
+    } finally {
+      await doc.dispose();
+    }
+  } catch (e) {
+    if (context.mounted) showSnack(context, userErrorText(e));
+    return false;
+  }
   if (!context.mounted) return false;
   final go = await showAppConfirm(
     context,
     title: context.t('toc.create'),
     message: scanned
-        ? context.t('toc.scanned_warn', {'n': doc.pages.length})
+        ? context.t('toc.scanned_warn', {'n': pages})
         : context.t('toc.create_body'),
     confirmLabel: context.t('toc.create_go'),
   );
   if (!go || !context.mounted) return false;
+  if (PdfOutlineJobs.start(path, scanned: scanned)) {
+    showSnack(context, context.t('toc.started'));
+  }
+  return false;
+}
 
-  final items = await showAppSheet<List<PdfOutlineItem>>(
+/// Biten aramanın önizlemesi → "PDF'e ekle" → dosyaya yazar. Dosya
+/// değiştiyse true. Vazgeçilirse sonuç atılır.
+Future<bool> reviewPdfOutline(
+  BuildContext context, {
+  required String path,
+  Future<bool> Function()? beforeWrite,
+}) async {
+  final items = PdfOutlineJobs._ready.remove(path);
+  if (items == null) return false;
+  final ok = await showAppSheet<bool>(
     context,
     scrollable: false,
     builder: (ctx) => SizedBox(
       height: MediaQuery.sizeOf(ctx).height * 0.7,
-      child: _AutoOutlineBody(doc: doc, scanned: scanned),
+      child: _OutlinePreview(items: items),
     ),
   );
-  if (items == null || items.isEmpty || !context.mounted) return false;
+  if (ok != true || !context.mounted) return false;
+  if (beforeWrite != null && !await beforeWrite()) {
+    PdfOutlineJobs._ready[path] = items; // sonra yeniden sunulur
+    return false;
+  }
+  if (!context.mounted) return false;
 
   try {
     final bytes = await File(path).readAsBytes();
@@ -336,87 +447,15 @@ Future<bool> createPdfOutline(
   return true;
 }
 
-/// Tarama (ilerlemeli) → bulunan başlıkların önizlemesi → "PDF'e ekle".
-class _AutoOutlineBody extends StatefulWidget {
-  final PdfDocument doc;
-  final bool scanned;
+/// Bulunan başlıkların önizlemesi → "PDF'e ekle" (true döner).
+class _OutlinePreview extends StatelessWidget {
+  final List<PdfOutlineItem> items;
 
-  const _AutoOutlineBody({required this.doc, required this.scanned});
-
-  @override
-  State<_AutoOutlineBody> createState() => _AutoOutlineBodyState();
-}
-
-class _AutoOutlineBodyState extends State<_AutoOutlineBody> {
-  var _done = 0;
-  late var _total = widget.doc.pages.length;
-  List<PdfOutlineItem>? _items;
-  String? _error;
-  var _closed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _run();
-  }
-
-  @override
-  void dispose() {
-    _closed = true; // levha kapandı → tarama durur
-    super.dispose();
-  }
-
-  Future<void> _run() async {
-    try {
-      final items = await PdfAutoOutline.detect(
-        widget.doc,
-        ocr: widget.scanned,
-        onProgress: (d, t) {
-          if (!mounted) return;
-          setState(() {
-            _done = d;
-            _total = t;
-          });
-        },
-        cancelled: () => _closed,
-      );
-      if (mounted) setState(() => _items = items);
-    } catch (e) {
-      if (mounted) setState(() => _error = userErrorText(e));
-    }
-  }
+  const _OutlinePreview({required this.items});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final items = _items;
-    final error = _error;
-    if (error != null) {
-      return Center(
-          child: Padding(
-              padding: const EdgeInsets.all(24), child: Text(error)));
-    }
-    if (items == null) {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-                context.t(
-                    widget.scanned ? 'toc.scanning_ocr' : 'toc.scanning'),
-                style: theme.textTheme.titleMedium),
-            const SizedBox(height: 16),
-            LinearProgressIndicator(value: _total == 0 ? null : _done / _total),
-            const SizedBox(height: 8),
-            Text('$_done / $_total', style: theme.textTheme.labelMedium),
-          ],
-        ),
-      );
-    }
-    if (items.isEmpty) {
-      return Center(child: Text(context.t('toc.none_found')));
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -458,12 +497,12 @@ class _AutoOutlineBodyState extends State<_AutoOutlineBody> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(context, false),
                 child: Text(context.t('common.cancel')),
               ),
               const SizedBox(width: 8),
               FilledButton(
-                onPressed: () => Navigator.pop(context, items),
+                onPressed: () => Navigator.pop(context, true),
                 child: Text(context.t('toc.save')),
               ),
             ],

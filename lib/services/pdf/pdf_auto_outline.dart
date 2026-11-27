@@ -11,6 +11,12 @@
 ///   başlığı, sayfa no) atılır;
 /// * aynı sayfada art arda gelen eş boy başlık satırları birleşir (iki
 ///   satıra taşan başlık);
+/// * "BÖLÜM 3", "Birinci Kısım", "BAB", "الفصل" gibi kalıplar gövde boyunda da
+///   başlıktır (düzey 0) ve altındaki satırla birleşir;
+/// * yanlış başlık süzgeci (B19, 2026-11-27 — 750 sayfalık Türkçe+Arapça
+///   kitap): Latin yazılı belgede Arapça satır (alıntılar çoğu zaman iri
+///   dizilir), noktayla biten uzun ya da 14 kelimeden uzun satır ve art arda
+///   3 satırdan uzun eş boy blok (alıntı paragrafı) başlık sayılmaz;
 /// * en büyük boy → düzey 0, geri kalan → düzey 1 (en çok iki düzey).
 ///
 /// Sezgi saf Dart ([pickHeadings]) ve birim testli; G/Ç yalnız [detect]'te.
@@ -48,7 +54,13 @@ abstract final class PdfAutoOutline {
   /// Kullanıcı: "taranmışlar iyi ayırt edilsin, gereksiz uyarı olmasın" —
   /// birkaç görsel sayfası olan metin PDF'i taranmış SAYILMAZ; OCR ile
   /// görünmez metin katmanı eklenmiş PDF de metinli sayılır.
+  ///
+  /// B19 kök neden (2026-11-27): görüntüleyicinin belgesi pdfrx'in kademeli
+  /// yüklemesiyle açılıyor; henüz yüklenmemiş sayfada `loadText()` null
+  /// döndüğü için 750 sayfalık METİNLİ kitap "taranmış" sayılıp OCR'a
+  /// giriyordu. Önce tüm sayfalar yüklenir ([_ensureLoaded]).
   static Future<bool> looksScanned(PdfDocument doc) async {
+    await _ensureLoaded(doc);
     final n = doc.pages.length;
     if (n == 0) return false;
     final step = math.max(1, n ~/ 12);
@@ -63,7 +75,20 @@ abstract final class PdfAutoOutline {
     return textless / sampled >= scannedRatio;
   }
 
-  /// Belgenin içindekilerini çıkarır. [ocr] true ise sayfalar OCR'lanır.
+  static Future<void> _ensureLoaded(PdfDocument doc) async {
+    if (doc.pages.any((p) => !p.isLoaded)) await doc.loadPagesProgressively();
+  }
+
+  static int _letters(List<OutlineLine> lines) {
+    var n = 0;
+    for (final l in lines) {
+      n += l.text.replaceAll(RegExp(r'\s'), '').length;
+    }
+    return n;
+  }
+
+  /// Belgenin içindekilerini çıkarır. Her sayfada önce metin katmanı okunur;
+  /// [ocr] true ise (belge taranmış) YALNIZ metinsiz sayfa OCR'lanır.
   /// [cancelled] true dönerse o ana kadarki sayfalarla devam edilir.
   static Future<List<PdfOutlineItem>> detect(
     PdfDocument doc, {
@@ -71,12 +96,15 @@ abstract final class PdfAutoOutline {
     void Function(int done, int total)? onProgress,
     bool Function()? cancelled,
   }) async {
+    await _ensureLoaded(doc);
     final pages = <List<OutlineLine>>[];
     final total = doc.pages.length;
     for (var i = 0; i < total; i++) {
       if (cancelled?.call() ?? false) break;
       final page = doc.pages[i];
-      pages.add(ocr ? await _ocrLines(page) : await _textLines(page));
+      var lines = await _textLines(page);
+      if (ocr && _letters(lines) < 20) lines = await _ocrLines(page);
+      pages.add(lines);
       onProgress?.call(i + 1, total);
     }
     // Büyük kitapta on binlerce satır: sezgi ana izleği kilitlemesin.
@@ -190,8 +218,19 @@ abstract final class PdfAutoOutline {
         (l.pos > 0.88 || l.pos < 0.12) &&
         (norm(l.text).isEmpty || (edgeCount[norm(l.text)] ?? 0) >= repeatMin);
 
+    // Belgenin ana yazısı Latin mi (Arapça alıntılar başlık sayılmasın).
+    var latin = 0, arabic = 0;
+    for (final page in pages) {
+      for (final l in page) {
+        final (la, ar) = _scriptCounts(l.text);
+        latin += la;
+        arabic += ar;
+      }
+    }
+    final latinDoc = latin >= arabic * 2;
+
     // 3) Adaylar.
-    final cands = <({int page, int line, String text, double size, bool big})>[];
+    final raw = <_Cand>[];
     for (var pi = 0; pi < pages.length; pi++) {
       final page = pages[pi];
       for (var li = 0; li < page.length; li++) {
@@ -199,12 +238,44 @@ abstract final class PdfAutoOutline {
         final t = l.text.trim();
         if (running(l) || !_titleLike(t)) continue;
         final ratio = l.size / body;
+        // Gövdede "Bölüm sonunda…" diye başlayan satır kalıp sayılmasın:
+        // büyük harf, iri ya da kısa ve noktasız olmalı.
+        if (ratio >= 0.95 &&
+            t.length <= 70 &&
+            isChapterLine(t) &&
+            (_allCaps(t) ||
+                ratio >= 1.2 ||
+                (t.length <= 30 && !t.endsWith('.')))) {
+          raw.add(_Cand(pi, li, t, l.size, big: true, key: true));
+          continue;
+        }
+        if (bodyLike(t)) continue;
+        if (latinDoc) {
+          final (la, ar) = _scriptCounts(t);
+          if (ar > la) continue;
+        }
         if (ratio >= 1.2) {
-          cands.add((page: pi, line: li, text: t, size: l.size, big: true));
+          raw.add(_Cand(pi, li, t, l.size, big: true));
         } else if (ratio >= 0.95 && _allCaps(t) && t.length <= 90) {
-          cands.add((page: pi, line: li, text: t, size: l.size, big: false));
+          raw.add(_Cand(pi, li, t, l.size, big: false));
         }
       }
+    }
+
+    // Art arda 3 satırdan uzun eş boy blok başlık değil, alıntı paragrafı
+    // (kalıp satırı varsa yalnız o kalır).
+    final cands = <_Cand>[];
+    for (var i = 0; i < raw.length;) {
+      var j = i;
+      while (j + 1 < raw.length &&
+          raw[j + 1].page == raw[i].page &&
+          raw[j + 1].line == raw[j].line + 1 &&
+          (raw[j + 1].size - raw[i].size).abs() <= raw[i].size * 0.06) {
+        j++;
+      }
+      final run = raw.sublist(i, j + 1);
+      cands.addAll(run.length <= 3 ? run : run.where((c) => c.key));
+      i = j + 1;
     }
 
     // Aşırı aday = sezgi bu belgede tutmuyor: önce büyük harf adayları,
@@ -213,12 +284,13 @@ abstract final class PdfAutoOutline {
     final cap = math.max(8, pages.length * 4);
     if (kept.length > cap) kept = [for (final c in kept) if (c.big) c];
     if (kept.length > cap) {
-      kept = [for (final c in kept) if (c.size / body >= 1.35) c];
+      kept = [for (final c in kept) if (c.key || c.size / body >= 1.35) c];
     }
     if (kept.isEmpty) return const [];
 
     // 4) Aynı sayfada art arda, eş boylu satırlar tek başlık.
-    final merged = <({int page, String text, double size, bool big})>[];
+    final merged =
+        <({int page, String text, double size, bool big, bool key})>[];
     for (var i = 0; i < kept.length; i++) {
       final c = kept[i];
       var text = c.text;
@@ -227,27 +299,38 @@ abstract final class PdfAutoOutline {
           j - i < 2 &&
           kept[j + 1].page == c.page &&
           kept[j + 1].line == kept[j].line + 1 &&
-          kept[j + 1].big == c.big &&
-          (kept[j + 1].size - c.size).abs() <= c.size * 0.06) {
+          !kept[j + 1].key &&
+          // "BİRİNCİ BÖLÜM" + altındaki ad tek başlık.
+          ((c.key && j == i) ||
+              (kept[j + 1].big == c.big &&
+                  (kept[j + 1].size - c.size).abs() <= c.size * 0.06))) {
         j++;
         text = '$text ${kept[j].text}';
       }
       i = j;
-      merged.add((page: c.page, text: text, size: c.size, big: c.big));
+      merged.add(
+          (page: c.page, text: text, size: c.size, big: c.big, key: c.key));
     }
 
     // 5) Düzey: en büyük boy kümesi 0, gerisi 1. Yalnız büyük harf adayı
-    // varsa hepsi 0.
-    final bigSizes = [for (final m in merged) if (m.big) m.size];
+    // varsa hepsi 0; bölüm kalıbı varsa o 0, gerisi 1.
+    // Kalıp satırı gövde boyunda da olabilir: yalnız gerçekten iri olanlar.
+    final bigSizes = [
+      for (final m in merged)
+        if (m.big && m.size >= body * 1.2) m.size
+    ];
+    final anyKey = merged.any((m) => m.key);
     final top = bigSizes.isEmpty ? null : bigSizes.reduce(math.max);
     final out = <PdfOutlineItem>[];
     String? last;
     for (final m in merged) {
-      final level = top == null
+      final level = m.key
           ? 0
-          : (m.big && m.size >= top * 0.94)
-              ? 0
-              : 1;
+          : top == null
+              ? (anyKey ? 1 : 0)
+              : (m.big && m.size >= top * 0.94)
+                  ? 0
+                  : 1;
       final title = m.text.replaceAll(RegExp(r'\s+'), ' ');
       if (title == last) continue; // her sayfada yinelenen bölüm adı
       last = title;
@@ -269,6 +352,35 @@ abstract final class PdfAutoOutline {
     return letters >= 2;
   }
 
+  /// Gövde cümlesine benzer: noktayla biten uzun satır ya da 14+ kelime.
+  static bool bodyLike(String t) {
+    if (t.endsWith('.') && !t.endsWith('..') && t.length > 40) return true;
+    return t.split(RegExp(r'\s+')).length > 14;
+  }
+
+  static final _chapterRe = RegExp(
+      r'^(\d+\s*[.)\-]?\s*)?(bolum|kisim|bab|fasil|fasl|unite|chapter|part)(\s|[.:\-–]|$)'
+      r'|^(birinci|ikinci|ucuncu|dorduncu|besinci|altinci|yedinci|sekizinci|dokuzuncu|onuncu|\d+\.)\s+(bolum|kisim|bab|fasil|kitap|cilt)(\s|[.:\-–]|$)'
+      r'|^(الباب|الفصل|باب|فصل)(\s|$)');
+
+  /// "BÖLÜM 3", "Birinci Kısım", "2. BAB", "الفصل الأول" gibi bölüm kalıbı.
+  static bool isChapterLine(String t) => _chapterRe.hasMatch(asciiFold(t));
+
+  /// (Latin harf, Arapça harf) sayısı.
+  static (int, int) _scriptCounts(String t) {
+    var la = 0, ar = 0;
+    for (final r in t.runes) {
+      if (r >= 0x0600 && r <= 0x06FF || r >= 0xFB50 && r <= 0xFEFF) {
+        ar++;
+      } else if (r >= 0x41 && r <= 0x5A ||
+          r >= 0x61 && r <= 0x7A ||
+          r >= 0xC0 && r <= 0x24F) {
+        la++;
+      }
+    }
+    return (la, ar);
+  }
+
   static bool _allCaps(String t) {
     final letters = RegExp(r'\p{L}', unicode: true).allMatches(t).length;
     if (letters < 4 || t.endsWith('.')) return false;
@@ -276,4 +388,13 @@ abstract final class PdfAutoOutline {
     final upper = t.replaceAll('i', 'İ').toUpperCase();
     return t == upper && t != t.toLowerCase();
   }
+}
+
+class _Cand {
+  final int page, line;
+  final String text;
+  final double size;
+  final bool big, key;
+  const _Cand(this.page, this.line, this.text, this.size,
+      {required this.big, this.key = false});
 }

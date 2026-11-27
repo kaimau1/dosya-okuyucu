@@ -880,3 +880,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-27 — Kullanıcı kararları (K40, P19c)
 - **K40 KARAR:** Word ⋮ menüsü (Belge Stüdyosu) süsleri KALIR (raster +3–4 ms, 24 ms sınırı altında). Sadeleştirme önerme.
 - **P19c KARAR:** Play'siz cihazlar için paketli Latin OCR modeli APK'ya KONMAZ (kullanıcı: "Play dışı zaten pek olmayız"). Bu cihazlarda anlaşılır ileti yeterli.
+
+## 2026-11-27 — B19 İçindekiler çıkarma: metinli PDF'te OCR kökü + arka plan işi
+- **Kök neden:** görüntüleyicinin `PdfDocument`'i pdfrx `PdfViewer.file` ile **kademeli yüklemeyle** (`useProgressiveLoading: true` varsayılan) açılıyor; yüklenmemiş sayfada `PdfPage.loadText()` **null** döner (pdfrx_engine `isLoaded` denetimi). `looksScanned` örneklediği sayfaları "metinsiz" sayıp 750 sayfalık METİNLİ kitabı OCR'a sokuyordu ("Metin tanınıyor… 4/750"). Arapça değil, yükleme durumuydu.
+- **Düzeltme:** `PdfAutoOutline` taramadan önce `loadPagesProgressively()`; iş görüntüleyicinin değil KENDİ belgesini (`PdfDocument.openFile`, kademesiz) açar. OCR artık sayfa başı: metin katmanı < 20 harfse ve belge taranmışsa.
+- **Arka plan:** `PdfOutlineJobs` (`pdf_outline_sheet.dart`) → `JobQueue.track` (şerit/İşlemler/bildirim, Durdur; iş kimliği `toc:<yol>` → aynı dosyada ikinci iş yok). Sonuç bellekte bekler; görüntüleyici açılınca/iş bitince (`PdfOutlineJobs.ready`) önizleme + onay, yazmadan önce `_confirmLeavePending`. Tuzak: uzantı (extension) yöntemini `addListener`'a koparıp verme — her koparma yeni kapanış, `removeListener` bulamaz; dinleyici sınıfta.
+- **Sezgi:** Latin belgede Arapça satır, noktayla biten uzun / 14+ kelimelik satır, art arda >3 eş boy iri satır (alıntı bloğu) başlık değil; "BÖLÜM 3 / Birinci Kısım / BAB / الفصل" kalıbı gövde boyunda da düzey 0 ve altındaki adla birleşir. Yazı kalınlığı pdfrx ham metninde YOK (yalnız kutu boyu).

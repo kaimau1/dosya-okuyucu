@@ -9886,6 +9886,12 @@ const Map<String, String> _id = {
       'PDF ini tidak memiliki daftar isi. Pindai judul dan tambahkan ke PDF sebagai penanda? Anda akan melihat daftarnya sebelum menyimpan.',
   'toc.create_go':
       'Cari judul',
+  'toc.started':
+      'Mencari judul di latar belakang; Anda akan diberi tahu saat selesai dan dapat meninjau daftarnya saat membuka dokumen.',
+  'toc.running':
+      'Pencarian judul untuk dokumen ini sedang berjalan',
+  'toc.ready':
+      '{n} judul ditemukan — buka dokumen untuk meninjau',
   'toc.none_found':
       'Tidak ada judul ditemukan',
   'toc.preview':

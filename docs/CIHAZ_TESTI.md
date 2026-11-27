@@ -1802,3 +1802,10 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - 2026-11-27 tablet turu (nightly v1.3.138, DBY-W09): DENENEMEDİ — nightly APK tam sürüm (Edition.full): Pro kutuları kilitsiz, Ayarlar > Hakkında'da Pro satırı yok, Ayarlar aramada "Pro" yok. Kilit/satın alma ekranı yalnız Lite (Play AAB iç test) derlemesinde görünür; bu turda Lite derlemesi yok.
 - 2026-11-27 tablet turu 2 (Lite nightly 1.3.138, paket `.lite`, DBY-W09, Play Hizmetleri/Play Store YOK): GEÇTİ (kısmen): ana ekranda 'Akıllı düzen' kutusunda PRO rozeti; dokununca 'Akıllı klasörler Pro sürümde' levhası (29,99 TL · Tek seferlik, Satın al, Satın almayı geri yükle, Şimdi değil). Satın al ve Geri yükle: 'Google Play'e ulaşılamadı. İnternet bağlantını ve Play Store'da oturum açık olduğunu denetle.' iletisi, çökme yok. Gerçek satın alma yapılmadı. DENENMEDİ: Play ödeme penceresi, iptal/bekleyen/iade, uçak kipi, geri yükleme başarısı (Play + lisans test hesabı gerekir). KÜÇÜK BULGU: ileti şeridi levhanın altındaki 'Şimdi değil' düğmesinin üstüne biniyor (şerit kalkana dek ~4 sn düğmeye dokunmak zor). NOT: Lite ayrı paket kimliği (`com.dosyaokuyucu.dosya_okuyucu.lite`), kişisel nightly ile yan yana durur.
 
+
+## B19 — İçindekiler çıkarma arka planda (2026-11-27, dal faz-oto-B19-toc-arkaplan) — yazıldı, cihazda doğrulanmadı
+- Yer imi olmayan büyük METİNLİ PDF (ör. 750 sayfa, Türkçe + Arapça alıntılı) → İçindekiler: "taranmış/OCR" uyarısı ÇIKMAMALI; onaydan sonra levha kalmaz, "arka planda aranıyor" iletisi + alt şerit/bildirimde ilerleme.
+- Tarama sürerken belgeyi kapat / başka ekrana geç: iş sürüyor mu; aynı belgede yeniden İçindekiler → "zaten sürüyor" iletisi.
+- Bitince bildirime dokun → belge açılır ve önizleme levhası çıkar; belge açıkken bitince levha kendiliğinden çıkar. "PDF'e ekle" → yer imleri yazılır, belge yenilenir.
+- Başlık listesi doğru mu: Arapça alıntılar ve gövde cümleleri listede olmamalı; "BÖLÜM/KISIM/BAB" satırları üst düzeyde.
+- Bekleyen düzenleme varken "PDF'e ekle": önce kaydet/vazgeç sorusu gelmeli. Gerçekten taranmış PDF'te OCR uyarısı yine çıkmalı.

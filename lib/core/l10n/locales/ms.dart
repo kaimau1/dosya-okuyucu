@@ -9891,6 +9891,12 @@ const Map<String, String> _ms = {
       'PDF ini tiada kandungan. Imbas tajuk dan tambah ke PDF sebagai penanda buku? Anda akan melihat senarainya sebelum menyimpan.',
   'toc.create_go':
       'Cari tajuk',
+  'toc.started':
+      'Mencari tajuk di latar belakang; anda akan dimaklumkan apabila selesai dan boleh menyemak senarai apabila membuka dokumen.',
+  'toc.running':
+      'Carian tajuk untuk dokumen ini sedang berjalan',
+  'toc.ready':
+      '{n} tajuk ditemui — buka dokumen untuk menyemak',
   'toc.none_found':
       'Tiada tajuk ditemui',
   'toc.preview':

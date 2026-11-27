@@ -291,6 +291,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                             unawaited(_closePro(keepRecovery: true));
                           }
                           _pdfDoc = document;
+                          _onOutlineReady();
                           PdfProPerf.openMark('belge');
                           _pdfPasswordTried = false;
                           // Her (yeniden) yüklemede yeni arayıcı: eskisi önceki
