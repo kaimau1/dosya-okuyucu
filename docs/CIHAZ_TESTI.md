@@ -1842,3 +1842,8 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 ## B4-kalan — Küçült'te yinelenen font/görsel birleştirme (2026-11-28; cihazda doğrulanmadı)
 - Aynı logolu bir PDF'i kendisiyle birleştir (PDF araçları → Birleştir), sonra Küçült: sonuç birleştirilmişten belirgin küçük mü, sayfalar ve logo/yazılar aynı görünüyor mu.
 - Parolalı belgede Küçült eskisi gibi çalışıyor mu (birleştirme orada devreye girmez).
+
+## B4 — Eski düzenleyici emekliliği (2026-11-28, dal faz-oto-B4-emeklilik) — yazıldı, cihazda doğrulanmadı
+- [ ] Her sayfada "TASLAK"/arma damgası olan PDF → Düzenle → ⋮ → Filigran: liste geliyor, seçip "Seçilenleri kaldır" → üstüne yaz/kopya sorusu → damga gidiyor, gerisi duruyor.
+- [ ] Taranmış PDF (metin katmanı yok) → Düzenle: şeritte "Metni düzelt", "Metni akıllı düzelt", "Bu sayfayı düzenlenebilir yap" görünüyor; düzenlenebilir yap → kaydet → yeniden Düzenle → bir satıra dokununca yerinde yazılıyor, renk/konum kâğıda uyuyor.
+- [ ] Kaydedilmemiş düzenleme varken bu işlere basınca önce kaydet/at sorusu geliyor; ⋮ menüsünde "Eski düzenleyici" yok.

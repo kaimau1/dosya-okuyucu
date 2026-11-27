@@ -226,3 +226,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 - **PdfEditorScreen emekliliği yapılmadı:** yeni kipte "Arka plan öğesi sil" paneli ve taranmış satır yeniden yazma/düzelt/"düzenlenebilir yap" yok (PLAN §1.4 m.6).
 - Tuzak: `pdf_objects.dart` zinciri Flutter'a bağlı — `dart file.dart` ile yerel deneme olmuyor.
 
+
+## 2026-11-28 — B4: `PdfEditorScreen` emekliliği (dal faz-oto-B4-emeklilik)
+- **Karar:** eski ekranın iki eksik işi yeni kipe taşındı, eski ekran silindi. Damga/filigran silme ⋮ → "Filigran"; taranmış sayfa (blok yok) şeridinde "Metni düzelt / akıllı düzelt / Bu sayfayı düzenlenebilir yap". Kod `lib/screens/viewer/pdf_pro_cleanup.dart`.
+- **Neden bayt düzeyi:** `removeBackground` ve `PdfScannedRetype.applyMany` bayt servisleri; bellekteki PDFium oturumuna (geri al yığını) bağlamak yeniden yazım isterdi. PDF araçları düzeni: önce kipten çık (kaydet/at sorusu), sonra eski düzenleyicinin `savePdfWithChoice` sorusu (üstüne yaz/kopya/klasör) — kayıt biçimi aynı. Geri dönüş: sürüm geçmişi/kopya.
+- **Tek OCR satırını yerinde yazma** ayrı katman olarak taşınmadı: "düzenlenebilir yap" sonra satıra dokun (yeni kipin yerinde yazması); görünmez OCR katmanlı sayfada zaten `_proReplaceScanned`. Kullanıcı tek satır için tüm sayfayı çevirmeyi istemezse sabah bakılacak.
+- `pdf_pro_engine` bayrağı ve ⋮ "Eski düzenleyici" kalktı (`_enterProEdit` artık `Future<void>`). `PdfPageEdit`, `PdfPendingWriter`, `PdfFontClass` servisleri testli ve kısmen başka yerde kullanıldığı için bırakıldı; `pe.*`/`pse.tool_legacy*` kullanılmayan anahtarlar bırakıldı (ön denetim izin veriyor).

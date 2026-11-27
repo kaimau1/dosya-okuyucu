@@ -10,7 +10,6 @@ import 'package:dosya_okuyucu/screens/fm/smart_clutter_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/smart_folders_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/smart_scope_screen.dart';
 import 'package:dosya_okuyucu/screens/fm/smart_sort_screen.dart';
-import 'package:dosya_okuyucu/screens/pdf_editor_screen.dart';
 import 'package:dosya_okuyucu/screens/pdf_tools_screen.dart';
 import 'package:dosya_okuyucu/services/audiobook/audiobook_job.dart';
 import 'package:dosya_okuyucu/services/audiobook/audiobook_maker.dart';
@@ -127,7 +126,6 @@ void main() {
         const BillsScreen(),
         const AudiobookLibraryScreen(),
         const PdfToolsScreen(path: '/tmp/ornek.pdf'),
-        const PdfEditorScreen(path: '/tmp/ornek.pdf'),
       ];
       for (final s in screens) {
         await tester.pumpWidget(wrap(s));

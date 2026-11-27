@@ -1,7 +1,7 @@
 /// **PDF sayfasının üstünde yüzen araç çubuğu:** metin seçilince çıkan
 /// [PdfSelectionBar]. (Yerinde düzenleme çubuğu `PdfEditBar` Faz 8'de eski
 /// kelime-bazlı düzenleme yoluyla birlikte kalktı — düzenleme artık
-/// `PdfEditorScreen`de.)
+/// görüntüleyicinin PDF Pro düzenleme kipinde.)
 ///
 /// ## Niye yeniden yazıldı (2026-08-29)
 /// Kullanıcı: *"düzenlerken vs açılan araç menüleri çok zarif yetersiz ve kötü
