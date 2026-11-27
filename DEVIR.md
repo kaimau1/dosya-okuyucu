@@ -1,0 +1,5 @@
+# DEVIR — faz-oto-R3-wordmenu2 (R3 b v2, Word ⋮ menü BUILD gerilemesi)
+- Kaynak: v1 `faz-oto-R3-wordmenu` (RepaintBoundary) A/B KIRMIZI; bisect #11–13 tutarsız (f5ae323f↔öncülü menüde +%4).
+- Kod incelemesi (f5ae323f menu_kit.dart Bento yolu): yalnız süsleme (karo başı kuyu Container, kenar alfa, arama kutusu gölgesi, başlık kartı). Kare başı yeniden kuran yeni widget YOK: levha gövdesi AnimatedBuilder `child`ında (SDK bottom_sheet.dart `_ModalBottomSheetState.build`), builder bağımlılıkları Theme/viewInsetsOf/AppearanceState/Localizations — animasyonda değişmez; `_BentoGrid` LayoutBuilder kısıtı sabit. Sekmeli `_TabStrip` AnimatedContainer / `_TabBody` TweenAnimationBuilder yalnız kendini kurar (varsayılan Bento).
+- Kanıt adımı: bekçi `test/menu_look_test.dart` "levha açılıp kapanırken MenuSections tek kez kurulur" (debugOnRebuildDirtyWidget sayacı, iki görünüm). CI yeşil → "levha her karede build" hipotezi çürük; kırmızı → kare başı kurulum kanıtı, düzelt.
+- Sıradaki: CI sonucu → PLAN R3 (b) + HAFIZA.
