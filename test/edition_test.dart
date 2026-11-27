@@ -7,6 +7,7 @@ import 'package:dosya_okuyucu/services/pro_purchase.dart';
 import 'package:dosya_okuyucu/widgets/fm/fm_category_tile.dart';
 import 'package:dosya_okuyucu/widgets/pro_gate.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -119,7 +120,12 @@ void main() {
         MaterialApp(
           locale: locale,
           supportedLocales: AppLanguageInfo.supportedLocales,
-          localizationsDelegates: const [AppStrings.delegate],
+          localizationsDelegates: const [
+            AppStrings.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           home: Scaffold(body: Builder(builder: b)),
         );
 

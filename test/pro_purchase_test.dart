@@ -6,6 +6,7 @@ import 'package:dosya_okuyucu/screens/fm/bills_screen.dart';
 import 'package:dosya_okuyucu/services/pro_purchase.dart';
 import 'package:dosya_okuyucu/widgets/pro_gate.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
@@ -74,7 +75,12 @@ void main() {
         child: const MaterialApp(
           locale: Locale('tr'),
           supportedLocales: AppLanguageInfo.supportedLocales,
-          localizationsDelegates: [AppStrings.delegate],
+          localizationsDelegates: [
+            AppStrings.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           home: BillsScreen(),
         ),
       ),
