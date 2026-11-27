@@ -11,6 +11,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/user_error.dart' show FriendlyException;
 import 'arabic_ocr.dart';
 import 'cloud_ocr.dart';
 import 'pdf/ocr_page_text.dart' show OcrWordBox;
@@ -67,11 +68,24 @@ enum OcrQualityMode {
 /// `toString` kullanıcıya gösterilecek metni döner: çağıranların çoğu hatayı
 /// `'$e'` diye şeride yazıyor — ham ML Kit iletisi ("Waiting for the text
 /// optional module to be downloaded") yerine ne yapacağını söyleyen cümle.
-class OcrModelNotReady implements Exception {
+class OcrModelNotReady implements FriendlyException {
   const OcrModelNotReady();
 
   @override
   String toString() => AppStrings.current.t('ocr.model_downloading');
+}
+
+/// Cihazda Google Play Hizmetleri (ya da ML Kit'in modül yükleyicisi) yok —
+/// Huawei vb. KÖK (2026-11-27 tablet turu 2): CI, Latin modelini Play
+/// Hizmetleri'nin paylaşılan modeline çeviriyor (`ci/prepare_android.sh` §6);
+/// Play'siz cihazda `processImage` ya hata atar ("No acceptable module
+/// com.google.android.gms.vision.dynamite") ya da HİÇ dönmez. [OcrModelNotReady]
+/// alt türü: tarama döngüleri ikisinde de kalan sayfaları denemeden durur.
+class OcrUnavailable extends OcrModelNotReady {
+  const OcrUnavailable();
+
+  @override
+  String toString() => AppStrings.current.t('ocr.no_play_services');
 }
 
 class OcrService {
@@ -99,13 +113,44 @@ class OcrService {
     Duration(seconds: 5),
   ];
 
-  /// `processImage` + "model iniyor" hatasında kısa bekleyip yeniden deneme.
+  /// ML Kit'in Play Hizmetleri/modül yükleyicisi yok hatası mı? Saf → testli.
+  static bool isPlayServicesMissing(Object error) {
+    final text = error is PlatformException
+        ? '${error.message} ${error.details}'
+        : '$error';
+    final lower = text.toLowerCase();
+    return lower.contains('dynamite') ||
+        lower.contains('no acceptable module') ||
+        lower.contains('service_missing') ||
+        lower.contains('google play services');
+  }
+
+  /// Tek `processImage` için üst sınır. Cihaz-içi tanıma büyük sayfada bile
+  /// birkaç saniye; bunu aşan çağrı Play'siz cihazda asılı kalan çağrıdır.
+  static const processTimeout = Duration(seconds: 20);
+
+  /// Oturumda bir kez [OcrUnavailable] görüldüyse sonraki çağrılar (ör. arka
+  /// plan içerik dizini) her görselde 20 sn beklemeden hemen düşer.
+  // ponytail: oturum boyu yapışkan; yavaş bir Play cihazında tek 20 sn'lik
+  // çağrı OCR'ı uygulama yeniden açılana dek kapatır — gerekirse Play
+  // varlığını yerel kanaldan sorgula.
+  static bool _unavailable = false;
+
+  /// `processImage` + "model iniyor" hatasında kısa bekleyip yeniden deneme;
+  /// Play Hizmetleri yoksa ya da çağrı asılırsa [OcrUnavailable].
   static Future<RecognizedText> _process(
       TextRecognizer recognizer, String path) async {
+    if (_unavailable) throw const OcrUnavailable();
     for (var attempt = 0;; attempt++) {
       try {
-        return await recognizer.processImage(InputImage.fromFilePath(path));
+        return await recognizer
+            .processImage(InputImage.fromFilePath(path))
+            .timeout(processTimeout);
       } catch (e) {
+        if (e is TimeoutException || isPlayServicesMissing(e)) {
+          _unavailable = true;
+          throw const OcrUnavailable();
+        }
         if (!isModelDownloading(e)) rethrow;
         if (attempt >= modelRetryDelays.length) throw const OcrModelNotReady();
         await Future<void>.delayed(modelRetryDelays[attempt]);

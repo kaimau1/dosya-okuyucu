@@ -200,6 +200,7 @@ Dilim sırası (her biri ayrı oturum/dal `faz-oto-B4-<ad>`; biten madde buradan
 5. **P19 OCR Pro kalan** — m.3 + m.4 `faz-oto-B4-p19b`'de (birleşince bu madde SİLİNİR). Yapılmayan (bilerek):
    doku/desenli zeminde inpainting, kontur kalınlığından yazı tipi sınıfı tahmini, satır içi düzenleme alanında
    sözcük işareti (işaret yalnız satır kutusu katmanında); Arapça/bulut OCR güven puanı vermez → işaretsiz.
+   **P19c Play'siz OCR (2026-11-27, `faz-oto-P19c-playsiz-ocr`):** tablet turu 2'de Play Hizmetleri olmayan cihazda "Metni Tanı" sessizce asılı kalıyordu → ortak `OcrService._process`'e 20 sn sınır + modül yokluğu tanıma + anlaşılır ileti; Pro levhasında Play hatası levha içinde. Kod bitti — cihazda yeniden bakılacak (C3, `docs/CIHAZ_TESTI.md` B4-P19b). Paketli Latin modeli kararı §3 B 9a.
 6. **P21 kalan** — main'de VARDI: Pro araçlar → İzinler (sahip/kullanıcı parolası + yazdır/düzenle/kopyala…),
    Belge bilgileri, PDF/A-2b (görüntü + görünmez metin), agresif sıkıştırma (DPI/kalite/gri = görsel yeniden
    örnekleme), Araçlar ⋮ Sıkıştır/Parola/Paylaş. `faz-oto-B4-p21`'de: meta temizle (XMP + eski sürümler dahil),
@@ -508,6 +509,8 @@ Aşağıdaki liste `yayin_rehberi.md`, `SURUM_ADAYI.md`, `SURUM_PLANI.md`, `izin
     - Ana ekranda varsayılan görünüm hangisi olsun (Sakin / Bento / Koyu başlık) ve kutu adları cümle düzenine geçsin mi (`K19`)?
     - Çift bölmede sürükle-bırak kopyalasın mı taşısın mı (`K5`)? Çöp kutusu silme onayı kapalı kalsın mı (`K2`)? Kopyalandı bildirimi Android 13+'da çift görünüyorsa kapatalım mı (`K4`)? Editörde Kaydet düğmesi sadece değişiklik varken görünsün mü (`K7`)?
     - Levha/pencere birleştirmelerinde görsel onay (`K17`) ve GitHub bağımlılık güncellemeleri (`K14`) onaylı mı?
+
+9a. **Play'siz cihazlarda Latin OCR (P19c, 2026-11-27):** Play'siz cihazlar (Huawei vb.) için paketli Latin OCR modeli, APK +~12 MB (her ABI'de; `ci/prepare_android.sh` §6 notu — 2026-09-26'da bu yüzden çıkarıldı): eklensin mi? Bugün bu cihazlarda Latin OCR yerine anlaşılır ileti çıkıyor; Arapça internetsiz model ve Gemini'li akıllı okuma çalışıyor. Evet → CI'da ikame yalnız Play AAB'de kalır ya da kaldırılır (APK bütçesi mandalı yükselir); hayır → durum aynen kalır.
 
 ### C. Mağaza Sayfası, Video, Gerçek Telefon Kontrolü ve Lansman
     - **Word ⋮ menüsü süsleri (K40, 2026-11-27 ölçümü):** Belge Stüdyosu'nun karo süsleri (simge kutusu, renkli kenar, arama kutusu gölgesi) menü kare çizimini 3–4 ms artırıyor (raster p99 15,7→19,7 ms; 24 ms sınırının altında, kurulumda gerileme yok — docs/perf/2026-11-27-R3-word-taban.md). Süsler kalsın mı, sadeleşsin mi?
