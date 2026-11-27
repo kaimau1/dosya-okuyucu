@@ -871,7 +871,9 @@ class _HardCompressOptions {
 }
 
 class _HardCompressSheet extends StatefulWidget {
-  const _HardCompressSheet();
+  /// Metin/vektör ağırlıklı belge: sonuç büyüyebilir uyarısı.
+  final bool likelyBigger;
+  const _HardCompressSheet({this.likelyBigger = false});
 
   @override
   State<_HardCompressSheet> createState() => _HardCompressSheetState();
@@ -891,6 +893,12 @@ class _HardCompressSheetState extends State<_HardCompressSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(context.t('pp.compress_hard_warn'), style: context.type.small),
+            if (widget.likelyBigger) ...[
+              const SizedBox(height: Gap.xs),
+              Text(context.t('pp.compress_hard_text_warn'),
+                  style: context.type.small.copyWith(
+                      color: Theme.of(context).colorScheme.error)),
+            ],
             const SizedBox(height: Gap.sm),
             Text(context.t('pp.resolution'), style: context.type.caption),
             SegmentedButton<int>(

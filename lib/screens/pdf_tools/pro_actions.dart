@@ -642,19 +642,25 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
   // ── 7. Agresif sıkıştırma (A7.4) ─────────────────────────────────────────
 
   Future<void> _compressHard() async {
+    final before = _bytes!.length;
+    final total = await _pageCount();
+    if (!mounted) return;
     final opts = await showAppSheet<_HardCompressOptions>(
       context,
       title: context.t('pp.compress_hard'),
-      builder: (_) => const _HardCompressSheet(),
+      builder: (_) => _HardCompressSheet(
+          likelyBigger: PdfTools.hardCompressLikelyBigger(before, total)),
     );
     if (opts == null || !mounted) return;
     final pw = _password;
-    final before = _bytes!.length;
-    final total = await _pageCount();
     final font = opts.keepText ? await _unicodeFont() : null;
-    final prev = _bytes;
+    final b = _bytes!;
     final label = _str.t('pp.compress_hard');
-    await _apply(label, (b) async {
+    List<int>? out;
+    // Önce üret, sonra karar ver (C3 2026-11-27): metin-only belgede sayfa
+    // görüntüsü özgünden kat kat büyük (108 KB → 12,5 MB). Kazanç < %5 ise
+    // sonuç UYGULANMAZ, belge değişmez.
+    await _produce(label, () async {
       _beginCancellable();
       // Parça parça: bellekte aynı anda en çok [_hardChunk] sayfanın JPEG'i.
       final parts = <List<int>>[];
@@ -680,15 +686,21 @@ extension _PdfToolsProPart on _PdfToolsScreenState {
         ));
       }
       if (_stopAsked()) throw const JobCancelled();
-      if (parts.length == 1) return parts.single;
-      return PdfTools.mergeInBackground(parts);
+      out = parts.length == 1
+          ? parts.single
+          : await PdfTools.mergeInBackground(parts);
     });
-    if (!mounted || identical(prev, _bytes)) return;
+    final result = out;
+    if (result == null || !mounted || !identical(b, _bytes)) return;
+    if (!PdfTools.hardCompressWorthIt(before, result.length)) {
+      _snack(_str.t('pp.compress_hard_bigger', {'size': _kb(result.length)}));
+      return;
+    }
+    await _apply(label, (_) async => result);
+    if (!mounted || identical(b, _bytes)) return;
     _partSetState(() => _password = null);
-    final after = _bytes!.length;
-    _snack(after < before
-        ? _str.t('pt.size_change', {'before': _kb(before), 'after': _kb(after)})
-        : _str.t('pp.compress_hard_bigger', {'size': _kb(after)}));
+    _snack(_str.t('pt.size_change',
+        {'before': _kb(before), 'after': _kb(_bytes!.length)}));
   }
 
   static const _hardChunk = 40;

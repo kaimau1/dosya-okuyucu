@@ -231,9 +231,14 @@ const Map<String, (String, String, String)> _t22 = {
   'pp.keep_text': ('Metni koru (aranabilir)', 'Keep text (searchable)', 'الحفاظ على النص (قابل للبحث)'),
   'pp.keep_text_sub': ('Görünmez metin katmanı yazılır', 'An invisible text layer is written', 'تُكتب طبقة نص مخفية'),
   'pp.compress_hard_bigger': (
-    'Küçülmedi ({size}) — Geri al ile eskisine dön',
-    'Not smaller ({size}) — use Undo to go back',
-    'لم يصغر ({size}) — استخدم التراجع للعودة',
+    'Küçülmedi ({size}) — özgün dosya korundu',
+    'Not smaller ({size}) — the original file was kept',
+    'لم يصغر ({size}) — تم الاحتفاظ بالملف الأصلي',
+  ),
+  'pp.compress_hard_text_warn': (
+    'Bu belge çoğunlukla metin içeriyor; agresif sıkıştırma onu büyütebilir. Küçülmezse özgün dosya korunur.',
+    'This document is mostly text; aggressive compression may make it larger. If it does not shrink, the original is kept.',
+    'هذا المستند نصي في معظمه؛ قد يزيد الضغط القوي حجمه. إن لم يصغر يُحتفظ بالأصل.',
   ),
   // ── Sayfa işlemleri ──
   'pp.studio': ('Sayfa stüdyosu', 'Page studio', 'استوديو الصفحات'),
