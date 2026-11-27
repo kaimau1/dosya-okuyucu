@@ -113,6 +113,9 @@ class _ImageEditScreenState extends State<ImageEditScreen> {
   String? _hint;
   static final _hintsShown = <String>{};
 
+  /// Boyut büyütecinin kenarı (dp).
+  static const _loupe = 64.0;
+
   /// Boyut önizlemesi (B21): seçim değişince [Motion.previewDefer] sonra BİR
   /// kez üretilir — küçültülmüş çıktı (GPU) + kodlanmış bayt (izolat).
   Timer? _sizeTimer;

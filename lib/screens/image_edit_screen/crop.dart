@@ -43,18 +43,25 @@ extension _ImageEditCrop on _ImageEditScreenState {
   void _scheduleSizePreview() {
     if (identical(_sizeFor, _e)) return;
     final e = _sizeFor = _e;
+    // Büyütecin kapladığı çıktı pikseli: yalnız orta parça tutulur (tam
+    // çıktı 8192² olabilir — bellekte bekletilmez).
+    final side = (_ImageEditScreenState._loupe *
+            MediaQuery.devicePixelRatioOf(context) *
+            e.scale)
+        .ceil();
     _sizeTimer?.cancel();
     _sizeTimer = Timer(Motion.previewDefer, () async {
       final src = _src;
       if (src == null || !mounted) return;
       try {
         final out = await renderEdits(src, e);
-        final bytes = await encodedSize(out,
-            png: editedExtension(widget.path) == '.png');
-        if (!mounted || !identical(_sizeFor, e)) return out.dispose();
+        final (bytes, mid) = await _probeSize(out, side,
+                png: editedExtension(widget.path) == '.png')
+            .whenComplete(out.dispose);
+        if (!mounted || !identical(_sizeFor, e)) return mid.dispose();
         _update(() {
           _sizeOut?.dispose();
-          _sizeOut = out;
+          _sizeOut = mid;
           _sizeOutFor = e;
           _sizeBytes = bytes;
         });
@@ -103,8 +110,8 @@ extension _ImageEditCrop on _ImageEditScreenState {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               key: ValueKey(key),
-              width: 64,
-              height: 64,
+              width: _ImageEditScreenState._loupe,
+              height: _ImageEditScreenState._loupe,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(Radii.sm),
@@ -304,6 +311,29 @@ extension _ImageEditCrop on _ImageEditScreenState {
     final l = (c.center.dx - nw / 2).clamp(0.0, 1.0 - nw);
     final t = (c.center.dy - nh / 2).clamp(0.0, 1.0 - nh);
     _push(_e.copyWith(crop: Rect.fromLTWH(l, t, nw, nh)));
+  }
+}
+
+/// Çıktının kodlanmış boyu (izolat) + büyüteç için [side] px'lik orta parçası.
+Future<(int, ui.Image)> _probeSize(ui.Image out, int side,
+    {required bool png}) async {
+  final bytes = await encodedSize(out, png: png);
+  final w = math.min(side, out.width), h = math.min(side, out.height);
+  final rec = ui.PictureRecorder();
+  Canvas(rec).drawImageRect(
+    out,
+    Rect.fromCenter(
+        center: Offset(out.width / 2, out.height / 2),
+        width: w.toDouble(),
+        height: h.toDouble()),
+    Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+    Paint(),
+  );
+  final pic = rec.endRecording();
+  try {
+    return (bytes, await pic.toImage(w, h));
+  } finally {
+    pic.dispose();
   }
 }
 
