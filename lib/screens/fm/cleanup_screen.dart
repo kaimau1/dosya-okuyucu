@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../core/app_colors.dart';
 import '../../core/app_icons.dart';
 import '../../core/edition.dart';
 import '../../core/l10n/app_strings.dart';
@@ -392,12 +391,11 @@ class _CleanupScreenState extends State<CleanupScreen> {
       if (s.files.isEmpty) {
         if (!_selectedFileless.remove(s.id)) _selectedFileless.add(s.id);
       } else {
-        final cur = _selectedCountOf(s);
-        if (cur >= s.files.length) {
-          _selectedFiles[s.id] = <String>{};
-        } else {
-          _selectedFiles[s.id] = {for (final f in s.files) f.path};
-        }
+        // Küme yerinde değişir: ayrıntı ekranları aynı nesneyi paylaşır.
+        final all = _selectedCountOf(s) >= s.files.length;
+        final set = _selectedFiles.putIfAbsent(s.id, () => <String>{})
+          ..clear();
+        if (!all) set.addAll(s.files.map((f) => f.path));
       }
     });
   }
@@ -416,7 +414,9 @@ class _CleanupScreenState extends State<CleanupScreen> {
         if (s.files.isEmpty) {
           _selectedFileless.add(s.id);
         } else {
-          _selectedFiles[s.id] = {for (final f in s.files) f.path};
+          _selectedFiles
+              .putIfAbsent(s.id, () => <String>{})
+              .addAll(s.files.map((f) => f.path));
         }
       }
     });
@@ -425,8 +425,8 @@ class _CleanupScreenState extends State<CleanupScreen> {
   void _clearSelection() {
     setState(() {
       _selectedFileless.clear();
-      for (final s in _suggestions) {
-        if (s.files.isNotEmpty) _selectedFiles[s.id] = <String>{};
+      for (final set in _selectedFiles.values) {
+        set.clear();
       }
     });
   }

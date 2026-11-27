@@ -880,3 +880,9 @@ Kararların tam tablosu ve gerekçeleri: `docs/FAZ_PLANI.md` §4 (K1–K17),
 ## 2026-11-27 — Kullanıcı kararları (K40, P19c)
 - **K40 KARAR:** Word ⋮ menüsü (Belge Stüdyosu) süsleri KALIR (raster +3–4 ms, 24 ms sınırı altında). Sadeleştirme önerme.
 - **P19c KARAR:** Play'siz cihazlar için paketli Latin OCR modeli APK'ya KONMAZ (kullanıcı: "Play dışı zaten pek olmayız"). Bu cihazlarda anlaşılır ileti yeterli.
+
+## 2026-11-27 — B18 Yer aç birleştirme + yeni görünüm (dal faz-oto-B18-yer-ac)
+- **KARAR (kullanıcı):** benzer kareler ve sohbet medyası Yer aç'ın kendi "İncele" satırları; Yer aç açılınca hızlı taramanın ARKASINDA kuyruğa girer (`startDeepScans`), sonucu duran yeniden taranmaz. Yer aç yalnız Normal/Sıkı benzer sonucunu kullanır — Gevşek ilgisiz görselleri grupluyor, Gevşek sonucu Normal'le yenilenir.
+- **Kural:** en iyi kare ASLA öneriye girmez; ek karelerin `originals` = en iyi kare (`cleanupProtectedCopies` korur). Hızlı taramanın önerdiği dosya derin satırda tekrar sayılmaz (`deepCleanupSuggestions`, `test/cleanup_deep_merge_test.dart`).
+- **Bug kökü:** Yer aç eskiden liste imzası değişince TÜM seçimi baştan kuruyordu → sonradan gelen derin sonuç ya da tek dosya silme kullanıcının işaretlerini siliyordu. Artık `cleanupSeedSelection` yalnız yeni/değişen öneriyi kurar; seçim kümesi aynı nesne kalır (SimilarScreen/ChatJunkBucketScreen `picks` ile paylaşır — kümeyi yeniden atama, yerinde değiştir).
+- Görünüm: disk halkası + "Güvenle açılabilir" ana sayı, kompakt satır (ayrıntı dokununca), süzgeç kalktı. Cihazda doğrulanmadı (CIHAZ_TESTI B18).
