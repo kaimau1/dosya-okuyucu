@@ -2,13 +2,14 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../core/app_icons.dart';
 import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/snack.dart';
 import '../core/theme.dart';
 import '../services/play_store.dart';
+import '../services/pro_purchase.dart';
 import 'app_dialog.dart';
 
 /// **Pro kapısı** (SÜRÜM PLANI S2/S3, 2026-11-12).
@@ -16,7 +17,8 @@ import 'app_dialog.dart';
 /// Giriş noktası (kutu, menü satırı, düğme) kapatılır, ekran ekran değil:
 /// - sürümde varsa → [guard] işi çalıştırır, [badge] boş döner;
 /// - Lite'ta Pro özelliği → kutu görünür, köşesinde "PRO"; dokununca
-///   [showProSheet] (özellik + 3 madde + fiyat + "Play'de gör");
+///   [showProSheet] (özellik + 3 madde + fiyat + tek seferlik satın al /
+///   geri yükle — K15, 2026-11-27, Play Billing `ProPurchase`);
 /// - yalnız Kişisel özellik Lite/Pro'da → [visible] false, HİÇ çizilmez.
 ///
 /// Kişisel derlemede (bugünkü nightly) her şey açık: bu sınıf saydamdır.
@@ -79,7 +81,7 @@ abstract final class ProPromo {
     Edition edition = Edition.current,
     DateTime? now,
   }) async {
-    if (edition != Edition.lite) return false;
+    if (edition.tier != Edition.lite) return false;
     try {
       final prefs = await SharedPreferences.getInstance();
       final nowMs = (now ?? DateTime.now()).millisecondsSinceEpoch;
@@ -151,17 +153,21 @@ class ProBadged extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!ProGate.locked(feature, edition: edition) || !feature.isPro) {
-      return child;
-    }
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        child,
-        const PositionedDirectional(top: 2, end: 2, child: ProBadge()),
-      ],
+    if (!feature.isPro || edition != Edition.lite) return child;
+    // Lite: satın alınınca rozet hemen kalksın.
+    return ValueListenableBuilder<bool>(
+      valueListenable: ProUnlock.owned,
+      builder: (_, owned, _) => owned ? child : _badged(),
     );
   }
+
+  Widget _badged() => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          child,
+          const PositionedDirectional(top: 2, end: 2, child: ProBadge()),
+        ],
+      );
 }
 
 /// Pro tanıtım levhası (§3). [feature] verilmezse genel tanıtım (ayar satırı).
@@ -180,35 +186,52 @@ Future<void> showProSheet(BuildContext context, [Feature? feature]) {
   );
 }
 
-class _ProSheetBody extends StatelessWidget {
+class _ProSheetBody extends StatefulWidget {
   final Feature? feature;
   const _ProSheetBody({this.feature});
 
+  @override
+  State<_ProSheetBody> createState() => _ProSheetBodyState();
+}
+
+class _ProSheetBodyState extends State<_ProSheetBody> {
   static const _bullets = ['pro.b1', 'pro.b2', 'pro.b3'];
 
-  Future<void> _openStore(BuildContext context) async {
+  bool _busy = false;
+
+  /// Play satın alma akışı; sonuç iletisi, başarıda levha kapanır.
+  Future<void> _buy() async {
+    final s = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     final nav = Navigator.of(context);
-    var ok = false;
-    try {
-      ok = await launchUrl(
-        ProListing.marketUri,
-        mode: LaunchMode.externalApplication,
-      );
-    } catch (_) {
-      ok = false; // Bilinçli: Play yüklü değil → web adresine düş.
-    }
-    if (!ok) {
-      try {
-        await launchUrl(
-          ProListing.webUri,
-          mode: LaunchMode.externalApplication,
-        );
-      } catch (_) {
-        // Bilinçli: tarayıcı da yoksa levha açık kalır, kullanıcı kapatır.
-        return;
-      }
-    }
-    if (nav.mounted) nav.pop();
+    setState(() => _busy = true);
+    final r = await ProPurchase.buy();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    showSnackOn(messenger, s.t(switch (r) {
+      ProBuyResult.purchased => 'pro.done',
+      ProBuyResult.pending => 'pro.pending',
+      ProBuyResult.canceled => 'pro.canceled',
+      ProBuyResult.unavailable => 'pro.unavailable',
+      ProBuyResult.failed => 'pro.failed',
+    }));
+    if (r == ProBuyResult.purchased) nav.pop();
+  }
+
+  Future<void> _restore() async {
+    final s = AppStrings.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    setState(() => _busy = true);
+    final owned = await ProPurchase.restore();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    showSnackOn(messenger, s.t(switch (owned) {
+      true => 'pro.restored',
+      false => 'pro.restore_none',
+      null => 'pro.unavailable',
+    }));
+    if (owned == true) nav.pop();
   }
 
   @override
@@ -303,9 +326,19 @@ class _ProSheetBody extends StatelessWidget {
           const SizedBox(height: Gap.md),
           FilledButton.icon(
             key: const ValueKey('pro-store'),
-            onPressed: () => _openStore(context),
-            icon: const Icon(AppIcons.pro),
-            label: Text(context.t('pro.store')),
+            onPressed: _busy ? null : _buy,
+            icon: _busy
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(AppIcons.pro),
+            label: Text(context.t('pro.buy')),
+          ),
+          TextButton(
+            key: const ValueKey('pro-restore'),
+            onPressed: _busy ? null : _restore,
+            child: Text(context.t('pro.restore')),
           ),
           TextButton(
             key: const ValueKey('pro-later'),

@@ -1051,11 +1051,14 @@ Widget _ecoNotlarTile(BuildContext _) => const Padding(
       padding: EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
       child: CrossAppPromoCard(),
     );
-Widget _proTile(BuildContext context) => SettingTile(
-  icon: AppIcons.pro,
-  title: context.t('pro.title'),
-  subtitle: context.t('pro.row_sub'),
-  onTap: () => showProSheet(context),
+Widget _proTile(BuildContext context) => ValueListenableBuilder<bool>(
+  valueListenable: ProUnlock.owned,
+  builder: (context, owned, _) => SettingTile(
+    icon: AppIcons.pro,
+    title: context.t('pro.title'),
+    subtitle: context.t(owned ? 'pro.owned_sub' : 'pro.row_sub'),
+    onTap: owned ? null : () => showProSheet(context),
+  ),
 );
 Widget _appUpdateTile(BuildContext _) => const AppUpdateTile();
 Widget _ttsVoiceTile(BuildContext _) => const TtsVoiceTile();

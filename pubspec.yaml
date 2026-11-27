@@ -237,6 +237,10 @@ dependencies:
   # Görselde yapay zekâlı 4× büyütme (ESRGAN, LiteRT). Model APK'da değil,
   # ilk kullanımda indirilip SHA-256 ile doğrulanıyor (services/image_upscale.dart).
   tflite_flutter: ^0.12.1
+  # Pro'yu açan tek seferlik satın alım (K15, 2026-11-27; lib/services/pro_purchase.dart).
+  # Android alt paketi doğrudan: geçmiş satın alma sorgusu + PurchaseStateWrapper.
+  in_app_purchase: ^3.3.1
+  in_app_purchase_android: 0.5.5
   # NOT: PC'den telefona FTP **sunucusu** için paket YOK — hazır bir Dart FTP
   # sunucusu bulunmuyor, olanlar istemci. `dart:io` ServerSocket ile yazıldı
   # (services/fm/remote/ftp_server.dart): kök hapsi, kimlik doğrulama ve pasif
