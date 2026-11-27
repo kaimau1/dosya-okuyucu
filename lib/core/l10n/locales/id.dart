@@ -4806,4 +4806,385 @@ const Map<String, String> _id = {
       'Tidak ada berkas yang dapat diputar dalam daftar',
   'mp.playlist_name':
       'Nama daftar putar',
+// ── mp-nas-fmset ──
+  'mp.auto_next':
+      'Putar berikutnya otomatis',
+  'mp.auto_next_on':
+      'Putar berikutnya otomatis aktif',
+  'mp.auto_next_off':
+      'Putar berikutnya otomatis nonaktif',
+  'mp.loop_mark_a':
+      'Ulang A-B: tandai A',
+  'mp.loop_mark_b':
+      'Ulang A-B: tandai B',
+  'mp.loop_off':
+      'Hapus ulang A-B',
+  'mp.loop_a_set':
+      'Titik awal (A) ditandai',
+  'mp.loop_on':
+      'Ulang A-B aktif — rentang terus berulang.',
+  'mp.loop_cleared':
+      'Ulang A-B dihapus',
+  'mp.lock':
+      'Kunci kontrol',
+  'mp.rotate_right':
+      'Putar ke kanan',
+  'mp.rotate_left':
+      'Putar ke kiri',
+  'mp.unlock':
+      'Buka kunci',
+  'mp.sec_player':
+      'Pemutar',
+  'mp.float_window':
+      'Putar dalam gambar-dalam-gambar',
+  'mp.float_failed':
+      'Perangkat ini tidak mendukung gambar-dalam-gambar.',
+  'mp.zoom_fill':
+      'Penuhi layar',
+  'mp.zoom_fit':
+      'Sesuaikan dengan layar',
+  'mp.resumed_at':
+      'Melanjutkan dari {time}',
+  'mp.restart':
+      'Mulai dari awal',
+  'mp.sleep_timer':
+      'Pengatur waktu tidur',
+  'mp.sleep_off':
+      'Mati',
+  'mp.sleep_minutes':
+      '{n} menit',
+  'mp.sleep_active':
+      'Berhenti dalam {time}',
+  'mp.audio_failed':
+      'Berkas audio ini tidak dapat diputar: {error}',
+  'mp.channel_name':
+      'Pemutar musik',
+  'mp.channel_desc':
+      'Notifikasi untuk audio yang diputar di latar belakang',
+  'mp.play':
+      'Putar',
+  'mp.pause':
+      'Jeda',
+  'mp.next':
+      'Berikutnya',
+  'mp.previous':
+      'Sebelumnya',
+  'mp.now_playing':
+      'Sedang diputar',
+  'mp.speed':
+      'Kecepatan',
+  'mp.back10':
+      'Mundur 10 dtk',
+  'mp.forward10':
+      'Maju 10 dtk',
+  'mp.portrait':
+      'Potret',
+  'mp.fullscreen':
+      'Layar penuh (lanskap)',
+  'mp.next_page':
+      'Halaman berikutnya',
+  'mp.play_speed':
+      'Kecepatan pemutaran',
+  'mp.speed_reset':
+      'Setel ulang ke 1×',
+  'mp.subtitles':
+      'Subjudul',
+  'mp.sub_off':
+      'Subjudul mati',
+  'mp.engine_mpv':
+      'Buka dengan mesin lanjutan (mpv — semua codec)',
+  'mp.engine_exo':
+      'Kembali ke mesin standar (ExoPlayer)',
+  'mp.audio_track_n':
+      'Audio {n}',
+  'mp.sub_online':
+      'Cari online (OpenSubtitles)…',
+  'mp.sub_online_none':
+      'Subjudul untuk video ini tidak ditemukan.',
+  'mp.sub_online_failed':
+      'Tidak dapat mengambil subjudul: {error}',
+  'mp.sub_exact':
+      'Cocok persis dengan berkas ini',
+  'mp.sub_bigger':
+      'Subjudul lebih besar',
+  'mp.sub_smaller':
+      'Subjudul lebih kecil',
+  'mp.sub_pick':
+      'Pilih berkas subjudul…',
+  'mp.sub_earlier':
+      'Majukan subjudul 0,5 dtk lebih awal',
+  'mp.sub_later':
+      'Tunda subjudul 0,5 dtk',
+  'mp.sub_offset':
+      'Offset: {v} dtk',
+  'mp.sub_unreadable':
+      'Tidak dapat membaca berkas subjudul.',
+  'mp.open_with':
+      'Buka dengan aplikasi lain',
+  'mp.file_ops':
+      'Operasi berkas (pindah, salin, bagikan…)',
+  'mp.shuffle':
+      'Acak',
+  'mp.repeat_off':
+      'Ulangi: mati',
+  'mp.repeat_one':
+      'Ulangi: lagu ini',
+  'mp.repeat_all':
+      'Ulangi: semua',
+  'mp.video_failed':
+      'Berkas ini tidak dapat diputar. Perangkat Anda mungkin tidak mendukung codec ini — coba “Buka dengan aplikasi lain”.\n\n{error}',
+  'nas.ftp_plain_warning':
+      'FTP biasa tidak dienkripsi: kata sandi dan berkas Anda dikirim terbuka. Pilih FTPES atau SFTP jika server mendukungnya.',
+  'nas.webdav_http_warning':
+      'http:// tidak dienkripsi: kata sandi Anda dikirim terbuka. Gunakan hanya di jaringan rumah; pilih https:// di internet.',
+  'nas.title':
+      'Penyimpanan jaringan',
+  'nas.empty':
+      'Belum ada koneksi tersimpan. Tambahkan server secara manual atau pindai jaringan.',
+  'nas.add':
+      'Tambah koneksi',
+  'nas.edit':
+      'Edit koneksi',
+  'nas.scan':
+      'Pindai jaringan',
+  'nas.scanning':
+      'Memindai jaringan…',
+  'nas.scan_none':
+      'Server tidak ditemukan. Apakah server dan ponsel berada di jaringan Wi-Fi YANG SAMA?',
+  'nas.scan_found':
+      '{n} server ditemukan',
+  'nas.protocol':
+      'Protokol',
+  'nas.name':
+      'Nama',
+  'nas.name_hint':
+      'NAS Rumah',
+  'nas.host':
+      'Alamat server',
+  'nas.host_hint':
+      '192.168.1.10',
+  'nas.webdav_host_hint':
+      'https://server/dav',
+  'nas.port':
+      'Port',
+  'nas.user':
+      'Nama pengguna',
+  'nas.password':
+      'Kata sandi',
+  'nas.domain':
+      'Domain / grup kerja',
+  'nas.initial_path':
+      'Folder awal',
+  'nas.save_password':
+      'Simpan kata sandi',
+  'nas.save_password_note':
+      'Kata sandi disimpan terenkripsi dengan kunci yang terikat pada perangkat. Jika dimatikan, kata sandi ditanyakan setiap kali terhubung.',
+  'nas.unprotected_note':
+      'Penyimpanan kunci aman tidak berfungsi di perangkat ini: kata sandi tersimpan tanpa perlindungan.',
+  'nas.password_prompt':
+      'Kata sandi untuk “{name}”',
+  'nas.test':
+      'Uji koneksi',
+  'nas.test_ok':
+      'Koneksi berhasil.',
+  'nas.connecting':
+      'Menghubungkan…',
+  'nas.delete_confirm':
+      'Hapus koneksi “{name}”? (Berkas di server tidak disentuh.)',
+  'nas.upload_here':
+      'Unggah ke sini',
+  'nas.uploading':
+      'Mengunggah…',
+  'nas.upload_done':
+      'Terunggah.',
+  'nas.new_folder':
+      'Folder baru',
+  'nas.folder_name':
+      'Nama folder',
+  'nas.smb1_title':
+      'Protokol SMB1 lawas',
+  'nas.smb1_body':
+      '{host} hanya mendukung SMB1. SMB1 sudah usang dan tidak aman: kata sandi dan berkas lebih mudah disadap. Izinkan hanya di jaringan rumah tepercaya.',
+  'nas.smb1_allow':
+      'Tetap hubungkan',
+  'nas.copy_to_phone':
+      'Salin ke ponsel',
+  'nas.copied_to_phone':
+      'Disalin ke Download/Dosya Okuyucu',
+  'nas.copy_only_files':
+      'Hanya berkas yang dapat disalin (sebuah folder dipilih).',
+  'nas.copy_skipped_dirs':
+      'folder dilewati',
+  'nas.copying':
+      'Menyalin',
+  'nas.filter_hint':
+      'Saring folder ini',
+  'nas.no_match':
+      'Tidak ada berkas yang cocok.',
+  'nas.delete_many':
+      'Hapus {n} item?',
+  'nas.sort_ascending':
+      'Menaik',
+  'nas.rename':
+      'Ganti nama',
+  'nas.new_name':
+      'Nama baru',
+  'nas.empty_folder':
+      'Folder ini kosong.',
+  'nas.smb_share_root':
+      'Berbagi — buka satu berbagi untuk melihat berkasnya.',
+  'nas.error_unreachable':
+      'Tidak dapat menjangkau server. Periksa alamat, port, dan pastikan Anda berada di jaringan yang sama.',
+  'nas.error_auth':
+      'Nama pengguna atau kata sandi ditolak.',
+  'nas.error_not_found':
+      'Folder atau berkas tidak ditemukan.',
+  'nas.error_denied':
+      'Server menolak akses.',
+  'nas.error_unsupported':
+      'Server tidak mendukung versi protokol ini. Coba SFTP atau FTP.',
+  'nas.error_hostkey':
+      'Identitas server tidak dikonfirmasi atau telah berubah. Koneksi diputus.',
+  'nas.error_insecure':
+      'Koneksi tidak aman diblokir: kata sandi Anda tidak pernah dikirim tanpa enkripsi lewat internet atau ke server pengalihan. Gunakan alamat https://.',
+  'nas.hostkey_new_title':
+      'Server baru',
+  'nas.hostkey_new_body':
+      'Anda terhubung ke {host}:{port} untuk pertama kali.\n\n{type}\n{fp}\n\nPercayai jika sidik jarinya sama dengan yang ditampilkan NAS Anda.',
+  'nas.hostkey_changed_title':
+      'Identitas server BERUBAH',
+  'nas.hostkey_changed_body':
+      'Kunci {host}:{port} telah berubah. Mungkin ada yang menyadap.\n\nLama: {old}\nBaru: {fp}\n\nJANGAN terhubung kecuali Anda memasang ulang server.',
+  'nas.hostkey_trust':
+      'Percayai',
+  'nas.error_unknown':
+      'Kesalahan koneksi.',
+  'nas.smb_warning':
+      'SMB telah diuji dengan berbagi Samba/Windows (SMB2) dan berfungsi. Server yang hanya mewajibkan SMB3 mungkin tidak terhubung; dalam hal itu coba SFTP atau FTP pada server yang sama. Port selalu 445 dan tidak dapat diubah.',
+  'nas.writeback_title':
+      'Unggah perubahan ke server?',
+  'nas.writeback_body':
+      '“{name}” telah diedit. Perubahan baru ada di salinan sementara di ponsel; berkas di server masih yang lama. Mengunggah MENIMPA versi di server.',
+  'nas.writeback_upload':
+      'Unggah',
+  'nas.writeback_keep_local':
+      'Jangan unggah dulu',
+  'nas.writeback_done':
+      'Terunggah ke server.',
+  'fmset.folder_sizes':
+      'Ukuran folder di daftar',
+  'fmset.folder_sizes_sub':
+      'Folder yang terlihat diukur di latar belakang; pohon besar butuh waktu lebih lama.',
+  'fmset.resume':
+      'Lanjutkan dari terakhir dibuka',
+  'fmset.resume_sub':
+      'Ingat posisi pemutaran dan halaman dokumen.',
+  'fmset.audio_bg':
+      'Tetap putar audio di latar belakang',
+  'fmset.audio_bg_sub':
+      'Jika mati, musik berhenti saat Anda keluar dari aplikasi atau mengunci layar.',
+  'fmset.start_folder':
+      'Folder awal',
+  'fmset.start_folder_none':
+      'Aplikasi terbuka di dasbor',
+  'fmset.start_folder_pick':
+      'Buka ini saat mulai',
+  'fmset.start_folder_clear':
+      'Hapus folder awal',
+  'fmset.sec_privacy':
+      'Privasi',
+  'fmset.sec_delete':
+      'Penghapusan',
+  'fmset.sec_permissions':
+      'Izin',
+  'fmset.sec_maintenance':
+      'Pemeliharaan',
+  'fmset.list_layout':
+      'Tata letak daftar berkas',
+  'fmset.photo_grid':
+      'Kisi foto',
+  'fmset.grid_density':
+      'Kepadatan kisi',
+  'fmset.grouping':
+      'pengelompokan',
+  'fmset.show_hidden':
+      'Tampilkan berkas tersembunyi',
+  'fmset.show_hidden_sub':
+      'Nama yang diawali titik (seperti .thumbnails)',
+  'fmset.thumbnails':
+      'Gambar mini',
+  'fmset.thumbnails_sub':
+      'Pratinjau gambar dan video (matikan di perangkat lambat)',
+  'fmset.default_sort':
+      'Urutan bawaan',
+  'fmset.reverse_dir':
+      'Balik arah',
+  'fmset.group_photos':
+      'Kelompokkan foto',
+  'fmset.group_photos_sub':
+      'Dikelompokkan menurut {unit}',
+  'fmset.media_open_with':
+      'Buka video, audio, dan gambar dengan',
+  'fmset.index':
+      'Indeks pencarian',
+  'fmset.index_building':
+      'Membangun…',
+  'fmset.index_none':
+      'Belum dibangun — dibangun saat pencarian pertama atau setelah pemindaian',
+  'fmset.index_stale':
+      ' · berkas berubah, perlu disegarkan',
+  'fmset.index_ready':
+      '{n} catatan · {date}{stale}',
+  'fmset.index_failed':
+      'Indeks tidak dapat dibangun (izin penyimpanan mungkin tidak ada).',
+  'fmset.index_built':
+      'Indeks pencarian dibangun · {n} catatan.',
+  'fmset.pin_change':
+      'Ubah PIN kunci folder',
+  'fmset.pin_set':
+      'Atur PIN kunci folder',
+  'fmset.pin_sub_locked':
+      '{n} folder terkunci · untuk mengunci, gunakan ⋮ > “Kunci folder” di folder',
+  'fmset.pin_sub_unset':
+      'Folder terkunci disembunyikan dari daftar dan galeri. Berkas TIDAK dienkripsi — hanya disembunyikan di dalam aplikasi ini.',
+  'fmset.pin_remove':
+      'Hapus kunci sepenuhnya',
+  'fmset.pin_remove_sub':
+      'PIN dihapus dan semua folder dibuka kuncinya.',
+  'fmset.unlock':
+      'Buka kunci',
+  'fmset.use_trash':
+      'Gunakan tempat sampah',
+  'fmset.use_trash_sub':
+      'Jika mati, berkas langsung dihapus permanen (tidak dapat dibatalkan)',
+  'fmset.confirm_delete':
+      'Tanya sebelum menghapus',
+  'fmset.trash_auto':
+      'Kosongkan tempat sampah otomatis',
+  'fmset.trash_auto_off':
+      'Mati — tempat sampah dikosongkan manual',
+  'fmset.trash_auto_on':
+      'Item lebih lama dari {n} hari dihapus',
+  'fmset.off':
+      'Mati',
+  'fmset.days':
+      '{n} hari',
+  'fmset.empty_trash_now':
+      'Kosongkan tempat sampah sekarang',
+  'fmset.trash_empty':
+      'Tempat sampah kosong',
+  'fmset.trash_summary':
+      '{n} item · {size}',
+  'fmset.empty_confirm_title':
+      'Kosongkan tempat sampah?',
+  'fmset.empty_confirm_body':
+      '{n} item ({size}) akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+  'fmset.empty':
+      'Kosongkan',
+  'fmset.emptying':
+      'Mengosongkan tempat sampah',
+  'fmset.empty_partial':
+      '{ok} item dihapus, {fail} tidak dapat dihapus.',
+  'fmset.empty_cancelled':
+      'Dihentikan — {ok} item dihapus.',
 };

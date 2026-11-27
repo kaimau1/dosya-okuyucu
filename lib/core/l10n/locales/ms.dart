@@ -4811,4 +4811,385 @@ const Map<String, String> _ms = {
       'Tiada fail yang boleh dimainkan dalam senarai',
   'mp.playlist_name':
       'Nama senarai main',
+// ── mp-nas-fmset ──
+  'mp.auto_next':
+      'Main seterusnya secara automatik',
+  'mp.auto_next_on':
+      'Main seterusnya automatik dihidupkan',
+  'mp.auto_next_off':
+      'Main seterusnya automatik dimatikan',
+  'mp.loop_mark_a':
+      'Ulang A-B: tanda A',
+  'mp.loop_mark_b':
+      'Ulang A-B: tanda B',
+  'mp.loop_off':
+      'Kosongkan ulang A-B',
+  'mp.loop_a_set':
+      'Titik mula (A) ditandakan',
+  'mp.loop_on':
+      'Ulang A-B dihidupkan — julat terus diulang.',
+  'mp.loop_cleared':
+      'Ulang A-B dikosongkan',
+  'mp.lock':
+      'Kunci kawalan',
+  'mp.rotate_right':
+      'Putar ke kanan',
+  'mp.rotate_left':
+      'Putar ke kiri',
+  'mp.unlock':
+      'Buka kunci',
+  'mp.sec_player':
+      'Pemain',
+  'mp.float_window':
+      'Main dalam gambar-dalam-gambar',
+  'mp.float_failed':
+      'Peranti ini tidak menyokong gambar-dalam-gambar.',
+  'mp.zoom_fill':
+      'Penuhi skrin',
+  'mp.zoom_fit':
+      'Muatkan pada skrin',
+  'mp.resumed_at':
+      'Menyambung dari {time}',
+  'mp.restart':
+      'Mula dari awal',
+  'mp.sleep_timer':
+      'Pemasa tidur',
+  'mp.sleep_off':
+      'Mati',
+  'mp.sleep_minutes':
+      '{n} minit',
+  'mp.sleep_active':
+      'Berhenti dalam {time}',
+  'mp.audio_failed':
+      'Fail audio ini tidak dapat dimainkan: {error}',
+  'mp.channel_name':
+      'Pemain muzik',
+  'mp.channel_desc':
+      'Pemberitahuan untuk audio yang dimainkan di latar belakang',
+  'mp.play':
+      'Main',
+  'mp.pause':
+      'Jeda',
+  'mp.next':
+      'Seterusnya',
+  'mp.previous':
+      'Sebelumnya',
+  'mp.now_playing':
+      'Sedang dimainkan',
+  'mp.speed':
+      'Kelajuan',
+  'mp.back10':
+      'Undur 10 saat',
+  'mp.forward10':
+      'Maju 10 saat',
+  'mp.portrait':
+      'Potret',
+  'mp.fullscreen':
+      'Skrin penuh (landskap)',
+  'mp.next_page':
+      'Muka surat seterusnya',
+  'mp.play_speed':
+      'Kelajuan main balik',
+  'mp.speed_reset':
+      'Set semula kepada 1×',
+  'mp.subtitles':
+      'Sari kata',
+  'mp.sub_off':
+      'Sari kata dimatikan',
+  'mp.engine_mpv':
+      'Buka dengan enjin lanjutan (mpv — semua codec)',
+  'mp.engine_exo':
+      'Kembali ke enjin standard (ExoPlayer)',
+  'mp.audio_track_n':
+      'Audio {n}',
+  'mp.sub_online':
+      'Cari dalam talian (OpenSubtitles)…',
+  'mp.sub_online_none':
+      'Sari kata untuk video ini tidak ditemui.',
+  'mp.sub_online_failed':
+      'Tidak dapat mendapatkan sari kata: {error}',
+  'mp.sub_exact':
+      'Padanan tepat dengan fail ini',
+  'mp.sub_bigger':
+      'Sari kata lebih besar',
+  'mp.sub_smaller':
+      'Sari kata lebih kecil',
+  'mp.sub_pick':
+      'Pilih fail sari kata…',
+  'mp.sub_earlier':
+      'Lewatkan sari kata 0.5 saat lebih awal',
+  'mp.sub_later':
+      'Lengahkan sari kata 0.5 saat',
+  'mp.sub_offset':
+      'Ofset: {v} saat',
+  'mp.sub_unreadable':
+      'Tidak dapat membaca fail sari kata.',
+  'mp.open_with':
+      'Buka dengan aplikasi lain',
+  'mp.file_ops':
+      'Operasi fail (alih, salin, kongsi…)',
+  'mp.shuffle':
+      'Rombak',
+  'mp.repeat_off':
+      'Ulang: mati',
+  'mp.repeat_one':
+      'Ulang: lagu ini',
+  'mp.repeat_all':
+      'Ulang: semua',
+  'mp.video_failed':
+      'Fail ini tidak dapat dimainkan. Peranti anda mungkin tidak menyokong codec ini — cuba “Buka dengan aplikasi lain”.\n\n{error}',
+  'nas.ftp_plain_warning':
+      'FTP biasa tidak disulitkan: kata laluan dan fail anda dihantar secara terbuka. Pilih FTPES atau SFTP jika pelayan menyokongnya.',
+  'nas.webdav_http_warning':
+      'http:// tidak disulitkan: kata laluan anda dihantar secara terbuka. Gunakan hanya pada rangkaian rumah; pilih https:// di internet.',
+  'nas.title':
+      'Storan rangkaian',
+  'nas.empty':
+      'Tiada sambungan disimpan. Tambah pelayan secara manual atau imbas rangkaian.',
+  'nas.add':
+      'Tambah sambungan',
+  'nas.edit':
+      'Edit sambungan',
+  'nas.scan':
+      'Imbas rangkaian',
+  'nas.scanning':
+      'Mengimbas rangkaian…',
+  'nas.scan_none':
+      'Pelayan tidak ditemui. Adakah pelayan dan telefon berada pada rangkaian Wi-Fi YANG SAMA?',
+  'nas.scan_found':
+      '{n} pelayan ditemui',
+  'nas.protocol':
+      'Protokol',
+  'nas.name':
+      'Nama',
+  'nas.name_hint':
+      'NAS Rumah',
+  'nas.host':
+      'Alamat pelayan',
+  'nas.host_hint':
+      '192.168.1.10',
+  'nas.webdav_host_hint':
+      'https://server/dav',
+  'nas.port':
+      'Port',
+  'nas.user':
+      'Nama pengguna',
+  'nas.password':
+      'Kata laluan',
+  'nas.domain':
+      'Domain / kumpulan kerja',
+  'nas.initial_path':
+      'Folder permulaan',
+  'nas.save_password':
+      'Simpan kata laluan',
+  'nas.save_password_note':
+      'Kata laluan disimpan secara tersulit dengan kunci yang terikat pada peranti. Jika dimatikan, kata laluan ditanya setiap kali bersambung.',
+  'nas.unprotected_note':
+      'Storan kunci selamat tidak berfungsi pada peranti ini: kata laluan disimpan tanpa perlindungan.',
+  'nas.password_prompt':
+      'Kata laluan untuk “{name}”',
+  'nas.test':
+      'Uji sambungan',
+  'nas.test_ok':
+      'Sambungan berjaya.',
+  'nas.connecting':
+      'Menyambung…',
+  'nas.delete_confirm':
+      'Padam sambungan “{name}”? (Fail pada pelayan tidak disentuh.)',
+  'nas.upload_here':
+      'Muat naik ke sini',
+  'nas.uploading':
+      'Memuat naik…',
+  'nas.upload_done':
+      'Dimuat naik.',
+  'nas.new_folder':
+      'Folder baharu',
+  'nas.folder_name':
+      'Nama folder',
+  'nas.smb1_title':
+      'Protokol SMB1 lama',
+  'nas.smb1_body':
+      '{host} hanya menyokong SMB1. SMB1 sudah lapuk dan tidak selamat: kata laluan dan fail lebih mudah dipintas. Benarkan hanya pada rangkaian rumah yang dipercayai.',
+  'nas.smb1_allow':
+      'Sambung juga',
+  'nas.copy_to_phone':
+      'Salin ke telefon',
+  'nas.copied_to_phone':
+      'Disalin ke Download/Dosya Okuyucu',
+  'nas.copy_only_files':
+      'Hanya fail yang boleh disalin (satu folder dipilih).',
+  'nas.copy_skipped_dirs':
+      'folder dilangkau',
+  'nas.copying':
+      'Menyalin',
+  'nas.filter_hint':
+      'Tapis folder ini',
+  'nas.no_match':
+      'Tiada fail yang sepadan.',
+  'nas.delete_many':
+      'Padam {n} item?',
+  'nas.sort_ascending':
+      'Menaik',
+  'nas.rename':
+      'Namakan semula',
+  'nas.new_name':
+      'Nama baharu',
+  'nas.empty_folder':
+      'Folder ini kosong.',
+  'nas.smb_share_root':
+      'Perkongsian — buka satu perkongsian untuk melihat failnya.',
+  'nas.error_unreachable':
+      'Tidak dapat mencapai pelayan. Semak alamat, port dan pastikan anda berada pada rangkaian yang sama.',
+  'nas.error_auth':
+      'Nama pengguna atau kata laluan ditolak.',
+  'nas.error_not_found':
+      'Folder atau fail tidak ditemui.',
+  'nas.error_denied':
+      'Pelayan menafikan akses.',
+  'nas.error_unsupported':
+      'Pelayan tidak menyokong versi protokol ini. Cuba SFTP atau FTP.',
+  'nas.error_hostkey':
+      'Identiti pelayan tidak disahkan atau telah berubah. Sambungan diputuskan.',
+  'nas.error_insecure':
+      'Sambungan tidak selamat disekat: kata laluan anda tidak pernah dihantar tanpa penyulitan melalui internet atau ke pelayan ubah hala. Gunakan alamat https://.',
+  'nas.hostkey_new_title':
+      'Pelayan baharu',
+  'nas.hostkey_new_body':
+      'Anda bersambung ke {host}:{port} buat pertama kali.\n\n{type}\n{fp}\n\nPercayai jika cap jarinya sama dengan yang dipaparkan NAS anda.',
+  'nas.hostkey_changed_title':
+      'Identiti pelayan BERUBAH',
+  'nas.hostkey_changed_body':
+      'Kunci {host}:{port} telah berubah. Mungkin ada yang memintas.\n\nLama: {old}\nBaharu: {fp}\n\nJANGAN bersambung kecuali anda memasang semula pelayan.',
+  'nas.hostkey_trust':
+      'Percayai',
+  'nas.error_unknown':
+      'Ralat sambungan.',
+  'nas.smb_warning':
+      'SMB telah diuji dengan perkongsian Samba/Windows (SMB2) dan berfungsi. Pelayan yang hanya mewajibkan SMB3 mungkin tidak bersambung; dalam hal itu cuba SFTP atau FTP pada pelayan yang sama. Port sentiasa 445 dan tidak boleh diubah.',
+  'nas.writeback_title':
+      'Muat naik perubahan ke pelayan?',
+  'nas.writeback_body':
+      '“{name}” telah diedit. Perubahan hanya ada pada salinan sementara di telefon; fail pada pelayan masih yang lama. Memuat naik MENIMPA versi pada pelayan.',
+  'nas.writeback_upload':
+      'Muat naik',
+  'nas.writeback_keep_local':
+      'Jangan muat naik dahulu',
+  'nas.writeback_done':
+      'Dimuat naik ke pelayan.',
+  'fmset.folder_sizes':
+      'Saiz folder dalam senarai',
+  'fmset.folder_sizes_sub':
+      'Folder yang kelihatan diukur di latar belakang; pepohon besar mengambil masa lebih lama.',
+  'fmset.resume':
+      'Sambung dari tempat terakhir',
+  'fmset.resume_sub':
+      'Ingat kedudukan main balik dan muka surat dokumen.',
+  'fmset.audio_bg':
+      'Teruskan main audio di latar belakang',
+  'fmset.audio_bg_sub':
+      'Jika mati, muzik berhenti apabila anda keluar dari aplikasi atau mengunci skrin.',
+  'fmset.start_folder':
+      'Folder permulaan',
+  'fmset.start_folder_none':
+      'Aplikasi dibuka pada papan pemuka',
+  'fmset.start_folder_pick':
+      'Buka ini semasa permulaan',
+  'fmset.start_folder_clear':
+      'Kosongkan folder permulaan',
+  'fmset.sec_privacy':
+      'Privasi',
+  'fmset.sec_delete':
+      'Pemadaman',
+  'fmset.sec_permissions':
+      'Kebenaran',
+  'fmset.sec_maintenance':
+      'Penyelenggaraan',
+  'fmset.list_layout':
+      'Reka letak senarai fail',
+  'fmset.photo_grid':
+      'Grid foto',
+  'fmset.grid_density':
+      'Ketumpatan grid',
+  'fmset.grouping':
+      'pengumpulan',
+  'fmset.show_hidden':
+      'Tunjukkan fail tersembunyi',
+  'fmset.show_hidden_sub':
+      'Nama yang bermula dengan titik (seperti .thumbnails)',
+  'fmset.thumbnails':
+      'Lakaran kecil',
+  'fmset.thumbnails_sub':
+      'Pratonton imej dan video (matikan pada peranti perlahan)',
+  'fmset.default_sort':
+      'Isihan lalai',
+  'fmset.reverse_dir':
+      'Songsangkan arah',
+  'fmset.group_photos':
+      'Kumpulkan foto',
+  'fmset.group_photos_sub':
+      'Dikumpulkan mengikut {unit}',
+  'fmset.media_open_with':
+      'Buka video, audio dan imej dengan',
+  'fmset.index':
+      'Indeks carian',
+  'fmset.index_building':
+      'Membina…',
+  'fmset.index_none':
+      'Belum dibina — dibina semasa carian pertama atau selepas imbasan',
+  'fmset.index_stale':
+      ' · fail berubah, perlu disegarkan',
+  'fmset.index_ready':
+      '{n} rekod · {date}{stale}',
+  'fmset.index_failed':
+      'Indeks tidak dapat dibina (kebenaran storan mungkin tiada).',
+  'fmset.index_built':
+      'Indeks carian dibina · {n} rekod.',
+  'fmset.pin_change':
+      'Tukar PIN kunci folder',
+  'fmset.pin_set':
+      'Tetapkan PIN kunci folder',
+  'fmset.pin_sub_locked':
+      '{n} folder dikunci · untuk mengunci, gunakan ⋮ > “Kunci folder” dalam folder',
+  'fmset.pin_sub_unset':
+      'Folder berkunci disembunyikan daripada senarai dan galeri. Fail TIDAK disulitkan — hanya disembunyikan dalam aplikasi ini.',
+  'fmset.pin_remove':
+      'Alih keluar kunci sepenuhnya',
+  'fmset.pin_remove_sub':
+      'PIN dipadam dan semua folder dibuka kuncinya.',
+  'fmset.unlock':
+      'Buka kunci',
+  'fmset.use_trash':
+      'Gunakan tong sampah',
+  'fmset.use_trash_sub':
+      'Jika mati, fail terus dipadam secara kekal (tidak boleh dibatalkan)',
+  'fmset.confirm_delete':
+      'Tanya sebelum memadam',
+  'fmset.trash_auto':
+      'Kosongkan tong sampah secara automatik',
+  'fmset.trash_auto_off':
+      'Mati — tong sampah dikosongkan secara manual',
+  'fmset.trash_auto_on':
+      'Item lebih lama daripada {n} hari dipadam',
+  'fmset.off':
+      'Mati',
+  'fmset.days':
+      '{n} hari',
+  'fmset.empty_trash_now':
+      'Kosongkan tong sampah sekarang',
+  'fmset.trash_empty':
+      'Tong sampah kosong',
+  'fmset.trash_summary':
+      '{n} item · {size}',
+  'fmset.empty_confirm_title':
+      'Kosongkan tong sampah?',
+  'fmset.empty_confirm_body':
+      '{n} item ({size}) akan dipadam secara kekal. Tindakan ini tidak boleh dibatalkan.',
+  'fmset.empty':
+      'Kosongkan',
+  'fmset.emptying':
+      'Mengosongkan tong sampah',
+  'fmset.empty_partial':
+      '{ok} item dipadam, {fail} tidak dapat dipadam.',
+  'fmset.empty_cancelled':
+      'Dihentikan — {ok} item dipadam.',
 };
