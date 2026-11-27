@@ -108,7 +108,8 @@ class PdfToolsScreen extends StatefulWidget {
   State<PdfToolsScreen> createState() => _PdfToolsScreenState();
 }
 
-class _PdfToolsScreenState extends State<PdfToolsScreen> {
+class _PdfToolsScreenState extends State<PdfToolsScreen>
+    with ProUnlockWatcher<PdfToolsScreen> {
   /// Mesajlar uzun asenkron işlerin **içinden** üretiliyor (`_apply` ve
   /// `catch` dalları); orada `context` kullanmak `use_build_context_synchronously`
   /// demektir. Doğrudan çizilen parçalarda `context.t` kullanılır.
@@ -170,11 +171,10 @@ class _PdfToolsScreenState extends State<PdfToolsScreen> {
   int _gridCacheRev = -1;
 
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.pdfAdvanced)) return;
-    _load();
-  }
+  Feature get proFeature => Feature.pdfAdvanced;
+
+  @override
+  void onProUnlocked() => _load();
 
   @override
   void dispose() {

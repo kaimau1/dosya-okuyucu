@@ -40,11 +40,13 @@ class SmartFoldersScreen extends StatefulWidget {
   State<SmartFoldersScreen> createState() => _SmartFoldersScreenState();
 }
 
-class _SmartFoldersScreenState extends State<SmartFoldersScreen> {
+class _SmartFoldersScreenState extends State<SmartFoldersScreen>
+    with ProUnlockWatcher<SmartFoldersScreen> {
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.smartFolders)) return;
+  Feature get proFeature => Feature.smartFolders;
+
+  @override
+  void onProUnlocked() {
     SmartFolders.instance.ensureLoaded();
     Future.wait([AiIndex.ensureLoaded(), SmartSort.ensureLoaded()]).then((_) {
       if (mounted) setState(() {});

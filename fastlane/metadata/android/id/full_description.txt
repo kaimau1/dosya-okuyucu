@@ -1,0 +1,23 @@
+Dosya Okuyucu adalah pembaca dokumen dan pengelola berkas yang cepat, rapi, dan 100% bebas iklan. Fitur membaca, mengelola berkas, dan berbagi nirkabel gratis tanpa akun dan tanpa pelacakan.
+
+Fitur gratis:
+
+• Baca & tandai PDF: sorotan, markah, isi formulir interaktif, tanda tangan tulis tangan, PDF berpassword, salin teks, dan terjemahan luring
+• Pemindai dokumen & OCR di perangkat tanpa unggah ke cloud (mendukung bahasa Latin serta model Arab luring yang dapat diunduh)
+• Word, Excel & PowerPoint: buka dan sunting dasar tanpa merusak tata letak, tampilan baca/tulis nyaman di ponsel, pemulihan draf, dan simpan otomatis
+• Pengelola berkas lengkap: filter jenis, urutkan per folder, tempat sampah dengan batal, arsip ZIP, USB OTG (baca-saja) & kartu SD, SMB/SFTP/WebDAV, brankas terenkripsi, dan pembersih ruang
+• Perangkat Terdekat: kirim berkas secara nirkabel ke ponsel terdekat atau peramban lokal tanpa perantara atau server
+• Media & utilitas: galeri & pemutar bawaan, ubah ukuran/pangkas gambar, berbagi teks lewat kode QR, serta dukungan ID, EN, AR, TR, dan MS
+
+Upgrade Pro opsional (pembelian sekali bayar di dalam aplikasi, bertanda `PRO`):
+
+Buka semua alat lanjutan dengan satu kali pembelian di aplikasi (tanpa langganan untuk fitur utama):
+
+• Studio PDF Lengkap: sunting paragraf di tempat, gabung/pisah, atur/putar halaman, header/footer, tanda tangan digital, OCR PDF, dan watermark
+• Folder Pintar: pilih jenis berkas dan folder sebelum memindai untuk mengelompokkan tagihan, bukti transfer, dan dokumen secara lokal (termasuk jatah awal 500 berkas; kuota cloud tambahan opsional via langganan atau kunci Gemini sendiri)
+• Studio Buku Audio: ubah dokumen menjadi buku audio per bab secara luring
+• Perkecil ukuran video di perangkat dan alat Word & Slide lanjutan
+
+Izin: Tidak ada izin yang diminta saat pertama dibuka. Akses semua berkas hanya diminta bila Anda ingin menelusuri folder di pengelola berkas.
+
+Microsoft Word, Excel, dan PowerPoint adalah merek dagang Microsoft Corporation; aplikasi ini tidak berafiliasi dengan Microsoft.

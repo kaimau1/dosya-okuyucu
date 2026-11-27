@@ -31,26 +31,74 @@ abstract final class ProPurchase {
   static const productId = 'pro_unlock';
 
   static const _kRecord = 'pro_purchase_v1';
+  static const _kPrice = 'pro_price_v1';
+
+  /// Google Play'deki bölgesel ürün fiyatı (ör. `₺29,99`, `$0.79`, `Rp 12.000`).
+  static final ValueNotifier<String?> storePrice = ValueNotifier<String?>(null);
 
   static bool get _enabled => Edition.current == Edition.lite;
 
   static StreamSubscription<List<PurchaseDetails>>? _sub;
   static Completer<ProBuyResult>? _pending;
+  static Future<String?>? _priceFuture;
 
   /// Yerel kaydı okur (açılışta, Play'i beklemeden). Kayıt Play'in verdiği
   /// satın alma belirteciyle tutulur; belirteçsiz kayıt yok sayılır.
   static Future<void> loadCached() async {
     if (!_enabled) return;
     try {
-      final raw = (await SharedPreferences.getInstance()).getString(_kRecord);
+      final prefs = await SharedPreferences.getInstance();
+      final cachedPrice = prefs.getString(_kPrice);
+      if (cachedPrice != null && cachedPrice.trim().isNotEmpty) {
+        storePrice.value = cachedPrice.trim();
+      }
+      final raw = prefs.getString(_kRecord);
       if (raw == null) return;
       final m = jsonDecode(raw) as Map<String, dynamic>;
-      if (m['product'] == productId && (m['token'] as String? ?? '').isNotEmpty) {
+      if (m['product'] == productId &&
+          (m['token'] as String? ?? '').isNotEmpty) {
         ProUnlock.owned.value = true;
       }
     } catch (_) {
       return; // Bilinçli: bozuk kayıt → kilitli kalır, [verify] düzeltir.
     }
+  }
+
+  /// Google Play'deki bölgesel ürün fiyatını okur ve önbelleğe alır.
+  static Future<String?> loadPrice() {
+    if (!_enabled) return Future<String?>.value(storePrice.value);
+    return _priceFuture ??= _fetchPrice().whenComplete(() {
+      _priceFuture = null;
+    });
+  }
+
+  static Future<String?> _fetchPrice() async {
+    try {
+      if (!await InAppPurchase.instance.isAvailable()) return storePrice.value;
+      final q = await InAppPurchase.instance.queryProductDetails({productId});
+      final detail = q.productDetails.firstOrNull;
+      if (detail != null) await _savePrice(detail.price);
+    } catch (_) {
+      return storePrice.value; // Bilinçli: mağaza fiyatına ulaşılamazsa sessiz kalır.
+    }
+    return storePrice.value;
+  }
+
+  static Future<void> _savePrice(String raw) async {
+    final price = raw.trim();
+    if (price.isEmpty) return;
+    if (storePrice.value != price) storePrice.value = price;
+    try {
+      await (await SharedPreferences.getInstance()).setString(_kPrice, price);
+    } catch (_) {
+      return; // Bilinçli: fiyat yazılamasa da bu oturumda bellekte kalır.
+    }
+  }
+
+  @visibleForTesting
+  static void resetPriceForTest() {
+    storePrice.value = null;
+    _priceFuture = null;
   }
 
   static void _listen() {
@@ -74,6 +122,7 @@ abstract final class ProPurchase {
       final owned = res.pastPurchases.where(isOwnedPro).firstOrNull;
       if (owned == null) {
         await _clear();
+        unawaited(loadPrice());
         return false;
       }
       await _grant(owned);
@@ -94,6 +143,7 @@ abstract final class ProPurchase {
       }
       final q = await InAppPurchase.instance.queryProductDetails({productId});
       if (q.productDetails.isEmpty) return ProBuyResult.unavailable;
+      unawaited(_savePrice(q.productDetails.first.price));
       _pending = Completer<ProBuyResult>();
       final started = await InAppPurchase.instance.buyNonConsumable(
         purchaseParam: PurchaseParam(productDetails: q.productDetails.first),

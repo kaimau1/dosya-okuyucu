@@ -24,18 +24,18 @@ class AudiobookLibraryScreen extends StatefulWidget {
   State<AudiobookLibraryScreen> createState() => _AudiobookLibraryScreenState();
 }
 
-class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen> {
+class _AudiobookLibraryScreenState extends State<AudiobookLibraryScreen>
+    with ProUnlockWatcher<AudiobookLibraryScreen> {
   List<(Directory, List<File>)>? _books;
 
   /// Kitap klasörü → toplam bayt (arka planda okunur; `build` diske dokunmaz).
   Map<String, int> _sizes = const {};
 
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.audiobook)) return;
-    _load();
-  }
+  Feature get proFeature => Feature.audiobook;
+
+  @override
+  void onProUnlocked() => _load();
 
   Future<void> _load() async {
     final books = await AudiobookMaker.library();

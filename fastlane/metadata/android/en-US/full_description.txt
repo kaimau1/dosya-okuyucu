@@ -1,17 +1,22 @@
 Dosya Okuyucu is a fast, clean and 100% ad-free companion for your documents and local storage. Core reading, file management and transfer tools are free with no account required and no tracking.
 
-Included free in Lite:
+Included free:
 
 • PDF reading & markup: highlights, bookmarks, interactive form filling, handwritten signature, password-protected PDFs and offline translation
-• Document scanner & on-device OCR: scan pages with your camera offline
+• Document scanner & on-device OCR: scan pages with your camera offline (with downloadable offline Arabic script support alongside Latin)
 • Word, Excel & PowerPoint: open and make basic edits without breaking layout, with mobile reading/writing view and draft recovery
-• File manager: type filters, per-folder sorting, recycle bin with undo, archive browser, USB OTG (read-only) & SD card, SMB/SFTP/WebDAV and encrypted vault
+• File manager: type filters, per-folder sorting, recycle bin with undo, archive browser, USB OTG (read-only) & SD card, SMB/SFTP/WebDAV, encrypted vault and space cleanup
 • Nearby transfer: send files wirelessly to a nearby phone or local browser without uploading anything to a server
-• Media & utilities: built-in gallery and player, precise image resizing/crop, QR-code text sharing and gentle paper/dark themes in EN, TR and AR
+• Media & utilities: built-in gallery and player, precise image resizing/crop, QR-code text sharing and paper/dark themes in EN, TR, AR, ID and MS
 
-Separated in the paid Pro app (clearly badged `PRO` inside Lite):
+Optional one-time Pro upgrade (clearly badged `PRO` inside the app):
 
-In-place PDF paragraph and page editing, Smart Folders (offline rules + optional Gemini with your own API key), on-device Audiobook studio and video compression.
+Unlock all power-user tools with a single one-time in-app purchase (no core subscriptions):
+
+• Full PDF Editor: edit paragraphs in place, merge/split, reorder/rotate pages, headers/footers, digital signatures, searchable OCR and watermarks
+• Smart Folders: choose which file types and folders to scan, organize invoices, bank receipts, official records and screenshots locally (500-file starter allowance included; extra cloud quota is optional via subscription or your own Gemini key)
+• Audiobook Studio: convert documents into chaptered offline audiobooks
+• Local Video Shrink and Pro Word & Slides tools
 
 Permissions: Nothing is requested at launch. Opening incoming documents needs no storage permission; "All files access" is asked only if you choose to browse device folders in the file manager.
 

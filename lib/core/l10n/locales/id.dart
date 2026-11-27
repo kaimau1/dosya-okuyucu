@@ -10776,4 +10776,164 @@ const Map<String, String> _id = {
       'Catatan suara',
   'wt.title':
       'Dokumen Word baru',
+  'act.clear_confirm':
+      'Bersihkan daftar ini? Berkas Anda TIDAK dihapus — hanya riwayat catatan yang dikosongkan.',
+  'act.empty':
+      'Belum ada catatan.\nPerkecil ukuran video, sunting PDF, atau pindai dokumen agar berkas hasilnya tercantum di sini menurut jenisnya.',
+  'aipool.backup_keys_sub':
+      'Jika semua model pada kunci pertama kehabisan kuota, kunci berikutnya digunakan. Maksimal 5 kunci.',
+  'aipool.model_chain_sub':
+      'Gemini menghitung kuota per model. Saat satu model habis, permintaan pindah ke model berikutnya. Maksimal 6 model.',
+  'aiset.budget_sub':
+      'Tidak dibatasi secara bawaan agar analisis tidak berhenti sendiri. Saat kuota benar-benar habis, kumpulan pindah ke model/kunci berikutnya.',
+  'aiset.excluded_sub':
+      'Folder ini tidak pernah dianalisis dan isinya tidak pernah keluar dari perangkat. Folder kamera dikecualikan secara bawaan.',
+  'aiset.send_images_sub':
+      'Saat nonaktif, gambar itu sendiri tidak pernah diunggah; hanya teks OCR di perangkat yang digunakan.',
+  'aiset.send_text_sub':
+      '{kb} KB teks pertama dikirim ke Gemini. Saat nonaktif, hanya nama dan ukuran berkas yang dikirim.',
+  'apps.usage_body':
+      'Jika Anda memberi izin “Akses penggunaan” Android, Anda dapat melihat kapan terakhir kali membuka tiap aplikasi dan yang lama tidak dipakai akan ditandai. Data tidak keluar dari perangkat.',
+  'backup.sub':
+      'Tema, bahasa, markah, dan preferensi dalam satu berkas. Kunci API dan PIN TIDAK disertakan.',
+  'cmp.7z_note':
+      'Berkas lebih kecil. Dengan kata sandi, memakai AES-256; nama berkas juga dapat disembunyikan.',
+  'cmp.password_warning':
+      'Jika lupa kata sandi, arsip TIDAK DAPAT dibuka — tidak ada cara pemulihan.',
+  'cmp.zip_note':
+      'Bisa dibuka di mana saja. Dengan kata sandi, dienkripsi memakai AES-256 (nama berkas tetap terlihat).',
+  'err.render_logged':
+      'Kesalahan dicatat (Setelan > Catatan kesalahan).\nAnda dapat kembali ke layar sebelumnya.',
+  'flt.direction_note':
+      'Berkas terkirim dibaca dari folder “Sent” WhatsApp. Telegram tidak memisahkan ini sehingga berkasnya dihitung sebagai “diterima”.',
+  'flt.hide_dupes_sub':
+      'Berkas dengan nama dan ukuran yang sama ditampilkan sekali (WhatsApp menyimpan gambar yang sama di beberapa folder).',
+  'fp.no_subfolders':
+      'Folder ini belum memiliki subfolder.\nGunakan tombol di bawah untuk menaruh di sini, atau buat dengan “folder baru” di atas.',
+  'ia.permission_hint':
+      'Berikan izin untuk “Dosyalarım” pada halaman setelan yang terbuka, lalu kembali dan muat ulang.',
+  'important.explain':
+      'Simpan berkas yang tidak boleh hilang — KTP, tagihan, kontrak — di satu tempat. Folder dibuat di penyimpanan internal.\n\nCara menambah berkas: tekan lama berkas apa saja → “Pindah” atau “Salin” → “Berkas penting”. Anda juga bisa membuat subfolder per topik.',
+  'important.no_subfolder':
+      'Belum ada subfolder. Gunakan “Baru” untuk membuat topik (Tagihan, KTP, Kontrak…). Untuk menambah berkas, tekan lama berkas lalu pilih “Pindah”/“Salin”.',
+  'jb.background_note':
+      'Tugas tetap berjalan di latar belakang dan kemajuannya tampil di notifikasi. Jika aplikasi ditutup paksa dari daftar tugas, proses akan berhenti.',
+  'jb.empty':
+      'Belum ada tugas.\nTugas seperti perkecil ukuran, kosongkan ruang, dan pemindaian duplikat akan tampil di sini.',
+  'jb.interrupted':
+      'Terhenti karena aplikasi ditutup. Ketuk untuk memulai lagi.',
+  'lib.empty_body':
+      'Tambahkan berkas PDF, EPUB, MOBI, FB2, DJVU, dan komik (CBZ). Anda juga bisa memakai “Tambah ke pustaka” di menu berkas; berkas asli tidak dipindahkan.',
+  'ocr.script_arabic_sub':
+      'Arab, Persia, Urdu, Turki Utsmani: luring dengan model unduhan; jika belum ada memakai bacaan pintar.',
+  'ocr.script_auto_sub':
+      'Mengenali di perangkat; mencoba model Arab atau bacaan pintar untuk teks non-Latin.',
+  'ocr.script_latin_sub':
+      'Hanya di perangkat, luring.',
+  'oph.clear_body':
+      'Hanya catatan riwayat operasi yang dihapus; berkas Anda tetap aman. Namun Anda tidak lagi bisa membatalkannya.',
+  'oph.empty':
+      'Belum ada operasi tercatat.\nPemindahan dan penataan otomatis terkumpul di sini dan dapat dibatalkan dari sini.',
+  'oph.undo_partial':
+      '{n}/{total} item berhasil dibatalkan; sisanya tidak dapat dipindahkan. Catatan tetap disimpan agar Anda bisa mencoba lagi.',
+  'org.confirm_body':
+      '{files} berkas akan dipindahkan ke {folders} folder. Berkas ditata di dalam folder yang sama; tidak ada yang dihapus dan bisa dibatalkan dari riwayat.',
+  'org.include_sub_note':
+      'Saat nonaktif, hanya berkas di folder ini yang ditata; subfolder yang ada tidak disentuh.',
+  'oss.body':
+      'Perkecil ukuran dan pemutaran video memakai Android Media3 (Apache 2.0); H.264 memakai encoder perangkat keras ponsel. Pemutaran codec cadangan memakai libmpv/FFmpeg (media_kit, LGPL v2.1+, .so dinamis).\n\nSyncfusion Flutter PDF — Syncfusion Community License (BUKAN sumber terbuka; pemakaian gratis tunduk pada syarat).\n\nKomponen lain (Flutter, PDFium/pdfrx, Google ML Kit, archive, image, video_player, flutter_local_notifications …) berlisensi BSD/MIT/Apache 2.0. Daftar lengkap: “Semua lisensi”.',
+  'pin.not_encrypted':
+      'Kunci ini TIDAK mengenkripsi berkas: hanya menyembunyikannya dari daftar di aplikasi ini. Jika ponsel disambungkan ke komputer atau memakai pengelola berkas lain, berkas tetap terlihat.',
+  'pp.allow_annotate':
+      'Izinkan anotasi',
+  'pp.allow_assemble':
+      'Izinkan susun halaman',
+  'pp.allow_copy':
+      'Izinkan salin teks',
+  'pp.allow_edit':
+      'Izinkan sunting isi',
+  'pp.allow_print':
+      'Izinkan cetak',
+  'pp.dsign_signed':
+      'Ditandatangani',
+  'pro.buy':
+      'Beli',
+  'pro.canceled':
+      'Pembelian dibatalkan.',
+  'pro.done':
+      'Pro aktif — terima kasih!',
+  'pro.f.ai':
+      'AI',
+  'pro.f.audiobook':
+      'Buku audio',
+  'pro.f.cleanup':
+      'Kosongkan ruang',
+  'pro.f.convert':
+      'Konversi',
+  'pro.f.extras':
+      'Alat tambahan',
+  'pro.f.labs':
+      'Fitur eksperimental',
+  'pro.f.media':
+      'Media & galeri',
+  'pro.f.remote':
+      'Koneksi jarak jauh',
+  'pro.f.scan':
+      'Pemindaian dokumen',
+  'pro.f.transfer':
+      'Transfer',
+  'pro.f.vault':
+      'Brankas & kunci',
+  'pro.failed':
+      'Pembelian tidak dapat diselesaikan; silakan coba lagi nanti.',
+  'pro.owned_sub':
+      'Sudah dibeli · Semua fitur Pro terbuka',
+  'pro.pending':
+      'Menunggu pembayaran; Pro akan terbuka otomatis setelah disetujui.',
+  'pro.price':
+      'Harga: {p}',
+  'pro.restore':
+      'Pulihkan pembelian',
+  'pro.restore_none':
+      'Tidak ditemukan pembelian Pro di akun Google ini.',
+  'pro.restored':
+      'Pembelian dipulihkan — Pro aktif.',
+  'pro.unavailable':
+      'Tidak dapat menghubungi Google Play. Periksa koneksi internet dan pastikan Anda masuk ke Play Store.',
+  'pt.annot_body':
+      'Dokumen ini memiliki {n} sorotan/catatan. Operasi “{action}” membangun ulang halaman sehingga catatan tersebut akan terhapus.\n\nJika ingin menghapus halaman, tombol “Hapus” menjaga sorotan tetap aman.',
+  'pt.compress_body':
+      'Dokumen ({size}) ditulis ulang agar lebih kecil: aliran data dikompresi maksimal dan sisa revisi lama dibuang. Kualitas gambar TIDAK berubah.\n\nKarena itu penghematan lebih kecil pada dokumen hasil pindai (banyak gambar). Untuk berkas besar proses ini bisa memakan waktu semenit dan berjalan di latar belakang.',
+  'ra.already_running':
+      'Tugas ini sudah berjalan. Anda dapat memantaunya dari bilah bawah atau layar “Tugas”.',
+  'ra.queued':
+      'Tugas masuk antrean; akan mulai setelah tugas yang berjalan selesai. Pantau di layar “Tugas”.',
+  'ra.started':
+      'Tugas dimulai di latar belakang. Status dan berkas hasilnya dapat dilihat di bilah bawah atau layar “Tugas”.',
+  'scr.no_text_yet':
+      'Pemindaian ini dibuat tanpa pengenalan teks. Anda dapat mengenali teks pada halaman sekarang.',
+  'sim.background_note':
+      'Anda dapat menutup layar ini — pemindaian berlanjut di latar belakang dan hasilnya siap saat Anda kembali.',
+  'srch.empty_hint':
+      'Ketik sebagian nama berkas atau folder.\n\nTips: Anda juga bisa mengetik kalimat seperti “video whatsapp bulan lalu”, “pdf minggu ini”, atau “foto tahun 2024”.',
+  'tf.failed':
+      'Terjemahan gagal: {error}\nJika model bahasa belum terunduh, periksa koneksi internet Anda.',
+  'tf.inplace_none':
+      'Tidak ada paragraf yang bisa ditulis kembali ({n} dicoba): fon yang tertanam di dokumen mungkin tidak mendukung huruf bahasa tujuan. “Terjemahkan sebagai teks” tetap berfungsi.',
+  'tf.inplace_partial':
+      '{n} paragraf diterjemahkan; {skipped} tidak bisa ditulis kembali (fon tertanam kekurangan huruf bahasa tujuan atau teks tidak muat) dan dibiarkan tetap asli.',
+  'tp.note':
+      'Label tidak ditulis ke dalam berkas; label disimpan di catatan aplikasi ini. Label ikut terbawa saat Anda memindah, mengganti nama, atau memulihkannya lewat aplikasi ini, tetapi tidak ikut jika dipindah lewat aplikasi lain.',
+  'tts.no_voices':
+      'Perangkat tidak melaporkan daftar suara; kecepatan dan nada tetap dapat diatur. Suara lebih baik bisa diunduh lewat setelan ucapan sistem.',
+  'usb.diag_cbi_only':
+      'Drive ini melaporkan protokol lama (CBI) — penggerak aplikasi memakai Bulk-Only.',
+  'usb.diag_uas_only':
+      'Drive ini hanya melaporkan transport UAS (USB 3) — penggerak aplikasi memakai Bulk-Only. Izin folder (Pilih folder) tetap berfungsi.',
+  'usb.open_raw_hint':
+      'Aplikasi mengakses perangkat langsung meski Android tidak memasangnya. FAT16/FAT32 dan exFAT bisa dibaca dan ditulis; NTFS serta ext2/3/4 hanya-baca.',
+  'vt.truncated':
+      'Konversi terpotong: keluaran {out} dtk, sumber {src} dtk. Berkas asli tidak disentuh.',
+  'vt.unreadable_output':
+      'Video hasil konversi tidak dapat dibaca (keluaran rusak) — berkas asli tidak disentuh.',
 };

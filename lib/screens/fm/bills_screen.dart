@@ -27,13 +27,15 @@ class BillsScreen extends StatefulWidget {
   State<BillsScreen> createState() => _BillsScreenState();
 }
 
-class _BillsScreenState extends State<BillsScreen> {
+class _BillsScreenState extends State<BillsScreen>
+    with ProUnlockWatcher<BillsScreen> {
   ({int done, int total})? _progress;
 
   @override
-  void initState() {
-    super.initState();
-    if (!Edition.current.has(Feature.smartFolders)) return;
+  Feature get proFeature => Feature.smartFolders;
+
+  @override
+  void onProUnlocked() {
     Future.wait([Bills.instance.ensureLoaded(), AiIndex.ensureLoaded()])
         .then((_) {
       if (!mounted) return;

@@ -54,7 +54,8 @@ class AudiobookScreen extends StatefulWidget {
   State<AudiobookScreen> createState() => _AudiobookScreenState();
 }
 
-class _AudiobookScreenState extends State<AudiobookScreen> {
+class _AudiobookScreenState extends State<AudiobookScreen>
+    with ProUnlockWatcher<AudiobookScreen> {
   List<AudioChapter>? _chapters;
   Set<int> _picked = {};
   String? _error;
@@ -113,8 +114,10 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
+  Feature get proFeature => Feature.audiobook;
+
+  @override
+  void onProUnlocked() {
     _attach(AudiobookJob.of(widget.path));
     _load();
     _loadVoiceOptions();
@@ -122,7 +125,7 @@ class _AudiobookScreenState extends State<AudiobookScreen> {
 
   @override
   void dispose() {
-    _detach();
+    if (proInitialized) _detach();
     _previewTts?.dispose();
     super.dispose();
   }

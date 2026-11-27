@@ -4,7 +4,7 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
 
 İlgili diğer belgeler:
 - Hassas izin beyanları ve video senaryoları: [`docs/play/izin_beyanlari.md`](izin_beyanlari.md)
-- Mağaza metinleri (TR/EN/AR): [`docs/play/magaza_metinleri.md`](magaza_metinleri.md)
+- Mağaza metinleri (TR/EN/AR/ID/MS): [`docs/play/magaza_metinleri.md`](magaza_metinleri.md)
 - Veri güvenliği formu: [`docs/play/veri_guvenligi.md`](veri_guvenligi.md)
 - Sürüm mimarisi (Lite / Pro / Kişisel): [`docs/arsiv/planlar/SURUM_PLANI.md`](../arsiv/planlar/SURUM_PLANI.md)
 - Sürüm öncesi güvenlik kontrolü: [`docs/guvenlik/SURUM_KONTROL.md`](../guvenlik/SURUM_KONTROL.md)
@@ -52,18 +52,20 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
 
 ### Aşama 2: Sürüm Mimarisi ve Kod Kapıları (`SURUM_PLANI.md` S2–S8)
 > **K15 (2026-11-27, kullanıcı kararı — eski K15b/K15c'nin yerine):** mağazaya **TEK uygulama** çıkar
-> (Lite kimliği `com.dosyaokuyucu.dosya_okuyucu.lite`). Pro özellikleri bu uygulamada kilitli
-> görünür ve **29,99 TL tek seferlik uygulama içi satın alımla** (Play Billing, yönetilen ürün
-> `pro_unlock`) açılır. **Ayrı ücretli Pro uygulaması mağazaya ÇIKMAZ**; CI'daki `edition=pro`
-> derlemesi yalnız iç deneme içindir. Akıllı Klasör ekstra kota aboneliği ayrı konu (K15a).
-1. **Kararlar (`PLAN.md` K15, K16):** Pro satış fiyatını (`DOSYA_PRO_FIYAT`), uygulama adlarını (`Dosya Okuyucu Lite` / `Dosya Okuyucu Pro`) ve Drive kapsamını (`K9`) kesinleştirin.
-2. **Arayüz Kapıları (S2):** Lite sürümde Office düzenleyicilerin salt-okunur açılmasını ve Pro özelliklerinin `ProGate.guard` ile tanıtım levhasına yönlendirilmesini tamamlayın.
-3. **Manifest Varyantları (S4):** `ci/play_variant.py` ile Lite sürümde 0 hassas izin, Pro sürümde ise Play dışı izinlerin (`REQUEST_INSTALL_PACKAGES`, `QUERY_ALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `RECEIVE_BOOT_COMPLETED`, konum ve genel indirme süzgeçleri) çıkarıldığını doğrulayın.
+> (`com.dosyaokuyucu.dosya_okuyucu.lite`). Pro özellikleri bu uygulamada `PRO` rozetli/kilitli
+> görünür ve **tek seferlik uygulama içi satın alımla** (Play Billing, yönetilen ürün `pro_unlock`;
+> Türkiye lansman fiyatı **29,99 TL**, diğer ülkelerde yerel alım gücüne göre bağımsız fiyatlandırma
+> ör. `$0.79` · IDR · MYR; fiyat ekrana doğrudan Play Store'dan gelir) açılır. **Ayrı ücretli Pro
+> uygulaması mağazaya ÇIKMAZ**; CI'daki `edition=pro` derlemesi yalnız iç deneme içindir. Akıllı
+> Klasör ekstra bulut kotası aboneliği ayrı konudur (K15a).
+1. **Kararlar (`PLAN.md` K15, K16):** Mağazadaki tek uygulamanın adını, `pro_unlock` bölgesel fiyatlarını (TR 29,99 TL, USD/IDR/MYR yerel fiyatlar) ve Drive kapsamını (`K9`) kesinleştirin.
+2. **Arayüz Kapıları (S2):** Lite'ta tüm temel okuma, dosya yönetimi ve temel Office/PDF işleri açık kalır; yalnızca Pro katmanı özellikleri `ProGate.guard` ile satın alma levhasına yönlendirilir ve satın alınınca açık ekranların kilidi anında açılır.
+3. **Manifest Varyantları (S4):** `ci/play_variant.py` ile Play'e çıkan uygulamada Play dışı izinlerin (`REQUEST_INSTALL_PACKAGES`, `QUERY_ALL_PACKAGES`, `PACKAGE_USAGE_STATS`, `RECEIVE_BOOT_COMPLETED`, konum ve genel indirme süzgeçleri) çıkarıldığını doğrulayın; **Tüm dosyalara erişim** (`MANAGE_EXTERNAL_STORAGE`) ise tüm dosyaları görüp inceleyebilmek için tek uygulamada da korunur (`K16`).
 4. **Paket Kimlikleri ve CI (S5–S6):**
-   - Lite (mağazadaki tek uygulama): `com.dosyaokuyucu.dosya_okuyucu.lite` (≈ 87 MB; tüm kod içinde, Pro satın alımla açılır — K15 diyeti geri aldı).
+   - Mağazadaki tek uygulama: `com.dosyaokuyucu.dosya_okuyucu.lite` (≈ 87 MB; tüm kod içinde, Pro tek seferlik satın alımla açılır).
    - Pro: `com.dosyaokuyucu.dosya_okuyucu.pro` — yalnız CI/iç deneme, mağazaya çıkmaz.
    - İmzalı AAB: Actions → *APK Derle & Release* → elle tetik, `aab` işaretli (Lite/Pro/Kişisel matrisi; `play_variant verify`, 16 KB ELF arm64 + x86_64). Ayrı `build-play.yml` yok.
-5. **Pro satın alımı (K15):** Play Console → *Para kazanma → Ürünler → Uygulama içi ürünler* altında yönetilen ürün `pro_unlock` (29,99 TL) açın; lisans test hesabıyla satın al / iptal / bekleyen ödeme / "Satın almayı geri yükle" akışlarını iç test kanalında deneyin. (Ayrı uygulama olmadığı için Lite → Pro veri geçişi gerekmez.)
+5. **Pro satın alımı (K15):** Play Console → *Para kazanma → Ürünler → Uygulama içi ürünler* altında yönetilen ürün `pro_unlock` açın (TR **29,99 TL**, diğer ülkelerde kendi belirlediğiniz yerel fiyatlar ör. `$0.79`, uygun IDR/MYR kademesi); lisans test hesabıyla satın al / iptal / bekleyen ödeme / "Satın almayı geri yükle" akışlarını iç test kanalında deneyin. (Ayrı uygulama olmadığı için Lite → Pro veri geçişi gerekmez.)
 
 ### Aşama 3: İmza Anahtarı ve Güvenlik Denetimi
 1. **Keystore Yedeği (`SIGNING.md`, `K35`):** `release.jks` ve parolasını en az iki ayrı çevrimdışı ortamda (şifreli USB + kâğıt) yedekleyin; repo değişkenlerine `SIGN_CERT_SHA256` ekleyin (`K33`).
@@ -78,8 +80,8 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
 
 ### Aşama 5: Mağaza Görselleri ve Play Console Beyan Formları
 1. **Mağaza Varlıkları (`P26`):**
-   - `python3 tool/magaza_varliklari.py` ile 512×512 simge ve 1024×500 tanıtım görselini üretin.
-   - Gerçek cihazdan TR, EN ve AR dillerinde telefon ve tablet ekran görüntülerini alın.
+   - `python3 tool/magaza_varliklari.py` ile 512×512 simge, 1024×500 tanıtım görseli ve 5 dildeki (`TR/EN/AR/ID/MS`) mağaza metinlerini doğrulayın.
+   - Gerçek cihazdan TR, EN, AR, ID ve MS dillerinde telefon ve tablet ekran görüntülerini alın.
 2. **Uygulama İçeriği (App Content) Formları:**
    - **Gizlilik Politikası:** Herkese açık politika URL'sini girin.
    - **Reklamlar:** *"Hayır, uygulamam reklam içermiyor"*.
@@ -87,9 +89,8 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
    - **İçerik Derecelendirmesi (IARC):** Verimlilik / Yardımcı Program → PEGI 3 / Tüm Yaşlar.
    - **Hedef Kitle:** **13+ (veya 18+)** seçin (9 yaş altı çocukları **işaretlemeyin**).
    - **Veri Güvenliği (Data Safety):** [`docs/play/veri_guvenligi.md`](veri_guvenligi.md) tablosuna göre doldurun (*"Veri toplanmaz ve paylaşılmaz"*, uygulama içi *"Verilerimi sil"* mevcut).
-3. **Hassas İzin Beyanları ve Videoları (Yalnız Pro Sürüm):**
-   - **Lite** sürümde hassas izin yoktur, form çıkmaz.
-   - **Pro** sürümde [`docs/play/izin_beyanlari.md`](izin_beyanlari.md) metinlerini kullanın ve aşağıdaki iki kısa ekran kaydını YouTube'a *Liste Dışı (Unlisted)* yükleyip forma ekleyin:
+3. **Hassas İzin Beyanları ve Videoları (Mağazadaki Tek Uygulama):**
+   - Tek uygulama (`com.dosyaokuyucu.dosya_okuyucu.lite`) kullanıcı tüm dosyalarını görüp inceleyebilsin diye **Tüm dosyalara erişim** (`MANAGE_EXTERNAL_STORAGE`) ister; bu yüzden [`docs/play/izin_beyanlari.md`](izin_beyanlari.md) metinlerini kullanın ve aşağıdaki iki kısa ekran kaydını YouTube'a *Liste Dışı (Unlisted)* yükleyip forma ekleyin:
      1. **`MANAGE_EXTERNAL_STORAGE` (~30 sn):** İzin istemeden açılış → Gezgin/Pano'da "İzin ver" kartı → Sistem ayarı → İndirilenler'de dosya açma, taşıma ve çöp kutusu.
      2. **`FOREGROUND_SERVICE_DATA_SYNC` & `MEDIA_PLAYBACK` (~20 sn):** Uzun dosya kopyalama/sıkıştırma başlatma → Ana ekrana çıkma → Bildirimde ilerleme ve "Durdur" düğmesi; arka planda ses oynatma bildirimi.
 
@@ -102,6 +103,6 @@ Bu belge, **Dosya Okuyucu** projesinin lisans/telif denetimini, ücretli satış
    - İç test temizse sürümü Kapalı Test kanalına yükseltin (bireysel hesapta 20 testçi × 14 gün).
    - **Android Vitals** eşiklerini doğrulayın: çökme oranı **< %1,09**, ANR oranı **< %0,47**.
 3. **Adım 6.3 — Üretim (Production) ve Kademeli Dağıtım:**
-   - Tek uygulamayı (Lite kimliği) Üretim'e gönderin; Pro ayrı uygulama olarak gönderilmez (K15).
+   - Tek uygulamayı Üretim'e gönderin; Pro ayrı uygulama olarak gönderilmez (K15).
    - İlk yayını **%10–%20 kademeli dağıtım (staged rollout)** ile başlatın; 2–3 gün Vitals metriklerini izledikten sonra **%100**'e çıkarın.
-   - `pro_unlock` ürünü Play Console'da etkinken uygulamadaki "Satın al" düğmesi çalışır; fiyat etiketi `DOSYA_PRO_FIYAT` (varsayılan 29,99 TL).
+   - `pro_unlock` ürünü Play Console'da etkinken uygulamadaki "Satın al" düğmesi çalışır; ekrandaki fiyat doğrudan Google Play'den kullanıcının ülkesine göre çekilir (Play yanıt vermezse Türkçe arayüzde `DOSYA_PRO_FIYAT`, varsayılan `29,99 TL`).
