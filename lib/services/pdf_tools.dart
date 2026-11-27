@@ -6,6 +6,8 @@ import 'dart:ui' show Offset, Rect, Size;
 import 'package:pdfrx/pdfrx.dart' as pdfrx;
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
+import 'pdf/pro/pdf_dedupe.dart';
+
 /// PDF **dosya/sayfa düzeyi** işlemler: birleştir, sayfa seç (böl/çıkar/sil/
 /// sırala), döndür, parola koy/kaldır, sıkıştır.
 ///
@@ -226,6 +228,19 @@ class PdfTools {
     List<int> bytes, {
     String? password,
   }) async {
+    // B4/P21: yinelenen font/görsel tek nesneye indirilir (kopyaları aşağıdaki
+    // baştan yazım atar). Birleşmiş belge Syncfusion'a uymazsa özgünle sürer.
+    final merged = password == null ? PdfDedupe.merge(bytes) : null;
+    if (merged != null) {
+      try {
+        return await _compressOnce(merged, null);
+      } catch (_) {}
+    }
+    return _compressOnce(bytes, password);
+  }
+
+  static Future<List<int>> _compressOnce(
+      List<int> bytes, String? password) async {
     final doc = PdfDocument(inputBytes: bytes, password: password);
     try {
       doc.compressionLevel = PdfCompressionLevel.best;
