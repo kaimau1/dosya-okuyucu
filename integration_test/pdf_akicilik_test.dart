@@ -8,6 +8,7 @@ import 'package:dosya_okuyucu/services/fm/entry_opener.dart';
 import 'package:dosya_okuyucu/widgets/pdf_inset_scroll_thumb.dart';
 import 'package:dosya_okuyucu/widgets/whats_new.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -22,6 +23,9 @@ const _veri = String.fromEnvironment('OLCUM_VERISI',
     defaultValue:
         '/sdcard/Android/data/com.dosyaokuyucu.dosya_okuyucu/files/olcum');
 const _yalniz = String.fromEnvironment('PA_SENARYO');
+// R8 (2026-11-28): `--dart-define=PA_IZ=true` → izde widget/render adları (BUILD/LAYOUT/PAINT
+// olaylarında hangi widget). Yalnız kök neden araması; A/B derlemesinde KAPALI (ek yük).
+const _iz = bool.fromEnvironment('PA_IZ');
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +147,11 @@ void main() {
   }
 
   testWidgets('PDF tam akıcılık', (tester) async {
+    if (_iz) {
+      debugProfileBuildsEnabled = true;
+      debugProfileLayoutsEnabled = true;
+      debugProfilePaintsEnabled = true;
+    }
     await WhatsNew.markSeen();
     tester.ensureSemantics(); // mevcut senaryolarla aynı (TalkBack açık)
     await app.main();
