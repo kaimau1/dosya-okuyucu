@@ -227,14 +227,19 @@ extension _PdfFormSignTabPart on _PdfFormScreenState {
     final w = st.widthFraction * fitted.width;
     final h = math.max(24.0, w / st.signature.aspect);
     final selected = _activeStamp?.id == st.id;
-    final left =
-        (st.pos.dx * fitted.width).clamp(0.0, math.max(0.0, fitted.width - w));
+    final left = (st.pos.dx * fitted.width)
+        .clamp(0.0, math.max(0.0, fitted.width - w))
+        .toDouble();
     final top = (st.pos.dy * fitted.height)
-        .clamp(0.0, math.max(0.0, fitted.height - h));
+        .clamp(0.0, math.max(0.0, fitted.height - h))
+        .toDouble();
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final cx = (rtl ? left : left + w)
-        .clamp(hit / 2, math.max(hit / 2, fitted.width - hit / 2));
-    final cy = top.clamp(hit / 2, math.max(hit / 2, fitted.height - hit / 2));
+        .clamp(hit / 2, math.max(hit / 2, fitted.width - hit / 2))
+        .toDouble();
+    final cy = top
+        .clamp(hit / 2, math.max(hit / 2, fitted.height - hit / 2))
+        .toDouble();
     return [
       Positioned(
         left: left,

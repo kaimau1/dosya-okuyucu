@@ -347,7 +347,8 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       final left = margin / 2 + col * (colWidth + margin);
       final height = target * view.height / view.width;
       final top = (visible.center.dy - height / 2)
-          .clamp(0.0, math.max(0.0, doc.height - height));
+          .clamp(0.0, math.max(0.0, doc.height - height))
+          .toDouble();
       if ((ratio - 1).abs() < 0.01 && (visible.left - left).abs() < 2) return;
       AppHaptics.selection();
       unawaited(_pdfController.goToArea(
