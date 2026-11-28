@@ -236,15 +236,17 @@ abstract final class FileOps {
               bytesTotal: bytesTotal,
             ));
           },
-          onFileProgress: (fileName, copiedBytes) {
-            onProgress?.call(FmProgress(
-              done,
-              total,
-              fileName,
-              bytesDone: bytesDone + copiedBytes,
-              bytesTotal: bytesTotal,
-            ));
-          },
+          onFileProgress: onProgress == null
+              ? null
+              : (fileName, copiedBytes) {
+                  onProgress(FmProgress(
+                    done,
+                    total,
+                    fileName,
+                    bytesDone: bytesDone + copiedBytes,
+                    bytesTotal: bytesTotal,
+                  ));
+                },
           onFileDone: (fileName, fileBytes) {
             done++;
             bytesDone += fileBytes;
@@ -342,7 +344,7 @@ abstract final class FileOps {
     bool fatSafe = false,
     List<String>? errors,
     required void Function(String, int) onFile,
-    required void Function(String, int) onFileProgress,
+    void Function(String, int)? onFileProgress,
     required void Function(String, int) onFileDone,
     required void Function() onSkip,
     bool Function()? isCancelled,
@@ -456,7 +458,9 @@ abstract final class FileOps {
       await SafeWrite.copy(
         file.path,
         target,
-        onProgress: (b) => onFileProgress(fileName, b),
+        onProgress: onFileProgress == null
+            ? null
+            : (b) => onFileProgress(fileName, b),
         isCancelled: isCancelled,
       );
       await _keepModified(target, stat.modified);
@@ -478,7 +482,9 @@ abstract final class FileOps {
       await SafeWrite.copy(
         file.path,
         target,
-        onProgress: (b) => onFileProgress(fileName, b),
+        onProgress: onFileProgress == null
+            ? null
+            : (b) => onFileProgress(fileName, b),
         isCancelled: isCancelled,
       );
       await _keepModified(target, stat.modified);

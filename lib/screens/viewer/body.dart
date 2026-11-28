@@ -103,7 +103,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               ? const Duration(microseconds: 50000)
                               : Duration.zero,
                           partialImageLoadingDelay: _pro?.live == null
-                              ? const Duration(milliseconds: 220)
+                              ? Motion.medium
                               : Duration.zero,
                           loadPageDimensionsOnDemand:
                               _docSize > (25 << 20) || _pageCount >= 200,

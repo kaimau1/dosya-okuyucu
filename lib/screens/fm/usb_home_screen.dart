@@ -261,6 +261,9 @@ class _UsbHomeScreenState extends State<UsbHomeScreen> {
                         autofocus: true,
                         decoration: InputDecoration(
                           border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
                           hintText: context.t('common.search'),
                         ),
                         onChanged: (q) => setState(() => _query = q),

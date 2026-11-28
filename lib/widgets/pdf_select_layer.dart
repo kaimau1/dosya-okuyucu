@@ -195,6 +195,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   bool _notifiedSelecting = false;
 
   // ── Fare (masaüstü) ──────────────────────────────────────────────────────
+  bool _mouseDownActive = false;
   bool _mouseSelecting = false;
   bool _mouseMoved = false;
   bool _mouseWordSelected = false; // çift tık kelime seçti (up temizlemesin)
@@ -497,6 +498,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
 
   void _onMouseDown(PointerDownEvent event) {
     if (event.buttons & kPrimaryButton == 0) return;
+    _mouseDownActive = true;
     final now = DateTime.now();
     final local = event.localPosition;
     final isDoubleClick = _lastMouseDownAt != null &&
@@ -510,6 +512,23 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
     if (isDoubleClick) {
       // Çift tık kelime seçer (Chrome). Tolerans dar: fare hassastır.
       _mouseWordSelected = _selectWordAt(local, tolerance: 8);
+      return;
+    }
+    if (!_textLoaded) {
+      _ensureText().then((_) {
+        if (!mounted ||
+            !_mouseDownActive ||
+            _mouseSelecting ||
+            _mouseWordSelected) {
+          return;
+        }
+        final idx = _charIndexAt(local, maxDist: 8);
+        if (idx != null) {
+          _mouseSelecting = true;
+          _mouseAnchorChar = idx;
+          _setSelecting(true);
+        }
+      });
       return;
     }
     final i = _charIndexAt(local, maxDist: 8);
@@ -542,6 +561,7 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
   }
 
   void _onMouseUp(PointerEvent event) {
+    _mouseDownActive = false;
     if (_mouseSelecting) {
       _mouseSelecting = false;
       _setSelecting(false);

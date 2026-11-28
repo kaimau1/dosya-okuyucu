@@ -80,23 +80,26 @@ abstract final class SafeWrite {
     void Function(int copiedBytes)? onProgress,
     bool Function()? isCancelled,
   }) async {
-    if (onProgress == null && isCancelled == null) {
-      final expected = await File(source).length();
-      final temp = File(_tempFor(target));
+    if (isCancelled?.call() ?? false) {
+      throw const SafeWriteCancelled();
+    }
+    final expected = await File(source).length();
+    final temp = File(_tempFor(target));
+    if ((onProgress == null && isCancelled == null) || expected < 512 * 1024) {
       try {
         await File(source).copy(temp.path);
       } catch (e) {
         await _deleteQuietly(temp);
         if (!_canFallbackToDirectWrite(e)) rethrow;
         await File(source).copy(target);
+        onProgress?.call(expected);
         return;
       }
       await _commit(temp, target, expected);
+      onProgress?.call(expected);
       return;
     }
 
-    final expected = await File(source).length();
-    final temp = File(_tempFor(target));
     try {
       await _streamCopy(source, temp,
           onProgress: onProgress, isCancelled: isCancelled);

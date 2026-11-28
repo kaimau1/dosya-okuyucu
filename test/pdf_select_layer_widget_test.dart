@@ -243,6 +243,10 @@ void main() {
     expect(fromOcrLog.last, isTrue);
     expect(ocrCalls, 1);
 
+    // İlk seçimin tutamacı ikinci dokunuş hedefini kapatmasın.
+    await tester.tapAt(const Offset(180, 90));
+    await tester.pump();
+
     // İkinci uzun basışta önbellek kullanılır; ikinci OCR koşmaz.
     final g2 = await tester.startGesture(const Offset(95, 45));
     await tester.pump(const Duration(milliseconds: 600));
