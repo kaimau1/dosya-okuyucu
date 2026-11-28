@@ -57,3 +57,10 @@ boy temsilcisi `goToPosition` → `_goTo` → `_stopInteractiveViewerAnimation()
 kaydırma ataleti her parmak değişinde `stopAllAnimations` ile durur. **Neden:** görüntüleyici
 `scrollPhysics` vermiyor (sürtünme `kPdfPanFriction`), bu yüzden kayan sayfaya basmak akışı
 durdurmuyordu (kullanıcı bulgusu). **Yükseltmede:** aynı koşulu yeni sürümde de kaldır.
+
+## 3. değişiklik (R8, 2026-11-28) — `pdfrxOnPageImagePainted`
+
+`pdf_viewer.dart` üst düzey kanca: sayfa görüntüsü (önizleme / net parça) tuvale çizilince çağrılır.
+**Neden:** `onDocumentLoadFinished` arka sayfaların ölçümünü (`trailingPageLoadingDelay`) da beklediği
+için açılış damgası `acilis_ilk_sayfa` görünür ilk sayfa anını değil o beklemeyi ölçüyordu. Uygulama
+`acilis_ilk_cizim` / `acilis_ilk_net` damgalarını buradan basar. Yükseltmede aynı iki çizim noktasına ekle.

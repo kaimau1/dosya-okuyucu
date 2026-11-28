@@ -890,6 +890,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (_pdfOpened) return;
     _pdfBridgeTimer?.cancel();
     _pdfBridgeTimer = Timer(Motion.medium, () {
+      PdfProPerf.openMark('kopru');
       if (mounted) _partSetState(() => _pdfOpened = true);
     });
   }

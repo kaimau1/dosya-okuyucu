@@ -273,6 +273,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           // köprü payı beklemeden kalkar.
                           if (mounted && !_pdfOpened) {
                             _pdfBridgeTimer?.cancel();
+                            PdfProPerf.openMark('kopru');
                             _partSetState(() => _pdfOpened = true);
                           }
                         },
@@ -293,6 +294,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           _pdfDoc = document;
                           _onOutlineReady();
                           PdfProPerf.openMark('belge');
+                          // Görünür ilk sayfa anı (R8): ilk_cizim = önizleme
+                          // tuvalde, ilk_net = gerçek boy parça.
+                          pdfrxOnPageImagePainted = (sharp) => PdfProPerf.openMark(
+                              sharp ? 'ilk_net' : 'ilk_cizim');
                           _pdfPasswordTried = false;
                           // Her (yeniden) yüklemede yeni arayıcı: eskisi önceki
                           // belgenin olaylarına bağlı kalırdı.

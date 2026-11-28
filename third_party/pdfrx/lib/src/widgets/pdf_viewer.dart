@@ -34,6 +34,12 @@ import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
 import 'sizing/pdf_viewer_size_delegate.dart';
 import 'zoom_steps/pdf_viewer_zoom_steps_delegate.dart';
 
+/// pdfrx-yama (dosya-okuyucu R8, 2026-11-28): bir sayfa görüntüsü tuvale ÇİZİLDİ
+/// (`sharp` = gerçek boy parça, değilse önizleme). Açılış ölçümü içindir:
+/// `onDocumentLoadFinished` arka sayfa ölçümünü de beklediğinden görünür ilk
+/// sayfa anını göstermiyordu. Boşken maliyet tek null denetimi.
+void Function(bool sharp)? pdfrxOnPageImagePainted;
+
 /// A widget to display PDF document.
 ///
 /// To create a [PdfViewer] widget, use one of the following constructors:
@@ -43,6 +49,7 @@ import 'zoom_steps/pdf_viewer_zoom_steps_delegate.dart';
 /// - [PdfViewer.uri] with a URI
 ///
 /// Or otherwise, you can pass [PdfDocumentRef] to [PdfViewer] constructor.
+
 class PdfViewer extends StatefulWidget {
   /// Create [PdfViewer] from a [PdfDocumentRef].
   ///
@@ -1923,6 +1930,7 @@ class _PdfViewerState extends State<PdfViewer>
             ..filterQuality = filterQuality
             ..colorFilter = pageImageColorFilter,
         );
+        pdfrxOnPageImagePainted?.call(false);
       } else {
         canvas.drawRect(
           rect,
@@ -1952,6 +1960,7 @@ class _PdfViewerState extends State<PdfViewer>
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
         partial.draw(canvas, filterQuality, pageImageColorFilter);
+        pdfrxOnPageImagePainted?.call(true);
       }
 
       // Guarded on the selection flag. Without this, paint loads structured text
