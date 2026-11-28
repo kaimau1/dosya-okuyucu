@@ -119,8 +119,14 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       }
       return;
     }
+    // Klavye durulunca TEK yeniden kurulum (belge sonu payı yeni klavye
+    // boyuyla), sonra imleç gösterilir — canlandırma karelerinde değil (R8).
     _proInsetTimer = Timer(Motion.medium, () {
-      if (mounted) _proRevealCaret();
+      if (!mounted) return;
+      _partSetState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _proRevealCaret();
+      });
     });
   }
 
@@ -131,7 +137,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   /// öteye kaydırmıyordu.
   EdgeInsets? _proKeyboardRoom(BuildContext context) {
     if (_pro?.live == null) return null;
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    // Bağımlılıksız (R8): pay klavye durulunca [_proWatchInset] ile tazelenir.
+    final inset = _mqNoDep.viewInsets.bottom;
     if (inset <= 0) return null;
     final zoom = _pdfController.isReady && _pdfController.currentZoom > 0
         ? _pdfController.currentZoom
@@ -164,7 +171,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       final zoom =
           _pdfController.currentZoom <= 0 ? 1.0 : _pdfController.currentZoom;
       final visible = _pdfController.visibleRect;
-      final media = MediaQuery.of(context);
+      final media = _mqNoDep;
       final below =
           (media.viewInsets.bottom + PdfEditTokens.formatBar + 96) / zoom;
       final above = (media.padding.top + PdfEditTokens.topBar + 16) / zoom;
@@ -1255,8 +1262,17 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
   /// yüzer; gövde boyu değişmez (PS4).
   List<Widget> _proOverlays(PdfProEditController pro) {
     final live = pro.live;
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
-    _proWatchInset(inset);
+    // Klavye boyunu yalnız bu küçük Builder'lar okur (R8): eskiden ekranın
+    // kendisi okuyordu ve klavye canlandırmasının her karesinde bütün
+    // görüntüleyici yeniden kuruluyordu.
+    final watch = Positioned(
+      left: 0,
+      top: 0,
+      child: Builder(builder: (context) {
+        _proWatchInset(MediaQuery.viewInsetsOf(context).bottom);
+        return const SizedBox.shrink();
+      }),
+    );
     if (live != null) {
       final bar = PdfProFormatBar(
         controller: pro,
@@ -1281,15 +1297,20 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             onRedo: _proRedo,
           ),
         ),
-        if (inset > 0)
-          PositionedDirectional(start: 0, end: 0, bottom: inset, child: bar)
-        else
-          ReadingFloat(gap: 0, child: ToastAvoider(child: bar)),
+        Builder(builder: (context) {
+          final inset = MediaQuery.viewInsetsOf(context).bottom;
+          return inset > 0
+              ? PositionedDirectional(
+                  start: 0, end: 0, bottom: inset, child: bar)
+              : ReadingFloat(gap: 0, child: ToastAvoider(child: bar));
+        }),
+        watch,
       ];
     }
     final chips = _proChips(pro);
     final guide = _proGuideBanner(pro);
     return [
+      watch,
       ?guide,
       if (chips.isNotEmpty)
         ReadingFloat(

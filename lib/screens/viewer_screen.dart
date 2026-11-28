@@ -1078,6 +1078,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
 
+  /// MediaQuery'yi **bağımlılık kaydetmeden** okur (R8, 2026-11-28). KÖK: geri
+  /// çağrılarda (`_proRevealCaret`, sayfaya atlama bekleyişi) `MediaQuery.of`
+  /// bu ekranı MediaQuery'nin TÜMÜNE bağlıyordu; klavye açılırken her
+  /// canlandırma karesinde (viewInsets) bütün görüntüleyici + pdfrx katmanı
+  /// yeniden kuruluyordu ("Metin ekle" build 29 ms, en kötü 67 ms).
+  MediaQueryData get _mqNoDep =>
+      context.getInheritedWidgetOfExactType<MediaQuery>()?.data ??
+      MediaQueryData.fromView(View.of(context));
+
   /// Metin düzenleniyor mu (odak alanda)? Öyleyse alt çubuk/AI düğmesi gizli.
   bool get _editingText =>
       widget.doc.isEditableText && _textFocus.hasFocus;
