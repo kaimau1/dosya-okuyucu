@@ -99,16 +99,17 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // üstüne kaydırılabilsin (belge sonu payı).
                         boundaryMargin: _proKeyboardRoom(context),
                         behaviorControlParams: PdfViewerBehaviorControlParams(
-                          // 500 ms (Motion dışı zamanlayıcı)
-                          trailingPageLoadingDelay:
-                              const Duration(microseconds: 500000),
+                          // R7 (2026-11-28): 500 ms bekleme kaldırıldı (pdfrx
+                          // varsayılanı 100 ms). c51456c1 ilk sayfa/yükleme
+                          // bitişini ~+550 ms geciktiriyordu (bisect raporu
+                          // docs/perf/2026-11-28-pdf-ilk-sayfa-bisect.md).
                           pageImageCachingDelay: _pro?.live == null
                               ? const PdfViewerBehaviorControlParams()
                                   .pageImageCachingDelay
                               : Duration.zero,
-                          partialImageLoadingDelay: _pro?.live == null
-                              ? Motion.short
-                              : Duration.zero,
+                          // R7: kaydırırken net görüntü beklemesiz (Motion.short
+                          // 120 ms bekleme kullanıcıda "kasma" gibi görünüyordu).
+                          partialImageLoadingDelay: Duration.zero,
                           loadPageDimensionsOnDemand:
                               _docSize > (100 << 20) || _pageCount >= 500,
                         ),
