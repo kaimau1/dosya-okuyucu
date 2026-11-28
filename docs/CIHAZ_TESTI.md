@@ -1847,3 +1847,12 @@ Hazırlık: iki telefona aynı nightly; Windows'ta `tool/pc_aktar/exe/DosyaAktar
 - [ ] Her sayfada "TASLAK"/arma damgası olan PDF → Düzenle → ⋮ → Filigran: liste geliyor, seçip "Seçilenleri kaldır" → üstüne yaz/kopya sorusu → damga gidiyor, gerisi duruyor.
 - [ ] Taranmış PDF (metin katmanı yok) → Düzenle: şeritte "Metni düzelt", "Metni akıllı düzelt", "Bu sayfayı düzenlenebilir yap" görünüyor; düzenlenebilir yap → kaydet → yeniden Düzenle → bir satıra dokununca yerinde yazılıyor, renk/konum kâğıda uyuyor.
 - [ ] Kaydedilmemiş düzenleme varken bu işlere basınca önce kaydet/at sorusu geliyor; ⋮ menüsünde "Eski düzenleyici" yok.
+
+## Ekran görüntüsü turu — kabuk, imza X, form hatası, kalem tepsisi (2026-11-28) — yazıldı, cihazda doğrulanmadı
+- [ ] Form ve imza → İmza: yerleştirilen imzanın kırmızı X'ine dokun → imza silinir (kenara sürüklenmişken de).
+- [ ] Düzenle → metin yaz → "Metin alttaki yazının üstüne biniyor" → "Alttakini it": alttaki yazı HEMEN iner, klavye açık kalır, yazma sürer; "Küçült" tek dokunuşta sığdırır.
+- [ ] Düzenle'de yazarken alt çubuktan Form'a geç → kırmızı hata/gri kutu YOK (eski RangeError).
+- [ ] PDF okuma: alt çubuk belirgin şekilde alçak (Düzenle · İçindekiler · Paylaş); Çevir ⋮ → Dönüştür'de; üstte kırmızı PDF rozeti yerine kapak küçük resmi; çubuk kaydırırken akıcılık eski [apk] ile aynı (ölçüm kapısı, C2).
+- [ ] 2 sütun: iki parmakla bir sütun genişliğine yakın yakınlaştır, bırak → sütun ekrana oturur + hafif titreşim; dikey kaydırma/fırlatma kesilmez.
+- [ ] Herhangi bir menü levhası (Analiz ve düzenle, ⋮, dosya levhası) → sağ üstte ⚙ → Ayarlar açılır.
+- [ ] İşaretle: başta çizilmiş kalemler (Kalem · Fosforlu · Vurgula · Silgi · Gönye); seçili kalem kalkar; yeniden dokununca renk/kalınlık. Akıllı mürekkep: satırın biraz altına çekilen çizgi alt çizgi olur, iki satır arasında yalnız yakın satır, dalgalı çizgi dalgalı alt çizgi.

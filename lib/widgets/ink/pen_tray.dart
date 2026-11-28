@@ -4,9 +4,9 @@ import '../../core/app_haptics.dart';
 import '../../core/app_icons.dart';
 import '../../core/edit/ink_logic.dart';
 import '../../core/l10n/app_strings.dart';
-import '../../core/motion.dart';
 import '../../core/theme.dart' show Gap, Radii;
 import '../app_dialog.dart' show showAppSheet;
+import 'pen_art.dart';
 
 /// **KALEM TEPSİSİ** — Notlar uygulamasındaki tepsinin mantığı (B20,
 /// 2026-11-27, kullanıcı: "kalemle silgi yan yana olmalı; Notlar'daki kalem
@@ -89,61 +89,21 @@ class PenTray extends StatelessWidget {
 
   Widget _slot(BuildContext context, PenTrayTool tool, IconData icon,
       String label, Color? tip) {
-    final scheme = Theme.of(context).colorScheme;
-    final on = tool == selected;
-    final duration = Motion.of(context, Motion.short);
-    return Tooltip(
-      message: context.t(label),
-      child: Semantics(
-        button: true,
-        selected: on,
-        label: context.t(label),
-        child: InkResponse(
-          key: ValueKey('pen-tray-${tool.name}'),
-          radius: 24,
-          onTap: () => _tap(tool),
-          onLongPress: tool == PenTrayTool.eraser ? onClear : null,
-          child: SizedBox(
-            width: 44,
-            height: 48,
-            child: AnimatedSlide(
-              // Seçili kalem tepsiden yukarı kalkar (Notlar'daki gibi).
-              offset: on ? const Offset(0, -0.08) : Offset.zero,
-              duration: duration,
-              curve: Motion.standard,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: on ? scheme.primaryContainer : null,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Icon(icon,
-                          size: 22,
-                          color: on
-                              ? scheme.onPrimaryContainer
-                              : scheme.onSurfaceVariant),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  // Kalemin ucu çizilen renkte; silginin ucu yok.
-                  Container(
-                    width: 16,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: tip ?? Colors.transparent,
-                      borderRadius: BorderRadius.circular(Radii.pill),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    // Notlar'daki gibi çizilmiş KALEMLER (2026-11-28): simge + renk çizgisi
+    // yerine tepside duran kalem; seçili olan kalkar, ucu çizilen renkte.
+    return PenArtSlot(
+      key: ValueKey('pen-tray-${tool.name}'),
+      art: switch (tool) {
+        PenTrayTool.pen => PenArt.pen,
+        PenTrayTool.highlighter => PenArt.highlighter,
+        PenTrayTool.eraser => PenArt.eraser,
+      },
+      label: context.t(label),
+      selected: tool == selected,
+      ink: tip ?? Theme.of(context).colorScheme.primary,
+      height: 48,
+      onTap: () => _tap(tool),
+      onLongPress: tool == PenTrayTool.eraser ? onClear : null,
     );
   }
 }

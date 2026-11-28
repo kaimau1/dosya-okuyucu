@@ -101,15 +101,15 @@ SmartInkResult? analyzeSmartInk({
   final isHorizontal =
       w >= 14 && gap >= 0.40 * w && h <= math.max(24.0, w * 0.45);
   if (isHorizontal && blocks.isNotEmpty) {
-    final midY = sumY / points.length;
     final markup = _matchHorizontalText(
       blocks: blocks,
       l: l,
       b: b,
       r: r,
       t: t,
-      midY: midY,
+      midY: _robustMidY(points, sumY / points.length),
       isHighlighter: isHighlighter,
+      wavy: !isHighlighter && _isWavy(points, w),
     );
     if (markup != null) return markup;
   }
@@ -193,6 +193,61 @@ SmartInkCircleText? _collectCircledText(
   );
 }
 
+/// Vuruşun dikey ortası: baştaki/sondaki kanca (kalem iniş/kalkış kıvrımı)
+/// sayılmasın diye uçlardan %15 atılır, kalanın ortancası alınır.
+double _robustMidY(List<({double x, double y})> pts, double fallback) {
+  if (pts.length < 5) return fallback;
+  final cut = (pts.length * 0.15).floor();
+  final ys = [for (var i = cut; i < pts.length - cut; i++) pts[i].y]..sort();
+  if (ys.isEmpty) return fallback;
+  return ys[ys.length ~/ 2];
+}
+
+/// Dalgalı mı: dikeyde en az 4 kez yön değiştiren (≥ 2,2 pt genlikli,
+/// gürültü eşiği) yatay vuruş → "dalgalı alt çizgi".
+bool _isWavy(List<({double x, double y})> pts, double w) {
+  if (pts.length < 8 || w < 20) return false;
+  const hyst = 2.2;
+  var turns = 0;
+  var dir = 0; // 1 yukarı, -1 aşağı
+  var pivot = pts.first.y;
+  for (final p in pts) {
+    final d = p.y - pivot;
+    if (dir >= 0 && d < -hyst) {
+      if (dir == 1) turns++;
+      dir = -1;
+      pivot = p.y;
+    } else if (dir <= 0 && d > hyst) {
+      if (dir == -1) turns++;
+      dir = 1;
+      pivot = p.y;
+    } else if ((dir == 1 && p.y > pivot) || (dir == -1 && p.y < pivot)) {
+      pivot = p.y;
+    }
+  }
+  return turns >= 4;
+}
+
+/// Bir metin satırının vuruşla eşleşen parçası.
+class _LineHit {
+  _LineHit(this.map, this.first, this.last, this.base, this.size, this.midPx,
+      this.loY, this.hiY);
+  final PdfBlockTextMap map;
+  final int first, last;
+  final double base, size, midPx, loY, hiY;
+}
+
+/// **Yatay vuruş → metin işareti** (2026-11-28 geliştirmesi, kullanıcı:
+/// "akıllı mürekkep geliştirilmeli" — ekran görüntüsünde satır altına
+/// biraz kaymış ve iki satır arasında kalan çizgiler ham mürekkep kalıyordu).
+/// * Kalem: aday satırların her biri puanlanır, vuruşa EN YAKIN TEK satır
+///   seçilir (eskiden pencereye giren her satır işaretleniyor, iki satır
+///   arasındaki çizgi ya hiç ya ikisini birden tutuyordu). Alt çizgi penceresi
+///   tabanın 1,25 punto altına dek (eski 0,95), üstü çizme harf gövdesinin
+///   ortasında (0,2–0,65 punto); dalgalıysa dalgalı alt çizgi.
+/// * Fosforlu: ince tek geçişte en yakın satır (satırın biraz altına/üstüne
+///   kaymış olsa da); satırlardan uzun (zikzak/kalın) geçişte örtüştüğü
+///   bütün satırlar.
 SmartInkTextMarkup? _matchHorizontalText({
   required List<PdfTextBlock> blocks,
   required double l,
@@ -201,51 +256,27 @@ SmartInkTextMarkup? _matchHorizontalText({
   required double t,
   required double midY,
   required bool isHighlighter,
+  bool wavy = false,
 }) {
-  final quads = <List<double>>[];
-  int? kind;
-
+  final hits = <_LineHit>[];
   for (final blk in blocks) {
     if (blk.right < l - 4 ||
         blk.left > r + 4 ||
-        blk.top < b - 10 ||
-        blk.bottom > t + 10) {
+        blk.top < b - 16 ||
+        blk.bottom > t + 16) {
       continue;
     }
     final map = blk.map;
     final ang = map.angle;
     final cs = math.cos(ang);
     final sn = math.sin(ang);
-
+    final fx = (blk.frameLeft + blk.frameRight) * 0.5;
     for (var li = 0; li < map.bases.length; li++) {
       final base = map.bases[li];
       final size = map.sizes[li];
-      final lineBottom = base - size * 0.25;
-      final lineTop = base + size * 0.9;
-      final lineMidPx = _toPageY(
-          (blk.frameLeft + blk.frameRight) * 0.5, base, cs, sn);
-      final lineTopPx = _toPageY(
-          (blk.frameLeft + blk.frameRight) * 0.5, lineTop, cs, sn);
-      final lineBotPx = _toPageY(
-          (blk.frameLeft + blk.frameRight) * 0.5, lineBottom, cs, sn);
-      final loY = math.min(lineBotPx, lineTopPx);
-      final hiY = math.max(lineBotPx, lineTopPx);
-
-      int? lineKind;
-      if (isHighlighter) {
-        if (hiY >= b - 4 && loY <= t + 4) {
-          lineKind = PdfAnnotType.highlight;
-        }
-      } else {
-        final dBase = midY - lineMidPx;
-        if (dBase >= -size * 0.95 && dBase <= size * 0.25) {
-          lineKind = PdfAnnotType.underline;
-        } else if (dBase > size * 0.25 && dBase <= size * 0.85) {
-          lineKind = PdfAnnotType.strikeout;
-        }
-      }
-      if (lineKind == null) continue;
-
+      final midPx = _toPageY(fx, base, cs, sn);
+      final topPx = _toPageY(fx, base + size * 0.9, cs, sn);
+      final botPx = _toPageY(fx, base - size * 0.25, cs, sn);
       int? first;
       int? last;
       for (var i = 0; i < map.length; i++) {
@@ -259,20 +290,83 @@ SmartInkTextMarkup? _matchHorizontalText({
         }
       }
       if (first == null || last == null) continue;
-      final (ws, _) = map.wordAt(first);
-      final (_, we) = map.wordAt(last);
-      final s = ws < first ? ws : first;
-      final e = we > last + 1 ? we : last + 1;
-      final selQuads = map.selection(s, e);
-      if (selQuads.isEmpty) continue;
-      kind ??= lineKind;
-      for (final q in selQuads) {
-        quads.add([q[6], q[7], q[4], q[5], q[0], q[1], q[2], q[3]]);
-      }
+      hits.add(_LineHit(map, first, last, base, size, midPx,
+          math.min(botPx, topPx), math.max(botPx, topPx)));
     }
   }
+  if (hits.isEmpty) return null;
 
-  if (quads.isEmpty || kind == null) return null;
+  final chosen = <_LineHit>[];
+  int? kind;
+  if (isHighlighter) {
+    final sizes = [for (final h in hits) h.size]..sort();
+    final typical = sizes[sizes.length ~/ 2];
+    final tall = (t - b) > 1.4 * typical;
+    if (tall) {
+      for (final h in hits) {
+        final overlap = math.min(h.hiY, t + 2) - math.max(h.loY, b - 2);
+        if (overlap >= 0.3 * (h.hiY - h.loY)) chosen.add(h);
+      }
+    } else {
+      _LineHit? best;
+      var bestD = double.infinity;
+      for (final h in hits) {
+        final center = (h.loY + h.hiY) * 0.5;
+        final d = (midY - center).abs() / h.size;
+        if (d < bestD) {
+          bestD = d;
+          best = h;
+        }
+      }
+      // Satır kutusunun yarısı (~0,58 punto) + bir punto tolerans.
+      if (best != null && bestD <= 1.6) chosen.add(best);
+    }
+    if (chosen.isNotEmpty) kind = PdfAnnotType.highlight;
+  } else {
+    _LineHit? best;
+    int? bestKind;
+    var bestD = double.infinity;
+    for (final h in hits) {
+      final rel = (midY - h.midPx) / h.size; // tabana göre, punto biriminde
+      if (rel >= -1.25 && rel <= 0.2) {
+        final d = (rel + 0.3).abs();
+        if (d < bestD) {
+          bestD = d;
+          best = h;
+          bestKind = PdfAnnotType.underline;
+        }
+      } else if (rel > 0.2 && rel <= 0.65) {
+        // Üstü çizme harf gövdesinin ortasında, dar pencerede; harflerin
+        // üst ucundan geçen çizgi üstteki satırın alt çizgisi sayılır.
+        final d = (rel - 0.4).abs() * 1.2;
+        if (d < bestD) {
+          bestD = d;
+          best = h;
+          bestKind = PdfAnnotType.strikeout;
+        }
+      }
+    }
+    if (best != null) {
+      chosen.add(best);
+      kind = bestKind == PdfAnnotType.underline && wavy
+          ? PdfAnnotType.squiggly
+          : bestKind;
+    }
+  }
+  if (chosen.isEmpty || kind == null) return null;
+
+  final quads = <List<double>>[];
+  for (final h in chosen) {
+    final map = h.map;
+    final (ws, _) = map.wordAt(h.first);
+    final (_, we) = map.wordAt(h.last);
+    final s = ws < h.first ? ws : h.first;
+    final e = we > h.last + 1 ? we : h.last + 1;
+    for (final q in map.selection(s, e)) {
+      quads.add([q[6], q[7], q[4], q[5], q[0], q[1], q[2], q[3]]);
+    }
+  }
+  if (quads.isEmpty) return null;
   return SmartInkTextMarkup(
     type: kind,
     quads: quads,

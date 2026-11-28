@@ -40,6 +40,8 @@ import 'screens/fm/resize_actions.dart';
 import 'screens/fm/pick_file_screen.dart';
 import 'core/app_haptics.dart';
 import 'screens/home_screen.dart';
+import 'screens/settings_screen.dart';
+import 'widgets/menu_kit.dart' show MenuSections;
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/fm/remote/sftp_host_keys.dart';
 import 'services/fm/remote/smb_legacy.dart';
@@ -330,6 +332,9 @@ Future<void> _main() async {
             scope: () => appState.aiScopeRules,
           ));
   PlayStore.downloaded.addListener(_offerPlayRestart);
+  // Her menü levhasında Ayarlar düğmesi (bkz. MenuSections.openSettings).
+  MenuSections.openSettings = (nav) => unawaited(nav.push(
+      MaterialPageRoute<void>(builder: (_) => const SettingsScreen())));
   runApp(
     AppProviders(
       appState: appState,

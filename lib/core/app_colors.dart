@@ -363,3 +363,36 @@ abstract final class PdfEditTokens {
   /// Yükleniyor göstergesi yalnız bu süreyi aşan işte çıkar (zamanlayıcı).
   static const loadingDelay = Duration(milliseconds: 300);
 }
+
+/// **Kalem tepsisi çizimlerinin sabit tonları** (Notlar uygulamasının
+/// `pen_icons.dart`ından birebir, 2026-11-28 — `widgets/ink/pen_art.dart`).
+/// Gövde/metal/silgi tonları "tasarım" değil "içerik" (kalemin kendisi);
+/// adları onaltılık değerleridir, anlamları çizim yöntemlerinde yazılı.
+abstract final class PenArtColors {
+  static const white = Color(0xFFFFFFFF);
+  static const black = Color(0xFF000000);
+  static const k6688B8E8 = Color(0x6688B8E8);
+  static const k80A9D2F5 = Color(0x80A9D2F5);
+  static const kFF28282D = Color(0xFF28282D);
+  static const kFF2E2E34 = Color(0xFF2E2E34);
+  static const kFF3B3F4A = Color(0xFF3B3F4A);
+  static const kFF4B4B52 = Color(0xFF4B4B52);
+  static const kFF55555C = Color(0xFF55555C);
+  static const kFF5C5C64 = Color(0xFF5C5C64);
+  static const kFF5E9BD6 = Color(0xFF5E9BD6);
+  static const kFF6E6038 = Color(0xFF6E6038);
+  static const kFF858891 = Color(0xFF858891);
+  static const kFF8A8A93 = Color(0xFF8A8A93);
+  static const kFF9A9AA3 = Color(0xFF9A9AA3);
+  static const kFF9C8546 = Color(0xFF9C8546);
+  static const kFF9CC6EE = Color(0xFF9CC6EE);
+  static const kFFB6B8BF = Color(0xFFB6B8BF);
+  static const kFFB8A46A = Color(0xFFB8A46A);
+  static const kFFC98A98 = Color(0xFFC98A98);
+  static const kFFC9CBD2 = Color(0xFFC9CBD2);
+  static const kFFCBC5BB = Color(0xFFCBC5BB);
+  static const kFFD9C27E = Color(0xFFD9C27E);
+  static const kFFE4E0D8 = Color(0xFFE4E0D8);
+  static const kFFF4A9B8 = Color(0xFFF4A9B8);
+  static const kFFF6F3EE = Color(0xFFF6F3EE);
+}

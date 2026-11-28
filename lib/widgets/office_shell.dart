@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart' show kLongPressTimeout;
@@ -16,6 +17,7 @@ import '../core/snack.dart';
 import '../core/theme.dart';
 import '../models/document.dart';
 import 'file_type_icon.dart';
+import '../services/fm/pdf_thumbnail.dart';
 import '../core/app_colors.dart';
 
 /// Tüm belge ekranlarının ortak Office kabuğu.
@@ -242,6 +244,11 @@ class OfficeShell extends StatefulWidget {
   /// kipinde "PDF · Düzenleme kipi" yerine doğrudan "Düzenleme kipi").
   final bool hideKindPrefix;
 
+  /// Verilirse başlıktaki tür rozeti yerine bu PDF'in kapak küçük resmi
+  /// (kullanıcı 2026-11-28: "üstte PDF'in önizlemesi görünsün, kırmızı PDF
+  /// işareti değil"). Bkz. [DocThumb].
+  final String? thumbPath;
+
   const OfficeShell({
     super.key,
     required this.kind,
@@ -260,6 +267,7 @@ class OfficeShell extends StatefulWidget {
     this.session,
     this.hideBottomBar = false,
     this.hideKindPrefix = false,
+    this.thumbPath,
   });
 
   @override
@@ -356,12 +364,15 @@ class _OfficeShellState extends State<OfficeShell>
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
-    final brand = OfficeColors.tint(context, widget.kind);
-    final topBg = Color.lerp(scheme.surface, brand, dark ? 0.065 : 0.032)!;
-    final dockBg =
-        Color.lerp(scheme.surface, scheme.surfaceContainerLowest, 0.55)!;
-    final hairline = Color.lerp(
-        scheme.outlineVariant, brand, dark ? 0.16 : 0.10)!;
+    // Üst ve alt çubuk AYNI düz zemin (2026-11-28, kullanıcı: "alt ve üst
+    // alanın renk ve görünüm seçimi iyi değil"): eskiden üstte türe göre
+    // renklenmiş gri, altta başka gri + kalın gölge vardı; iki çubuk ayrı
+    // parçalar gibi duruyordu. Artık ikisi de belge zemininden ayrışan temiz
+    // yüzey, yalnız ince ayırıcı çizgi.
+    final topBg =
+        dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest;
+    final dockBg = topBg;
+    final hairline = scheme.outlineVariant;
     final appBar = AppBar(
       backgroundColor: topBg,
       foregroundColor: scheme.onSurface,
@@ -376,6 +387,7 @@ class _OfficeShellState extends State<OfficeShell>
               dirty: widget.dirty,
               subtitle: widget.subtitle,
               hideKindPrefix: widget.hideKindPrefix,
+              thumbPath: widget.thumbPath,
             )
           : ListenableBuilder(
               listenable: widget.session!,
@@ -386,6 +398,7 @@ class _OfficeShellState extends State<OfficeShell>
                 subtitle: widget.subtitle,
                 status: widget.session!.statusText(AppStrings.of(context)),
                 hideKindPrefix: widget.hideKindPrefix,
+                thumbPath: widget.thumbPath,
               ),
             ),
       actions: [...widget.actions, const SizedBox(width: 6)],
@@ -399,14 +412,7 @@ class _OfficeShellState extends State<OfficeShell>
               decoration: BoxDecoration(
                 color: dockBg,
                 border: Border(
-                    top: BorderSide(color: hairline.withValues(alpha: 0.72))),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.studioShadow(dark),
-                    blurRadius: 16,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
+                    top: BorderSide(color: hairline.withValues(alpha: 0.6))),
               ),
               // Klavye açılınca `padding.bottom` 0'a iner; çubuk kısalınca
               // gövde payı değişip PDF sayfası ~64 px zıplıyordu (PS4).
@@ -638,6 +644,9 @@ class DocTitle extends StatelessWidget {
   final String? status;
   final bool hideKindPrefix;
 
+  /// PDF yolu: tür rozeti yerine kapak küçük resmi ([DocThumb]).
+  final String? thumbPath;
+
   const DocTitle({
     super.key,
     required this.kind,
@@ -646,6 +655,7 @@ class DocTitle extends StatelessWidget {
     this.subtitle,
     this.status,
     this.hideKindPrefix = false,
+    this.thumbPath,
   });
 
   @override
@@ -662,7 +672,13 @@ class DocTitle extends StatelessWidget {
     final statusLabel = status ?? (dirty ? context.t('shell.unsaved') : null);
     return Row(
       children: [
-        FileTypeIcon(kind: kind, size: hideKindPrefix ? 34 : 36, framed: true),
+        thumbPath == null
+            ? FileTypeIcon(
+                kind: kind, size: hideKindPrefix ? 34 : 36, framed: true)
+            : DocThumb(
+                path: thumbPath!,
+                kind: kind,
+                size: hideKindPrefix ? 34 : 36),
         SizedBox(width: hideKindPrefix ? 10 : 12),
         Expanded(
           child: Column(
@@ -763,6 +779,108 @@ class DocTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Üst çubukta PDF'in **kapak küçük resmi** (2026-11-28).
+///
+/// Hız: açılışta PDFium görüntüleyiciyle YARIŞMAZ — önce yalnız diskteki hazır
+/// kapağa bakılır ([PdfThumbnail.cachedCover], üretmez; listeden açılan
+/// belgede genelde vardır); yoksa ve belge 40 MB altındaysa
+/// [PdfThumbnail.forPdf] görüntüleyici önceliği (ViewerPriority) bitene dek
+/// sırada bekleyip üretir. Beklerken ve üretilemezse tür rozeti görünür. Gelecek
+/// bir kez durumda tutulur; üst çubuk yeniden kurulsa da yeniden istenmez.
+class DocThumb extends StatefulWidget {
+  final String path;
+  final DocKind kind;
+  final double size;
+  const DocThumb(
+      {super.key, required this.path, required this.kind, this.size = 36});
+
+  @override
+  State<DocThumb> createState() => _DocThumbState();
+}
+
+class _DocThumbState extends State<DocThumb> {
+  String? _file;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(DocThumb old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path) {
+      _file = null;
+      unawaited(_load());
+    }
+  }
+
+  /// Kapak listede üretilmemişse yalnız bu boyun altındaki PDF için üretilir:
+  /// dev belgede ikinci bir PDFium açılışı okurken sayfa çizimini bekletirdi.
+  static const _generateLimit = 40 << 20;
+
+  Future<void> _load() async {
+    final path = widget.path;
+    var file = (await PdfThumbnail.cachedCover(path))?.path;
+    if (!mounted || widget.path != path) return;
+    if (file == null) {
+      int bytes;
+      try {
+        bytes = await File(path).length();
+      } catch (_) {
+        // Bilinçli: dosya okunamıyorsa kapak yok, tür rozeti kalır.
+        return;
+      }
+      if (bytes > _generateLimit || !mounted || widget.path != path) return;
+      file = await PdfThumbnail.forPdf(path,
+          size: 128, wanted: () => mounted && widget.path == path);
+    }
+    if (!mounted || widget.path != path || file == null) return;
+    setState(() => _file = file);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final file = _file;
+    final scheme = Theme.of(context).colorScheme;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final h = widget.size;
+    final w = h * 0.78;
+    return AnimatedSwitcher(
+      duration: Motion.of(context, Motion.short),
+      child: file == null
+          ? FileTypeIcon(
+              key: const ValueKey('doc-thumb-icon'),
+              kind: widget.kind,
+              size: h,
+              framed: true)
+          : Container(
+              key: const ValueKey('doc-thumb'),
+              width: w,
+              height: h,
+              decoration: BoxDecoration(
+                color: AppColors.page,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.8)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Image.file(
+                File(file),
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                cacheHeight: (h * dpr).round(),
+                gaplessPlayback: true,
+                filterQuality: FilterQuality.medium,
+                errorBuilder: (_, _, _) => FileTypeIcon(
+                    kind: widget.kind, size: h, framed: true),
+              ),
+            ),
     );
   }
 }

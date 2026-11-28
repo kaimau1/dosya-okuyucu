@@ -39,8 +39,10 @@ class DocAction {
   });
 }
 
-/// **Belge Stüdyosu Dock'u** (2026-11-24 yenilemesi): simge üstte yumuşak
-/// dokunulabilir hap içinde, etiket altta net hiyerarşiyle.
+/// **Belge Stüdyosu Dock'u** (2026-11-24 yenilemesi; 2026-11-28 kullanıcı:
+/// "alt alan çok yer kaplıyor, %30 azaltalım; renk ve görünüm iyi değil"):
+/// ≈80 → ≈55 dp. Simge çerçevesiz (çizgili haplar kalktı), etiket TEK satır
+/// (sığmazsa küçülür, kesilmez); yalnız ana/açık eylem tonlu hap alır.
 ///
 /// * Sığıyorsa düğmeler genişliği EŞİT paylaşır.
 /// * Sığmıyorsa sabit genişlikte yatay kayar; son düğmenin yarısı görünür
@@ -77,7 +79,7 @@ class DocActionBar extends StatelessWidget {
       final fits = width / n >= _minSlot;
       if (fits) {
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Row(
             children: [
               for (final a in actions)
@@ -91,7 +93,7 @@ class DocActionBar extends StatelessWidget {
       final slot = (width - 12) / (visible + 0.5);
       return SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         child: Row(
           children: [
             for (final a in actions)
@@ -112,7 +114,7 @@ extension on DocActionBar {
     return SingleChildScrollView(
       key: const ValueKey('doc-bar-context'),
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       child: Row(
         children: [
           Semantics(
@@ -139,7 +141,7 @@ extension on DocActionBar {
             ),
           ),
           SizedBox(
-            height: 40,
+            height: 32,
             child: VerticalDivider(
               width: 12,
               color: scheme.outlineVariant.withValues(alpha: 0.8),
@@ -164,33 +166,20 @@ class _DockButton extends StatelessWidget {
     final enabled = action.onTap != null;
     final isPrimary = enabled && action.primary && !action.active;
     final isActive = enabled && action.active;
+    final lit = isPrimary || isActive;
     final iconColor = !enabled
         ? scheme.onSurface.withValues(alpha: 0.36)
-        : isPrimary
-            ? scheme.onPrimary
-            : isActive
-                ? scheme.onPrimaryContainer
-                : scheme.onSurface;
+        : lit
+            ? scheme.onPrimaryContainer
+            : scheme.onSurfaceVariant;
     final labelColor = !enabled
         ? scheme.onSurface.withValues(alpha: 0.36)
-        : (isPrimary || isActive)
-            ? scheme.primary
+        : lit
+            ? scheme.onSurface
             : scheme.onSurfaceVariant;
-    final pillBg = !enabled
-        ? Colors.transparent
-        : isPrimary
-            ? scheme.primary
-            : isActive
-                ? scheme.primaryContainer
-                : scheme.surfaceContainerHigh.withValues(alpha: 0.65);
-    final pillBorder = !enabled
-        ? null
-        : isPrimary
-            ? Border.all(color: scheme.primary)
-            : isActive
-                ? Border.all(color: scheme.primary.withValues(alpha: 0.38))
-                : Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.45));
+    // Yalnız ana/açık eylemin tonlu hapı var (Material 3 gezinme göstergesi
+    // dili); öbürleri çerçevesiz — eski çizgili gri haplar kalabalık duruyordu.
+    final pillBg = lit ? scheme.primaryContainer : Colors.transparent;
     return Semantics(
       button: true,
       enabled: enabled,
@@ -198,10 +187,10 @@ class _DockButton extends StatelessWidget {
       excludeSemantics: true,
       child: InkWell(
         onTap: action.onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding:
-              EdgeInsets.symmetric(horizontal: compact ? 1 : 2, vertical: 3),
+              EdgeInsets.symmetric(horizontal: compact ? 1 : 2, vertical: 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -211,16 +200,15 @@ class _DockButton extends StatelessWidget {
                   AnimatedContainer(
                     duration: Motion.of(context, Motion.short),
                     curve: Motion.standard,
-                    width: compact ? 44 : 50,
-                    height: compact ? 30 : 32,
+                    width: compact ? 44 : 52,
+                    height: compact ? 28 : 30,
                     decoration: BoxDecoration(
                       color: pillBg,
                       borderRadius: BorderRadius.circular(15),
-                      border: pillBorder,
                     ),
                     child: Icon(
                       action.icon,
-                      size: compact ? 19 : 20,
+                      size: compact ? 20 : 21,
                       color: iconColor,
                     ),
                   ),
@@ -232,20 +220,19 @@ class _DockButton extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 4),
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 26),
+              const SizedBox(height: 2),
+              // Tek satır: sığmazsa küçülür (kesilmez, iki satıra taşıp
+              // çubuğu uzatmaz).
+              FittedBox(
+                fit: BoxFit.scaleDown,
                 child: Text(
                   action.label,
-                  maxLines: 2,
+                  maxLines: 1,
                   textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(
                     height: 1.15,
                     letterSpacing: 0,
-                    fontWeight: (isActive || isPrimary)
-                        ? FontWeight.w700
-                        : FontWeight.w600,
+                    fontWeight: lit ? FontWeight.w700 : FontWeight.w600,
                     color: labelColor,
                   ),
                 ),

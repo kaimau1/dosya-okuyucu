@@ -203,7 +203,7 @@ extension _PdfFormSignTabPart on _PdfFormScreenState {
                   ),
                 ),
                 for (final st in pageStamps)
-                  _placedOverlay(context, st, fitted, scheme),
+                  ..._placedOverlay(context, st, fitted, scheme),
               ],
             ),
           ),
@@ -212,80 +212,100 @@ extension _PdfFormSignTabPart on _PdfFormScreenState {
     );
   }
 
-  Widget _placedOverlay(
+  /// Yerleştirilen öğe + (seçiliyse) silme düğmesi. X eskiden öğenin
+  /// kutusunun DIŞINDA (`top/end: -10`) çiziliyordu; Flutter dokunuşu ebeveyn
+  /// kutusu dışında algılamadığı için X görünüp çalışmıyordu (kullanıcı:
+  /// "X tuşu çalışmıyor"). Artık X sayfa yığınının kendi çocuğu, merkezi sayfa
+  /// içine sıkıştırılır (kenarda da kesilmez) ve 40 dp dokunma alanlıdır.
+  List<Widget> _placedOverlay(
     BuildContext context,
     _PlacedStamp st,
     Size fitted,
     ColorScheme scheme,
   ) {
+    const hit = 40.0;
     final w = st.widthFraction * fitted.width;
     final h = math.max(24.0, w / st.signature.aspect);
     final selected = _activeStamp?.id == st.id;
-    return Positioned(
-      left: (st.pos.dx * fitted.width).clamp(0.0, math.max(0.0, fitted.width - w)),
-      top: (st.pos.dy * fitted.height).clamp(0.0, math.max(0.0, fitted.height - h)),
-      width: w,
-      height: h,
-      child: GestureDetector(
-        onTap: () => _partSetState(() => _activeStampId = st.id),
-        onPanStart: (_) => _partSetState(() => _activeStampId = st.id),
-        onPanUpdate: (d) => _partSetState(() {
-          final nx = st.pos.dx + d.delta.dx / fitted.width;
-          final ny = st.pos.dy + d.delta.dy / fitted.height;
-          st.pos = Offset(
-            nx.clamp(0.0, math.max(0.0, 1 - w / fitted.width)),
-            ny.clamp(0.0, math.max(0.0, 1 - h / fitted.height)),
-          );
-        }),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: selected ? scheme.primary : scheme.outlineVariant,
-              width: selected ? 1.8 : 1.0,
-            ),
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned.fill(
-                child: st.isDateStamp
-                    ? Center(
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Text(
-                            st.signature.text ?? '',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(color: AppColors.pageInk),
-                          ),
-                        ),
-                      )
-                    : SignaturePreview(signature: st.signature),
+    final left =
+        (st.pos.dx * fitted.width).clamp(0.0, math.max(0.0, fitted.width - w));
+    final top = (st.pos.dy * fitted.height)
+        .clamp(0.0, math.max(0.0, fitted.height - h));
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final cx = (rtl ? left : left + w)
+        .clamp(hit / 2, math.max(hit / 2, fitted.width - hit / 2));
+    final cy = top.clamp(hit / 2, math.max(hit / 2, fitted.height - hit / 2));
+    return [
+      Positioned(
+        left: left,
+        top: top,
+        width: w,
+        height: h,
+        child: GestureDetector(
+          onTap: () => _partSetState(() => _activeStampId = st.id),
+          onPanStart: (_) => _partSetState(() => _activeStampId = st.id),
+          onPanUpdate: (d) => _partSetState(() {
+            final nx = st.pos.dx + d.delta.dx / fitted.width;
+            final ny = st.pos.dy + d.delta.dy / fitted.height;
+            st.pos = Offset(
+              nx.clamp(0.0, math.max(0.0, 1 - w / fitted.width)),
+              ny.clamp(0.0, math.max(0.0, 1 - h / fitted.height)),
+            );
+          }),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: selected ? scheme.primary : scheme.outlineVariant,
+                width: selected ? 1.8 : 1.0,
               ),
-              if (selected)
-                PositionedDirectional(
-                  top: -10,
-                  end: -10,
-                  child: GestureDetector(
-                    onTap: () => _removeStamp(st.id),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: Icon(AppIcons.close,
-                            size: 14, color: scheme.onErrorContainer),
+            ),
+            child: st.isDateStamp
+                ? Center(
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: Text(
+                        st.signature.text ?? '',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: AppColors.pageInk),
                       ),
                     ),
-                  ),
-                ),
-            ],
+                  )
+                : SignaturePreview(signature: st.signature),
           ),
         ),
       ),
-    );
+      if (selected)
+        Positioned(
+          left: cx - hit / 2,
+          top: cy - hit / 2,
+          width: hit,
+          height: hit,
+          child: Semantics(
+            button: true,
+            label: context.t('common.delete'),
+            child: GestureDetector(
+              key: ValueKey('pf-sign-remove-${st.id}'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _removeStamp(st.id),
+              child: Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: scheme.error,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: scheme.surface, width: 1.5),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child:
+                        Icon(AppIcons.close, size: 16, color: scheme.onError),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+    ];
   }
 }

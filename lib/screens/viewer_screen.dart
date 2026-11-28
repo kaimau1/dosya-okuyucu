@@ -139,6 +139,7 @@ import '../widgets/app_action_sheet.dart';
 import '../services/pdf/pro/pdf_pro_images.dart';
 import '../widgets/pdf_pro/pdf_block_layer.dart';
 import '../widgets/pdf_pro/pdf_pro_bars.dart';
+import '../widgets/ink/pen_art.dart';
 import '../widgets/pdf_pro/pdf_pro_panels.dart';
 import '../widgets/pdf_pro/pdf_pro_edit_controller.dart';
 import '../widgets/pdf_pro/pdf_pro_sheets.dart';
@@ -261,6 +262,11 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// göstersin diye tutulur; kullanıcı ekrana dokununca düşer
   /// (bkz. [currentPdfPage]).
   int? _pdfJumpTarget;
+
+  /// Jest başındaki yakınlık: çok sütunda iki parmakla yakınlaştırma bitince
+  /// tek sütuna oturtma ([_snapPdfColumn]) yalnız yakınlık değiştiyse çalışır
+  /// (salt kaydırma/fırlatma kesilmez).
+  double? _pdfZoomAtStart;
 
   /// P22b: bağlantı/içindekilerden atlamadan önce okunan sayfa — dolu iken
   /// sol altta "← N. sayfaya dön" hapı görünür (`P22B_KAPALI` kapatır).

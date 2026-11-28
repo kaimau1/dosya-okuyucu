@@ -18,6 +18,7 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
       hideStatusBar: _isPdf && _hideStatusBar && !_fullscreen,
       hideBottomBar: _pdfBarShown && _pro == null,
       hideKindPrefix: _pro != null,
+      thumbPath: doc.kind == DocKind.pdf ? doc.path : null,
       subtitle: _pro != null
           ? _proStatus(_pro!)
           : _isPdf && _pageCount > 0
@@ -66,16 +67,13 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
 
   List<Widget> _viewerTopActions(LoadedDoc doc) {
     final scheme = Theme.of(context).colorScheme;
+    // Çerçevesiz simgeler (2026-11-28): gri daire + çizgi her düğmede
+    // kalabalık duruyordu; yalnız vurgulu (kaydet/form/açık arama) tonlu.
     ButtonStyle style({bool accent = false}) => IconButton.styleFrom(
-          backgroundColor: accent
-              ? scheme.primaryContainer
-              : scheme.surfaceContainerHigh.withValues(alpha: 0.72),
-          foregroundColor: accent ? scheme.primary : scheme.onSurface,
+          backgroundColor: accent ? scheme.primaryContainer : null,
+          foregroundColor:
+              accent ? scheme.onPrimaryContainer : scheme.onSurfaceVariant,
           shape: const CircleBorder(),
-          side: accent
-              ? BorderSide(color: scheme.primary.withValues(alpha: 0.36))
-              : BorderSide(
-                  color: scheme.outlineVariant.withValues(alpha: 0.45)),
           visualDensity: VisualDensity.compact,
         );
     Widget btn({
@@ -113,13 +111,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
             icon: AppIcons.assignment,
             accent: true,
             onPressed: _fillPdfForm,
-          )
-        else
-          btn(
-            tooltip: context.t('vw.toc'),
-            icon: AppIcons.toc,
-            onPressed: _showOutline,
           ),
+        // İçindekiler alt çubukta (2026-11-28, kullanıcı: "içindekiler alt
+        // panelde olsun, üstte yer açılsın") — bkz. [_actionBar].
         if (_wideForSidePanel)
           btn(
             key: const ValueKey('pdf-side-toggle'),
@@ -201,8 +195,6 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         EntryExtraGroup(context.t('dm.page'), [
           // "Sayfaya git" ayrıca arama çubuğunda ve sayfa rozetinde.
           act(AppIcons.numbers, 'vw.goto_page', _askGoToPage),
-          if (_pdfIsForm || _hasUnsaved)
-            act(AppIcons.toc, 'vw.toc', () => unawaited(_showOutline())),
           act(AppIcons.important, 'pn.star', () => _toggleBookmark(_pdfPage),
               checked: PdfBookmarks.isMarked(widget.doc.path, _pdfPage,
                   size: _docSize)),
@@ -265,9 +257,9 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         act(AppIcons.slideshow, 'vw.to_slides', _exportSlides),
         if (_hasText && !isTextLike)
           act(AppIcons.analytics, 'vw.word_count', _showStats),
-        // Alt çubukta İndir varken Çevir buraya iner (en çok 5 eylem).
-        if (showDownloadAction(doc.path))
-          act(AppIcons.translate, 'common.translate', _translateDocument),
+        // Çevir ⋮'de (2026-11-28, kullanıcı: "çeviri alt panelden kaldır, 3
+        // nokta içine koy").
+        act(AppIcons.translate, 'common.translate', _translateDocument),
         if (!isImage) act(AppIcons.print, 'vw.print', _print),
       ]),
     ]));
@@ -472,14 +464,16 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
   /// "Yazdır" görselde YOK: `_print` metni PDF'e çevirip basar, görselin metni
   /// olmadığı için boş sayfa çıkardı — orada iş "PDF'e dönüştür".
   ///
-  /// **Çevir** her türde var (2026-07-31): eskiden yalnız taşma menüsündeydi ve
-  /// taranmış belgede önce OCR istiyordu; artık düğme tek başına yetiyor.
+  /// **Çevir** 2026-11-28'den beri ⋮'de (Dönüştür grubu); PDF'te çubukta
+  /// İçindekiler var.
   Widget _actionBar(LoadedDoc doc) {
     final isImage = doc.kind == DocKind.image;
     return DocActionBar([
       if (doc.kind == DocKind.pdf) ...[
         DocAction(AppIcons.editNote, context.t('common.edit'), _openPdfEditor,
             primary: true, proBadge: ProGate.locked(Feature.pdfAdvanced)),
+        DocAction(AppIcons.toc, context.t('vw.toc'),
+            () => unawaited(_showOutline())),
       ],
       if (isImage) ...[
         DocAction(AppIcons.ocr, context.t('vw.ocr_short'), _runOcr,
@@ -493,9 +487,6 @@ extension _ViewerScreenShellMenusPart on _ViewerScreenState {
         DocAction(
             AppIcons.save, context.t('common.save'), _dirty ? _save : null),
       ],
-      if (!showDownloadAction(widget.doc.path))
-        DocAction(AppIcons.translate, context.t('common.translate'),
-            _translateDocument),
       DocAction(AppIcons.share, context.t('common.share'), _share),
       if (showDownloadAction(widget.doc.path))
         DocAction(AppIcons.download, context.t('common.download'), _download),

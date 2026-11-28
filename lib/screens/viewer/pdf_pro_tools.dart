@@ -60,6 +60,37 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     if (mounted && _pro == pro && pro.live == null) _proFocus.unfocus();
   }
 
+  /// "Alttakini it" (kullanıcı: "zor çalışıyor"): eskiden yalnız bir bayrak
+  /// açıyordu, itme ancak "Bitti"de oluyordu; çakışma yazarken görünmeye
+  /// devam ettiği için düğme çalışmıyor sanılıyordu. Artık yazım HEMEN
+  /// uygulanır, alttaki yazı hemen iner (ayrı geri alınabilir adım) ve yazma
+  /// aynı blokta, imleç yerinde sürer (klavye kapanmaz).
+  Future<void> _proPushBelow() async {
+    final pro = _pro;
+    final live = pro?.live;
+    if (pro == null || live == null || pro.busy) return;
+    final page = live.pageIndex;
+    final m = live.map;
+    final hasPos = m.bases.isNotEmpty && m.xs.isNotEmpty;
+    final x = hasPos ? m.xs.first + 1 : 0.0;
+    final y = hasPos
+        ? m.bases.first + (m.sizes.isEmpty ? 12.0 : m.sizes.first) * 0.3
+        : 0.0;
+    final caret = math.max(live.selStart, live.selEnd);
+    live.pushBelow = true;
+    final ok = await _proDone(keepFocus: true);
+    if (!ok || !mounted || _pro != pro || pro.live != null) return;
+    final block = hasPos ? await pro.editableBlockAt(page, x, y) : null;
+    if (!mounted || _pro != pro) return;
+    if (block == null || pro.live != null) {
+      _proFocus.unfocus();
+      return;
+    }
+    await _proBegin(page, block,
+        offset: caret.clamp(0, block.map.text.runes.length));
+    if (mounted && _pro == pro && pro.live == null) _proFocus.unfocus();
+  }
+
   /// Yazmayı uygular (✓, dışarı dokunuş). Yazılamayan hâl varsa yazma sürer.
   /// [keepFocus]: başka bloğa geçilecek, klavye kapanmasın.
   Future<bool> _proDone({bool keepFocus = false}) async {
@@ -1395,6 +1426,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         final activeShape = shapes.where((e) => e.$1 == pro.markup).firstOrNull;
         final activeLine =
             textLines.where((e) => e.$1 == pro.markup).firstOrNull;
+        // Kalem · Fosforlu · Vurgula · Silgi · Şekiller artık şeridin
+        // başındaki Notlar tarzı kalem tepsisinde ([_proMarkupTray]).
         return [
           PdfProChip(
             AppIcons.lineWeight,
@@ -1412,17 +1445,14 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
                     pro.markup == PdfMarkupKind.marker),
             tapKey: const ValueKey('pse-chip-smart-ink'),
           ),
-          kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
-          kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),
-          kind(PdfMarkupKind.marker, AppIcons.brush, 'pse.mk_marker'),
-          kind(PdfMarkupKind.eraser, AppIcons.eraser, 'pse.mk_eraser'),
-          PdfProChip(
-            activeShape?.$2 ?? AppIcons.rectTool,
-            t(activeShape?.$3 ?? 'pse.shapes'),
-            () => unawaited(_proPickMarkupKind(pro, 'pse.shapes', shapes)),
-            active: activeShape != null,
-            tapKey: const ValueKey('pse-chip-shapes'),
-          ),
+          if (activeShape != null)
+            PdfProChip(
+              activeShape.$2,
+              t(activeShape.$3),
+              () => unawaited(_proPickMarkupKind(pro, 'pse.shapes', shapes)),
+              active: true,
+              tapKey: const ValueKey('pse-chip-shapes'),
+            ),
           PdfProChip(
             activeLine?.$2 ?? AppIcons.formatUnderlined,
             t(activeLine?.$3 ?? 'pse.text_lines'),
@@ -1497,6 +1527,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onPickColor: () => _proPickTextColor(highlight: false),
         onPickHighlight: () => _proPickTextColor(highlight: true),
         onPickFont: _proPickFont,
+        onPushBelow: () => unawaited(_proPushBelow()),
       );
       return [
         PositionedDirectional(
@@ -1542,18 +1573,79 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     }
     final chips = _proChips(pro);
     final guide = _proGuideBanner(pro);
+    final tray =
+        pro.tool == PdfProTool.markup ? _proMarkupTray(pro) : null;
     return [
       watch,
       ?guide,
-      if (chips.isNotEmpty)
+      if (chips.isNotEmpty || tray != null)
         ReadingFloat(
           gap: 0,
           child: ToastAvoider(
             child: PdfProContextBar(
-                chips: chips, label: context.t('pse.context_bar')),
+                chips: chips,
+                leading: tray,
+                label: context.t('pse.context_bar')),
           ),
         ),
     ];
+  }
+
+  static const _proShapeKinds = <(PdfMarkupKind, IconData, String)>[
+    (PdfMarkupKind.rect, AppIcons.rectTool, 'pse.mk_rect'),
+    (PdfMarkupKind.ellipse, AppIcons.ellipseTool, 'pse.mk_ellipse'),
+    (PdfMarkupKind.line, AppIcons.lineTool, 'pse.mk_line'),
+    (PdfMarkupKind.arrow, AppIcons.arrowTool, 'pse.mk_arrow'),
+    (PdfMarkupKind.cloud, AppIcons.cloud, 'pse.mk_cloud'),
+  ];
+
+  /// **Notlar tarzı kalem tepsisi** (2026-11-28, kullanıcı: "kalem tepsisi
+  /// notlar projemizdeki gibi olmalı"): araçlar simge yongası değil, tepside
+  /// duran çizilmiş KALEMLER; seçili olan kalkar, ucu çizilen renkte.
+  /// Seçili kaleme yeniden dokunmak renk/kalınlık ayarını açar (Notlar'daki
+  /// gibi; eskiden araç kapanıyordu). Gönye = şekiller (seçici açar).
+  Widget _proMarkupTray(PdfProEditController pro) {
+    final ink = Color(pro.markupColor | 0xFF000000);
+    final m = pro.markup;
+    final shapeOn = _proShapeKinds.any((e) => e.$1 == m);
+    Widget pen(PdfMarkupKind k, PenArt art, String key) => PenArtSlot(
+          key: ValueKey('pse-pen-${k.name}'),
+          art: art,
+          label: context.t(key),
+          selected: m == k,
+          ink: ink,
+          onTap: () {
+            AppHaptics.selection();
+            if (pro.markup == k) {
+              _proMarkupColor();
+            } else {
+              pro.markup = k;
+            }
+          },
+        );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        pen(PdfMarkupKind.ink, PenArt.pen, 'pse.mk_ink'),
+        pen(PdfMarkupKind.marker, PenArt.highlighter, 'pse.mk_marker'),
+        pen(PdfMarkupKind.highlight, PenArt.marker, 'pse.mk_highlight'),
+        pen(PdfMarkupKind.eraser, PenArt.eraser, 'pse.mk_eraser'),
+        PenArtSlot(
+          key: const ValueKey('pse-pen-shapes'),
+          art: PenArt.shapes,
+          label: context.t('pse.shapes'),
+          selected: shapeOn,
+          ink: ink,
+          onTap: () {
+            AppHaptics.selection();
+            unawaited(_proPickMarkupKind(pro, 'pse.shapes', _proShapeKinds));
+          },
+        ),
+      ]),
+    );
   }
 
   /// Blok menüsünden veya çoklu seçimden açılan yardımcı levhalar + aktif mod
@@ -1637,7 +1729,8 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
       ],
     );
     if (pick == null || !mounted || _pro != pro) return;
-    pro.markup = pick;
+    // Kur (aç/kapa değil): aynı şekli yeniden seçmek aracı kapatmasın.
+    pro.armMarkup(pick);
   }
 
   /// Geçerli sayfadaki seçilebilir görsel/şekil sayısı (keşif çubuğu için).

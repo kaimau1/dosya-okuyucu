@@ -27,17 +27,20 @@ class PdfProChip {
 /// **Belge Stüdyosu Bağlamsal Çubuğu**: seçili araca / nesneye göre
 /// canlanan, yumuşak gölgeli yüzen hap şeridi. Gövdenin boyunu değiştirmez.
 class PdfProContextBar extends StatelessWidget {
-  const PdfProContextBar({super.key, required this.chips, this.label});
+  const PdfProContextBar(
+      {super.key, required this.chips, this.label, this.leading});
   final List<PdfProChip> chips;
   final String? label;
 
+  /// Şeridin başında SABİT duran öğe (İşaretle'de Notlar tarzı kalem
+  /// tepsisi, 2026-11-28); yongalar yanında kayar. Çubuğun tam boyunu alır.
+  final Widget? leading;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
-    if (chips.isEmpty) return const SizedBox.shrink();
-    final dur = Motion.of(context, Motion.short);
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (chips.isEmpty && leading == null) return const SizedBox.shrink();
     return Semantics(
       container: true,
       label: label,
@@ -59,7 +62,26 @@ class PdfProContextBar extends StatelessWidget {
         ),
         child: SizedBox(
           height: PdfEditTokens.contextBar,
-          child: ListView.separated(
+          child: leading == null
+              ? _chipList(context)
+              : Row(children: [
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 6),
+                    child: leading!,
+                  ),
+                  Expanded(child: _chipList(context)),
+                ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _chipList(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
+    final dur = Motion.of(context, Motion.short);
+    return ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsetsDirectional.symmetric(
                 horizontal: 12, vertical: 9),
@@ -163,10 +185,7 @@ class PdfProContextBar extends StatelessWidget {
                 ),
               );
             },
-          ),
-        ),
-      ),
-    );
+          );
   }
 }
 
@@ -220,11 +239,16 @@ class PdfProFormatBar extends StatelessWidget {
     required this.onPickHighlight,
     required this.input,
     this.onPickFont,
+    this.onPushBelow,
   });
 
   final PdfProEditController controller;
   final PdfProFormatLabels labels;
   final VoidCallback onDone, onCancel;
+
+  /// "Alttakini it": yazımı hemen uygular, alttakini iter ve yazma aynı
+  /// blokta sürer (ekran verir). Yoksa eski bayrak davranışı (bitişte itme).
+  final VoidCallback? onPushBelow;
   final VoidCallback onPickColor, onPickHighlight;
 
   /// Yazı tipi rozetine dokunuş (Faz 56 / 7 font seçici).
@@ -406,7 +430,10 @@ class PdfProFormatBar extends StatelessWidget {
                           icon: live.pushBelow
                               ? const Icon(AppIcons.check, size: AppIcons.small)
                               : const SizedBox.shrink(),
-                          onPressed: () => controller.liveOverflow('push'),
+                          onPressed: controller.busy
+                              ? null
+                              : onPushBelow ??
+                                  () => controller.liveOverflow('push'),
                           label: Text(labels.push),
                         ),
                         if (controller.widenTo(live) != null)

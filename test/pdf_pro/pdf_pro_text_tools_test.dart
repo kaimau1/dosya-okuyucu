@@ -229,6 +229,43 @@ void main() {
       expect(moved.top, closeTo(lowerTop - grow, 1.5));
     });
 
+    test('"Küçült" tek dokunuşta sığdırır (punto birden çok adım iner)',
+        () async {
+      final (_, c, _) = await open('rl_paragraflar.pdf');
+      final list = await blocks(c, 0);
+      PdfTextBlock? upper;
+      for (final x in list) {
+        if (!x.editable || x.angle != 0) continue;
+        final below = list.any((y) =>
+            !identical(x, y) &&
+            y.angle == 0 &&
+            (x.right < y.right ? x.right : y.right) -
+                    (x.left > y.left ? x.left : y.left) >
+                0 &&
+            y.top < x.bottom &&
+            x.bottom - y.top < 60);
+        if (below) {
+          upper = x;
+          break;
+        }
+      }
+      expect(upper, isNotNull, reason: 'külliyatta alt alta iki blok');
+      expect(await c.beginEdit(0, upper!), isTrue);
+      c.liveInput('${upper.map.text} Kısa bir ek cümle daha.', 0, 0);
+      await settle(c);
+      if (c.live!.collision == null) return; // sığdı: denenecek bir şey yok
+      final before = c.live!.size ??
+          (c.live!.map.sizes.isEmpty ? 12.0 : c.live!.map.sizes.first);
+      expect(c.liveOverflow('shrink'), isTrue);
+      for (var i = 0; i < 300 && c.live!.fitSteps > 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      await settle(c);
+      expect(c.live!.error, isNull);
+      expect(c.live!.size, lessThan(before));
+      expect(c.live!.fitSteps, 0, reason: 'sığınca ya da sınırda durur');
+    });
+
     test('bütçe: dokun → imleç ≤ 120 ms (ortanca, Faz 57 / 10)', () async {
       final (_, c, _) = await open('rl_paragraflar.pdf');
       final list = await blocks(c, 0);

@@ -311,6 +311,54 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     }
   }
 
+  /// **Çok sütunda tek sütuna oturtma** (2026-11-28, kullanıcı: "2 sütunlu
+  /// modda zoom yapıldığında tek sütuna sığdığında anlık otursun, hafif bir
+  /// etkileşimle"). İki parmakla yakınlaştırma bittiğinde görünen genişlik
+  /// bir sütunun (sayfa + kenar payı) genişliğine ±%18 yakınsa, ortadaki
+  /// sütun ekrana tam oturur (kısa animasyon + hafif titreşim).
+  ///
+  /// Hız: jest başına en çok bir `goToArea`; salt kaydırma/fırlatmada (yakınlık
+  /// değişmedi) hiçbir şey yapmaz — fırlatma ataleti kesilmez.
+  void _snapPdfColumn() {
+    final start = _pdfZoomAtStart;
+    _pdfZoomAtStart = null;
+    final cols = _pdfColumns;
+    if (start == null || cols < 2 || cols == kPdfBookLayout || _pdfPaged) {
+      return;
+    }
+    try {
+      if (!_pdfController.isReady) return;
+      final zoom = _pdfController.currentZoom;
+      if (start <= 0 || (zoom - start).abs() / start < 0.01) return;
+      final doc = _pdfController.documentSize;
+      final view = _pdfController.viewSize;
+      final visible = _pdfController.visibleRect;
+      if (doc.width <= 0 || view.width <= 0 || view.height <= 0) return;
+      final margin = _pdfController.params.margin;
+      final colWidth = (doc.width - margin) / cols - margin;
+      if (colWidth <= 0) return;
+      final target = colWidth + margin; // sütun + iki yanında yarım pay
+      final ratio = visible.width / target;
+      if (ratio < 0.82 || ratio > 1.18) return;
+      // Ortası görünür alanın ortasına en yakın sütun.
+      final col = ((visible.center.dx - margin / 2) / (colWidth + margin))
+          .floor()
+          .clamp(0, cols - 1);
+      final left = margin / 2 + col * (colWidth + margin);
+      final height = target * view.height / view.width;
+      final top = (visible.center.dy - height / 2)
+          .clamp(0.0, math.max(0.0, doc.height - height));
+      if ((ratio - 1).abs() < 0.01 && (visible.left - left).abs() < 2) return;
+      AppHaptics.selection();
+      unawaited(_pdfController.goToArea(
+        rect: Rect.fromLTWH(left, top, target, height),
+        duration: Motion.of(context, Motion.short),
+      ));
+    } catch (_) {
+      // Belge kapanmış/yeniden yükleniyor olabilir — oturtma kritik değil.
+    }
+  }
+
   /// "Sayfaya git": numara yaz ya da kaydırıcıyı sürükle.
   ///
   /// KÖK NEDEN (2026-07-26 kullanıcı bulgusu: *"8 yazıyorum 2'ye gidiyor"*):

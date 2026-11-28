@@ -112,6 +112,60 @@ void main() {
     expect(res, isA<SmartInkCleanEllipse>());
   });
 
+  test('iki satır arasındaki kalem çizgisi yalnız EN YAKIN satırı işaretler',
+      () {
+    // Üst satırın tabanının ~0,9 punto altı: alt satırın harf uçlarına
+    // değiyor ama üst satırın alt çizgisi (eskiden iki satır birden).
+    final res = analyzeSmartInk(
+      points: const [
+        (x: 105, y: 489),
+        (x: 150, y: 489.5),
+        (x: 195, y: 489),
+      ],
+      blocks: [sampleBlock()],
+      isHighlighter: false,
+    );
+    expect(res, isA<SmartInkTextMarkup>());
+    final m = res! as SmartInkTextMarkup;
+    expect(m.type, PdfAnnotType.underline);
+    // Tek satır: dörtgenlerin hepsi üst satırın bandında (taban 500).
+    for (final q in m.quads) {
+      expect(q[1], greaterThan(492));
+    }
+  });
+
+  test('fosforlu satırın biraz altına kaysa da o satırı vurgular', () {
+    final res = analyzeSmartInk(
+      points: const [
+        (x: 110, y: 495),
+        (x: 160, y: 494.5),
+        (x: 210, y: 495),
+      ],
+      blocks: [sampleBlock()],
+      isHighlighter: true,
+    );
+    expect(res, isA<SmartInkTextMarkup>());
+    final m = res! as SmartInkTextMarkup;
+    expect(m.type, PdfAnnotType.highlight);
+    for (final q in m.quads) {
+      expect(q[1], greaterThan(492));
+    }
+  });
+
+  test('kalemle dalgalı alt çizgi dalgalı çizgiye (squiggly) çevrilir', () {
+    final pts = <({double x, double y})>[
+      for (var i = 0; i <= 16; i++)
+        (x: 105.0 + i * 6, y: 495.5 + (i.isEven ? 2.2 : -2.2)),
+    ];
+    final res = analyzeSmartInk(
+      points: pts,
+      blocks: [sampleBlock()],
+      isHighlighter: false,
+    );
+    expect(res, isA<SmartInkTextMarkup>());
+    expect((res! as SmartInkTextMarkup).type, PdfAnnotType.squiggly);
+  });
+
   test('dağınık zikzak çizim serbest mürekkep olarak kalır', () {
     final res = analyzeSmartInk(
       points: const [

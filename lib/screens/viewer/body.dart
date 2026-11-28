@@ -222,9 +222,15 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         calculateCurrentPageNumber: _currentPdfPage,
                         // Kullanıcı kendisi kaydırmaya başladı: "gidilen sayfa"
                         // tercihi artık geçerli değil.
-                        onInteractionEnd: (_) => _recordPdfZoom(),
+                        onInteractionEnd: (_) {
+                          _recordPdfZoom();
+                          _snapPdfColumn();
+                        },
                         onInteractionStart: (_) {
                           _pdfJumpTarget = null;
+                          _pdfZoomAtStart = _pdfController.isReady
+                              ? _pdfController.currentZoom
+                              : null;
                         },
                         interactionEndFrictionCoefficient: kPdfPanFriction,
                         // Arama eşleşmelerini sayfada vurgula: metin katmanı

@@ -908,7 +908,10 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
         final live = _liveHere ? c.live : null;
         final blocks = c.blocksOf(pageIndex) ?? const <PdfTextBlock>[];
         final (rects, locked) = _blockLayout(blocks);
-        final selected = c.selectedPage == pageIndex ? c.selectedBlock : null;
+        final sel = c.selectedPage == pageIndex ? c.selectedBlock : null;
+        // Savunma: geçersiz dizin (-1 / liste kısaldı) seçimsiz sayılır.
+        final selected =
+            sel != null && sel >= 0 && sel < blocks.length ? sel : null;
         final item = c.selectedPage == pageIndex ? c.selectedItem : null;
         final annot = c.selectedPage == pageIndex ? c.selectedAnnot : null;
         final group = c.selectedPage == pageIndex

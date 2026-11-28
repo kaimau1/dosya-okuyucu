@@ -603,6 +603,15 @@ class MenuSections extends StatefulWidget {
   /// Sekme çiplerinin anahtarı (testler): `menu-tab-<sıra>`.
   static Key tabKey(int i) => ValueKey('menu-tab-$i');
 
+  /// **Her menüde Ayarlar** (2026-11-28, kullanıcı: "bu menülerde ayarlara
+  /// erişim düğmesi olmalı, hepsinde"). Uygulama açılışında bağlanır
+  /// (`main.dart` → Ayarlar ekranı); bağlı değilse (testler) düğme çıkmaz.
+  /// widgets → screens içe aktarımı olmasın diye kanca.
+  static void Function(NavigatorState navigator)? openSettings;
+
+  /// Ayarlar düğmesinin anahtarı (testler).
+  static const settingsKey = ValueKey('menu-settings');
+
   @override
   State<MenuSections> createState() => _MenuSectionsState();
 }
@@ -693,6 +702,65 @@ class _MenuSectionsState extends State<MenuSections> {
         hitCount: hitCount,
       );
 
+  /// Levhayı kapatır, Ayarlar'ı açar.
+  Widget? _settingsButton(BuildContext context) {
+    final open = MenuSections.openSettings;
+    if (open == null) return null;
+    final scheme = Theme.of(context).colorScheme;
+    return IconButton(
+      key: MenuSections.settingsKey,
+      tooltip: context.t('common.settings'),
+      visualDensity: VisualDensity.compact,
+      style: IconButton.styleFrom(
+        backgroundColor: scheme.surfaceContainerHigh,
+        foregroundColor: scheme.onSurfaceVariant,
+      ),
+      icon: const Icon(AppIcons.settings, size: 20),
+      onPressed: () {
+        final nav = Navigator.of(context);
+        final root = Navigator.of(context, rootNavigator: true);
+        nav.pop();
+        open(root);
+      },
+    );
+  }
+
+  /// Üst kısım: başlık kartı (sağında Ayarlar) + arama. Başlık yoksa Ayarlar
+  /// arama alanının yanında; ikisi de yoksa tek başına sağ üstte.
+  List<Widget> _lead(BuildContext context,
+      {required bool search, int? hitCount}) {
+    final gear = _settingsButton(context);
+    final header = widget.header;
+    if (header != null) {
+      return [
+        _headerCard(
+            context,
+            gear == null
+                ? header
+                : Row(children: [
+                    Expanded(child: header),
+                    const SizedBox(width: Gap.xs),
+                    gear,
+                  ])),
+        if (search) _searchBar(hitCount: hitCount),
+      ];
+    }
+    if (gear == null) return [if (search) _searchBar(hitCount: hitCount)];
+    if (search) {
+      return [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _searchBar(hitCount: hitCount)),
+            const SizedBox(width: Gap.xs),
+            Padding(padding: const EdgeInsets.only(top: 2), child: gear),
+          ],
+        ),
+      ];
+    }
+    return [Align(alignment: AlignmentDirectional.centerEnd, child: gear)];
+  }
+
   Widget _headerCard(BuildContext context, Widget header) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
@@ -724,8 +792,7 @@ class _MenuSectionsState extends State<MenuSections> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.header != null) _headerCard(context, widget.header!),
-        _searchBar(hitCount: hits.length),
+        ..._lead(context, search: true, hitCount: hits.length),
         if (hits.isEmpty)
           MenuGroupCard(
             padding: const EdgeInsets.symmetric(vertical: Gap.lg, horizontal: 16),
@@ -816,8 +883,7 @@ class _MenuSectionsState extends State<MenuSections> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.header != null) _headerCard(context, widget.header!),
-        if (_showSearch) _searchBar(),
+        ..._lead(context, search: _showSearch),
         if (primary != null)
           Padding(
             padding: const EdgeInsets.only(bottom: Gap.sm),
@@ -855,8 +921,7 @@ class _MenuSectionsState extends State<MenuSections> {
         if (a.tone == MenuTone.danger) (a, 1, false),
     ];
     final children = <Widget>[
-      if (widget.header != null) _headerCard(context, widget.header!),
-      if (_showSearch) _searchBar(),
+      ..._lead(context, search: _showSearch),
       if (top.isNotEmpty)
         _BentoGrid(items: [
           for (final (a, span, isPrimary) in top)

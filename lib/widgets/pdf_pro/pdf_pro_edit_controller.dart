@@ -136,6 +136,19 @@ class PdfLiveEdit {
   /// kadar iner.
   bool pushBelow = false;
 
+  /// "Küçült" tek dokunuşta SIĞDIRIR: kalan deneme sayısı. Her ara dizgiden
+  /// sonra hâlâ çakışıyorsa punto bir adım daha iner (kullanıcı: "Küçült zor
+  /// çalışıyor" — eskiden her dokunuş yalnız 1 punto küçültüyordu).
+  int fitSteps = 0;
+
+  /// Bloğun yaklaşık yüksekliği (ilk satırın üstü → son satırın altı).
+  double get approxHeight {
+    final m = map;
+    if (m.bases.isEmpty) return 0;
+    final top = m.bases.first + (m.sizes.isEmpty ? 12.0 : m.sizes.first) * 0.8;
+    return (top - bottomOf(m)).abs();
+  }
+
   /// Bloğun taban çizgisi + inişe göre alt kenarı (yaklaşık; yalnız fark
   /// için kullanılır).
   static double bottomOf(PdfBlockTextMap m) => m.bases.isEmpty
@@ -712,7 +725,7 @@ class PdfProEditController extends ChangeNotifier {
 
   PdfTextBlock? get selected {
     final p = selectedPage, b = selectedBlock;
-    if (p == null || b == null) return null;
+    if (p == null || b == null || b < 0) return null;
     final list = _blocks[p];
     return list == null || b >= list.length ? null : list[b];
   }
@@ -877,7 +890,11 @@ class PdfProEditController extends ChangeNotifier {
     _live = live;
     final list = _blocks[pageIndex];
     selectedPage = pageIndex;
-    selectedBlock = list?.indexOf(block);
+    // Blok listede yoksa (yeni kutu / "Alttakini it" listeyi yeniledi)
+    // indexOf -1 döner; -1 seçim katmanı kurulurken RangeError atıyordu
+    // (v1.3.144 hata kaydı, pdf_block_layer build).
+    final at = list?.indexOf(block) ?? -1;
+    selectedBlock = at < 0 ? null : at;
     _notify();
     PdfProPerf.end('dokun_imlec', sw);
     return true;
@@ -988,6 +1005,7 @@ class PdfProEditController extends ChangeNotifier {
     final live = _live;
     if (live == null) return;
     final changed = text != live.text;
+    if (changed) live.fitSteps = 0;
     if (changed) {
       if (live.block == null && live.styles.isEmpty && text.isNotEmpty) {
         // Yeni kutunun ilk harfi: biçim kaynağı çevredeki gövde.
@@ -1161,6 +1179,7 @@ class PdfProEditController extends ChangeNotifier {
           if (r.ok) {
             live._took(r, first: first);
             live.collision = _collision(live);
+            if (live.fitSteps > 0) _fitStep(live);
           } else {
             live
               ..error = r.error
@@ -1205,10 +1224,11 @@ class PdfProEditController extends ChangeNotifier {
     if (live == null) return false;
     switch (option) {
       case 'shrink':
-        final s = live.size ??
-            (live.map.sizes.isEmpty ? 12.0 : live.map.sizes.first);
-        if (s <= 4) return false;
-        liveParagraph(size: (s - 1).roundToDouble());
+        if (_liveSize(live) <= 4) return false;
+        live.fitSteps = 8;
+        _fitStep(live);
+        _scheduleLive();
+        _notify();
       case 'push':
         live.pushBelow = !live.pushBelow;
         _notify();
@@ -1220,6 +1240,34 @@ class PdfProEditController extends ChangeNotifier {
         _notify();
     }
     return true;
+  }
+
+  double _liveSize(PdfLiveEdit live) =>
+      live.size ?? (live.map.sizes.isEmpty ? 12.0 : live.map.sizes.first);
+
+  /// "Küçült"ün bir adımı: çakışma kalktıysa durur; yoksa punto, yükseklik
+  /// oranının karekökü kadar (satır sayısı da puntoyla azalır) en az 0,5 pt
+  /// iner. Yeni dizgi `_runLive` döngüsünde (bekleyen) koşar.
+  void _fitStep(PdfLiveEdit live) {
+    if (live.collision == null || live.growth <= 0.5) {
+      live.fitSteps = 0;
+      return;
+    }
+    final s = _liveSize(live);
+    if (s <= 4) {
+      live.fitSteps = 0;
+      return;
+    }
+    live.fitSteps--;
+    final h = live.approxHeight;
+    var next = s - 1;
+    if (h > live.growth && h > 0) {
+      final ratio = (h - live.growth) / h;
+      next = (s * math.sqrt(ratio.clamp(0.25, 1.0)) * 2).floorToDouble() / 2;
+    }
+    next = math.min(next, s - 0.5);
+    live.size = next.clamp(4.0, 144.0);
+    if (_liveBusy) _livePending = true;
   }
 
   /// Genişletilebilecek en büyük genişlik (sağ kenar boşluğu 36 pt);
