@@ -63,4 +63,34 @@ const Map<String, (String, String, String)> _t57 = {
     'On-device natural voices',
     'أصوات طبيعية على الجهاز',
   ),
+  'pse.smart_ink': (
+    'Akıllı mürekkep',
+    'Smart Ink',
+    'الحبر الذكي',
+  ),
+  'pse.smart_ink_sub': (
+    'Üstünü/altını hızlıca çizin, paragraf seçmek için daire çizin',
+    'Highlight or underline quickly, circle to select a paragraph',
+    'خطّط للنص أو ضع خطًا بسرعة، وارسم دائرة لتحديد فقرة',
+  ),
+  'pse.normal_ink': (
+    'Sıradan mürekkep',
+    'Standard ink',
+    'حبر عادي',
+  ),
+  'pse.normal_ink_sub': (
+    'Seçili renk ve kalınlıkla pürüzsüz serbest çizim',
+    'Smooth freehand drawing with chosen color and thickness',
+    'رسم حر سلس باللون والسمك المحددين',
+  ),
+  'pse.smart_selected': (
+    'Seçilen metin',
+    'Selected text',
+    'النص المحدد',
+  ),
+  'picker.folder_movies': (
+    'Filmler',
+    'Movies',
+    'الأفلام',
+  ),
 };

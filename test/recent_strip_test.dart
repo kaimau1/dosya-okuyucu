@@ -115,5 +115,28 @@ void main() {
       expect(out.where((i) => i.mark == StripMark.opened).length, 3);
       expect(out.first.entry.name, 'y0');
     });
+
+    test('/sdcard ve /storage/emulated/0 aynı dosyayı tek öğeye indirger', () {
+      const a = FsEntry(
+          path: '/sdcard/Download/kitap.pdf',
+          name: 'kitap.pdf',
+          isDir: false,
+          sizeBytes: 100,
+          modifiedMs: 1000);
+      const b = FsEntry(
+          path: '/storage/emulated/0/Download/kitap.pdf',
+          name: 'kitap.pdf',
+          isDir: false,
+          sizeBytes: 100,
+          modifiedMs: 1000);
+      final out = mergeStripItems(
+        opened: const [a],
+        fresh: const [b],
+        openedAt: (p) => p == a.path ? now - 10 : null,
+        nowMs: now,
+      );
+      expect(out.length, 1);
+      expect(out.single.entry.name, 'kitap.pdf');
+    });
   });
 }

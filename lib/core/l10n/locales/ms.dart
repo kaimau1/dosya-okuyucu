@@ -11009,4 +11009,10 @@ const Map<String, String> _ms = {
   'usb.parent_folder': 'Folder induk',
   'err.playback_failed': 'Fail media ini tidak dapat dimainkan.',
   'voice.subtitle': 'Suara semula jadi pada peranti',
+  'pse.smart_ink': 'Dakwat pintar',
+  'pse.smart_ink_sub': 'Serlah atau garis bawah pantas, bulatkan untuk memilih perenggan',
+  'pse.normal_ink': 'Dakwat biasa',
+  'pse.normal_ink_sub': 'Lukisan bebas lancar dengan warna dan ketebalan pilihan',
+  'pse.smart_selected': 'Teks dipilih',
+  'picker.folder_movies': 'Filem',
 };

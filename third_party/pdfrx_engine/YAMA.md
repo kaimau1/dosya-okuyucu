@@ -34,3 +34,5 @@ kullanmıyor.
 ## 3. değişiklik (2026-11-28 denetim turu) — eşzamanlı PDFium çizim sınırı
 
 `lib/src/native/pdfrx_pdfium.dart` `_PdfiumRenderTask._maxActiveTasks`: `4` → `2`. Taranmış büyük görselli PDF'lerde aynı anda 4 büyük sayfanın C++ `FPDF_PAGE`/`FPDF_BITMAP` tutmasının yarattığı bellek sıçramasını ve görünür sayfanın önbellek çizimiyle zaman paylaşmasını yarıya indirir.
+
+Aynı dosyada `fromPdfDocument` içinde `await pdfDoc._notifyMissingFonts()` → `unawaited(pdfDoc._notifyMissingFonts())`: belge açılışı eksik yazı tipi sorgusu bitene kadar bekletilmez; ilk sayfa hemen çizilmeye başlar.

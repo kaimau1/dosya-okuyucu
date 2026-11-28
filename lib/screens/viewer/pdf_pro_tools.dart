@@ -15,6 +15,7 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         onTextBox: _proTextBox,
         onPlace: _proPlace,
         onSwitch: _proSwitch,
+        onSmartSelect: _proSmartSelected,
       );
 
   void _proRefused(Object e) {
@@ -835,6 +836,214 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
     }
   }
 
+  Future<void> _proPickInkMode() async {
+    final pro = _pro;
+    if (pro == null) return;
+    await showAppSheet<void>(
+      context,
+      title: context.t('pse.smart_ink'),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        Widget option({
+          required bool smart,
+          required IconData icon,
+          required String titleKey,
+          required String subKey,
+        }) {
+          final selected = pro.smartInk == smart;
+          return Card(
+            elevation: 0,
+            color: selected
+                ? scheme.primaryContainer.withValues(alpha: 0.45)
+                : scheme.surfaceContainerLow,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.card),
+              side: BorderSide(
+                color: selected ? scheme.primary : scheme.outlineVariant,
+                width: selected ? 1.5 : 1,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () {
+                pro.setSmartInk(smart);
+                if (pro.markup != PdfMarkupKind.ink &&
+                    pro.markup != PdfMarkupKind.marker) {
+                  pro.armMarkup(PdfMarkupKind.ink);
+                }
+                Navigator.of(ctx).pop();
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(Gap.md),
+                child: Row(
+                  children: [
+                    Icon(icon,
+                        size: 24,
+                        color: selected
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant),
+                    const SizedBox(width: Gap.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ctx.t(titleKey),
+                            style: Theme.of(ctx)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            ctx.t(subKey),
+                            style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                                color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Icon(
+                      selected ? AppIcons.checkCircle : AppIcons.circle,
+                      color: selected
+                          ? scheme.primary
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            option(
+              smart: true,
+              icon: AppIcons.ai,
+              titleKey: 'pse.smart_ink',
+              subKey: 'pse.smart_ink_sub',
+            ),
+            const SizedBox(height: Gap.sm),
+            option(
+              smart: false,
+              icon: AppIcons.draw,
+              titleKey: 'pse.normal_ink',
+              subKey: 'pse.normal_ink_sub',
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _proSmartSelected(
+    int pageIndex,
+    String text,
+    List<List<double>> quads,
+  ) {
+    final pro = _pro;
+    if (pro == null || !mounted) return;
+    var l = double.infinity, b = double.infinity;
+    var r = -double.infinity, t = -double.infinity;
+    for (final q in quads) {
+      for (var i = 0; i < 8; i += 2) {
+        l = math.min(l, q[i]);
+        r = math.max(r, q[i]);
+        b = math.min(b, q[i + 1]);
+        t = math.max(t, q[i + 1]);
+      }
+    }
+    final rect = [l, b, r, t];
+    unawaited(showAppSheet<void>(
+      context,
+      title: context.t('pse.smart_selected'),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(Gap.md),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(Radii.card),
+              ),
+              child: Text(
+                text,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(ctx).textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(height: Gap.md),
+            Wrap(
+              spacing: Gap.sm,
+              runSpacing: Gap.sm,
+              children: [
+                FilledButton.tonalIcon(
+                  icon: const Icon(AppIcons.copy, size: 18),
+                  label: Text(ctx.t('common.copy')),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(Clipboard.setData(
+                        ClipboardData(text: cleanPdfCopyText(text))));
+                    _snack(context.t('vw.ocr_copied'));
+                  },
+                ),
+                FilledButton.tonalIcon(
+                  icon: const Icon(AppIcons.highlighter, size: 18),
+                  label: Text(ctx.t('pse.mk_highlight')),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(pro.annotate(
+                      PdfAnnotChange.add(
+                        pageIndex,
+                        PdfAnnotType.highlight,
+                        rect: rect,
+                        quads: quads,
+                        color: pro.markupColor | 0xFF000000,
+                      ),
+                      label: 'pse.step_markup',
+                    ).catchError(_proRefused));
+                  },
+                ),
+                FilledButton.tonalIcon(
+                  icon: const Icon(AppIcons.formatUnderlined, size: 18),
+                  label: Text(ctx.t('pse.mk_underline')),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(pro.annotate(
+                      PdfAnnotChange.add(
+                        pageIndex,
+                        PdfAnnotType.underline,
+                        rect: rect,
+                        quads: quads,
+                        color: pro.markupColor | 0xFF000000,
+                      ),
+                      label: 'pse.step_markup',
+                    ).catchError(_proRefused));
+                  },
+                ),
+                FilledButton.tonalIcon(
+                  icon: const Icon(AppIcons.translate, size: 18),
+                  label: Text(ctx.t('tf.title')),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    unawaited(TranslateFlow.run(context, text));
+                  },
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    ));
+  }
+
   Future<void> _proMarkupColor() async {
     final pro = _pro;
     if (pro == null) return;
@@ -1193,6 +1402,15 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
             _proMarkupColor,
             swatch: Color(pro.markupColor | 0xFF000000),
             tapKey: const ValueKey('pse-chip-stroke'),
+          ),
+          PdfProChip(
+            AppIcons.ai,
+            t(pro.smartInk ? 'pse.smart_ink' : 'pse.normal_ink'),
+            _proPickInkMode,
+            active: pro.smartInk &&
+                (pro.markup == PdfMarkupKind.ink ||
+                    pro.markup == PdfMarkupKind.marker),
+            tapKey: const ValueKey('pse-chip-smart-ink'),
           ),
           kind(PdfMarkupKind.highlight, AppIcons.highlighter, 'pse.mk_highlight'),
           kind(PdfMarkupKind.ink, AppIcons.draw, 'pse.mk_ink'),

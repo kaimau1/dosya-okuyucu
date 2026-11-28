@@ -1117,9 +1117,8 @@ class _PdfDocumentPdfium extends PdfDocument {
         pdfDoc._pages = List.unmodifiable(await pdfDoc._measureAllPagesInChunks());
         pdfDoc._notifyDocumentLoadComplete();
       }
-      // Complete the initial missing-font query before exposing the document. The replaying event stream ensures that
-      // a font manager associated immediately after open receives this event instead of racing it.
-      await pdfDoc._notifyMissingFonts();
+      // Complete document open immediately; missing-font scan runs asynchronously.
+      unawaited(pdfDoc._notifyMissingFonts());
       return pdfDoc;
     } catch (e) {
       pdfDoc?.dispose();

@@ -11004,4 +11004,10 @@ const Map<String, String> _id = {
   'usb.parent_folder': 'Folder induk',
   'err.playback_failed': 'File media ini tidak dapat diputar.',
   'voice.subtitle': 'Suara alami di perangkat',
+  'pse.smart_ink': 'Tinta cerdas',
+  'pse.smart_ink_sub': 'Sorot atau garis bawahi cepat, lingkari untuk memilih paragraf',
+  'pse.normal_ink': 'Tinta biasa',
+  'pse.normal_ink_sub': 'Gambar bebas halus dengan warna dan ketebalan pilihan',
+  'pse.smart_selected': 'Teks terpilih',
+  'picker.folder_movies': 'Film',
 };

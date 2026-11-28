@@ -3,6 +3,19 @@ import 'package:path_provider/path_provider.dart';
 import 'storage_stats.dart';
 import 'trash_service.dart';
 
+/// Aynı dahili belleği gösteren Android takma yollarını (`/sdcard/…`,
+/// `/storage/self/primary/…`) tek kanonik `/storage/emulated/0/…` yoluna
+/// indirger — "Son dosyalar"da aynı belgenin çift görünmesini önler.
+String canonicalAndroidPath(String path) {
+  for (final alias in const ['/sdcard', '/storage/self/primary']) {
+    if (path == alias) return StorageStats.primaryPath;
+    if (path.startsWith('$alias/')) {
+      return '${StorageStats.primaryPath}${path.substring(alias.length)}';
+    }
+  }
+  return path;
+}
+
 /// Dosya yöneticisinin çalışma ortamı: birimler, kökler ve çöp kutusu.
 ///
 /// Tek yerden kurulur ve ekranlar arasında paylaşılır — her ekranın `df`

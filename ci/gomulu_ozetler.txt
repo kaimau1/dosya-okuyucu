@@ -4,4 +4,4 @@ assets/word/jszip.min.js  acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de
 assets/word/docx-preview.min.js  4eb2292429eb443a1e51e5af728b499d62781b784d53d4f8d4c08e5c72692357  # docx-preview 0.3.7 · Apache-2.0 · https://github.com/VolodymyrBaydalka/docxjs
 assets/word/viewer.html  50652c7fad5cf940abdcc901c782831ab61220ece41691ffca86aec4aacc216c  # kendi kabuğumuz (CSP G6.1 burada — sessiz değişmesin)
 third_party/pdfrx  dc307150fed0f0a0484c7d0f156a967b7803c82d06e8c90412702decb21dabf8  # pdfrx 2.12.0 + YAMA.md · MIT · https://github.com/espresso3389/pdfrx
-third_party/pdfrx_engine  7e1343e0d9e663ecaad12e4f695ff4b27148ec4a8b75943dbeedf984329f93b2  # pdfrx_engine 0.9.1 + YAMA.md (3 yama) · MIT · https://github.com/espresso3389/pdfrx
+third_party/pdfrx_engine  746032110f11ae1f36c37202ec44900b1606c7b0a9c190e6da58a6c1f337c55b  # pdfrx_engine 0.9.1 + YAMA.md (3 yama) · MIT · https://github.com/espresso3389/pdfrx

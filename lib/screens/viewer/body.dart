@@ -35,6 +35,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
         // İÇİNDEN okunur — ekranın kendi bağlamı kabuğun dışında kalıyor.
         return Builder(builder: (context) {
         final chrome = ReadingChrome.insetsOf(context);
+        final hugePdf = _docSize > (50 << 20);
         return _withPdfSidePanel(CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyC, control: true):
@@ -86,8 +87,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       passwordProvider: _askPdfPassword,
                       params: PdfViewerParams(
                         pageImageColorFilter: _pdfPageColorFilter,
-                        onePassRenderingSizeThreshold:
-                            DeviceProfile.budget.isLight ? 1400 : 2000,
+                        onePassRenderingSizeThreshold: hugePdf
+                            ? (DeviceProfile.budget.isLight ? 1100 : 1400)
+                            : (DeviceProfile.budget.isLight ? 1400 : 2000),
                         // PDF Pro yerinde yazma (2026-11-24, kullanıcı:
                         // "yazarken/silerken metin imleçten geriden
                         // geliyor"): her tuşta sayfa yeniden çizilir; yazarken
@@ -99,9 +101,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // üstüne kaydırılabilsin (belge sonu payı).
                         boundaryMargin: _proKeyboardRoom(context),
                         behaviorControlParams: PdfViewerBehaviorControlParams(
-                          pageImageCachingDelay: _pro?.live == null
-                              ? const Duration(microseconds: 50000)
-                              : Duration.zero,
+                          pageImageCachingDelay: Duration.zero,
                           partialImageLoadingDelay: _pro?.live == null
                               ? Motion.medium
                               : Duration.zero,
@@ -125,8 +125,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
                           useAlternativeFitScaleAsMinScale: _pdfColumns == 1,
                           minScale: _pdfColumns == 1 ? 0.1 : 0.05,
-                          onePassRenderingScaleThreshold:
-                              DeviceProfile.budget.isLight ? 1.5 : 2.0,
+                          onePassRenderingScaleThreshold: hugePdf
+                              ? (DeviceProfile.budget.isLight ? 1.25 : 1.5)
+                              : (DeviceProfile.budget.isLight ? 1.5 : 2.0),
                           // Tablette çok yakın açılıyordu + yakınlık
                           // hatırlanmıyordu (2026-11-13) → [PdfZoomMemory].
                           calculateInitialZoom:

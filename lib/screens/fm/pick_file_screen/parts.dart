@@ -347,7 +347,9 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
     return ListView(
       key: const ValueKey('pick-home'),
       padding: withNavInset(
-          context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
+          context,
+          const EdgeInsets.fromLTRB(
+              Gap.md, Gap.sm, Gap.md, Gap.xl + Gap.lg)),
       children: [
         // 2026-11-18 kullanıcı (Aktar → Dosya ekle): "yeni dosyalar da
         // gözüksün, SS alınca hemen üstte kayan şeritte" — eskiden yalnız

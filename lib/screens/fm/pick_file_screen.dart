@@ -714,38 +714,50 @@ class _PickFileScreenState extends State<PickFileScreen> {
           ],
         ),
         bottomNavigationBar: _request.allowMultiple
-            ? SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(Gap.md),
-                  child: Row(
-                    children: [
-                      if (_selected.isNotEmpty) ...[
-                        TextButton(
-                          onPressed: () => setState(_selected.clear),
-                          child: Text(context.t('common.clear')),
-                        ),
-                        const SizedBox(width: Gap.sm),
-                      ],
-                      Expanded(
-                        child: FilledButton.icon(
-                          icon: const Icon(AppIcons.check),
-                          label: Text(
-                            [
-                              context.t('pick.select_n', {'n': _selected.length}),
-                              if (_selected.isNotEmpty)
-                                FsPaths.humanSize(_selected.values
-                                    .fold(0, (a, b) => a + b)),
-                            ].join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onPressed: _selected.isEmpty
-                              ? null
-                              : () => _deliver(_selected.keys.toList()),
+            ? Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Divider(height: 1),
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(Gap.md),
+                        child: Row(
+                          children: [
+                            if (_selected.isNotEmpty) ...[
+                              TextButton(
+                                onPressed: () => setState(_selected.clear),
+                                child: Text(context.t('common.clear')),
+                              ),
+                              const SizedBox(width: Gap.sm),
+                            ],
+                            Expanded(
+                              child: FilledButton.icon(
+                                icon: const Icon(AppIcons.check),
+                                label: Text(
+                                  [
+                                    context.t('pick.select_n',
+                                        {'n': _selected.length}),
+                                    if (_selected.isNotEmpty)
+                                      FsPaths.humanSize(_selected.values
+                                          .fold(0, (a, b) => a + b)),
+                                  ].join(' · '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onPressed: _selected.isEmpty
+                                    ? null
+                                    : () => _deliver(_selected.keys.toList()),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               )
             : null,

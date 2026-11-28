@@ -63,6 +63,7 @@ import 'services/fm/job_queue.dart';
 import 'services/fm/sd_union.dart';
 import 'services/fm/job_store.dart';
 import 'services/fm/playback_positions.dart';
+import 'services/fm/pdf_zoom_memory.dart';
 import 'services/fm/reading_positions.dart';
 import 'services/fm/subtitle_delays.dart';
 import 'screens/fm/audio_player_screen.dart';
@@ -285,6 +286,9 @@ Future<void> _main() async {
   unawaited(_restoreJobs());
   final appState = AppState();
   await appState.init();
+  // Büyük PDF'lerde ilk kare bekletmesin: kaldığın sayfa ve yakınlık belleğe.
+  unawaited(ReadingPositions.ensureLoaded());
+  unawaited(PdfZoomMemory.ensureLoaded());
   // Arapça vb. metin tanıma AI ile (bkz. `CloudOcr`): anahtar havuzu buradan.
   CloudOcr.credentials = () => appState.aiCredentials;
   // Cihaz sınıfı (Faz 4, P1): yerel kanaldan tek kısa çağrı; tazeleme hızı
