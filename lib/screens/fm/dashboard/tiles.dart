@@ -87,7 +87,9 @@ extension _DashboardScreenTilesPart on _DashboardScreenState {
   /// Panodaki ad: görsel kutusu artık **Fotoğraflar** (2026-10-28 —
   /// "Görüntüler" adı fotoğraf + video birleşik ekranına geçti).
   String _categoryLabel(FmCategory category) =>
-      category == FmCategory.image ? context.t('fm.photos') : category.label;
+      category == FmCategory.image
+          ? context.t('fm.photos')
+          : context.t(category.labelKey);
 
   /// **Görüntüler** kutusu — fotoğraf ve video tek zaman ekseninde
   /// (2026-10-28 kullanıcı isteği). Varsayılan gizli; "Ana ekranı düzenle".

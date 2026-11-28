@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -76,7 +77,8 @@ abstract final class OpenHistory {
       final raw = jsonDecode(await file.readAsString());
       if (raw is! Map) return;
       for (final entry in raw.entries) {
-        final key = '${entry.key}';
+        final rawKey = '${entry.key}';
+        final key = canonicalAndroidPath(rawKey);
         final ms = (entry.value as num?)?.toInt();
         if (ms == null) continue;
         // Silinmiş dosyaların kaydı BELLEKTE atılır ama diske **yazılmaz**:
@@ -84,7 +86,8 @@ abstract final class OpenHistory {
         // takılı değilken her yol "yok" görünür; o an dosyayı yeniden yazmak
         // kullanıcının tüm geçmişini kalıcı olarak silerdi.
         if (!_shouldKeep(key)) continue;
-        _byPath[key] = ms;
+        final prev = _byPath[key];
+        _byPath[key] = prev == null ? ms : math.max(prev, ms);
       }
     } catch (_) {
       // Bozuk dosya sessizce yok sayılır: bu bir kolaylık kaydı, uygulamayı
@@ -129,7 +132,9 @@ abstract final class OpenHistory {
   /// beklememeli); [EntryOpener] `unawaited` ile çağırır.
   static Future<void> record(String path) async {
     await ensureLoaded();
-    _byPath[path] = DateTime.now().millisecondsSinceEpoch;
+    final canon = canonicalAndroidPath(path);
+    if (canon != path) _byPath.remove(path);
+    _byPath[canon] = DateTime.now().millisecondsSinceEpoch;
     await _saveNow();
     // Başlatıcı simgesinde "son açılan 2 dosya" (Faz 19).
     unawaited(NativeExtras.setRecentShortcuts(pathsByRecency()));
@@ -137,7 +142,8 @@ abstract final class OpenHistory {
 
   /// [path]'in son açılma zamanı (ms); hiç açılmadıysa null.
   /// [ensureLoaded] önceden çağrılmış olmalı (bkz. `FileTags.forPath` deseni).
-  static int? forPath(String path) => _byPath[path];
+  static int? forPath(String path) =>
+      _byPath[canonicalAndroidPath(path)] ?? _byPath[path];
 
   /// Açılan **her** dosya (var olan) — en yeni önce.
   /// [ensureLoaded] önceden çağrılmış olmalı.

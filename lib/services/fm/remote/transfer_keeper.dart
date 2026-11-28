@@ -110,19 +110,25 @@ class TransferKeeper {
     await onClosed?.call();
   }
 
+  Future<void> _holdChain = Future<void>.value();
+
   void _sync() {
     final active = _live.any((s) => s.activeTransfers > 0);
-    unawaited(_hold(active || _adopted.isNotEmpty));
+    _holdChain = _holdChain.then((_) => _hold(active || _adopted.isNotEmpty));
     _idleTimer?.cancel();
     _idleTimer = null;
-    if (_adopted.isEmpty) return;
+    if (_adopted.isEmpty && _live.isEmpty) return;
     _idleTimer = Timer(idle ~/ 4, () {
       final expired = [
         for (final server in _adopted.keys)
           if (!_isBusy(server)) server,
       ];
+      final stalledLive = [
+        for (final server in _live)
+          if (server.activeTransfers > 0 && !_isBusy(server)) server,
+      ];
       unawaited(() async {
-        for (final server in expired) {
+        for (final server in {...expired, ...stalledLive}) {
           await _close(server);
         }
         _sync();

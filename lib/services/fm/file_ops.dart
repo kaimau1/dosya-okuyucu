@@ -1,7 +1,9 @@
+import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'fresh_cache.dart';
 import 'fs_events.dart';
 import 'fs_scan.dart';
 import 'path_side_index.dart';
@@ -26,9 +28,22 @@ class FmProgress {
   final int done;
   final int total;
   final String currentName;
-  const FmProgress(this.done, this.total, this.currentName);
+  final int bytesDone;
+  final int bytesTotal;
+  const FmProgress(
+    this.done,
+    this.total,
+    this.currentName, {
+    this.bytesDone = 0,
+    this.bytesTotal = 0,
+  });
 
-  double get fraction => total <= 0 ? 0 : (done / total).clamp(0, 1).toDouble();
+  bool get hasBytes => bytesTotal > 0;
+
+  double get fraction {
+    if (bytesTotal > 0) return (bytesDone / bytesTotal).clamp(0, 1).toDouble();
+    return total <= 0 ? 0 : (done / total).clamp(0, 1).toDouble();
+  }
 }
 
 /// Bir toplu işlemin sonucu. Hata TEK dosyada olsa bile işlem devam eder;
@@ -169,27 +184,15 @@ abstract final class FileOps {
     var done = 0;
     var skipped = 0;
     var succeeded = 0;
+    var bytesDone = 0;
+    var cancelledInLoop = false;
     final fatTarget = SafWrite.splitVolumePath(destDir) != null;
-    // Sayım ANA İZLEĞİ KİLİTLEMEZ (kullanıcı isteği 2026-09-06: "kopyalama
-    // taşıma çok pratik ve hızlı olmalı"). Eskiden `_countFiles` bütün ağacı
-    // — 20 000 girdiye kadar — tek hamlede, senkron geziyordu; yavaş bir SD
-    // kartta ya da binlerce fotoğraflu bir klasörde ilerleme penceresi ilk
-    // karesini bile çizemeden uygulama saniyelerce donuyordu. Kullanıcının
-    // gördüğü şey "kopyalamaya bastım, uygulama kilitlendi"ydi.
-    final total = await _countFiles(sources);
+    final measured = await _measureSources(sources);
+    final total = measured.files;
+    final bytesTotal = measured.bytes;
 
     for (final src in sources) {
-      if (isCancelled?.call() ?? false) {
-        // `transfers` MUTLAKA döner. Eskiden iptal dalı onu boş bırakıyordu:
-        // 200 fotoğrafın 90'ı taşındıktan sonra "İptal"e basan kullanıcıya
-        // "90 öğe taşındı" yazılıyor ama "Geri al" düğmesi (koşulu
-        // `transfers.isNotEmpty`) HİÇ çıkmıyordu — 90 dosya taşınmış, geri
-        // alma yok. Otomatik düzenlemede daha kötüsü oluyordu: `OpHistory`
-        // kaydına o taşımalar hiç yazılmadığı için "Son işlemler"den de
-        // geri alınamıyorlardı (2026-07-29 sadakat denetimi, 4. tur).
-        //
-        // `FsEvents.changed()` de burada çağrılır: yoksa açık ekranlar
-        // taşınmış dosyaları eski yollarında göstermeye devam ediyordu.
+      if ((isCancelled?.call() ?? false) || cancelledInLoop) {
         if (succeeded > 0) FsEvents.changed(_touched(transfers, move));
         return FmOpResult(
             succeeded: succeeded,
@@ -224,36 +227,54 @@ abstract final class FileOps {
           conflict: conflict,
           fatSafe: fatTarget,
           errors: errors,
-          onFile: (fileName) {
+          onFile: (fileName, fileBytes) {
+            onProgress?.call(FmProgress(
+              done,
+              total,
+              fileName,
+              bytesDone: bytesDone,
+              bytesTotal: bytesTotal,
+            ));
+          },
+          onFileProgress: onProgress == null
+              ? null
+              : (fileName, copiedBytes) {
+                  onProgress(FmProgress(
+                    done,
+                    total,
+                    fileName,
+                    bytesDone: bytesDone + copiedBytes,
+                    bytesTotal: bytesTotal,
+                  ));
+                },
+          onFileDone: (fileName, fileBytes) {
             done++;
-            onProgress?.call(FmProgress(done, total, fileName));
+            bytesDone += fileBytes;
+            onProgress?.call(FmProgress(
+              done,
+              total,
+              fileName,
+              bytesDone: bytesDone,
+              bytesTotal: bytesTotal,
+            ));
           },
           isCancelled: isCancelled,
           onSkip: () => skipped++,
         );
-        // `succeeded` yalnız GERÇEKTEN aktarılanı sayar. Eskiden koşulsuz
-        // artıyordu: atlanan dosya hem `skipped` hem `succeeded` sayılıyor,
-        // iptal edilen yarım klasör de "aktarıldı" görünüyordu.
         if (finalPath != null) {
           succeeded++;
           transfers.add(FmTransfer(src, finalPath));
-          // TAŞIMADA yan kayıtlar (etiket, açılma geçmişi) yeni yola geçer.
-          // Kopyalamada geçmez: özgün dosya yerinde duruyor, etiketi onda
-          // kalmalı — kopyaya da yapıştırmak "iki dosyada aynı etiket" gibi
-          // kullanıcının vermediği bir karar olurdu.
           if (move) await PathSideIndex.moved(src, finalPath);
         }
+      } on SafeWriteCancelled {
+        cancelledInLoop = true;
       } catch (e) {
         errors.add('$name: ${_msg(e)}');
       }
     }
-    // Taşımada ESKİ yol dizinde kalmasın (kopyalamada kaynak yerinde duruyor,
-    // dokunulmaz). Yeni yol bir sonraki tam kurulumda dizine girer.
-    // Faz 41 / 8: dizin ARTIMLI güncellenir (eski yol düşer, yeni yol
-    // eklenir); dizin hazır değilse eski davranış: kaynaklar düşer, dizin
-    // bayatlar ve sonraki aramada arka planda yeniden kurulur.
     var indexed = false;
     if (transfers.isNotEmpty) {
+      unawaited(FreshCache.noteAdded([for (final t in transfers) t.dest]));
       indexed = await SearchIndex.applyChanges(
         removed: move ? [for (final t in transfers) t.source] : const [],
         added: [for (final t in transfers) t.dest],
@@ -268,13 +289,7 @@ abstract final class FileOps {
       skipped: skipped,
       errors: errors,
       transfers: transfers,
-      // İptal isteği döngü İÇİNDE geldiyse (tek dosyalık bir işte ya da son
-      // öğede) yukarıdaki erken dönüşe hiç uğranmaz ve sonuç "iptal edilmedi"
-      // diyordu: kullanıcı "İptal"e bastığı hâlde "1 öğe taşındı" görüyordu.
-      // Kopyalama/taşıma çekirdekte kesilemez (`File.copy` bölünemez), ama
-      // OLANI DOĞRU söylemek zorundayız — arayüz bu bayrakla "iptal istendi,
-      // şu kadarı çoktan aktarılmıştı" diyebiliyor.
-      cancelled: isCancelled?.call() ?? false,
+      cancelled: cancelledInLoop || (isCancelled?.call() ?? false),
     );
   }
 
@@ -328,7 +343,9 @@ abstract final class FileOps {
     required FmConflict conflict,
     bool fatSafe = false,
     List<String>? errors,
-    required void Function(String) onFile,
+    required void Function(String, int) onFile,
+    void Function(String, int)? onFileProgress,
+    required void Function(String, int) onFileDone,
     required void Function() onSkip,
     bool Function()? isCancelled,
   }) async {
@@ -348,7 +365,8 @@ abstract final class FileOps {
       if (move && !_exists(dest)) {
         try {
           await srcDir.rename(dest);
-          onFile(p.basename(src));
+          final dirBytes = (await _measureSources([dest])).bytes;
+          onFileDone(p.basename(src), dirBytes);
           return dest;
         } on FileSystemException {
           // farklı bölüm → aşağıdaki normal yol
@@ -360,12 +378,6 @@ abstract final class FileOps {
           ? uniquePath(dest)
           : dest);
       await target.create(recursive: true);
-      // Çocuklardan biri ATLANDI mı? (Ad çakışması + `FmConflict.skip`.)
-      // Bunu bilmek zorunludur: atlanan çocuk kopyalanmadığı hâlde aşağıdaki
-      // `delete(recursive: true)` kaynağı komple siliyordu → atlanan dosyanın
-      // TEK kopyası yok oluyordu, hedefte de zaten farklı içerikli bir dosya
-      // vardı (2026-07-29 sadakat denetimi, 4. tur — CRITICAL). Atlama olduysa
-      // kaynak klasör KORUNUR; kullanıcı elinde kalanı görür.
       var anySkipped = false;
       var cancelledHere = false;
       for (final child in srcDir.listSync(followLinks: false)) {
@@ -387,6 +399,8 @@ abstract final class FileOps {
             fatSafe: fatSafe,
             errors: errors,
             onFile: onFile,
+            onFileProgress: onFileProgress,
+            onFileDone: onFileDone,
             onSkip: () {
               anySkipped = true;
               onSkip();
@@ -394,16 +408,14 @@ abstract final class FileOps {
             isCancelled: isCancelled,
           );
           if (childResult == null) anySkipped = true;
+        } on SafeWriteCancelled {
+          cancelledHere = true;
+          break;
         } catch (e) {
           anySkipped = true;
           errors?.add('$childName: ${_msg(e)}');
         }
       }
-      // İptalde klasör YARIM kopyalanmış olur; kaynağı silmek de "başarılı"
-      // demek de yanlış. `null` dönmek çağırana "bu öğe tamamlanmadı" der:
-      // `succeeded` artmaz ve geri alma kaydına yarım bir ağaç yazılmaz.
-      // (Eskiden `target.path` dönüyordu: 5000 fotoğraflık albümün 900'ü
-      // kopyalanmışken kullanıcıya "kopyalandı" deniyordu.)
       if (cancelledHere) return null;
       if (move && !anySkipped) {
         try {
@@ -427,31 +439,31 @@ abstract final class FileOps {
         case FmConflict.rename:
           target = uniquePath(dest);
         case FmConflict.overwrite:
-          // Hedef ÖNCEDEN SİLİNMEZ. `rename`/`copy` POSIX'te var olan yolun
-          // üstüne zaten yazar; önce silmek, kopyalama sonra başarısız olursa
-          // (kart doldu, kaynak okunamadı, kart çıkarıldı) hedefteki veriyi
-          // hiçbir şey koymadan yok etmek demekti — kullanıcı "üzerine yaz"
-          // dedi, "sil" demedi (2026-07-29 sadakat denetimi, 4. tur).
           break;
       }
     }
 
-    onFile(p.basename(src));
+    final fileName = p.basename(src);
+    final stat = file.statSync();
+    final sourceSize = stat.size;
+    onFile(fileName, sourceSize);
     if (move) {
       try {
         await file.rename(target); // aynı bölümde anında
+        onFileDone(fileName, sourceSize);
         return target;
       } on FileSystemException {
         // farklı bölüm (SD kart / OTG): kopyala + sil
       }
-      final stat = file.statSync();
-      final sourceSize = stat.size;
-      await SafeWrite.copy(file.path, target);
+      await SafeWrite.copy(
+        file.path,
+        target,
+        onProgress: onFileProgress == null
+            ? null
+            : (b) => onFileProgress(fileName, b),
+        isCancelled: isCancelled,
+      );
       await _keepModified(target, stat.modified);
-      // KAYNAK, KOPYA DOĞRULANMADAN SİLİNMEZ. Sıra zaten doğruydu (kopya önce),
-      // ama boyut karşılaştırması yoktu: kısa yazmayı hata olarak bildirmeyen
-      // bir bağlama noktasında (sdcardfs/FUSE/MTP) tek sağlam kopyayı silmek
-      // demekti. Uyuşmazlıkta yarım hedef temizlenir, kaynak YERİNDE kalır.
       final copiedSize = _sizeOf(target);
       if (copiedSize != sourceSize) {
         try {
@@ -465,10 +477,18 @@ abstract final class FileOps {
             target);
       }
       await file.delete();
+      onFileDone(fileName, sourceSize);
     } else {
-      final modified = file.statSync().modified;
-      await SafeWrite.copy(file.path, target);
-      await _keepModified(target, modified);
+      await SafeWrite.copy(
+        file.path,
+        target,
+        onProgress: onFileProgress == null
+            ? null
+            : (b) => onFileProgress(fileName, b),
+        isCancelled: isCancelled,
+      );
+      await _keepModified(target, stat.modified);
+      onFileDone(fileName, sourceSize);
     }
     return target;
   }
@@ -680,8 +700,10 @@ abstract final class FileOps {
   ///
   /// Tek tek dosyalar (en sık durum: kullanıcı üç dosya seçti) hiç dizin
   /// gezmez — o yolda `await` de yok, bedeli sıfır.
-  static Future<int> _countFiles(List<String> sources) async {
+  static Future<({int files, int bytes})> _measureSources(
+      List<String> sources) async {
     var n = 0;
+    var totalBytes = 0;
     var steps = 0;
     Future<void> walk(String path, int depth) async {
       if (n >= 20000 || depth > 24) return;
@@ -699,13 +721,19 @@ abstract final class FileOps {
         }
       } else {
         n++;
+        try {
+          final size = _sizeOf(path);
+          if (size > 0) totalBytes += size;
+        } catch (_) {
+          // Bilinçli: boyut okunamasa da sayı sayılır.
+        }
       }
     }
 
     for (final s in sources) {
       await walk(s, 0);
     }
-    return n == 0 ? sources.length : n;
+    return (files: n == 0 ? sources.length : n, bytes: totalBytes);
   }
 
   static String _msg(Object e) {

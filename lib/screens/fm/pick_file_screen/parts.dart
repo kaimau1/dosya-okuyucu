@@ -22,34 +22,37 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
       );
     }
     final source = _entries.where((e) => !e.isDir).toList();
-    final entries = pickVisibleEntries(_entries, _filter,
-        byName: _byName, keepOrder: _view == _PickView.folder && !_byName);
+    final entries = pickVisibleEntries(
+      _entries,
+      _filter,
+      sort: _sort,
+      sortDesc: _sortDesc,
+      keepOrder: _view == _PickView.folder &&
+          _sort == FmSort.date &&
+          _sortDesc,
+    );
     final files = entries.where((e) => !e.isDir).toList();
-    final bar = _filterBar(source, trailing: [
-      _chip(
-        label: context.t(_byName ? 'pick.sort_name' : 'pick.sort_newest'),
-        icon: AppIcons.swapVert,
-        onTap: () => _update(() => _byName = !_byName),
-      ),
-      if (_request.allowMultiple && files.isNotEmpty) _selectAllChip(files),
-    ]);
+    final bar = _filterBar(source);
+    final actionRow = _listMetaBar(files);
     if (files.isEmpty && _filter.isActive && entries.isEmpty) {
-      return ListView(children: [bar, _noFilterMatches()]);
+      return ListView(children: [bar, actionRow, _noFilterMatches()]);
     }
     return ListView.builder(
       padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),
-      itemCount: entries.length + 1,
-      itemBuilder: (context, i) => i == 0 ? bar : _row(entries[i - 1]),
+      itemCount: entries.length + 2,
+      itemBuilder: (context, i) {
+        if (i == 0) return bar;
+        if (i == 1) return actionRow;
+        return _row(entries[i - 2]);
+      },
     );
   }
 
   /// **Ortak süzgeç satırı** (A11, 2026-11-03): gezgin / kategori /
   /// İndirilenler'deki `FmQuickFilters` — kaynak (WhatsApp, Kamera…),
-  /// büyük dosyalar, açılmayanlar; tür hapı ve tarih/boyut levhası. Seçici
-  /// belirli bir türle açıldıysa tür hapı YOK (her şey zaten o tür; eşleşme
-  /// listesinin kendi uzantı çipleri var).
-  Widget _filterBar(List<FsEntry> files, {List<Widget> trailing = const []}) =>
-      FmQuickFilters(
+  /// büyük dosyalar, açılmayanlar; tür hapı ve sıralama+tarih/boyut levhası.
+  /// Alt sıkışıklığı önlemek için sıralama ve "Tümünü seç" ayrı başlıkta.
+  Widget _filterBar(List<FsEntry> files) => FmQuickFilters(
         key: const ValueKey('pick-filters'),
         source: files,
         filter: _filter,
@@ -65,10 +68,108 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
         trailing: [
           FmMoreChip(
             active: _filter.activeCount,
-            sections: (c) => fmDateSizeSections(c,
-                filter: _filter, onChanged: _setFilter),
+            sections: (c) => [
+              fmSortSection(
+                c,
+                sort: _sort,
+                descending: _sortDesc,
+                options: const [FmSort.date, FmSort.size, FmSort.name],
+                onSort: (s, desc) => _update(() {
+                  _sort = s;
+                  _sortDesc = desc;
+                }),
+              ),
+              ...fmDateSizeSections(c,
+                  filter: _filter, onChanged: _setFilter),
+            ],
           ),
-          ...trailing,
+        ],
+      );
+
+  /// Süzgecin altında kompakt bilgi, boyut/tarih/ad sıralaması ve "Tümünü seç".
+  Widget _listMetaBar(List<FsEntry> files) {
+    final faint = Paper.faint(context);
+    final allSelected =
+        files.isNotEmpty && files.every((e) => _selected.containsKey(e.path));
+    final sortLabel = switch (_sort) {
+      FmSort.size => context.t(FmSort.size.labelKey),
+      FmSort.name => context.t('pick.sort_name'),
+      _ => context.t('pick.sort_newest'),
+    };
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              context.t('pick.matches_count', {'n': files.length}),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.type.small.copyWith(color: faint),
+            ),
+          ),
+          InkWell(
+            key: const ValueKey('pick-sort-pill'),
+            borderRadius: BorderRadius.circular(Radii.control),
+            onTap: _openSortSheet,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.sm, vertical: Gap.xs),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(AppIcons.swapVert, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$sortLabel ${_sortDesc ? '↓' : '↑'}',
+                    style: context.type.small
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_request.allowMultiple && files.isNotEmpty) ...[
+            const SizedBox(width: Gap.xs),
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+              ),
+              onPressed: () => _update(() {
+                for (final e in files) {
+                  if (allSelected) {
+                    _selected.remove(e.path);
+                  } else {
+                    _selected[e.path] = e.sizeBytes;
+                  }
+                }
+              }),
+              icon: Icon(
+                  allSelected ? AppIcons.checkCircle : AppIcons.check,
+                  size: 16),
+              label: Text(context.t('pick.select_all')),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _openSortSheet() => showFmMoreSheet(
+        context,
+        (c) => [
+          fmSortSection(
+            c,
+            sort: _sort,
+            descending: _sortDesc,
+            options: const [FmSort.date, FmSort.size, FmSort.name],
+            onSort: (s, desc) => _update(() {
+              _sort = s;
+              _sortDesc = desc;
+            }),
+          ),
+          ...fmDateSizeSections(c, filter: _filter, onChanged: _setFilter),
         ],
       );
 
@@ -83,25 +184,6 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
           ),
         ]),
       );
-
-  /// Görünen bütün dosyalar seç / bırak.
-  Widget _selectAllChip(List<FsEntry> files) {
-    final all = files.every((e) => _selected.containsKey(e.path));
-    return _chip(
-      label: context.t('pick.select_all'),
-      icon: AppIcons.check,
-      selected: all,
-      onTap: () => _update(() {
-        for (final e in files) {
-          if (all) {
-            _selected.remove(e.path);
-          } else {
-            _selected[e.path] = e.sizeBytes;
-          }
-        }
-      }),
-    );
-  }
 
   /// Başlık: çağıranın başlığı ("PDF seç") + altında "Notlar için · PDF".
   Widget _titleWidget(Color faint) {
@@ -139,29 +221,31 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
       counts[ext] = (counts[ext] ?? 0) + 1;
     }
     final filter = counts.containsKey(_extFilter) ? _extFilter : null;
-    final visible = _filter.apply([
+    final filtered = [
       for (final entry in all)
         if ((filter == null || entry.extension.toLowerCase() == filter) &&
             (q.isEmpty || entry.name.toLowerCase().contains(q)))
           entry
-    ]);
-    if (_byName) {
-      visible.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    }
+    ];
+    final visible = pickVisibleEntries(
+      filtered,
+      _filter,
+      sort: _sort,
+      sortDesc: _sortDesc,
+    );
     final showRecent =
         q.isEmpty && filter == null && !_filter.isActive && _recent.isNotEmpty;
     final exts = counts.keys.toList()
       ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
 
     final header = <Widget>[
-      SizedBox(
-        height: 48,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-          children: [
-            if (exts.length > 1) ...[
+      if (exts.length > 1)
+        SizedBox(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            children: [
               _chip(
                 label: '${context.t('pick.all')} · ${all.length}',
                 selected: filter == null,
@@ -175,30 +259,25 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
                   onTap: () => _update(() => _extFilter = ext),
                 ),
             ],
-            _chip(
-              label: context.t(_byName ? 'pick.sort_name' : 'pick.sort_newest'),
-              icon: AppIcons.swapVert,
-              onTap: () => _update(() => _byName = !_byName),
-            ),
-            if (_request.allowMultiple && visible.isNotEmpty)
-              _selectAllChip(visible),
-            _chip(
-              label: context.t('pick.browse_folders'),
-              icon: AppIcons.emptyFolder,
-              onTap: () {
-                _search.clear();
-                _loadHome();
-              },
-            ),
-          ],
+          ),
         ),
-      ),
       _filterBar(all),
+      _listMetaBar(visible),
       if (showRecent) ...[
         SectionHeader(context.t('fm.recent_opened')),
         for (final entry in _recent) _row(entry),
       ],
-      SectionHeader(context.t('pick.matches_count', {'n': visible.length})),
+      SectionHeader(
+        context.t('pick.browse_folders'),
+        trailing: TextButton.icon(
+          onPressed: () {
+            _search.clear();
+            _loadHome();
+          },
+          icon: const Icon(AppIcons.emptyFolder, size: 18),
+          label: Text(context.t('pick.browse_folders')),
+        ),
+      ),
     ];
 
     if (visible.isEmpty) {
@@ -268,7 +347,9 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
     return ListView(
       key: const ValueKey('pick-home'),
       padding: withNavInset(
-          context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
+          context,
+          const EdgeInsets.fromLTRB(
+              Gap.md, Gap.sm, Gap.md, Gap.xl + Gap.lg)),
       children: [
         // 2026-11-18 kullanıcı (Aktar → Dosya ekle): "yeni dosyalar da
         // gözüksün, SS alınca hemen üstte kayan şeritte" — eskiden yalnız
@@ -399,7 +480,7 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
         id: id,
         icon: FmColors.iconFor(c),
         color: FmColors.forCategory(c),
-        label: label ?? c.label,
+        label: label ?? context.t(c.labelKey),
         subtitle: sub(DashboardScreen.cachedStat(c)),
         onTap: () => _openCategory(c),
       );
@@ -417,7 +498,7 @@ extension _PickFileScreenStateParts on _PickFileScreenState {
           subtitle: '',
           onTap: () => _openFolder(downloads),
         ),
-      if (Directory(important).existsSync())
+      if (_importantExists)
         FmTileData(
           id: 'important',
           icon: AppIcons.star,
@@ -489,15 +570,27 @@ List<FsEntry> pickVisibleEntries(
   List<FsEntry> entries,
   FmFilter filter, {
   bool byName = false,
+  FmSort? sort,
+  bool? sortDesc,
   bool keepOrder = false,
 }) {
   final dirs = [for (final e in entries) if (e.isDir) e];
   final files =
       filter.apply([for (final e in entries) if (!e.isDir) e]);
+  final effectiveSort = sort ?? (byName ? FmSort.name : FmSort.date);
+  final desc = sortDesc ?? (effectiveSort != FmSort.name);
   if (!keepOrder) {
-    int cmp(FsEntry a, FsEntry b) => byName
-        ? a.name.toLowerCase().compareTo(b.name.toLowerCase())
-        : b.modifiedMs.compareTo(a.modifiedMs);
+    int cmp(FsEntry a, FsEntry b) {
+      final r = switch (effectiveSort) {
+        FmSort.name => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        FmSort.date => a.modifiedMs.compareTo(b.modifiedMs),
+        FmSort.size => a.sizeBytes.compareTo(b.sizeBytes),
+        FmSort.type =>
+          a.extension.toLowerCase().compareTo(b.extension.toLowerCase()),
+      };
+      if (r != 0) return desc ? -r : r;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    }
     dirs.sort(cmp);
     files.sort(cmp);
   }

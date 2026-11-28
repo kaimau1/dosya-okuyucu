@@ -250,6 +250,10 @@ class PeerReceiver implements KeepableServer {
   /// sorulmaz; gösterim kabulün kendisi. `null` = yazı alınmaz (404).
   final void Function(String text, String from)? onText;
 
+  /// Arka planda yazı kabulünden önce çağrılır (ör. kutucuk yalnız güvenilen
+  /// anahtarları kabul eder). `null` = ekran açıkken ek onay sormaz.
+  final Future<bool> Function(String from, String fingerprint)? onAskText;
+
   /// Kalıcı kimlik (G5). Verilirse alıcı şifreli protokolü (v3) duyurur ve
   /// `/el` el sıkışmasını kabul eder; yoksa yalnız eski düz protokol.
   final PeerIdentity? identity;
@@ -265,6 +269,7 @@ class PeerReceiver implements KeepableServer {
     this.onDone,
     this.onAsk,
     this.onText,
+    this.onAskText,
     this.onActivity,
   });
 
@@ -687,6 +692,10 @@ class PeerReceiver implements KeepableServer {
     }
     if (method == 'POST' && path == '/yazi' && onText != null) {
       if (!codeOk) return await _deny(response, 'kod');
+      if (onAskText != null &&
+          !await onAskText!(q['kim'] ?? '?', ctx.peerFp)) {
+        return await _deny(response, 'red');
+      }
       final bytes = BytesBuilder(copy: false);
       await for (final chunk in ctx.body) {
         bytes.add(chunk);

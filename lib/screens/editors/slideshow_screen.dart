@@ -153,6 +153,7 @@ class _SlideshowScreenState extends State<SlideshowScreen>
 
   /// Otomatik ilerleme (`advTm`, ör. kayıtlı anlatım) — tek seferlik zamanlayıcı.
   Timer? _auto;
+  AppLifecycleListener? _life;
 
   String get _note =>
       _index < widget.notes.length ? widget.notes[_index].trim() : '';
@@ -189,6 +190,11 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     super.initState();
     _enter = AnimationController(
         vsync: this, duration: Motion.long, value: 1);
+    _life = AppLifecycleListener(
+      onPause: _pauseTimersOnBg,
+      onHide: _pauseTimersOnBg,
+      onResume: _resumeTimersOnFg,
+    );
     _clock.start();
     _slideClock.start();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -216,8 +222,25 @@ class _SlideshowScreenState extends State<SlideshowScreen>
     }
   }
 
+  void _pauseTimersOnBg() {
+    _tick?.cancel();
+    _tick = null;
+    _auto?.cancel();
+    _auto = null;
+    _counterTick?.cancel();
+    _counterTick = null;
+  }
+
+  void _resumeTimersOnFg() {
+    if (!mounted) return;
+    if (_presenter) _syncTick();
+    if (_counterLeft.isNotEmpty) _startCounters();
+    _scheduleAdvance();
+  }
+
   @override
   void dispose() {
+    _life?.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     _tick?.cancel();

@@ -47,9 +47,10 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
     final startedAtVersion = FsEvents.version.value;
     await FmEnv.ensureInit(force: true);
     await SearchIndex.ensureLoaded();
-    // Tek yürüyüş hem panoyu hem arama dizinini besler.
+    // Tek yürüyüş hem panoyu hem arama dizinini besler (USB hariç: telefon
+    // kategorileri ve Belgeler listesi takılan bellekle kirlenmez).
     final index = await FsScan.index(
-      FmEnv.volumeRoots,
+      FmEnv.phoneRoots,
       searchIndexPath:
           FmEnv.appSupportDir.isEmpty ? null : SearchIndex.indexPath,
       statFolders: _statFolders,
@@ -127,7 +128,7 @@ extension _DashboardScreenScanPart on _DashboardScreenState {
       );
     }
     return CategoryScreen(
-      title: category.label,
+      title: _categoryLabel(category),
       files: _index.files(category),
       gridDefault: grid,
       // Görünüm/sıralama uygulama kapanıp açılınca da korunur (2026-11-16).

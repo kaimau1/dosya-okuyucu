@@ -238,8 +238,12 @@ class _PickFileScreenState extends State<PickFileScreen> {
   /// Eşleşme listesinde seçili uzantı (null = tümü).
   String? _extFilter;
 
-  /// Eşleşme listesi ada göre mi sıralı (varsayılan: en yeni üstte).
-  bool _byName = false;
+  /// Sıralama ölçütü ve yönü (varsayılan: en yeni üstte; Boyut / Ad seçilebilir).
+  FmSort _sort = FmSort.date;
+  bool _sortDesc = true;
+
+  /// Önemli Dosyalar klasörü diskte mevcut mu (eşzamansız denetlenir).
+  bool _importantExists = false;
 
   /// Ortak süzgeç (kaynak/tür/tarih/boyut — A11). Görünüm değişince sıfırlanır:
   /// klasörde seçilen "WhatsApp" süzgeci kategoriye geçince sessizce
@@ -398,8 +402,12 @@ class _PickFileScreenState extends State<PickFileScreen> {
       await OpenHistory.ensureLoaded();
       final paths = OpenHistory.pathsByRecency().take(40).toList();
       final entries = await FsScan.statPaths(paths);
+      final impExists = await Directory(
+              ImportantScreen.pathIn(FmEnv.primaryRoot))
+          .exists();
       if (!mounted) return;
       setState(() {
+        _importantExists = impExists;
         _recent = [
           for (final entry in entries)
             if (!entry.isDir && _request.acceptsEntry(entry)) entry
@@ -409,6 +417,7 @@ class _PickFileScreenState extends State<PickFileScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        _importantExists = false;
         _recent = const [];
         _loading = false;
       });
@@ -705,38 +714,50 @@ class _PickFileScreenState extends State<PickFileScreen> {
           ],
         ),
         bottomNavigationBar: _request.allowMultiple
-            ? SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(Gap.md),
-                  child: Row(
-                    children: [
-                      if (_selected.isNotEmpty) ...[
-                        TextButton(
-                          onPressed: () => setState(_selected.clear),
-                          child: Text(context.t('common.clear')),
-                        ),
-                        const SizedBox(width: Gap.sm),
-                      ],
-                      Expanded(
-                        child: FilledButton.icon(
-                          icon: const Icon(AppIcons.check),
-                          label: Text(
-                            [
-                              context.t('pick.select_n', {'n': _selected.length}),
-                              if (_selected.isNotEmpty)
-                                FsPaths.humanSize(_selected.values
-                                    .fold(0, (a, b) => a + b)),
-                            ].join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onPressed: _selected.isEmpty
-                              ? null
-                              : () => _deliver(_selected.keys.toList()),
+            ? Material(
+                color: Theme.of(context).colorScheme.surface,
+                elevation: 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Divider(height: 1),
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(Gap.md),
+                        child: Row(
+                          children: [
+                            if (_selected.isNotEmpty) ...[
+                              TextButton(
+                                onPressed: () => setState(_selected.clear),
+                                child: Text(context.t('common.clear')),
+                              ),
+                              const SizedBox(width: Gap.sm),
+                            ],
+                            Expanded(
+                              child: FilledButton.icon(
+                                icon: const Icon(AppIcons.check),
+                                label: Text(
+                                  [
+                                    context.t('pick.select_n',
+                                        {'n': _selected.length}),
+                                    if (_selected.isNotEmpty)
+                                      FsPaths.humanSize(_selected.values
+                                          .fold(0, (a, b) => a + b)),
+                                  ].join(' · '),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onPressed: _selected.isEmpty
+                                    ? null
+                                    : () => _deliver(_selected.keys.toList()),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               )
             : null,

@@ -146,15 +146,16 @@ class _ThemeGalleryState extends State<ThemeGallery> {
         flatIndex += members.length;
         offset += blockW + groupGap;
       }
-      if (!found || flatIndex <= 1 || offset < cardWidth) offset = 0;
+      if (!found || flatIndex <= 1 || offset < cardWidth * 3.5) offset = 0;
       return SizedBox(
         height: ThemeSkinCard.heightOf(context) + labelH + Gap.xs,
         child: ListView.separated(
           key: const ValueKey('theme-gallery-strip'),
           scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.xs),
           controller: _scroll ??= ScrollController(
             initialScrollOffset:
-                offset <= cardWidth * 1.4 ? 0 : offset - cardWidth / 2,
+                offset <= cardWidth * 3.5 ? 0 : offset - cardWidth / 2,
           ),
           itemCount: groups.length,
           separatorBuilder: (_, _) => SizedBox(

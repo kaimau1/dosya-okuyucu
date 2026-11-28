@@ -139,8 +139,10 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
     if (!mounted) return;
     if (volumes.length == 1 && saf.isEmpty && drivable.isEmpty) {
       final only = volumes.single;
-      return _push(
-          BrowserScreen(path: only.path, title: only.displayLabel(context.t)));
+      return _push(only.isRemovable
+          ? UsbHomeScreen(volume: only)
+          : BrowserScreen(
+              path: only.path, title: only.displayLabel(context.t)));
     }
 
     // `'pick'` = "Klasör seç"; `StorageVolume` = yol birimi; `SafRoot` =
@@ -159,7 +161,7 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
                   leading: Icon(volumeIcon(v)),
                   title: Text(v.displayLabel(ctx.t)),
                   subtitle: Text(v.hasStats
-                      ? '${FsPaths.humanSize(v.freeBytes)} boş · ${v.path}'
+                      ? '${ctx.t('usb.free_short', {'size': FsPaths.humanSize(v.freeBytes)})} · ${v.path}'
                       : v.path),
                   onTap: () => Navigator.pop(ctx, v),
                 ),
@@ -196,8 +198,10 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
     );
     if (!mounted || picked == null) return;
     if (picked is StorageVolume) {
-      return _push(BrowserScreen(
-          path: picked.path, title: picked.displayLabel(context.t)));
+      return _push(picked.isRemovable
+          ? UsbHomeScreen(volume: picked)
+          : BrowserScreen(
+              path: picked.path, title: picked.displayLabel(context.t)));
     }
     if (picked is SafRoot) return _openSafRoot(picked);
     if (picked == 'diag') return _openDiagnostics();
@@ -255,8 +259,10 @@ extension _DashboardScreenExternalOpenPart on _DashboardScreenState {
     if (!mounted || action == null) return;
     switch (action) {
       case 'open':
-        await _push(BrowserScreen(
-            path: volume.path, title: volume.displayLabel(context.t)));
+        await _push(volume.isRemovable
+            ? UsbHomeScreen(volume: volume)
+            : BrowserScreen(
+                path: volume.path, title: volume.displayLabel(context.t)));
       case 'analysis':
         // **Analiz artık her birimde** — eskiden yalnız ana bellekteydi.
         await _push(AnalysisScreen(index: _index, volumes: [volume]));

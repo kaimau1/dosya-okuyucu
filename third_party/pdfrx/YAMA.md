@@ -60,3 +60,9 @@ kaydırma ataleti her parmak değişinde `stopAllAnimations` ile durur. **Neden:
 
 1. `pdf_viewer.dart` üst düzey kanca (`pdfrxOnPageImagePainted`): sayfa görüntüsü (önizleme / net parça) tuvale çizilince çağrılır. **Neden:** `onDocumentLoadFinished` arka sayfaların ölçümünü da beklediği için ilk görünür sayfa anını göstermiyordu; açılış damgaları ve açılış köprüsü buradan kalkar.
 2. `_relayoutPages`: `_layoutDirty` yoksa `widget.params.layoutPages` verilmiş olsa bile her kaydırma karesinde tüm sayfa düzenini yeniden kurup karşılaştırmaz (`didUpdateWidget` params değişince `_layoutDirty = true` yapar). `_updateLayout` yalnızca sayfa/görünüm/zoom değişince `_recalculateMetrics`, `_calcZoomStopTable` ve `_adjustBoundaryMargins` çalıştırır; `_paintPagesCustom` döngü dışında tek `Paint` nesnesi paylaşır. **Neden:** fırlatma/kaydırma sırasında her karede 320+ sayfalık düzen ve sınır yeniden hesaplanıyordu.
+
+## 5. değişiklik (2026-11-28 denetim turu) — klavye yeniden kurulum + kaydırırken parça çizimi
+
+1. `pdf_viewer.dart` `_paintPages` ve `_buildMagnifier`: `MediaQuery.of(context).devicePixelRatio` → `MediaQuery.devicePixelRatioOf(context)` (`viewInsets` değişince tüm görüntüleyicinin klavye açılışında her karede yeniden kurulmasını önler).
+2. `didUpdateWidget`: yinelenen `isVisible` bloğu kaldırıldı ve `_layoutDirty = true` yalnız düzeni etkileyen parametreler değişince işaretlenir.
+3. `_requestRealSizePartialImage`: `_isUserScrolling` true iken tam çözünürlüklü parça çizimi ertelenir (`_stopInteraction` bitince `_invalidate()` yeniden ister).

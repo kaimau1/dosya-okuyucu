@@ -1,6 +1,7 @@
 import '../../models/fs_entry.dart';
 import 'fm_env.dart';
 import 'folder_lock.dart';
+import 'fresh_cache.dart';
 import 'fs_scan.dart';
 import 'smart_sort.dart';
 import 'search_index.dart';
@@ -59,7 +60,7 @@ abstract final class MediaLibrary {
       // ikinci durumda yalnız bir tarama maliyeti, birincisinde doğru cevap.
     }
     final scanned = await FsScan.collect(
-      root != null ? [root] : FmEnv.volumeRoots,
+      root != null ? [root] : FmEnv.phoneRoots,
       category: category,
       limit: limit,
     );
@@ -100,9 +101,10 @@ abstract final class MediaLibrary {
   }) async {
     try {
       await FmEnv.ensureInit();
+      final added = await FreshCache.addedEntries(category: category, root: root);
       final roots = StorageStats.hotFoldersForAll(
-          root != null ? [root] : FmEnv.volumeRoots);
-      if (roots.isEmpty) return const [];
+          root != null ? [root] : FmEnv.phoneRoots);
+      if (roots.isEmpty) return added;
       // Dizin kurulduğu andan öncesi zaten dizinde; yalnız sonrası aranır.
       // Bir dakikalık pay: dosya sistemi saati ile dizinin saati birebir
       // aynı anda ilerlemiyor, sınırda kalan dosya kaçmasın.
@@ -111,9 +113,10 @@ abstract final class MediaLibrary {
           : 0;
       final fresh =
           await FsScan.freshFiles(roots, sinceMs: since, limit: freshLimit);
-      if (category == null) return fresh;
+      final combined = _merge(added, fresh);
+      if (category == null) return combined;
       return [
-        for (final e in fresh)
+        for (final e in combined)
           if (e.category == category) e,
       ];
     } catch (_) {

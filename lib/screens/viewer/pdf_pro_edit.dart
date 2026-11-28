@@ -159,7 +159,7 @@ extension _ViewerScreenPdfProEditPart on _ViewerScreenState {
         pro.selectedAnnot != null ||
         pro.markup != PdfMarkupKind.none) {
       pro
-        ..markup = pro.markup
+        ..clearMarkup()
         ..armLasso = false
         ..clearSelection();
       return false;

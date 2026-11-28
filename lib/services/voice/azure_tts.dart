@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/private_zone.dart';
 import '../key_vault.dart';
 import '../offline_mode.dart';
 
@@ -112,6 +113,9 @@ abstract final class AzureTts {
     double pitch = 1.0,
     bool wav = false,
   }) async {
+    if (PrivateZone.active) {
+      throw const SocketException('Gizli bölgede bulut sentezi kapalı');
+    }
     if (OfflineMode.enabled) {
       throw const SocketException('Çevrimdışı kip açık');
     }

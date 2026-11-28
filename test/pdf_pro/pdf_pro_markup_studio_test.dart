@@ -2,6 +2,7 @@
 // Kalem/fosforlu, kasma bekçisi (çizerken katman yeniden KURULMAZ), avuç
 // reddi + basınç, bulut, damga ve serbest metin. CI: PDFIUM_PATH.
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:dosya_okuyucu/core/l10n/app_strings.dart';
@@ -123,6 +124,7 @@ void main() {
   testWidgets('Kalem düğmesi stüdyoyu kalem kurulu açar; fosforlu yarı saydam '
       'mürekkep bırakır', (tester) async {
     final h = await open(tester);
+    h.c.smartInk = false;
     h.c.armMarkup(PdfMarkupKind.ink);
     expect(h.c.tool, PdfProTool.markup);
     expect(h.c.markup, PdfMarkupKind.ink);
@@ -300,6 +302,7 @@ void main() {
   testWidgets('avuç reddi: kalem çizerken avuç çizgiyi bozmaz; kalem '
       'kipinde parmak çizmez', (tester) async {
     final h = await open(tester);
+    h.c.smartInk = false;
     h.c.armMarkup(PdfMarkupKind.ink);
     await tester.pump();
     final pen = await tester.createGesture(kind: PointerDeviceKind.stylus);
@@ -336,6 +339,34 @@ void main() {
     expect(
         (await annots(tester, h)).where((a) => a.subtype == PdfAnnotType.ink),
         hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Akıllı Mürekkep: metin üstünden geçen fosforlu keskin vurguya dönüşür',
+      (tester) async {
+    final h = await open(tester);
+    expect(h.c.smartInk, isTrue);
+    final blk = h.c.blocksOf(0)!.first;
+    final y = h.doc.pages[0].height -
+        (blk.map.bases.first + blk.map.sizes.first * 0.35);
+    h.c.armMarkup(PdfMarkupKind.marker);
+    await tester.pump();
+    final startX = blk.left + 4;
+    final endX = math.min(blk.right - 4, blk.left + 120);
+    final g = await tester.startGesture(Offset(startX, y));
+    await tester.pump();
+    final dx = (endX - startX) / 6;
+    for (var i = 0; i < 6; i++) {
+      await g.moveBy(Offset(dx, 0));
+      await tester.pump();
+    }
+    await g.up();
+    await tester.pump();
+    await until(tester, () => h.c.session.steps.length == 1 && !h.c.busy);
+    final highlights = (await annots(tester, h))
+        .where((a) => a.subtype == PdfAnnotType.highlight)
+        .toList();
+    expect(highlights, hasLength(1));
     expect(tester.takeException(), isNull);
   });
 }

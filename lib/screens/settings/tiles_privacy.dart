@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
@@ -267,13 +269,26 @@ class UsageAccessTile extends StatefulWidget {
   State<UsageAccessTile> createState() => _UsageAccessTileState();
 }
 
-class _UsageAccessTileState extends State<UsageAccessTile> {
+class _UsageAccessTileState extends State<UsageAccessTile>
+    with WidgetsBindingObserver {
   bool _granted = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_refresh());
   }
 
   Future<void> _refresh() async {

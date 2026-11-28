@@ -367,6 +367,8 @@ extension _ViewerScreenPdfSelectionPart on _ViewerScreenState {
     }
     final text = await _speechText();
     if (!mounted) return;
+    final prev = _tts;
+    if (prev != null) unawaited(prev.dispose());
     final service = TtsService(prefs: context.read<AppState>().ttsPrefs)
       ..onProgress = (i, total, playing) {
         if (!mounted) return;

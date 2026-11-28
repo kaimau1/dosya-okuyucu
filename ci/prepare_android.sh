@@ -236,11 +236,11 @@ for name in ('android/app/build.gradle.kts', 'android/app/build.gradle'):
     if n1 != 1 or n2 != 1:
         raise SystemExit(f'{name}: targetSdk/compileSdk satırı bulunamadı ({n1}, {n2})')
     if kts:
-        # Yalnız desteklenen 3 dilin Android kaynakları (resources.arsc küçültme)
+        # Desteklenen 5 dilin Android kaynakları (resources.arsc küçültme)
         # ve kullanılmayan LiteRT GPU + gereksiz META-INF meta verilerini dışla.
         text, _ = re.subn(
             r'(defaultConfig\s*\{)',
-            r'\1\n        resourceConfigurations += listOf("tr", "en", "ar")',
+            r'\1\n        resourceConfigurations += listOf("tr", "en", "ar", "id", "ms")',
             text,
             count=1,
         )

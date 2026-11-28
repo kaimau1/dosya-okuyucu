@@ -749,7 +749,7 @@ class _AudioEngine {
     if (v == null) return;
     if (v.hasError && !_errored) {
       _errored = true;
-      onError(v.errorDescription ?? '');
+      onError(AppStrings.current.t('err.playback_failed'));
     }
     if (v.duration != _duration) {
       _duration = v.duration;

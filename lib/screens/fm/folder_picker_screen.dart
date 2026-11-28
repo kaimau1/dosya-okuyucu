@@ -62,12 +62,18 @@ class FolderPickerScreen extends StatefulWidget {
   /// kategori → İndirilenler eşlemesi anlamsız olduğu için kapalı.
   final bool homeCards;
 
+  /// Kaynak sayısı / adı dışarıdan verilebilsin (USB, Drive, İndirmeler).
+  final int? itemCount;
+  final String? itemTitle;
+
   const FolderPickerScreen({
     super.key,
     required this.sources,
     required this.actionLabel,
     this.startPath,
     this.homeCards = false,
+    this.itemCount,
+    this.itemTitle,
   });
 
   @override
@@ -283,7 +289,10 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
           children: [
             Text(context.t('picker.title')),
             Text(
-              context.t('picker.summary', {'n': widget.sources.length, 'name': p.basename(_path)}),
+              context.t('picker.summary', {
+                'n': widget.itemCount ?? widget.sources.length,
+                'name': p.basename(_path),
+              }),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -373,15 +382,21 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
 
   List<FmTileData> _homeTiles() {
     final download = p.join(FmEnv.primaryRoot, 'Download');
-    final toDownloads = context.t('picker.to_downloads');
-    FmTileData cat(FmCategory c, String label, FmTileArt? art) => FmTileData(
+    final pictures = p.join(FmEnv.primaryRoot, 'Pictures');
+    final movies = p.join(FmEnv.primaryRoot, 'Movies');
+    final documents = p.join(FmEnv.primaryRoot, 'Documents');
+    final music = p.join(FmEnv.primaryRoot, 'Music');
+    final hereLabel = context.t('picker.here_folder');
+    FmTileData cat(FmCategory c, String targetPath, String subtitle,
+            FmTileArt? art) =>
+        FmTileData(
           id: c.name,
           icon: FmColors.iconFor(c),
           color: FmColors.forCategory(c),
           art: art,
-          label: label,
-          subtitle: toDownloads,
-          onTap: () => _pickDir(download),
+          label: context.t(c.labelKey),
+          subtitle: subtitle,
+          onTap: () => _pickDir(targetPath),
         );
     return [
       FmTileData(
@@ -390,7 +405,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         color: AppHues.blue,
         art: FmTileArt.downloads,
         label: context.t('fm.downloads'),
-        subtitle: context.t('picker.here_folder'),
+        subtitle: hereLabel,
         onTap: () => _pickDir(download),
       ),
       FmTileData(
@@ -398,19 +413,23 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
         icon: AppIcons.star,
         color: AppHues.amber,
         label: ImportantScreen.folderName,
-        subtitle: context.t('picker.here_folder'),
+        subtitle: hereLabel,
         onTap: () => _pickDir(ImportantScreen.pathIn(FmEnv.primaryRoot)),
       ),
-      cat(FmCategory.image, context.t('fm.photos'), FmTileArt.photos),
-      cat(FmCategory.video, FmCategory.video.label, FmTileArt.video),
-      cat(FmCategory.document, FmCategory.document.label, FmTileArt.document),
-      cat(FmCategory.audio, FmCategory.audio.label, FmTileArt.audio),
+      cat(FmCategory.image, pictures, context.t('sdu.f_pictures'),
+          FmTileArt.photos),
+      cat(FmCategory.video, movies, context.t('picker.folder_movies'),
+          FmTileArt.video),
+      cat(FmCategory.document, documents, context.t(FmCategory.document.labelKey),
+          FmTileArt.document),
+      cat(FmCategory.audio, music, context.t('sdu.f_music'),
+          FmTileArt.audio),
       FmTileData(
         id: 'apk',
         icon: AppIcons.installMobile,
         color: AppHues.teal,
         label: context.t('fm.apk_archives'),
-        subtitle: toDownloads,
+        subtitle: context.t('fm.downloads'),
         onTap: () => _pickDir(download),
       ),
     ];
@@ -418,8 +437,8 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
 
   Widget _volumeCard(StorageVolume v) {
     final scheme = Theme.of(context).colorScheme;
-    final used = v.totalBytes - v.freeBytes;
-    final ratio = v.totalBytes > 0 ? (used / v.totalBytes).clamp(0.0, 1.0) : 0.0;
+    final used = v.usedBytes;
+    final ratio = v.usedFraction;
     return Card(
       margin: const EdgeInsets.only(bottom: Gap.sm),
       clipBehavior: Clip.antiAlias,
@@ -455,7 +474,7 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    if (v.totalBytes > 0)
+                    if (v.hasStats)
                       Text(
                         context.t('ana.used_free', {
                           'used': FsPaths.humanSize(used),
@@ -493,10 +512,10 @@ class _FolderPickerScreenState extends State<FolderPickerScreen> {
           children: [
             Text(context.t('picker.title')),
             Text(
-              widget.sources.length == 1
-                  ? '${p.basename(widget.sources.first)} · ${widget.actionLabel}'
+              (widget.itemCount ?? widget.sources.length) == 1
+                  ? '${widget.itemTitle ?? p.basename(widget.sources.first)} · ${widget.actionLabel}'
                   : context.t('picker.summary', {
-                      'n': widget.sources.length,
+                      'n': widget.itemCount ?? widget.sources.length,
                       'name': widget.actionLabel,
                     }),
               maxLines: 1,

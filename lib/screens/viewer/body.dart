@@ -35,6 +35,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
         // İÇİNDEN okunur — ekranın kendi bağlamı kabuğun dışında kalıyor.
         return Builder(builder: (context) {
         final chrome = ReadingChrome.insetsOf(context);
+        final hugePdf = _docSize > (50 << 20);
         return _withPdfSidePanel(CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.keyC, control: true):
@@ -86,8 +87,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                       passwordProvider: _askPdfPassword,
                       params: PdfViewerParams(
                         pageImageColorFilter: _pdfPageColorFilter,
-                        onePassRenderingSizeThreshold:
-                            DeviceProfile.budget.isLight ? 1400 : 2000,
+                        onePassRenderingSizeThreshold: hugePdf
+                            ? (DeviceProfile.budget.isLight ? 1100 : 1400)
+                            : (DeviceProfile.budget.isLight ? 1400 : 2000),
                         // PDF Pro yerinde yazma (2026-11-24, kullanıcı:
                         // "yazarken/silerken metin imleçten geriden
                         // geliyor"): her tuşta sayfa yeniden çizilir; yazarken
@@ -99,13 +101,15 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // üstüne kaydırılabilsin (belge sonu payı).
                         boundaryMargin: _proKeyboardRoom(context),
                         behaviorControlParams: PdfViewerBehaviorControlParams(
-                          pageImageCachingDelay: _pro?.live == null
-                              ? const Duration(microseconds: 50000)
+                          pageImageCachingDelay: Duration.zero,
+                          partialImageLoadingDelay: _pro?.live == null
+                              ? Motion.medium
                               : Duration.zero,
-                          partialImageLoadingDelay: Duration.zero,
                           loadPageDimensionsOnDemand:
-                              _docSize > (100 << 20) || _pageCount >= 500,
+                              _docSize > (25 << 20) || _pageCount >= 200,
                         ),
+                        verticalCacheExtent:
+                            DeviceProfile.budget.isLight ? 0.5 : 0.75,
                         loadingBannerBuilder: (_, _, _) =>
                             const SizedBox.shrink(),
                         // **2/4 sütunda en küçük yakınlık** (kullanıcı
@@ -121,6 +125,9 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
                           useAlternativeFitScaleAsMinScale: _pdfColumns == 1,
                           minScale: _pdfColumns == 1 ? 0.1 : 0.05,
+                          onePassRenderingScaleThreshold: hugePdf
+                              ? (DeviceProfile.budget.isLight ? 1.25 : 1.5)
+                              : (DeviceProfile.budget.isLight ? 1.5 : 2.0),
                           // Tablette çok yakın açılıyordu + yakınlık
                           // hatırlanmıyordu (2026-11-13) → [PdfZoomMemory].
                           calculateInitialZoom:
@@ -268,8 +275,12 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           _finishPdfBridge();
                         },
                         // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
+                        // Kendiliğinden metin taraması kapalı: taranmış/yoğun sayfada her
+                        // çizimde PDFium metin akışı ayrıştırılıp işçiyi kilitlemesin; PDF'teki
+                        // gerçek bağlantı anotasyonları çalışmaya devam eder.
                         linkHandlerParams: PdfLinkHandlerParams(
                           onLinkTap: _onPdfLink,
+                          enableAutoLinkDetection: false,
                           linkColor: Theme.of(context)
                               .colorScheme
                               .primary

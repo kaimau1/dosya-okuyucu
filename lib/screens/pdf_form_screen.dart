@@ -951,12 +951,22 @@ class _PdfFormScreenState extends State<PdfFormScreen> {
           ),
         ],
         const SizedBox(height: Gap.md),
-        FilledButton.icon(
-          key: const ValueKey('pf-dsig-submit'),
-          onPressed: _busy ? null : _applyDigitalSign,
-          icon: Icon(locked ? AppIcons.lock : AppIcons.pdfSignCert),
-          label: Text(context.t(
-              _dsigUsePfx ? 'pf.dsig_pick_pfx' : 'pp.dsign_go')),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                key: const ValueKey('pf-dsig-submit'),
+                onPressed: _busy ? null : _applyDigitalSign,
+                icon: Icon(locked ? AppIcons.lock : AppIcons.pdfSignCert),
+                label: Text(context.t(
+                    _dsigUsePfx ? 'pf.dsig_pick_pfx' : 'pp.dsign_go')),
+              ),
+            ),
+            if (locked) ...[
+              const SizedBox(width: Gap.sm),
+              const ProBadge(),
+            ],
+          ],
         ),
         const SizedBox(height: Gap.lg),
       ],

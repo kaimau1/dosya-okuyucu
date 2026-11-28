@@ -5,14 +5,93 @@ extension _RemoteBrowserScreenActionsPart on _RemoteBrowserScreenState {
     try {
       await _fs.connect();
       _connected = true;
+      var home = false;
+      if (_supportsHomeView) {
+        try {
+          home = (await SharedPreferences.getInstance())
+                  .getBool(_RemoteBrowserScreenState._viewPrefKey) ??
+              true;
+        } catch (_) {
+          home = true;
+        }
+      }
+      if (!mounted) return;
+      _partSetState(() => _usbHomeMode = home);
       await _load(_path);
       unawaited(_loadUsage());
+      if (home) unawaited(_scanUsbHome());
     } catch (e) {
       if (!mounted) return;
       _partSetState(() {
         _busy = false;
         _error = errorTextFor(context, e);
       });
+    }
+  }
+
+  Future<void> _toggleUsbView(bool home) async {
+    _partSetState(() {
+      _usbHomeMode = home;
+      _usbCat = null;
+      _selected.clear();
+    });
+    try {
+      await (await SharedPreferences.getInstance())
+          .setBool(_RemoteBrowserScreenState._viewPrefKey, home);
+    } catch (_) {
+      // Oturum içinde geçiş yine çalışır.
+    }
+    if (home && _usbCats.isEmpty && !_scanningHome) {
+      unawaited(_scanUsbHome());
+    }
+  }
+
+  /// Salt okunur, sınırlı USB/SAF taraması: kategori kartlarını besler.
+  Future<void> _scanUsbHome() async {
+    if (!_supportsHomeView) return;
+    final gen = ++_scanGen;
+    _partSetState(() => _scanningHome = true);
+    final cats = <FmCategory, List<RemoteEntry>>{};
+    final files = <RemoteEntry>[];
+    final queue = Queue<(String, int)>.of([(widget.connection.rootPath, 0)]);
+    var visitedDirs = 0;
+    try {
+      while (queue.isNotEmpty &&
+          mounted &&
+          gen == _scanGen &&
+          files.length < 1500 &&
+          visitedDirs < 120) {
+        final (dir, depth) = queue.removeFirst();
+        visitedDirs++;
+        List<RemoteEntry> children;
+        try {
+          children = await _fs.list(dir);
+        } catch (_) {
+          continue;
+        }
+        for (final entry in children) {
+          if (entry.isDir) {
+            if (depth < 4 && !entry.name.startsWith('.')) {
+              queue.add((entry.path, depth + 1));
+            }
+          } else {
+            final ext = p.extension(entry.name).replaceFirst('.', '');
+            final c = FsEntry.categoryForExtension(ext);
+            (cats[c] ??= []).add(entry);
+            files.add(entry);
+            if (files.length >= 1500) break;
+          }
+        }
+      }
+      files.sort((a, b) => b.modifiedMs.compareTo(a.modifiedMs));
+    } finally {
+      if (mounted && gen == _scanGen) {
+        _partSetState(() {
+          _usbCats = cats;
+          _usbRecent = files.take(50).toList();
+          _scanningHome = false;
+        });
+      }
     }
   }
 
@@ -43,17 +122,22 @@ extension _RemoteBrowserScreenActionsPart on _RemoteBrowserScreenState {
   /// Klasörler HER ZAMAN önce gelir (boyuta göre sıralarken bile): dosya
   /// yöneticisinde gezinti klasörlerden geçer, onları büyüklüğe göre araya
   /// serpiştirmek gezinmeyi zorlaştırır.
-  List<RemoteEntry> get _visible => _RemoteBrowserScreenState.sortEntries(
-        _filter.trim().isEmpty
-            ? _entries
-            : [
-                for (final e in _entries)
-                  if (e.name.toLowerCase().contains(_filter.trim().toLowerCase()))
-                    e,
-              ],
-        _sort,
-        ascending: _ascending,
-      );
+  List<RemoteEntry> get _visible {
+    final source = (_inUsbHome && _usbCat != null)
+        ? (_usbCats[_usbCat!] ?? const <RemoteEntry>[])
+        : _entries;
+    return _RemoteBrowserScreenState.sortEntries(
+      _filter.trim().isEmpty
+          ? source
+          : [
+              for (final e in source)
+                if (e.name.toLowerCase().contains(_filter.trim().toLowerCase()))
+                  e,
+            ],
+      _sort,
+      ascending: _ascending,
+    );
+  }
 
   /// Ham USB'de doluluğu okur (yalnız bir kez; pahalı değil ama boşuna da
   /// tekrarlanmasın). Diğer protokollerde kapasite kavramı yok.

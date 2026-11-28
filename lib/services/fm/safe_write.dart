@@ -3,6 +3,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 
+/// İptal edilen kopyalama için hafif istisna (katman sınırı gerektirmez).
+class SafeWriteCancelled implements Exception {
+  const SafeWriteCancelled();
+}
+
 /// **Kullanıcı dosyasının üzerine YARIDA KALAMAYAN yazma** (2026-09-27).
 ///
 /// Kullanıcı bulgusu: 3239 sayfalık bir e-kitap PDF'ine vurgu eklenip
@@ -65,18 +70,92 @@ abstract final class SafeWrite {
   }
 
   /// [source]un kopyasını [target]ın yerine bölünmez biçimde koyar.
-  static Future<void> copy(String source, String target) async {
+  ///
+  /// [onProgress] ya da [isCancelled] verilirse büyük dosyalar 256 KB
+  /// parçalarla akıtılır; kullanıcı ilerlemeyi MB/GB olarak canlı görür ve
+  /// iptalde yarıda kalan geçici dosya temizlenir.
+  static Future<void> copy(
+    String source,
+    String target, {
+    void Function(int copiedBytes)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    if (isCancelled?.call() ?? false) {
+      throw const SafeWriteCancelled();
+    }
     final expected = await File(source).length();
     final temp = File(_tempFor(target));
+    if ((onProgress == null && isCancelled == null) || expected < 512 * 1024) {
+      try {
+        await File(source).copy(temp.path);
+      } catch (e) {
+        await _deleteQuietly(temp);
+        if (!_canFallbackToDirectWrite(e)) rethrow;
+        await File(source).copy(target);
+        onProgress?.call(expected);
+        return;
+      }
+      await _commit(temp, target, expected);
+      onProgress?.call(expected);
+      return;
+    }
+
     try {
-      await File(source).copy(temp.path);
+      await _streamCopy(source, temp,
+          onProgress: onProgress, isCancelled: isCancelled);
     } catch (e) {
       await _deleteQuietly(temp);
-      if (!_canFallbackToDirectWrite(e)) rethrow;
-      await File(source).copy(target);
+      if (e is SafeWriteCancelled || !_canFallbackToDirectWrite(e)) rethrow;
+      await _streamCopy(source, File(target),
+          onProgress: onProgress, isCancelled: isCancelled);
       return;
     }
     await _commit(temp, target, expected);
+  }
+
+  static Future<void> _streamCopy(
+    String source,
+    File destFile, {
+    void Function(int copiedBytes)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
+    final raf = await File(source).open();
+    final sink = destFile.openWrite();
+    const chunkSize = 256 * 1024;
+    var copied = 0;
+    var lastReport = 0;
+    var sinkClosed = false;
+    try {
+      while (true) {
+        if (isCancelled?.call() ?? false) {
+          throw const SafeWriteCancelled();
+        }
+        final bytes = await raf.read(chunkSize);
+        if (bytes.isEmpty) break;
+        sink.add(bytes);
+        copied += bytes.length;
+        // Büyük dosyalarda her 1 MB'da geri basıncı boşalt (RAM şişmesin).
+        if (copied - lastReport >= 1024 * 1024) {
+          await sink.flush();
+          lastReport = copied;
+          onProgress?.call(copied);
+        } else {
+          onProgress?.call(copied);
+        }
+      }
+      await sink.flush();
+      await sink.close();
+      sinkClosed = true;
+    } finally {
+      await raf.close();
+      if (!sinkClosed) {
+        try {
+          await sink.close();
+        } catch (_) {
+          // Bilinçli: hata/iptal akışı zaten sürüyorken ikinci hata yutulur.
+        }
+      }
+    }
   }
 
   /// [copy]nin eşzamanlı hâli — yalnız açılıştaki kurtarma gibi zorunlu

@@ -27,13 +27,18 @@ extension _ViewerScreenFindReplacePart on _ViewerScreenState {
         _pdfSearcher?.resetTextSearch();
         _ocrSearch?.reset();
       } else {
+        // İsteğe-bağlı sayfa boyutlandırma açıkken metin araması bekleyen
+        // sayfaları da sıraya alsın ki arama hiç takılmasın.
+        final doc = _pdfDoc;
+        if (doc != null && doc.pages.any((pg) => !pg.isLoaded)) {
+          unawaited(doc.loadPagesProgressively());
+        }
         // Paketin `caseInsensitive`i yerel-duyarsız (İ/ı kaçıyordu); harf
         // biçimlerini kendimiz kapsayıp eşleştirmeyi duyarlı koşturuyoruz.
         _pdfSearcher?.startTextSearch(turkishSearchPattern(q),
             caseInsensitive: false);
         // Taranmış sayfalar: aynı desen OCR metninde aranır. Kullanıcının
         // baktığı sayfadan başlar — ilk sonuçlar gözün önünden gelir.
-        final doc = _pdfDoc;
         if (doc != null) {
           _ocrSearch?.start(doc, turkishSearchPattern(q), fromPage: _pdfPage);
         }

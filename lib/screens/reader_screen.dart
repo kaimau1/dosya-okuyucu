@@ -5,10 +5,15 @@ import 'package:provider/provider.dart';
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
 import '../core/copy_text.dart';
+import '../core/edition.dart';
 import '../core/l10n/app_strings.dart';
+import '../core/private_zone.dart';
+import '../services/offline_mode.dart';
 import '../services/pdf/pdf_ocr_text.dart';
 import '../services/read_aloud_ai.dart';
 import '../services/tts_service.dart';
+import '../widgets/ai_send_consent.dart';
+import '../widgets/pro_gate.dart';
 import '../widgets/tts_voice_sheet.dart';
 import '../core/snack.dart';
 import '../core/safe_insets.dart';
@@ -115,7 +120,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
     // "AI ile oku": sayfa metni okunmadan önce toparlanır. Başarısız olursa
     // özgün metin okunur — okuma asla durmaz (bkz. ReadAloudAi).
     final state = context.read<AppState>();
-    if (state.ttsAiRead && state.hasApiKey) {
+    if (state.ttsAiRead &&
+        Edition.current.has(Feature.ai) &&
+        !PrivateZone.active &&
+        !OfflineMode.enabled &&
+        state.hasApiKey &&
+        await AiSendConsent.ask(state)) {
       text = _narration[page] ??= await ReadAloudAi.tidyOrOriginal(
         state.gemini,
         text,
@@ -243,8 +253,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
               ),
               CheckedPopupMenuItem(
                 value: 'ai',
-                checked: context.watch<AppState>().ttsAiRead,
-                child: Text(context.t('tts.ai_read')),
+                checked: context.watch<AppState>().ttsAiRead &&
+                    Edition.current.has(Feature.ai),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(context.t('tts.ai_read'))),
+                    if (ProGate.locked(Feature.ai)) ...[
+                      const SizedBox(width: 8),
+                      const ProBadge(),
+                    ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -288,6 +307,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
       return;
     }
     if (action != 'ai') return;
+    if (ProGate.locked(Feature.ai)) {
+      ProGate.guard(context, Feature.ai, () {});
+      return;
+    }
     final next = !state.ttsAiRead;
     if (next && !state.hasApiKey) {
       showSnackOn(messenger, AppStrings.current.t('tts.ai_needs_key'));

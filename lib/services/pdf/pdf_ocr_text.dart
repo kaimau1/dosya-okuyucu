@@ -201,8 +201,14 @@ class PdfOcrText {
       if (override != null) {
         result = await override(page);
       } else {
-        final rendered = await OcrService.renderPageForOcr(page,
-            tag: 'sel${page.pageNumber}');
+        if (OcrService.isUnavailable) return null;
+        final rendered = await OcrService.renderPageForOcr(
+          page,
+          tag: 'sel${page.pageNumber}',
+          targetWidth: 1600,
+          losslessPng: false,
+          priority: PdfPageRenderPriority.normal,
+        );
         if (rendered != null) {
           try {
             final lines =

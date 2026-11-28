@@ -12,6 +12,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/motion.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
 import '../../services/pdf/pro/pdf_object_geometry.dart';
+import '../../services/pdf/pro/pdf_smart_ink.dart';
 import 'pdf_pro_edit_controller.dart';
 
 part 'pdf_block_layer_painter.dart';
@@ -101,6 +102,7 @@ class PdfProLayerEvents {
     required this.onTextBox,
     this.onPlace,
     this.onSwitch,
+    this.onSmartSelect,
   });
 
   /// Damga / serbest metin konacak nokta (sayfa uzayı, sol üst köşe).
@@ -132,6 +134,10 @@ class PdfProLayerEvents {
   /// mevcut yazım uygulanır ve klavye kapanmadan o bloğa geçilir. Null ise
   /// eski davranış (yalnız uygula).
   final void Function(int pageIndex, double x, double y)? onSwitch;
+
+  /// Akıllı mürekkep daire çizerek metin/paragraf seçtiğinde çağrılır.
+  final void Function(int pageIndex, String text, List<List<double>> quads)?
+      onSmartSelect;
 }
 
 /// **Düzenleme kipinin sayfa katmanı** (PDF Pro Faz 54–60).
@@ -533,11 +539,13 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
     try {
       if (kind == PdfMarkupKind.ink || kind == PdfMarkupKind.marker) {
         if (stroke.length < 2) return;
+        final pdfPts = <({double x, double y})>[];
         final pts = <double>[];
         var l = double.infinity, b = double.infinity;
         var r = -double.infinity, t = -double.infinity;
         for (final o in stroke) {
           final p = _p(o);
+          pdfPts.add((x: p.x, y: p.y));
           pts
             ..add(p.x)
             ..add(p.y);
@@ -547,6 +555,72 @@ class _PdfProBlockLayerState extends State<PdfProBlockLayer> {
           t = math.max(t, p.y);
         }
         final width = _inkWidth(kind) * pressure;
+        if (c.smartInk) {
+          final smart = analyzeSmartInk(
+            points: pdfPts,
+            blocks: c.blocksOf(pageIndex) ?? const <PdfTextBlock>[],
+            isHighlighter: kind == PdfMarkupKind.marker,
+          );
+          switch (smart) {
+            case SmartInkTextMarkup(:final type, :final quads, :final rect):
+              AppHaptics.selection();
+              await c.annotate(
+                PdfAnnotChange.add(pageIndex, type,
+                    rect: rect,
+                    quads: quads,
+                    color: c.markupColor | 0xFF000000),
+                label: 'pse.step_markup',
+              );
+              return;
+            case SmartInkCircleText(:final text, :final quads, :final rect):
+              AppHaptics.selection();
+              final onSmart = widget.events.onSmartSelect;
+              if (onSmart != null) {
+                onSmart(pageIndex, text, quads);
+              } else {
+                await c.annotate(
+                  PdfAnnotChange.add(pageIndex, PdfAnnotType.highlight,
+                      rect: rect,
+                      quads: quads,
+                      color: c.markupColor | 0xFF000000),
+                  label: 'pse.step_markup',
+                );
+              }
+              return;
+            case SmartInkCleanEllipse(:final rect):
+              AppHaptics.selection();
+              await c.mutate(pageIndex, [
+                PdfMutAction.shape(
+                  PdfShapeKind.ellipse,
+                  rect[0],
+                  rect[1],
+                  rect[2],
+                  rect[3],
+                  stroke: c.markupColor | 0xFF000000,
+                  strokeWidth: width,
+                ),
+              ], label: 'pse.step_shape');
+              return;
+            case SmartInkCleanLine(:final points, :final rect):
+              AppHaptics.selection();
+              await c.annotate(
+                PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
+                    rect: [
+                      rect[0] - width,
+                      rect[1] - width,
+                      rect[2] + width,
+                      rect[3] + width,
+                    ],
+                    ink: [points],
+                    color: _inkColor(kind),
+                    width: width),
+                label: 'pse.step_ink',
+              );
+              return;
+            case null:
+              break;
+          }
+        }
         await c.annotate(
             PdfAnnotChange.add(pageIndex, PdfAnnotType.ink,
                 rect: [l - width, b - width, r + width, t + width],

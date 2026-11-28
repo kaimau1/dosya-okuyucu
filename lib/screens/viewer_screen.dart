@@ -387,9 +387,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// uygulanmıyordu — "kaldığı yerden devam düzgün çalışmıyor" (2026-09-27).
   bool _resumeReady = true;
 
-  /// Dosyanın boyu (bayt) — okuma konumu ve yer imleri yol değişince de
-  /// bulunsun diye (bkz. [ReadingPositions.pageOf]).
-  int _docSize = 0;
+  /// Dosyanın boyu (bayt) — okuma konumu, yer imleri ve büyük belge
+  /// isteğe-bağlı sayfa ölçümü ilk kareden beri doğru bilsin diye [LoadedDoc]'tan başlar.
+  late int _docSize = widget.doc.sizeBytes;
 
   /// Son atlayıştan (sayfaya git, arama, içindekiler) önceki sayfa —
   /// gezginde "N. sayfaya dön".
@@ -736,6 +736,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _textFocus.addListener(_onTextFocus);
     }
     if (doc.kind == DocKind.pdf) {
+      if (doc.sizeBytes > 0) _docSize = doc.sizeBytes;
       _priorityRelease = ViewerPriority.hold();
       _paintHook = _onFirstPagePainted;
       pdfrxOnPageImagePainted = _paintHook;
@@ -752,6 +753,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       // (USB'de okuma yarışı — 2026-11-14). Zamanlayıcı dispose'ta iptal.
       _formOfferTimer =
           Timer(Motion.afterOpen, () => unawaited(_offerFormFilling()));
+      if (ReadingPositions.isLoaded && PdfZoomMemory.isLoaded) {
+        _applyResumePage();
+      }
       unawaited(_restoreReadingPage());
     }
     if (doc.kind == DocKind.image) _imgTx.addListener(_onImgTransform);
@@ -784,10 +788,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// Sayfa `initialPageNumber` ile veriliyor: görüntüleyici kurulmadan ÖNCE
   /// bilinmesi gerekiyor, sonradan atlamak kullanıcıya bir sıçrama gösterirdi.
   Future<void> _restoreReadingPage() async {
-    try {
-      _docSize = await File(widget.doc.path).length();
-    } catch (_) {
-      // Bilinçli: boyut yalnız okuma konumu anahtarı için; okunamazsa konum hatırlanmaz.
+    if (_docSize <= 0) {
+      try {
+        _docSize = await File(widget.doc.path).length();
+      } catch (_) {
+        // Bilinçli: boyut yalnız okuma konumu anahtarı için; okunamazsa konum hatırlanmaz.
+      }
     }
     if (!mounted) return;
     unawaited(PdfBookmarks.ensureLoaded().then((_) {

@@ -378,15 +378,24 @@ Future<bool> moveOrCopyEntries(
   ));
   if (dest == null || !context.mounted) return false;
 
+  // Hedefte aynı adlı dosya varsa üzerine yazma / atla / ikisini de tut sorulsun.
+  final collisions = PasteConflict.collisions(paths, dest);
+  var conflict = FmConflict.rename;
+  if (collisions.isNotEmpty) {
+    final chosen = await showPasteConflictSheet(context, names: collisions);
+    if (chosen == null || !context.mounted) return false;
+    conflict = chosen;
+  }
+
   final result = await showFmProgress<FmOpResult>(
     context,
     title: move ? context.t('fm.moving') : context.t('fm.copying'),
     name: context.t(move ? 'fm.moving_name' : 'fm.copying_name'),
     task: (report, isCancelled) => move
-        ? FileOps.moveAll(paths, dest, onProgress: report,
-            isCancelled: isCancelled)
-        : FileOps.copyAll(paths, dest, onProgress: report,
-            isCancelled: isCancelled),
+        ? FileOps.moveAll(paths, dest,
+            conflict: conflict, onProgress: report, isCancelled: isCancelled)
+        : FileOps.copyAll(paths, dest,
+            conflict: conflict, onProgress: report, isCancelled: isCancelled),
   );
   if (result.errors.contains(SafWrite.noGrant)) {
     if (context.mounted) showSafGrantSnack(context, dest);

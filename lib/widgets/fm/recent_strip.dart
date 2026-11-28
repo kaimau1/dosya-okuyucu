@@ -8,6 +8,7 @@ import '../../core/app_icons.dart';
 import '../../core/l10n/app_strings.dart';
 import '../../core/theme.dart';
 import '../../models/fs_entry.dart';
+import '../../services/fm/fm_env.dart';
 import '../../services/fm/fresh_cache.dart';
 import '../../services/fm/fs_events.dart';
 import '../../services/fm/fs_scan.dart';
@@ -78,8 +79,9 @@ List<StripItem> mergeStripItems({
   final all = <(int, int, StripItem)>[];
   void add(int at, StripItem item) => all.add((at, all.length, item));
   for (final e in fresh) {
-    if (!seen.add(e.path)) continue;
-    final at = openedAt(e.path);
+    final key = canonicalAndroidPath(e.path);
+    if (!seen.add(key)) continue;
+    final at = openedAt(e.path) ?? (key == e.path ? null : openedAt(key));
     if (at != null && at >= e.modifiedMs) {
       add(at, (entry: e, mark: StripMark.opened));
     } else {
@@ -87,8 +89,10 @@ List<StripItem> mergeStripItems({
     }
   }
   for (final e in opened) {
-    if (!seen.add(e.path)) continue;
-    add(openedAt(e.path) ?? e.modifiedMs, (entry: e, mark: StripMark.opened));
+    final key = canonicalAndroidPath(e.path);
+    if (!seen.add(key)) continue;
+    final at = openedAt(e.path) ?? (key == e.path ? null : openedAt(key));
+    add(at ?? e.modifiedMs, (entry: e, mark: StripMark.opened));
   }
   // Eşit zamanda ilk geliş sırası korunur (Dart sort kararlı değil).
   all.sort((a, b) {

@@ -3,6 +3,19 @@ import 'package:path_provider/path_provider.dart';
 import 'storage_stats.dart';
 import 'trash_service.dart';
 
+/// Aynı dahili belleği gösteren Android takma yollarını (`/sdcard/…`,
+/// `/storage/self/primary/…`) tek kanonik `/storage/emulated/0/…` yoluna
+/// indirger — "Son dosyalar"da aynı belgenin çift görünmesini önler.
+String canonicalAndroidPath(String path) {
+  for (final alias in const ['/sdcard', '/storage/self/primary']) {
+    if (path == alias) return StorageStats.primaryPath;
+    if (path.startsWith('$alias/')) {
+      return '${StorageStats.primaryPath}${path.substring(alias.length)}';
+    }
+  }
+  return path;
+}
+
 /// Dosya yöneticisinin çalışma ortamı: birimler, kökler ve çöp kutusu.
 ///
 /// Tek yerden kurulur ve ekranlar arasında paylaşılır — her ekranın `df`
@@ -77,6 +90,17 @@ abstract final class FmEnv {
 
   static List<String> get volumeRoots => [
         for (final v in volumes) v.path,
+        if (!volumes.any((v) => v.path == primaryRoot)) primaryRoot,
+      ];
+
+  /// Çıkarılabilir USB bellekler hariç cihaz kökleri (dahili + SD kart).
+  ///
+  /// USB takılıyken telefonun ana kategorileri (Belgeler/Videolar/Fotoğraflar),
+  /// Yeniler listesi ve Arama dizini USB'deki dosyalarla karışmasın diye
+  /// ayrıştırılır.
+  static List<String> get phoneRoots => [
+        for (final v in volumes)
+          if (v.kind != StorageKind.usb) v.path,
         if (!volumes.any((v) => v.path == primaryRoot)) primaryRoot,
       ];
 

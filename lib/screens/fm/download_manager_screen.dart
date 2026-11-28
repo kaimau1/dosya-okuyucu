@@ -13,7 +13,6 @@ import '../../services/fm/file_digest.dart';
 import '../../services/fm/file_ops.dart';
 import '../../services/fm/download_service.dart';
 import '../../services/fm/entry_opener.dart';
-import '../../services/fm/fm_env.dart';
 import '../../services/fm/fs_scan.dart';
 import '../../services/fm/github_release.dart';
 import '../../services/fm/storage_permission.dart';
@@ -416,8 +415,10 @@ Future<void> startDownloadFlow(BuildContext context, String rawUrl) async {
   final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
     builder: (_) => FolderPickerScreen(
       sources: const [],
+      homeCards: true,
+      itemCount: 1,
+      itemTitle: suggestedName ?? p.basename(target),
       actionLabel: context.t('dl.download_here'),
-      startPath: FmEnv.primaryRoot,
     ),
   ));
   if (dest == null || !context.mounted) return;

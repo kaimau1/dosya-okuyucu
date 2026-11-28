@@ -15,8 +15,10 @@ import '../services/fm/entry_opener.dart';
 import '../services/fm/save_to_downloads.dart';
 import '../services/pdf/pdf_markup.dart';
 import '../widgets/download_action.dart';
+import '../widgets/fm/archive_password_dialog.dart';
 import '../widgets/ink/pen_tray.dart';
 import '../widgets/pdf_save_dialog.dart';
+import '../widgets/state_views.dart';
 import '../core/user_error.dart';
 import '../core/app_colors.dart';
 
@@ -171,6 +173,26 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
   Offset? _handStart;
 
   bool _busy = false;
+  String? _pdfPassword;
+  bool _pdfPasswordTried = false;
+
+  Future<String?> _askPdfPassword() async {
+    final known = _pdfPassword;
+    if (known != null && !_pdfPasswordTried) {
+      _pdfPasswordTried = true;
+      return known;
+    }
+    if (!mounted) return null;
+    final entered = await askArchivePassword(
+      context,
+      retry: known != null,
+      title: context.t('pt.locked_title'),
+      body: context.t('pt.enter_password'),
+    );
+    _pdfPassword = entered;
+    _pdfPasswordTried = entered != null;
+    return entered;
+  }
 
   @override
   void dispose() {
@@ -228,6 +250,15 @@ class _PdfInkScreenState extends State<PdfInkScreen> {
           ? _scaffold(context, widget.testPageSizes, (_) => const SizedBox())
           : PdfDocumentViewBuilder.file(
               widget.path,
+              passwordProvider: _askPdfPassword,
+              errorBuilder: (context, error, _) => Scaffold(
+                appBar: AppBar(title: Text(p.basename(widget.path))),
+                body: AppErrorView(
+                  message: context.t(error is PdfPasswordException
+                      ? 'uerr.pdf_locked'
+                      : 'vw.pdf_error_broken'),
+                ),
+              ),
               builder: (context, document) {
                 final pages = document?.pages;
                 return _scaffold(

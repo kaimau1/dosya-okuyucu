@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../../core/edition.dart';
+import '../../core/private_zone.dart';
+import '../offline_mode.dart';
 
 /// **İnternetten altyazı** — OpenSubtitles REST API (v1).
 ///
@@ -66,6 +68,12 @@ abstract final class OpenSubtitles {
     String videoPath,
     List<String> languages,
   ) async {
+    if (PrivateZone.active || PrivateZone.isPrivatePath(videoPath)) {
+      throw OpenSubtitlesError('Gizli dosyalar için altyazı aranmaz');
+    }
+    if (OfflineMode.enabled) {
+      throw const OfflineException();
+    }
     final hash = await movieHash(videoPath);
     final query = p
         .basenameWithoutExtension(videoPath)

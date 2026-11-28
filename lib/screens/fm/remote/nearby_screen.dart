@@ -332,8 +332,30 @@ class _NearbyScreenState extends State<NearbyScreen> {
     if (widget.services) unawaited(_boot());
     if (widget.services) {
       unawaited(_probeClipboard());
-      _life = AppLifecycleListener(onResume: () => unawaited(_probeClipboard()));
+      _life = AppLifecycleListener(
+        onPause: _pauseDiscovery,
+        onHide: _pauseDiscovery,
+        onResume: _resumeDiscovery,
+      );
     }
+  }
+
+  void _pauseDiscovery() {
+    _scanTimer?.cancel();
+    _pruneTimer?.cancel();
+    _scan?.cancel();
+    unawaited(BleNearby.stop());
+  }
+
+  void _resumeDiscovery() {
+    if (!mounted || !widget.services) return;
+    unawaited(_probeClipboard());
+    _scanWifi();
+    _scanTimer?.cancel();
+    _pruneTimer?.cancel();
+    _scanTimer = Timer.periodic(const Duration(seconds: 6), (_) => _scanWifi());
+    _pruneTimer = Timer.periodic(const Duration(seconds: 5), (_) => _prune());
+    unawaited(_startBle());
   }
 
   @override
@@ -413,7 +435,11 @@ class _NearbyScreenState extends State<NearbyScreen> {
 
   Future<void> _startBle() async {
     final r = await BleNearby.start(id: _id, name: _deviceName);
-    if (mounted) setState(() => _ble = r);
+    if (!mounted) {
+      unawaited(BleNearby.stop());
+      return;
+    }
+    setState(() => _ble = r);
   }
 
   // ── Bulma ──────────────────────────────────────────────────────────────

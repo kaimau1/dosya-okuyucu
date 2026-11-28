@@ -7,6 +7,7 @@ import '../../core/app_state.dart';
 import '../../core/edition.dart';
 import 'fm_env.dart';
 import 'native_extras.dart';
+import '../offline_mode.dart';
 import 'smart_quota.dart';
 import 'smart_sort.dart';
 
@@ -30,6 +31,7 @@ abstract final class SmartSortBg {
 
   static Future<void> run() async {
     if (!Edition.current.has(Feature.smartFolders)) return;
+    if (OfflineMode.enabled) return;
     await FmEnv.ensureInit();
     await SmartSort.readSettings();
     if (!SmartSort.wantsBackgroundJob) {

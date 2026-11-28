@@ -29,6 +29,7 @@ import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/docx_editor.dart';
+import '../../services/file_service.dart' show FileService;
 import '../../services/office_crypto.dart';
 import '../../widgets/app_dialog.dart';
 import '../../widgets/doc_action_bar.dart';

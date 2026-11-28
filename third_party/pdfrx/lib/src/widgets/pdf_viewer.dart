@@ -395,30 +395,29 @@ class _PdfViewerState extends State<PdfViewer>
         unawaited(_loadPagesInBackground());
       }
     }
-    _layoutDirty = true;
-    _metricsPageNumber = null;
-    _metricsZoom = null;
+    if (widget.params.margin != oldWidget.params.margin ||
+        widget.params.layoutPages != oldWidget.params.layoutPages ||
+        widget.params.pageAnchor != oldWidget.params.pageAnchor ||
+        widget.params.underflowAnchor != oldWidget.params.underflowAnchor ||
+        widget.params.pageAnchorEnd != oldWidget.params.pageAnchorEnd ||
+        widget.params.boundaryMargin != oldWidget.params.boundaryMargin ||
+        widget.params.scrollByArrowKey != oldWidget.params.scrollByArrowKey ||
+        widget.params.sizeDelegateProvider != oldWidget.params.sizeDelegateProvider ||
+        // ignore: deprecated_member_use_from_same_package
+        widget.params.maxScale != oldWidget.params.maxScale ||
+        // ignore: deprecated_member_use_from_same_package
+        widget.params.minScale != oldWidget.params.minScale ||
+        // ignore: deprecated_member_use_from_same_package
+        widget.params.useAlternativeFitScaleAsMinScale != oldWidget.params.useAlternativeFitScaleAsMinScale) {
+      _layoutDirty = true;
+      _metricsPageNumber = null;
+      _metricsZoom = null;
+    }
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
       _imageBudget.addListener(_onImageBudgetChanged);
       _imageCache.releaseAllImages();
       _magnifierImageCache.releaseAllImages();
-    }
-    if (widget.params.isVisible != oldWidget.params.isVisible) {
-      _visibilityGeneration++;
-      if (!widget.params.isVisible) {
-        _interactionDelegate?.stop();
-        _animController.stop();
-        _selectionHandleTicker?.stop();
-        _selectionHandleGlobalPosition = null;
-        _interactionEndedTimer?.cancel();
-        _isInteractionGoingOn = false;
-        _clearFontManagerAssociation();
-        _releaseCachedResources(keepVisible: false, keepSelection: true);
-      } else {
-        _updateFontManagerAssociation();
-        unawaited(_loadPagesInBackground());
-      }
     }
     _widgetUpdated(oldWidget);
     if (widget.params.interactionDelegateProvider != oldWidget.params.interactionDelegateProvider) {
@@ -1812,7 +1811,7 @@ class _PdfViewerState extends State<PdfViewer>
       maxImageCacheBytes: widget.params.maxImageBytesCachedOnMemory,
       targetRect: _visibleRect,
       cacheTargetRect: _getCacheExtentRect(),
-      scale: _currentZoom * MediaQuery.of(context).devicePixelRatio,
+      scale: _currentZoom * MediaQuery.devicePixelRatioOf(context),
       enableLowResolutionPagePreview: widget.params.behaviorControlParams.enableLowResolutionPagePreview,
       filterQuality: FilterQuality.low,
     );
@@ -2467,7 +2466,7 @@ class _PdfViewerState extends State<PdfViewer>
     double scale,
     Rect targetRect,
   ) async {
-    if (!mounted || !widget.params.isVisible) return;
+    if (!mounted || !widget.params.isVisible || _isUserScrolling) return;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
     scale = _boundedRenderingScale(scale, rect.width, rect.height, visiblePageCount: cache.visiblePageNumbers.length);
@@ -3951,7 +3950,7 @@ class _PdfViewerState extends State<PdfViewer>
                     widget.params.textSelectionParams?.magnifier?.maxImageBytesCachedOnMemory ??
                     PdfViewerSelectionMagnifierParams.defaultMaxImageBytesCachedOnMemory,
                 targetRect: rectToDraw,
-                scale: magScale * MediaQuery.of(context).devicePixelRatio,
+                scale: magScale * MediaQuery.devicePixelRatioOf(context),
                 enableLowResolutionPagePreview: true,
                 filterQuality: FilterQuality.low,
               );

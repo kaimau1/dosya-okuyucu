@@ -31,7 +31,17 @@ class SettingsCategoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: !embedded,
+        scrolledUnderElevation: embedded ? 1 : null,
         title: Text(context.t(category.titleKey)),
+        bottom: embedded
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Divider(
+                  height: 1,
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+                ),
+              )
+            : null,
       ),
       body: ListView(
         padding: withNavInset(context, const EdgeInsets.only(bottom: Gap.xl)),

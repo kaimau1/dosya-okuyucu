@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/edition.dart' show ProUnlock;
 import '../core/state/focused_states.dart';
 
 import '../core/l10n/app_strings.dart';
@@ -57,11 +58,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = settingsCategories(
-        developer: context.select<AppState, bool>((s) => s.developerMode));
+    final developer = context.select<AppState, bool>((s) => s.developerMode);
     final query = _query.trim();
 
-    return Scaffold(
+    return ValueListenableBuilder<bool>(
+      valueListenable: ProUnlock.owned,
+      builder: (context, _, _) {
+        final categories = settingsCategories(developer: developer);
+        return Scaffold(
       appBar: AppBar(
         title: Text(context.t('settings.title')),
         // Arama kutusu HEP açık, düğme arkasında değil: "ayarı bulamıyorum"
@@ -110,6 +114,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? _wideLayout(categories)
               : _categoryList(categories),
     );
+      },
+    );
   }
 
   /// Liste-ayrıntı: solda kategoriler, sağda seçili kategorinin sayfası.
@@ -156,7 +162,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const _AppearanceHero(),
           const SizedBox(height: Gap.sm + 2),
         ],
-        _Suggestions(categories: categories),
+        _Suggestions(categories: categories, wrap: !showHero),
         Material(
           key: const ValueKey('settings-categories'),
           color: scheme.surfaceContainerLow,
@@ -377,7 +383,8 @@ class _CategoryCard extends StatelessWidget {
 /// Kategori kartlarını aşağı itmemek için tek satır (bkz. [_QuickHeader]).
 class _Suggestions extends StatelessWidget {
   final List<SettingsCategory> categories;
-  const _Suggestions({required this.categories});
+  final bool wrap;
+  const _Suggestions({required this.categories, this.wrap = false});
 
   @override
   Widget build(BuildContext context) {
@@ -396,53 +403,64 @@ class _Suggestions extends StatelessWidget {
     if (rows.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final header = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(AppIcons.ai, size: 16, color: scheme.primary),
+        const SizedBox(width: 4),
+        Text(
+          context.t('set.suggested'),
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: scheme.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+    Widget chipOf(SettingRow r) => ActionChip(
+          key: ValueKey('suggest-${r.id}'),
+          label: Text(context.t(r.titleKey)),
+          // Alt levhada çift başlık olmasın: bileşen kendi
+          // başlığını (SettingTile / SettingChoice) zaten çizer.
+          onPressed: () => showAppSheet<void>(
+            context,
+            builder: r.builder,
+          ),
+        );
     return Padding(
       padding: const EdgeInsets.only(bottom: Gap.sm),
       child: Semantics(
         container: true,
         label: context.t('set.suggested'),
-        child: SizedBox(
-          height: 48,
-          child: ListView(
-            key: const ValueKey('settings-suggested'),
-            scrollDirection: Axis.horizontal,
-            children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: Gap.sm),
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(AppIcons.ai, size: 16, color: scheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        context.t('set.suggested'),
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: scheme.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
+        child: wrap
+            ? Wrap(
+                key: const ValueKey('settings-suggested'),
+                spacing: Gap.sm,
+                runSpacing: Gap.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  header,
+                  for (final r in rows) chipOf(r),
+                ],
+              )
+            : SizedBox(
+                height: 48,
+                child: ListView(
+                  key: const ValueKey('settings-suggested'),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+                      child: Center(child: header),
+                    ),
+                    for (final r in rows)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: Gap.sm),
+                        child: chipOf(r),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
-              for (final r in rows)
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: Gap.sm),
-                  child: ActionChip(
-                    key: ValueKey('suggest-${r.id}'),
-                    label: Text(context.t(r.titleKey)),
-                    // Alt levhada çift başlık olmasın: bileşen kendi
-                    // başlığını (SettingTile / SettingChoice) zaten çizer.
-                    onPressed: () => showAppSheet<void>(
-                      context,
-                      builder: r.builder,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
       ),
     );
   }

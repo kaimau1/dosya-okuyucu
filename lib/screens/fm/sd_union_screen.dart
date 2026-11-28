@@ -154,7 +154,9 @@ class _SdUnionScreenState extends State<SdUnionScreen> {
     showSnack(context, context.t('sdu.run_started'));
     // İş sistem kuyruğundan birkaç yüz ms içinde başlar.
     await Future<void>.delayed(const Duration(milliseconds: 600));
+    if (!mounted) return;
     await _refreshStatus();
+    if (!mounted) return;
     _poll ??= Timer.periodic(
         const Duration(milliseconds: 1500), (_) => _refreshStatus());
   }

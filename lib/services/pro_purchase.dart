@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -9,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/edition.dart';
 import 'crash_log.dart';
+import 'offline_mode.dart';
 
 /// Satın alma denemesinin sonucu (arayüz iletisi seçer).
 enum ProBuyResult { purchased, pending, canceled, unavailable, failed }
@@ -37,6 +39,9 @@ abstract final class ProPurchase {
   static final ValueNotifier<String?> storePrice = ValueNotifier<String?>(null);
 
   static bool get _enabled => Edition.current == Edition.lite;
+
+  static bool get _platformSupported =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
 
   static StreamSubscription<List<PurchaseDetails>>? _sub;
   static Completer<ProBuyResult>? _pending;
@@ -73,9 +78,17 @@ abstract final class ProPurchase {
   }
 
   static Future<String?> _fetchPrice() async {
+    if (OfflineMode.enabled) return storePrice.value;
+    if (!_platformSupported) return storePrice.value;
     try {
-      if (!await InAppPurchase.instance.isAvailable()) return storePrice.value;
-      final q = await InAppPurchase.instance.queryProductDetails({productId});
+      if (!await InAppPurchase.instance
+          .isAvailable()
+          .timeout(const Duration(seconds: 10), onTimeout: () => false)) {
+        return storePrice.value;
+      }
+      final q = await InAppPurchase.instance
+          .queryProductDetails({productId})
+          .timeout(const Duration(seconds: 15));
       final detail = q.productDetails.firstOrNull;
       if (detail != null) await _savePrice(detail.price);
     } catch (_) {
@@ -112,12 +125,20 @@ abstract final class ProPurchase {
   /// Döner: Pro sahipliği; Play'e ulaşılamazsa null (yerel kayıt korunur).
   static Future<bool?> verify() async {
     if (!_enabled) return ProUnlock.owned.value;
+    if (OfflineMode.enabled) return null;
+    if (!_platformSupported) return null;
     try {
       _listen();
-      if (!await InAppPurchase.instance.isAvailable()) return null;
+      if (!await InAppPurchase.instance
+          .isAvailable()
+          .timeout(const Duration(seconds: 10), onTimeout: () => false)) {
+        return null;
+      }
       final addition = InAppPurchase.instance
           .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-      final res = await addition.queryPastPurchases();
+      final res = await addition
+          .queryPastPurchases()
+          .timeout(const Duration(seconds: 25));
       if (res.error != null) return null;
       final owned = res.pastPurchases.where(isOwnedPro).firstOrNull;
       if (owned == null) {
@@ -136,12 +157,18 @@ abstract final class ProPurchase {
   /// Satın alma akışını başlatır; Play'in yanıtını bekler.
   static Future<ProBuyResult> buy() async {
     if (!_enabled) return ProBuyResult.purchased;
+    if (OfflineMode.enabled) return ProBuyResult.unavailable;
+    if (!_platformSupported) return ProBuyResult.unavailable;
     try {
       _listen();
-      if (!await InAppPurchase.instance.isAvailable()) {
+      if (!await InAppPurchase.instance
+          .isAvailable()
+          .timeout(const Duration(seconds: 10), onTimeout: () => false)) {
         return ProBuyResult.unavailable;
       }
-      final q = await InAppPurchase.instance.queryProductDetails({productId});
+      final q = await InAppPurchase.instance
+          .queryProductDetails({productId})
+          .timeout(const Duration(seconds: 25));
       if (q.productDetails.isEmpty) return ProBuyResult.unavailable;
       unawaited(_savePrice(q.productDetails.first.price));
       _pending = Completer<ProBuyResult>();
@@ -149,7 +176,13 @@ abstract final class ProPurchase {
         purchaseParam: PurchaseParam(productDetails: q.productDetails.first),
       );
       if (!started) _finish(ProBuyResult.failed);
-      return await _pending!.future;
+      return await _pending!.future.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          _finish(ProBuyResult.failed);
+          return ProBuyResult.failed;
+        },
+      );
     } catch (e, st) {
       unawaited(CrashLog.record(e, st, context: 'pro.buy'));
       // Zaten sahipse Play hata döndürür → kayıttan geri yükle.

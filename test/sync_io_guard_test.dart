@@ -25,16 +25,12 @@ void main() {
     'lib/screens/editors/slides/actions.dart': 1,
     // PDF araçları açılışında tek boy denetimi (bütçe üstü PDF'i reddeder).
     'lib/screens/pdf_tools/actions.dart': 1,
-    // PDF kabuğu — yalnız hata kartında (sıcak yol değil).
-    'lib/screens/viewer/pdf_navigation.dart': 1,
     // Ana ekran (ÖLÇÜM KAPISI) — C2: başlangıç klasörü, açılışta tek stat.
     'lib/screens/home_screen.dart': 1,
     // Pano (ÖLÇÜM KAPISI) — C2: Önemli Dosyalar kutusu `build`'de stat.
     'lib/screens/fm/dashboard/tiles.dart': 1,
     // `downloadsPathIn` ana ekran/pano `build`'inden çağrılıyor — C2.
     'lib/screens/fm/downloads_screen.dart': 1,
-    // Dosya seçici panosu (dosya listesi ailesi) — C2: Önemli kutusu.
-    'lib/screens/fm/pick_file_screen/parts.dart': 1,
     // Açılışta tek stat; eşzamansızı a11y testinin sahte saatinde bitmiyor.
     'lib/screens/fm/important_screen.dart': 1,
     // Dokunuşta (QR ile al) tek stat — build/kaydırma değil.

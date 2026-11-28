@@ -31,6 +31,10 @@ abstract final class TileReceiver {
       offer.encrypted &&
       trusted.isTrusted(offer.from, offer.fromId, offer.fingerprint);
 
+  /// Kutucuk kipinde yazı yalnız şifreli oturumda anahtarıyla güvenilen eşten alınır.
+  static bool acceptsText(String fingerprint, TrustedPeers trusted) =>
+      fingerprint.isNotEmpty && trusted.byKey(fingerprint) != null;
+
   static String saveDir() {
     final download = p.join(FmEnv.primaryRoot, 'Download');
     return Directory(download).existsSync() ? download : FmEnv.primaryRoot;
@@ -51,6 +55,10 @@ abstract final class TileReceiver {
         if (accepts(offer, TrustedPeers.instance)) return true;
         unawaited(_call('asked', {'from': offer.from}));
         return false;
+      },
+      onAskText: (_, fp) async {
+        await TrustedPeers.instance.reload();
+        return acceptsText(fp, TrustedPeers.instance);
       },
       onText: (text, from) {
         unawaited(() async {

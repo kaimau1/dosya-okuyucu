@@ -178,21 +178,53 @@ class LanguageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    return SettingChoice<AppLanguage>(
-      icon: AppIcons.translate,
-      title: context.t('settings.language'),
-      subtitle: context.t('settings.language_note'),
-      options: [
-        for (final lang in AppLanguage.values)
-          (
-            lang,
-            lang == AppLanguage.system
-                ? context.t('settings.language_system')
-                : lang.nativeLabel
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(AppIcons.translate,
+                  size: 22, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: Gap.md + 2),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(context.t('settings.language'),
+                        style: Theme.of(context).textTheme.bodyLarge),
+                    Text(
+                      context.t('settings.language_note'),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Paper.faint(context)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-      ],
-      selected: appState.language,
-      onChanged: appState.setLanguage,
+          const SizedBox(height: Gap.sm),
+          Wrap(
+            spacing: Gap.xs,
+            runSpacing: Gap.xs,
+            children: [
+              for (final lang in AppLanguage.values)
+                ChoiceChip(
+                  label: Text(
+                    lang == AppLanguage.system
+                        ? context.t('settings.language_system')
+                        : lang.nativeLabel,
+                  ),
+                  selected: appState.language == lang,
+                  onSelected: (_) => appState.setLanguage(lang),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

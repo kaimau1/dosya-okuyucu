@@ -94,6 +94,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   /// yetişene dek kalır ([_maybeRelease]) — eski kareye sıçrama görünmez.
   bool _dragging = false;
   Timer? _releaseTimer;
+  AppLifecycleListener? _life;
 
   /// Bölge seçimi sürerken: hangi araç, hangi aralık, (ses için) hangi dosya.
   _Tool? _tool;
@@ -107,6 +108,16 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
   @override
   void initState() {
     super.initState();
+    _life = AppLifecycleListener(
+      onPause: () {
+        unawaited(_video?.pause());
+        _pauseAudio();
+      },
+      onHide: () {
+        unawaited(_video?.pause());
+        _pauseAudio();
+      },
+    );
     final known = widget.durationMs ?? 0;
     if (known > 0) _setDuration(known);
     // Oynatıcı kurulumu sayfa geçişi BİTİNCE (kurulum platform iş parçacığını
@@ -876,6 +887,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
 
   @override
   void dispose() {
+    _life?.dispose();
     _releaseTimer?.cancel();
     _video
       ?..removeListener(_onTick)
@@ -1372,7 +1384,7 @@ class _VideoTrimScreenState extends State<VideoTrimScreen> {
       children: [
         if (shown != null)
           Image(
-            image: FmFileImage(shown),
+            image: ResizeImage.resizeIfNeeded(640, null, FmFileImage(shown)),
             fit: BoxFit.contain,
             gaplessPlayback: true,
             errorBuilder: (_, _, _) => const SizedBox.shrink(),

@@ -570,14 +570,15 @@ class _ApkExportSheetState extends State<_ApkExportSheet> {
       );
 
   Future<void> _pickDir() async {
-    final start = await Directory(_dir).exists() ? _dir : FmEnv.primaryRoot;
     if (!mounted) return;
     final actionLabel = context.t('apk.save_here');
     final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
       builder: (_) => FolderPickerScreen(
         sources: const [],
+        homeCards: true,
+        itemCount: 1,
+        itemTitle: _fileName(),
         actionLabel: actionLabel,
-        startPath: start,
       ),
     ));
     if (dest != null && mounted) setState(() => _dir = dest);

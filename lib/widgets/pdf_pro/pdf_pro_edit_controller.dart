@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/motion.dart';
 import '../../services/pdf/pro/pdf_edit_bridge.dart';
@@ -394,6 +395,7 @@ class PdfProEditController extends ChangeNotifier {
     PdfEditRecovery.begin(path);
     _timer = Timer.periodic(
         snapshotEvery ?? PdfEditRecovery.snapshotEvery, (_) => _snapshot());
+    unawaited(loadSmartInkPref());
   }
 
   final PdfDocument document;
@@ -513,8 +515,46 @@ class PdfProEditController extends ChangeNotifier {
   bool stylusSeen = false;
 
   /// İşaretleme rengi (ARGB) ve çizgi kalınlığı.
+  static const _kSmartInk = 'pdf_smart_ink';
+  bool _smartInk = true;
+  bool _smartInkUserSet = false;
+  bool get smartInk => _smartInk;
+  set smartInk(bool v) {
+    _smartInkUserSet = true;
+    if (_smartInk == v) return;
+    _smartInk = v;
+    _notify();
+  }
   int markupColor = 0xFFFFD54F;
   double markupWidth = 2;
+
+  Future<void> loadSmartInkPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool(_kSmartInk);
+      if (!_smartInkUserSet && saved != null && saved != _smartInk) {
+        _smartInk = saved;
+        _notify();
+      }
+    } catch (_) {
+      // Bilinçli: tercih okunamazsa varsayılan akıllı mürekkep etkin kalır.
+    }
+  }
+
+  void setSmartInk(bool v) {
+    smartInk = v;
+    unawaited(_saveSmartInkPref(v));
+  }
+
+  Future<void> _saveSmartInkPref(bool v) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kSmartInk, v);
+    } catch (_) {
+      // Bilinçli: test/eklenti yokken tercih yazma hatası sessiz geçilir.
+    }
+  }
+
   void setMarkupColor(int argb) {
     if (markupColor == argb) return;
     markupColor = argb;

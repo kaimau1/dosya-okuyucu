@@ -568,12 +568,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
       StackTrace? stackTrace, PdfDocumentRef documentRef) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-    var size = -1;
-    try {
-      size = File(widget.doc.path).lengthSync();
-    } catch (_) {
-      // Bilinçli: boyut yalnız hata kartındaki teşhis satırı için; okunamazsa "bilinmiyor" (-1) kalır.
-    }
+    final size = _docSize > 0 ? _docSize : -1;
     final canRecover = PdfEditJournal.hasStale(widget.doc.path);
     final reason = error is PdfPasswordException
         ? context.t('uerr.pdf_locked')
