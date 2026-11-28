@@ -47,6 +47,8 @@ class PdfInsetScrollThumb extends StatefulWidget {
 class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
   double _panStartOffset = 0;
   bool _dragging = false;
+  bool _bubbleLinger = false;
+  Timer? _bubbleLingerTimer;
   int? _lastTickPage;
 
   static const _previewOn = !bool.fromEnvironment('P22B_KAPALI');
@@ -61,6 +63,7 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
 
   @override
   void dispose() {
+    _bubbleLingerTimer?.cancel();
     _previewTimer?.cancel();
     _previewToken?.cancel();
     _clearPreviews();
@@ -122,6 +125,10 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
     _previewTimer?.cancel();
     _previewToken?.cancel();
     _previewWant = null;
+    _bubbleLingerTimer?.cancel();
+    _bubbleLingerTimer = Timer(Motion.short, () {
+      if (mounted && !_dragging) setState(() => _bubbleLinger = false);
+    });
     setState(() => _dragging = false);
   }
 
@@ -188,73 +195,93 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
     final top = widget.insets.top + frac * track;
     final page = ctl.pageNumber;
     final total = widget.pageCount ?? ctl.pageCount;
-    final scheme = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final thumbChild = widget.dragBuilder != null
         ? widget.dragBuilder!(context, page, _dragging)
         : widget.builder!(context, page);
 
-    // Genişletilmiş kap: sürüklerken tutamacın yanında canlı sayfa balonu açılır.
-    const bubbleGap = 10.0;
-    final Widget bubble = Padding(
-                  padding: const EdgeInsetsDirectional.only(end: bubbleGap),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scheme.inverseSurface.withValues(alpha: 0.94),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: scheme.onInverseSurface.withValues(alpha: 0.14),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.studioShadow(dark),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+    Widget bubbleWidget() {
+      if (!_dragging && !_bubbleLinger) return const SizedBox.shrink();
+      final scheme = Theme.of(context).colorScheme;
+      final dark = Theme.of(context).brightness == Brightness.dark;
+      const bubbleGap = 10.0;
+      final Widget bubble = Padding(
+        padding: const EdgeInsetsDirectional.only(end: bubbleGap),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.inverseSurface.withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: scheme.onInverseSurface.withValues(alpha: 0.14),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.studioShadow(dark),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  total > 0 ? '${page ?? 1} / $total' : '${page ?? 1}',
+                  style: context.type.compact.copyWith(
+                    color: scheme.onInverseSurface,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (total > 1) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 1.5),
+                    decoration: ShapeDecoration(
+                      color: scheme.primary.withValues(alpha: 0.85),
+                      shape: const StadiumBorder(),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            total > 0 ? '${page ?? 1} / $total' : '${page ?? 1}',
-                            style: context.type.compact.copyWith(
-                              color: scheme.onInverseSurface,
-                              fontWeight: FontWeight.w800,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                            ),
-                          ),
-                          if (total > 1) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 1.5),
-                              decoration: ShapeDecoration(
-                                color: scheme.primary.withValues(alpha: 0.85),
-                                shape: const StadiumBorder(),
-                              ),
-                              child: Text(
-                                '%${(frac * 100).round()}',
-                                style: context.type.micro.copyWith(
-                                  color: scheme.onPrimary,
-                                  fontWeight: FontWeight.w800,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                    child: Text(
+                      '%${(frac * 100).round()}',
+                      style: context.type.micro.copyWith(
+                        color: scheme.onPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                   ),
-                );
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+      return IgnorePointer(
+        child: AnimatedOpacity(
+          opacity: _dragging && page != null ? 1.0 : 0.0,
+          duration: Motion.of(context, Motion.short),
+          child: AnimatedScale(
+            scale: _dragging ? 1.0 : 0.86,
+            duration: Motion.of(context, Motion.short),
+            curve: Motion.standard,
+            // Önizleme Stack'i yalnız sürüklerken: açılış/kaydırmada ağaç
+            // P22b öncesiyle aynı (önizleme hiç kurulmaz).
+            child: _previewOn && _dragging && page != null
+                ? Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      bubble,
+                      _preview(context, page, frac < 0.5),
+                    ],
+                  )
+                : bubble,
+          ),
+        ),
+      );
+    }
+
     return PositionedDirectional(
       end: widget.margin,
       top: top,
@@ -263,37 +290,20 @@ class _PdfInsetScrollThumbState extends State<PdfInsetScrollThumb> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          IgnorePointer(
-            child: AnimatedOpacity(
-              opacity: _dragging && page != null ? 1.0 : 0.0,
-              duration: Motion.of(context, Motion.short),
-              child: AnimatedScale(
-                scale: _dragging ? 1.0 : 0.86,
-                duration: Motion.of(context, Motion.short),
-                curve: Motion.standard,
-                // Önizleme Stack'i yalnız sürüklerken: açılış/kaydırmada ağaç
-                // P22b öncesiyle aynı (önizleme hiç kurulmaz).
-                child: _previewOn && _dragging && page != null
-                    ? Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          bubble,
-                          _preview(context, page, frac < 0.5),
-                        ],
-                      )
-                    : bubble,
-              ),
-            ),
-          ),
+          bubbleWidget(),
           SizedBox(
             width: thumb.width,
             height: thumb.height,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onPanStart: (d) {
+                _bubbleLingerTimer?.cancel();
                 _panStartOffset = top - d.localPosition.dy;
                 _lastTickPage = ctl.pageNumber;
-                setState(() => _dragging = true);
+                setState(() {
+                  _dragging = true;
+                  _bubbleLinger = true;
+                });
               },
               onPanUpdate: (d) {
                 final pos =

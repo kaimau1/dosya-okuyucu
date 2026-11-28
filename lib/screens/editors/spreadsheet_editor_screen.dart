@@ -40,6 +40,7 @@ import '../../core/sheet_metrics.dart';
 import '../../core/sheet_overflow.dart';
 import '../../core/sheet_text_measure.dart';
 import '../../core/theme.dart';
+import '../../core/viewer_priority.dart';
 import '../../models/document.dart';
 import '../../services/fm/safe_write.dart';
 import '../../services/fm/activity_log.dart';
@@ -190,9 +191,9 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   /// okuyucusundan, salt okunur önizleme); tam model gelince düşer.
   XlsxStreamSheet? _head;
 
-  /// Aşamalı açılışın devreye girdiği boy: küçük kitap zaten hızlı açılır,
-  /// önizleme yalnız yanıp sönerdi.
-  static const _headMinBytes = 1 << 20;
+  /// Aşamalı açılışın devreye girdiği boy: 2 MB altı kitap hızla açılır,
+  /// iki paralel ZIP ayrıştırıcısı yarıştırılmaz.
+  static const _headMinBytes = 2 << 20;
 
   /// Faz 36 özet tabloları: özet sayfa adı → kaynak bağı (oturum içi).
   final Map<String, _PivotLink> _pivots = {};
@@ -395,9 +396,18 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
   double _resizeStart = 0;
   double? _resizePreviewSize;
 
+  VoidCallback? _priorityRelease;
+
+  void _releasePriority() {
+    final r = _priorityRelease;
+    _priorityRelease = null;
+    r?.call();
+  }
+
   @override
   void initState() {
     super.initState();
+    _priorityRelease = ViewerPriority.hold();
     _hBody.addListener(_onHScroll);
     _vBody.addListener(_onVScroll);
     // Panelin ⌨ düğmesi tuş takımını kapatınca durum eşitlensin.
@@ -416,6 +426,7 @@ class _SpreadsheetEditorScreenState extends State<SpreadsheetEditorScreen>
 
   @override
   void dispose() {
+    _releasePriority();
     _fcCustom.dispose();
     for (final c in _valCtl) {
       c.dispose();

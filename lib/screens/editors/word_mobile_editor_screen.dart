@@ -20,6 +20,7 @@ import '../../core/snack.dart';
 import '../../core/once_hints.dart';
 import '../../core/theme.dart';
 import '../../core/user_error.dart';
+import '../../core/viewer_priority.dart';
 import '../../models/document.dart';
 import '../../services/docx/docx_document.dart';
 import '../../services/fm/activity_log.dart';
@@ -145,15 +146,25 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
     snapshot: () async => _doc?.saveAsync(),
   );
 
+  VoidCallback? _priorityRelease;
+
+  void _releasePriority() {
+    final r = _priorityRelease;
+    _priorityRelease = null;
+    r?.call();
+  }
+
   @override
   void initState() {
     super.initState();
+    _priorityRelease = ViewerPriority.hold();
     _load();
     unawaited(_loadProFlag());
   }
 
   @override
   void dispose() {
+    _releasePriority();
     _ctrl?.removeListener(_onEdit);
     _ctrl?.dispose();
     _head?.dispose();
@@ -218,6 +229,8 @@ class _WordMobileEditorScreenState extends State<WordMobileEditorScreen>
       _attach(doc);
     } catch (e) {
       _error = userErrorText(e);
+    } finally {
+      _releasePriority();
     }
     if (!mounted) return;
     setState(() {});

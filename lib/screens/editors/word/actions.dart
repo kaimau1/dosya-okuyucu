@@ -23,6 +23,8 @@ extension _WordEditorScreenActionsPart on _WordEditorScreenState {
       _viewBytes = opened.view;
     } catch (e) {
       _error = userErrorText(e);
+    } finally {
+      _releasePriority();
     }
     if (mounted) _partSetState(() {});
     // Ekran açılmayı BEKLEMEZ: kaynak damgası + taslak araması arkada.

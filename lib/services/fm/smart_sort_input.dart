@@ -108,6 +108,11 @@ abstract final class SmartSortInput {
   static const imageJpegQuality = 78;
   static const imageOptimizeThresholdBytes = 120 * 1024;
 
+  /// Derin medya analizi (fotoğraf · ses · video): yüksek çözünürlük / tam ses
+  /// / sesli video (ilk 60 sn) — daha doğru, daha fazla kota kullanır.
+  static const deepImageMaxDim = 2048;
+  static const deepImageJpegQuality = 88;
+
   /// Metin katmanlı PDF'lerde yerel metin çıkarımı (sayfa başına ~258 görsel
   /// belirteç yerine kompakt metin bloğu — %70–90 belirteç tasarrufu).
   static const maxPdfTextPages = 6;
@@ -183,13 +188,13 @@ abstract final class SmartSortInput {
   static const videoSeconds = 60;
 
   /// Boyut sınırı içinde mi (meta için sınır yok — içerik okunmaz)?
-  static bool sizeOk(SmartInputKind kind, int bytes) {
+  static bool sizeOk(SmartInputKind kind, int bytes, {bool deep = false}) {
     if (bytes <= 0) return false;
     return switch (kind) {
       SmartInputKind.media => bytes <= GeminiDecisions.maxInlineBytes,
       SmartInputKind.meta => true,
       SmartInputKind.audio =>
-        allowAudioFilesUpload ? bytes <= maxAudioUploadBytes : true,
+        (deep || allowAudioFilesUpload) ? bytes <= maxAudioUploadBytes : true,
       SmartInputKind.video => bytes <= maxVideoSourceBytes,
       _ => bytes <= maxExtractBytes,
     };
@@ -198,7 +203,10 @@ abstract final class SmartSortInput {
   /// Dosyanın Decisions girdi bloğu. Yazı, görsel küçültme ve PDF metin
   /// çıkarımı izolatta yapılır; okunamayan ya da boş çıkan belgede
   /// [GeminiException] (durum -1: tur durmaz, dosya "yapılamadı" sayılır).
-  static Future<Map<String, Object?>> blockFor(FsEntry e) async {
+  static Future<Map<String, Object?>> blockFor(
+    FsEntry e, {
+    bool deep = false,
+  }) async {
     final kind = kindOf(e.path);
     switch (kind) {
       case null:
@@ -210,16 +218,20 @@ abstract final class SmartSortInput {
           throw GeminiException('desteklenmeyen tür', statusCode: -1);
         }
         if (media.type == 'document' && media.mime == 'application/pdf') {
-          return _preparePdfBlock(e);
+          return _preparePdfBlock(e, deep: deep);
         }
-        return Isolate.run(() => _prepareMediaBlock(path, media.type, media.mime));
+        return Isolate.run(
+            () => _prepareMediaBlock(path, media.type, media.mime, deep: deep));
       case SmartInputKind.audio:
-        if (!allowAudioFilesUpload && e.sizeBytes > maxInlineAudioBytes) {
+        final useAudio = deep || allowAudioFilesUpload;
+        if (!useAudio && e.sizeBytes > maxInlineAudioBytes) {
+          final ext = _ext(e.path);
           return GeminiDecisions.textBlock(metaText(
             name: p.basename(e.path),
             sizeBytes: e.sizeBytes,
             folder: _folderOf(e.path),
             apk: false,
+            kindLabel: 'audio file (${ext.isEmpty ? 'unknown' : ext})',
           ));
         }
         if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
@@ -229,7 +241,7 @@ abstract final class SmartSortInput {
         final src = e.path;
         final data = await Isolate.run(
             () => base64Encode(File(src).readAsBytesSync()));
-        return avBlock(media.mime, video: false, data: data);
+        return avBlock(media.mime, video: false, data: data, deep: deep);
       case SmartInputKind.video:
         if (e.sizeBytes > GeminiDecisions.maxInlineBytes) {
           throw GeminiException('büyük ses/video yüklenmeli', statusCode: -1);
@@ -240,7 +252,7 @@ abstract final class SmartSortInput {
         // sonucu alır.
         final data = await Isolate.run(
             () => base64Encode(File(src).readAsBytesSync()));
-        return avBlock(media.mime, video: true, data: data);
+        return avBlock(media.mime, video: true, data: data, deep: deep);
       case SmartInputKind.meta:
         return GeminiDecisions.textBlock(metaText(
           name: p.basename(e.path),
@@ -261,18 +273,22 @@ abstract final class SmartSortInput {
     }
   }
 
-  /// Turda kullanılan giriş: ses/video 14 MB üstüyse (yalnız izinliyken)
-  /// **Files API** ile yüklenir; varsayılan olarak videoda yalnız kapak karesi,
-  /// büyük seste yalnız meta yazısı gider.
-  static Future<SmartPrepared> prepare(FsEntry e, List<String> keys) async {
+  /// Turda kullanılan giriş: ses/video 14 MB üstüyse (izinliyken ya da
+  /// [deep] etkinken) **Files API** ile yüklenir; standart kipte videoda
+  /// yalnız kapak karesi, büyük seste yalnız meta yazısı gider.
+  static Future<SmartPrepared> prepare(
+    FsEntry e,
+    List<String> keys, {
+    bool deep = false,
+  }) async {
     final kind = kindOf(e.path);
-    if (kind == SmartInputKind.video && videoCoverOnly) {
+    if (kind == SmartInputKind.video && !deep && videoCoverOnly) {
       return _coverPrepared(e, keys);
     }
-    final av = (kind == SmartInputKind.audio && allowAudioFilesUpload) ||
+    final av = (kind == SmartInputKind.audio && (deep || allowAudioFilesUpload)) ||
         kind == SmartInputKind.video;
     if (!av || e.sizeBytes <= GeminiDecisions.maxInlineBytes) {
-      final block = await blockFor(e);
+      final block = await blockFor(e, deep: deep);
       // Sunum (m.2 kalanı): dosyanın içindeki hazır ilk slayt resmi
       // (PowerPoint/LibreOffice kaydederken yazar) yazıya ek görsel blok.
       final slide =
@@ -290,22 +306,26 @@ abstract final class SmartSortInput {
           if (size <= GeminiDecisions.maxInlineBytes) {
             final data = await _b64File(clip);
             return SmartPrepared(
-                avBlock('video/mp4', video: true, data: data), keys);
+                avBlock('video/mp4', video: true, data: data, deep: deep),
+                keys);
           }
           if (size > maxVideoUploadBytes) {
+            if (deep) return await _coverPrepared(e, keys, deep: true);
             throw GeminiException('video kesiti çok büyük', statusCode: -1);
           }
-          return await _upload(clip, 'video/mp4', video: true, keys: keys);
+          return await _upload(clip, 'video/mp4',
+              video: true, keys: keys, deep: deep);
         } finally {
           _deleteQuietly(clip);
         }
       }
       if (e.sizeBytes > maxVideoUploadBytes) {
+        if (deep) return _coverPrepared(e, keys, deep: true);
         throw GeminiException('video çok büyük', statusCode: -1);
       }
     }
     final mime = GeminiDecisions.mediaFor(e.path)!.mime;
-    return _upload(e.path, mime, video: video, keys: keys);
+    return _upload(e.path, mime, video: video, keys: keys, deep: deep);
   }
 
   /// **Video = yalnız kapak karesi** (2026-11-22, kullanıcı: "videoyu sadece
@@ -334,7 +354,7 @@ abstract final class SmartSortInput {
   }
 
   static Future<SmartPrepared> _coverPrepared(
-      FsEntry e, List<String> keys) async {
+      FsEntry e, List<String> keys, {bool deep = false}) async {
     String? frame;
     try {
       frame = await coverFrame(e.path);
@@ -346,8 +366,12 @@ abstract final class SmartSortInput {
     }
     try {
       final data = await _b64File(frame);
-      return SmartPrepared(
-          {'type': 'image', 'mime_type': 'image/jpeg', 'data': data}, keys);
+      return SmartPrepared({
+        'type': 'image',
+        'mime_type': 'image/jpeg',
+        'data': data,
+        if (deep) 'media_resolution': 'high',
+      }, keys);
     } finally {
       _deleteQuietly(frame);
     }
@@ -355,8 +379,13 @@ abstract final class SmartSortInput {
 
   /// Files API yüklemesi: anahtarlar sırayla; kota/yetki hatasında
   /// sıradaki, blok yalnız yükleyen anahtarla.
-  static Future<SmartPrepared> _upload(String path, String mime,
-      {required bool video, required List<String> keys}) async {
+  static Future<SmartPrepared> _upload(
+    String path,
+    String mime, {
+    required bool video,
+    required List<String> keys,
+    bool deep = false,
+  }) async {
     GeminiException? last;
     for (final raw in keys) {
       final key = raw.trim();
@@ -364,7 +393,7 @@ abstract final class SmartSortInput {
       try {
         final f = await GeminiService.uploadFile(key, path, mime);
         return SmartPrepared(
-            avBlock(mime, video: video, fileUri: f.uri), [key],
+            avBlock(mime, video: video, fileUri: f.uri, deep: deep), [key],
             remote: f.name);
       } on GeminiException catch (err) {
         last = err;
@@ -444,9 +473,15 @@ abstract final class SmartSortInput {
   }
 
   /// Saf: ses/video bloğu. Satır içi [data] (base64) ya da Files API
-  /// [fileUri]; videoda düşük çözünürlük + yalnız ilk [videoSeconds] sn.
-  static Map<String, Object?> avBlock(String mime,
-      {required bool video, String? data, String? fileUri}) {
+  /// [fileUri]; videoda çözünürlük ([deep] etkinken orta) + yalnız ilk
+  /// [videoSeconds] sn.
+  static Map<String, Object?> avBlock(
+    String mime, {
+    required bool video,
+    String? data,
+    String? fileUri,
+    bool deep = false,
+  }) {
     assert((data == null) != (fileUri == null));
     return {
       'type': video ? 'video' : 'audio',
@@ -454,7 +489,7 @@ abstract final class SmartSortInput {
       'data': ?data,
       if (fileUri != null) 'file_data': {'file_uri': fileUri, 'mime_type': mime},
       if (video) ...{
-        'media_resolution': 'low',
+        'media_resolution': deep ? 'medium' : 'low',
         'video_metadata': {
           'start_offset': '0s',
           'end_offset': '${videoSeconds}s',
@@ -489,7 +524,10 @@ abstract final class SmartSortInput {
   /// * PDF'de yeterli gömülü metin (>= [minPdfTextChars]) varsa ham PDF yerine
   ///   kompakt metin bloğu gönderilir (çok sayfalı PDF'lerde %70–90 tasarruf).
   /// * Görsel büyükse uzun kenar <= [maxImageDim] px JPEG olarak sıkıştırılır.
-  static Future<Map<String, Object?>> _preparePdfBlock(FsEntry e) async {
+  static Future<Map<String, Object?>> _preparePdfBlock(
+    FsEntry e, {
+    bool deep = false,
+  }) async {
     final path = e.path;
     final res = await Isolate.run(() {
       final raw = File(path).readAsBytesSync();
@@ -521,8 +559,8 @@ abstract final class SmartSortInput {
         final pages = await PdfRaster.renderJpegs(
           res.raw,
           const [0],
-          dpi: 110,
-          quality: imageJpegQuality,
+          dpi: deep ? 150 : 110,
+          quality: deep ? deepImageJpegQuality : imageJpegQuality,
         );
         if (pages.isNotEmpty) jpeg = pages.first.jpeg;
       }
@@ -531,13 +569,18 @@ abstract final class SmartSortInput {
     }
     if (jpeg != null && jpeg.isNotEmpty) {
       final bytes = jpeg;
-      final opt = await Isolate.run(
-          () => optimizeImageBytes(bytes, mime: 'image/jpeg'));
+      final opt = await Isolate.run(() => optimizeImageBytes(
+            bytes,
+            mime: 'image/jpeg',
+            maxDim: deep ? deepImageMaxDim : maxImageDim,
+            quality: deep ? deepImageJpegQuality : imageJpegQuality,
+          ));
       final b64 = await Isolate.run(() => base64Encode(opt.bytes));
       return {
         'type': 'image',
         'mime_type': opt.mime,
         'data': b64,
+        if (deep) 'media_resolution': 'high',
       };
     }
     return GeminiDecisions.textBlock(metaText(
@@ -545,11 +588,16 @@ abstract final class SmartSortInput {
       sizeBytes: e.sizeBytes,
       folder: _folderOf(e.path),
       apk: false,
+      kindLabel: 'PDF document (pdf)',
     ));
   }
 
   static Map<String, Object?> _prepareMediaBlock(
-      String path, String type, String mime) {
+    String path,
+    String type,
+    String mime, {
+    bool deep = false,
+  }) {
     final raw = File(path).readAsBytesSync();
     if (raw.isEmpty) {
       throw GeminiException('Dosya boş.', statusCode: -1);
@@ -571,14 +619,21 @@ abstract final class SmartSortInput {
         sizeBytes: raw.length,
         folder: _folderOf(path),
         apk: false,
+        kindLabel: 'PDF document (pdf)',
       ));
     }
     if (type == 'image') {
-      final opt = optimizeImageBytes(raw, mime: mime);
+      final opt = optimizeImageBytes(
+        raw,
+        mime: mime,
+        maxDim: deep ? deepImageMaxDim : maxImageDim,
+        quality: deep ? deepImageJpegQuality : imageJpegQuality,
+      );
       return {
         'type': 'image',
         'mime_type': opt.mime,
         'data': base64Encode(opt.bytes),
+        if (deep) 'media_resolution': 'high',
       };
     }
     return {
@@ -749,16 +804,18 @@ abstract final class SmartSortInput {
     return clip(CsvCodec.encode(out).replaceAll('\r\n', '\n'));
   }
 
-  /// APK/arşiv için yazı (içerik okunmaz): ad, tür, boyut, kaynak klasör.
+  /// APK/arşiv veya büyük medya geri dönüşü için meta yazısı (içerik okunmaz).
   static String metaText({
     required String name,
     required int sizeBytes,
     required String folder,
     required bool apk,
+    String? kindLabel,
   }) {
-    final kind = apk
-        ? 'Android app installer package (APK)'
-        : 'compressed archive (${_ext(name).isEmpty ? 'unknown' : _ext(name)})';
+    final kind = kindLabel ??
+        (apk
+            ? 'Android app installer package (APK)'
+            : 'compressed archive (${_ext(name).isEmpty ? 'unknown' : _ext(name)})');
     return 'Only the metadata of this file is available; its content was not '
         'read. Judge by its name, type and folder.\n'
         'File name: $name\n'

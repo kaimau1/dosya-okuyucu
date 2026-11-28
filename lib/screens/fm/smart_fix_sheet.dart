@@ -9,6 +9,7 @@ import '../../services/fm/fs_scan.dart';
 import '../../services/fm/smart_bench.dart';
 import '../../services/fm/smart_learn.dart';
 import '../../services/fm/smart_sort.dart';
+import '../../services/fm/smart_sort_input.dart';
 import '../../services/fm/smart_sort_taxonomy.dart';
 import '../../services/gemini_decisions.dart';
 import '../../widgets/app_dialog.dart';
@@ -30,11 +31,13 @@ Future<bool> showSmartFix(BuildContext context, String path) async {
   if (!context.mounted) return false;
   final from = SmartSort.of(path)?.cat;
   final image = GeminiDecisions.mediaFor(path)?.type == 'image';
+  final kind = SmartSortInput.kindOf(path);
+  final av = kind == SmartInputKind.audio || kind == SmartInputKind.video;
   final chosen = await showAppSheet<String>(
     context,
     scrollable: false,
-    builder: (_) =>
-        SmartFixSheet(current: from, image: image, name: p.basename(path)),
+    builder: (_) => SmartFixSheet(
+        current: from, image: image, av: av, name: p.basename(path)),
   );
   if (chosen == null || !context.mounted) return false;
   final s = AppStrings.of(context);
@@ -98,12 +101,14 @@ class SmartFixSheet extends StatelessWidget {
   /// Şimdiki kategori (yoksa null: hiç düzenlenmemiş).
   final String? current;
   final bool image;
+  final bool av;
   final String name;
 
   const SmartFixSheet({
     super.key,
     required this.current,
     required this.image,
+    this.av = false,
     required this.name,
   });
 
@@ -171,6 +176,20 @@ class SmartFixSheet extends StatelessWidget {
                           style: theme.textTheme.labelLarge),
                       const SizedBox(height: Gap.xs),
                       chips(SmartTaxonomy.imageCategories.keys),
+                    ],
+                    if (av ||
+                        cur == SmartTaxonomy.music ||
+                        cur == SmartTaxonomy.audio ||
+                        cur == SmartTaxonomy.video) ...[
+                      const SizedBox(height: Gap.md),
+                      Text(context.t('smf.media'),
+                          style: theme.textTheme.labelLarge),
+                      const SizedBox(height: Gap.xs),
+                      chips(const [
+                        SmartTaxonomy.music,
+                        SmartTaxonomy.audio,
+                        SmartTaxonomy.video,
+                      ]),
                     ],
                     const SizedBox(height: Gap.md),
                     chips(const [SmartTaxonomy.other]),

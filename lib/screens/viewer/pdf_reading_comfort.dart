@@ -181,7 +181,7 @@ extension _ViewerScreenPdfComfortPart on _ViewerScreenState {
     );
     if (!mounted) return;
     if (go != true) return;
-    final media = MediaQuery.of(context);
+    final media = _mqNoDep;
     final screenLong = media.size.longestSide * media.devicePixelRatio;
     final region = PdfRect(item.left, item.top, item.right, item.bottom);
     await Navigator.of(context).push(pdfImageZoomRoute(() => renderPdfRegion(

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'viewer_priority.dart';
+
 /// **Açılış bütçesi** (Faz 4, 2026-10-21 — FAZ_PLANI P11).
 ///
 /// Eskiden ilk saniyelerde ~12 bağımsız asenkron iş (geçici dosya süpürme,
@@ -52,6 +54,8 @@ class StartupQueue {
     _running = true;
     try {
       while (_jobs.isNotEmpty) {
+        if (ViewerPriority.active) await ViewerPriority.waitUntilIdle();
+        if (_jobs.isEmpty) break;
         final (name, job) = _jobs.removeAt(0);
         try {
           await job();

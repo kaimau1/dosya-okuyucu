@@ -12,17 +12,44 @@ abstract final class FmEnv {
   static String primaryRoot = StorageStats.primaryPath;
   static String appSupportDir = '';
   static bool _ready = false;
+  static Future<String>? _supportFuture;
+  static Future<void>? _initFuture;
 
   static bool get ready => _ready;
 
-  /// Bir kez kurulur; [force] ile (izin verildikten sonra) yenilenir.
-  static Future<void> ensureInit({bool force = false}) async {
-    if (_ready && !force) return;
+  /// Yalnız uygulama destek klasörünü hazırlar (depolama taraması/`df` yok).
+  /// Okuma konumu ve yer imleri gibi hafif depolar soğuk açılışta buna
+  /// dayanarak milisaniyede yüklenir.
+  static Future<String> ensureAppSupportDir() {
+    if (appSupportDir.isNotEmpty) return Future.value(appSupportDir);
+    return _supportFuture ??=
+        _loadAppSupportDir().whenComplete(() => _supportFuture = null);
+  }
+
+  static Future<String> _loadAppSupportDir() async {
     try {
       appSupportDir = (await getApplicationSupportDirectory()).path;
     } catch (_) {
       appSupportDir = '';
     }
+    return appSupportDir;
+  }
+
+  /// Bir kez kurulur; eşzamanlı çağrılar tek işi bekler. [force] ile (izin
+  /// verildikten sonra) yenilenir.
+  static Future<void> ensureInit({bool force = false}) {
+    if (_ready && !force) return Future.value();
+    if (!force && _initFuture != null) return _initFuture!;
+    late final Future<void> run;
+    run = _doInit().whenComplete(() {
+      if (identical(_initFuture, run)) _initFuture = null;
+    });
+    _initFuture = run;
+    return run;
+  }
+
+  static Future<void> _doInit() async {
+    await ensureAppSupportDir();
     try {
       primaryRoot =
           await StorageStats.primaryRoot() ?? StorageStats.primaryPath;

@@ -10,6 +10,7 @@ import 'disk_housekeeping.dart';
 import 'thumbnail_cache.dart';
 import '../../core/app_colors.dart';
 import '../../core/device_profile.dart';
+import '../../core/viewer_priority.dart';
 
 /// PDF'in **ilk sayfasını** küçük resim olarak üretir ve diskte önbelleğe alır.
 ///
@@ -42,6 +43,7 @@ abstract final class PdfThumbnail {
   /// Yalnız test: durumu sıfırlar.
   static void debugReset() {
     _running = 0;
+    _pumpScheduled = false;
     _pending.clear();
     _wanted.clear();
     _inFlight.clear();
@@ -152,17 +154,49 @@ abstract final class PdfThumbnail {
   static bool _isWanted(String path) =>
       (_wanted[path] ?? const []).any((check) => check());
 
+  static bool _pumpScheduled = false;
+
   static Future<bool> _acquire(String path) {
-    if (_running < _maxParallel) {
+    if (!ViewerPriority.active && _running < _maxParallel) {
       _running++;
       return Future.value(true);
     }
     final ticket = Completer<bool>();
     _pending.add((path, ticket));
+    if (ViewerPriority.active) _schedulePumpAfterPriority();
     return ticket.future;
   }
 
+  static void _schedulePumpAfterPriority() {
+    if (_pumpScheduled) return;
+    _pumpScheduled = true;
+    ViewerPriority.waitUntilIdle().then((_) {
+      _pumpScheduled = false;
+      _pumpPending();
+    });
+  }
+
+  static void _pumpPending() {
+    while (!ViewerPriority.active && _running < _maxParallel && _pending.isNotEmpty) {
+      final (path, ticket) = _pending.removeLast();
+      if (!_isWanted(path)) {
+        ticket.complete(false);
+        continue;
+      }
+      _running++;
+      ticket.complete(true);
+    }
+    if (ViewerPriority.active && _pending.isNotEmpty) {
+      _schedulePumpAfterPriority();
+    }
+  }
+
   static void _release() {
+    if (ViewerPriority.active) {
+      if (_running > 0) _running--;
+      if (_pending.isNotEmpty) _schedulePumpAfterPriority();
+      return;
+    }
     while (_pending.isNotEmpty) {
       final (path, ticket) = _pending.removeLast();
       if (!_isWanted(path)) {
@@ -172,7 +206,7 @@ abstract final class PdfThumbnail {
       ticket.complete(true);
       return;
     }
-    _running--;
+    if (_running > 0) _running--;
   }
 
   static Future<Directory> _cacheDir() async {

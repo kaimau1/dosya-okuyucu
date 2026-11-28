@@ -22,6 +22,22 @@ abstract final class SmartLocalRules {
     '.gif',
   };
 
+  static const Set<String> _avExts = {
+    '.mp3',
+    '.m4a',
+    '.aac',
+    '.ogg',
+    '.opus',
+    '.wav',
+    '.flac',
+    '.mp4',
+    '.m4v',
+    '.mkv',
+    '.mov',
+    '.webm',
+    '.3gp',
+  };
+
   static bool isImagePath(String path) =>
       _imageExts.contains(p.extension(path).toLowerCase());
 
@@ -31,6 +47,9 @@ abstract final class SmartLocalRules {
     bool applyLearn = true,
   }) {
     final ext = p.extension(entry.path).toLowerCase();
+    // Ses ve videolar yalnız dosya adına bakılarak belge kategorilerine
+    // atlanmaz; gerçek içeriği AI sınıflandırır.
+    if (_avExts.contains(ext)) return null;
     final isImage = isImagePath(entry.path);
     final dirName = p.basename(p.dirname(entry.path));
     final folded = asciiFold('${entry.name} $dirName ${textSnippet ?? ''}');

@@ -47,6 +47,7 @@ import '../../core/snack.dart';
 import '../../core/once_hints.dart';
 import '../../core/user_error.dart';
 import '../../core/app_colors.dart';
+import '../../core/viewer_priority.dart';
 import '../fm/pick_file_screen.dart';
 
 part 'word/actions.dart';
@@ -202,22 +203,46 @@ class _WordEditorScreenState extends State<WordEditorScreen>
     '808080',
   ];
 
+  VoidCallback? _priorityRelease;
+
+  void _releasePriority() {
+    final r = _priorityRelease;
+    _priorityRelease = null;
+    r?.call();
+  }
+
   @override
   void initState() {
     super.initState();
+    _priorityRelease = ViewerPriority.hold();
     _load();
     _initResume();
   }
 
-  /// Kayıt açılışta yüklü (main); ayar kapalıysa `pageOf` null döner.
+  /// Kayıt açılışta yüklü değilse hafif destek diziniyle yükleyip sayfayı açar.
   void _initResume() {
     try {
       _docSize = File(widget.path).lengthSync();
     } catch (_) {
       // en iyi çaba: boyut okunamazsa kayıt yalnız yola göre eşleşir
     }
-    final page = ReadingPositions.pageOf(widget.path, size: _docSize);
-    if (page != null && page > 1) _resumePage = _resumedNote = page;
+    if (ReadingPositions.isLoaded) {
+      final page = ReadingPositions.pageOf(widget.path, size: _docSize);
+      if (page != null && page > 1) _resumePage = _resumedNote = page;
+      return;
+    }
+    unawaited(ReadingPositions.ensureLoaded().then((_) {
+      if (!mounted) return;
+      final page = ReadingPositions.pageOf(widget.path, size: _docSize);
+      if (page == null || page <= 1) return;
+      if (_pageCount > 0) {
+        _viewKey.currentState?.goToPage(page);
+        _resumedNote = page;
+        _showResumeNote();
+      } else {
+        _resumePage = _resumedNote = page;
+      }
+    }));
   }
 
   void _showResumeNote() {
@@ -239,6 +264,7 @@ class _WordEditorScreenState extends State<WordEditorScreen>
 
   @override
   void dispose() {
+    _releasePriority();
     unawaited(ReadingPositions.save());
     _pageN.dispose();
     _findCtrl.dispose();

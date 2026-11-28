@@ -68,7 +68,7 @@ abstract final class ReadingPositions {
   static Future<void> _load() async {
     if (FmEnv.appSupportDir.isEmpty) {
       try {
-        await FmEnv.ensureInit();
+        await FmEnv.ensureAppSupportDir();
       } catch (_) {
         // Bilinçli: ortam hazırlanamadı (testte yol sağlayıcı yok) — ardından gelen okuma boş sonuçla sürer.
       }

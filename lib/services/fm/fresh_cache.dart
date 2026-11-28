@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show listEquals, visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/viewer_priority.dart';
 import '../../models/fs_entry.dart';
 import 'fm_env.dart';
 import 'fs_scan.dart';
@@ -57,7 +58,9 @@ abstract final class FreshCache {
   }
 
   static Future<List<FsEntry>> _scanOnce() async {
+    await ViewerPriority.waitUntilIdle();
     await FmEnv.ensureInit();
+    await ViewerPriority.waitUntilIdle();
     final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
     final all = roots.isEmpty
         ? const <FsEntry>[]

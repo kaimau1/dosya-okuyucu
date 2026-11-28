@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:dosya_okuyucu/core/app_navigator.dart';

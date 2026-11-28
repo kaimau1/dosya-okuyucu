@@ -32,19 +32,35 @@ abstract final class PdfEditJournal {
   /// PDF'le açılıp kullanıcı daha açılış işleri bitmeden düzenlemeye
   /// başladıysa o kayıt yarıda kalmış değil, CANLI bir oturumdur.
   static final Set<String> _live = {};
+  static Map<String, String>? _cache;
+  static String _cachePath = '';
 
   static Map<String, String> _read() {
     if (!_usable) return {};
+    final path = _path;
+    final cached = _cache;
+    if (cached != null && _cachePath == path) return Map<String, String>.of(cached);
     try {
-      final file = File(_path);
-      if (!file.existsSync()) return {};
+      final file = File(path);
+      if (!file.existsSync()) {
+        _cachePath = path;
+        _cache = const {};
+        return {};
+      }
       final raw = jsonDecode(file.readAsStringSync());
-      if (raw is! Map) return {};
-      return {
+      if (raw is! Map) {
+        _cachePath = path;
+        _cache = const {};
+        return {};
+      }
+      final parsed = {
         for (final e in raw.entries)
           if (e.key is String && e.value is String)
             e.key as String: e.value as String,
       };
+      _cachePath = path;
+      _cache = Map<String, String>.unmodifiable(parsed);
+      return parsed;
     } catch (_) {
       return {};
     }
@@ -52,8 +68,11 @@ abstract final class PdfEditJournal {
 
   static void _write(Map<String, String> entries) {
     if (!_usable) return;
+    final path = _path;
+    _cachePath = path;
+    _cache = Map<String, String>.unmodifiable(entries);
     try {
-      final file = File(_path);
+      final file = File(path);
       if (entries.isEmpty) {
         if (file.existsSync()) file.deleteSync();
         return;
@@ -146,7 +165,11 @@ abstract final class PdfEditJournal {
   }
 
   /// Yalnız test: süreç içi durumu sıfırlar.
-  static void debugReset() => _live.clear();
+  static void debugReset() {
+    _live.clear();
+    _cache = null;
+    _cachePath = '';
+  }
 
   static void _deleteBackup(File backup) {
     try {

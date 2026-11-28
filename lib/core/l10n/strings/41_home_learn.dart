@@ -73,6 +73,7 @@ const Map<String, (String, String, String)> _t41 = {
   ),
   'smf.docs': ('Belge', 'Document', 'مستند'),
   'smf.images': ('Görsel', 'Image', 'صورة'),
+  'smf.media': ('Medya', 'Media', 'وسائط'),
   'smf.was_right': ('Aslında doğruymuş', 'It was right', 'كان صحيحًا'),
   'smf.kept': (
     'Tamam, doğru kabul edildi',

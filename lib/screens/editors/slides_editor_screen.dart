@@ -84,6 +84,7 @@ import '../../core/once_hints.dart';
 import '../../core/safe_insets.dart';
 import '../../core/user_error.dart';
 import '../../core/app_colors.dart';
+import '../../core/viewer_priority.dart';
 import '../fm/pick_file_screen.dart';
 
 part 'slides/actions.dart';
@@ -230,9 +231,18 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
   bool _proBusy = false;
   final List<Uint8List> _proUndo = [];
 
+  VoidCallback? _priorityRelease;
+
+  void _releasePriority() {
+    final r = _priorityRelease;
+    _priorityRelease = null;
+    r?.call();
+  }
+
   @override
   void initState() {
     super.initState();
+    _priorityRelease = ViewerPriority.hold();
     _zoomAnim = AnimationController(vsync: this, duration: Motion.long);
     _vCtrl.addListener(_onScroll);
     _load();
@@ -241,6 +251,7 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
 
   @override
   void dispose() {
+    _releasePriority();
     _flashTimer?.cancel();
     _currentSlideN.dispose();
     _session.dispose();

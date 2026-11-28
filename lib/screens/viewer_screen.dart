@@ -28,6 +28,7 @@ import '../core/line_endings.dart';
 import '../core/motion.dart';
 import '../core/device_profile.dart';
 import '../core/screen_awake.dart';
+import '../core/viewer_priority.dart';
 import '../services/pptx/pro/slides_native.dart';
 import '../core/pretty_format.dart';
 import '../core/text_replace.dart';
@@ -735,6 +736,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
       _textFocus.addListener(_onTextFocus);
     }
     if (doc.kind == DocKind.pdf) {
+      _priorityRelease = ViewerPriority.hold();
+      _paintHook = _onFirstPagePainted;
+      pdfrxOnPageImagePainted = _paintHook;
       PdfProPerf.openScreen(); // H0.3 açılış zaman damgaları
       _prepareSafeOpen();
       // `_pdfSearcher` `onViewerReady`'de kurulur: pdfrx 2.x'in yapıcısı
@@ -787,7 +791,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
     }
     if (!mounted) return;
     unawaited(PdfBookmarks.ensureLoaded().then((_) {
-      if (mounted) setState(() {});
+      if (mounted &&
+          PdfBookmarks.of(widget.doc.path, size: _docSize).isNotEmpty) {
+        _bookmarkRevN.value++;
+      }
     }));
     // Kayıt zaten bellekteyse sayfa İLK karede verilir.
     if (ReadingPositions.isLoaded && PdfZoomMemory.isLoaded) {
@@ -883,6 +890,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// ([PdfOpenBridge]) solar (Ferrari H1.1).
   bool _pdfOpened = false;
   Timer? _pdfBridgeTimer;
+  VoidCallback? _priorityRelease;
+  void Function(bool sharp)? _paintHook;
+
+  void _releasePriority() {
+    final r = _priorityRelease;
+    _priorityRelease = null;
+    r?.call();
+  }
+
+  void _onFirstPagePainted(bool sharp) {
+    PdfProPerf.openMark(sharp ? 'ilk_net' : 'ilk_cizim');
+    if (identical(pdfrxOnPageImagePainted, _paintHook)) {
+      pdfrxOnPageImagePainted = null;
+    }
+    if (!_pdfOpened && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _finishPdfBridge();
+      });
+    }
+  }
+
+  void _finishPdfBridge() {
+    _pdfBridgeTimer?.cancel();
+    _releasePriority();
+    if (!_pdfOpened && mounted) {
+      PdfProPerf.openMark('kopru');
+      _partSetState(() => _pdfOpened = true);
+    }
+  }
 
   /// Köprüyü kaldırır; pdfrx sayfayı `onViewerReady`den SONRA çiziyor, o
   /// arada kâğıt beyaz kalmasın diye kısa pay ([Motion.medium]).
@@ -890,7 +926,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
     if (_pdfOpened) return;
     _pdfBridgeTimer?.cancel();
     _pdfBridgeTimer = Timer(Motion.medium, () {
-      if (mounted) _partSetState(() => _pdfOpened = true);
+      _finishPdfBridge();
     });
   }
 
@@ -952,6 +988,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   @override
   void dispose() {
+    _releasePriority();
+    if (_paintHook != null && identical(pdfrxOnPageImagePainted, _paintHook)) {
+      pdfrxOnPageImagePainted = null;
+    }
     // Bekleyen okuma konumu diske yazılsın: uygulama kapansa da "kaldığın
     // sayfa" çalışsın (kayıt üç saniyelik gecikmeyle yazılıyor).
     unawaited(ReadingPositions.save());
@@ -1077,6 +1117,12 @@ class _ViewerScreenState extends State<ViewerScreen> {
 
   /// Parça dosyalarındaki uzantılar `setState`i (korumalı) buradan çağırır.
   void _partSetState(VoidCallback fn) => setState(fn);
+
+  /// MediaQuery'yi bağımlılık kaydetmeden okur (R8): geri çağrılarda klavye
+  /// animasyonu karelerinde bütün görüntüleyici yeniden kurulmaz.
+  MediaQueryData get _mqNoDep =>
+      context.getInheritedWidgetOfExactType<MediaQuery>()?.data ??
+      MediaQueryData.fromView(View.of(context));
 
   /// Metin düzenleniyor mu (odak alanda)? Öyleyse alt çubuk/AI düğmesi gizli.
   bool get _editingText =>

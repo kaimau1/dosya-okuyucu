@@ -2163,6 +2163,14 @@ class SmartSortSettings extends StatelessWidget {
           },
         ),
         SwitchListTile(
+          key: const ValueKey('sm-deep-media'),
+          secondary: const Icon(AppIcons.ai),
+          title: Text(context.t('sm.deep_media')),
+          subtitle: Text(context.t('sm.deep_media_sub')),
+          value: SmartSort.deepMedia,
+          onChanged: (v) => unawaited(SmartSort.setSettings(deepMedia: v)),
+        ),
+        SwitchListTile(
           key: const ValueKey('ss-auto'),
           secondary: const Icon(AppIcons.moveToInbox),
           title: Text(context.t('sm.auto')),

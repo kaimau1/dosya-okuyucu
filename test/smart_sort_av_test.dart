@@ -316,15 +316,15 @@ void main() {
   group('şema', () {
     test('ses: tek istekte tür, dil, kalite; video: tür + yanlışlıkla', () {
       final a = SmartTaxonomy.questions(image: false, audio: true);
-      expect(a.map((q) => q.id), ['sub_audio', 'speech_lang', 'quality']);
+      expect(a.map((q) => q.id), ['sub_audio', 'speech_lang', 'quality', 'audio_topic']);
       expect(a.first.options.keys, containsAll([
         'voice_note', 'meeting_recording', 'lecture', 'call_recording',
-        'music', 'whatsapp_voice', 'other',
+        'music', 'whatsapp_voice', 'invitation_audio', 'other',
       ]));
       expect(a[1].options.keys, containsAll(['tr', 'en', 'ar', 'none']));
       expect(a[2].options.keys, ['clear', 'noisy', 'poor']);
       final v = SmartTaxonomy.questions(image: false, video: true);
-      expect(v.map((q) => q.id), ['sub_video', 'accidental']);
+      expect(v.map((q) => q.id), ['sub_video', 'accidental', 'video_topic']);
       expect(v.first.options.keys, containsAll([
         'family_video', 'screen_recording', 'lecture_video', 'clip_meme',
         'document_video', 'other',
@@ -504,6 +504,7 @@ void main() {
       expect(prep.remote, isNull);
       expect(prep.block['type'], 'text');
       expect(prep.block['text'], contains('kayit.mp3'));
+      expect(prep.block['text'], contains('audio file (mp3)'));
     });
 
     test('>400KB taranmış PDF asla ham application/pdf olarak gitmez',

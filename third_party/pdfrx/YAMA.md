@@ -54,6 +54,9 @@ boy temsilcisi `goToPosition` → `_goTo` → `_stopInteractiveViewerAnimation()
 ## 3. değişiklik (2026-11-22) — dokununca fırlatma durur
 
 `interactive_viewer.dart` `_onPointerDown`: `widget.scrollPhysics != null` koşulu kalktı; süren
-kaydırma ataleti her parmak değişinde `stopAllAnimations` ile durur. **Neden:** görüntüleyici
-`scrollPhysics` vermiyor (sürtünme `kPdfPanFriction`), bu yüzden kayan sayfaya basmak akışı
-durdurmuyordu (kullanıcı bulgusu). **Yükseltmede:** aynı koşulu yeni sürümde de kaldır.
+kaydırma ataleti her parmak değişinde `stopAllAnimations` ile durur. **Neden:** görüntüleyici `scrollPhysics` vermiyor (sürtünme `kPdfPanFriction`), bu yüzden kayan sayfaya basmak akışı durdurmuyordu (kullanıcı bulgusu). **Yükseltmede:** aynı koşulu yeni sürümde de kaldır.
+
+## 4. değişiklik (R8/R9, 2026-11-28) — `pdfrxOnPageImagePainted` ve kaydırma sıcak yolu
+
+1. `pdf_viewer.dart` üst düzey kanca (`pdfrxOnPageImagePainted`): sayfa görüntüsü (önizleme / net parça) tuvale çizilince çağrılır. **Neden:** `onDocumentLoadFinished` arka sayfaların ölçümünü da beklediği için ilk görünür sayfa anını göstermiyordu; açılış damgaları ve açılış köprüsü buradan kalkar.
+2. `_relayoutPages`: `_layoutDirty` yoksa `widget.params.layoutPages` verilmiş olsa bile her kaydırma karesinde tüm sayfa düzenini yeniden kurup karşılaştırmaz (`didUpdateWidget` params değişince `_layoutDirty = true` yapar). `_updateLayout` yalnızca sayfa/görünüm/zoom değişince `_recalculateMetrics`, `_calcZoomStopTable` ve `_adjustBoundaryMargins` çalıştırır; `_paintPagesCustom` döngü dışında tek `Paint` nesnesi paylaşır. **Neden:** fırlatma/kaydırma sırasında her karede 320+ sayfalık düzen ve sınır yeniden hesaplanıyordu.

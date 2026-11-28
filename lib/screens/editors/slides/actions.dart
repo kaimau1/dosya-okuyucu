@@ -16,9 +16,9 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   Future<void> _load() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
-      // B13 m.4: ilk slaytlar tam ayrıştırmayla AYNI ANDA ayrı izolatta
-      // çizilir; önce biterse salt okunur önizleme olarak görünür.
-      if (SlidesEditorScreen.parseInIsolate) {
+      // B13 m.4: büyük destelerde (>=512 KB) ilk slaytlar tam ayrıştırmayla
+      // AYNI ANDA ayrı izolatta çizilir; küçük destede tek izolat daha hızlı.
+      if (SlidesEditorScreen.parseInIsolate && bytes.length >= 512 * 1024) {
         unawaited(compute(PptxEditor.headViews, bytes).then((head) {
           if (!mounted || _editor != null || _error != null) return;
           if (head == null || head.isEmpty) return;
@@ -31,6 +31,8 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
       _editor = await _SlidesProPart._parseDeck(bytes);
     } catch (e) {
       _error = userErrorText(e);
+    } finally {
+      _releasePriority();
     }
     _head = null;
     if (mounted) _partSetState(() {});
@@ -341,11 +343,21 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
   /// aşağısı (60 px) ölçüt: iki slaydın sınırı tam tepedeyken kullanıcı
   /// gözüyle ALTTAKİ slayda bakıyordur.
   void _onScroll() {
-    if (!_vCtrl.hasClients || _baseW <= 0 || _slideCount == 0) return;
+    final editor = _editor;
+    if (editor == null ||
+        !_vCtrl.hasClients ||
+        _baseW <= 0 ||
+        editor.slides.isEmpty) {
+      return;
+    }
+    final curIdx = (_currentSlide - 1).clamp(0, editor.slides.length - 1);
+    final curStart = _slideOffset(curIdx);
+    final curEnd = curStart + _slideExtent(curIdx);
     final target = _vCtrl.offset + 60;
+    if (target >= curStart && target < curEnd) return;
     var at = 8 * _zoom;
     var index = 0;
-    for (var i = 0; i < _slideCount; i++) {
+    for (var i = 0; i < editor.slides.length; i++) {
       at += _slideExtent(i);
       if (at > target) {
         index = i;
@@ -357,7 +369,8 @@ extension _SlidesEditorScreenActionsPart on _SlidesEditorScreenState {
     if (next != _currentSlide) {
       _currentSlide = next;
       _followStrip(index);
-      ReadingPositions.record(widget.path, next, _slideCount, size: _docSize);
+      ReadingPositions.record(widget.path, next, editor.slides.length,
+          size: _docSize);
     }
   }
 

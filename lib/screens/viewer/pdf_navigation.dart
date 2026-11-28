@@ -456,7 +456,7 @@ extension _ViewerScreenPdfNavigationPart on _ViewerScreenState {
     double? previous;
     for (var i = 0; i < 24; i++) {
       if (!mounted) return false;
-      final inset = MediaQuery.viewInsetsOf(context).bottom;
+      final inset = _mqNoDep.viewInsets.bottom;
       if (inset == previous && _viewerLaidOut()) return true;
       previous = inset;
       await Future<void>.delayed(const Duration(milliseconds: 50));

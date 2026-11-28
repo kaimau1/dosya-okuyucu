@@ -265,6 +265,11 @@ class _PdfSelectLayerState extends State<PdfSelectLayer> {
       // Bilinçli: metin okunamazsa katman metinsiz kalır (OCR adayı olur).
     }
     if (!mounted) return;
+    if (t == null && _text == null) {
+      _textLoaded = true;
+      _maybeAutoOcr();
+      return;
+    }
     setState(() {
       if (t != null) _text = t;
       _textLoaded = true;

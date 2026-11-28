@@ -167,36 +167,41 @@ class _LargeTextViewState extends State<LargeTextView> {
         Expanded(
           child: Container(
             color: Paper.docSurface(context),
-            child: Scrollbar(
-              controller: _scroll,
-              interactive: true,
-              thumbVisibility: true,
-              child: ListView.builder(
+            child: SelectionArea(
+              child: Scrollbar(
                 controller: _scroll,
-                padding: side > 0
-                    ? EdgeInsetsDirectional.fromSTEB(12 + side, 8, 16 + side, 24)
-                    : const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 24),
-                itemCount: file.lineCount,
-                itemBuilder: (context, i) {
-                  final text = _line(i);
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (widget.lineNumbers)
-                        SizedBox(
-                          width: widget.fontSize * 0.62 * digits + 12,
-                          child: Text('${i + 1}',
-                              style: numberStyle, textAlign: TextAlign.end),
+                interactive: true,
+                thumbVisibility: true,
+                child: ListView.builder(
+                  controller: _scroll,
+                  padding: side > 0
+                      ? EdgeInsetsDirectional.fromSTEB(
+                          12 + side, 8, 16 + side, 24)
+                      : const EdgeInsetsDirectional.fromSTEB(12, 8, 16, 24),
+                  itemCount: file.lineCount,
+                  itemBuilder: (context, i) {
+                    final text = _line(i);
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.lineNumbers)
+                          SelectionContainer.disabled(
+                            child: SizedBox(
+                              width: widget.fontSize * 0.62 * digits + 12,
+                              child: Text('${i + 1}',
+                                  style: numberStyle, textAlign: TextAlign.end),
+                            ),
+                          ),
+                        if (widget.lineNumbers) const SizedBox(width: 10),
+                        Expanded(
+                          child: text == null
+                              ? SizedBox(height: widget.fontSize * 1.4)
+                              : Text(text, style: style),
                         ),
-                      if (widget.lineNumbers) const SizedBox(width: 10),
-                      Expanded(
-                        child: text == null
-                            ? SizedBox(height: widget.fontSize * 1.4)
-                            : SelectableText(text, style: style),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),

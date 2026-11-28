@@ -99,16 +99,10 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                         // üstüne kaydırılabilsin (belge sonu payı).
                         boundaryMargin: _proKeyboardRoom(context),
                         behaviorControlParams: PdfViewerBehaviorControlParams(
-                          // 500 ms (Motion dışı zamanlayıcı)
-                          trailingPageLoadingDelay:
-                              const Duration(microseconds: 500000),
                           pageImageCachingDelay: _pro?.live == null
-                              ? const PdfViewerBehaviorControlParams()
-                                  .pageImageCachingDelay
+                              ? const Duration(microseconds: 50000)
                               : Duration.zero,
-                          partialImageLoadingDelay: _pro?.live == null
-                              ? Motion.short
-                              : Duration.zero,
+                          partialImageLoadingDelay: Duration.zero,
                           loadPageDimensionsOnDemand:
                               _docSize > (100 << 20) || _pageCount >= 500,
                         ),
@@ -271,10 +265,7 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                           if (ok) PdfProPerf.openMark('ilk_sayfa');
                           // İlk sayfa net çizildi (ya da belge açılamadı):
                           // köprü payı beklemeden kalkar.
-                          if (mounted && !_pdfOpened) {
-                            _pdfBridgeTimer?.cancel();
-                            _partSetState(() => _pdfOpened = true);
-                          }
+                          _finishPdfBridge();
                         },
                         // Köprüler: iç hedef → o sayfaya git, dış adres → onay + tarayıcı.
                         linkHandlerParams: PdfLinkHandlerParams(
@@ -364,54 +355,8 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
                               // sayfaların katmanları kendi vurgusunu bırakır.
                               activeSelectionPage:
                                   _pdfSelection.isEmpty ? 0 : _pdfSelPage,
-                              onSelected:
-                                  (t, rects, pageNo, _, _) {
-                                if (mounted) {
-                                  _partSetState(() {
-                                    // Yeni seçim: çubuk vurgu kipinden çıkar.
-                                    _lastMark = null;
-                                    if (t != _pdfSelection) {
-                                      _pdfSelExpanded = false;
-                                      _pdfSelBarTop = false;
-                                    }
-                                    _pdfSelection = t;
-                                    _pdfSelRects = rects;
-                                    _pdfSelPage = t.isEmpty ? 0 : pageNo;
-                                  });
-                                  // PS5 (cihaz turu): seçim TUTAMAÇLA
-                                  // uzatılınca "parmak kalktı" olayı gelmiyor
-                                  // → seçim durulunca çubuğun yerine yine
-                                  // karar verilir (sürükleme boyunca değil).
-                                  _pdfSelRevealTimer?.cancel();
-                                  if (t.trim().isNotEmpty && !_pdfSelecting) {
-                                    _pdfSelRevealTimer =
-                                        Timer(Motion.long, () {
-                                      if (mounted) {
-                                        _revealAboveBar(
-                                            _pdfSelPage, _pdfSelRects,
-                                            barHeight:
-                                                _pdfSelExpanded ? 420 : 190);
-                                      }
-                                    });
-                                  }
-                                }
-                              },
-                              onSelectingChanged: (s) {
-                                if (mounted && _pdfSelecting != s) {
-                                  _partSetState(() => _pdfSelecting = s);
-                                  // Parmak kalktı: seçilen satır çubuğun
-                                  // arkasında kalmasın.
-                                  if (!s && _pdfSelection.trim().isNotEmpty) {
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback((_) {
-                                      if (mounted) {
-                                        _revealAboveBar(
-                                            _pdfSelPage, _pdfSelRects);
-                                      }
-                                    });
-                                  }
-                                }
-                              },
+                              onSelected: _onPdfSelected,
+                              onSelectingChanged: _onPdfSelectingChanged,
                               onDragAt: _onPdfSelDragAt,
                               // Çift dokunuş burada yakınlaştırır (H3.1).
                               doubleTapSelectsWord: false,
@@ -877,5 +822,47 @@ extension _ViewerScreenBodyPart on _ViewerScreenState {
         Expanded(child: viewer),
       ],
     );
+  }
+
+  void _onPdfSelected(
+    String t,
+    List<PdfRect> rects,
+    int pageNo,
+    String _,
+    bool _,
+  ) {
+    if (!mounted) return;
+    _partSetState(() {
+      _lastMark = null;
+      if (t != _pdfSelection) {
+        _pdfSelExpanded = false;
+        _pdfSelBarTop = false;
+      }
+      _pdfSelection = t;
+      _pdfSelRects = rects;
+      _pdfSelPage = t.isEmpty ? 0 : pageNo;
+    });
+    _pdfSelRevealTimer?.cancel();
+    if (t.trim().isNotEmpty && !_pdfSelecting) {
+      _pdfSelRevealTimer = Timer(Motion.long, () {
+        if (mounted) {
+          _revealAboveBar(
+            _pdfSelPage,
+            _pdfSelRects,
+            barHeight: _pdfSelExpanded ? 420 : 190,
+          );
+        }
+      });
+    }
+  }
+
+  void _onPdfSelectingChanged(bool s) {
+    if (!mounted || _pdfSelecting == s) return;
+    _partSetState(() => _pdfSelecting = s);
+    if (!s && _pdfSelection.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _revealAboveBar(_pdfSelPage, _pdfSelRects);
+      });
+    }
   }
 }

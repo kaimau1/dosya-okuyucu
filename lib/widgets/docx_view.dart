@@ -1,5 +1,6 @@
 import '../core/l10n/app_strings.dart';
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -486,7 +487,11 @@ class DocxViewState extends State<DocxView> {
     // genişliği bir kez ölçüyor).
     await _controller.runJavaScript('setDocDir(${widget.rightToLeft})');
     if (!mounted) return;
-    final b64 = base64Encode(widget.bytes);
+    final bytes = widget.bytes;
+    final b64 = bytes.length > 64 * 1024
+        ? await Isolate.run(() => base64Encode(bytes))
+        : base64Encode(bytes);
+    if (!mounted) return;
     await _controller.runJavaScript("renderDocx('$b64')");
   }
 

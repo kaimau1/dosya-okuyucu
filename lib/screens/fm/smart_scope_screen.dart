@@ -135,6 +135,16 @@ class _SmartScopeScreenState extends State<SmartScopeScreen>
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant),
                           ),
+                          if (SmartSort.deepMedia) ...[
+                            const SizedBox(height: Gap.xs),
+                            Text(
+                              context.t('sm.deep_quota_note'),
+                              key: const ValueKey('scp-deep-note'),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ],
                         ],
                       ),
               ),
@@ -151,6 +161,14 @@ class _SmartScopeScreenState extends State<SmartScopeScreen>
               value: SmartScopePick.groupOn(g),
               onChanged: (v) => unawaited(SmartScopePick.setGroup(g, v)),
             ),
+          SwitchListTile(
+            key: const ValueKey('scp-deep-media'),
+            secondary: const Icon(AppIcons.ai),
+            title: Text(context.t('sm.deep_media')),
+            subtitle: Text(context.t('sm.deep_media_sub')),
+            value: SmartSort.deepMedia,
+            onChanged: (v) => unawaited(SmartSort.setSettings(deepMedia: v)),
+          ),
           SectionHeader(context.t('scp.sources')),
           for (final s in SmartSource.values)
             SwitchListTile(

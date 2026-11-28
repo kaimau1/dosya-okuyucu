@@ -501,6 +501,7 @@ abstract final class SmartSort {
   static const prefEnabled = 'smart_sort_on';
   static const prefCamera = 'smart_sort_camera';
   static const prefAuto = 'smart_sort_auto';
+  static const prefDeepMedia = 'smart_sort_deep_media';
 
   /// Otomatik düzen yalnız **şarjda + Wi-Fi'de** ve **arka planda da**
   /// (2026-11-19, kullanıcı isteği). Açıkken uygulama içi otomatik tur da
@@ -538,12 +539,14 @@ abstract final class SmartSort {
   static bool _camera = false;
   static bool _auto = false;
   static bool _bg = false;
+  static bool _deepMedia = false;
   static bool _prefsRead = false;
 
   static bool get enabled => _enabled;
   static bool get includeCamera => _camera;
   static bool get autoNew => _auto;
   static bool get chargeWifiOnly => _bg;
+  static bool get deepMedia => _deepMedia;
 
   static Future<void> readSettings() async {
     if (_prefsRead) return;
@@ -553,6 +556,7 @@ abstract final class SmartSort {
       _camera = prefs.getBool(prefCamera) ?? false;
       _auto = prefs.getBool(prefAuto) ?? false;
       _bg = prefs.getBool(prefBg) ?? false;
+      _deepMedia = prefs.getBool(prefDeepMedia) ?? false;
     } catch (_) {
       // Bilinçli: okunamazsa varsayılanlar (kapalı, kamera kapalı).
     }
@@ -564,12 +568,14 @@ abstract final class SmartSort {
     bool? camera,
     bool? auto,
     bool? bg,
+    bool? deepMedia,
   }) async {
     await readSettings();
     if (enabled != null) _enabled = enabled;
     if (camera != null) _camera = camera;
     if (auto != null) _auto = auto;
     if (bg != null) _bg = bg;
+    if (deepMedia != null) _deepMedia = deepMedia;
     revision.value++;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -577,6 +583,7 @@ abstract final class SmartSort {
       await prefs.setBool(prefCamera, _camera);
       await prefs.setBool(prefAuto, _auto);
       await prefs.setBool(prefBg, _bg);
+      await prefs.setBool(prefDeepMedia, _deepMedia);
     } catch (_) {
       // Bilinçli: yazılamazsa seçim yalnız bu oturumda geçerli.
     }
@@ -1459,7 +1466,8 @@ abstract final class SmartSort {
   }) {
     final by = {for (final a in r.answers) a.question.id: a};
     final kind = SmartSortInput.kindOf(e.path);
-    if (kind == SmartInputKind.audio || kind == SmartInputKind.video) {
+    if (asCat == null &&
+        (kind == SmartInputKind.audio || kind == SmartInputKind.video)) {
       return _avFromAnswers(e, by, kind == SmartInputKind.video, today);
     }
     if (kind == SmartInputKind.meta) {
@@ -1539,17 +1547,18 @@ abstract final class SmartSort {
     );
   }
 
-  /// Ses/video yanıtı → kayıt: kategori uzantıdan sabit, alt tür (güven
-  /// ≥ 0,4), seste dil + kalite (≥ 0,5), videoda "yanlışlıkla" (≥ 0,65 →
-  /// Ayıkla). Alt tür yanıtı yoksa kayıt yok.
+  /// Ses/video yanıtı → kayıt: içeriğe göre kategori (müzik → `music`,
+  /// sesli/görüntülü davet → `event`, ders/toplantı/kutlama vb. veya
+  /// genel `audio`/`video`), alt tür (güven ≥ 0,4), seste dil + kalite
+  /// (≥ 0,5), videoda "yanlışlıkla" (≥ 0,65 → Ayıkla).
   static SmartRecord? _avFromAnswers(
     FsEntry e,
     Map<String, DecisionAnswer> by,
     bool video,
     DateTime? today,
   ) {
-    final cat = video ? SmartTaxonomy.video : SmartTaxonomy.audio;
-    final a = by['sub_$cat'];
+    final rawCat = video ? SmartTaxonomy.video : SmartTaxonomy.audio;
+    final a = by['sub_$rawCat'];
     final choice = a?.choice;
     if (a == null || choice == null) return null;
     String pick(String id) {
@@ -1559,14 +1568,66 @@ abstract final class SmartSort {
       return v;
     }
 
+    var resolvedCat = rawCat;
+    var resolvedSub =
+        choice == SmartTaxonomy.other || a.confidence < 0.4 ? '' : choice;
+    if (!video) {
+      final topicAns = by['audio_topic'];
+      final topic = topicAns != null &&
+              topicAns.confidence >= 0.60 &&
+              topicAns.choice != 'none'
+          ? topicAns.choice
+          : null;
+      if ((choice == 'music' && a.confidence >= 0.55) || topic == 'music') {
+        resolvedCat = SmartTaxonomy.music;
+        resolvedSub = '';
+      } else if ((choice == 'invitation_audio' && a.confidence >= 0.55) ||
+          topic == 'event') {
+        resolvedCat = 'event';
+        resolvedSub = 'invitation_audio';
+      } else if ((choice == 'greeting_audio' && a.confidence >= 0.60) ||
+          topic == 'greeting') {
+        resolvedCat = 'greeting';
+        resolvedSub = 'greeting_audio';
+      } else if (topic == 'education' && topicAns!.confidence >= 0.65) {
+        resolvedCat = 'education';
+        if (resolvedSub.isEmpty) resolvedSub = 'lecture';
+      } else if (topic == 'work' && topicAns!.confidence >= 0.65) {
+        resolvedCat = 'work';
+        if (resolvedSub.isEmpty) resolvedSub = 'meeting_recording';
+      } else if (topic == 'health' && topicAns!.confidence >= 0.65) {
+        resolvedCat = 'health';
+        if (resolvedSub.isEmpty) resolvedSub = 'voice_note';
+      }
+    } else {
+      final topicAns = by['video_topic'];
+      final topic = topicAns != null &&
+              topicAns.confidence >= 0.60 &&
+              topicAns.choice != 'none'
+          ? topicAns.choice
+          : null;
+      if ((choice == 'invitation_video' && a.confidence >= 0.55) ||
+          topic == 'event') {
+        resolvedCat = 'event';
+        resolvedSub = 'invitation_video';
+      } else if ((choice == 'music_video' && a.confidence >= 0.60) ||
+          topic == 'music') {
+        resolvedCat = SmartTaxonomy.music;
+        resolvedSub = 'music_video';
+      } else if (topic == 'education' && topicAns!.confidence >= 0.65) {
+        resolvedCat = 'education';
+        if (resolvedSub.isEmpty) resolvedSub = 'lecture_video';
+      }
+    }
+
     final lang = pick('speech_lang');
     return SmartRecord(
       path: e.path,
       size: e.sizeBytes,
       modifiedMs: e.modifiedMs,
-      cat: cat,
+      cat: resolvedCat,
       conf: 1,
-      sub: choice == SmartTaxonomy.other || a.confidence < 0.4 ? '' : choice,
+      sub: resolvedSub,
       accidental: video && (by['accidental']?.yes ?? 0) >= 0.65,
       asked: SmartDates.dayOf(today ?? DateTime.now()),
       lang: lang == 'other' ? '' : lang,
@@ -1619,7 +1680,7 @@ abstract final class SmartSort {
     final prep = input.isEmpty ||
             kind == SmartInputKind.audio ||
             kind == SmartInputKind.video
-        ? await SmartSortInput.prepare(entry, keys)
+        ? await SmartSortInput.prepare(entry, keys, deep: _deepMedia)
         : null;
     final DecisionResult result;
     try {
@@ -1661,7 +1722,7 @@ abstract final class SmartSort {
     final image = GeminiDecisions.mediaFor(entry.path)?.type == 'image';
     final kind = SmartSortInput.kindOf(entry.path);
     final now = DateTime.now();
-    final prep = await SmartSortInput.prepare(entry, keys);
+    final prep = await SmartSortInput.prepare(entry, keys, deep: _deepMedia);
     final DecisionResult result;
     try {
       result = await GeminiDecisions.ask(
@@ -1725,7 +1786,8 @@ abstract final class SmartSort {
   static bool supports(FsEntry e) {
     if (e.isDir || e.path.contains('/.')) return false;
     final kind = SmartSortInput.kindOf(e.path);
-    return kind != null && SmartSortInput.sizeOk(kind, e.sizeBytes);
+    return kind != null &&
+        SmartSortInput.sizeOk(kind, e.sizeBytes, deep: _deepMedia);
   }
 
   /// Sorulması gereken mi (kayıt yok ya da dosya değişmiş; elle düzeltilmiş
@@ -2066,8 +2128,14 @@ abstract final class SmartSort {
               continue;
             }
             if (localPrepass) {
+              final k = SmartSortInput.kindOf(e.path);
+              final skipLocal = _deepMedia &&
+                  (k == SmartInputKind.audio ||
+                      k == SmartInputKind.video ||
+                      (k == SmartInputKind.media &&
+                          GeminiDecisions.mediaFor(e.path)?.type == 'image'));
               final old = _records[e.path];
-              if (!(old?.user ?? false)) {
+              if (!skipLocal && !(old?.user ?? false)) {
                 final local = SmartLocalRules.classify(e);
                 if (local != null) {
                   final kept = _keepManual(old, local);
@@ -2152,7 +2220,8 @@ abstract final class SmartSort {
                 learned: image ? imageHint : docHint,
               );
               // Büyük ses/video Files API ile yüklenir (yalnız yükleyen anahtar).
-              final prep = await SmartSortInput.prepare(e, keys);
+              final prep = await SmartSortInput.prepare(e, keys,
+                  deep: _deepMedia);
               final input = prep.input;
               DecisionResult result;
               try {

@@ -270,15 +270,17 @@ extension _SlidesEditorScreenViewsPart on _SlidesEditorScreenState {
                   : _withFlash(slide, view, GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: _selShape == null ? null : _clearSelection,
-                      child: SlideCanvas(
-                        slide: view,
-                        onEditShape: (shape, at) => _beginEdit(slide, shape, at),
-                        onSelectShape: (shape) => _selectShape(slide, shape),
-                        selectedShape:
-                            identical(_selSlide, slide) ? _selShape : null,
-                        promptFor: _promptFor,
-                        onFrameChanged: (shape, r, rot) =>
-                            _commitFrame(slide, shape, r, rot),
+                      child: RepaintBoundary(
+                        child: SlideCanvas(
+                          slide: view,
+                          onEditShape: (shape, at) => _beginEdit(slide, shape, at),
+                          onSelectShape: (shape) => _selectShape(slide, shape),
+                          selectedShape:
+                              identical(_selSlide, slide) ? _selShape : null,
+                          promptFor: _promptFor,
+                          onFrameChanged: (shape, r, rot) =>
+                              _commitFrame(slide, shape, r, rot),
+                        ),
                       ),
                     )),
             ),

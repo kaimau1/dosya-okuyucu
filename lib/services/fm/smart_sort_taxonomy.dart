@@ -73,9 +73,9 @@ abstract final class SmartTaxonomy {
   /// kategoriye girer; alt türü ad · boyut · klasörden seçilir).
   static const package = 'package';
 
-  /// Ses kaydı / video (2026-11-18, PLAN §1.1 m.2): kategori uzantıdan
-  /// kesin; alt türü (sesli not, toplantı… / aile videosu, ekran kaydı…)
-  /// dosyanın kendisinden tek istekte sorulur.
+  /// Ses kaydı / video / müzik: [audio] ve [video] kapsayıcı yedekler; içerik
+  /// müzikse [music], davetse `event`, ders/toplantıysa ilgili kategori seçilir.
+  static const music = 'music';
   static const audio = 'audio';
   static const video = 'video';
 
@@ -91,15 +91,16 @@ abstract final class SmartTaxonomy {
     }
     if (docCategories.containsKey(cat)) return SmartCatGroup.docs;
     if (imageCategories.containsKey(cat)) return SmartCatGroup.images;
-    if (fixedCategories.contains(cat)) return SmartCatGroup.media;
+    if (fixedCategories.contains(cat) || cat == music) return SmartCatGroup.media;
     return null;
   }
 
-  /// Bütün kategori kimlikleri (sıralı: belge → görsel → ses/video →
+  /// Bütün kategori kimlikleri (sıralı: belge → görsel → müzik/ses/video →
   /// kurulum → diğer).
   static List<String> get categoryIds => [
         ...docCategories.keys,
         ...imageCategories.keys,
+        music,
         audio,
         video,
         package,
@@ -613,12 +614,13 @@ abstract final class SmartTaxonomy {
     ];
   }
 
-  /// Ses kaydı soruları (tek istek, 3 soru): tür, konuşma dili, kalite.
+  /// Ses kaydı soruları (tek istek): tür, konuşma dili, kalite ve içerik
+  /// konusu (ör. müzik → Müzik, sesli davet → Davetiye & etkinlik).
   static const audioQuestions = [
     DecisionQuestion.choice(
       'sub_$audio',
       'sub_$audio',
-      'Audio recording type (by sound, ignore filename).',
+      'Audio recording type (listen to actual audio content, ignore filename).',
       _audioSubs,
     ),
     DecisionQuestion.choice(
@@ -633,14 +635,20 @@ abstract final class SmartTaxonomy {
       'Audio quality?',
       audioQualities,
     ),
+    DecisionQuestion.choice(
+      'audio_topic',
+      'audio_topic',
+      'Main content topic of what is heard/spoken (ignore filename). Pick "none" for general voice note or chat.',
+      audioTopics,
+    ),
   ];
 
-  /// Video soruları (yalnız ilk 60 sn, düşük çözünürlük): tür + yanlışlıkla.
+  /// Video soruları: tür + yanlışlıkla + içerik konusu (davet, müzik, ders).
   static const videoQuestions = [
     DecisionQuestion.choice(
       'sub_$video',
       'sub_$video',
-      'Video type (by visual/audio, ignore filename).',
+      'Video type (by visual and audio content, ignore filename).',
       _videoSubs,
     ),
     DecisionQuestion.yesNo(
@@ -648,20 +656,54 @@ abstract final class SmartTaxonomy {
       'accidental',
       'Accidental/useless clip (pocket, dark/blank, floor/ceiling, 1-2s)?',
     ),
+    DecisionQuestion.choice(
+      'video_topic',
+      'video_topic',
+      'Main content topic of what is seen and heard (ignore filename). Pick "none" for general/family clip.',
+      videoTopics,
+    ),
   ];
+
+  /// Ses içeriğinin ana konusu — sesi dinleyip doğru akıllı klasöre yönlendirir.
+  static const audioTopics = <String, String>{
+    'music': 'Music, song, singing or instrumental melody',
+    'event': 'Invitation (wedding, ceremony, party, gathering) or event announcement',
+    'education': 'School/university lesson, course, lecture or study material',
+    'work': 'Work meeting, business project, quote or client discussion',
+    'health': 'Doctor advice, medical/lab explanation or appointment note',
+    'greeting': 'Holiday, birthday, Friday or well-wishing greeting message',
+    'none': 'General voice note, phone call, chat message or other',
+  };
+
+  /// Video içeriğinin ana konusu.
+  static const videoTopics = <String, String>{
+    'event': 'Wedding, engagement, ceremony or event invitation/announcement',
+    'music': 'Music video, concert, song or musical performance',
+    'education': 'Lesson, tutorial, lecture or course',
+    'work': 'Work presentation, meeting or business demo',
+    'greeting': 'Holiday, birthday or well-wishing greeting video',
+    'none': 'Personal/family video, general clip or other',
+  };
 
   // [subtypes] ve soru listeleri aynı sabit haritaları paylaşır.
   static const _audioSubs = {
     'voice_note': 'Personal voice note/memo (1 speaker to self)',
     'whatsapp_voice': 'Messaging voice message (short, informal)',
+    'invitation_audio': 'Spoken invitation or announcement (wedding, ceremony, event, gathering)',
     'meeting_recording': 'Meeting/interview/group discussion',
-    'lecture': 'Lesson, lecture, seminar, talk or podcast',
+    'lecture': 'Lesson, lecture, seminar, talk or course',
     'call_recording': 'Phone call recording (2 sides)',
-    'music': 'Music, song or ringtone',
+    'music': 'Music, song, singing or instrumental track',
+    'podcast_audiobook': 'Podcast, radio program or audiobook',
+    'religious_audio': 'Quran recitation, prayer, sermon or religious audio',
+    'greeting_audio': 'Holiday, birthday, Friday or well-wishing voice greeting',
+    'ringtone_sfx': 'Short ringtone, notification tone or sound effect',
     'other': 'Other',
   };
   static const _videoSubs = {
     'family_video': 'Personal/family/trip/pet/daily life video',
+    'invitation_video': 'Wedding, engagement, ceremony or event invitation video',
+    'music_video': 'Music video, concert, song or performance',
     'screen_recording': 'Phone/PC screen recording',
     'lecture_video': 'Lesson, lecture, tutorial or course',
     'clip_meme': 'Forwarded clip, meme, viral/greeting/social video',
@@ -695,7 +737,8 @@ abstract final class SmartTaxonomy {
     'meme': ['caps', 'mizah', 'meme', 'komik', 'ميم'],
     'photo_people': ['fotoğraf', 'photo', 'insan', 'people', 'selfie'],
     'photo_other': ['fotoğraf', 'photo', 'manzara', 'yemek'],
-    'audio': ['ses', 'kayıt', 'sesli not', 'ses kaydı', 'audio', 'recording', 'voice', 'تسجيل'],
+    'music': ['müzik', 'şarkı', 'türkü', 'melodi', 'albüm', 'konser', 'music', 'song', 'track', 'موسيقى', 'أغنية'],
+    'audio': ['ses', 'kayıt', 'sesli not', 'ses kaydı', 'sesli davet', 'podcast', 'audio', 'recording', 'voice', 'تسجيل'],
     'video': ['video', 'klip', 'ekran kaydı', 'clip', 'فيديو'],
     'package': ['apk', 'kurulum', 'arşiv', 'zip', 'rar', 'yedek', 'installer', 'archive', 'backup', 'أرشيف'],
   };

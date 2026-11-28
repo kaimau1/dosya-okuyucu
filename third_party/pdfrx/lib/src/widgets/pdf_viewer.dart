@@ -34,6 +34,11 @@ import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
 import 'sizing/pdf_viewer_size_delegate.dart';
 import 'zoom_steps/pdf_viewer_zoom_steps_delegate.dart';
 
+/// pdfrx-yama (dosya-okuyucu R8/R9, 2026-11-28): bir sayfa görüntüsü tuvale ÇİZİLDİ
+/// (`sharp` = gerçek boy parça, değilse önizleme). Açılış ölçümü ve köprü
+/// kaldırma içindir. Boşken maliyet tek null denetimi.
+void Function(bool sharp)? pdfrxOnPageImagePainted;
+
 /// A widget to display PDF document.
 ///
 /// To create a [PdfViewer] widget, use one of the following constructors:
@@ -258,6 +263,8 @@ class _PdfViewerState extends State<PdfViewer>
   bool _isSimplePageLayout = true;
   Size? _viewSize;
   late PdfViewerLayoutMetrics _layoutMetrics;
+  int? _metricsPageNumber;
+  double? _metricsZoom;
   int? _pageNumber;
   int? _initialPageNumber;
   bool _initialized = false;
@@ -389,6 +396,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
     _layoutDirty = true;
+    _metricsPageNumber = null;
+    _metricsZoom = null;
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
       _imageBudget.addListener(_onImageBudgetChanged);
@@ -508,6 +517,8 @@ class _PdfViewerState extends State<PdfViewer>
     _layout = null;
     _pageLayoutIndex = null;
     _layoutDirty = true;
+    _metricsPageNumber = null;
+    _metricsZoom = null;
     _documentSubscription?.cancel();
     _documentSubscription = null;
     _clearFontManagerAssociation();
@@ -717,6 +728,8 @@ class _PdfViewerState extends State<PdfViewer>
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
       _layoutDirty = true;
+    _metricsPageNumber = null;
+    _metricsZoom = null;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.cancelPendingPartialRendering(change.key);
@@ -1004,9 +1017,19 @@ class _PdfViewerState extends State<PdfViewer>
     if (isViewSizeChanged) _layoutDirty = true;
     final isLayoutChanged = _relayoutPages();
 
-    _recalculateMetrics();
-    _calcZoomStopTable();
-    _adjustBoundaryMargins(viewSize, max(_layoutMetrics.minScale, _currentZoom));
+    final targetPage = _pageNumber ?? _gotoTargetPageNumber;
+    final metricsDirty =
+        !_initialized || isViewSizeChanged || isLayoutChanged || _metricsPageNumber != targetPage;
+    if (metricsDirty) {
+      _recalculateMetrics();
+      _calcZoomStopTable();
+      _metricsPageNumber = targetPage;
+    }
+    final effectiveZoom = max(_layoutMetrics.minScale, _currentZoom);
+    if (metricsDirty || _metricsZoom != effectiveZoom) {
+      _adjustBoundaryMargins(viewSize, effectiveZoom);
+      _metricsZoom = effectiveZoom;
+    }
 
     final newSnapshot = PdfViewerLayoutSnapshot(
       viewSize: viewSize,
@@ -1462,7 +1485,7 @@ class _PdfViewerState extends State<PdfViewer>
       _pageLayoutIndex = null;
       return false;
     }
-    if (!_layoutDirty && _layout != null && widget.params.layoutPages == null) return false;
+    if (!_layoutDirty && _layout != null) return false;
     final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
     _layoutDirty = false;
     if (_layout?.documentSize == newLayout.documentSize && _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
@@ -1864,6 +1887,13 @@ class _PdfViewerState extends State<PdfViewer>
     for (final pageNumber in cache.pendingPageNumbers.toList()) {
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
     }
+    final previewPaint = Paint()
+      ..filterQuality = filterQuality
+      ..colorFilter = pageImageColorFilter;
+    final whitePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill
+      ..colorFilter = pageImageColorFilter;
     unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
     for (final i in pageIndices) {
       final rect = _layout!.pageLayouts[i];
@@ -1919,18 +1949,11 @@ class _PdfViewerState extends State<PdfViewer>
           previewImage.image,
           Rect.fromLTWH(0, 0, previewImage.image.width.toDouble(), previewImage.image.height.toDouble()),
           rect,
-          Paint()
-            ..filterQuality = filterQuality
-            ..colorFilter = pageImageColorFilter,
+          previewPaint,
         );
+        pdfrxOnPageImagePainted?.call(false);
       } else {
-        canvas.drawRect(
-          rect,
-          Paint()
-            ..color = Colors.white
-            ..style = PaintingStyle.fill
-            ..colorFilter = pageImageColorFilter,
-        );
+        canvas.drawRect(rect, whitePaint);
       }
 
       if (enableLowResolutionPagePreview &&
@@ -1952,6 +1975,7 @@ class _PdfViewerState extends State<PdfViewer>
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
         partial.draw(canvas, filterQuality, pageImageColorFilter);
+        pdfrxOnPageImagePainted?.call(true);
       }
 
       // Guarded on the selection flag. Without this, paint loads structured text

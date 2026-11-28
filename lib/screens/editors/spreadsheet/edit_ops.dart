@@ -130,6 +130,8 @@ extension _SpreadsheetEditorScreenEditOpsPart on _SpreadsheetEditorScreenState {
       }
     } catch (e) {
       _error = userErrorText(e);
+    } finally {
+      _releasePriority();
     }
     _head = null;
     if (mounted) _partSetState(() {});

@@ -434,14 +434,16 @@ class _OfficeShellState extends State<OfficeShell>
     // Şimdi gövde EKRANIN TAMAMINI sabit boyla kaplar; çubuklar onun üstünde
     // yalnız kayar (Transform — yerleşim yok, yalnız boya). İçerik
     // [ReadingChrome.insetsOf] kadar pay bırakıp çubukların altından başlar.
-    final media = MediaQuery.of(context);
+    final padding = MediaQuery.paddingOf(context);
+    final topPadding = padding.top;
+    final orientation = MediaQuery.orientationOf(context);
     // Durum çubuğu biz gizlediysek pay eski boyda kalır; geri gelip boyu
     // yine görününce tutma bırakılır.
-    if ((!_statusHidden && media.padding.top >= (_statusHold ?? 0)) ||
-        media.orientation != _statusHoldFor) {
+    if ((!_statusHidden && topPadding >= (_statusHold ?? 0)) ||
+        orientation != _statusHoldFor) {
       _statusHold = null;
     }
-    final status = math.max(media.padding.top, _statusHold ?? 0);
+    final status = math.max(topPadding, _statusHold ?? 0);
     final topH = status + appBar.preferredSize.height;
     // İçeriğe verilen pay arama çubuğunu (tabBar) SAYMAZ: arama açılıp
     // kapanınca pay değişseydi PDF düzeni yeniden kurulur, sayfa başına
@@ -570,8 +572,8 @@ class _OfficeShellState extends State<OfficeShell>
                   final t = _shown.value;
                   return PositionedDirectional(
                     end: 16,
-                    bottom: 16 + media.padding.bottom +
-                        (bottomH - media.padding.bottom).clamp(0, 999) * t,
+                    bottom: 16 + padding.bottom +
+                        (bottomH - padding.bottom).clamp(0, 999) * t,
                     child: IgnorePointer(
                       ignoring: t < 0.5,
                       child: Opacity(
