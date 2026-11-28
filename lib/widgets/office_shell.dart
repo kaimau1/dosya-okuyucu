@@ -18,6 +18,7 @@ import '../core/theme.dart';
 import '../models/document.dart';
 import 'file_type_icon.dart';
 import '../services/fm/pdf_thumbnail.dart';
+import 'fm/fm_file_image.dart';
 import '../core/app_colors.dart';
 
 /// Tüm belge ekranlarının ortak Office kabuğu.
@@ -870,11 +871,10 @@ class _DocThumbState extends State<DocThumb> {
                     color: scheme.outlineVariant.withValues(alpha: 0.8)),
               ),
               clipBehavior: Clip.antiAlias,
-              child: Image.file(
-                File(file),
+              child: Image(
+                image: FmFileImage(file, cacheHeight: (h * dpr).round()),
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
-                cacheHeight: (h * dpr).round(),
                 gaplessPlayback: true,
                 filterQuality: FilterQuality.medium,
                 errorBuilder: (_, _, _) => FileTypeIcon(

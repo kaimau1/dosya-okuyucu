@@ -128,7 +128,8 @@ void main() {
     await drawLine(tester, c + const Offset(-60, 150), c + const Offset(60, 150));
     expect(strokeCount(tester), 2);
 
-    await tester.tap(find.byIcon(Icons.auto_fix_normal_rounded));
+    // Tepside simge değil çizilmiş kalemler var (Notlar tarzı, 2026-11-28).
+    await tester.tap(find.byKey(const ValueKey('pen-tray-eraser')));
     await tester.pump();
     await drawLine(tester, c + const Offset(0, -30), c + const Offset(0, 30));
     expect(strokeCount(tester), 1);
@@ -175,14 +176,15 @@ void main() {
       ),
     ));
     await tester.pump();
-    for (final icon in [
-      Icons.border_color_rounded,
-      AppIcons.textFields,
-      Icons.auto_fix_normal_rounded,
-      Icons.pan_tool_rounded,
-      AppIcons.edit,
+    // Tepsideki kalemler anahtarla (simge yok, çizilmiş kalem — 2026-11-28).
+    for (final finder in [
+      find.byKey(const ValueKey('pen-tray-highlighter')),
+      find.byIcon(AppIcons.textFields),
+      find.byKey(const ValueKey('pen-tray-eraser')),
+      find.byIcon(Icons.pan_tool_rounded),
+      find.byKey(const ValueKey('pen-tray-pen')),
     ]) {
-      await tester.tap(find.byIcon(icon));
+      await tester.tap(finder);
       await tester.pump();
       expect(tester.takeException(), isNull);
     }
