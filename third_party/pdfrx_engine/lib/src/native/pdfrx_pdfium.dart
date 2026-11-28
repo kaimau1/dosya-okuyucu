@@ -2198,7 +2198,7 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
   _PdfiumRenderTask(this.params);
   final _PdfiumRenderParams params;
   static const _maxActiveBytes = 64 * 1024 * 1024;
-  static const _maxActiveTasks = 4;
+  static const _maxActiveTasks = 2;
   static final _activePages = <(int, int)>{};
   static var _activeBytes = 0;
 

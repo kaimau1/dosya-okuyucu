@@ -132,10 +132,12 @@ extension _DashboardScreenSectionsPart on _DashboardScreenState {
             _VolumeCard(
               volume: v,
               index: _index,
-              // `label` UUID adlı bir birimde BOŞTUR (ad çeviriden gelir)
-              // — tarayıcı başlığı boş açılıyordu.
-              onTap: () => _push(BrowserScreen(
-                  path: v.path, title: v.displayLabel(context.t))),
+              // Çıkarılabilir USB/SD birimleri ana menü görünümü + klasör
+              // geçişli özel ekranda açılır.
+              onTap: () => _push(v.isRemovable
+                  ? UsbHomeScreen(volume: v)
+                  : BrowserScreen(
+                      path: v.path, title: v.displayLabel(context.t))),
               onLongPress: () => unawaited(_volumeMenu(v)),
             ),
           const SizedBox(height: Gap.sm),

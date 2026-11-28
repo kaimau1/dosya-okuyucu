@@ -80,6 +80,17 @@ abstract final class FmEnv {
         if (!volumes.any((v) => v.path == primaryRoot)) primaryRoot,
       ];
 
+  /// Çıkarılabilir USB bellekler hariç cihaz kökleri (dahili + SD kart).
+  ///
+  /// USB takılıyken telefonun ana kategorileri (Belgeler/Videolar/Fotoğraflar),
+  /// Yeniler listesi ve Arama dizini USB'deki dosyalarla karışmasın diye
+  /// ayrıştırılır.
+  static List<String> get phoneRoots => [
+        for (final v in volumes)
+          if (v.kind != StorageKind.usb) v.path,
+        if (!volumes.any((v) => v.path == primaryRoot)) primaryRoot,
+      ];
+
   static TrashService get trash => TrashService(
         volumeRoots: volumeRoots,
         fallbackRoot: appSupportDir,

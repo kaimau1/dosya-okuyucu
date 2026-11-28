@@ -71,6 +71,8 @@ abstract final class PdfLastView {
         fullWidth: w.toDouble(),
         fullHeight: h.toDouble(),
         backgroundColor: AppColors.page.toARGB32(),
+        flags: PdfPageRenderFlags.limitedImageCache,
+        priority: PdfPageRenderPriority.low,
       );
       if (rendered == null) return;
       // Tek kopya: pikseller izolata devredilir (ikinci kopya kapanış

@@ -199,9 +199,31 @@ class FileService {
         return _loadSpreadsheet(file, path, name, kind);
 
       case DocKind.pdf:
+        var size = 0;
+        try {
+          size = await file.length();
+        } catch (_) {
+          // Bilinçli: okunamazsa ViewerScreen açılışta yeniden ölçer.
+        }
+        return LoadedDoc(path: path, name: name, kind: kind, sizeBytes: size);
       case DocKind.image:
       case DocKind.unknown:
         return LoadedDoc(path: path, name: name, kind: kind);
+    }
+  }
+
+  /// Word / Slayt çevirisi için metni gerektiğinde arka planda çıkarır.
+  /// Açılışta hız için `officeText: false` atlanmış olabilir.
+  static Future<String> extractOfficeText(String path, DocKind kind) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      return switch (kind) {
+        DocKind.word => await compute(OfficeReader.extractDocxText, bytes),
+        DocKind.slides => await compute(OfficeReader.extractPptxText, bytes),
+        _ => '',
+      };
+    } catch (_) {
+      return '';
     }
   }
 
@@ -501,23 +523,31 @@ class FileService {
   }
 
   /// Bir zip'in (PK) içindeki bölüm adlarına bakarak OOXML türünü belirler.
+  /// Arka izlekte (compute) koşar ve >16 MB arşivleri belleğe almaz.
   Future<DocKind> _sniffZipKind(File file) async {
     try {
-      if (await file.length() > 50 * 1024 * 1024) return DocKind.unknown;
+      if (await file.length() > 16 * 1024 * 1024) return DocKind.unknown;
       final bytes = await file.readAsBytes();
-      final archive = ZipDecoder().decodeBytes(bytes);
-      final names = archive.files.map((f) => f.name).toList();
-      if (names.any((n) => n.startsWith('word/'))) return DocKind.word;
-      if (names.any((n) => n.startsWith('xl/'))) return DocKind.spreadsheet;
-      if (names.any((n) => n.startsWith('ppt/'))) return DocKind.slides;
+      return await compute(_sniffZipKindBytes, bytes);
     } catch (_) {
       // Bilinçli: zip okunamadı — tür uzantıdan tahmin edilir.
     }
     return DocKind.unknown;
   }
 
+  static DocKind _sniffZipKindBytes(Uint8List bytes) {
+    final archive = ZipDecoder().decodeBytes(bytes);
+    for (final f in archive.files) {
+      final n = f.name;
+      if (n.startsWith('word/')) return DocKind.word;
+      if (n.startsWith('xl/')) return DocKind.spreadsheet;
+      if (n.startsWith('ppt/')) return DocKind.slides;
+    }
+    return DocKind.unknown;
+  }
+
   /// Dosyanın ilk ~8 KB'ına bakıp metin olup olmadığını tahmin eder. Metinse
-  /// tüm içeriği döndürür, ikili (binary) ise null.
+  /// (büyük dosyada yalnız önizleme) içeriği döndürür, ikili (binary) ise null.
   Future<String?> _sniffText(File file) async {
     try {
       final len = await file.length();
@@ -536,6 +566,7 @@ class FileService {
         if (r == 0xFFFD || r < 9 || (r > 13 && r < 32)) bad++;
       }
       if (bad / runes.length > 0.1) return null; // çok bozuk → ikili
+      if (len > LargeTextFile.threshold) return await _readPreview(file);
       return await _readTextSafely(file);
     } catch (_) {
       return null;

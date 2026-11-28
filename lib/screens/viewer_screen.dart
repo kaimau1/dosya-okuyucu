@@ -387,9 +387,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
   /// uygulanmıyordu — "kaldığı yerden devam düzgün çalışmıyor" (2026-09-27).
   bool _resumeReady = true;
 
-  /// Dosyanın boyu (bayt) — okuma konumu ve yer imleri yol değişince de
-  /// bulunsun diye (bkz. [ReadingPositions.pageOf]).
-  int _docSize = 0;
+  /// Dosyanın boyu (bayt) — okuma konumu, yer imleri ve büyük belge
+  /// isteğe-bağlı sayfa ölçümü ilk kareden beri doğru bilsin diye [LoadedDoc]'tan başlar.
+  late int _docSize = widget.doc.sizeBytes;
 
   /// Son atlayıştan (sayfaya git, arama, içindekiler) önceki sayfa —
   /// gezginde "N. sayfaya dön".

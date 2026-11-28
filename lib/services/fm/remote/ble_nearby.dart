@@ -166,18 +166,26 @@ abstract final class BleNearby {
 
   static Future<bool> _request() async {
     try {
-      final perms = [
-        Permission.bluetoothScan,
-        Permission.bluetoothAdvertise,
-        Permission.bluetoothConnect,
-        Permission.locationWhenInUse,
+      var needLocation = false;
+      try {
+        needLocation = await _ch.invokeMethod<bool>('needsLocation') ?? false;
+      } catch (_) {
+        needLocation = false;
+      }
+      final perms = <Permission>[
+        if (!needLocation) ...[
+          Permission.bluetoothScan,
+          Permission.bluetoothAdvertise,
+          Permission.bluetoothConnect,
+        ] else
+          Permission.locationWhenInUse,
       ];
       final res = await perms.request();
-      // Android 12+: üç Bluetooth izni; öncesi: konum (Bluetooth izinleri
-      // orada her zaman "verildi" döner).
-      final bt = res[Permission.bluetoothScan]?.isGranted == true &&
+      if (needLocation) {
+        return res[Permission.locationWhenInUse]?.isGranted == true;
+      }
+      return res[Permission.bluetoothScan]?.isGranted == true &&
           res[Permission.bluetoothConnect]?.isGranted == true;
-      return bt || res[Permission.locationWhenInUse]?.isGranted == true;
     } catch (_) {
       return false;
     }

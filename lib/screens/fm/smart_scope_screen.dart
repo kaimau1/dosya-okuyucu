@@ -191,18 +191,7 @@ class _SmartScopeScreenState extends State<SmartScopeScreen>
     );
   }
 
-  /// Kendi anahtarıyla sınırsız; kredi yalnız tahmin (yakında).
-  String _creditLine(BuildContext context, int remaining) {
-    final pack = SmartCreditDraft.packFor(remaining);
-    final own = context.t('scp.own_key');
-    final credit = pack == null
-        ? context.t('scp.credit_free',
-            {'free': SmartCreditDraft.freeFiles})
-        : context.t('scp.credit_pack', {
-            'free': SmartCreditDraft.freeFiles,
-            'n': pack.$1,
-            'tl': pack.$2,
-          });
-    return '$own\n$credit';
-  }
+  /// Kendi anahtarıyla kullanım özeti (taslak TL fiyatı mağaza öncesi kaldırıldı).
+  String _creditLine(BuildContext context, int remaining) =>
+      context.t('scp.own_key');
 }

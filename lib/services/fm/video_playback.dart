@@ -354,14 +354,14 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
       case AppLifecycleState.detached:
-        // Kullanıcı bildirimden "Çal" dediyse arka planda çalmayı SEÇMİŞTİR;
-        // küçük pencerede (PiP) video zaten görünür ve sürmeli.
+        // Kullanıcı arka planda çalmayı seçse bile ekran kapalı/arkadayken
+        // wakelock asla tutulmaz (yalnız PiP penceresinde ekran görünürdür).
+        if (!Pip.active.value) _syncAwake(false);
         if (backgroundAllowed || Pip.active.value) return;
         if (c.value.isPlaying) {
           _pausedByLifecycle = true;
           unawaited(c.pause());
         }
-        _syncAwake(false);
       case AppLifecycleState.resumed:
         if (_pausedByLifecycle) {
           _pausedByLifecycle = false;
@@ -495,6 +495,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     _autoPip = false;
     unawaited(Pip.setAuto(false));
     _controller = null;
+    if (PlayerEngine.isMpv) PlayerEngine.switchTo(mpv: false);
     playlist = const [];
     index = 0;
     loading = false;
@@ -626,6 +627,7 @@ class VideoPlayback extends ChangeNotifier with WidgetsBindingObserver {
     _syncAwake(false);
     final c = _controller;
     _controller = null;
+    if (PlayerEngine.isMpv) PlayerEngine.switchTo(mpv: false);
     playlist = const [];
     index = 0;
     loading = false;

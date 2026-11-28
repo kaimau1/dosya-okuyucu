@@ -19,6 +19,10 @@ import '../usb/usb_block_device.dart';
 import '../usb/usb_fs_types.dart';
 import 'remote_fs.dart';
 
+class UsbTransferCancelled implements Exception {
+  const UsbTransferCancelled();
+}
+
 /// **Ham USB belleği — gezgin ekranının göreceği hâli.**
 ///
 /// Niye `RemoteFs`: FTP/SFTP/SMB/WebDAV ve SAF için zaten protokolden
@@ -265,7 +269,16 @@ class UsbFs extends RemoteFs {
   }
 
   @override
-  Future<File> download(RemoteEntry entry, String localPath) async {
+  Future<File> download(RemoteEntry entry, String localPath) =>
+      downloadWithProgress(entry, localPath);
+
+  @override
+  Future<File> downloadWithProgress(
+    RemoteEntry entry,
+    String localPath, {
+    void Function(int receivedBytes)? onProgress,
+    bool Function()? isCancelled,
+  }) async {
     final handle = _handles[entry.path] ?? await resolve(entry.path);
     if (handle == null) {
       throw const RemoteException(RemoteError.notFound,
@@ -275,6 +288,8 @@ class UsbFs extends RemoteFs {
     await file.parent.create(recursive: true);
     final sink = file.openWrite();
     var closed = false;
+    var received = 0;
+    var lastReported = 0;
     try {
       final source = UsbEntry(
         name: entry.name,
@@ -282,12 +297,33 @@ class UsbFs extends RemoteFs {
         id: handle,
         sizeBytes: entry.sizeBytes,
       );
-      // **`addStream` KULLANILIYOR, `add` DEĞİL.** `sink.add` geri basınç
-      // uygulamaz: okuma yazmadan hızlıysa parçalar bellekte birikir ve
-      // büyük bir dosyada uygulama şişip donar (kullanıcı 2026-09-02:
-      // *"USB'den dosya kopyalayınca siyah ekran oldu ve dondu"*).
-      // `addStream` diske yazma yetişene kadar okumayı bekletir.
-      await sink.addStream(fs.openRead(source));
+      final trackedStream = fs.openRead(source).transform(
+        StreamTransformer<Uint8List, Uint8List>.fromHandlers(
+          handleData: (chunk, out) {
+            if (isCancelled?.call() ?? false) {
+              out.addError(const UsbTransferCancelled());
+              return;
+            }
+            received += chunk.length;
+            if (received - lastReported >= 256 * 1024 ||
+                (entry.sizeBytes > 0 && received >= entry.sizeBytes)) {
+              lastReported = received;
+              onProgress?.call(received);
+            }
+            out.add(chunk);
+          },
+        ),
+      );
+      await sink.addStream(trackedStream);
+    } on UsbTransferCancelled {
+      closed = true;
+      await sink.close();
+      try {
+        await file.delete();
+      } catch (_) {
+        // Bilinçli: yarım dosya temizliği.
+      }
+      rethrow;
     } on BlockDeviceException catch (e) {
       closed = true;
       await sink.close();
@@ -304,6 +340,7 @@ class UsbFs extends RemoteFs {
         await sink.close();
       }
     }
+    onProgress?.call(received);
     return file;
   }
 

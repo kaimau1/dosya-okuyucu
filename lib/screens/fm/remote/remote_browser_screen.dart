@@ -1,24 +1,41 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/app_colors.dart';
 import '../../../core/app_icons.dart';
+import '../../../core/app_state.dart';
 import '../../../core/busy_dialog.dart';
 import '../../../core/l10n/app_strings.dart';
+import '../../../core/safe_insets.dart';
+import '../../../core/theme.dart';
 import '../../../models/fs_entry.dart';
 import '../../../models/remote_connection.dart';
 import '../../../services/file_service.dart';
 import '../../../services/fm/entry_opener.dart';
+import '../../../services/fm/file_ops.dart';
 import '../../../services/fm/fm_env.dart';
+import '../../../services/fm/fresh_cache.dart';
+import '../../../services/fm/fs_events.dart';
 import '../../../services/fm/fs_scan.dart';
+import '../../../services/fm/job_queue.dart' show JobCancelled;
 import '../../../services/fm/remote/remote_fs.dart';
 import '../../../services/fm/remote/remote_fs_factory.dart';
+import '../../../services/fm/remote/saf_fs.dart';
 import '../../../services/fm/remote/usb_fs.dart';
 import '../../../widgets/app_dialog.dart';
+import '../../../widgets/fm/fm_category_tile.dart';
 import '../../../widgets/fm/fm_entry_icon.dart';
+import '../../../widgets/fm/fm_progress_dialog.dart';
+import '../../../widgets/fm/paste_conflict_sheet.dart';
+import '../../../widgets/section_header.dart';
 import '../browser_screen.dart';
+import '../folder_picker_screen.dart';
 import 'remote_edit_screen.dart';
 import '../../../core/snack.dart';
 import '../../../widgets/motion.dart';
@@ -74,6 +91,18 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
   /// Ham USB'de birimin doluluğu ("47,4 GB / 62 GB"); bilinmiyorsa boş.
   String _usage = '';
 
+  /// USB / SAF bellekler için ana menü tarzı kategori görünümü ↔ klasik klasörler.
+  static const _viewPrefKey = 'usb_view_home';
+  bool _usbHomeMode = false;
+  FmCategory? _usbCat;
+  Map<FmCategory, List<RemoteEntry>> _usbCats = const {};
+  List<RemoteEntry> _usbRecent = const [];
+  bool _scanningHome = false;
+  int _scanGen = 0;
+
+  bool get _supportsHomeView => _fs is UsbFs || _fs is SafFs;
+  bool get _inUsbHome => _supportsHomeView && _usbHomeMode;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +111,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
 
   @override
   void dispose() {
+    _scanGen++;
     _fs.close();
     super.dispose();
   }
@@ -115,9 +145,22 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
     // Geri tuşu önce KLASÖR hiyerarşisinde yukarı çıkar; ekrandan çıkmaz.
     // Aksi hâlde kullanıcı beş klasör derinken tek dokunuşla dışarı atılırdı.
     return PopScope(
-      canPop: _atRoot,
+      canPop: _selecting
+          ? false
+          : _inUsbHome
+              ? _usbCat == null
+              : _atRoot,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _up();
+        if (didPop) return;
+        if (_selecting) {
+          setState(_selected.clear);
+          return;
+        }
+        if (_inUsbHome && _usbCat != null) {
+          setState(() => _usbCat = null);
+          return;
+        }
+        _up();
       },
       child: Scaffold(
         appBar: _selecting
@@ -136,8 +179,13 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                   ),
                   onChanged: (v) => setState(() => _filter = v),
                 )
-              : Text(widget.connection.name,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              : Text(
+                  _usbCat != null
+                      ? context.t(_usbCat!.labelKey)
+                      : widget.connection.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(28),
             child: Padding(
@@ -148,7 +196,7 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
                 child: Text(
                     // Yol her zaman görünür; uyarı ve doluluk yanına ekleniyor.
                     [
-                      _path,
+                      _inUsbHome ? '/' : _path,
                       if (_usage.isNotEmpty) _usage,
                       if (_readOnlyNote.isNotEmpty) _readOnlyNote,
                     ].join('  ·  '),
@@ -159,6 +207,14 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
             ),
           ),
           actions: [
+            if (_supportsHomeView)
+              IconButton(
+                tooltip: context.t(
+                    _usbHomeMode ? 'usb.view_folders' : 'usb.view_home'),
+                icon: Icon(
+                    _usbHomeMode ? AppIcons.folder : AppIcons.spaceDashboard),
+                onPressed: () => unawaited(_toggleUsbView(!_usbHomeMode)),
+              ),
             IconButton(
               tooltip: context.t('nas.filter_hint'),
               icon: Icon(_searching ? AppIcons.searchOff : AppIcons.search),
@@ -170,7 +226,9 @@ class _RemoteBrowserScreenState extends State<RemoteBrowserScreen> {
             IconButton(
               tooltip: context.t('common.refresh'),
               icon: const Icon(AppIcons.refresh),
-              onPressed: _busy ? null : () => _load(_path),
+              onPressed: _busy
+                  ? null
+                  : () => _inUsbHome ? _scanUsbHome() : _load(_path),
             ),
             PopupMenuButton<String>(
               onSelected: _onMenu,

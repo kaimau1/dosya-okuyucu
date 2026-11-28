@@ -60,6 +60,7 @@ part 'strings/53_play_release.dart';
 part 'strings/54_arabic_ocr.dart';
 part 'strings/55_yer_ac.dart';
 part 'strings/56_kalem.dart';
+part 'strings/57_denetim_usb.dart';
 part 'locales/id.dart';
 part 'locales/ms.dart';
 
@@ -233,4 +234,5 @@ const Map<String, (String, String, String)> _table = {
   ..._t54,
   ..._t55,
   ..._t56,
+  ..._t57,
 };

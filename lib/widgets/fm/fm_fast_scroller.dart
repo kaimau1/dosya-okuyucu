@@ -113,7 +113,7 @@ class _FmFastScrollerState extends State<FmFastScroller> {
       });
     }
     final pos = _position;
-    if (pos != null) {
+    if (pos != null && (_pixels.value - pos.pixels).abs() > 0.5) {
       _pixels.value = pos.pixels;
     }
     if (!_visible) {

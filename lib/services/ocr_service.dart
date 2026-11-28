@@ -136,6 +136,10 @@ class OcrService {
   // varlığını yerel kanaldan sorgula.
   static bool _unavailable = false;
 
+  /// Bu oturumda cihazda Play Hizmetleri / ML Kit yoksa true döner; arka plan
+  /// ve sayfa OCR'ı bitmap çizmeden hemen çıkar.
+  static bool get isUnavailable => _unavailable;
+
   /// `processImage` + "model iniyor" hatasında kısa bekleyip yeniden deneme;
   /// Play Hizmetleri yoksa ya da çağrı asılırsa [OcrUnavailable].
   static Future<RecognizedText> _process(
@@ -642,12 +646,15 @@ class OcrService {
     int targetWidth = 2400,
     bool enhance = false,
     bool losslessPng = true,
+    PdfPageRenderPriority priority = PdfPageRenderPriority.normal,
   }) async {
     final scale = (targetWidth / page.width).clamp(1.0, 4.0);
     final img = await page.render(
       fullWidth: page.width * scale,
       fullHeight: page.height * scale,
       backgroundColor: AppColors.page.toARGB32(),
+      flags: PdfPageRenderFlags.limitedImageCache,
+      priority: priority,
     );
     if (img == null) return null;
     final int w = img.width, h = img.height;

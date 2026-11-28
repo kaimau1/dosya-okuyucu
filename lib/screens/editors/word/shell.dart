@@ -167,8 +167,14 @@ extension _WordEditorScreenShellPart on _WordEditorScreenState {
               DocAction(
                 AppIcons.translate,
                 context.t('common.translate'),
-                () => TranslateFlow.run(context, widget.plainText,
-                    title: widget.name),
+                () async {
+                  final text = widget.plainText.trim().isNotEmpty
+                      ? widget.plainText
+                      : await FileService.extractOfficeText(
+                          widget.path, DocKind.word);
+                  if (!mounted) return;
+                  await TranslateFlow.run(context, text, title: widget.name);
+                },
               ),
               DocAction(AppIcons.share, context.t('common.share'),
                   editor == null ? null : _export),

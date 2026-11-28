@@ -11,6 +11,7 @@ extension _DashboardScreenVolumeWatchPart on _DashboardScreenState {
   /// kuyruğuna (StartupQueue) girer. Hafif profilde yalnız kayıtlı değer
   /// gösterilir; hesap, kullanıcı Uygulamalar ekranını açınca yapılır.
   Future<void> _loadAppsSize() async {
+    if (!Edition.current.has(Feature.installedApps)) return;
     const kBytes = 'dash_apps_bytes';
     const kAt = 'dash_apps_at';
     final prefs = await SharedPreferences.getInstance();
@@ -53,10 +54,11 @@ extension _DashboardScreenVolumeWatchPart on _DashboardScreenState {
               {'volume': volume.displayLabel(context.t)}),
           action: SnackBarAction(
             label: context.t('fm.usb_open'),
-            onPressed: () => unawaited(_push(BrowserScreen(path: volume.path))),
+            onPressed: () => unawaited(_push(UsbHomeScreen(volume: volume))),
           ),
         );
       } else if (change.detached.isNotEmpty) {
+        unawaited(SearchIndex.forget(change.detached));
         showSnack(context, context.t('fm.usb_detached'));
       }
     });
@@ -153,8 +155,7 @@ extension _DashboardScreenVolumeWatchPart on _DashboardScreenState {
       if (usb != null) {
         if (!mounted) return;
         _lastUsbOpen = DateTime.now();
-        await _push(BrowserScreen(
-            path: usb.path, title: usb.displayLabel(context.t)));
+        await _push(UsbHomeScreen(volume: usb));
         return;
       }
       await Future<void>.delayed(const Duration(milliseconds: 700));
@@ -304,9 +305,8 @@ extension _DashboardScreenVolumeWatchPart on _DashboardScreenState {
     _catchingUp = true;
     try {
       await FmEnv.ensureInit();
-      // Bütün birimler: kamerası SD karta çeken telefonda yeni fotoğraflar
-      // oraya düşüyor ve eskiden yakalama taramasına hiç girmiyordu.
-      final roots = StorageStats.hotFoldersForAll(FmEnv.volumeRoots);
+      // Çıkarılabilir USB hariç telefon + SD kart birimleri.
+      final roots = StorageStats.hotFoldersForAll(FmEnv.phoneRoots);
       if (roots.isEmpty) return;
       final fresh = await FsScan.freshFiles(roots);
       if (!mounted || fresh.isEmpty) return;

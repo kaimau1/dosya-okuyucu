@@ -40,6 +40,7 @@ class AudioTrimScreen extends StatefulWidget {
 
 class _AudioTrimScreenState extends State<AudioTrimScreen> {
   VideoPlayerController? _player;
+  AppLifecycleListener? _life;
   bool _failed = false;
   int _durationMs = 0;
   TrimRange _range = const TrimRange(0, 0);
@@ -58,6 +59,10 @@ class _AudioTrimScreenState extends State<AudioTrimScreen> {
   @override
   void initState() {
     super.initState();
+    _life = AppLifecycleListener(
+      onPause: () => unawaited(_player?.pause()),
+      onHide: () => unawaited(_player?.pause()),
+    );
     unawaited(_open());
   }
 
@@ -162,6 +167,7 @@ class _AudioTrimScreenState extends State<AudioTrimScreen> {
 
   @override
   void dispose() {
+    _life?.dispose();
     _snippetStop?.cancel();
     _seekDebounce?.cancel();
     _player

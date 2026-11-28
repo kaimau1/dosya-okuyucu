@@ -503,8 +503,7 @@ class PdfProEditController extends ChangeNotifier {
               _markup != PdfMarkupKind.none &&
               _markup != PdfMarkupKind.note &&
               _markup != PdfMarkupKind.stamp &&
-              _markup != PdfMarkupKind.freeText &&
-              _markup != PdfMarkupKind.eraser));
+              _markup != PdfMarkupKind.freeText));
 
   /// **Kalem kipi / avuç reddi** (Faz 60 m.2; eski kalem ekranının H9.3
   /// kuralı): bir kez kalem (stylus) dokunduysa bu oturumda YALNIZ kalem

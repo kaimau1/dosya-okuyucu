@@ -70,6 +70,9 @@ class LoadedDoc {
   /// dönüştür ve düzenle" kapısını gösterir (bkz. `LegacyConvert`).
   final String? legacyExt;
 
+  /// Dosya boyutu (bayt); bilinen türlerde (ör. PDF) ilk kareden önce doldurulur.
+  final int sizeBytes;
+
   const LoadedDoc({
     required this.path,
     required this.name,
@@ -81,6 +84,7 @@ class LoadedDoc {
     this.sourcePath,
     this.largeText = false,
     this.legacyExt,
+    this.sizeBytes = 0,
   });
 
   bool get isEditableText =>

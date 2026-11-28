@@ -35,6 +35,7 @@ import '../../models/document.dart';
 import '../../services/fm/reading_positions.dart';
 import '../../services/fm/safe_write.dart';
 import '../../services/conversion_service.dart';
+import '../../services/file_service.dart' show FileService;
 import '../../services/fm/activity_log.dart';
 import '../../services/fm/save_to_downloads.dart';
 import '../../services/ocr_service.dart' show OcrLine;
@@ -382,8 +383,14 @@ class _SlidesEditorScreenState extends State<SlidesEditorScreen>
               id: 'translate',
               icon: AppIcons.translate,
               label: context.t('common.translate'),
-              onTap: () => TranslateFlow.run(context, widget.plainText,
-                  title: widget.name),
+              onTap: () async {
+                final text = widget.plainText.trim().isNotEmpty
+                    ? widget.plainText
+                    : await FileService.extractOfficeText(
+                        widget.path, DocKind.slides);
+                if (!context.mounted) return;
+                await TranslateFlow.run(context, text, title: widget.name);
+              },
             ),
             EditorMenuItem(
               id: 'pdf',

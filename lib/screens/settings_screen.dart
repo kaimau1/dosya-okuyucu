@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_icons.dart';
 import '../core/app_state.dart';
+import '../core/edition.dart' show ProUnlock;
 import '../core/state/focused_states.dart';
 
 import '../core/l10n/app_strings.dart';
@@ -57,11 +58,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = settingsCategories(
-        developer: context.select<AppState, bool>((s) => s.developerMode));
+    final developer = context.select<AppState, bool>((s) => s.developerMode);
     final query = _query.trim();
 
-    return Scaffold(
+    return ValueListenableBuilder<bool>(
+      valueListenable: ProUnlock.owned,
+      builder: (context, _, _) {
+        final categories = settingsCategories(developer: developer);
+        return Scaffold(
       appBar: AppBar(
         title: Text(context.t('settings.title')),
         // Arama kutusu HEP açık, düğme arkasında değil: "ayarı bulamıyorum"
@@ -109,6 +113,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : MediaQuery.sizeOf(context).width >= 840 && categories.isNotEmpty
               ? _wideLayout(categories)
               : _categoryList(categories),
+    );
+      },
     );
   }
 

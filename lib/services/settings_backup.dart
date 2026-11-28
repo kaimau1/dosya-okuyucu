@@ -61,6 +61,14 @@ abstract final class SettingsBackup {
     'fm_locked_folders',
     'ai_pii_mask',
     'ai_send_consent',
+    'pro_purchase',
+    'pro_price',
+    'app_lock_on',
+    'azure_tts_key',
+    'ai_terms_',
+    'offline_mode',
+    'vault_autolock_',
+    'shared_ai_pool_',
   ];
 
   static bool isSecret(String key) =>

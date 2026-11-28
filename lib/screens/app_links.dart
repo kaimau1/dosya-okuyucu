@@ -12,6 +12,8 @@ import '../widgets/pro_gate.dart';
 import '../widgets/scan_flow.dart';
 import '../services/fm/entry_opener.dart';
 import '../services/fm/fm_env.dart';
+import '../services/fm/folder_lock.dart';
+import '../widgets/fm/pin_dialog.dart';
 import 'fm/bills_screen.dart';
 import 'fm/downloads_screen.dart';
 import 'fm/open_history_screen.dart';
@@ -96,7 +98,13 @@ Future<void> openAppLink(BuildContext context, String link) async {
   if (!isAllowedAppLink(link)) return;
   if (link.startsWith('file:')) {
     final path = link.substring(5);
-    if (path.isNotEmpty) await EntryOpener.open(context, path);
+    if (path.isEmpty) return;
+    final lockedFolders = context.read<AppState>().fmLockedFolders;
+    if (FolderLock.isLocked(path, lockedFolders)) {
+      final ok = await askPin(context, title: context.t('fm.locked_folder'));
+      if (!ok || !context.mounted) return;
+    }
+    await EntryOpener.open(context, path);
     return;
   }
   // Arka planda görünürlük bildirimi (kişisel derleme, ci/kisisel/NearbyBgService.kt):

@@ -93,21 +93,22 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
     for (final e in _entries) {
       if (e.path == path) return e;
     }
+    for (final list in _usbCats.values) {
+      for (final e in list) {
+        if (e.path == path) return e;
+      }
+    }
+    for (final e in _usbRecent) {
+      if (e.path == path) return e;
+    }
     return null;
   }
 
-  /// **Seçilenleri telefona kopyalar** — USB'nin bir numaralı kullanım amacı.
-  ///
-  /// Hedef `İndirilenler/Dosya Okuyucu`: kullanıcının ULAŞABİLECEĞİ bir yer.
-  /// (Dosyayı açmak da kopyalıyor ama uygulamanın özel klasörüne; oraya
-  /// kullanıcı giremez, dolayısıyla "kopyaladım" sayılmaz.)
-  ///
-  /// Klasörler bu turda atlanıyor ve sayısı kullanıcıya SÖYLENİYOR — sessizce
-  /// atlamak "kopyaladım sandım" demek olurdu.
+  /// **Seçilenleri telefona kopyalar** — Ana Menü hedef seçici, çakışma koruması
+  /// ve canlı MB/GB ilerleme penceresiyle.
   Future<void> _copyToPhone() async {
     final targets = [
-      for (final path in _selected)
-        ?_entryOf(path),
+      for (final path in _selected) ?_entryOf(path),
     ];
     final files = [for (final e in targets) if (!e.isDir) e];
     final skippedDirs = targets.length - files.length;
@@ -115,48 +116,128 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
       _snack(context.t('nas.copy_only_files'));
       return;
     }
-    final dir = p.join(FmEnv.primaryRoot, 'Download', 'Dosya Okuyucu');
+    final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
+      builder: (_) => FolderPickerScreen(
+        sources: const [],
+        homeCards: true,
+        itemCount: files.length,
+        itemTitle: files.length == 1 ? files.first.name : null,
+        actionLabel: context.t('fm.copy_here'),
+      ),
+    ));
+    if (dest == null || !mounted) return;
+
+    final collisions = <String>[];
+    for (final f in files) {
+      if (await File(p.join(dest, f.name)).exists()) {
+        collisions.add(f.name);
+      }
+    }
+    if (!mounted) return;
+    var conflict = FmConflict.rename;
+    if (collisions.isNotEmpty) {
+      final chosen = await showPasteConflictSheet(context, names: collisions);
+      if (chosen == null || !mounted) return;
+      conflict = chosen;
+    }
+
     final messenger = ScaffoldMessenger.of(context);
     final okText = context.t('nas.copied_to_phone');
     final openText = context.t('common.open');
     final skippedText = context.t('nas.copy_skipped_dirs');
-    _partSetState(() {
-      _busy = true;
-      _progress = '0/${files.length}';
-    });
+    final title = context.t('fm.copying');
+    final jobName = context.t('fm.copying_name');
+    final totalBytes = files.fold<int>(0, (sum, e) => sum + e.sizeBytes);
+
     var done = 0;
+    var bytesDone = 0;
+    final copied = <String>[];
     String? failed;
+    var cancelled = false;
+
     try {
-      await Directory(dir).create(recursive: true);
-      for (final entry in files) {
-        try {
-          // Faz 41 / 8: yarım kalmış indirme (`.part`) aynı ada sürer.
-          final plain = p.join(dir, entry.name);
-          await _fs.downloadResumable(
-              entry,
-              await File('$plain.part').exists()
-                  ? plain
-                  : await _RemoteBrowserScreenState._uniquePath(
-                      dir, entry.name));
-          done++;
-        } catch (e) {
-          failed ??= entry.name;
+      await showFmProgress<void>(
+        context,
+        title: title,
+        name: jobName,
+        task: (report, isCancelled) async {
+          await Directory(dest).create(recursive: true);
+          for (final entry in files) {
+            if (isCancelled()) {
+              cancelled = true;
+              break;
+            }
+            var target = p.join(dest, entry.name);
+            if (await File(target).exists()) {
+              switch (conflict) {
+                case FmConflict.skip:
+                  done++;
+                  bytesDone += entry.sizeBytes;
+                  report(FmProgress(done, files.length, entry.name,
+                      bytesDone: bytesDone, bytesTotal: totalBytes));
+                  continue;
+                case FmConflict.rename:
+                  target = await _RemoteBrowserScreenState._uniquePath(
+                      dest, entry.name);
+                case FmConflict.overwrite:
+                  break;
+              }
+            }
+            report(FmProgress(done, files.length, entry.name,
+                bytesDone: bytesDone, bytesTotal: totalBytes));
+            try {
+              final downloaded = await _fs.downloadWithProgress(
+                entry,
+                target,
+                onProgress: (received) {
+                  report(FmProgress(
+                    done,
+                    files.length,
+                    entry.name,
+                    bytesDone: bytesDone + received,
+                    bytesTotal: totalBytes,
+                  ));
+                },
+                isCancelled: isCancelled,
+              );
+              copied.add(downloaded.path);
+              done++;
+              bytesDone += entry.sizeBytes;
+              report(FmProgress(done, files.length, entry.name,
+                  bytesDone: bytesDone, bytesTotal: totalBytes));
+            } on UsbTransferCancelled {
+              cancelled = true;
+              break;
+            } on JobCancelled {
+              cancelled = true;
+              break;
+            } catch (_) {
+              failed ??= entry.name;
+            }
+          }
+        },
+      );
+    } on UsbTransferCancelled {
+      cancelled = true;
+    } on JobCancelled {
+      cancelled = true;
+    }
+
+    if (copied.isNotEmpty) {
+      await FreshCache.noteAdded(copied);
+      FsEvents.changed(copied);
+      try {
+        if (mounted) {
+          await context.read<AppState>().rememberDestination(dest);
         }
-        if (!mounted) return;
-        _partSetState(() => _progress = '$done/${files.length}');
-      }
-    } finally {
-      if (mounted) {
-        _partSetState(() {
-          _busy = false;
-          _progress = null;
-        });
+      } catch (_) {
+        // Test ortamında AppState Provider yoksa güvenle atlanır.
       }
     }
     if (!mounted) return;
     _partSetState(_selected.clear);
     final parts = <String>[
-      '$okText ($done/${files.length})',
+      if (cancelled) context.t('pd.cancel') else '$okText ($done/${files.length})',
       if (skippedDirs > 0) '$skippedDirs $skippedText',
       if (failed != null) '· $failed',
     ];
@@ -164,11 +245,13 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
       messenger,
       parts.join(' '),
       duration: kSnackAction,
-      action: SnackBarAction(
-        label: openText,
-        onPressed: () => unawaited(Navigator.of(context).push(
-            browserRoute(BrowserScreen(path: dir)))),
-      ),
+      action: copied.isEmpty
+          ? null
+          : SnackBarAction(
+              label: openText,
+              onPressed: () => unawaited(Navigator.of(context).push(
+                  browserRoute(BrowserScreen(path: dest)))),
+            ),
     );
   }
 
@@ -229,11 +312,28 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
       );
     }
 
+    if (_inUsbHome && _usbCat == null) {
+      return _usbHomeBody();
+    }
+
     final isSmbRoot = widget.connection.protocol == RemoteProtocol.smb &&
         (_path == '/' || _path.isEmpty);
+    final showingCategory = _inUsbHome && _usbCat != null;
 
     return Column(
       children: [
+        if (showingCategory)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Gap.md, Gap.xs, Gap.md, 0),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ActionChip(
+                avatar: const Icon(AppIcons.back, size: 16),
+                label: Text(context.t('usb.view_home')),
+                onPressed: () => _partSetState(() => _usbCat = null),
+              ),
+            ),
+          ),
         // Toplu iş sürerken kaç dosya bitti? Sessiz bir bekleme, kullanıcıya
         // "takıldı mı?" dedirtiyordu.
         if (_progress != null)
@@ -268,47 +368,167 @@ extension _RemoteBrowserScreenViewsPart on _RemoteBrowserScreenState {
                       icon: AppIcons.searchOff,
                       title: context.t('nas.no_match'))
               : RefreshIndicator(
-                  onRefresh: () => _load(_path),
+                  onRefresh: () =>
+                      showingCategory ? _scanUsbHome() : _load(_path),
                   child: ListView.separated(
-                    itemCount: _visible.length + (_atRoot ? 0 : 1),
+                    itemCount: _visible.length +
+                        ((showingCategory || _atRoot) ? 0 : 1),
                     separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (_, i) {
-                      if (!_atRoot && i == 0) {
+                      if (!showingCategory && !_atRoot && i == 0) {
                         return ListTile(
                           leading: const Icon(AppIcons.arrowUp),
                           title: const Text('..'),
                           onTap: _selecting ? null : _up,
                         );
                       }
-                      final entry = _visible[_atRoot ? i : i - 1];
-                      final selected = _selected.contains(entry.path);
-                      // **Tür simgesi ve rengi** (kullanıcı 2026-09-02
-                      // dışarıdan bakış): jenerik "dosya" simgesi listeyi
-                      // okunmaz yapıyordu; yerel gezginle aynı dil.
-                      final category = FsEntry.categoryForExtension(
-                          p.extension(entry.name).replaceFirst('.', ''),
-                          isDir: entry.isDir);
-                      return ListTile(
-                        selected: selected,
-                        leading: selected
-                            ? const Icon(AppIcons.checkCircle)
-                            : Icon(FmColors.iconFor(category),
-                                color: FmColors.forCategory(category)),
-                        title: Text(entry.name,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_subtitle(entry)),
-                        onTap: () => _selecting
-                            ? _toggle(entry)
-                            : _open(entry),
-                        // Uzun basış HER ZAMAN seçim başlatır (salt okunur
-                        // bellekte de): kopyalamak yazma gerektirmiyor.
-                        onLongPress: () => _toggle(entry),
-                      );
+                      final entry = _visible[
+                          (showingCategory || _atRoot) ? i : i - 1];
+                      return _entryTile(entry);
                     },
                   ),
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _entryTile(RemoteEntry entry) {
+    final selected = _selected.contains(entry.path);
+    final category = FsEntry.categoryForExtension(
+        p.extension(entry.name).replaceFirst('.', ''),
+        isDir: entry.isDir);
+    return ListTile(
+      selected: selected,
+      leading: selected
+          ? const Icon(AppIcons.checkCircle)
+          : Icon(FmColors.iconFor(category),
+              color: FmColors.forCategory(category)),
+      title: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(_subtitle(entry)),
+      onTap: () => _selecting ? _toggle(entry) : _open(entry),
+      onLongPress: () => _toggle(entry),
+    );
+  }
+
+  Widget _usbHomeBody() {
+    String sub(FmCategory c) {
+      final list = _usbCats[c] ?? const <RemoteEntry>[];
+      if (list.isEmpty) return context.t('fm.none');
+      final total = list.fold<int>(0, (s, e) => s + e.sizeBytes);
+      return '${FsPaths.humanSize(total)} (${list.length})';
+    }
+
+    FmTileData cat(FmCategory c, FmTileArt? art) => FmTileData(
+          id: 'usb_raw_${c.name}',
+          icon: FmColors.iconFor(c),
+          color: FmColors.forCategory(c),
+          art: art,
+          label: context.t(c.labelKey),
+          subtitle: sub(c),
+          onTap: () => _partSetState(() => _usbCat = c),
+        );
+
+    final q = _filter.trim().toLowerCase();
+    final recent = [
+      for (final e in _usbRecent)
+        if (q.isEmpty || e.name.toLowerCase().contains(q)) e,
+    ];
+    final totalFound = _usbCats.values.fold<int>(0, (s, l) => s + l.length);
+    final scheme = Theme.of(context).colorScheme;
+
+    return RefreshIndicator(
+      onRefresh: _scanUsbHome,
+      child: ListView(
+        padding: withNavInset(
+            context, const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl)),
+        children: [
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Padding(
+              padding: const EdgeInsets.all(Gap.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(AppIcons.external, size: 28, color: scheme.primary),
+                      const SizedBox(width: Gap.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.connection.name,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_usage.isNotEmpty || _readOnlyNote.isNotEmpty)
+                              Text(
+                                [
+                                  if (_usage.isNotEmpty) _usage,
+                                  if (_readOnlyNote.isNotEmpty) _readOnlyNote,
+                                ].join(' · '),
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton.icon(
+                      onPressed: () => unawaited(_toggleUsbView(false)),
+                      icon: const Icon(AppIcons.folder, size: 18),
+                      label: Text(context.t('usb.all_folders')),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_scanningHome)
+            const Padding(
+              padding: EdgeInsets.only(top: Gap.sm),
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+          const SizedBox(height: Gap.md),
+          FmCategoryGrid(
+            tiles: [
+              cat(FmCategory.document, FmTileArt.document),
+              cat(FmCategory.image, FmTileArt.photos),
+              cat(FmCategory.video, FmTileArt.video),
+              cat(FmCategory.audio, FmTileArt.audio),
+              cat(FmCategory.archive, null),
+              FmTileData(
+                id: 'usb_raw_folders',
+                icon: AppIcons.folder,
+                color: AppHues.teal,
+                label: context.t('usb.all_folders'),
+                subtitle: '$totalFound',
+                onTap: () => unawaited(_toggleUsbView(false)),
+              ),
+            ],
+          ),
+          SectionHeader(
+            context.t('usb.recent_on_drive'),
+            padding: const EdgeInsets.only(top: Gap.lg, bottom: Gap.xs),
+          ),
+          if (recent.isEmpty && !_scanningHome)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.lg),
+              child: Text(
+                context.t('usb.empty_drive'),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
+            for (final entry in recent) _entryTile(entry),
+        ],
+      ),
     );
   }
 

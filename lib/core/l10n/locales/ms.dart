@@ -10997,4 +10997,16 @@ const Map<String, String> _ms = {
       'Warna',
   'ink.tray_hint':
       'Ketik pen yang dipilih sekali lagi untuk tetapan. Butang stylus atau hujung belakangnya memadam.',
+  'usb.view_home': 'Paparan utama',
+  'usb.view_folders': 'Folder',
+  'usb.all_folders': 'Semua folder',
+  'usb.recent_on_drive': 'Fail pada pemacu',
+  'usb.scanning_drive': 'Membaca pemacu…',
+  'usb.empty_drive': 'Tiada fail pada pemacu ini.',
+  'usb.copy_action': 'Salin',
+  'usb.empty_folder': 'Folder ini kosong',
+  'usb.free_short': '{size} kosong',
+  'usb.parent_folder': 'Folder induk',
+  'err.playback_failed': 'Fail media ini tidak dapat dimainkan.',
+  'voice.subtitle': 'Suara semula jadi pada peranti',
 };

@@ -145,6 +145,7 @@ class NearbyBle(private val activity: Activity) : MethodChannel.MethodCallHandle
                 nearbyBackground?.clearAsk(activity)
                 result.success(null)
             }
+            "needsLocation" -> result.success(Build.VERSION.SDK_INT < 31)
             "invite" -> invite(
                 call.argument<String>("address") ?: "",
                 call.argument<String>("payload") ?: "",

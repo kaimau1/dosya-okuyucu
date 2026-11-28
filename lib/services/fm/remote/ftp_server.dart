@@ -268,18 +268,32 @@ class FtpServer {
 
   /// Paylaşımda hiçbir zaman açılmaması gereken yol mu (şifreli kasa, gizli
   /// kasa, çöp kutusu, kilitli klasör veya gizli dosyalar kapalıyken nokta
-  /// ile başlayan parça)?
+  /// ile başlayan parça)? Hem ham yolu hem sembolik bağ hedefini denetler.
   bool isBlockedSharePath(String real) {
-    if (PrivateZone.isPrivatePath(real)) return true;
-    final segments = p
-        .relative(real, from: rootDirectory)
-        .split(RegExp(r'[\\/]+'))
-        .where((s) => s.isNotEmpty && s != '.');
-    for (final s in segments) {
-      if (s == TrashService.dirName) return true;
-      if (!showHidden && s.startsWith('.')) return true;
+    final candidates = <String>[real];
+    try {
+      final type = FileSystemEntity.typeSync(real, followLinks: false);
+      if (type != FileSystemEntityType.notFound) {
+        final resolved = type == FileSystemEntityType.directory
+            ? Directory(real).resolveSymbolicLinksSync()
+            : File(real).resolveSymbolicLinksSync();
+        if (resolved != real) candidates.add(resolved);
+      }
+    } catch (_) {
+      return true;
     }
-    if (FolderLock.isLocked(real, lockedFolders)) return true;
+    for (final candidate in candidates) {
+      if (PrivateZone.isPrivatePath(candidate)) return true;
+      final segments = p
+          .relative(candidate, from: rootDirectory)
+          .split(RegExp(r'[\\/]+'))
+          .where((s) => s.isNotEmpty && s != '.');
+      for (final s in segments) {
+        if (s == TrashService.dirName) return true;
+        if (!showHidden && s.startsWith('.')) return true;
+      }
+      if (FolderLock.isLocked(candidate, lockedFolders)) return true;
+    }
     return false;
   }
 
@@ -452,22 +466,48 @@ class _FtpSession {
 
   /// Pasif mod dinleyicisi — bir sonraki veri aktarımı burayı kullanır.
   ServerSocket? _pasv;
+  Timer? _idleTimer;
+  static const _idleTimeout = Duration(minutes: 5);
+  static const _maxLineBytes = 4096;
 
   _FtpSession(this.server, this.socket) {
     _authed = server.anonymous;
+    _resetIdle();
     // Kontrol soketi sıfırlanırsa `done` hatası yakalanmamış kalmasın.
     socket.done.ignore();
     _send('220 Dosya Okuyucu FTP');
     socket
         .cast<List<int>>()
-        .transform(utf8.decoder)
+        .transform(
+          StreamTransformer<List<int>, String>.fromHandlers(
+            handleData: (chunk, sink) {
+              if (chunk.length > _maxLineBytes) {
+                sink.addError(const FormatException('line_too_long'));
+                return;
+              }
+              sink.add(utf8.decode(chunk, allowMalformed: true));
+            },
+          ),
+        )
         .transform(const LineSplitter())
         .listen(
-          _onLine,
+          (line) {
+            if (line.length > _maxLineBytes) {
+              close();
+              return;
+            }
+            _resetIdle();
+            unawaited(_onLine(line));
+          },
           onError: (_) => close(),
           onDone: close,
-          cancelOnError: false,
+          cancelOnError: true,
         );
+  }
+
+  void _resetIdle() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(_idleTimeout, close);
   }
 
   /// Veri soketini sessizce kapatır: karşı taraf bağlantıyı sıfırladıysa
@@ -491,6 +531,8 @@ class _FtpSession {
   void close() {
     if (_doneCompleter.isCompleted) return;
     _doneCompleter.complete();
+    _idleTimer?.cancel();
+    _idleTimer = null;
     try {
       _pasv?.close();
     } catch (_) {

@@ -40,6 +40,7 @@ import '../../services/fm/usb/usb_host.dart';
 import '../../services/fm/volume_watcher.dart';
 import 'remote/remote_browser_screen.dart';
 import 'usb_diagnostics_screen.dart';
+import 'usb_home_screen.dart';
 import '../../services/crash_log.dart';
 import '../settings/crash_log_screen.dart';
 import '../../widgets/update_banner.dart';
@@ -537,8 +538,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             // UpdateBanner / SmartInbox ile _BleedPainter çakışmasın diye
             // bellek kartı en üstte, bildirimler hemen altında çizilir.
             if (bandHeroTop) ..._dashSection('storage', volumes, appState),
-            // Yeni sürüm uyarısı (kalıcı; dokununca indir + kur).
-            const UpdateBanner(),
+            // Yeni sürüm uyarısı (yalnız kişisel derlemede; Play'de kapalı).
+            if (!Edition.current.isPlay) const UpdateBanner(),
             // **Paylaşım açıkken panonun en üstünde bir şerit** (kullanıcı
             // isteği 2026-08-29: *"çalışırken uygulama içinde … görülmeli"*).
             // Bildirim paneli telefonun dışı; bu şerit uygulamanın içi. Telefonu

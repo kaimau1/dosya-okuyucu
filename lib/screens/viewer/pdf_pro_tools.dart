@@ -1295,9 +1295,29 @@ extension _ViewerScreenPdfProToolsPart on _ViewerScreenState {
         ),
         Builder(builder: (context) {
           final inset = MediaQuery.viewInsetsOf(context).bottom;
-          return inset > 0
-              ? PositionedDirectional(start: 0, end: 0, bottom: inset, child: bar)
-              : ReadingFloat(gap: 0, child: ToastAvoider(child: bar));
+          final c = ReadingChrome.maybeOf(context);
+          final nav = MediaQuery.paddingOf(context).bottom;
+          final content = ToastAvoider(child: bar);
+          if (c == null) {
+            return PositionedDirectional(
+              start: 0,
+              end: 0,
+              bottom: inset,
+              child: content,
+            );
+          }
+          return AnimatedBuilder(
+            animation: c.shown,
+            child: content,
+            builder: (context, child) => PositionedDirectional(
+              start: 0,
+              end: 0,
+              bottom: inset > 0
+                  ? inset
+                  : nav + (c.bottom - nav) * c.shown.value,
+              child: child!,
+            ),
+          );
         }),
         watch,
       ];

@@ -166,6 +166,12 @@ extension _ViewerScreenPdfReadingAidsPart on _ViewerScreenState {
   void _autoScrollTick(Duration now) {
     _autoScrollFrame = null;
     if (!mounted || _autoScroll == 0) return;
+    // Uygulama arka plandayken otomatik kaydırma ve wakelock dursun (pil).
+    final life = WidgetsBinding.instance.lifecycleState;
+    if (life != null && life != AppLifecycleState.resumed) {
+      _setAutoScroll(0);
+      return;
+    }
     final last = _autoScrollLast;
     _autoScrollLast = now;
     if (last != null && !_autoScrollHeld && _pdfController.isReady) {

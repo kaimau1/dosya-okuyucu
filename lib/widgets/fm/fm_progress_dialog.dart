@@ -5,6 +5,7 @@ import '../../core/l10n/app_strings.dart';
 import '../../core/snack.dart';
 import '../../core/theme.dart';
 import '../../services/fm/file_ops.dart';
+import '../../services/fm/fs_scan.dart' show FsPaths;
 import '../../services/fm/job_queue.dart' show FmJobTarget, JobCancelled;
 import '../../services/fm/tracked_task.dart';
 import '../live_progress.dart';
@@ -83,6 +84,20 @@ Future<T> showFmProgress<T>(
   /// Süresi bir güne ayarlı: SnackBar'ın kendiliğinden kaybolması istenmiyor,
   /// iş bitince `finally` içinde elle kaldırılıyor. Böylece "arka plana aldım
   /// ama iş sürüyor mu, bitti mi?" belirsizliği kalmıyor.
+  String formatCounter(FmProgress value) {
+    if (describe != null) return describe(value);
+    if (value.hasBytes) {
+      final doneStr = FsPaths.humanSize(value.bytesDone);
+      final totalStr = FsPaths.humanSize(value.bytesTotal);
+      final pct = (value.fraction * 100).round();
+      final filesSuffix =
+          value.total > 1 ? ' · ${value.done} / ${value.total}' : '';
+      return '$doneStr / $totalStr · %$pct$filesSuffix';
+    }
+    if (value.total > 0) return '${value.done} / ${value.total}';
+    return '';
+  }
+
   void showBackgroundBar() {
     // Denetleyici SAKLANIR: iş bitince `hideCurrentSnackBar()` çağırmak
     // "o an ne gösteriliyorsa onu kapat" demekti. SnackBar'lar sırayla
@@ -97,32 +112,30 @@ Future<T> showFmProgress<T>(
       context.mounted ? context : null,
       ValueListenableBuilder<FmProgress>(
         valueListenable: progress,
-        builder: (_, value, _) => Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Text(
-                [
-                  switch ((describe?.call(value), value.total)) {
-                    (final String d, _) when d.isNotEmpty => '$title · $d',
-                    (_, final int t) when t > 0 =>
-                      '$title · ${value.done} / ${value.total}',
-                    _ => '$title…',
-                  },
-                  // Kalan süre ("~2 dk kaldı") şeritte de.
-                  if (tracked.statusLine.isNotEmpty) tracked.statusLine,
-                ].join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+        builder: (_, value, _) {
+          final counter = formatCounter(value);
+          return Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: Text(
+                  [
+                    counter.isNotEmpty ? '$title · $counter' : '$title…',
+                    // Kalan süre ("~2 dk kaldı") şeritte de.
+                    if (tracked.statusLine.isNotEmpty) tracked.statusLine,
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          );
+        },
       ),
       actionLabel: cancellable ? stopLabel : null,
       onAction: cancellable ? () => cancelled = true : null,
@@ -167,9 +180,12 @@ Future<T> showFmProgress<T>(
                   borderRadius: BorderRadius.circular(Radii.control),
                   child: LiveProgress(
                     label: title,
-                    progress: value.total > 0 ? value.fraction : null,
+                    progress:
+                        (value.hasBytes || value.total > 0) ? value.fraction : null,
                     child: LinearProgressIndicator(
-                      value: value.total > 0 ? value.fraction : null,
+                      value: (value.hasBytes || value.total > 0)
+                          ? value.fraction
+                          : null,
                       minHeight: 6,
                     ),
                   ),
@@ -183,11 +199,9 @@ Future<T> showFmProgress<T>(
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(ctx).textTheme.bodySmall,
                 ),
-                  if (describe != null)
-                    Text(describe(value),
-                        style: Theme.of(ctx).textTheme.bodySmall)
-                  else if (value.total > 0)
-                    Text('${value.done} / ${value.total}',
+                  if (formatCounter(value) case final counter
+                      when counter.isNotEmpty)
+                    Text(counter,
                         style: Theme.of(ctx).textTheme.bodySmall),
                   // "%42 · ~2 dk kaldı" (işlem kaydedildikten sonra).
                   if (tracked.statusLine.isNotEmpty)
@@ -235,13 +249,15 @@ Future<T> showFmProgress<T>(
   try {
     final result = await task((p) {
       progress.value = p;
+      final counter = formatCounter(p);
       tracked.report(
-        done: p.done,
-        total: p.total,
+        done: p.hasBytes ? (p.fraction * 1000).round() : p.done,
+        total: p.hasBytes ? 1000 : p.total,
+        unit: p.hasBytes ? 0 : null,
         detail: [
           if (p.currentName.isNotEmpty) p.currentName,
-          if (describe != null) describe(p),
-        ].where((t) => t.isNotEmpty).join(' · '),
+          if (counter.isNotEmpty) counter,
+        ].join(' · '),
       );
     }, () => cancelled || tracked.cancelRequested);
     final summary = TrackedTask.summarize(result);

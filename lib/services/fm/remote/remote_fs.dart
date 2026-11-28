@@ -94,6 +94,15 @@ abstract class RemoteFs {
   /// Uzak dosyayı yerel [localPath]'e indirir.
   Future<File> download(RemoteEntry entry, String localPath);
 
+  /// İlerleme ve iptal bildirimli indirme (varsayılan: [download]'a düşer).
+  Future<File> downloadWithProgress(
+    RemoteEntry entry,
+    String localPath, {
+    void Function(int receivedBytes)? onProgress,
+    bool Function()? isCancelled,
+  }) =>
+      download(entry, localPath);
+
   /// Ofsetli okuma destekleniyor mu (kaldığı yerden devam)? Gerçekleme
   /// [downloadFrom]'u geçersiz kılıyorsa true döner.
   bool get canResume => false;

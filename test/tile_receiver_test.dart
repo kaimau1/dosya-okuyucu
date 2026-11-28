@@ -23,6 +23,9 @@ void main() {
     expect(TileReceiver.accepts(offer('Telefon', 'fp-1'), t), isTrue);
     expect(TileReceiver.accepts(offer('Telefon', 'fp-2'), t), isFalse);
     expect(TileReceiver.accepts(offer('Eski PC'), t), isFalse, reason: 'düz protokol ekransız kabul edilmez');
+    expect(TileReceiver.acceptsText('fp-1', t), isTrue);
+    expect(TileReceiver.acceptsText('fp-2', t), isFalse);
+    expect(TileReceiver.acceptsText('', t), isFalse);
   });
 
   test('geçmiş: başka motorun yazdığı satır eklemede korunur', () async {

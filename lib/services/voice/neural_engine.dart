@@ -79,19 +79,24 @@ class NeuralVoiceEngine {
 
   static Future<NeuralVoiceEngine> start() async {
     final server = await VoiceServer.start(NeuralVoiceStore.instance.root);
-    final controller = WebViewController();
-    final engine = NeuralVoiceEngine._(server, controller);
-    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-    // G6.2/G6.3: yalnız yerel ses sunucusu; dosya/içerik erişimi kapalı.
-    await WebViewGuard.harden(controller);
-    await controller.setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest:
-            WebViewGuard.navigationLock(server.base)));
-    await controller.addJavaScriptChannel('Ses', onMessageReceived: (m) {
-      if (WebViewGuard.acceptMessage(m.message)) engine._onMessage(m.message);
-    });
-    await controller.loadRequest(Uri.parse('${server.base}engine.html'));
-    return engine;
+    try {
+      final controller = WebViewController();
+      final engine = NeuralVoiceEngine._(server, controller);
+      await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+      // G6.2/G6.3: yalnız yerel ses sunucusu; dosya/içerik erişimi kapalı.
+      await WebViewGuard.harden(controller);
+      await controller.setNavigationDelegate(NavigationDelegate(
+          onNavigationRequest:
+              WebViewGuard.navigationLock(server.base)));
+      await controller.addJavaScriptChannel('Ses', onMessageReceived: (m) {
+        if (WebViewGuard.acceptMessage(m.message)) engine._onMessage(m.message);
+      });
+      await controller.loadRequest(Uri.parse('${server.base}engine.html'));
+      return engine;
+    } catch (_) {
+      await server.close();
+      rethrow;
+    }
   }
 
   void _onMessage(String raw) {

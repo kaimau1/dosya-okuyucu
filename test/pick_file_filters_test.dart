@@ -52,4 +52,22 @@ void main() {
             .map((e) => e.name),
         ['Belgeler', 'Arsiv', 'a.pdf', 'b.jpg', 'c.docx']);
   });
+
+  test('boyuta göre sıralama (en büyük / en küçük üstte)', () {
+    final sized = [
+      f('kucuk.pdf', size: 100, t: 1),
+      f('orta.pdf', size: 5000, t: 2),
+      f('buyuk.pdf', size: 200000, t: 3),
+    ];
+    expect(
+        pickVisibleEntries(sized, FmFilter.none,
+                sort: FmSort.size, sortDesc: true)
+            .map((e) => e.name),
+        ['buyuk.pdf', 'orta.pdf', 'kucuk.pdf']);
+    expect(
+        pickVisibleEntries(sized, FmFilter.none,
+                sort: FmSort.size, sortDesc: false)
+            .map((e) => e.name),
+        ['kucuk.pdf', 'orta.pdf', 'buyuk.pdf']);
+  });
 }

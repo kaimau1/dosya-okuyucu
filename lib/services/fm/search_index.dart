@@ -152,7 +152,7 @@ abstract final class SearchIndex {
   static Future<int> rebuild({List<String>? roots}) {
     final existing = _building;
     if (existing != null) return existing;
-    final future = _rebuild(roots ?? FmEnv.volumeRoots);
+    final future = _rebuild(roots ?? FmEnv.phoneRoots);
     _building = future;
     revision.value++;
     // Bellek sızmasın / bayrak takılı kalmasın.
@@ -428,7 +428,7 @@ abstract final class SearchIndex {
   /// uyumumuz yok"*). Dizinin kendisi zaten `FmEnv.volumeRoots` yürüyüşünden
   /// besleniyor; yedek yolun ondan dar olması tutarsızlıktı.
   static List<String> _rootsOf(String? root) =>
-      root == null ? FmEnv.volumeRoots : [root];
+      root == null ? FmEnv.phoneRoots : [root];
 
   /// Birden çok kökte arar ve sonuçları birleştirir ([limit]'e kadar).
   static Future<List<FsEntry>> _searchRoots(

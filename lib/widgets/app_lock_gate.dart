@@ -31,6 +31,22 @@ class AppLockGate extends StatefulWidget {
 
   const AppLockGate({super.key, required this.child});
 
+  static bool _lockedNow = false;
+  static final List<void Function(BuildContext)> _deferred = [];
+
+  /// Uygulama kilidi açıkken dışarıdan gelen bağlantı/bildirim aksiyonlarını
+  /// kilidin açılmasından SONRAYA erteler (kilit ekranı arkasına sayfa itilmesin).
+  static void runWhenUnlocked(
+    BuildContext? context,
+    void Function(BuildContext ctx) fn,
+  ) {
+    if (!_lockedNow) {
+      if (context != null && context.mounted) fn(context);
+      return;
+    }
+    _deferred.add(fn);
+  }
+
   @override
   State<AppLockGate> createState() => _AppLockGateState();
 }
@@ -92,10 +108,12 @@ class _AppLockGateState extends State<AppLockGate> {
     }
     if (!mounted) return;
     if (ok) {
+      AppLockGate._lockedNow = false;
       setState(() {
         _busy = false;
         _unlocked = true;
       });
+      _flushDeferred();
       return;
     }
     setState(() {
@@ -122,10 +140,27 @@ class _AppLockGateState extends State<AppLockGate> {
     });
   }
 
+  void _flushDeferred() {
+    if (AppLockGate._deferred.isEmpty) return;
+    final pending = List<void Function(BuildContext)>.of(AppLockGate._deferred);
+    AppLockGate._deferred.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      for (final fn in pending) {
+        if (mounted) fn(context);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final appLock = context.select<AppState, bool>((s) => s.appLock);
-    if (_unlocked || !appLock) return widget.child;
+    final locked = appLock && !_unlocked;
+    AppLockGate._lockedNow = locked;
+    if (!locked) {
+      if (AppLockGate._deferred.isNotEmpty) _flushDeferred();
+      return widget.child;
+    }
     final appState = context.read<AppState>();
     return SecureScreen(
         child: Scaffold(

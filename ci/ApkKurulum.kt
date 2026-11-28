@@ -315,8 +315,10 @@ object ApkKurulum {
     ) {
         val ctx = activity.applicationContext
         val action = "$ACTION.$id"
+        val nonce = java.util.UUID.randomUUID().toString()
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context, intent: Intent) {
+                if (intent.getStringExtra("nonce") != nonce) return
                 val status = intent.getIntExtra(
                     PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE
                 )
@@ -360,7 +362,7 @@ object ApkKurulum {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or
             (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
         val pi = PendingIntent.getBroadcast(
-            ctx, id, Intent(action).setPackage(ctx.packageName), flags
+            ctx, id, Intent(action).setPackage(ctx.packageName).putExtra("nonce", nonce), flags
         )
         try {
             session.commit(pi.intentSender)

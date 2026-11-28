@@ -350,7 +350,7 @@ class _JobReportScreenState extends State<JobReportScreen> {
     }
     final dest = await Navigator.of(context).push<String>(MaterialPageRoute(
       builder: (_) => FolderPickerScreen(
-          sources: paths, actionLabel: context.t('fm.move_here')),
+          sources: paths, homeCards: true, actionLabel: context.t('fm.move_here')),
     ));
     if (dest == null || !mounted) return;
     final str = AppStrings.of(context);

@@ -49,6 +49,8 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
 
     private var reservation: WifiManager.LocalOnlyHotspotReservation? = null
     private var joinCallback: ConnectivityManager.NetworkCallback? = null
+    private var hotspotGen = 0
+    private var joinGen = 0
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
@@ -220,11 +222,16 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
             }
         }
         stopHotspot()
+        val gen = ++hotspotGen
         val wifi = activity.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         var replied = false
         try {
             wifi.startLocalOnlyHotspot(object : WifiManager.LocalOnlyHotspotCallback() {
                 override fun onStarted(res: WifiManager.LocalOnlyHotspotReservation) {
+                    if (gen != hotspotGen) {
+                        try { res.close() } catch (_: Exception) {}
+                        return
+                    }
                     reservation = res
                     if (replied) return
                     replied = true
@@ -232,7 +239,7 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
                 }
 
                 override fun onStopped() {
-                    reservation = null
+                    if (gen == hotspotGen) reservation = null
                 }
 
                 override fun onFailed(reason: Int) {
@@ -266,6 +273,7 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
     }
 
     private fun stopHotspot() {
+        hotspotGen++
         reservation?.close()
         reservation = null
     }
@@ -276,6 +284,7 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
             return
         }
         leaveWifi()
+        val gen = ++joinGen
         var replied = false
         val main = Handler(Looper.getMainLooper())
         try {
@@ -291,6 +300,7 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
                 .build()
             val callback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
+                    if (gen != joinGen) return
                     cm.bindProcessToNetwork(network)
                     main.post {
                         if (!replied) {
@@ -301,10 +311,12 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
                 }
 
                 override fun onLost(network: Network) {
+                    if (gen != joinGen) return
                     try { cm.bindProcessToNetwork(null) } catch (_: Exception) {}
                 }
 
                 override fun onUnavailable() {
+                    if (gen != joinGen) return
                     if (joinCallback === this) joinCallback = null
                     main.post {
                         if (!replied) {
@@ -326,6 +338,7 @@ class QrTransfer(private val activity: Activity) : MethodChannel.MethodCallHandl
     }
 
     private fun leaveWifi() {
+        joinGen++
         val cb = joinCallback ?: return
         joinCallback = null
         cm.bindProcessToNetwork(null)

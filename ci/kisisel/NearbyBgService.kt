@@ -114,7 +114,13 @@ class NearbyBgService : Service() {
         super.onCreate()
         running = this
         try {
-            registerReceiver(btState, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+            val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(btState, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(btState, filter)
+            }
         } catch (_: Exception) {}
     }
 

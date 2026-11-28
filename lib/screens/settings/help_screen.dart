@@ -56,7 +56,8 @@ class HelpScreen extends StatelessWidget {
                 if (id == 'permissions') ...[
                   const SizedBox(height: 8),
                   for (final p in AppPermission.values)
-                    PermissionStatusRow(permission: p),
+                    if (p != AppPermission.overlay || !Edition.current.isPlay)
+                      PermissionStatusRow(permission: p),
                 ],
               ],
             ),

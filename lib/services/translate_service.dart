@@ -1,6 +1,8 @@
 import 'package:google_mlkit_translation/google_mlkit_translation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/l10n/app_language.dart';
+import '../core/l10n/app_strings.dart';
 import 'offline_mode.dart';
 
 /// Cihaz-içi çeviri (Google ML Kit). Dil modeli bir kez indirilir (dil başına
@@ -44,10 +46,19 @@ class TranslateService {
   /// varsayılanı `true` — yorum "Wi-Fi şartı yok" derken ML Kit mobil veride
   /// indirmeyi Wi-Fi gelene dek BEKLETİYORDU ve ilerleme penceresi hiç
   /// kapanmıyordu.
-  static Future<void> downloadModel(TranslateLanguage lang) async {
+  static Future<bool> downloadModel(TranslateLanguage lang) async {
+    if (OfflineMode.enabled) {
+      throw const OfflineException();
+    }
     // G10.4: ML Kit modeli Google sunucusundan iner (yerel kod, http dışı).
     NetGuard.allow('translate_model');
-    await _models.downloadModel(lang.bcpCode, isWifiRequired: false);
+    final ok = await _models
+        .downloadModel(lang.bcpCode, isWifiRequired: false)
+        .timeout(const Duration(seconds: 90), onTimeout: () => false);
+    if (!ok) {
+      throw StateError('translate_model_download_failed');
+    }
+    return true;
   }
 
   /// İndirilmiş dil modellerini siler; silinen sayıyı döner. İngilizce
@@ -164,9 +175,19 @@ class TranslateService {
   static Future<(TranslateLanguage from, TranslateLanguage to)>
       lastPair() async {
     final p = await SharedPreferences.getInstance();
+    final uiTarget = switch (AppStrings.current.language) {
+      AppLanguage.en => TranslateLanguage.english,
+      AppLanguage.ar => TranslateLanguage.arabic,
+      AppLanguage.id => TranslateLanguage.indonesian,
+      AppLanguage.ms => TranslateLanguage.malay,
+      _ => TranslateLanguage.turkish,
+    };
+    final uiSource = uiTarget == TranslateLanguage.english
+        ? TranslateLanguage.turkish
+        : TranslateLanguage.english;
     return (
-      _byCode(p.getString(_kFrom)) ?? TranslateLanguage.english,
-      _byCode(p.getString(_kTo)) ?? TranslateLanguage.turkish,
+      _byCode(p.getString(_kFrom)) ?? uiSource,
+      _byCode(p.getString(_kTo)) ?? uiTarget,
     );
   }
 

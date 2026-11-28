@@ -96,12 +96,13 @@ class PerfBudget {
       };
 
   /// PDF görüntüleyicinin sayfa bitmap önbelleği tavanı (pdfrx
-  /// `maxImageBytesCachedOnMemory`, varsayılan 100 MB). Faz 48: 2.12'de PSS
-  /// 1.3.5'e göre +%20 ölçüldü → profil başına tavan.
+  /// `maxImageBytesCachedOnMemory`). pdfrx her sayfayı 8×/12× bütçeyle
+  /// muhasebeleştirir; düşük tavan komşu sayfa ön-çizimini (`low` öncelikli)
+  /// her kaydırmada iptal edip boş sayfa flaşına yol açıyordu.
   int get pdfImageCacheBytes => switch (tier) {
-        DeviceTier.low => 40 << 20,
-        DeviceTier.mid => 64 << 20,
-        DeviceTier.high => 64 << 20,
+        DeviceTier.low => 56 << 20,
+        DeviceTier.mid => 96 << 20,
+        DeviceTier.high => 128 << 20,
       };
 
   /// Önbellekteki en çok görsel sayısı (varsayılan 1000).

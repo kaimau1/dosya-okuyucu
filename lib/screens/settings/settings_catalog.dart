@@ -942,7 +942,7 @@ Widget _hapticsTile(BuildContext _) => const HapticsTile();
 Widget _neuralVoicesTile(BuildContext context) => SettingTile(
   icon: AppIcons.voice,
   title: context.t('voice.title'),
-  subtitle: 'Antalia-2 Mini · EMA Lightning',
+  subtitle: context.t('voice.subtitle'),
   trailing: ProGate.locked(Feature.audiobook) ? const ProBadge() : null,
   onTap: () => ProGate.guard(
     context,

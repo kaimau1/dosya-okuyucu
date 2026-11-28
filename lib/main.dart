@@ -526,52 +526,48 @@ Future<void> _restoreJobs() async {
 /// İş kuyrukta yoksa (uygulama yeniden başlamış, kuyruk bellekte) İşlemler
 /// ekranı açılır — boş bir dokunuştansa listeye götürmek daha iyi.
 void _openFromNotification(String payload) {
-  final context = navigatorKey.currentContext;
-  if (context == null) return;
-  if (payload == FtpService.owner) {
-    unawaited(Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const FtpServerScreen())));
-    return;
-  }
-  if (payload == TransferKeeper.owner) {
-    unawaited(Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const NearbyScreen())));
-    return;
-  }
-  // **Müzik bildirimi ÇALAN PARÇAYA götürür** (kullanıcı 2026-09-02:
-  // *"üzerine tıklayınca müzik dosyasına değil işlemler sayfasına gidiyor"*).
-  // Yük tanınmayınca akış "iş bildirimi" varsayıp işlemler ekranını açıyordu.
-  if (payload.startsWith('audio:')) {
-    final path = payload.substring(6);
-    if (path.isNotEmpty) {
-      unawaited(Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => AudioPlayerScreen(
-          path: path,
-          playlist: AudioPlayback.instance.playlist,
-        ),
-      )));
+  AppLockGate.runWhenUnlocked(navigatorKey.currentContext, (context) {
+    if (payload == FtpService.owner) {
+      unawaited(Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const FtpServerScreen())));
+      return;
     }
-    return;
-  }
-  // Video bildirimi de kendi oynatıcısına götürür (aynı gerekçe).
-  if (payload.startsWith('video:')) {
-    final path = payload.substring(6);
-    if (path.isNotEmpty) {
-      unawaited(Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => MediaPlayerScreen(
-          path: path,
-          playlist: VideoPlayback.instance.playlist,
-        ),
-      )));
+    if (payload == TransferKeeper.owner) {
+      unawaited(Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const NearbyScreen())));
+      return;
     }
-    return;
-  }
-  final job = JobQueue.instance.find(payload);
-  if (job == null) {
-    unawaited(openJobsScreen(context));
-    return;
-  }
-  unawaited(openJobTarget(context, job));
+    if (payload.startsWith('audio:')) {
+      final path = payload.substring(6);
+      if (path.isNotEmpty) {
+        unawaited(Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AudioPlayerScreen(
+            path: path,
+            playlist: AudioPlayback.instance.playlist,
+          ),
+        )));
+      }
+      return;
+    }
+    if (payload.startsWith('video:')) {
+      final path = payload.substring(6);
+      if (path.isNotEmpty) {
+        unawaited(Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MediaPlayerScreen(
+            path: path,
+            playlist: VideoPlayback.instance.playlist,
+          ),
+        )));
+      }
+      return;
+    }
+    final job = JobQueue.instance.find(payload);
+    if (job == null) {
+      unawaited(openJobsScreen(context));
+      return;
+    }
+    unawaited(openJobTarget(context, job));
+  });
 }
 
 /// Widget/yerel bildirim bağlantısını açar (bkz. `openAppLink`). Navigator
@@ -582,7 +578,9 @@ void _openLink(String link) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _openLink(link));
     return;
   }
-  unawaited(openAppLink(context, link));
+  AppLockGate.runWhenUnlocked(context, (ctx) {
+    unawaited(openAppLink(ctx, link));
+  });
 }
 
 /// Uygulama durumunu ve ondan ayrılmış odaklı bildiricileri ağaca koyar

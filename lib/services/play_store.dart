@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/edition.dart';
 import 'crash_log.dart';
+import 'offline_mode.dart';
 
 /// Play İçi Değerlendirme + Uygulama İçi Güncelleme (KALANLAR A6.6, N5).
 ///
@@ -209,7 +210,7 @@ abstract final class PlayStore {
   /// güncelleme istenir. Eski sürümü keyfi tam ekranla kilitlemeyiz.
   /// İndirme bitince [downloaded] true olur (UI "Yeniden başlat" önerir).
   static Future<void> runOnStartup() async {
-    if (!build) return;
+    if (!build || OfflineMode.enabled) return;
     _listen();
     try {
       final info =

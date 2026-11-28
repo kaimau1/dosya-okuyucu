@@ -264,6 +264,8 @@ abstract final class PdfThumbnail {
         fullHeight: height.toDouble(),
         // Beyaz zemin: saydam çizim koyu temada okunmaz bir leke olurdu.
         backgroundColor: AppColors.page.toARGB32(),
+        flags: PdfPageRenderFlags.limitedImageCache,
+        priority: PdfPageRenderPriority.low,
       );
       if (rendered == null) {
         _markFailed(path);

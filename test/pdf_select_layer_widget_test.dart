@@ -214,8 +214,8 @@ void main() {
   });
 
   testWidgets(
-      'taranmış sayfa KENDİLİĞİNDEN tanınır: jest yok, çip yok, '
-      'sonrasında uzun basış anında seçer', (tester) async {
+      'taranmış sayfa arka planda OCR çalıştırmaz; uzun basışta tanır ve önbellekler',
+      (tester) async {
     final page = _FakePage(
         text: assembleOcrPageText(1, '', const []));
     var ocrCalls = 0;
@@ -227,23 +227,28 @@ void main() {
     addTearDown(PdfOcrText.debugReset);
 
     await pumpLayer(tester, page);
-    expect(ocrCalls, 0, reason: 'gecikme dolmadan OCR başlamamalı');
+    // Uzun süre beklesek bile dokunmadan arka plan OCR'ı koşmamalı.
+    await tester.pump(const Duration(seconds: 2));
+    expect(ocrCalls, 0,
+        reason: 'kaydırırken/okurken arka planda otomatik OCR çalışmamalı');
+    expect(page.loads, 0,
+        reason: 'dokunulmadan metin katmanı da PDFium kuyruğuna girmemeli');
 
-    // Hiç dokunmadan bekle: sayfa arka planda sessizce tanınmalı.
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.pump();
-    expect(ocrCalls, 1,
-        reason: 'OCR kullanıcı beklemeden kendiliğinden koşmalı');
-    expect(find.text('Metin tanınıyor…'), findsNothing,
-        reason: 'otomatik tur görünmez olmalı (çip yalnız beklerken)');
-
-    // Artık uzun basış OCR beklemeden anında kelime seçer.
+    // Uzun basış: talep anında OCR koşar ve basılan kelimeyi seçer.
     final g = await tester.startGesture(const Offset(15, 45));
     await tester.pump(const Duration(milliseconds: 600));
     await g.up();
     await tester.pump();
     expect(selections.last, 'Merhaba');
     expect(fromOcrLog.last, isTrue);
+    expect(ocrCalls, 1);
+
+    // İkinci uzun basışta önbellek kullanılır; ikinci OCR koşmaz.
+    final g2 = await tester.startGesture(const Offset(95, 45));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g2.up();
+    await tester.pump();
+    expect(selections.last, 'dünya');
     expect(ocrCalls, 1, reason: 'önbellek/tek-seferlik: ikinci OCR koşmamalı');
   });
 
@@ -370,17 +375,16 @@ void main() {
         ]),
       );
 
-  testWidgets('metin kurulur kurulmaz değil, gecikmeyle yüklenir',
+  testWidgets('metin kurulur kurulmaz değil, dokunulunca yüklenir',
       (tester) async {
     selections = [];
     final page = _FakePage(text: lineText('Merhaba dünya'));
     await tester.pumpWidget(bareLayer(page));
     await tester.pump();
-    expect(page.loads, 0,
-        reason: 'açılışta pdfium kuyruğuna ikinci metin işi girmemeli');
     await tester.pump(PdfSelectLayer.textLoadDelay);
     await tester.pump();
-    expect(page.loads, 1);
+    expect(page.loads, 0,
+        reason: 'dokunulmadan pdfium kuyruğuna metin işi girmemeli');
   });
 
   testWidgets('hızla geçilen sayfanın metni hiç yüklenmez', (tester) async {

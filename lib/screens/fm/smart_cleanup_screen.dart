@@ -86,7 +86,9 @@ class _SmartCleanupScreenState extends State<SmartCleanupScreen> {
         final cache = File(p.join(FmEnv.appSupportDir, 'smart_analysis.json'));
         final images = await SmartAnalysis.analyzeChatImages(
           all,
-          ocr: OcrService.recognizeImageFile,
+          ocr: (path) => OcrService.isUnavailable
+              ? Future<String>.value('')
+              : OcrService.recognizeImageFile(path),
           cacheFile: cache,
           isCancelled: () => handle.cancelled,
           onProgress: (done, total) => handle.report(

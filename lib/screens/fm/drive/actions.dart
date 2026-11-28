@@ -373,6 +373,9 @@ extension _DriveScreenActionsPart on _DriveScreenState {
       MaterialPageRoute(
         builder: (_) => FolderPickerScreen(
           sources: const [],
+          homeCards: true,
+          itemCount: 1,
+          itemTitle: file.name,
           actionLabel: context.t('drive.download_here'),
         ),
       ),
