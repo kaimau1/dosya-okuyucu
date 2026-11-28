@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -39,6 +40,9 @@ abstract final class ProPurchase {
 
   static bool get _enabled => Edition.current == Edition.lite;
 
+  static bool get _platformSupported =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+
   static StreamSubscription<List<PurchaseDetails>>? _sub;
   static Completer<ProBuyResult>? _pending;
   static Future<String?>? _priceFuture;
@@ -75,6 +79,7 @@ abstract final class ProPurchase {
 
   static Future<String?> _fetchPrice() async {
     if (OfflineMode.enabled) return storePrice.value;
+    if (!_platformSupported) return storePrice.value;
     try {
       if (!await InAppPurchase.instance
           .isAvailable()
@@ -121,6 +126,7 @@ abstract final class ProPurchase {
   static Future<bool?> verify() async {
     if (!_enabled) return ProUnlock.owned.value;
     if (OfflineMode.enabled) return null;
+    if (!_platformSupported) return null;
     try {
       _listen();
       if (!await InAppPurchase.instance
@@ -152,6 +158,7 @@ abstract final class ProPurchase {
   static Future<ProBuyResult> buy() async {
     if (!_enabled) return ProBuyResult.purchased;
     if (OfflineMode.enabled) return ProBuyResult.unavailable;
+    if (!_platformSupported) return ProBuyResult.unavailable;
     try {
       _listen();
       if (!await InAppPurchase.instance
